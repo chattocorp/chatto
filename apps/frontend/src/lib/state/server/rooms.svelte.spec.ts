@@ -15,7 +15,6 @@ import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_p
 import {
   ListNotificationGroupsResponse,
   NotificationGroup,
-  NotificationInboxState,
   NotificationOccurrence,
   NotificationRoomUnreadGroupCount,
   NotificationTarget
@@ -92,7 +91,7 @@ describe('NavigationStore', () => {
             occurrences: [
               new NotificationOccurrence({
                 id: `N${index}`,
-                inboxState: NotificationInboxState.UNREAD,
+                unread: true,
                 target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
               })
             ]

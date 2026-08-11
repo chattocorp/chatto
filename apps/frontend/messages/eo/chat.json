@@ -10,12 +10,8 @@
       "time_minutes": "{count}m antaŭ",
       "time_hours": "{count}h antaŭ",
       "time_days": "{count}d antaŭ",
-      "inbox": "Ricevujo",
-      "done": "Farite",
       "unread": "Nelegite",
-      "activity": "Nova aktiveco",
-      "mark_done": "Marki kiel farita",
-      "restore": "Movi al ricevujo"
+      "activity": "Nova aktiveco"
     },
     "sign_out": {
       "title": "Eliru",

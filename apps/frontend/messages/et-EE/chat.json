@@ -10,12 +10,8 @@
       "time_minutes": "{count}min tagasi",
       "time_hours": "{count}h tagasi",
       "time_days": "{count}p tagasi",
-      "inbox": "Postkast",
-      "done": "Tehtud",
       "unread": "Lugemata",
-      "activity": "Uus tegevus",
-      "mark_done": "Märgi tehtuks",
-      "restore": "Teisalda postkasti"
+      "activity": "Uus tegevus"
     },
     "sign_out": {
       "title": "Logi välja",

@@ -1436,7 +1436,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id, core.NotificationOccurrenceViewInbox)
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id)
 	if err != nil || len(occurrences) != 1 {
 		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
 	}
@@ -1467,9 +1467,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing
 		t.Fatalf("created notification operations = %+v, want one notification replacement", operations)
 	}
 
-	done := corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-	if _, err := env.core.NotificationOccurrences().Update(env.ctx, viewer.Id, occurrence.GetId(), core.UpdateNotificationOccurrenceInput{InboxState: &done}); err != nil {
-		t.Fatalf("move occurrence Done: %v", err)
+	if _, err := env.core.NotificationOccurrences().MarkRead(env.ctx, viewer.Id, occurrence.GetId()); err != nil {
+		t.Fatalf("mark occurrence read: %v", err)
 	}
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-updated",
@@ -1482,8 +1481,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing
 		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
 	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
-	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 0 || replacement.GetGroups().GetUnreadGroupCount() != 0 {
-		t.Fatalf("updated replacement = %+v, want empty Inbox groups", replacement)
+	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 1 || replacement.GetGroups().GetGroups()[0].GetUnread() || replacement.GetGroups().GetUnreadGroupCount() != 0 {
+		t.Fatalf("updated replacement = %+v, want one read group", replacement)
 	}
 	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
 		t.Fatalf("updated change = %+v", change)
@@ -1962,7 +1961,7 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if len(states) != 1 || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetHasUnread() {
 		t.Fatalf("thread viewer states = %+v, want followed root unread", states)
 	}
-	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, user.Id, core.NotificationOccurrenceViewInbox)
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, user.Id)
 	if err != nil || len(occurrences) != 0 {
 		t.Fatalf("off-policy notification occurrences = %+v, %v, want none", occurrences, err)
 	}

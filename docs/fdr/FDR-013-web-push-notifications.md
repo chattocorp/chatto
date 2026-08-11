@@ -24,9 +24,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
-- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries, then confirms that the occurrence is still unread and Alert-eligible, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking inbox triage, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
+- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries, then confirms that the occurrence is still unread and Alert-eligible, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
 - While Chatto is visible, its notification stores are authoritative for the app-icon badge. Declarative Web Push supplies the origin server's unread-group count while the app is closed or suspended.
-- Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Inbox state changes only through Chatto's read, Done, and delete actions or through covered room/thread read state.
+- Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
@@ -60,7 +60,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 ### 5. Native notification state is presentation-only
 
 **Decision:** Clicking or dismissing an OS notification does not mutate the
-Chatto inbox, and inbox actions do not claim that every push service can retract
+Chatto notification list, and in-app actions do not claim that every push service can retract
 an already delivered OS notification.
 **Why:** The persistent occurrence is authoritative and must not depend on
 browser-specific dismissal callbacks or unordered control pushes.
@@ -94,7 +94,7 @@ device after the occurrence is triaged until the person dismisses it there.
 ### 10. Late delivery and badge ownership
 
 **Decision:** Regular push delivery revalidates the exact unread Alert occurrence, target visibility, and active subscription immediately before sending. The visible app owns its aggregate multi-server badge; Declarative Web Push carries the origin server's unread-group count while the app is closed.
-**Why:** Occurrence materialization and push delivery are asynchronous, so a slower delivery can otherwise overtake read/Done/delete state, target removal, or subscription rotation. Revalidation keeps the push tied to current authoritative state without persisting a separate badge record.
+**Why:** Occurrence materialization and push delivery are asynchronous, so a slower delivery can otherwise overtake read/delete state, target removal, or subscription rotation. Revalidation keeps the push tied to current authoritative state without persisting a separate badge record.
 **Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. Concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate, and a closed-app count covers only the app's origin server.
 
 ### 11. High urgency only for user-visible pushes
@@ -103,7 +103,7 @@ device after the occurrence is triaged until the person dismisses it there.
 **Why:** Mobile operating systems may defer normal-urgency Web Push while a
 device is sleeping. Alert activity is user-visible and time-sensitive, so it
 should wake the device promptly. Chatto does not send separate dismissal
-pushes; inbox actions synchronize through normal app state when the client is
+pushes; read and delete actions synchronize through normal app state when the client is
 connected or next opens.
 **Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting push to Alert occurrences keeps that cost aligned with explicit user attention policy, while an already displayed OS notification may remain until the user dismisses it.
 
@@ -113,5 +113,5 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
-- **ADRs:** ADR-071 (deterministic notification occurrences), ADR-072 (triageable notification inbox)
+- **ADRs:** ADR-071 (deterministic notification occurrences), ADR-072 (persistent notification list)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)

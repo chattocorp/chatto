@@ -10,12 +10,8 @@
       "time_minutes": "Y a {count}m",
       "time_hours": "Y a {count}h",
       "time_days": "Y a {count}d",
-      "inbox": "Boîte de réception",
-      "done": "Terminé",
       "unread": "Non lu",
-      "activity": "Nouvelle activité",
-      "mark_done": "Marquer comme terminé",
-      "restore": "Déplacer vers la boîte de réception"
+      "activity": "Nouvelle activité"
     },
     "sign_out": {
       "title": "Se déconnecter",

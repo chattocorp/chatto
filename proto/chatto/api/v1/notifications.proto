@@ -41,32 +41,10 @@ enum NotificationDeliveryIntensity {
   NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
   // Matching activity does not create a notification occurrence.
   NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
-  // Matching activity appears in the inbox without interruptive delivery.
+  // Matching activity appears in the notification list without interruptive delivery.
   NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
-  // Matching activity appears in the inbox and may trigger sound or push.
+  // Matching activity appears in the notification list and may trigger sound or push.
   NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
-}
-
-// User-controlled triage state for one notification occurrence.
-enum NotificationInboxState {
-  // No inbox state was specified.
-  NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
-  // The occurrence is in Inbox and contributes unread attention.
-  NOTIFICATION_INBOX_STATE_UNREAD = 1;
-  // The occurrence remains in Inbox without contributing unread attention.
-  NOTIFICATION_INBOX_STATE_READ = 2;
-  // The occurrence is removed from Inbox and retained in Done.
-  NOTIFICATION_INBOX_STATE_DONE = 3;
-}
-
-// Selects one derived notification-inbox view.
-enum NotificationView {
-  // Defaults to Inbox on reads and mutations.
-  NOTIFICATION_VIEW_UNSPECIFIED = 0;
-  // Unread and read occurrences that have not been moved to Done.
-  NOTIFICATION_VIEW_INBOX = 1;
-  // Occurrences moved out of Inbox.
-  NOTIFICATION_VIEW_DONE = 2;
 }
 
 // One cause that matched an occurrence and its evaluated delivery intensity.
@@ -105,13 +83,13 @@ message NotificationOccurrence {
   repeated NotificationReasonMatch reasons = 6;
   // Strongest evaluated intensity across all matching causes.
   NotificationDeliveryIntensity strongest_intensity = 7;
-  // Current user-controlled inbox state.
-  NotificationInboxState inbox_state = 8;
+  // Whether this occurrence still contributes unread attention.
+  bool unread = 8;
   // Absolute expiry, 90 days after the source activity.
   google.protobuf.Timestamp expires_at = 10;
 }
 
-// A presentation group derived from occurrences in one view.
+// A presentation group derived from related notification occurrences.
 message NotificationGroup {
   // Stable ID derived from the viewer and grouping target.
   string id = 1;
@@ -122,8 +100,8 @@ message NotificationGroup {
   NotificationTarget open_target = 3;
   // True when at least one member occurrence is unread.
   bool unread = 4;
-  // Total number of occurrences in this group and view, including those not in
-  // the bounded preview.
+  // Total number of occurrences in this group, including those not in the
+  // bounded preview.
   int32 occurrence_count = 5;
   // Time of the newest occurrence.
   google.protobuf.Timestamp latest_at = 6;
@@ -140,23 +118,21 @@ message NotificationGroup {
 
 // Request for one page of grouped notification occurrences.
 message ListNotificationGroupsRequest {
-  // View to list. Unspecified selects Inbox.
-  NotificationView view = 1 [(buf.validate.field).enum.defined_only = true];
   // Page request. Defaults to 50 results when absent or limit is zero.
-  PageRequest page = 2;
+  PageRequest page = 1;
 }
 
 // One page of derived notification groups.
 message ListNotificationGroupsResponse {
-  // Groups in the selected view, newest activity first.
+  // Groups newest activity first.
   repeated NotificationGroup groups = 1;
   // Page metadata.
   PageInfo page = 2;
-  // Total unread group count in Inbox, independent of the selected view.
+  // Total unread group count.
   int32 unread_group_count = 3;
-  // Earliest expiry in the complete Inbox, including groups outside this page.
+  // Earliest expiry in the complete list, including groups outside this page.
   // Clients refresh authoritative notification state at this boundary.
-  google.protobuf.Timestamp next_inbox_expiry_at = 4;
+  google.protobuf.Timestamp next_expiry_at = 4;
   // Complete unread-group counts by target room. This is independent of the
   // bounded group page so room indicators remain authoritative.
   repeated NotificationRoomUnreadGroupCount room_unread_group_counts = 5;
@@ -166,24 +142,19 @@ message ListNotificationGroupsResponse {
 message NotificationRoomUnreadGroupCount {
   // Target room ID.
   string room_id = 1;
-  // Number of unread Inbox groups targeting this room.
+  // Number of unread groups targeting this room.
   int32 unread_group_count = 2;
 }
 
-// Patch one notification occurrence's triage state.
-message UpdateNotificationOccurrenceRequest {
+// Request to mark one notification occurrence read.
+message MarkNotificationReadRequest {
   // Required stable occurrence ID.
   string notification_id = 1 [(buf.validate.field).string.min_len = 1];
-  // New inbox state. Omit to leave unchanged.
-  optional NotificationInboxState inbox_state = 2 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
 }
 
-// Updated notification occurrence.
-message UpdateNotificationOccurrenceResponse {
-  // Occurrence after applying the patch.
+// Notification occurrence after marking it read.
+message MarkNotificationReadResponse {
+  // Updated occurrence.
   NotificationOccurrence notification = 1;
 }
 
@@ -200,31 +171,10 @@ message DeleteNotificationOccurrenceResponse {
   bool deleted = 1;
 }
 
-// Patch all current members of one derived notification group.
-message UpdateNotificationGroupRequest {
-  // Required stable group ID from the selected view.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // View whose current group members are updated. Unspecified selects Inbox.
-  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
-  // New inbox state. Omit to leave unchanged.
-  optional NotificationInboxState inbox_state = 3 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-}
-
-// Bounded acknowledgement for a group patch.
-message UpdateNotificationGroupResponse {
-  // Number of occurrences updated at the mutation boundary.
-  int32 updated_count = 1;
-}
-
 // Request permanent deletion of one derived notification group.
 message DeleteNotificationGroupRequest {
-  // Required stable group ID from the selected view.
+  // Required stable group ID.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // View whose current group members are deleted. Unspecified selects Inbox.
-  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
 }
 
 // Result of deleting one derived notification group.
@@ -281,12 +231,12 @@ message SetNotificationPolicyPreferenceResponse {
   repeated NotificationPolicyPreference preferences = 2;
 }
 
-// Reads and triages notifications for the authenticated viewer.
+// Reads, marks read, and deletes notifications for the authenticated viewer.
 service NotificationService {
-  // Lists the Notifications 2.0 Inbox or Done groups.
+  // Lists Notifications 2.0 groups.
   rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
-  // Patches one occurrence's inbox state.
-  rpc UpdateNotificationOccurrence(UpdateNotificationOccurrenceRequest) returns (UpdateNotificationOccurrenceResponse) {
+  // Marks one occurrence read. Repeating the call is safe.
+  rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes one occurrence while retaining its anti-recreation
@@ -294,11 +244,6 @@ service NotificationService {
   rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
-  // Patches occurrences currently belonging to one derived group.
-  // Group membership is captured when the request is handled. Callers must not
-  // retry this mutation automatically because later activity may reuse the
-  // same derived group ID.
-  rpc UpdateNotificationGroup(UpdateNotificationGroupRequest) returns (UpdateNotificationGroupResponse);
   // Permanently deletes occurrences currently belonging to one derived group.
   // Group membership is captured when the request is handled. Callers must not
   // retry this mutation automatically because later activity may reuse the

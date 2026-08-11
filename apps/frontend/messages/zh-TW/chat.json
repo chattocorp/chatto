@@ -10,12 +10,8 @@
       "time_minutes": "{count} 分鐘前",
       "time_hours": "{count} 小時前",
       "time_days": "{count} 天前",
-      "inbox": "收件匣",
-      "done": "已完成",
       "unread": "未讀",
-      "activity": "新動態",
-      "mark_done": "標記為已完成",
-      "restore": "移至收件匣"
+      "activity": "新動態"
     },
     "sign_out": {
       "title": "登出",

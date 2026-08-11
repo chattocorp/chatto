@@ -10,12 +10,8 @@
       "time_minutes": "před {count}m",
       "time_hours": "před {count}h",
       "time_days": "Před {count}d",
-      "inbox": "Doručené",
-      "done": "Hotovo",
       "unread": "Nepřečtené",
-      "activity": "Nová aktivita",
-      "mark_done": "Označit jako hotové",
-      "restore": "Přesunout do doručených"
+      "activity": "Nová aktivita"
     },
     "sign_out": {
       "title": "Odhlásit se",

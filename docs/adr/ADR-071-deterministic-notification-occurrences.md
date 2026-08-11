@@ -19,7 +19,7 @@ mentions, role mentions, `@here`, `@all`, replies, followed conversations, and
 reactions without introducing more fanout paths and more races.
 
 The source activity and notification preferences are durable domain facts, but
-a recipient's notification inbox is bounded, mutable, user-runtime state. We
+a recipient's notification list is bounded, mutable, user-runtime state. We
 need a design that preserves that boundary while making derivation recoverable,
 idempotent, and safe across replicas.
 
@@ -168,7 +168,7 @@ it:
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
-- inbox state, alert-delivery state, lifecycle timestamps, and absolute expiry
+- attention state, alert-delivery state, lifecycle timestamps, and absolute expiry
   time.
 
 It does not copy message bodies, room names, avatars, display names, or other
@@ -176,9 +176,9 @@ presentation data. Public assemblers hydrate current visible resources from
 their authoritative projections. If the target is retracted or the recipient
 loses visibility, the occurrence cannot preserve stale copied content.
 
-### Read-state and lifecycle convergence
+### Attention-state and lifecycle convergence
 
-Inbox state is distinct from room and thread read cursors. A read action also
+Notification attention state is distinct from room and thread read cursors. A read action also
 writes a bounded notification-read record containing the target timeline EVT
 sequence and the reaction projection's applied EVT horizon. Occurrence creation
 reads that boundary directly from KV after its initial write, while the read
@@ -193,10 +193,9 @@ read therefore remains new until another read action.
 New occurrence rows are initially persisted in an unfinalized, non-claimable
 state. Finalization applies the read boundary and only then makes an unread
 Alert claimable. A durable redelivery finalizes an interrupted row, but never
-reconciles an already-finalized row; an explicit later Mark unread therefore
-cannot be undone by duplicate source delivery.
+reconciles an already-finalized row or turns a Read occurrence back to Unread.
 
-User triage mutations, read reconciliation, retraction, reaction removal, and
+User read/delete mutations, read reconciliation, retraction, reaction removal, and
 visibility changes all use KV OCC. Causal cleanup and read reconciliation scan
 authoritative KV state rather than a potentially lagging replica-local index.
 Retraction, lost visibility, explicit
@@ -214,14 +213,13 @@ since rejoined. Replaying an old visibility loss cannot delete activity created
 after a later rejoin, regardless of replica clock skew.
 
 Notification policy changes affect future source activity. They do not rewrite
-or erase existing inbox history; users triage existing items explicitly.
+or erase existing notification history; users delete retained items explicitly.
 
 ### Absolute retention
 
 Every occurrence and tombstone has an absolute expiry 90 days after its source
 activity. Every KV mutation applies only the remaining lifetime. Marking an
-item read or unread, moving it to Done, or rewriting it as a
-tombstone never restarts the 90-day clock.
+item read or rewriting it as a tombstone never restarts the 90-day clock.
 
 ### Authoritative reads and delivery
 
@@ -251,7 +249,7 @@ replicas concurrently. Current transient conditions such as Do Not Disturb may
 silence delivery without suppressing the occurrence. Effect delivery is
 retryable and at least once; provider-level deduplication is used where
 available, but a crash after provider acceptance may produce a duplicate alert.
-Marking an occurrence Read or Done silences any pending or claimed Alert.
+Marking an occurrence Read silences any pending or claimed Alert.
 Workers verify the exact claim immediately before delivery and revalidate the
 current account, membership, unretracted target message, exact reaction, and
 subscription ownership before sending. Before account, room, message, or
@@ -264,7 +262,7 @@ mutation reads one occurrence or captures a derived group's members, it waits
 the durable notification consumer through a fresh worker boundary and then
 fences the process-local occurrence index through the resulting KV writes.
 Before list or realtime responses derive
-exhaustive totals and Inbox summaries, they capture the latest sequence for
+exhaustive totals and notification summaries, they capture the latest sequence for
 every notification-worker EVT filter and wait for the sole durable writer to
 acknowledge that boundary. The read then appends a `RUNTIME_STATE` fence marker
 and waits its process-local occurrence watcher through that marker's KV
@@ -294,11 +292,11 @@ a duplicate alert, consistent with the at-least-once contract.
 Notifications 2.0 uses a new persisted occurrence protobuf rather than
 changing the immutable `chatto.core.v1.Notification` storage message. Existing
 legacy notification records are neither migrated nor read. The cutover starts
-with an empty 2.0 inbox; old rows remain inert until their retention removes
+with an empty 2.0 list; old rows remain inert until their retention removes
 them. This is an intentional pre-1.0 product reset, not a dual-store period.
 
 The public `chatto.api.v1` notification and coarse-preference RPCs are removed
-at the same release boundary and replaced by the grouped inbox, occurrence,
+at the same release boundary and replaced by the grouped list, occurrence,
 group, and per-cause policy operations. The bundled client contains no fallback
 to the old API or preference levels. Older clients are therefore incompatible
 with an upgraded server for notifications, and the 0.5 client requires a 0.5
@@ -311,7 +309,7 @@ deployment can therefore briefly contain an older replica that still writes
 legacy records and a newer replica that writes 2.0 records, but neither family
 is translated into the other. Once all replicas are upgraded, only 2.0 records
 are produced. Rolling back restores the legacy implementation and its old
-inbox view; 2.0 occurrences and temporary work remain isolated and are not
+notification view; 2.0 occurrences and temporary work remain isolated and are not
 interpreted by that binary. No notification-only `EVT` variants are added, and
 message and reaction protobufs retain their existing wire shape.
 
@@ -331,8 +329,8 @@ message and reaction protobufs retain their existing wire shape.
   proportional to the user's result set rather than repeated KV scans.
 - The notification materializer needs explicit consumer-lag, retry, and health
   observability. Work older than the 90-day occurrence lifetime is deliberately
-  allowed to expire rather than create an already-expired inbox item.
+  allowed to expire rather than create an already-expired notification item.
 - Interruptive effects are recoverable but not exactly once; rare duplicate
   provider delivery remains possible.
 - The clean cutover deliberately discards legacy pending-notification history
-  from the new inbox and avoids a dual-read migration path.
+  from the new list and avoids a dual-read migration path.

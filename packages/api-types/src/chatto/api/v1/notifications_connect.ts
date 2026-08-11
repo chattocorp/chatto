@@ -3,11 +3,11 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
+import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Reads and triages notifications for the authenticated viewer.
+ * Reads, marks read, and deletes notifications for the authenticated viewer.
  *
  * @generated from service chatto.api.v1.NotificationService
  */
@@ -15,7 +15,7 @@ export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
     /**
-     * Lists the Notifications 2.0 Inbox or Done groups.
+     * Lists Notifications 2.0 groups.
      *
      * @generated from rpc chatto.api.v1.NotificationService.ListNotificationGroups
      */
@@ -26,14 +26,14 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Patches one occurrence's inbox state.
+     * Marks one occurrence read. Repeating the call is safe.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationOccurrence
+     * @generated from rpc chatto.api.v1.NotificationService.MarkNotificationRead
      */
-    updateNotificationOccurrence: {
-      name: "UpdateNotificationOccurrence",
-      I: UpdateNotificationOccurrenceRequest,
-      O: UpdateNotificationOccurrenceResponse,
+    markNotificationRead: {
+      name: "MarkNotificationRead",
+      I: MarkNotificationReadRequest,
+      O: MarkNotificationReadResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },
@@ -49,20 +49,6 @@ export const NotificationService = {
       O: DeleteNotificationOccurrenceResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * Patches occurrences currently belonging to one derived group.
-     * Group membership is captured when the request is handled. Callers must not
-     * retry this mutation automatically because later activity may reuse the
-     * same derived group ID.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationGroup
-     */
-    updateNotificationGroup: {
-      name: "UpdateNotificationGroup",
-      I: UpdateNotificationGroupRequest,
-      O: UpdateNotificationGroupResponse,
-      kind: MethodKind.Unary,
     },
     /**
      * Permanently deletes occurrences currently belonging to one derived group.

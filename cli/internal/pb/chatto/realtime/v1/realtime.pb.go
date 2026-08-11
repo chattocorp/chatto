@@ -2108,7 +2108,7 @@ type RealtimeProjectionNotificationsReplace struct {
 	// Live transition that caused this replacement, when one exists. Bootstrap,
 	// replay reconciliation, and compacted reset replacements omit this field.
 	Change *RealtimeProjectionNotificationChange `protobuf:"bytes,3,opt,name=change,proto3,oneof" json:"change,omitempty"`
-	// Authoritative Notifications 2.0 Inbox groups and unread group count.
+	// Authoritative Notifications 2.0 groups and unread group count.
 	Groups        *v1.ListNotificationGroupsResponse `protobuf:"bytes,4,opt,name=groups,proto3" json:"groups,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

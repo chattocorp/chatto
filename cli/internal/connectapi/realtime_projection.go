@@ -423,13 +423,13 @@ func (a *API) BuildRealtimeProjectionRoomViewerState(ctx context.Context, userID
 }
 
 // BuildRealtimeProjectionNotifications returns the viewer's authoritative
-// Notifications 2.0 Inbox groups. It is emitted on every resume because
+// Notifications 2.0 groups. It is emitted on every resume because
 // RUNTIME_STATE occurrence mutations have no EVT cursor.
 func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID string) (*RealtimeProjectionNotifications, error) {
 	if err := a.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
 		return nil, err
 	}
-	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
+	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -439,12 +439,12 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 	}
 	assembler := newNotificationAssembler(a)
 	// The page validation may have purged stale occurrences. Refresh the local
-	// index-backed groups before deriving aggregate Inbox counts.
-	groups, err = a.core.NotificationOccurrences().Groups(ctx, userID, core.NotificationOccurrenceViewInbox)
+	// index-backed groups before deriving aggregate counts.
+	groups, err = a.core.NotificationOccurrences().Groups(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	unreadGroups, nextInboxExpiryAt, roomCounts := notificationInboxSummary(groups)
+	unreadGroups, nextExpiryAt, roomCounts := notificationSummary(groups)
 	hydratedGroups, err := assembler.groups(ctx, page)
 	if err != nil {
 		return nil, err
@@ -454,7 +454,7 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 			Groups:                hydratedGroups,
 			Page:                  apiPageInfo(total, hasMore),
 			UnreadGroupCount:      unreadGroups,
-			NextInboxExpiryAt:     nextInboxExpiryAt,
+			NextExpiryAt:          nextExpiryAt,
 			RoomUnreadGroupCounts: roomCounts,
 		},
 	}, nil

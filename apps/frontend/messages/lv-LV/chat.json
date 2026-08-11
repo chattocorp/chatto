@@ -10,12 +10,8 @@
       "time_minutes": "Pirms {count}min",
       "time_hours": "Pirms {count}h",
       "time_days": "Pirms {count}d",
-      "inbox": "Iesūtne",
-      "done": "Pabeigts",
       "unread": "Nelasīts",
-      "activity": "Jauna aktivitāte",
-      "mark_done": "Atzīmēt kā pabeigtu",
-      "restore": "Pārvietot uz iesūtni"
+      "activity": "Jauna aktivitāte"
     },
     "sign_out": {
       "title": "Izrakstīties",

@@ -10,12 +10,8 @@
       "time_minutes": "{count}m منذ",
       "time_hours": "{count}h منذ",
       "time_days": "{count}d منذ",
-      "inbox": "الوارد",
-      "done": "تم",
       "unread": "غير مقروء",
-      "activity": "نشاط جديد",
-      "mark_done": "وضع علامة تم",
-      "restore": "نقل إلى الوارد"
+      "activity": "نشاط جديد"
     },
     "sign_out": {
       "title": "تسجيل الخروج",

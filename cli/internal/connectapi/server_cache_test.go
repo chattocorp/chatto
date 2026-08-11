@@ -45,7 +45,7 @@ func TestPublicRPCIdempotencyLevels(t *testing.T) {
 			name:    "update notification occurrence is idempotent",
 			file:    apiv1.File_chatto_api_v1_notifications_proto,
 			service: "NotificationService",
-			method:  "UpdateNotificationOccurrence",
+			method:  "MarkNotificationRead",
 			want:    descriptorpb.MethodOptions_IDEMPOTENT,
 		},
 		{

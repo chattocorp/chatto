@@ -9,42 +9,43 @@
 
 ## Overview
 
-Notifications are a persistent, user-scoped inbox for activity that deserves
+Notifications are a persistent, user-scoped list of activity that deserves
 attention. They cover direct messages, replies, mentions, followed
-conversations, reactions, and future attention causes. The inbox is modeled
-after GitHub notifications: users can keep read items, dismiss them to Done
-without opening them, or delete them. Related activity is grouped without
-losing the exact events and reasons underneath.
+conversations, reactions, and future attention causes. The list takes
+inspiration from GitHub notifications while using a simpler lifecycle: items
+are unread or read, and users delete items they no longer want to retain.
+Related activity is grouped without losing the exact events and reasons
+underneath.
 
 ## Behavior
 
-- The notification page is one chronological list. Unread and Read groups use
-  the normal treatment; Done groups remain in place as subdued handled history.
+- The notification page is one chronological list of Unread and Read groups.
+  Unread rows use Chatto's notification orange; Read rows remain visible
+  without unread emphasis.
 - Opening a notification navigates to the exact room, thread, and event. It
   marks that notification read; the room or thread becomes read only when the
   target is actually displayed.
-- Mark Read and Mark Unread organize the notification inbox without changing
-  the room or thread read cursor.
+- Mark Read is a one-way, idempotent attention transition. Notifications cannot
+  be marked unread.
 - Reading a room or thread marks covered notifications read. For a reaction,
   coverage follows the reacted-to message rather than the later reaction time.
-  It does not remove notifications from Inbox.
-- The check action marks a notification or group Done without requiring the
-  user to open or otherwise handle its source activity. It remains reviewable
-  in the same list with subdued styling.
-- Checking a Done item returns it to Inbox as Read. Delete removes it from the
-  visible list entirely.
-- Notifications expire 90 days after their source activity. Read, Done, and
-  other updates never extend that absolute lifetime.
+  It does not remove notifications from the list.
+- The trash action deletes a notification group without requiring the user to
+  open or otherwise handle its source activity.
+- Notifications expire 90 days after their source activity. Read and Delete
+  mutations never extend that absolute lifetime.
 - Related occurrences are grouped by conversation or target: DM room, thread,
   reacted-to message, or channel room. Later activity makes the grouping target
-  appear as active again while its earlier Done items remain subdued.
+  appear as unread again even when older occurrences in the group are read.
 - A group opens its newest unread occurrence, or its newest occurrence when all
   members are read. Individual occurrences retain exact destinations.
-- The bell count is the number of unread groups. Group rows may show how many
-  occurrences they contain.
+- The bell, current-server indicator, and installed-app badge are active when
+  at least one unread group exists. The public API still exposes exact unread
+  group counts for clients that need them; the bundled list does not render a
+  single-occurrence counter.
 - The combined multi-server list preserves results from healthy servers and
-  views when another source fails, and presents the failure as partial with a
-  retry instead of replacing the whole inbox with an error.
+  servers when another source fails, and presents the failure as partial with
+  a retry instead of replacing the whole list with an error.
 - Retraction, reaction removal, lost room visibility, and account deletion
   remove notifications that the user can no longer act on or view. List and
   mutation requests validate the exact current target after waiting local
@@ -79,11 +80,11 @@ losing the exact events and reasons underneath.
   notification work. A preference change that completed before the source
   attempt therefore applies to that activity; a retry recaptures policy as well
   as recipients.
-- Before a single-occurrence or group mutation reads its target membership,
+- Before a single-occurrence or group deletion reads its target membership,
   Chatto waits the durable notification worker through a fresh boundary and
   fences the serving replica's occurrence index through the worker's KV writes.
   Pending visibility cleanup cannot be bypassed by a stale triage request.
-- Inbox state, groups, counts, sounds, Web Push, and installed-app badges
+- Attention state, groups, counts, sounds, Web Push, and installed-app badges
   reconcile from authoritative server state after reconnect. Missing one live
   update cannot leave the client permanently wrong.
 
@@ -92,7 +93,7 @@ losing the exact events and reasons underneath.
 Every supported cause has an independent delivery intensity:
 
 - **Off** — do not create a notification occurrence for this cause.
-- **Badge** — create an occurrence and update inbox/badges without an
+- **Badge** — create an occurrence and update the list and badges without an
   interruptive sound, Web Push, or native notification.
 - **Alert** — create the same occurrence and allow configured interruptive
   delivery.
@@ -126,7 +127,7 @@ one occurrence containing every matched reason and uses the strongest effective
 intensity. The user's own activity does not notify them.
 
 Notification policy affects future activity. Changing a preference does not
-mark content read, rewrite existing notification intensity, or erase inbox
+mark content read, rewrite existing notification intensity, or erase retained
 history. Do Not Disturb and other temporary delivery conditions may silence an
 Alert while preserving its occurrence for later review.
 
@@ -138,29 +139,29 @@ Alert while preserving its occurrence for later review.
 - Following a thread or room establishes an ambient activity source whose
   delivery intensity is still controlled by notification policy.
 - Conversation subscriptions are changed through their owning room or thread
-  controls, not through the initial notification-inbox API.
+  controls, not through the initial notification API.
 
 ## Design Decisions
 
-### 1. A triageable inbox replaces delete-on-read pending alerts
+### 1. A persistent list replaces delete-on-read pending alerts
 
-**Decision:** Notification occurrences have Unread, Read, or Done inbox state;
-Delete is explicit.
-**Why:** Users need to review a read notification later and dismiss noise
-without pretending they opened it. This follows the useful parts of GitHub's
-Inbox/Done model. See ADR-072.
-**Tradeoff:** The inbox contains more state than a delete-only list, and the
-single list must merge and paginate active and Done groups without making their
-different states ambiguous.
+**Decision:** Notification occurrences are Unread or Read; Delete is explicit.
+There is no Done state and no Mark Unread operation.
+**Why:** Users need to review a read notification later and discard noise
+without pretending they opened it. A one-way attention transition keeps the
+useful persistence of GitHub-style notifications without its additional
+Inbox/Done organization. See ADR-072.
+**Tradeoff:** Read notifications consume bounded storage until deletion or
+expiry, and deleted notifications cannot be restored.
 
-### 2. Content read state and inbox triage are separate
+### 2. Content read state and notification attention are separate
 
 **Decision:** Room/thread read cursors can mark covered occurrences read, but
 notification actions do not advance content read state until the target is
 actually displayed.
 **Why:** “I cleared this alert” and “I read this conversation through here” are
 different claims. Keeping them separate closes accidental read receipts and
-allows direct Inbox cleanup. See ADR-028 and ADR-072.
+allows direct list cleanup. See ADR-028 and ADR-072.
 **Tradeoff:** A user can intentionally mark a notification read while its room
 still has unread messages.
 
@@ -200,14 +201,15 @@ removed the room's unread indicator.
 
 **Decision:** DM, thread, reaction, and room groups are presentation resources
 derived from member occurrences rather than independently mutable canonical
-records.
-**Why:** Grouping should reduce inbox noise without creating a second lifecycle
-that can drift from exact targets. A group-level action updates the members
-present at its authoritative boundary; later activity remains new. See ADR-072.
-**Tradeoff:** Group assembly and group actions require an indexed membership
+records. The only group mutation is deletion.
+**Why:** Grouping should reduce notification noise without creating a second
+lifecycle that can drift from exact targets. A group deletion removes the
+members present at its authoritative boundary; later activity remains new. See
+ADR-072.
+**Tradeoff:** Group assembly and group deletion require an indexed membership
 view and explicit concurrency semantics. Because later activity can reuse a
 derived group ID, group mutations are not safe for automatic retries after an
-ambiguous transport failure; their responses are bounded affected-count
+ambiguous transport failure; its response is a bounded affected-count
 acknowledgements and realtime delivery is coalesced to one invalidation.
 
 ### 7. Notifications retain references, not presentation copies
@@ -224,9 +226,9 @@ stale preview.
 
 ### 8. Ninety days is an absolute lifetime
 
-**Decision:** Every occurrence, including Done items, expires 90 days
+**Decision:** Every occurrence expires 90 days
 after the source activity. Mutations do not reset the clock.
-**Why:** The inbox is bounded attention state, not a permanent activity archive.
+**Why:** The notification list is bounded attention state, not a permanent activity archive.
 The limit gives predictable storage and privacy behavior while retaining three
 months of useful history. See ADR-071.
 **Tradeoff:** Notifications cannot be retained as a permanent personal archive.
@@ -247,13 +249,13 @@ while the notification worker catches up.
 **Decision:** Changing a cause intensity or conversation subscription does not
 retroactively rewrite existing occurrences.
 **Why:** Existing notifications explain decisions made when their activity
-occurred. Silent retroactive cleanup would make inbox history unpredictable.
+occurred. Silent retroactive cleanup would make notification history unpredictable.
 **Tradeoff:** After turning a cause Off, users may still need to triage older
 items from that cause.
 
 ### 11. Notifications 2.0 is a clean replacement
 
-**Decision:** The grouped inbox and per-cause policy replace the legacy pending
+**Decision:** The grouped notification list and per-cause policy replace the legacy pending
 notification list and coarse Muted/Normal/All Messages preferences at one
 release boundary. Existing pending rows and coarse preferences are not migrated
 or interpreted.
@@ -261,17 +263,17 @@ or interpreted.
 which state is authoritative and would preserve the limitations this redesign
 exists to remove. Historical persisted event variants remain decode-only so EVT
 replay stays valid. See ADR-071.
-**Tradeoff:** The 2.0 inbox starts empty after upgrade, prior preference choices
+**Tradeoff:** The 2.0 list starts empty after upgrade, prior preference choices
 must be set again, and older clients cannot use notifications on the upgraded
 server.
 
 ## Permissions
 
-Notification policy and inbox triage are user-scoped and require no RBAC
+Notification policy and notification mutations are user-scoped and require no RBAC
 permission. Visibility of the source room, message, thread, actor, or reaction
 still governs whether the notification can be listed and opened.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-071 (deterministic notification occurrences), ADR-072 (triageable notification inbox)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-071 (deterministic notification occurrences), ADR-072 (persistent notification list)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)

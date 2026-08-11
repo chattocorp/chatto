@@ -8,9 +8,7 @@ import type {
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   NotificationDeliveryIntensity,
-  NotificationInboxState,
-  NotificationReason,
-  NotificationView
+  NotificationReason
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
@@ -107,7 +105,7 @@ export type NotificationOccurrenceItem = {
     reason: NotificationReason;
     intensity: NotificationDeliveryIntensity;
   }>;
-  inboxState: NotificationInboxState;
+  unread: boolean;
   expiresAt?: string;
 };
 
@@ -128,15 +126,10 @@ export type NotificationGroupPage = {
   roomUnreadGroupCounts: Record<string, number>;
   totalCount: number;
   hasMore: boolean;
-  nextInboxExpiryAt?: string | null;
+  nextExpiryAt?: string | null;
 };
 
-export {
-  NotificationDeliveryIntensity,
-  NotificationInboxState,
-  NotificationReason,
-  NotificationView
-};
+export { NotificationDeliveryIntensity, NotificationReason };
 export type NotificationPolicyItem = {
   reason: NotificationReason;
   serverIntensity: NotificationDeliveryIntensity;
@@ -149,36 +142,18 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async listNotificationGroups(
-      view = NotificationView.INBOX,
-      limit = 50,
-      offset = 0
-    ): Promise<NotificationGroupPage> {
+    async listNotificationGroups(limit = 50, offset = 0): Promise<NotificationGroupPage> {
       return mapNotificationGroupPage(
-        await client.listNotificationGroups(
-          { view, page: { limit, offset } },
-          { headers: headers() }
-        )
+        await client.listNotificationGroups({ page: { limit, offset } }, { headers: headers() })
       );
     },
 
-    async updateNotificationGroup(
-      groupId: string,
-      view: NotificationView,
-      update: { inboxState?: NotificationInboxState }
-    ): Promise<void> {
-      await client.updateNotificationGroup({ groupId, view, ...update }, { headers: headers() });
-    },
-
-    async updateNotificationOccurrence(
-      notificationId: string,
-      update: { inboxState?: NotificationInboxState }
-    ): Promise<NotificationOccurrenceItem> {
-      const response = await client.updateNotificationOccurrence(
-        { notificationId, ...update },
+    async markNotificationRead(notificationId: string): Promise<NotificationOccurrenceItem> {
+      const response = await client.markNotificationRead(
+        { notificationId },
         { headers: headers() }
       );
-      if (!response.notification) throw new Error('Updated notification was not returned');
+      if (!response.notification) throw new Error('Read notification was not returned');
       return notificationOccurrence(response.notification);
     },
 
@@ -190,10 +165,9 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       return response.deleted;
     },
 
-    async deleteNotificationGroup(groupId: string, view: NotificationView): Promise<number> {
+    async deleteNotificationGroup(groupId: string): Promise<number> {
       return Number(
-        (await client.deleteNotificationGroup({ groupId, view }, { headers: headers() }))
-          .deletedCount
+        (await client.deleteNotificationGroup({ groupId }, { headers: headers() })).deletedCount
       );
     },
 
@@ -235,14 +209,11 @@ export function mapNotificationGroupPage(
     groups: response.groups.map(notificationGroup),
     unreadGroupCount: Number(response.unreadGroupCount),
     roomUnreadGroupCounts: Object.fromEntries(
-      response.roomUnreadGroupCounts.map((count) => [
-        count.roomId,
-        Number(count.unreadGroupCount)
-      ])
+      response.roomUnreadGroupCounts.map((count) => [count.roomId, Number(count.unreadGroupCount)])
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
-    nextInboxExpiryAt: response.nextInboxExpiryAt?.toDate().toISOString() ?? null
+    nextExpiryAt: response.nextExpiryAt?.toDate().toISOString() ?? null
   };
 }
 
@@ -285,7 +256,7 @@ export function notificationOccurrence(
     parentEventId: item.target?.parentEventId ?? null,
     reasons,
     reasonMatches,
-    inboxState: item.inboxState,
+    unread: item.unread,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
 }

@@ -10,12 +10,8 @@
       "time_minutes": "{count}m temu",
       "time_hours": "{count}h temu",
       "time_days": "{count}d temu",
-      "inbox": "Odebrane",
-      "done": "Gotowe",
       "unread": "Nieprzeczytane",
-      "activity": "Nowa aktywność",
-      "mark_done": "Oznacz jako gotowe",
-      "restore": "Przenieś do odebranych"
+      "activity": "Nowa aktywność"
     },
     "sign_out": {
       "title": "Wyloguj się",

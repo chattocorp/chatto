@@ -10,12 +10,8 @@
       "time_minutes": "Hace {count}m",
       "time_hours": "Hace {count}h",
       "time_days": "Hace {count}d",
-      "inbox": "Bandeja de entrada",
-      "done": "Listo",
       "unread": "No leído",
-      "activity": "Actividad nueva",
-      "mark_done": "Marcar como listo",
-      "restore": "Mover a la bandeja de entrada"
+      "activity": "Actividad nueva"
     },
     "sign_out": {
       "title": "Cerrar sesión",

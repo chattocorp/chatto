@@ -1476,7 +1476,7 @@ func TestMyAccountServiceSetAndDeleteCustomStatus(t *testing.T) {
 	}
 }
 
-func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
+func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-v2-actor", "Notification 2 Actor", "password")
@@ -1492,49 +1492,41 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-	}))
+	list, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
 	if err != nil {
-		t.Fatalf("ListNotificationGroups Inbox: %v", err)
+		t.Fatalf("ListNotificationGroups: %v", err)
 	}
-	if len(inbox.Msg.GetGroups()) != 1 || inbox.Msg.GetUnreadGroupCount() != 1 {
-		t.Fatalf("Inbox groups = %+v, unread = %d, want one unread group", inbox.Msg.GetGroups(), inbox.Msg.GetUnreadGroupCount())
+	if len(list.Msg.GetGroups()) != 1 || list.Msg.GetUnreadGroupCount() != 1 {
+		t.Fatalf("groups = %+v, unread = %d, want one unread group", list.Msg.GetGroups(), list.Msg.GetUnreadGroupCount())
 	}
-	if counts := inbox.Msg.GetRoomUnreadGroupCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadGroupCount() != 1 {
+	if counts := list.Msg.GetRoomUnreadGroupCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadGroupCount() != 1 {
 		t.Fatalf("room unread-group counts = %+v, want one group for %s", counts, dm.Id)
 	}
-	group := inbox.Msg.GetGroups()[0]
+	group := list.Msg.GetGroups()[0]
 	occurrence := group.GetOccurrences()[0]
 	if occurrence.GetTarget().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetEventId() != posted.Id ||
-		occurrence.GetInboxState() != apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		!occurrence.GetUnread() {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
 	}
 
-	done := apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-	if _, err := env.notifications.UpdateNotificationGroup(ctx, connect.NewRequest(&apiv1.UpdateNotificationGroupRequest{
-		GroupId:    group.GetId(),
-		View:       apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-		InboxState: &done,
+	if _, err := env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
+		NotificationId: occurrence.GetId(),
 	})); err != nil {
-		t.Fatalf("UpdateNotificationGroup Done: %v", err)
+		t.Fatalf("MarkNotificationRead: %v", err)
 	}
-	doneGroups, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_DONE,
-	}))
-	if err != nil || len(doneGroups.Msg.GetGroups()) != 1 {
-		t.Fatalf("ListNotificationGroups Done = %+v, %v, want one group", doneGroups, err)
+	readList, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil || len(readList.Msg.GetGroups()) != 1 || readList.Msg.GetGroups()[0].GetUnread() || readList.Msg.GetUnreadGroupCount() != 0 {
+		t.Fatalf("ListNotificationGroups after read = %+v, %v, want one read group", readList, err)
 	}
 
 	if _, err := env.notifications.DeleteNotificationGroup(ctx, connect.NewRequest(&apiv1.DeleteNotificationGroupRequest{
 		GroupId: group.GetId(),
-		View:    apiv1.NotificationView_NOTIFICATION_VIEW_DONE,
 	})); err != nil {
 		t.Fatalf("DeleteNotificationGroup: %v", err)
 	}
-	afterDelete, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{View: apiv1.NotificationView_NOTIFICATION_VIEW_DONE}))
+	afterDelete, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
 	if err != nil || len(afterDelete.Msg.GetGroups()) != 0 {
-		t.Fatalf("Done after delete = %+v, %v, want empty", afterDelete, err)
+		t.Fatalf("list after delete = %+v, %v, want empty", afterDelete, err)
 	}
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
@@ -1638,21 +1630,17 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	}
 
 	createStale("stale-list-" + posted.Id)
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-	}))
+	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
 	if err != nil || len(inbox.Msg.GetGroups()) != 0 {
 		t.Fatalf("ListNotificationGroups with retracted target = (%+v, %v), want empty", inbox, err)
 	}
 
 	staleUpdate := createStale("stale-update-" + posted.Id)
-	done := apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-	_, err = env.notifications.UpdateNotificationOccurrence(ctx, connect.NewRequest(&apiv1.UpdateNotificationOccurrenceRequest{
+	_, err = env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
 		NotificationId: staleUpdate.GetId(),
-		InboxState:     &done,
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
-		t.Fatalf("UpdateNotificationOccurrence retracted target code = %v, want not found", connect.CodeOf(err))
+		t.Fatalf("MarkNotificationRead retracted target code = %v, want not found", connect.CodeOf(err))
 	}
 }
 
@@ -1708,14 +1696,12 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 	}
 
 	first, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
 		Page: &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil || len(first.Msg.GetGroups()) != 1 || !first.Msg.GetPage().GetHasMore() || first.Msg.GetPage().GetTotalCount() != 2 {
 		t.Fatalf("first filtered page = (%+v, %v), want one of two with more", first, err)
 	}
 	second, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
 		Page: &apiv1.PageRequest{Limit: 1, Offset: 1},
 	}))
 	if err != nil || len(second.Msg.GetGroups()) != 1 || second.Msg.GetPage().GetHasMore() {
@@ -1790,7 +1776,6 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 	}
 
 	response, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
 		Page: &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil {
@@ -1822,7 +1807,7 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 		}
 	}
 
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX}))
+	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
 	if err != nil || len(inbox.Msg.GetGroups()) != 1 {
 		t.Fatalf("ListNotificationGroups = %+v, %v, want one group", inbox, err)
 	}
@@ -1830,12 +1815,12 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	if got := len(group.GetOccurrences()); got != notificationGroupOccurrencePreviewLimit {
 		t.Fatalf("group preview size = %d, want %d", got, notificationGroupOccurrencePreviewLimit)
 	}
-	if group.GetOccurrenceCount() != int32(notificationGroupOccurrencePreviewLimit+5) || group.GetOpenNotificationId() == "" || group.GetNextExpiryAt() == nil || inbox.Msg.GetNextInboxExpiryAt() == nil {
+	if group.GetOccurrenceCount() != int32(notificationGroupOccurrencePreviewLimit+5) || group.GetOpenNotificationId() == "" || group.GetNextExpiryAt() == nil || inbox.Msg.GetNextExpiryAt() == nil {
 		t.Fatalf("bounded group metadata = %+v", group)
 	}
 	projection, err := env.api.BuildRealtimeProjectionNotifications(env.ctx, env.viewer.Id)
-	if err != nil || projection.Groups.GetNextInboxExpiryAt() == nil {
-		t.Fatalf("realtime Inbox expiry boundary = %+v, %v", projection, err)
+	if err != nil || projection.Groups.GetNextExpiryAt() == nil {
+		t.Fatalf("realtime expiry boundary = %+v, %v", projection, err)
 	}
 
 	live, err := env.nc.SubscribeSync(subjects.LiveSyncUserEvent(env.viewer.Id, "notification_v2"))
@@ -1846,20 +1831,17 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	if err := env.nc.Flush(); err != nil {
 		t.Fatalf("flush notification subscription: %v", err)
 	}
-	done := apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-	updated, err := env.notifications.UpdateNotificationGroup(ctx, connect.NewRequest(&apiv1.UpdateNotificationGroupRequest{
-		GroupId:    group.GetId(),
-		View:       apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-		InboxState: &done,
+	updated, err := env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
+		NotificationId: group.GetOpenNotificationId(),
 	}))
-	if err != nil || updated.Msg.GetUpdatedCount() != int32(notificationGroupOccurrencePreviewLimit+5) {
-		t.Fatalf("UpdateNotificationGroup = %+v, %v", updated, err)
+	if err != nil || updated.Msg.GetNotification().GetUnread() {
+		t.Fatalf("MarkNotificationRead = %+v, %v", updated, err)
 	}
 	if _, err := live.NextMsg(2 * time.Second); err != nil {
 		t.Fatalf("wait for coalesced notification invalidation: %v", err)
 	}
 	if _, err := live.NextMsg(200 * time.Millisecond); err == nil {
-		t.Fatal("group update published more than one notification invalidation")
+		t.Fatal("mark read published more than one notification invalidation")
 	}
 }
 

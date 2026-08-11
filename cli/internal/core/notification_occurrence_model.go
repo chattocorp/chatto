@@ -43,17 +43,6 @@ type CreateNotificationOccurrenceInput struct {
 	SkipReadLookup       bool
 }
 
-type UpdateNotificationOccurrenceInput struct {
-	InboxState *corev1.NotificationInboxState
-}
-
-type NotificationOccurrenceView int
-
-const (
-	NotificationOccurrenceViewInbox NotificationOccurrenceView = iota
-	NotificationOccurrenceViewDone
-)
-
 type NotificationOccurrenceGroup struct {
 	ID          string
 	Key         string
@@ -223,7 +212,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 // finalizeOccurrence closes the cross-replica race between a read action and
 // occurrence creation. UpdatedAt is intentionally absent on the initial KV
 // row, so a durable redelivery may finish interrupted initialization without
-// reapplying read state to a later explicit "Mark unread" mutation.
+// reapplying read state after initialization has completed.
 func (m *NotificationOccurrenceModel) finalizeOccurrence(ctx context.Context, occurrence *corev1.NotificationOccurrence, skipReadLookup bool) (*corev1.NotificationOccurrence, bool, error) {
 	if occurrence == nil {
 		return nil, false, nil
@@ -274,7 +263,7 @@ func (m *NotificationOccurrenceModel) Get(ctx context.Context, userID, occurrenc
 	return entry.occurrence, nil
 }
 
-func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string, view NotificationOccurrenceView) ([]*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string) ([]*corev1.NotificationOccurrence, error) {
 	entries, err := m.index.userEntries(ctx, userID)
 	if err != nil {
 		return nil, err
@@ -285,15 +274,9 @@ func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string, v
 		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED {
 			continue
 		}
-		include := false
-		switch view {
-		case NotificationOccurrenceViewInbox:
-			include = occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
-				occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
-		case NotificationOccurrenceViewDone:
-			include = occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE
-		}
-		if include {
+		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
+			occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ ||
+			occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE {
 			result = append(result, occurrence)
 		}
 	}
@@ -303,8 +286,8 @@ func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string, v
 	return result, nil
 }
 
-func (m *NotificationOccurrenceModel) Groups(ctx context.Context, userID string, view NotificationOccurrenceView) ([]NotificationOccurrenceGroup, error) {
-	occurrences, err := m.List(ctx, userID, view)
+func (m *NotificationOccurrenceModel) Groups(ctx context.Context, userID string) ([]NotificationOccurrenceGroup, error) {
+	occurrences, err := m.List(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -330,7 +313,7 @@ func (m *NotificationOccurrenceModel) Groups(ctx context.Context, userID string,
 // UnreadGroupCount returns the bell/app-badge count. Multiple unread
 // occurrences in one conversation group count once.
 func (m *NotificationOccurrenceModel) UnreadGroupCount(ctx context.Context, userID string) (int, error) {
-	groups, err := m.Groups(ctx, userID, NotificationOccurrenceViewInbox)
+	groups, err := m.Groups(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -346,11 +329,7 @@ func (m *NotificationOccurrenceModel) UnreadGroupCount(ctx context.Context, user
 	return count, nil
 }
 
-func (m *NotificationOccurrenceModel) Update(ctx context.Context, userID, occurrenceID string, input UpdateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, error) {
-	return m.update(ctx, userID, occurrenceID, input, true)
-}
-
-func (m *NotificationOccurrenceModel) update(ctx context.Context, userID, occurrenceID string, input UpdateNotificationOccurrenceInput, publish bool) (*corev1.NotificationOccurrence, error) {
+func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, occurrenceID string) (*corev1.NotificationOccurrence, error) {
 	for attempt := 0; attempt < maxNotificationUpdateRetries; attempt++ {
 		entry, exists, err := m.index.occurrenceByID(ctx, userID, occurrenceID)
 		if err != nil {
@@ -360,21 +339,11 @@ func (m *NotificationOccurrenceModel) update(ctx context.Context, userID, occurr
 			return nil, ErrNotFound
 		}
 		updated := proto.Clone(entry.occurrence).(*corev1.NotificationOccurrence)
-		if input.InboxState != nil {
-			switch *input.InboxState {
-			case corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
-				corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ,
-				corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE:
-				updated.InboxState = *input.InboxState
-			default:
-				return nil, invalidArgument("inbox_state must be UNREAD, READ, or DONE")
-			}
-			if *input.InboxState != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
-				(updated.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING ||
-					updated.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED) {
-				updated.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
-				updated.AlertClaimedUntil = nil
-			}
+		updated.InboxState = corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
+		if updated.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING ||
+			updated.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED {
+			updated.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
+			updated.AlertClaimedUntil = nil
 		}
 		if proto.Equal(updated, entry.occurrence) {
 			return updated, nil
@@ -387,7 +356,7 @@ func (m *NotificationOccurrenceModel) update(ctx context.Context, userID, occurr
 			}
 			continue
 		}
-		if err == nil && publish {
+		if err == nil {
 			m.core.publishNotificationOccurrenceChanged(ctx, written, false, false)
 		}
 		return written, err
@@ -420,7 +389,7 @@ func (m *NotificationOccurrenceModel) delete(ctx context.Context, userID, occurr
 			RecipientId:     entry.occurrence.GetRecipientId(),
 			SourceEventId:   entry.occurrence.GetSourceEventId(),
 			SourceCreatedAt: entry.occurrence.GetSourceCreatedAt(),
-			InboxState:      corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE,
+			InboxState:      corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ,
 			UpdatedAt:       timestamppb.New(now),
 			ExpiresAt:       entry.occurrence.GetExpiresAt(),
 			RemovalReason:   reason,
@@ -442,38 +411,8 @@ func (m *NotificationOccurrenceModel) delete(ctx context.Context, userID, occurr
 	return false, fmt.Errorf("notification occurrence delete failed after %d retries", maxNotificationUpdateRetries)
 }
 
-func (m *NotificationOccurrenceModel) UpdateGroup(ctx context.Context, userID, groupID string, view NotificationOccurrenceView, input UpdateNotificationOccurrenceInput) ([]*corev1.NotificationOccurrence, error) {
-	groups, err := m.Groups(ctx, userID, view)
-	if err != nil {
-		return nil, err
-	}
-	for _, group := range groups {
-		if group.ID != groupID {
-			continue
-		}
-		updated := make([]*corev1.NotificationOccurrence, 0, len(group.Occurrences))
-		for _, occurrence := range group.Occurrences {
-			item, err := m.update(ctx, userID, occurrence.GetId(), input, false)
-			if err != nil {
-				if len(updated) > 0 {
-					m.core.publishNotificationOccurrenceChanged(ctx, updated[len(updated)-1], false, false)
-				}
-				return updated, err
-			}
-			updated = append(updated, item)
-		}
-		if len(updated) > 0 {
-			// The last KV revision fences every earlier write in this ordered
-			// mutation, so one live invalidation is sufficient on every replica.
-			m.core.publishNotificationOccurrenceChanged(ctx, updated[len(updated)-1], false, false)
-		}
-		return updated, nil
-	}
-	return nil, ErrNotFound
-}
-
-func (m *NotificationOccurrenceModel) DeleteGroup(ctx context.Context, userID, groupID string, view NotificationOccurrenceView) (int, error) {
-	groups, err := m.Groups(ctx, userID, view)
+func (m *NotificationOccurrenceModel) DeleteGroup(ctx context.Context, userID, groupID string) (int, error) {
+	groups, err := m.Groups(ctx, userID)
 	if err != nil {
 		return 0, err
 	}

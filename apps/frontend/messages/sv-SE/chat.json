@@ -10,12 +10,8 @@
       "time_minutes": "{count}m sedan",
       "time_hours": "{count}h sedan",
       "time_days": "{count}d sedan",
-      "inbox": "Inkorg",
-      "done": "Klart",
       "unread": "Oläst",
-      "activity": "Ny aktivitet",
-      "mark_done": "Markera som klar",
-      "restore": "Flytta till inkorgen"
+      "activity": "Ny aktivitet"
     },
     "sign_out": {
       "title": "Logga ut",

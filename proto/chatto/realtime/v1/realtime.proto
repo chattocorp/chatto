@@ -351,7 +351,7 @@ message RealtimeProjectionNotificationsReplace {
   // Live transition that caused this replacement, when one exists. Bootstrap,
   // replay reconciliation, and compacted reset replacements omit this field.
   optional RealtimeProjectionNotificationChange change = 3;
-  // Authoritative Notifications 2.0 Inbox groups and unread group count.
+  // Authoritative Notifications 2.0 groups and unread group count.
   chatto.api.v1.ListNotificationGroupsResponse groups = 4;
 }
 

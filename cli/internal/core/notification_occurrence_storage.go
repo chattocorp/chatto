@@ -98,7 +98,7 @@ func (m *NotificationOccurrenceModel) deleteStoredOccurrence(ctx context.Context
 			RecipientId:     entry.occurrence.GetRecipientId(),
 			SourceEventId:   entry.occurrence.GetSourceEventId(),
 			SourceCreatedAt: entry.occurrence.GetSourceCreatedAt(),
-			InboxState:      corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE,
+			InboxState:      corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ,
 			UpdatedAt:       timestamppb.New(now),
 			ExpiresAt:       entry.occurrence.GetExpiresAt(),
 			RemovalReason:   reason,

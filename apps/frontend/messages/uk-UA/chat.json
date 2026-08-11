@@ -10,12 +10,8 @@
       "time_minutes": "{count}м тому",
       "time_hours": "{count}h тому",
       "time_days": "{count}d тому",
-      "inbox": "Вхідні",
-      "done": "Готово",
       "unread": "Непрочитане",
-      "activity": "Нова активність",
-      "mark_done": "Позначити як готове",
-      "restore": "Повернути до вхідних"
+      "activity": "Нова активність"
     },
     "sign_out": {
       "title": "Вийти",

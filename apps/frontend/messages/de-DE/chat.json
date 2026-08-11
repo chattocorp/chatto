@@ -10,12 +10,8 @@
       "time_minutes": "vor {count} Min.",
       "time_hours": "vor {count} Std.",
       "time_days": "vor {count} Tg.",
-      "inbox": "Posteingang",
-      "done": "Erledigt",
       "unread": "Ungelesen",
-      "activity": "Neue Aktivität",
-      "mark_done": "Als erledigt markieren",
-      "restore": "In den Posteingang verschieben"
+      "activity": "Neue Aktivität"
     },
     "sign_out": {
       "title": "Abmelden",

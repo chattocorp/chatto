@@ -692,7 +692,7 @@ Lightweight room reference for cross-resource rows.
 
 ### NotificationGroup
 
-A presentation group derived from occurrences in one view.
+A presentation group derived from related notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -700,7 +700,7 @@ A presentation group derived from occurrences in one view.
 | `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Bounded newest-occurrence preview. It also includes the open target when that target falls outside the newest preview window. |
 | `open_target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Target to open: newest unread, or newest when all are read. |
 | `unread` | `bool` | True when at least one member occurrence is unread. |
-| `occurrence_count` | `int32` | Total number of occurrences in this group and view, including those not in the bounded preview. |
+| `occurrence_count` | `int32` | Total number of occurrences in this group, including those not in the bounded preview. |
 | `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
@@ -722,7 +722,7 @@ One exact Notifications 2.0 source occurrence.
 | `target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Exact current destination for navigation. |
 | `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
-| `inbox_state` | [`NotificationInboxState`](#chatto-api-v1-NotificationInboxState) | Current user-controlled inbox state. |
+| `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 
 <a id="chatto-api-v1-NotificationPolicyPreference"></a>
@@ -758,7 +758,7 @@ Unread notification groups currently targeting one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Target room ID. |
-| `unread_group_count` | `int32` | Number of unread Inbox groups targeting this room. |
+| `unread_group_count` | `int32` | Number of unread groups targeting this room. |
 
 <a id="chatto-api-v1-NotificationTarget"></a>
 
@@ -1562,21 +1562,8 @@ Delivery strength for one notification cause.
 | --- | --- | --- |
 | `NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED` | `0` | In preference writes, unspecified clears the override (Inherit). |
 | `NOTIFICATION_DELIVERY_INTENSITY_OFF` | `1` | Matching activity does not create a notification occurrence. |
-| `NOTIFICATION_DELIVERY_INTENSITY_BADGE` | `2` | Matching activity appears in the inbox without interruptive delivery. |
-| `NOTIFICATION_DELIVERY_INTENSITY_ALERT` | `3` | Matching activity appears in the inbox and may trigger sound or push. |
-
-<a id="chatto-api-v1-NotificationInboxState"></a>
-
-### NotificationInboxState
-
-User-controlled triage state for one notification occurrence.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_INBOX_STATE_UNSPECIFIED` | `0` | No inbox state was specified. |
-| `NOTIFICATION_INBOX_STATE_UNREAD` | `1` | The occurrence is in Inbox and contributes unread attention. |
-| `NOTIFICATION_INBOX_STATE_READ` | `2` | The occurrence remains in Inbox without contributing unread attention. |
-| `NOTIFICATION_INBOX_STATE_DONE` | `3` | The occurrence is removed from Inbox and retained in Done. |
+| `NOTIFICATION_DELIVERY_INTENSITY_BADGE` | `2` | Matching activity appears in the notification list without interruptive delivery. |
+| `NOTIFICATION_DELIVERY_INTENSITY_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
 
 <a id="chatto-api-v1-NotificationReason"></a>
 
@@ -1597,18 +1584,6 @@ Why source activity matched the authenticated viewer's notification policy.
 | `NOTIFICATION_REASON_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
 | `NOTIFICATION_REASON_REACTION` | `9` | Someone reacted to the viewer's message. |
 | `NOTIFICATION_REASON_ROOM_INVITATION` | `10` | The viewer was invited to a room. |
-
-<a id="chatto-api-v1-NotificationView"></a>
-
-### NotificationView
-
-Selects one derived notification-inbox view.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_VIEW_UNSPECIFIED` | `0` | Defaults to Inbox on reads and mutations. |
-| `NOTIFICATION_VIEW_INBOX` | `1` | Unread and read occurrences that have not been moved to Done. |
-| `NOTIFICATION_VIEW_DONE` | `2` | Occurrences moved out of Inbox. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

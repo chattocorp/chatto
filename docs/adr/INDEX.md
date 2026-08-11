@@ -83,4 +83,4 @@ replace part of their original design.
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
 | [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
 | [ADR-071](ADR-071-deterministic-notification-occurrences.md) | Derive Deterministic Notification Occurrences into Runtime State | Accepted | 2026-08-10 |
-| [ADR-072](ADR-072-triageable-notification-inbox.md) | Model Notifications as a Triageable Inbox with Derived Groups | Accepted | 2026-08-10 |
+| [ADR-072](ADR-072-persistent-notification-list.md) | Present Notifications as One Persistent List with Derived Groups | Accepted | 2026-08-10 |

@@ -27,31 +27,15 @@ func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) err
 	return nil
 }
 
-func notificationOccurrenceView(view apiv1.NotificationView) (core.NotificationOccurrenceView, error) {
-	switch view {
-	case apiv1.NotificationView_NOTIFICATION_VIEW_UNSPECIFIED,
-		apiv1.NotificationView_NOTIFICATION_VIEW_INBOX:
-		return core.NotificationOccurrenceViewInbox, nil
-	case apiv1.NotificationView_NOTIFICATION_VIEW_DONE:
-		return core.NotificationOccurrenceViewDone, nil
-	default:
-		return 0, core.ErrInvalidArgument
-	}
-}
-
 func (s *notificationService) ListNotificationGroups(ctx context.Context, req *connect.Request[apiv1.ListNotificationGroupsRequest]) (*connect.Response[apiv1.ListNotificationGroupsResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
 	}
-	view, err := notificationOccurrenceView(req.Msg.GetView())
-	if err != nil {
-		return nil, connectError(err)
-	}
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID, view)
+	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -65,26 +49,26 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 	if err != nil {
 		return nil, connectError(err)
 	}
-	// Visibility filtering may have tombstoned stale Inbox rows. Re-read the
+	// Visibility filtering may have tombstoned stale rows. Re-read the
 	// local occurrence index so summary counts reflect those writes without
 	// performing another projection fence or exhaustive target validation.
-	inboxGroups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID, core.NotificationOccurrenceViewInbox)
+	groups, err = s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	unreadGroupCount, nextInboxExpiryAt, roomCounts := notificationInboxSummary(inboxGroups)
+	unreadGroupCount, nextExpiryAt, roomCounts := notificationSummary(groups)
 	return connect.NewResponse(&apiv1.ListNotificationGroupsResponse{
 		Groups:                hydrated,
 		Page:                  apiPageInfo(total, hasMore),
 		UnreadGroupCount:      unreadGroupCount,
-		NextInboxExpiryAt:     nextInboxExpiryAt,
+		NextExpiryAt:          nextExpiryAt,
 		RoomUnreadGroupCounts: roomCounts,
 	}), nil
 }
 
 // visibleNotificationPage validates only the visible prefix needed for an
 // offset page. It grows by one page when stale rows are filtered, instead of
-// fencing and revalidating the entire 90-day inbox for every request.
+// fencing and revalidating the entire 90-day list for every request.
 func (s *notificationService) visibleNotificationPage(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup, limit, offset int) ([]core.NotificationOccurrenceGroup, int, bool, error) {
 	if offset >= len(groups) {
 		return []core.NotificationOccurrenceGroup{}, len(groups), false, nil
@@ -114,10 +98,10 @@ func (s *notificationService) visibleNotificationPage(ctx context.Context, userI
 	return visible[offset:end], total, hasMore, nil
 }
 
-func notificationInboxSummary(groups []core.NotificationOccurrenceGroup) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadGroupCount) {
+func notificationSummary(groups []core.NotificationOccurrenceGroup) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadGroupCount) {
 	unreadGroupCount := int32(0)
 	roomCounts := make(map[string]int32)
-	var nextInboxExpiryAt *timestamppb.Timestamp
+	var nextExpiryAt *timestamppb.Timestamp
 	for _, group := range groups {
 		groupUnread := false
 		roomID := ""
@@ -125,8 +109,8 @@ func notificationInboxSummary(groups []core.NotificationOccurrenceGroup) (int32,
 			if roomID == "" {
 				roomID = occurrence.GetTarget().GetRoomId()
 			}
-			if nextInboxExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextInboxExpiryAt.AsTime()) {
-				nextInboxExpiryAt = occurrence.GetExpiresAt()
+			if nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextExpiryAt.AsTime()) {
+				nextExpiryAt = occurrence.GetExpiresAt()
 			}
 			groupUnread = groupUnread || occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
 		}
@@ -149,7 +133,7 @@ func notificationInboxSummary(groups []core.NotificationOccurrenceGroup) (int32,
 			UnreadGroupCount: roomCounts[roomID],
 		})
 	}
-	return unreadGroupCount, nextInboxExpiryAt, result
+	return unreadGroupCount, nextExpiryAt, result
 }
 
 func (s *notificationService) visibleNotificationGroups(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup) ([]core.NotificationOccurrenceGroup, error) {
@@ -191,16 +175,7 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 	return len(visible) == 1, err
 }
 
-func occurrenceUpdate(inboxState *apiv1.NotificationInboxState) core.UpdateNotificationOccurrenceInput {
-	input := core.UpdateNotificationOccurrenceInput{}
-	if inboxState != nil {
-		value := corev1.NotificationInboxState(*inboxState)
-		input.InboxState = &value
-	}
-	return input
-}
-
-func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.UpdateNotificationOccurrenceRequest]) (*connect.Response[apiv1.UpdateNotificationOccurrenceResponse], error) {
+func (s *notificationService) MarkNotificationRead(ctx context.Context, req *connect.Request[apiv1.MarkNotificationReadRequest]) (*connect.Response[apiv1.MarkNotificationReadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -220,7 +195,7 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return nil, connectError(core.ErrNotFound)
 	}
-	occurrence, err := s.api.core.NotificationOccurrences().Update(ctx, caller.UserID, req.Msg.GetNotificationId(), occurrenceUpdate(req.Msg.InboxState))
+	occurrence, err := s.api.core.NotificationOccurrences().MarkRead(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -228,7 +203,7 @@ func (s *notificationService) UpdateNotificationOccurrence(ctx context.Context, 
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.UpdateNotificationOccurrenceResponse{Notification: item}), nil
+	return connect.NewResponse(&apiv1.MarkNotificationReadResponse{Notification: item}), nil
 }
 
 func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.DeleteNotificationOccurrenceRequest]) (*connect.Response[apiv1.DeleteNotificationOccurrenceResponse], error) {
@@ -251,30 +226,8 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted}), nil
 }
 
-func (s *notificationService) UpdateNotificationGroup(ctx context.Context, req *connect.Request[apiv1.UpdateNotificationGroupRequest]) (*connect.Response[apiv1.UpdateNotificationGroupResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	view, err := notificationOccurrenceView(req.Msg.GetView())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	if err := s.waitForCurrentOccurrences(ctx); err != nil {
-		return nil, err
-	}
-	if err := s.requireVisibleNotificationGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view); err != nil {
-		return nil, connectError(err)
-	}
-	updated, err := s.api.core.NotificationOccurrences().UpdateGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view, occurrenceUpdate(req.Msg.InboxState))
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.UpdateNotificationGroupResponse{UpdatedCount: int32(len(updated))}), nil
-}
-
-func (s *notificationService) requireVisibleNotificationGroup(ctx context.Context, userID, groupID string, view core.NotificationOccurrenceView) error {
-	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, userID, view)
+func (s *notificationService) requireVisibleNotificationGroup(ctx context.Context, userID, groupID string) error {
+	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, userID)
 	if err != nil {
 		return err
 	}
@@ -310,14 +263,13 @@ func (s *notificationService) DeleteNotificationGroup(ctx context.Context, req *
 	if err != nil {
 		return nil, err
 	}
-	view, err := notificationOccurrenceView(req.Msg.GetView())
-	if err != nil {
-		return nil, connectError(err)
-	}
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	count, err := s.api.core.NotificationOccurrences().DeleteGroup(ctx, caller.UserID, req.Msg.GetGroupId(), view)
+	if err := s.requireVisibleNotificationGroup(ctx, caller.UserID, req.Msg.GetGroupId()); err != nil {
+		return nil, connectError(err)
+	}
+	count, err := s.api.core.NotificationOccurrences().DeleteGroup(ctx, caller.UserID, req.Msg.GetGroupId())
 	if err != nil {
 		return nil, connectError(err)
 	}

@@ -3,8 +3,6 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   NotificationItemKind,
-  NotificationInboxState,
-  NotificationView,
   NotificationDeliveryIntensity,
   occurrenceAsNotificationItem,
   type DirectMessageNotificationItem,
@@ -129,7 +127,7 @@ export class NotificationStore {
   notifications = $state<NotificationItem[]>([]);
   groups = $state.raw<NotificationGroupItem[]>([]);
   unreadNotificationCount = $state(0);
-  nextInboxExpiryAt = $state<string | null>(null);
+  nextExpiryAt = $state<string | null>(null);
   /** Advances only for realtime invalidations, including changes made in another session. */
   viewInvalidationVersion = $state(0);
   loading = $state(false);
@@ -148,21 +146,19 @@ export class NotificationStore {
     this.unreadNotificationCount = Math.max(0, count);
   }
 
-  /** Replace the Inbox state from the realtime projection. */
+  /** Replace notification state from the realtime projection. */
   replaceGroupProjection(page: NotificationGroupPage): void {
     this.#fetchGeneration++;
     this.groups = page.groups;
     this.notifications = page.groups
       .flatMap((group) =>
-        group.occurrences.filter(
-          (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD && group.unread
-        )
+        group.occurrences.filter((occurrence) => occurrence.unread && group.unread)
       )
       .map(occurrenceAsNotificationItem)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 50);
     this.unreadNotificationCount = page.unreadGroupCount;
-    this.nextInboxExpiryAt = page.nextInboxExpiryAt ?? null;
+    this.nextExpiryAt = page.nextExpiryAt ?? null;
     this.loading = false;
     this.hasLoaded = true;
     this.error = null;
@@ -178,7 +174,7 @@ export class NotificationStore {
     this.notifications = [];
     this.groups = [];
     this.unreadNotificationCount = 0;
-    this.nextInboxExpiryAt = null;
+    this.nextExpiryAt = null;
     this.loading = true;
     // The empty reset boundary is already authoritative. Keep this true so
     // badge synchronisation clears stale native notification counts even when
@@ -358,7 +354,7 @@ export class NotificationStore {
     this.error = null;
 
     try {
-      const page = await this.#api.listNotificationGroups(NotificationView.INBOX, 50);
+      const page = await this.#api.listNotificationGroups(50);
       if (generation !== this.#fetchGeneration) return;
 
       this.replaceGroupProjection(page);
@@ -373,39 +369,18 @@ export class NotificationStore {
     }
   }
 
-  async fetchView(view: NotificationView, offset = 0): Promise<NotificationGroupPage> {
-    const page = await this.#api.listNotificationGroups(view, 50, offset);
-    if (view === NotificationView.INBOX && offset === 0) this.replaceGroupProjection(page);
+  async fetchPage(offset = 0): Promise<NotificationGroupPage> {
+    const page = await this.#api.listNotificationGroups(50, offset);
+    if (offset === 0) this.replaceGroupProjection(page);
     return page;
   }
 
-  // Mutation RPCs do not issue their own list read. The realtime notification
-  // replacement updates the shared Inbox projection and invalidates the
-  // combined Inbox/Done page once, avoiding overlapping authoritative reads.
-  async updateGroup(
-    groupId: string,
-    view: NotificationView,
-    update: { inboxState?: NotificationInboxState }
-  ): Promise<void> {
-    await this.#api.updateNotificationGroup(groupId, view, update);
-  }
-
   async markOccurrenceRead(notificationId: string): Promise<void> {
-    await this.#api.updateNotificationOccurrence(notificationId, {
-      inboxState: NotificationInboxState.READ
-    });
+    await this.#api.markNotificationRead(notificationId);
   }
 
-  async moveGroupToDone(groupId: string, view: NotificationView): Promise<void> {
-    await this.updateGroup(groupId, view, { inboxState: NotificationInboxState.DONE });
-  }
-
-  async restoreGroupToInbox(groupId: string, view: NotificationView): Promise<void> {
-    await this.updateGroup(groupId, view, { inboxState: NotificationInboxState.READ });
-  }
-
-  async deleteGroup(groupId: string, view: NotificationView): Promise<void> {
-    await this.#api.deleteNotificationGroup(groupId, view);
+  async deleteGroup(groupId: string): Promise<void> {
+    await this.#api.deleteNotificationGroup(groupId);
   }
 
   getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
@@ -437,14 +412,10 @@ export class NotificationStore {
       let notification: NotificationItem | null = null;
       let hasMore = false;
       do {
-        const page = await this.#api.listNotificationGroups(NotificationView.INBOX, 50, offset);
+        const page = await this.#api.listNotificationGroups(50, offset);
         const matches = page.groups
           .flatMap((group) => group.occurrences)
-          .filter(
-            (occurrence) =>
-              occurrence.inboxState === NotificationInboxState.UNREAD &&
-              occurrence.room?.id === roomId
-          )
+          .filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
           .map(occurrenceAsNotificationItem)
           .filter((item) => (options.isDM ? isDMNotification(item) : !isDMNotification(item)));
         totalCount += matches.length;
@@ -495,32 +466,21 @@ export class NotificationStore {
     let resolvedUnreadGroups = 0;
     this.groups = this.groups.map((group) => {
       const occurrences = group.occurrences.map((occurrence) =>
-        occurrence.id === notificationId
-          ? { ...occurrence, inboxState: NotificationInboxState.READ }
-          : occurrence
+        occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
       );
-      const unread = occurrences.some(
-        (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD
-      );
+      const unread = occurrences.some((occurrence) => occurrence.unread);
       if (group.unread && !unread) resolvedUnreadGroups++;
       return {
         ...group,
         occurrences,
-        openTarget:
-          occurrences.find(
-            (occurrence) => occurrence.inboxState === NotificationInboxState.UNREAD
-          ) ??
-          occurrences[0] ??
-          null,
+        openTarget: occurrences.find((occurrence) => occurrence.unread) ?? occurrences[0] ?? null,
         unread
       };
     });
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - resolvedUnreadGroups);
 
     try {
-      await this.#api.updateNotificationOccurrence(notificationId, {
-        inboxState: NotificationInboxState.READ
-      });
+      await this.#api.markNotificationRead(notificationId);
       await this.fetch();
       return true;
     } catch (e) {

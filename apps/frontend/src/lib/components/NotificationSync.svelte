@@ -94,8 +94,8 @@ Include this component once in the application root so signed-out pages also cle
     const timers: ReturnType<typeof setTimeout>[] = [];
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated || !stores.notifications.nextInboxExpiryAt) continue;
-      const boundary = new Date(stores.notifications.nextInboxExpiryAt).getTime() + 50;
+      if (!stores.isAuthenticated || !stores.notifications.nextExpiryAt) continue;
+      const boundary = new Date(stores.notifications.nextExpiryAt).getTime() + 50;
       const schedule = () => {
         const remaining = boundary - Date.now();
         if (remaining <= 0) {

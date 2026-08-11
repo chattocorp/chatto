@@ -221,8 +221,8 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
           roomUnreadGroupCounts: {}
         })
       ),
-      updateNotificationOccurrence: vi.fn(),
-      updateNotificationGroup: vi.fn(),
+      markNotificationRead: vi.fn(),
+      deleteNotificationOccurrence: vi.fn(),
       deleteNotificationGroup: vi.fn(),
       getNotificationPolicy: vi.fn(() => Promise.resolve([])),
       setNotificationPolicyPreference: vi.fn(() => Promise.resolve([]))
@@ -672,7 +672,7 @@ describe('ServerStateStore live server updates', () => {
       hasMore: false,
       unreadGroupCount: 1,
       roomUnreadGroupCounts: {},
-      nextInboxExpiryAt: null
+      nextExpiryAt: null
     });
     store.activeCallRooms.replaceProjection([
       new ActiveCall({ room: new Room({ id: 'R1' }), callId: 'call-1' })

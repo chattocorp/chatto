@@ -1620,7 +1620,7 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
   change?: RealtimeProjectionNotificationChange;
 
   /**
-   * Authoritative Notifications 2.0 Inbox groups and unread group count.
+   * Authoritative Notifications 2.0 groups and unread group count.
    *
    * @generated from field: chatto.api.v1.ListNotificationGroupsResponse groups = 4;
    */

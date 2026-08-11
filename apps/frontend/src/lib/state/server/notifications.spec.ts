@@ -7,17 +7,14 @@ import {
 import {
   NotificationItemKind,
   NotificationDeliveryIntensity,
-  NotificationInboxState,
   NotificationReason,
-  NotificationView,
   type NotificationAPI,
   type NotificationGroupPage
 } from '$lib/api-client/notifications';
 
 type MockNotificationAPI = NotificationAPI & {
   listNotificationGroups: ReturnType<typeof vi.fn>;
-  updateNotificationOccurrence: ReturnType<typeof vi.fn>;
-  updateNotificationGroup: ReturnType<typeof vi.fn>;
+  markNotificationRead: ReturnType<typeof vi.fn>;
   deleteNotificationGroup: ReturnType<typeof vi.fn>;
   getNotificationPolicy: ReturnType<typeof vi.fn>;
   setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
@@ -56,7 +53,7 @@ function groupPage(source: FlatNotificationPage): NotificationGroupPage {
           intensity: NotificationDeliveryIntensity.ALERT
         }
       ],
-      inboxState: NotificationInboxState.UNREAD
+      unread: true
     };
     return {
       id: `group-${item.id}`,
@@ -96,9 +93,8 @@ function makeAPI(
       if (options.notificationsError) throw options.notificationsError;
       return groupPage(options.notifications ?? page([]));
     }),
-    updateNotificationOccurrence: vi.fn().mockResolvedValue(undefined),
+    markNotificationRead: vi.fn().mockResolvedValue(undefined),
     deleteNotificationOccurrence: vi.fn().mockResolvedValue(false),
-    updateNotificationGroup: vi.fn().mockResolvedValue(undefined),
     deleteNotificationGroup: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
     setNotificationPolicyPreference: vi.fn().mockResolvedValue([])
@@ -179,11 +175,11 @@ describe('NotificationStore', () => {
     expect(store.hasLoaded).toBe(true);
   });
 
-  it('keeps read Inbox groups without exposing them as unread room indicators', () => {
+  it('keeps read groups without exposing them as unread room indicators', () => {
     const store = new NotificationStore(makeAPI());
     const response = groupPage(page([mention('n1')]));
     response.groups[0]!.unread = false;
-    response.groups[0]!.occurrences[0]!.inboxState = NotificationInboxState.READ;
+    response.groups[0]!.occurrences[0]!.unread = false;
     response.unreadGroupCount = 0;
 
     store.replaceGroupProjection(response);
@@ -274,49 +270,29 @@ describe('NotificationStore', () => {
     expect(api.listNotificationGroups).not.toHaveBeenCalled();
   });
 
-  it('returns one selected-view page for automatic UI pagination', async () => {
+  it('returns one page for automatic UI pagination', async () => {
     const first = groupPage(page([mention('first')], 2));
     first.hasMore = true;
     const api = makeAPI();
     api.listNotificationGroups.mockResolvedValueOnce(first);
     const store = new NotificationStore(api);
 
-    const result = await store.fetchView(NotificationView.DONE, 50);
+    const result = await store.fetchPage(50);
 
     expect(result.groups.map(({ id }) => id)).toEqual(['group-first']);
     expect(result.hasMore).toBe(true);
-    expect(api.listNotificationGroups).toHaveBeenCalledWith(NotificationView.DONE, 50, 50);
+    expect(api.listNotificationGroups).toHaveBeenCalledWith(50, 50);
   });
 
   it('leaves post-mutation list reconciliation to the realtime replacement', async () => {
     const api = makeAPI();
     const store = new NotificationStore(api);
 
-    await store.moveGroupToDone('group-1', NotificationView.INBOX);
-    await store.restoreGroupToInbox('group-1', NotificationView.DONE);
-    await store.deleteGroup('group-1', NotificationView.DONE);
+    await store.deleteGroup('group-1');
     await store.markOccurrenceRead('notification-1');
 
-    expect(api.updateNotificationGroup).toHaveBeenNthCalledWith(
-      1,
-      'group-1',
-      NotificationView.INBOX,
-      {
-        inboxState: NotificationInboxState.DONE
-      }
-    );
-    expect(api.updateNotificationGroup).toHaveBeenNthCalledWith(
-      2,
-      'group-1',
-      NotificationView.DONE,
-      {
-        inboxState: NotificationInboxState.READ
-      }
-    );
-    expect(api.deleteNotificationGroup).toHaveBeenCalledWith('group-1', NotificationView.DONE);
-    expect(api.updateNotificationOccurrence).toHaveBeenCalledWith('notification-1', {
-      inboxState: NotificationInboxState.READ
-    });
+    expect(api.deleteNotificationGroup).toHaveBeenCalledWith('group-1');
+    expect(api.markNotificationRead).toHaveBeenCalledWith('notification-1');
     expect(api.listNotificationGroups).not.toHaveBeenCalled();
   });
 

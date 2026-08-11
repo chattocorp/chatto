@@ -23,7 +23,7 @@ const (
 )
 
 // NotificationReason identifies why one source activity qualified for a
-// recipient's notification inbox. One occurrence can retain several reasons.
+// recipient's notification list. One occurrence can retain several reasons.
 type NotificationReason int32
 
 const (
@@ -151,7 +151,9 @@ func (NotificationDeliveryIntensity) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{1}
 }
 
-// NotificationInboxState is the recipient-controlled inbox triage state.
+// NotificationInboxState is the persisted attention state. DONE is retained
+// only for compatibility with Notifications 2.0 development records written
+// before the single-list model; visible DONE records are treated as read.
 type NotificationInboxState int32
 
 const (
@@ -265,7 +267,7 @@ func (NotificationRemovalReason) EnumDescriptor() ([]byte, []int) {
 }
 
 // NotificationAlertState tracks recoverable interruptive delivery for an
-// occurrence. Inbox and badge visibility do not depend on this state.
+// occurrence. List and badge visibility do not depend on this state.
 type NotificationAlertState int32
 
 const (

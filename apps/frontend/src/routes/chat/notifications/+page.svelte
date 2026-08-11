@@ -7,9 +7,7 @@
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import {
-    NotificationInboxState,
     NotificationReason,
-    NotificationView,
     type NotificationGroupItem,
     type NotificationOccurrenceItem
   } from '$lib/api-client/notifications';
@@ -26,24 +24,18 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
 
-  type ListedView = NotificationView.INBOX | NotificationView.DONE;
-
   type ServerGroup = {
     serverId: string;
     serverHostname: string;
     timeFormatSettings: TimeFormatSettings;
-    view: ListedView;
     group: NotificationGroupItem;
   };
 
   type PaginationSource = {
     serverId: string;
-    view: ListedView;
     offset: number;
     hasMore: boolean;
   };
-
-  const listedViews: ListedView[] = [NotificationView.INBOX, NotificationView.DONE];
 
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
@@ -66,9 +58,7 @@
       .filter((source) => source.hasMore)
       .map(
         (source) =>
-          groups
-            .filter((item) => item.serverId === source.serverId && item.view === source.view)
-            .at(-1)?.group.latestAt
+          groups.filter((item) => item.serverId === source.serverId).at(-1)?.group.latestAt
       )
       .filter((timestamp): timestamp is string => Boolean(timestamp));
     if (activeBoundaries.length === 0) return sorted;
@@ -82,11 +72,14 @@
   );
   $effect(() => {
     void notificationViewInvalidations;
-    void loadNotifications();
+    // Initial projection hydration and one logical mutation can emit several
+    // adjacent invalidations. Coalesce them into one authoritative list read
+    // per authenticated server.
+    const timer = setTimeout(() => void loadNotifications(), 50);
+    return () => clearTimeout(timer);
   });
 
-  // Done is a fetched view rather than a realtime payload. Reconcile it at its
-  // own earliest expiry as well as on live invalidations above.
+  // Reconcile the list at its earliest expiry as well as on live invalidations.
   $effect(() => {
     if (groups.length === 0) return;
     const expiry = groups.reduce<number | null>((earliest, item) => {
@@ -117,31 +110,30 @@
     const requests = serverRegistry.servers.flatMap((instance) => {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) return [];
-      return listedViews.map((view) => ({
-        serverId: instance.id,
-        view,
-        request: (async () => {
-          const page = await stores.notifications.fetchView(view);
-          let hostname: string;
-          try {
-            hostname = new URL(instance.url).hostname;
-          } catch {
-            hostname = instance.url;
-          }
-          return {
-            serverId: instance.id,
-            view,
-            page,
-            groups: page.groups.map((group): ServerGroup => ({
+      return [
+        {
+          serverId: instance.id,
+          request: (async () => {
+            const page = await stores.notifications.fetchPage();
+            let hostname: string;
+            try {
+              hostname = new URL(instance.url).hostname;
+            } catch {
+              hostname = instance.url;
+            }
+            return {
               serverId: instance.id,
-              serverHostname: hostname,
-              timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-              view,
-              group
-            }))
-          };
-        })()
-      }));
+              page,
+              groups: page.groups.map((group): ServerGroup => ({
+                serverId: instance.id,
+                serverHostname: hostname,
+                timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+                group
+              }))
+            };
+          })()
+        }
+      ];
     });
     const results = await Promise.allSettled(requests.map(({ request }) => request));
     if (generation !== loadGeneration) return;
@@ -153,7 +145,6 @@
         return [
           {
             serverId: requests[index].serverId,
-            view: requests[index].view,
             offset: 0,
             hasMore: true
           }
@@ -162,7 +153,6 @@
       return [
         {
           serverId: result.value.serverId,
-          view: result.value.view,
           offset: result.value.page.groups.length,
           hasMore: result.value.page.hasMore
         }
@@ -181,7 +171,7 @@
     const results = await Promise.allSettled(
       pending.map(async (source) => {
         const stores = serverRegistry.getStore(source.serverId);
-        const page = await stores.notifications.fetchView(source.view, source.offset);
+        const page = await stores.notifications.fetchPage(source.offset);
         let hostname: string;
         const instance = serverRegistry.servers.find(({ id }) => id === source.serverId);
         try {
@@ -191,13 +181,11 @@
         }
         return {
           serverId: source.serverId,
-          view: source.view,
           page,
           groups: page.groups.map((group): ServerGroup => ({
             serverId: source.serverId,
             serverHostname: hostname,
             timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-            view: source.view,
             group
           }))
         };
@@ -214,9 +202,7 @@
     pagination = pagination.map((source) => {
       const result = results.find(
         (candidate) =>
-          candidate.status === 'fulfilled' &&
-          candidate.value.serverId === source.serverId &&
-          candidate.value.view === source.view
+          candidate.status === 'fulfilled' && candidate.value.serverId === source.serverId
       );
       if (!result || result.status !== 'fulfilled') return source;
       return {
@@ -240,7 +226,7 @@
   }
 
   function rowKey(item: ServerGroup): string {
-    return `${item.serverId}:${item.view}:${item.group.id}`;
+    return `${item.serverId}:${item.group.id}`;
   }
 
   function compareGroups(a: ServerGroup, b: ServerGroup): number {
@@ -336,10 +322,7 @@
           roomId,
           occurrence.threadRootId,
           occurrence.eventId,
-          item.view === NotificationView.INBOX &&
-            occurrence.inboxState === NotificationInboxState.UNREAD
-            ? occurrence.id
-            : null
+          occurrence.unread ? occurrence.id : null
         );
       }
       await navigateToDestination(item.serverId, occurrence);
@@ -351,15 +334,13 @@
     }
   }
 
-  async function mutate(item: ServerGroup, action: 'done' | 'restore' | 'delete') {
+  async function dismiss(item: ServerGroup) {
     const key = mutationKey(item);
     if (pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
     try {
-      if (action === 'done') await store.moveGroupToDone(item.group.id, item.view);
-      if (action === 'restore') await store.restoreGroupToInbox(item.group.id, item.view);
-      if (action === 'delete') await store.deleteGroup(item.group.id, item.view);
+      await store.deleteGroup(item.group.id);
     } catch (error) {
       console.error('Failed to update notification:', error);
       toast.error(m('common.error.network'));
@@ -394,16 +375,14 @@
         {#each visibleGroups as item (rowKey(item))}
           {@const occurrence = item.group.openTarget}
           {@const actor = occurrence?.actor ?? null}
-          {@const isDone = item.view === NotificationView.DONE}
           {@const mutationPending = pendingMutationKeys.has(mutationKey(item))}
           <div
             class={[
-              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-[background-color,opacity]',
-              item.group.unread && !isDone && 'bg-action/5',
-              isDone && 'bg-surface-emphasized/40 opacity-60'
+              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+              item.group.unread && 'bg-attention/5'
             ]}
             data-testid="notification-group"
-            data-notification-state={isDone ? 'done' : 'inbox'}
+            data-notification-state={item.group.unread ? 'unread' : 'read'}
           >
             <button
               type="button"
@@ -412,9 +391,9 @@
               onclick={() => openGroup(item)}
             >
               {#if actor}<UserAvatar user={actor} size="md" />{/if}
-              {#if item.group.unread && !isDone}
+              {#if item.group.unread}
                 <span
-                  class="size-2 shrink-0 rounded-full bg-action"
+                  class="size-2 shrink-0 rounded-full bg-attention"
                   aria-label={m('chat.notifications.unread')}
                 ></span>
               {/if}
@@ -444,25 +423,12 @@
             </button>
             <div class="flex shrink-0 items-center gap-2">
               <Button
-                variant="secondary"
-                size="sm"
-                disabled={mutationPending}
-                label={isDone ? m('chat.notifications.restore') : m('chat.notifications.mark_done')}
-                title={isDone ? m('chat.notifications.restore') : m('chat.notifications.mark_done')}
-                onclick={() => mutate(item, isDone ? 'restore' : 'done')}
-              >
-                <span
-                  class={['iconify text-base', isDone ? 'icon-[uil--inbox]' : 'icon-[uil--check]']}
-                  aria-hidden="true"
-                ></span>
-              </Button>
-              <Button
                 variant="danger-secondary"
                 size="sm"
                 disabled={mutationPending}
                 label={m('common.delete')}
                 title={m('common.delete')}
-                onclick={() => mutate(item, 'delete')}
+                onclick={() => dismiss(item)}
               >
                 <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
               </Button>

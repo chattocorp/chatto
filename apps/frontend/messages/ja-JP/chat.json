@@ -10,12 +10,8 @@
       "time_minutes": "{count}分前",
       "time_hours": "{count}時間前",
       "time_days": "{count}d 前",
-      "inbox": "受信トレイ",
-      "done": "完了",
       "unread": "未読",
-      "activity": "新しいアクティビティ",
-      "mark_done": "完了にする",
-      "restore": "受信トレイに戻す"
+      "activity": "新しいアクティビティ"
     },
     "sign_out": {
       "title": "サインアウト",

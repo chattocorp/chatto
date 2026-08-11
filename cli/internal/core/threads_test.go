@@ -1306,9 +1306,9 @@ func TestChattoCore_NotifyThreadFollowers(t *testing.T) {
 	core.UnfollowThread(ctx, KindChannel, userC.Id, room.Id, rootMsg.Id)
 
 	// Clear all existing notifications
-	testMoveAllNotificationOccurrencesDone(t, core, userA.Id)
-	testMoveAllNotificationOccurrencesDone(t, core, userB.Id)
-	testMoveAllNotificationOccurrencesDone(t, core, userC.Id)
+	testDeleteAllNotificationOccurrences(t, core, userA.Id)
+	testDeleteAllNotificationOccurrences(t, core, userB.Id)
+	testDeleteAllNotificationOccurrences(t, core, userC.Id)
 
 	// User B posts another reply - should notify A (follower) but NOT C (unfollowed) or B (author)
 	core.PostMessage(ctx, KindChannel, room.Id, userB.Id, "Another reply from B", nil, rootMsg.Id, "", nil, false)
@@ -1585,7 +1585,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("self-reply does not create notification", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Talking to myself", nil, "", "", nil, false)
@@ -1609,7 +1609,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("disabled reply cause skips notification", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, alice.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
 			t.Fatalf("SetRoomNotificationIntensity: %v", err)
@@ -1637,7 +1637,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("mention and reply merge into one occurrence", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Dedup test", nil, "", "", nil, false)
@@ -1662,7 +1662,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("thread reply sets InThread field", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		// Alice posts a root message
 		rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Thread root", nil, "", "", nil, false)
@@ -1687,7 +1687,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("thread mention keeps existing follower notification", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		// Alice posts a root message. The first thread reply auto-follows her
 		// as root author before notifications are fanned out.
@@ -1712,8 +1712,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("in-thread inReplyTo notifies original author with InThread set", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
-		testMoveAllNotificationOccurrencesDone(t, core, bob.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, bob.Id)
 
 		// Create a third user for this test
 		charlie, _ := core.CreateUser(ctx, "system", "charlie", "Charlie", "password123")
@@ -1732,8 +1732,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		// Clear notifications from thread participant notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
-		testMoveAllNotificationOccurrencesDone(t, core, bob.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, bob.Id)
 
 		// Charlie replies to Bob's specific message within the thread (inThread + inReplyTo)
 		_, err = core.PostMessage(ctx, KindChannel, room.Id, charlie.Id, "Replying to Bob in thread", nil, rootMsg.Id, bobMsg.Id, nil, false)
@@ -1753,8 +1753,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 	t.Run("in-thread inReplyTo deduplicates with thread participant notification", func(t *testing.T) {
 		// Clear existing notifications
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
-		testMoveAllNotificationOccurrencesDone(t, core, bob.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, bob.Id)
 
 		// Alice posts a root message
 		rootMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Dedup thread root", nil, "", "", nil, false)
@@ -1763,7 +1763,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		// Clear Alice's thread participant notification
-		testMoveAllNotificationOccurrencesDone(t, core, alice.Id)
+		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
 		// Bob replies to Alice's root message in the thread (both inThread and inReplyTo point to root)
 		// Alice is both the thread root author (notifyThreadParticipants) and the inReplyTo author (notifyInReplyToAuthor)

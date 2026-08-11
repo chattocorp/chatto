@@ -4,7 +4,7 @@ import * as routes from '../routes';
 
 /**
  * Page object for the notifications page and bell icon.
- * Handles the notification bell, combined notification list, and triage actions.
+ * Handles the notification bell, persistent notification list, and dismissal.
  */
 export class NotificationsPage {
   constructor(readonly page: Page) {}
@@ -38,14 +38,16 @@ export class NotificationsPage {
     return this.page.locator('[data-testid="notification-group"]');
   }
 
-  /** Notification groups that still need triage. */
-  get inboxItems(): Locator {
-    return this.page.locator('[data-testid="notification-group"][data-notification-state="inbox"]');
+  /** Notification groups that still need attention. */
+  get unreadItems(): Locator {
+    return this.page.locator(
+      '[data-testid="notification-group"][data-notification-state="unread"]'
+    );
   }
 
-  /** Notification groups that have been handled. */
-  get doneItems(): Locator {
-    return this.page.locator('[data-testid="notification-group"][data-notification-state="done"]');
+  /** Notification groups that have already been read. */
+  get readItems(): Locator {
+    return this.page.locator('[data-testid="notification-group"][data-notification-state="read"]');
   }
 
   /**
@@ -86,10 +88,10 @@ export class NotificationsPage {
   }
 
   /**
-   * Get the Mark done button for a specific Inbox group.
+   * Get the Delete button for a specific notification group.
    */
-  getMarkDoneButton(notification: Locator): Locator {
-    return notification.locator('button[title="Mark done"]');
+  getDeleteButton(notification: Locator): Locator {
+    return notification.locator('button[title="Delete"]');
   }
 
   /**
@@ -100,23 +102,23 @@ export class NotificationsPage {
   }
 
   /**
-   * Move a specific notification to Done.
+   * Permanently dismiss a specific notification group.
    */
-  async markDone(notification: Locator): Promise<void> {
-    await this.getMarkDoneButton(notification).click();
+  async dismiss(notification: Locator): Promise<void> {
+    await this.getDeleteButton(notification).click();
   }
 
   /**
-   * Move every currently visible Inbox group to Done.
+   * Permanently dismiss every currently visible notification group.
    */
-  async markAllDone(): Promise<void> {
-    await expect(this.inboxItems.first()).toBeVisible({
+  async dismissAll(): Promise<void> {
+    await expect(this.notificationItems.first()).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    while ((await this.inboxItems.count()) > 0) {
-      const count = await this.inboxItems.count();
-      await this.getMarkDoneButton(this.inboxItems.first()).click();
-      await expect(this.inboxItems).toHaveCount(count - 1);
+    while ((await this.notificationItems.count()) > 0) {
+      const count = await this.notificationItems.count();
+      await this.getDeleteButton(this.notificationItems.first()).click();
+      await expect(this.notificationItems).toHaveCount(count - 1);
     }
   }
 
@@ -171,18 +173,18 @@ export class NotificationsPage {
     await expect(this.notificationItems).toHaveCount(count, { timeout: timeout ?? 5000 });
   }
 
-  /** Assert that the Inbox contains at least one notification group. */
-  async expectInboxNotEmpty(): Promise<void> {
-    await expect(this.inboxItems.first()).toBeVisible();
+  /** Assert that the list contains at least one unread notification group. */
+  async expectUnreadNotEmpty(): Promise<void> {
+    await expect(this.unreadItems.first()).toBeVisible();
   }
 
-  /** Assert that the Inbox contains no notification groups. */
-  async expectInboxEmpty(): Promise<void> {
-    await expect(this.inboxItems).toHaveCount(0);
+  /** Assert that the list contains no unread notification groups. */
+  async expectUnreadEmpty(): Promise<void> {
+    await expect(this.unreadItems).toHaveCount(0);
   }
 
-  /** Assert that the combined list contains at least one handled group. */
-  async expectDoneNotEmpty(): Promise<void> {
-    await expect(this.doneItems.first()).toBeVisible();
+  /** Assert that the list contains at least one read notification group. */
+  async expectReadNotEmpty(): Promise<void> {
+    await expect(this.readItems.first()).toBeVisible();
   }
 }

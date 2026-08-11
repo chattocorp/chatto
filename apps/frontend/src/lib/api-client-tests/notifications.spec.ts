@@ -5,7 +5,6 @@ import {
   notificationOccurrence,
   occurrenceAsNotificationItem,
   NotificationDeliveryIntensity,
-  NotificationInboxState,
   NotificationItemKind,
   NotificationReason
 } from '$lib/api-client/notifications';
@@ -28,7 +27,7 @@ describe('notification occurrence presentation mapping', () => {
             intensity: NotificationDeliveryIntensity.BADGE
           }
         ],
-        inboxState: NotificationInboxState.UNREAD
+        unread: true
       })
     );
 
@@ -61,7 +60,7 @@ describe('notification occurrence presentation mapping', () => {
             intensity: NotificationDeliveryIntensity.BADGE
           }
         ],
-        inboxState: NotificationInboxState.UNREAD
+        unread: true
       })
     );
 
@@ -89,7 +88,7 @@ describe('notification occurrence presentation mapping', () => {
             intensity: NotificationDeliveryIntensity.ALERT
           }
         ],
-        inboxState: NotificationInboxState.UNREAD
+        unread: true
       })
     );
 
@@ -117,7 +116,7 @@ describe('notification occurrence presentation mapping', () => {
             intensity: NotificationDeliveryIntensity.BADGE
           }
         ],
-        inboxState: NotificationInboxState.UNREAD
+        unread: true
       })
     );
 

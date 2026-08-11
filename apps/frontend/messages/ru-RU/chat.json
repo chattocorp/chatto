@@ -10,12 +10,8 @@
       "time_minutes": "{count} мин назад",
       "time_hours": "{count}ч назад",
       "time_days": "{count}дн назад",
-      "inbox": "Входящие",
-      "done": "Готово",
       "unread": "Непрочитанное",
-      "activity": "Новое событие",
-      "mark_done": "Отметить как готовое",
-      "restore": "Вернуть во входящие"
+      "activity": "Новое событие"
     },
     "sign_out": {
       "title": "Выйти",

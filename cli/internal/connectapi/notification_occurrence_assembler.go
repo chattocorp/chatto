@@ -94,7 +94,7 @@ func (a *notificationAssembler) occurrenceWithPresence(ctx context.Context, occu
 		Target:             target,
 		Reasons:            reasons,
 		StrongestIntensity: apiv1.NotificationDeliveryIntensity(occurrence.GetStrongestIntensity()),
-		InboxState:         apiv1.NotificationInboxState(occurrence.GetInboxState()),
+		Unread:             occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
 		ExpiresAt:          occurrence.GetExpiresAt(),
 	}, nil
 }

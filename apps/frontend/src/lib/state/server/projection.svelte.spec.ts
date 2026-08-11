@@ -26,7 +26,6 @@ import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_call
 import {
   ListNotificationGroupsResponse,
   NotificationGroup,
-  NotificationInboxState,
   NotificationOccurrence,
   NotificationRoomUnreadGroupCount,
   NotificationTarget
@@ -88,7 +87,7 @@ function notificationGroups(roomId: string, count: number): ListNotificationGrou
             new NotificationOccurrence({
               id: `N${index}`,
               actor: new User({ id: 'U1', displayName: 'Ada' }),
-              inboxState: NotificationInboxState.UNREAD,
+              unread: true,
               target: new NotificationTarget({
                 room: new RoomSummary({ id: roomId })
               })

@@ -10,12 +10,8 @@
       "time_minutes": "{count}m geleden",
       "time_hours": "{count}h geleden",
       "time_days": "{count}d geleden",
-      "inbox": "Postvak IN",
-      "done": "Afgehandeld",
       "unread": "Ongelezen",
-      "activity": "Nieuwe activiteit",
-      "mark_done": "Markeren als afgehandeld",
-      "restore": "Naar Postvak IN verplaatsen"
+      "activity": "Nieuwe activiteit"
     },
     "sign_out": {
       "title": "Uitloggen",

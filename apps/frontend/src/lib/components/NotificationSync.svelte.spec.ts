@@ -22,7 +22,7 @@ const { mocks } = vi.hoisted(() => {
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
-      nextInboxExpiryAt: null as string | null,
+      nextExpiryAt: null as string | null,
       fetch: vi.fn(async () => {})
     }
   });
@@ -125,7 +125,7 @@ describe('NotificationSync', () => {
       store.notifications.count = 0;
       store.notifications.unreadNotificationCount = 0;
       store.notifications.hasLoaded = true;
-      store.notifications.nextInboxExpiryAt = null;
+      store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
     }
   });
@@ -173,7 +173,7 @@ describe('NotificationSync', () => {
   });
 
   it('refreshes authoritative notification state at the next expiry boundary', async () => {
-    mocks.stores.origin.notifications.nextInboxExpiryAt = new Date().toISOString();
+    mocks.stores.origin.notifications.nextExpiryAt = new Date().toISOString();
     await renderAndWaitForSubscription();
 
     await vi.waitFor(() => expect(mocks.stores.origin.notifications.fetch).toHaveBeenCalledOnce());

@@ -175,7 +175,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 	}
 
 	expectRoomReadLiveEvent(t, sub, room.Id)
-	remaining, err := core.NotificationOccurrences().List(ctx, reader.Id, NotificationOccurrenceViewInbox)
+	remaining, err := core.NotificationOccurrences().List(ctx, reader.Id)
 	if err != nil {
 		t.Fatalf("List occurrences: %v", err)
 	}
@@ -215,7 +215,7 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 	}); err != nil || !added {
 		t.Fatalf("AddReaction = (%v, %v)", added, err)
 	}
-	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id, NotificationOccurrenceViewInbox)
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, author.Id)
 	if err != nil || len(occurrences) != 1 {
 		t.Fatalf("List reaction occurrences = (%d, %v), want one", len(occurrences), err)
 	}

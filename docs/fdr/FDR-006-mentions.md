@@ -77,11 +77,11 @@ may miss them.
 **Decision:** An eligible delivered mention creates a notification occurrence.
 Sidebar mention indicators derive from unread groups, not from a separate
 room-level mention-status key.
-**Why:** Mention attention state has the same read, Done, delete, cross-device,
+**Why:** Mention attention state has the same read, delete, cross-device,
 and retention lifecycle as other notifications. Keeping it in the notification
 model avoids duplicated state.
 **Tradeoff:** Marking the occurrence read or reading through its target clears
-the corresponding unread sidebar attention signal while retaining the Inbox
+the corresponding unread sidebar attention signal while retaining the notification
 item.
 
 ### 8. Direct thread mentions can subscribe the recipient
@@ -110,5 +110,5 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-071 (deterministic notification occurrences), ADR-072 (triageable notification inbox)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-071 (deterministic notification occurrences), ADR-072 (persistent notification list)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications)

@@ -103,7 +103,7 @@ message RoomMessageNotification {
 }
 
 // NotificationReason identifies why one source activity qualified for a
-// recipient's notification inbox. One occurrence can retain several reasons.
+// recipient's notification list. One occurrence can retain several reasons.
 enum NotificationReason {
   NOTIFICATION_REASON_UNSPECIFIED = 0;
   NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
@@ -127,7 +127,9 @@ enum NotificationDeliveryIntensity {
   NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
 }
 
-// NotificationInboxState is the recipient-controlled inbox triage state.
+// NotificationInboxState is the persisted attention state. DONE is retained
+// only for compatibility with Notifications 2.0 development records written
+// before the single-list model; visible DONE records are treated as read.
 enum NotificationInboxState {
   NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
   NOTIFICATION_INBOX_STATE_UNREAD = 1;
@@ -147,7 +149,7 @@ enum NotificationRemovalReason {
 }
 
 // NotificationAlertState tracks recoverable interruptive delivery for an
-// occurrence. Inbox and badge visibility do not depend on this state.
+// occurrence. List and badge visibility do not depend on this state.
 enum NotificationAlertState {
   NOTIFICATION_ALERT_STATE_UNSPECIFIED = 0;
   NOTIFICATION_ALERT_STATE_NOT_APPLICABLE = 1;

@@ -10,12 +10,8 @@
       "time_minutes": "{count}m ago",
       "time_hours": "{count}h ago",
       "time_days": "{count}d ago",
-      "inbox": "Inbox",
-      "done": "Done",
       "unread": "Unread",
-      "activity": "New activity",
-      "mark_done": "Mark done",
-      "restore": "Move to inbox"
+      "activity": "New activity"
     },
     "sign_out": {
       "title": "Sign Out",

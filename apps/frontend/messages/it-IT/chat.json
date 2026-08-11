@@ -10,12 +10,8 @@
       "time_minutes": "{count}m fa",
       "time_hours": "{count} ore fa",
       "time_days": "{count}d fa",
-      "inbox": "Posta in arrivo",
-      "done": "Completate",
       "unread": "Non letta",
-      "activity": "Nuova attività",
-      "mark_done": "Segna come completata",
-      "restore": "Sposta nella posta in arrivo"
+      "activity": "Nuova attività"
     },
     "sign_out": {
       "title": "Esci",

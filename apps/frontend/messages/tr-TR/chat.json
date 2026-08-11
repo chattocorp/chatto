@@ -10,12 +10,8 @@
       "time_minutes": "{count}m önce",
       "time_hours": "{count}sa önce",
       "time_days": "{count} gün önce",
-      "inbox": "Gelen kutusu",
-      "done": "Tamamlandı",
       "unread": "Okunmadı",
-      "activity": "Yeni etkinlik",
-      "mark_done": "Tamamlandı olarak işaretle",
-      "restore": "Gelen kutusuna taşı"
+      "activity": "Yeni etkinlik"
     },
     "sign_out": {
       "title": "Oturumu Kapat",

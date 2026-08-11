@@ -83,7 +83,7 @@ const categories = [
         name: 'NotificationService',
         slug: 'notifications',
         title: 'Notifications',
-        description: 'Grouped notification inbox, triage, deletion, and per-cause policy RPCs.'
+        description: 'Grouped notification listing, read, deletion, and per-cause policy RPCs.'
       },
       {
         name: 'PushNotificationService',

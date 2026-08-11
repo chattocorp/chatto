@@ -852,25 +852,24 @@ func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID,
 func assertAPINotificationStates(t *testing.T, env *connectAPITestEnv, ctx context.Context, unreadIDs []string, readIDs []string) {
 	t.Helper()
 	resp, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
-		View: apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
 		Page: &apiv1.PageRequest{Limit: 100},
 	}))
 	if err != nil {
 		t.Fatalf("ListNotificationGroups: %v", err)
 	}
-	states := map[string]apiv1.NotificationInboxState{}
+	states := map[string]bool{}
 	for _, group := range resp.Msg.GetGroups() {
 		for _, notification := range group.GetOccurrences() {
-			states[notification.GetId()] = notification.GetInboxState()
+			states[notification.GetId()] = notification.GetUnread()
 		}
 	}
 	for _, id := range unreadIDs {
-		if states[id] != apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		if !states[id] {
 			t.Fatalf("notification %s state = %v, want unread; got %v", id, states[id], states)
 		}
 	}
 	for _, id := range readIDs {
-		if states[id] != apiv1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
+		if states[id] {
 			t.Fatalf("notification %s state = %v, want read; got %v", id, states[id], states)
 		}
 	}
