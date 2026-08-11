@@ -82,7 +82,7 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	s.connectAPI = connectapi.New(chattoCore, s.config, s.version)
 
 	s.setupAuthRoutes()
-	s.setupRealtimeAPI(s.buildAllowedOrigins())
+	s.setupRealtimeAPI()
 
 	ts := httptest.NewServer(router)
 	t.Cleanup(func() { ts.Close() })

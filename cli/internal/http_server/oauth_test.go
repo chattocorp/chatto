@@ -24,6 +24,8 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
+const testOAuthClientID = "https://client.example/oauth/client-metadata.json"
+
 // setupOAuthServer creates a minimal HTTPServer with session middleware and OAuth endpoints.
 func setupOAuthServer(t *testing.T) *HTTPServer {
 	t.Helper()
@@ -61,6 +63,22 @@ func setupOAuthServer(t *testing.T) *HTTPServer {
 		router:  router,
 		core:    chattoCore,
 		version: "test",
+	}
+	s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
+		if clientID != testOAuthClientID {
+			return OAuthClient{}, false, nil
+		}
+		return OAuthClient{
+			ClientID: clientID, ClientName: "Test Client", ClientURI: "https://client.example",
+			RedirectURIs: []string{
+				"https://chatto.example/servers/callback",
+				"https://client.example/callback",
+				"https://client.example/servers/callback",
+				"https://client.example/servers/callback?mode=popup",
+				"https://first.example/servers/callback",
+				"https://second.example/servers/callback",
+			},
+		}, true, nil
 	}
 	s.setupOAuthRoutes()
 
@@ -123,6 +141,7 @@ func TestOAuthAuthorize_ValidParams(t *testing.T) {
 
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://chatto.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -150,6 +169,7 @@ func TestOAuthAuthorize_UsesConfiguredProviderHint(t *testing.T) {
 
 	requestURL := "/oauth/authorize?" + url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://chatto.example/servers/callback"},
 		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
 		"code_challenge_method": {"S256"},
@@ -173,6 +193,7 @@ func TestOAuthAuthorize_IgnoresUnknownProviderHint(t *testing.T) {
 
 	requestURL := "/oauth/authorize?" + url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://chatto.example/servers/callback"},
 		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
 		"code_challenge_method": {"S256"},
@@ -197,6 +218,7 @@ func TestOAuthAuthorize_ReturnsUnavailableWhenCookieValidationStorageFails(t *te
 
 	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://chatto.example/servers/callback"},
 		"code_challenge":        {core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")},
 		"code_challenge_method": {"S256"},
@@ -228,6 +250,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 		{
 			"missing response_type",
 			url.Values{
+				"client_id":             {testOAuthClientID},
 				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"S256"},
@@ -235,9 +258,20 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 			"unsupported_response_type",
 		},
 		{
+			"missing client_id",
+			url.Values{
+				"response_type":         {"code"},
+				"redirect_uri":          {"https://chatto.example/servers/callback"},
+				"code_challenge":        {"challenge"},
+				"code_challenge_method": {"S256"},
+			},
+			"invalid_request",
+		},
+		{
 			"missing redirect_uri",
 			url.Values{
 				"response_type":         {"code"},
+				"client_id":             {testOAuthClientID},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"S256"},
 			},
@@ -247,6 +281,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 			"missing code_challenge",
 			url.Values{
 				"response_type":         {"code"},
+				"client_id":             {testOAuthClientID},
 				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge_method": {"S256"},
 			},
@@ -256,6 +291,7 @@ func TestOAuthAuthorize_MissingParams(t *testing.T) {
 			"wrong code_challenge_method",
 			url.Values{
 				"response_type":         {"code"},
+				"client_id":             {testOAuthClientID},
 				"redirect_uri":          {"https://chatto.example/servers/callback"},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"plain"},
@@ -301,6 +337,7 @@ func TestOAuthAuthorize_InvalidRedirectURI(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 				"response_type":         {"code"},
+				"client_id":             {testOAuthClientID},
 				"redirect_uri":          {tt.redirectURI},
 				"code_challenge":        {"challenge"},
 				"code_challenge_method": {"S256"},
@@ -312,24 +349,6 @@ func TestOAuthAuthorize_InvalidRedirectURI(t *testing.T) {
 				t.Errorf("expected 400 for redirect_uri %q, got %d", tt.redirectURI, w.Code)
 			}
 		})
-	}
-}
-
-func TestOAuthAuthorize_AllowsConfiguredRedirectOrigin(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
-
-	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type":         {"code"},
-		"redirect_uri":          {"https://client.example/servers/callback?mode=popup"},
-		"code_challenge":        {"challenge"},
-		"code_challenge_method": {"S256"},
-	}.Encode(), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("expected 307 for configured redirect origin, got %d: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -514,60 +533,6 @@ func newOAuthCIMDTestServerForApplication(t *testing.T, redirectURI, application
 	return clientID, server
 }
 
-func TestOAuthAuthorize_AllowsConfiguredOAuthRedirectOrigin(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
-
-	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type":         {"code"},
-		"redirect_uri":          {"https://client.example/servers/callback"},
-		"code_challenge":        {"challenge"},
-		"code_challenge_method": {"S256"},
-	}.Encode(), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("expected 307 for configured OAuth redirect origin, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestOAuthAuthorize_AllowsOAuthRedirectWildcard(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.OAuthRedirectOrigins = []string{"*"}
-
-	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type":         {"code"},
-		"redirect_uri":          {"https://any-client.example/servers/callback"},
-		"code_challenge":        {"challenge"},
-		"code_challenge_method": {"S256"},
-	}.Encode(), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("expected 307 for OAuth redirect wildcard, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
-func TestOAuthAuthorize_AllowedOriginsWildcardDoesNotAllowOAuthRedirect(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"*"}
-
-	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
-		"response_type":         {"code"},
-		"redirect_uri":          {"https://evil.example/servers/callback"},
-		"code_challenge":        {"challenge"},
-		"code_challenge_method": {"S256"},
-	}.Encode(), nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-
-	if w.Code != http.StatusBadRequest {
-		t.Fatalf("expected 400 for CORS wildcard redirect origin, got %d: %s", w.Code, w.Body.String())
-	}
-}
-
 func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testing.T) {
 	s := setupOAuthServer(t)
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-victim")
@@ -576,6 +541,7 @@ func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testi
 	challenge := core.GenerateCodeChallenge(verifier)
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://evil.example/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -596,12 +562,12 @@ func TestOAuthAuthorize_RejectsUnconfiguredRedirectForAuthenticatedUser(t *testi
 
 func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-required")
 
 	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://client.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -625,12 +591,12 @@ func TestOAuthAuthorize_AuthenticatedTrustedRedirectRequiresConsent(t *testing.T
 
 func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://first.example", "https://second.example"}
 	cookies, _ := loginOAuthTestUser(t, s, "oauth-consent-overwrite")
 
 	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 	firstParams := url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://first.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -647,6 +613,7 @@ func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 
 	secondParams := url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://second.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -702,7 +669,6 @@ func TestOAuthAuthorize_FreshRequestOverwritesPendingConsent(t *testing.T) {
 
 func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
 	s.setupConnectAPI()
 	ts := httptest.NewServer(s.router)
 	t.Cleanup(ts.Close)
@@ -723,6 +689,7 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 	state := "sso-create-oauth-state"
 	authorizeURL := ts.URL + "/oauth/authorize?" + url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {redirectURI},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -766,8 +733,8 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 	if created.Msg.GetToken() == "" {
 		t.Fatal("CreateExternalIdentityAccount token is empty")
 	}
-	if err := s.core.GrantOAuthConsent(ctx, created.Msg.GetUserId(), "https://client.example"); err != nil {
-		t.Fatalf("GrantOAuthConsent: %v", err)
+	if err := s.core.GrantOAuthClientConsent(ctx, created.Msg.GetUserId(), testOAuthClientID, "Test Client", "https://client.example", "https://client.example"); err != nil {
+		t.Fatalf("GrantOAuthClientConsent: %v", err)
 	}
 
 	resumeResp, err := client.Get(ts.URL + "/oauth/authorize")
@@ -799,12 +766,12 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 
 func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
 	cookies, user := loginOAuthTestUser(t, s, "oauth-consent-approve")
 
 	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 	params := url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://client.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -853,9 +820,9 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 	}
 	cookies = mergeCookies(cookies, approveW.Result().Cookies())
 
-	consented, err := s.core.HasOAuthConsent(context.Background(), user.Id, "https://client.example")
+	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
 	if err != nil {
-		t.Fatalf("HasOAuthConsent: %v", err)
+		t.Fatalf("HasOAuthClientConsent: %v", err)
 	}
 	if !consented {
 		t.Fatalf("expected consent to be remembered")
@@ -875,12 +842,12 @@ func TestOAuthConsentApproveMintsCodeAndSkipsFuturePrompts(t *testing.T) {
 
 func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
 	cookies, user := loginOAuthTestUser(t, s, "oauth-consent-deny")
 
 	challenge := core.GenerateCodeChallenge("dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk")
 	req := httptest.NewRequest("GET", "/oauth/authorize?"+url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {"https://client.example/servers/callback"},
 		"code_challenge":        {challenge},
 		"code_challenge_method": {"S256"},
@@ -909,9 +876,9 @@ func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
 	if !strings.HasPrefix(redirectURL, "https://client.example/servers/callback?") || !strings.Contains(redirectURL, "error=access_denied") || !strings.Contains(redirectURL, "state=deny-state") || strings.Contains(redirectURL, "code=") {
 		t.Fatalf("unexpected deny redirectUrl %q", redirectURL)
 	}
-	consented, err := s.core.HasOAuthConsent(context.Background(), user.Id, "https://client.example")
+	consented, err := s.core.HasOAuthClientConsent(context.Background(), user.Id, testOAuthClientID, "https://client.example")
 	if err != nil {
-		t.Fatalf("HasOAuthConsent: %v", err)
+		t.Fatalf("HasOAuthClientConsent: %v", err)
 	}
 	if consented {
 		t.Fatalf("denial should not grant consent")
@@ -921,7 +888,7 @@ func TestOAuthConsentDenyRedirectsAccessDenied(t *testing.T) {
 func TestOAuthToken_InvalidGrant(t *testing.T) {
 	s := setupOAuthServer(t)
 
-	body := `{"grant_type":"authorization_code","code":"cht_ACnonexistent12","code_verifier":"verifier","redirect_uri":"https://example.com/callback"}`
+	body := `{"grant_type":"authorization_code","code":"cht_ACnonexistent12","code_verifier":"verifier","redirect_uri":"https://example.com/callback","client_id":"https://client.example/oauth/client-metadata.json"}`
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 	w := httptest.NewRecorder()
@@ -980,6 +947,7 @@ func TestOAuthToken_FormEncoded(t *testing.T) {
 		"code":          {"cht_ACnonexistent12"},
 		"code_verifier": {"verifier"},
 		"redirect_uri":  {"https://example.com/callback"},
+		"client_id":     {testOAuthClientID},
 	}
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
@@ -1103,6 +1071,9 @@ func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
 			CodeChallenge:       challenge,
 			CodeChallengeMethod: "S256",
 			State:               "state123",
+			ClientID:            testOAuthClientID,
+			ClientName:          "Test Client",
+			ClientURI:           "https://client.example",
 		}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
@@ -1137,7 +1108,11 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 	challenge := core.GenerateCodeChallenge(verifier)
 	redirectURI := "https://example.com/callback"
 
-	code, err := s.core.CreateAuthCode(ctx, user.Id, redirectURI, challenge, "S256")
+	authGeneration, err := s.core.CurrentAuthGeneration(ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration)
 	if err != nil {
 		t.Fatalf("Failed to create auth code: %v", err)
 	}
@@ -1148,6 +1123,7 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 		"code":          code,
 		"code_verifier": verifier,
 		"redirect_uri":  redirectURI,
+		"client_id":     testOAuthClientID,
 	})
 	req := httptest.NewRequest("POST", "/oauth/token", strings.NewReader(string(body)))
 	req.Header.Set("Content-Type", "application/json")
@@ -1191,76 +1167,5 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 	}
 	if userInfo["login"] != "testuser" {
 		t.Errorf("user.login = %q, want 'testuser'", userInfo["login"])
-	}
-}
-
-func TestIsValidRedirectURI(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.AllowedOrigins = []string{"https://client.example"}
-	s.config.Webserver.OAuthRedirectOrigins = []string{"https://oauth-client.example"}
-
-	tests := []struct {
-		uri  string
-		want bool
-	}{
-		{"https://chatto.example/callback", true},
-		{"https://client.example/callback", true},
-		{"https://oauth-client.example/callback", true},
-		{"chatto://desktop/servers/callback?mode=popup", true},
-		{"chatto://desktop/servers/other", false},
-		{"chatto://desktop:123/servers/callback", false},
-		{"chatto://other/servers/callback", false},
-		{"http://localhost:3000/callback", true},
-		{"http://localhost/callback", true},
-		{"http://127.0.0.1:5173/callback", true},
-		{"http://127.0.0.1/callback", true},
-		{"http://[::1]:5173/callback", true},
-		{"https://evil.example/callback", false},
-		{"http://example.com/callback", false},
-		{"ftp://example.com/callback", false},
-		{"example.com/callback", false},
-		{"/callback", false},
-		{"https://user:pass@client.example/callback", false},
-		{"https://chatto.example/callback#fragment", false},
-		{"", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.uri, func(t *testing.T) {
-			got := s.isAllowedOAuthRedirectURI(tt.uri)
-			if got != tt.want {
-				t.Errorf("isAllowedOAuthRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestIsValidRedirectURI_WithOAuthRedirectWildcard(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.config.Webserver.OAuthRedirectOrigins = []string{"*"}
-
-	tests := []struct {
-		uri  string
-		want bool
-	}{
-		{"https://any-client.example/callback", true},
-		{"https://another.example:8443/servers/callback", true},
-		{"chatto://desktop/servers/callback?mode=popup", true},
-		{"http://localhost:3000/callback", true},
-		{"http://127.0.0.1:5173/callback", true},
-		{"http://example.com/callback", false},
-		{"ftp://example.com/callback", false},
-		{"example.com/callback", false},
-		{"https://user:pass@evil.example/callback", false},
-		{"https://evil.example/callback#fragment", false},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.uri, func(t *testing.T) {
-			got := s.isAllowedOAuthRedirectURI(tt.uri)
-			if got != tt.want {
-				t.Errorf("isAllowedOAuthRedirectURI(%q) = %v, want %v", tt.uri, got, tt.want)
-			}
-		})
 	}
 }

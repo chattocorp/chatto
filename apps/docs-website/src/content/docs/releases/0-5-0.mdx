@@ -70,6 +70,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     upgrade guidance.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Remote clients connect without allowlists" size="large">
+    Browser frontends publish a verifiable CIMD identity and exact callback, while Chatto
+    Desktop uses its built-in identity. Servers accept bearer-authenticated cross-origin API
+    and realtime traffic without CORS or OAuth redirect-origin configuration.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Faster, leaner restarts">
     Encrypted projection snapshots and faster cold replay shorten restart catch-up on
     servers with substantial history, while more compact timeline state reduces memory use.
@@ -99,6 +105,10 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
+  environment-variable equivalents) from server configuration; those settings no longer
+  exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and
+  servers together. Pre-0.5 clients cannot use the new remote-server authorization flow.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
   and a 0.5 server no longer accepts protocol 1. Integrations that use `/api/realtime` must

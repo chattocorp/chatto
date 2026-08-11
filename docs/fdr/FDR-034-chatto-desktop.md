@@ -32,9 +32,9 @@ system-browser authentication, and clean-machine media behavior are hardened.
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
-- Servers using an explicit restrictive `webserver.allowed_origins` list must
-  allow `chatto://desktop`. The server always trusts the exact official desktop
-  OAuth callback separately from website redirect-origin configuration.
+- Servers recognize the built-in `chatto://desktop` OAuth client and its exact
+  callback. Desktop API and realtime access use bearer credentials and require
+  no origin configuration.
 - Identity providers that reject embedded user agents are not supported until
   Chatto Desktop gains a system-browser authorization handoff.
 
@@ -71,9 +71,9 @@ network behavior.
 OAuth callbacks, and registered servers reachable on every launch. The
 dedicated scheme cannot collide with a local service and avoids intercepting
 remote server navigation. Chatto servers trust only its exact callback path.
-**Tradeoff:** The exact origin becomes a compatibility boundary and restrictive
-server CORS configurations must allow it explicitly. Desktop clients using
-this origin require the corresponding Chatto 0.5 server behavior.
+**Tradeoff:** The exact origin becomes a compatibility boundary. Desktop
+clients using this identity require the corresponding Chatto 0.5 server
+behavior.
 
 ### 4. Keep the browser OAuth-window flow
 

@@ -105,9 +105,11 @@ provider replay counts stay on the trusted NATS contract and in operator logs;
 the authenticated public status does not expose server-wide event-log scale.
 
 `ServerDiscoveryService.GetServer` is the only Connect method for which the
-bundled client enables side-effect-free GET. It also receives wildcard public
-CORS and conditional-response caching. Other bundled-client Connect traffic
-uses POST.
+bundled client enables side-effect-free GET. It receives conditional-response
+caching. Other bundled-client Connect traffic uses POST. Browser HTTP and
+realtime transport is available from every syntactically valid origin without
+credentialed CORS; cross-origin authentication is bearer-only, while cookie
+fallback is restricted to the configured server origin.
 
 The discovery response includes the server software version as public
 pre-authentication state. The bundled client refreshes it per server and owns

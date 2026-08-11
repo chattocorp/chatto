@@ -470,6 +470,7 @@ export async function connectRemoteInstance(
     const requestUrl = new URL(route.request().url());
     const codeChallenge = requestUrl.searchParams.get('code_challenge') ?? '';
     const codeChallengeMethod = requestUrl.searchParams.get('code_challenge_method') ?? '';
+    const clientId = requestUrl.searchParams.get('client_id') ?? '';
     const redirectUri = requestUrl.searchParams.get('redirect_uri') ?? '';
     const state = requestUrl.searchParams.get('state') ?? '';
 
@@ -478,6 +479,7 @@ export async function connectRemoteInstance(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         userId,
+        clientId,
         redirectUri,
         codeChallenge,
         codeChallengeMethod,

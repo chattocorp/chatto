@@ -120,6 +120,17 @@ describe('remote server OAuth popup', () => {
     vi.unstubAllGlobals();
   });
 
+  it('uses the built-in OAuth client identity for Chatto Desktop', async () => {
+    const { oauthClientIdForLocation } = await import('./reauth');
+    expect(
+      oauthClientIdForLocation({
+        origin: 'chatto://desktop',
+        protocol: 'chatto:',
+        host: 'desktop'
+      })
+    ).toBe('chatto://desktop');
+  });
+
   it('keeps the main client mounted while completing PKCE through a popup', async () => {
     const popup = {
       closed: false,
@@ -175,6 +186,9 @@ describe('remote server OAuth popup', () => {
     expect(authorizeURL.searchParams.get('redirect_uri')).toBe(
       'https://app.example/servers/callback?mode=popup'
     );
+    expect(authorizeURL.searchParams.get('client_id')).toBe(
+      'https://app.example/oauth/frontend-client-metadata.json'
+    );
     expect(authorizeURL.searchParams.get('provider_id')).toBe('authling');
 
     const responseChannel = FakeBroadcastChannel.instances.find(
@@ -198,6 +212,9 @@ describe('remote server OAuth popup', () => {
         )
       })
     );
+    expect(JSON.parse(vi.mocked(fetch).mock.calls[0]![1]!.body as string)).toMatchObject({
+      client_id: 'https://app.example/oauth/frontend-client-metadata.json'
+    });
     expect(addServerMock).toHaveBeenCalledWith(
       expect.objectContaining({
         id: 'remote-example',

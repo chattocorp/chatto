@@ -39,9 +39,8 @@ normally. The fixed origin provides a stable secure-context namespace for
 local storage, IndexedDB, service workers, OAuth callbacks, and related browser
 state. Chatto servers trust the exact official callback
 `chatto://desktop/servers/callback`; no other path or custom-scheme host gains
-OAuth redirect trust. Servers using an explicit restrictive
-`webserver.allowed_origins` list must include `chatto://desktop` for API and
-realtime access; wildcard/default CORS behavior remains unchanged.
+OAuth redirect trust. The fixed `chatto://desktop` client identity and callback
+need no server configuration; API and realtime access use bearer credentials.
 
 OAuth keeps the frontend's ordinary `window.open()` flow, PKCE, consent,
 callback validation, `BroadcastChannel` response, token exchange, and bearer

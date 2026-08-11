@@ -235,25 +235,6 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 			wantError: "webserver.cookie_signing_secret must be hex-encoded",
 		},
 		{
-			name: "allowed origins overridden by env must be real origins",
-			config: `
-[webserver]
-port = 5000
-cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-allowed_origins = ["https://client.example"]
-
-[core]
-secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-
-[core.assets]
-signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-`,
-			env: map[string]string{
-				"CHATTO_WEBSERVER_ALLOWED_ORIGINS": "https://client.example/path",
-			},
-			wantError: "webserver.allowed_origins contains invalid origin",
-		},
-		{
 			name: "webserver URL from env must include scheme and host",
 			env: map[string]string{
 				"CHATTO_WEBSERVER_PORT":                  "4000",

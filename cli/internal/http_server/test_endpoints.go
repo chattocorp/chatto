@@ -389,6 +389,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 	auth.POST("test/oauth-authorize", func(c *gin.Context) {
 		var req struct {
 			UserID              string `json:"userId" binding:"required"`
+			ClientID            string `json:"clientId" binding:"required"`
 			RedirectURI         string `json:"redirectUri" binding:"required"`
 			CodeChallenge       string `json:"codeChallenge" binding:"required"`
 			CodeChallengeMethod string `json:"codeChallengeMethod" binding:"required"`
@@ -403,8 +404,9 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusBadRequest, gin.H{"error": "code_challenge_method must be S256"})
 			return
 		}
-		if !s.isAllowedOAuthRedirectURI(req.RedirectURI) {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid redirect_uri: must use an allowed HTTPS origin or localhost"})
+		client, err := s.resolveOAuthClient(c.Request.Context(), req.ClientID)
+		if err != nil || !client.allowsRedirectURI(req.RedirectURI) {
+			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid client_id or redirect_uri"})
 			return
 		}
 
@@ -414,7 +416,12 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			return
 		}
 
-		code, err := s.core.CreateAuthCode(ctx, req.UserID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod)
+		authGeneration, err := s.core.CurrentAuthGeneration(ctx, req.UserID)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read auth generation: " + err.Error()})
+			return
+		}
+		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth code: " + err.Error()})
 			return

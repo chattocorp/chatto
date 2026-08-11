@@ -55,6 +55,9 @@ type HTTPServer struct {
 
 	// Optional test hook used to make password-login revocation races deterministic.
 	passwordLoginSessionCreatedHook func(*gin.Context, string, uint64)
+
+	// Optional test hook for deterministic OAuth client metadata resolution.
+	oauthClientResolveHook func(context.Context, string) (OAuthClient, bool, error)
 }
 
 const (
@@ -241,18 +244,16 @@ func (s *HTTPServer) setupRoutes() error {
 	sessionStore = newDebugSessionStore(sessionStore, s.logger)
 	s.router.Use(sessions.Sessions("chatto_session", sessionStore))
 
-	// Build allowed origins list once and share between CORS middleware and WebSocket CheckOrigin
-	allowedOrigins := s.buildAllowedOrigins()
-
-	// CORS middleware for cross-origin API access (token-based auth)
-	s.router.Use(s.corsMiddleware(allowedOrigins))
+	// Cross-origin API access is open to bearer-token clients. Cookie
+	// authentication remains same-origin only.
+	s.router.Use(s.corsMiddleware())
 	s.router.Use(s.csrfMiddleware())
 
 	// Set up feature-specific routes
 	s.setupHealthRoutes()
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
-	s.setupRealtimeAPI(allowedOrigins)
+	s.setupRealtimeAPI()
 	s.setupClientConfigurationRoutes()
 	s.setupCIMDRoutes()
 	s.setupOIDCRoutes()

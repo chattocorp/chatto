@@ -4,7 +4,7 @@
 
 **Status:** Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md), which replaces origin allow-list client registration with CIMD identity and exact callback binding. The opaque bearer-token decision remains current.
 
-**Supersedes:** Partially extends [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) (cookie auth remains unchanged; this adds a parallel path)
+**Supersedes:** Partially extends [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) (same-origin cookie auth remains; this adds a parallel path)
 
 ## Context
 
@@ -52,23 +52,23 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 
 **Auth middleware priority:**
 1. Check `Authorization: Bearer <token>` header → validate token → load user
-2. Fall back to session cookie (existing behavior, unchanged)
+2. Fall back to the session cookie only when the request has no browser
+   `Origin` header or its origin exactly matches `webserver.url`
 
 **OAuth authorization for cross-origin Chatto clients:**
-- Clients start at `/oauth/authorize` with `response_type=code`, PKCE `code_challenge`, and a callback `redirect_uri`.
-- The server only accepts redirect URI origins it trusts: the configured `webserver.url` origin, explicit `webserver.allowed_origins` entries, explicit `webserver.oauth_redirect_origins` entries, loopback development origins, and the exact official `chatto://desktop/servers/callback`. The wildcard CORS default (`allowed_origins = ["*"]`) does not authorize website OAuth redirects.
-- `oauth_redirect_origins = ["*"]` is an OAuth-specific temporary escape hatch for controlled alpha deployments: it accepts any otherwise valid HTTPS redirect origin while preserving loopback HTTP/HTTPS development redirects. This reopens the authorization-code exfiltration risk that exact origin trust is meant to reduce, so production deployments should prefer exact origins or a narrow trusted frontend origin.
-- The first authorization for a trusted redirect origin shows the user a consent screen. Approval is remembered per user + canonical redirect origin through durable user EVT facts; denial is also recorded as an audit fact.
+- Clients start at `/oauth/authorize` with a CIMD URL `client_id`, `response_type=code`, PKCE `code_challenge`, and an exact callback `redirect_uri`. Chatto Desktop uses its built-in client ID instead of a CIMD URL.
+- Chatto resolves the client metadata and accepts only an exact redirect URI declared by that identified public client.
+- The first authorization for a client shows the user a consent screen. Approval is remembered per user + client ID through durable user EVT facts; denial is also recorded as an audit fact.
 - The callback receives a short-lived authorization code, not a bearer token. The client exchanges the code and PKCE verifier at `/oauth/token`.
-- Auth codes are stored as HMAC-derived `grant.{hmac}` runtime-state keys and are deleted on exchange attempt.
+- Auth codes are stored as HMAC-derived `grant.{hmac}` runtime-state keys, bind the client ID and exact callback, and are deleted on exchange attempt.
 
 ## Consequences
 
 - **Cross-origin clients become possible**: Clients that can obtain a bearer token through a trusted OAuth redirect or another authentication flow can authenticate with an HTTP header. This unblocks the multi-instance client epic without trusting arbitrary web origins.
-- **Cookie auth is unchanged**: The embedded SPA continues to work exactly as before. No migration needed for existing deployments.
+- **Cookie auth stays first-party**: The embedded SPA continues to use its cookie when needed, but a browser origin cannot inject that ambient credential into a cross-origin HTTP or realtime request.
 - **No token refresh complexity**: Long-lived tokens with server-side TTL are simple. If a token expires, the client re-authenticates. No refresh token dance.
 - **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
 - **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from the token's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.
-- **OAuth redirect setup**: A separately hosted Chatto frontend must be configured in `webserver.oauth_redirect_origins` or as an exact `webserver.allowed_origins` entry on each server it connects to. This adds an operator step, but prevents malicious sites from using `/oauth/authorize` as a logged-in user's bearer-token minting oracle. During controlled alpha use, `oauth_redirect_origins = ["*"]` can temporarily trade that protection for connectivity.
-- **No client registry**: Chatto does not require `client_id` registration for this flow. Any version-compatible Chatto client may connect once its origin is trusted and the user consents.
+- **No origin setup**: Chatto permits cross-origin HTTP and realtime transport without credentialed CORS. Exact callback trust comes from CIMD or a built-in client registration instead of operator-managed origin lists.
+- **Open client ecosystem**: Any version-compatible public client may connect once it publishes valid CIMD metadata and the user consents. Stable client IDs support consent, audit, and future administrative policy without a preregistration table.

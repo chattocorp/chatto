@@ -120,9 +120,9 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
   a report-only CSP with Trusted Types reporting so deployments can surface
   dangerous script and DOM-sink patterns before policy enforcement is viable for
   the multi-server client.
-- `chatto.discovery.v1.ServerDiscoveryService.GetServer` is the only ConnectRPC endpoint with unconditional wildcard CORS — rich data needed pre-registration must go there, not in authenticated ConnectRPC calls
-- Separately hosted multi-server frontends must be listed explicitly in each remote server's `webserver.oauth_redirect_origins` or exact `webserver.allowed_origins` before OAuth authorization codes can redirect back to them; wildcard CORS does not imply website OAuth redirect trust. `oauth_redirect_origins = ["*"]` exists only as a temporary controlled-alpha escape hatch. Chatto servers separately trust the exact official `chatto://desktop/servers/callback`.
-- Users approve the first OAuth authorization for each trusted client origin; Chatto remembers that consent per user + origin instead of relying on an operator-managed OAuth client registry
+- All public HTTP and realtime entry points permit browser transport from any syntactically valid origin without credentialed CORS. Cross-origin clients must present bearer tokens; ambient cookie credentials remain same-origin only.
+- Separately hosted frontends publish a CIMD document and send its URL as `client_id`. Chatto validates the exact callback from that document, while Desktop uses its fixed built-in registration.
+- Users approve the first OAuth authorization for each client; Chatto remembers consent per user + stable client ID without an operator-managed registration table.
 - Authling server-list synchronization needs a separate `account_data` consent and repeats authorization when its five-minute access token expires
 - Signing in to a Chatto server remains a separate OIDC authorization because the frontend and server are separate clients with different tokens and scopes
 - A frontend distribution must publish or inject its trusted Authling client configuration; connected Chatto servers cannot supply this global setting

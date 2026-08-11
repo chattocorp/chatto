@@ -16,9 +16,9 @@ stack.
 
 The official desktop origin is accepted by Chatto's OAuth redirect policy. The
 desktop shell uses Electron's ordinary popup support for the same PKCE and
-`BroadcastChannel` flow as a browser. Servers with an explicit restrictive
-`webserver.allowed_origins` list must include `chatto://desktop` for API
-requests from the desktop app.
+`BroadcastChannel` flow as a browser. Chatto 0.5 servers recognize the built-in
+`chatto://desktop` client identity and exact callback; bearer-authenticated API
+and realtime access requires no server origin configuration.
 
 ## Run it
 

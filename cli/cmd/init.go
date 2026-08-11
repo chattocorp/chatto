@@ -93,7 +93,6 @@ var initCmd = &cobra.Command{
 			Webserver: config.WebserverConfig{
 				Port:                   4000,
 				URL:                    "http://localhost:4000",
-				AllowedOrigins:         []string{"*"},
 				CookieSigningSecret:    sessionSecretString,
 				CookieEncryptionSecret: cookieEncryptionSecretString,
 			},

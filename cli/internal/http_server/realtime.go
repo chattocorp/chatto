@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -47,7 +46,7 @@ var realtimeServerCapabilities = []string{
 	"chatto.realtime.projection.v1",
 }
 
-func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
+func (s *HTTPServer) setupRealtimeAPI() {
 	if s.metrics == nil {
 		s.metrics = newProcessMetrics()
 	}
@@ -62,7 +61,7 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 		WriteBufferPool:   writeBufferPool,
 		EnableCompression: s.config.Webserver.WebSocketCompressionEnabled(),
 		CheckOrigin: func(r *http.Request) bool {
-			return s.checkRealtimeWebSocketOrigin(r, allowedOrigins)
+			return s.checkRealtimeWebSocketOrigin(r)
 		},
 	}
 
@@ -90,27 +89,15 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	})
 }
 
-func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request, allowedOrigins []string) bool {
+func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return true
 	}
-	if s.matchOrigin(origin, allowedOrigins) != originNotAllowed {
+	if _, ok := parseBrowserOrigin(origin); ok {
 		return true
 	}
-	host := r.Host
-	if s.trustedProxies.containsRemoteAddr(r.RemoteAddr) {
-		if forwarded := forwardedHost(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
-			host = forwarded
-		}
-	}
-	if parsedOrigin, err := url.Parse(origin); err == nil {
-		if strings.EqualFold(parsedOrigin.Host, host) {
-			return true
-		}
-	}
-	s.logger.Warn("Realtime WebSocket connection rejected: origin mismatch",
-		"origin", origin, "host", host, "allowed", allowedOrigins)
+	s.logger.Warn("Realtime WebSocket connection rejected: invalid origin")
 	return false
 }
 

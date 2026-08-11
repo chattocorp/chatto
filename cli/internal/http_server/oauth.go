@@ -10,7 +10,6 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
-	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
 )
 
@@ -80,6 +79,13 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			})
 			return
 		}
+		if clientID == "" {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_request",
+				"error_description": "client_id is required",
+			})
+			return
+		}
 
 		if codeChallenge == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
@@ -97,28 +103,18 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		var client OAuthClient
-		if clientID != "" {
-			var err error
-			client, err = s.resolveOAuthClient(c.Request.Context(), clientID)
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":             "invalid_client",
-					"error_description": "The OAuth client metadata could not be verified",
-				})
-				return
-			}
-			if !client.allowsRedirectURI(redirectURI) {
-				c.JSON(http.StatusBadRequest, gin.H{
-					"error":             "invalid_request",
-					"error_description": "redirect_uri is not registered for this client",
-				})
-				return
-			}
-		} else if !s.isAllowedOAuthRedirectURI(redirectURI) {
+		client, err := s.resolveOAuthClient(c.Request.Context(), clientID)
+		if err != nil {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client metadata could not be verified",
+			})
+			return
+		}
+		if !client.allowsRedirectURI(redirectURI) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
-				"error_description": "Invalid redirect_uri: must use an allowed origin",
+				"error_description": "redirect_uri is not registered for this client",
 			})
 			return
 		}
@@ -213,10 +209,10 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" {
+		if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" || req.ClientID == "" {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_request",
-				"error_description": "code, code_verifier, and redirect_uri are required",
+				"error_description": "code, code_verifier, redirect_uri, and client_id are required",
 			})
 			return
 		}
@@ -548,119 +544,13 @@ func hasPendingOAuthAuthorize(session sessions.Session) bool {
 	return pendingOAuthAuthorizeToken(session) != ""
 }
 
-func (s *HTTPServer) allowedOAuthRedirectOrigin(uri string) (string, bool) {
-	if !s.isAllowedOAuthRedirectURI(uri) {
-		return "", false
-	}
-	u, err := url.Parse(uri)
-	if err != nil {
-		return "", false
-	}
-	return canonicalOrigin(u), true
-}
-
 func (s *HTTPServer) pendingOAuthRedirectOrigin(params pendingOAuthAuthorize) (string, bool) {
-	if params.ClientID == "" {
-		return s.allowedOAuthRedirectOrigin(params.RedirectURI)
-	}
 	u, err := url.Parse(params.RedirectURI)
 	if err != nil || u.Scheme == "" {
 		return "", false
 	}
 	if u.Host == "" {
 		return strings.ToLower(u.Scheme) + ":", true
-	}
-	return canonicalOrigin(u), true
-}
-
-// isAllowedOAuthRedirectURI validates a redirect URI for the OAuth authorize
-// flow. In addition to requiring HTTPS (except loopback development URLs and
-// the official desktop callback), it only accepts origins this server
-// explicitly trusts: its own public
-// webserver.url origin, exact webserver.allowed_origins entries,
-// webserver.oauth_redirect_origins entries, and localhost.
-func (s *HTTPServer) isAllowedOAuthRedirectURI(uri string) bool {
-	u, err := url.Parse(uri)
-	if err != nil {
-		return false
-	}
-
-	// Must have a scheme and host
-	if u.Scheme == "" || u.Host == "" || u.User != nil || u.Fragment != "" {
-		return false
-	}
-	if isChattoDesktopOAuthRedirect(u) {
-		return true
-	}
-
-	if isLoopbackOAuthRedirectHost(u.Hostname()) {
-		return u.Scheme == "http" || u.Scheme == "https"
-	}
-
-	if u.Scheme != "https" {
-		return false
-	}
-
-	redirectOrigin := canonicalOrigin(u)
-	for _, allowed := range s.allowedOAuthRedirectOrigins() {
-		if allowed == "*" {
-			return true
-		}
-		if redirectOrigin == allowed {
-			return true
-		}
-	}
-
-	return false
-}
-
-func isChattoDesktopOAuthRedirect(u *url.URL) bool {
-	return canonicalOrigin(u) == config.ChattoDesktopOrigin &&
-		strings.EqualFold(u.Host, "desktop") &&
-		u.EscapedPath() == config.ChattoDesktopOAuthCallbackPath
-}
-
-func (s *HTTPServer) allowedOAuthRedirectOrigins() []string {
-	origins := make([]string, 0, len(s.config.Webserver.AllowedOrigins)+len(s.config.Webserver.OAuthRedirectOrigins)+1)
-	if origin, ok := parseConfiguredOAuthOrigin(s.config.Webserver.URL); ok {
-		origins = append(origins, origin)
-	}
-	for _, raw := range s.config.Webserver.AllowedOrigins {
-		if strings.TrimSpace(raw) == "*" {
-			continue
-		}
-		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
-			origins = append(origins, origin)
-		}
-	}
-	for _, raw := range s.config.Webserver.OAuthRedirectOrigins {
-		if strings.TrimSpace(raw) == "*" {
-			origins = append(origins, "*")
-			continue
-		}
-		if origin, ok := parseConfiguredOAuthOrigin(raw); ok {
-			origins = append(origins, origin)
-		}
-	}
-	return origins
-}
-
-func parseConfiguredOAuthOrigin(raw string) (string, bool) {
-	raw = strings.TrimSpace(raw)
-	u, err := url.Parse(raw)
-	if err != nil || u.Scheme == "" || u.Host == "" || u.User != nil {
-		return "", false
-	}
-	if canonicalOrigin(u) == config.ChattoDesktopOrigin {
-		if !strings.EqualFold(u.Host, "desktop") {
-			return "", false
-		}
-	} else if isLoopbackOAuthRedirectHost(u.Hostname()) {
-		if u.Scheme != "http" && u.Scheme != "https" {
-			return "", false
-		}
-	} else if u.Scheme != "https" {
-		return "", false
 	}
 	return canonicalOrigin(u), true
 }

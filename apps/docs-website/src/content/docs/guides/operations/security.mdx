@@ -53,21 +53,25 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the trusted frontend origin; the main client exchanges the code and stores the resulting token.
 
-For a known hosted frontend, list its exact callback origin in `webserver.oauth_redirect_origins`. To make your server addable from a frontend hosted by any other Chatto server, you must allow both wildcard OAuth redirects and wildcard CORS:
+The frontend identifies itself with the URL of its published CIMD document.
+Chatto retrieves that document and accepts only the exact callback registered
+there. The user approves the identified client, and consent is remembered by
+user and stable client ID:
 
 <LinkCard
-  title="Allow Connections From Any Chatto Frontend"
+  title="Connections From Other Chatto Clients"
   href="/guides/operations/cross-server-connections/"
-  description="Configure both allowlists, understand the security tradeoff, and read the Chatto 0.5 compatibility note."
+  description="Learn how CIMD identity, exact callbacks, bearer-only transport, and the Chatto 0.5 compatibility boundary work."
 />
 
-Wildcard redirect trust allows any HTTPS origin to start a Chatto OAuth authorization request. PKCE prevents passive interception of the code, and Chatto still shows the user a consent screen for each redirect origin, but a malicious site can initiate its own flow and ask a logged-in user to approve it. If the user approves, that site receives an authorization code it can exchange for a bearer token.
+Any compatible software that can publish valid CIMD metadata may ask for
+access. This is an open client ecosystem, not an endorsement system. A
+malicious application can still initiate its own flow and ask a logged-in user
+to approve it; users should authorize only clients they recognize.
 
-Chatto 0.5 and newer also trust the exact official Chatto Desktop callback,
-`chatto://desktop/servers/callback`, without an OAuth redirect-origin setting.
-Restrictive CORS configurations must still include `chatto://desktop` so the
-desktop app can call the API and open its realtime connection. Desktop access
-uses the same PKCE flow and per-origin consent as hosted frontends.
+Chatto Desktop uses the built-in `chatto://desktop` identity and exact callback.
+It needs no server origin configuration and otherwise uses the same PKCE,
+consent, and bearer-token flow as hosted frontends.
 
 ## Authorization
 
@@ -181,11 +185,14 @@ There is **no per-IP or per-user rate limiting** at the application layer. If yo
 
 ### CORS and WebSockets
 
-CORS allows the configured `webserver.url`, the local listen port (for development), and any explicit entries in `webserver.allowed_origins`. Credentials (cookies) are only attached for explicit origins; wildcard mode omits credentials, forcing token-based auth in that case. See [Allow Connections From Any Chatto Frontend](/guides/operations/cross-server-connections/) when configuring cross-server access.
+Chatto permits browser HTTP and realtime transport from any syntactically valid
+origin without enabling credentialed CORS. When a request carries a foreign
+`Origin`, the server ignores ambient session cookies and requires a bearer
+token. Same-origin browser requests can still use the HTTP-only session cookie.
 
-Realtime WebSocket connections perform the same origin check before the upgrade is accepted.
-
-OAuth redirect callbacks use a separate trust list, `webserver.oauth_redirect_origins`. See [Chatto frontend OAuth redirects](#chatto-frontend-oauth-redirects).
+OAuth callback trust is separate from CORS: Chatto accepts only an exact
+callback from the validated client's CIMD document or a built-in registration
+such as Chatto Desktop. See [Connections From Other Chatto Clients](/guides/operations/cross-server-connections/).
 
 ## HTTP security headers
 

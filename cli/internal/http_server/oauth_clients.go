@@ -364,6 +364,11 @@ var oauthClientSpecialUsePrefixes = []netip.Prefix{
 }
 
 func (s *HTTPServer) resolveOAuthClient(ctx context.Context, clientID string) (OAuthClient, error) {
+	if s.oauthClientResolveHook != nil {
+		if client, handled, err := s.oauthClientResolveHook(ctx, clientID); handled {
+			return client, err
+		}
+	}
 	if clientID == config.ChattoDesktopOrigin {
 		return OAuthClient{
 			ClientID: clientID, ClientName: "Chatto Desktop", ClientURI: config.ChattoDesktopOrigin,

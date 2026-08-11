@@ -152,6 +152,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			headers: { 'Content-Type': 'application/json' },
 			body: JSON.stringify({
 				grant_type: 'authorization_code',
+				client_id: 'https://client.example/oauth/client-metadata.json',
 				code: 'cht_ACnonexistent12',
 				code_verifier: 'wrong-verifier',
 				redirect_uri: 'https://example.com/callback'

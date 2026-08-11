@@ -1,47 +1,56 @@
 ---
-title: Allow Connections From Any Chatto Frontend
-description: Configure a Chatto server so users can add it from a frontend hosted by any other Chatto server.
+title: Connections From Other Chatto Clients
+description: Understand how Chatto 0.5 clients identify themselves and connect without server-side origin configuration.
 ---
 
-import { Aside, Tabs, TabItem } from "@astrojs/starlight/components";
+import { Aside } from "@astrojs/starlight/components";
 
-To let users add your server from a frontend hosted by **any other Chatto server**, set both the OAuth redirect origins and the CORS origins to `*`.
+Chatto 0.5 servers can be added from a frontend hosted by any other Chatto
+server without changing `chatto.toml` or environment variables.
 
-Chatto calls the callback setting `oauth_redirect_origins`. It belongs to Chatto's own cross-server OAuth flow and is separate from any external OIDC login provider you configure under `auth.providers`.
+The frontend publishes a Client ID Metadata Document (CIMD) at
+`/oauth/frontend-client-metadata.json`. When it starts the remote server's
+OAuth Authorization Code flow, it sends that HTTPS document URL as its
+`client_id`. The remote server retrieves and validates the document, including
+the exact callback URI. After the user approves the identified client, the
+frontend exchanges the short-lived code with PKCE and stores the resulting
+bearer token.
 
-<Tabs>
-  <TabItem label="chatto.toml">
-    ```toml
-    [webserver]
-    allowed_origins = ["*"]
-    oauth_redirect_origins = ["*"]
-    ```
-  </TabItem>
-  <TabItem label="Environment variables">
-    ```bash
-    CHATTO_WEBSERVER_ALLOWED_ORIGINS=*
-    CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS=*
-    ```
-  </TabItem>
-</Tabs>
+Chatto accepts browser HTTP and realtime transport from any origin, but never
+enables credentialed cross-origin requests. A foreign origin cannot use an
+ambient Chatto session cookie; it must present the bearer token issued through
+the OAuth flow.
 
-Restart Chatto after changing the configuration. Users can then open another Chatto server's frontend, choose **Add server**, and enter your server's URL.
-
-<Aside type="note" title="Chatto Desktop">
-  Chatto 0.5 and newer trust the exact official `chatto://desktop/servers/callback` automatically. The wildcard OAuth setting above is for website frontends. The default wildcard CORS setting already permits desktop API access; a restrictive CORS list must include `chatto://desktop`.
+<Aside type="note" title="Chatto Desktop and native apps">
+  Chatto Desktop uses the built-in `chatto://desktop` client identity and exact
+  callback. Future native clients can publish HTTPS CIMD metadata that declares
+  an application-specific callback scheme. Neither case needs CORS or redirect
+  origin configuration.
 </Aside>
 
-## Why Both Settings Are Required
+## What Client Identity Means
 
-The two settings allow different parts of the connection flow:
+Any compatible public application that can publish a valid CIMD document can
+ask a user to connect. This keeps the client ecosystem open while giving the
+server a stable client ID, exact callback registration, and durable consent and
+audit records.
 
-- `oauth_redirect_origins = ["*"]` lets any valid HTTPS website frontend origin receive the OAuth authorization callback. The exact official desktop callback is trusted separately.
-- `allowed_origins = ["*"]` lets any frontend origin call your server's API and open its realtime WebSocket connection. Cross-origin clients authenticate with bearer tokens, not cookies.
+CIMD identity is not an endorsement. The authorization page shows the client
+to the user and requires consent before issuing access. A malicious application
+can still ask a signed-in user to approve it, so users should authorize only
+clients they recognize.
 
-Setting only one wildcard is not enough. In particular, wildcard CORS does not authorize OAuth redirect callbacks.
+## Deployment Requirements
 
-## Security Tradeoff
+- Run Chatto 0.5 or newer on both sides. Pre-0.5 origin-only clients are not
+  compatible with this flow.
+- Serve browser client metadata over public HTTPS. Chatto blocks redirects,
+  oversized responses, and private or other special-use network destinations
+  when retrieving CIMD metadata. Loopback HTTP is supported only for loopback
+  development servers.
+- Make the exact callback URL available in the metadata document. The bundled
+  frontend publishes its document automatically.
 
-This configuration deliberately trusts any website origin to start a connection flow and make cross-origin requests to your server. Chatto uses PKCE and asks the user for consent before issuing access, but a malicious site can still ask a logged-in user to approve it.
-
-If only specific frontends should be able to add your server, list their exact HTTPS origins instead of `*`. See [Security & Privacy](/guides/operations/security/#chatto-frontend-oauth-redirects) for details.
+The old `webserver.allowed_origins` and `webserver.oauth_redirect_origins`
+settings were removed in 0.5. Delete them from existing configuration during
+upgrade.

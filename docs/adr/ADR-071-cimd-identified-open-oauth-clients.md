@@ -76,8 +76,8 @@ client-credentials grants. Browser and native clients remain public clients
 using PKCE. Server-to-server push relay is outside this decision.
 
 The 0.5 client and server move to this contract together. Compatibility with
-pre-0.5 origin-only OAuth clients is not a design requirement; the temporary
-origin allow-list path is removed once the bundled frontend sends `client_id`.
+pre-0.5 origin-only OAuth clients is not a design requirement. The bundled
+frontend sends `client_id`, and the temporary origin allow-list path is removed.
 
 ## Consequences
 

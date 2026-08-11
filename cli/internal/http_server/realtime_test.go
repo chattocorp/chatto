@@ -68,6 +68,23 @@ func (env *wsTestEnv) dialRealtime(t testing.TB) *websocket.Conn {
 	return env.dialRealtimeWithDialer(t, websocket.DefaultDialer)
 }
 
+func (env *wsTestEnv) dialRealtimeWithOrigin(t testing.TB, origin string) *websocket.Conn {
+	t.Helper()
+	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
+	header := http.Header{"Origin": []string{origin}}
+	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
+		header.Add("Cookie", cookie.String())
+	}
+	conn, response, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		if response != nil {
+			t.Fatalf("Realtime WebSocket dial failed with status %d: %v", response.StatusCode, err)
+		}
+		t.Fatalf("Realtime WebSocket dial failed: %v", err)
+	}
+	return conn
+}
+
 func (env *wsTestEnv) dialRealtimeWithCompression(t testing.TB) *websocket.Conn {
 	dialer := *websocket.DefaultDialer
 	dialer.EnableCompression = true
@@ -1861,6 +1878,33 @@ func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 
 	conn := env.connectRealtime(t)
 	subscribeRealtime(t, conn, "")
+}
+
+func TestRealtimeWebSocketRequiresBearerAcrossOrigins(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cross-origin", "RT Cross Origin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	env.login(t, "rt-cross-origin", "password123")
+
+	cookieOnly := env.dialRealtimeWithOrigin(t, "https://client.example")
+	t.Cleanup(func() { _ = cookieOnly.Close() })
+	sendRealtimeClientFrame(t, cookieOnly, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{ProtocolVersion: realtimeProtocolVersion},
+	}})
+	frame, ok := readRealtimeServerFrame(t, cookieOnly, 5*time.Second)
+	if !ok || frame.GetError().GetCode() != "authentication_required" {
+		t.Fatalf("cookie-only cross-origin frame = %+v", frame)
+	}
+
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bearer := env.dialRealtimeWithOrigin(t, "https://client.example")
+	t.Cleanup(func() { _ = bearer.Close() })
+	subscribeRealtime(t, bearer, token)
 }
 
 func TestRealtimeWebSocketRejectsCookieHandleAsBearerHello(t *testing.T) {
