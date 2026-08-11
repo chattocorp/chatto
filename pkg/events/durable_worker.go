@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 )
 
@@ -150,14 +151,17 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			return nil
 		}
 
-		batch, err := w.consumer.Fetch(
-			1,
-			jetstream.FetchMaxWait(w.opts.FetchMaxWait),
-		)
+		fetchCtx, cancelFetch := context.WithTimeout(runCtx, w.opts.FetchMaxWait)
+		msg, err := w.consumer.Next(jetstream.FetchContext(fetchCtx))
+		fetchCtxErr := fetchCtx.Err()
+		cancelFetch()
 		if err != nil {
 			<-active
 			if runCtx.Err() != nil {
 				return nil
+			}
+			if errors.Is(fetchCtxErr, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
+				continue
 			}
 			w.logWarn("Durable work fetch failed; retrying", "error", err)
 			if !waitForDurableWorkerRetry(runCtx, w.opts.FetchRetryDelay) {
@@ -165,47 +169,19 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 			}
 			continue
 		}
-
-		messages := batch.Messages()
-		received := false
-		select {
-		case msg, ok := <-messages:
-			if !ok {
-				break
+		if runCtx.Err() != nil {
+			if err := msg.Nak(); err != nil {
+				w.logWarn("Durable delivery handoff failed", "subject", msg.Subject(), "error", err)
 			}
-			received = true
-			group.Add(1)
-			go func(msg jetstream.Msg) {
-				defer group.Done()
-				defer func() { <-active }()
-				w.process(runCtx, msg)
-			}(msg)
-		case <-runCtx.Done():
 			<-active
 			return nil
 		}
-		if !received {
-			<-active
-		} else {
-			// Fetch(1) owns at most one message, but the batch result is not
-			// complete until its channel closes. Keep cancellation selectable
-			// while waiting so an idle or disconnected consumer cannot pin
-			// application shutdown.
-			select {
-			case _, ok := <-messages:
-				if ok {
-					return fmt.Errorf("receive durable work: fetch returned more than one message")
-				}
-			case <-runCtx.Done():
-				return nil
-			}
-		}
-		if err := batch.Error(); err != nil && runCtx.Err() == nil {
-			w.logWarn("Durable work receive failed; retrying", "error", err)
-			if !waitForDurableWorkerRetry(runCtx, w.opts.FetchRetryDelay) {
-				return nil
-			}
-		}
+		group.Add(1)
+		go func(msg jetstream.Msg) {
+			defer group.Done()
+			defer func() { <-active }()
+			w.process(runCtx, msg)
+		}(msg)
 	}
 	return nil
 }
