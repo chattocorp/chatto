@@ -13,8 +13,9 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-034](../adr/ADR-034-single-event-stream.md),
 [ADR-040](../adr/ADR-040-permission-only-rbac-with-owner-override.md),
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
-[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md).
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
+[ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
+[ADR-069](../adr/ADR-069-deterministic-notification-occurrences.md).
 
 ## Event envelopes
 
@@ -40,7 +41,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 
 | Category                    | Storage    | Examples                                                    | Purpose                                                        |
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
-| JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection source of truth |
+| JetStream-stored        | Stream     | RoomCreated, MessagePosted, ReactionAdded, NotificationOccurrencePlanned, NotificationOccurrenceRevoked, CallStarted, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
 | Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, MentionNotification, NotificationCreated, PresenceChanged | Cross-tab sync, notifications, server lifecycle |
 
@@ -153,7 +154,7 @@ and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, and auth workflow audit facts. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, notification plans/revocations, assets, RBAC, and auth workflow audit facts. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
@@ -167,6 +168,8 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.>`                                    | All asset aggregate facts                                                       |
 | `evt.asset.{assetId}.{eventType}`                | One asset aggregate fact                                                        |
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
+| `evt.notification.>`                             | All notification occurrence plan and revocation facts                           |
+| `evt.notification.{sourceEventId}.{eventType}`   | Notification effects associated with one canonical source event                 |
 | `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
 | `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
@@ -228,6 +231,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.thread_unfollowed`                        | `ThreadUnfollowedEvent`                             |
 | `evt.room.{roomId}.reaction_added`                           | `ReactionAddedEvent`                                |
 | `evt.room.{roomId}.reaction_removed`                         | `ReactionRemovedEvent`                              |
+| `evt.notification.{sourceEventId}.occurrence_planned`        | `NotificationOccurrencePlannedEvent`                |
+| `evt.notification.{sourceEventId}.occurrence_revoked`        | `NotificationOccurrenceRevokedEvent`                |
 | `evt.asset.{assetId}.asset_created`                          | `AssetCreatedEvent`                                 |
 | `evt.asset.{assetId}.asset_processing_started`               | `AssetProcessingStartedEvent`; PENDING fact and durable asset-processing queue item |
 | `evt.asset.{assetId}.asset_processing_succeeded`             | `AssetProcessingSucceededEvent`                     |

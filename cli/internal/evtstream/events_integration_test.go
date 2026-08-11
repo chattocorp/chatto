@@ -2768,6 +2768,42 @@ func TestAuthAggregate_Subject(t *testing.T) {
 	}
 }
 
+func TestNotificationAggregateSubjects(t *testing.T) {
+	cases := []struct {
+		name  string
+		event *corev1.Event
+		want  string
+	}{
+		{
+			name: "planned",
+			event: &corev1.Event{Event: &corev1.Event_NotificationOccurrencePlanned{
+				NotificationOccurrencePlanned: &corev1.NotificationOccurrencePlannedEvent{SourceEventId: "E1"},
+			}},
+			want: EventNotificationOccurrencePlanned,
+		},
+		{
+			name: "revoked",
+			event: &corev1.Event{Event: &corev1.Event_NotificationOccurrenceRevoked{
+				NotificationOccurrenceRevoked: &corev1.NotificationOccurrenceRevokedEvent{SourceEventId: "E1"},
+			}},
+			want: EventNotificationOccurrenceRevoked,
+		},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			if got := EventTypeOf(c.event); got != c.want {
+				t.Fatalf("EventTypeOf = %q, want %q", got, c.want)
+			}
+			if got, want := NotificationAggregate("E1").SubjectFor(c.event), "evt.notification.E1."+c.want; got != want {
+				t.Fatalf("notification subject = %q, want %q", got, want)
+			}
+		})
+	}
+	if got, want := NotificationSubjectFilter(), "evt.notification.>"; got != want {
+		t.Fatalf("NotificationSubjectFilter = %q, want %q", got, want)
+	}
+}
+
 func TestMessagePostedEvent_RemovedLegacyMessageBodyIDRoundTripsUnknown(t *testing.T) {
 	var legacyBytes []byte
 	legacyBytes = protowire.AppendTag(legacyBytes, 2, protowire.BytesType)

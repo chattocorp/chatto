@@ -42,18 +42,21 @@ The new key family is versioned separately from the legacy random-ID records.
 Its concrete prefix is an implementation detail, but it must preserve efficient
 recipient-scoped watching and must not place user-controlled text in keys.
 
-### Recoverable derivation from source-bound decisions
+### Recoverable derivation from notification plans
 
 The source command evaluates notification policy against its authoritative
-projections and writes the complete recipient/reason/intensity decision into
-the same durable `EVT` fact as the source activity. This boundary is important:
-the asynchronous materializer never re-evaluates a later preference, follow,
-membership, or presence state for an older activity.
+projections and writes a notification-owned occurrence-plan fact atomically
+with the source activity. The plan freezes the complete
+recipient/reason/intensity decision without adding notification fields to
+message or reaction payloads. This boundary is important: the asynchronous
+materializer never re-evaluates a later preference, follow, membership, or
+presence state for an older activity.
 
-Source-bound decision evaluation is part of committing the source command. If
+Notification-plan evaluation is part of committing the source command. If
 recipient discovery or policy evaluation cannot complete, the command fails
 before appending the source fact; it must not commit an ambiguous "nobody"
-decision. Once the source fact is committed, occurrence materialization and
+decision. The source fact and its plan are one atomic `EVT` batch, so neither
+can commit alone. Once that batch is committed, occurrence materialization and
 delivery are recoverable best-effort effects and cannot roll back the source
 action.
 
@@ -66,22 +69,22 @@ causal order when a later retraction, reaction removal, membership loss, or
 account deletion supersedes earlier creation. Prompt request-path attempts
 still provide low latency for newly committed sources.
 
-After committing a message or another source fact, its request path makes one
-prompt best-effort materialization attempt for low latency. Failure does not
-roll back the already committed source action; the background consumer
-rediscovers the work after crashes and replica turnover. More than one replica
-may replay or briefly overlap the same work. Deterministic KV creation makes
-that overlap safe, and only the replica that establishes or successfully
-claims the occurrence may initiate its alert delivery.
+After committing a message or another source fact with its plan, its request
+path makes one prompt best-effort materialization attempt for low latency.
+Failure does not roll back the already committed source action; the background
+consumer rediscovers the work after crashes and replica turnover. More than
+one replica may replay or briefly overlap the same work. Deterministic KV
+creation makes that overlap safe, and only the replica that establishes or
+successfully claims the occurrence may initiate its alert delivery.
 
-Source facts must contain enough immutable provenance to reproduce the
-recipient and reason decision without later policy evaluation. In particular, a message event must distinguish
-direct-user, role, `@here`, and `@all` matches instead of exposing only one
-combined mentioned-user list. Any eligibility that depends on transient state,
-such as who counted as present for `@here`, is resolved when the source fact is
-created and retained as durable provenance. Ordered preference, membership,
-and thread-follow facts may be applied by the notification subsystem as it
-advances through the stream.
+Occurrence plans must contain enough immutable provenance to reproduce the
+recipient and reason decision without later policy evaluation. In particular,
+a message plan distinguishes direct-user, role, `@here`, and `@all` matches
+instead of relying on the message event's combined mentioned-user list. Any
+eligibility that depends on transient state, such as who counted as present for
+`@here`, is resolved when the source activity commits and retained in its
+plan. Ordered preference, membership, and thread-follow facts may be applied by
+the notification subsystem as it advances through the stream.
 
 The evaluator gathers every matching reason once, evaluates each reason's
 effective delivery intensity, stores the complete matched-reason set, and
@@ -121,7 +124,7 @@ deletion, and other conditions that must prevent rediscovery replace the
 visible record with a minimal tombstone. The tombstone keeps recipient, source
 identity, removal reason, and expiry only, so replay cannot recreate the
 notification and inaccessible presentation references are removed. Account
-deletion purges the recipient's records, and replay skips candidates whose
+deletion purges the recipient's records, and replay skips plan recipients whose
 recipient account no longer exists. A room-leave or member-removal fact removes
 only occurrences whose source time is at or before that lifecycle fact; replay
 of an old leave therefore cannot delete activity created after a later rejoin.
@@ -202,13 +205,17 @@ deployment can therefore briefly contain an older replica that still writes
 legacy records and a newer replica that writes 2.0 records, but neither family
 is translated into the other. Once all replicas are upgraded, only 2.0 records
 are produced. Rolling back restores the legacy implementation and its old
-inbox view; 2.0 state remains isolated and is not interpreted by that binary.
+inbox view; 2.0 state and notification-plan facts remain isolated and are not
+interpreted by that binary. The new plan and revocation variants are additive
+persisted events; message and reaction protobufs retain their existing wire
+shape.
 
 ## Consequences
 
-- Source commands fail before commit when their durable notification decision
-  cannot be evaluated; after commit, notification processing is recoverable
-  and cannot make the source action fail retroactively.
+- Source commands fail before commit when their durable notification plan
+  cannot be evaluated. Atomic source-and-plan batches prevent partial commits;
+  after commit, notification processing is recoverable and cannot make the
+  source action fail retroactively.
 - Recipient/source identity, KV OCC, and tombstones make retries and
   multi-replica races idempotent.
 - Notification creation and read advancement converge in either order, closing

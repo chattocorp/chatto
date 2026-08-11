@@ -4,18 +4,19 @@ import (
 	"context"
 	"sort"
 
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// buildMessageNotificationCandidates evaluates every matching cause once and
-// returns one deterministic candidate per recipient. The caller embeds the
-// result in MessagePostedEvent before committing the source fact.
-func (c *ChattoCore) buildMessageNotificationCandidates(
+// buildMessageNotificationDecisions evaluates every matching cause once and
+// returns one deterministic decision per recipient for the notification plan
+// committed atomically beside the source message.
+func (c *ChattoCore) buildMessageNotificationDecisions(
 	ctx context.Context,
 	kind RoomKind,
 	roomID, authorID, inThread, inReplyTo string,
 	mentions *RoomMentionResolution,
-) ([]*corev1.NotificationCandidate, error) {
+) ([]*corev1.NotificationRecipientDecision, error) {
 	reasonsByRecipient := make(map[string]map[corev1.NotificationReason]struct{})
 	add := func(userID string, reason corev1.NotificationReason) {
 		if userID == "" || userID == authorID {
@@ -103,7 +104,7 @@ func (c *ChattoCore) buildMessageNotificationCandidates(
 	}
 	sort.Strings(recipientIDs)
 
-	candidates := make([]*corev1.NotificationCandidate, 0, len(recipientIDs))
+	decisions := make([]*corev1.NotificationRecipientDecision, 0, len(recipientIDs))
 	for _, userID := range recipientIDs {
 		reasons := make([]corev1.NotificationReason, 0, len(reasonsByRecipient[userID]))
 		for reason := range reasonsByRecipient[userID] {
@@ -122,21 +123,113 @@ func (c *ChattoCore) buildMessageNotificationCandidates(
 		if strongest <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
 			continue
 		}
-		candidates = append(candidates, &corev1.NotificationCandidate{RecipientId: userID, Reasons: matches})
+		decisions = append(decisions, &corev1.NotificationRecipientDecision{RecipientId: userID, Reasons: matches})
 	}
-	return candidates, nil
+	return decisions, nil
 }
 
-func directMentionRecipients(candidates []*corev1.NotificationCandidate) []string {
+func directMentionRecipients(decisions []*corev1.NotificationRecipientDecision) []string {
 	result := make([]string, 0)
-	for _, candidate := range candidates {
-		for _, match := range candidate.GetReasons() {
+	for _, decision := range decisions {
+		for _, match := range decision.GetReasons() {
 			if match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION &&
 				match.GetIntensity() > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
-				result = append(result, candidate.GetRecipientId())
+				result = append(result, decision.GetRecipientId())
 				break
 			}
 		}
 	}
 	return result
+}
+
+func newNotificationOccurrencePlan(
+	source *corev1.Event,
+	sourceKind corev1.NotificationSourceKind,
+	target *corev1.NotificationTarget,
+	decisions []*corev1.NotificationRecipientDecision,
+	reactionEmoji string,
+) *corev1.Event {
+	if source == nil || len(decisions) == 0 {
+		return nil
+	}
+	plan := &corev1.NotificationOccurrencePlannedEvent{
+		SourceEventId: source.GetId(),
+		SourceKind:    sourceKind,
+		Target:        target,
+		Recipients:    decisions,
+	}
+	if reactionEmoji != "" {
+		plan.ReactionEmoji = &reactionEmoji
+	}
+	return newEvent(source.GetActorId(), &corev1.Event{
+		CreatedAt: source.GetCreatedAt(),
+		Event: &corev1.Event_NotificationOccurrencePlanned{
+			NotificationOccurrencePlanned: plan,
+		},
+	})
+}
+
+func (c *ChattoCore) buildReactionNotificationPlan(source, target *corev1.Event, roomID, messageEventID, emoji string) *corev1.Event {
+	if source == nil || target == nil || target.GetActorId() == "" || target.GetActorId() == source.GetActorId() {
+		return nil
+	}
+	intensity := c.GetEffectiveNotificationIntensity(target.GetActorId(), roomID, corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+	if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+		return nil
+	}
+	notificationTarget := &corev1.NotificationTarget{RoomId: roomID, EventId: messageEventID}
+	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
+		notificationTarget.ThreadRootEventId = &threadRootEventID
+	}
+	return newNotificationOccurrencePlan(
+		source,
+		corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_REACTION,
+		notificationTarget,
+		[]*corev1.NotificationRecipientDecision{{
+			RecipientId: target.GetActorId(),
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+				Intensity: intensity,
+			}},
+		}},
+		emoji,
+	)
+}
+
+func notificationOccurrenceEffectSubject(effect *corev1.Event) (string, bool) {
+	if effect == nil {
+		return "", false
+	}
+	sourceEventID := effect.GetNotificationOccurrencePlanned().GetSourceEventId()
+	if sourceEventID == "" {
+		sourceEventID = effect.GetNotificationOccurrenceRevoked().GetSourceEventId()
+	}
+	if sourceEventID == "" {
+		return "", false
+	}
+	aggregate := evtstream.NotificationAggregate(sourceEventID)
+	return aggregate.SubjectFor(effect), true
+}
+
+func appendNotificationOccurrencePlan(entries []evtstream.BatchEntry, planEvent *corev1.Event) []evtstream.BatchEntry {
+	subject, ok := notificationOccurrenceEffectSubject(planEvent)
+	if !ok {
+		return entries
+	}
+	return append(entries, evtstream.BatchEntry{Subject: subject, Event: planEvent})
+}
+
+func newNotificationOccurrenceRevocation(actorID, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) *corev1.Event {
+	if recipientID == "" || sourceEventID == "" {
+		return nil
+	}
+	return newEvent(actorID, &corev1.Event{
+		Event: &corev1.Event_NotificationOccurrenceRevoked{
+			NotificationOccurrenceRevoked: &corev1.NotificationOccurrenceRevokedEvent{
+				RecipientId:   recipientID,
+				SourceEventId: sourceEventID,
+				Reason:        reason,
+			},
+		},
+	})
 }

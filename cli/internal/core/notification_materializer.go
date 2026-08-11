@@ -13,8 +13,9 @@ import (
 const notificationMaterializerPollEvery = 250 * time.Millisecond
 
 // NotificationMaterializer recovers occurrence creation and lifecycle effects
-// from durable source facts. Every replica may run it: recipient/source KV
-// identity makes overlapping replay safe.
+// from durable notification plans, revocations, and source lifecycle facts.
+// Every replica may run it: recipient/source KV identity makes overlapping
+// replay safe.
 type NotificationMaterializer struct {
 	core      *ChattoCore
 	consumer  *evtstream.IncrementalEffectConsumer
@@ -85,110 +86,68 @@ func (m *NotificationMaterializer) MaterializeEvent(ctx context.Context, event *
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
-		message := payload.MessagePosted
-		if message.GetEchoOfEventId() != "" || len(message.GetNotificationCandidates()) == 0 {
+	case *corev1.Event_NotificationOccurrencePlanned:
+		plan := payload.NotificationOccurrencePlanned
+		if plan == nil || len(plan.GetRecipients()) == 0 || plan.GetTarget() == nil {
 			return nil
 		}
-		// Independent effect retries may run after a later retraction. Consult
-		// current monotonic target state so delayed creation cannot resurrect it.
-		if _, retracted, known := m.core.roomModel.latestBody(event.GetId()); known && retracted {
+		switch plan.GetSourceKind() {
+		case corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_MESSAGE:
+			// Independent effect retries may run after a later retraction. Consult
+			// current monotonic target state so delayed creation cannot resurrect it.
+			if _, retracted, known := m.core.roomModel.latestBody(plan.GetSourceEventId()); known && retracted {
+				return nil
+			}
+		case corev1.NotificationSourceKind_NOTIFICATION_SOURCE_KIND_REACTION:
+			// A removed and later re-added reaction has a different source event.
+			// Only materialize while this exact add is still projected as active.
+			target := plan.GetTarget()
+			snapshot := m.core.roomModel.reactionMutationSnapshot(target.GetRoomId(), target.GetEventId(), plan.GetReactionEmoji(), event.GetActorId())
+			if !snapshot.Exists || snapshot.SourceEventID != plan.GetSourceEventId() {
+				return nil
+			}
+		default:
 			return nil
 		}
 		// Projection catch-up is complete before replay starts. A missing room is
 		// therefore a terminal historical condition (normally a later RoomDeleted
 		// fact), not a retryable materialization failure that should poison the
 		// globally ordered effect queue.
-		if _, err := m.core.FindRoomByID(ctx, message.GetRoomId()); errors.Is(err, ErrNotFound) {
+		if _, err := m.core.FindRoomByID(ctx, plan.GetTarget().GetRoomId()); errors.Is(err, ErrNotFound) {
 			return nil
 		} else if err != nil {
 			return fmt.Errorf("verify notification room: %w", err)
 		}
-		target := &corev1.NotificationTarget{RoomId: message.GetRoomId(), EventId: event.GetId()}
-		if message.GetInThread() != "" {
-			value := message.GetInThread()
-			target.ThreadRootEventId = &value
-		}
-		if message.GetInReplyTo() != "" {
-			value := message.GetInReplyTo()
-			target.ParentEventId = &value
-		}
-		for _, candidate := range message.GetNotificationCandidates() {
-			active, err := m.activeRecipient(ctx, candidate.GetRecipientId())
+		for _, decision := range plan.GetRecipients() {
+			active, err := m.activeRecipient(ctx, decision.GetRecipientId())
 			if err != nil {
-				return fmt.Errorf("verify notification recipient %s: %w", candidate.GetRecipientId(), err)
+				return fmt.Errorf("verify notification recipient %s: %w", decision.GetRecipientId(), err)
 			}
 			if !active {
 				continue
 			}
 			_, _, err = m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
-				RecipientID:   candidate.GetRecipientId(),
-				SourceEventID: event.GetId(),
+				RecipientID:   decision.GetRecipientId(),
+				SourceEventID: plan.GetSourceEventId(),
 				SourceCreated: event.GetCreatedAt().AsTime(),
 				ActorID:       event.GetActorId(),
-				Target:        target,
-				Reasons:       candidate.GetReasons(),
+				Target:        plan.GetTarget(),
+				Reasons:       decision.GetReasons(),
 				EvaluatedAt:   event.GetCreatedAt().AsTime(),
 			})
 			if err != nil {
-				return fmt.Errorf("create occurrence for recipient %s: %w", candidate.GetRecipientId(), err)
+				return fmt.Errorf("create occurrence for recipient %s: %w", decision.GetRecipientId(), err)
 			}
 		}
+	case *corev1.Event_NotificationOccurrenceRevoked:
+		revocation := payload.NotificationOccurrenceRevoked
+		if revocation == nil || revocation.GetRecipientId() == "" || revocation.GetSourceEventId() == "" {
+			return nil
+		}
+		_, err := m.core.notificationOccurrences.RemoveSource(ctx, revocation.GetRecipientId(), revocation.GetSourceEventId(), revocation.GetReason())
+		return err
 	case *corev1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED)
-		return err
-	case *corev1.Event_ReactionAdded:
-		reaction := payload.ReactionAdded
-		candidate := reaction.GetNotificationCandidate()
-		if candidate == nil {
-			return nil
-		}
-		// A removed and later re-added reaction has a different source event.
-		// Only materialize while this exact add is still projected as active.
-		snapshot := m.core.roomModel.reactionMutationSnapshot(reaction.GetRoomId(), reaction.GetMessageEventId(), reaction.GetEmoji(), event.GetActorId())
-		if !snapshot.Exists || snapshot.SourceEventID != event.GetId() {
-			return nil
-		}
-		if _, err := m.core.FindRoomByID(ctx, reaction.GetRoomId()); errors.Is(err, ErrNotFound) {
-			return nil
-		} else if err != nil {
-			return fmt.Errorf("verify notification room: %w", err)
-		}
-		active, err := m.activeRecipient(ctx, candidate.GetRecipientId())
-		if err != nil {
-			return fmt.Errorf("verify notification recipient %s: %w", candidate.GetRecipientId(), err)
-		}
-		if !active {
-			return nil
-		}
-		target := &corev1.NotificationTarget{RoomId: reaction.GetRoomId(), EventId: reaction.GetMessageEventId()}
-		if room, roomErr := m.core.FindRoomByID(ctx, reaction.GetRoomId()); roomErr == nil {
-			if message, err := m.core.GetRoomEventByEventID(ctx, KindOfRoom(room), reaction.GetRoomId(), reaction.GetMessageEventId()); err == nil && message != nil {
-				posted := message.GetMessagePosted()
-				if posted.GetInThread() != "" {
-					value := posted.GetInThread()
-					target.ThreadRootEventId = &value
-				}
-			}
-		}
-		_, _, err = m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
-			RecipientID:   candidate.GetRecipientId(),
-			SourceEventID: event.GetId(),
-			SourceCreated: event.GetCreatedAt().AsTime(),
-			ActorID:       event.GetActorId(),
-			Target:        target,
-			Reasons:       candidate.GetReasons(),
-			EvaluatedAt:   event.GetCreatedAt().AsTime(),
-		})
-		if err != nil {
-			return err
-		}
-	case *corev1.Event_ReactionRemoved:
-		reaction := payload.ReactionRemoved
-		if reaction.GetNotificationRecipientId() == "" || reaction.GetNotificationSourceEventId() == "" {
-			return nil
-		}
-		_, err := m.core.notificationOccurrences.RemoveSource(ctx, reaction.GetNotificationRecipientId(), reaction.GetNotificationSourceEventId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED)
 		return err
 	case *corev1.Event_UserLeftRoom:
 		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), event.GetCreatedAt().AsTime(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)

@@ -2,8 +2,6 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "chatto/core/v1/notification.proto";
-
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
 // ============================================================================
@@ -31,10 +29,6 @@ message ReactionAddedEvent {
 
   // The emoji used for the reaction (shortcode name)
   string emoji = 4;
-
-  // Evaluated recipient/cause provenance. Absent for self-reactions or when
-  // the recipient's effective reaction policy is Off.
-  NotificationCandidate notification_candidate = 5;
 }
 
 message ReactionRemovedEvent {
@@ -49,9 +43,4 @@ message ReactionRemovedEvent {
 
   // The emoji shortcode that was removed
   string emoji = 4;
-
-  // Source identity of the corresponding ReactionAddedEvent and its
-  // notification recipient, if that add produced a candidate.
-  string notification_source_event_id = 5;
-  string notification_recipient_id = 6;
 }

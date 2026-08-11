@@ -28,12 +28,9 @@ type ReactionAddedEvent struct {
 	// Event ID of the message being reacted to (NanoID)
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// The emoji used for the reaction (shortcode name)
-	Emoji string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	// Evaluated recipient/cause provenance. Absent for self-reactions or when
-	// the recipient's effective reaction policy is Off.
-	NotificationCandidate *NotificationCandidate `protobuf:"bytes,5,opt,name=notification_candidate,json=notificationCandidate,proto3" json:"notification_candidate,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReactionAddedEvent) Reset() {
@@ -87,13 +84,6 @@ func (x *ReactionAddedEvent) GetEmoji() string {
 	return ""
 }
 
-func (x *ReactionAddedEvent) GetNotificationCandidate() *NotificationCandidate {
-	if x != nil {
-		return x.NotificationCandidate
-	}
-	return nil
-}
-
 type ReactionRemovedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room ID - identifies the room containing the message
@@ -101,13 +91,9 @@ type ReactionRemovedEvent struct {
 	// Event ID of the message the reaction was removed from (NanoID)
 	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
 	// The emoji shortcode that was removed
-	Emoji string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
-	// Source identity of the corresponding ReactionAddedEvent and its
-	// notification recipient, if that add produced a candidate.
-	NotificationSourceEventId string `protobuf:"bytes,5,opt,name=notification_source_event_id,json=notificationSourceEventId,proto3" json:"notification_source_event_id,omitempty"`
-	NotificationRecipientId   string `protobuf:"bytes,6,opt,name=notification_recipient_id,json=notificationRecipientId,proto3" json:"notification_recipient_id,omitempty"`
-	unknownFields             protoimpl.UnknownFields
-	sizeCache                 protoimpl.SizeCache
+	Emoji         string `protobuf:"bytes,4,opt,name=emoji,proto3" json:"emoji,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *ReactionRemovedEvent) Reset() {
@@ -161,36 +147,19 @@ func (x *ReactionRemovedEvent) GetEmoji() string {
 	return ""
 }
 
-func (x *ReactionRemovedEvent) GetNotificationSourceEventId() string {
-	if x != nil {
-		return x.NotificationSourceEventId
-	}
-	return ""
-}
-
-func (x *ReactionRemovedEvent) GetNotificationRecipientId() string {
-	if x != nil {
-		return x.NotificationRecipientId
-	}
-	return ""
-}
-
 var File_chatto_core_v1_reaction_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_reaction_events_proto_rawDesc = "" +
 	"\n" +
-	"$chatto/core/v1/reaction_events.proto\x12\x0echatto.core.v1\x1a!chatto/core/v1/notification.proto\"\xdb\x01\n" +
+	"$chatto/core/v1/reaction_events.proto\x12\x0echatto.core.v1\"}\n" +
 	"\x12ReactionAddedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
-	"\x05emoji\x18\x04 \x01(\tR\x05emoji\x12\\\n" +
-	"\x16notification_candidate\x18\x05 \x01(\v2%.chatto.core.v1.NotificationCandidateR\x15notificationCandidateJ\x04\b\x01\x10\x02R\bspace_id\"\xfc\x01\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_id\"\x7f\n" +
 	"\x14ReactionRemovedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
 	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x14\n" +
-	"\x05emoji\x18\x04 \x01(\tR\x05emoji\x12?\n" +
-	"\x1cnotification_source_event_id\x18\x05 \x01(\tR\x19notificationSourceEventId\x12:\n" +
-	"\x19notification_recipient_id\x18\x06 \x01(\tR\x17notificationRecipientIdJ\x04\b\x01\x10\x02R\bspace_idB\xb6\x01\n" +
+	"\x05emoji\x18\x04 \x01(\tR\x05emojiJ\x04\b\x01\x10\x02R\bspace_idB\xb6\x01\n" +
 	"\x12com.chatto.core.v1B\x13ReactionEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -207,17 +176,15 @@ func file_chatto_core_v1_reaction_events_proto_rawDescGZIP() []byte {
 
 var file_chatto_core_v1_reaction_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_core_v1_reaction_events_proto_goTypes = []any{
-	(*ReactionAddedEvent)(nil),    // 0: chatto.core.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),  // 1: chatto.core.v1.ReactionRemovedEvent
-	(*NotificationCandidate)(nil), // 2: chatto.core.v1.NotificationCandidate
+	(*ReactionAddedEvent)(nil),   // 0: chatto.core.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil), // 1: chatto.core.v1.ReactionRemovedEvent
 }
 var file_chatto_core_v1_reaction_events_proto_depIdxs = []int32{
-	2, // 0: chatto.core.v1.ReactionAddedEvent.notification_candidate:type_name -> chatto.core.v1.NotificationCandidate
-	1, // [1:1] is the sub-list for method output_type
-	1, // [1:1] is the sub-list for method input_type
-	1, // [1:1] is the sub-list for extension type_name
-	1, // [1:1] is the sub-list for extension extendee
-	0, // [0:1] is the sub-list for field type_name
+	0, // [0:0] is the sub-list for method output_type
+	0, // [0:0] is the sub-list for method input_type
+	0, // [0:0] is the sub-list for extension type_name
+	0, // [0:0] is the sub-list for extension extendee
+	0, // [0:0] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_reaction_events_proto_init() }
@@ -225,7 +192,6 @@ func file_chatto_core_v1_reaction_events_proto_init() {
 	if File_chatto_core_v1_reaction_events_proto != nil {
 		return
 	}
-	file_chatto_core_v1_notification_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

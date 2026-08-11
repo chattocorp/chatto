@@ -8,6 +8,7 @@ import "chatto/core/v1/authorization_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/moderation_events.proto";
+import "chatto/core/v1/notification.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";
@@ -110,6 +111,10 @@ message Event {
     AssetProcessingSucceededEvent asset_processing_succeeded = 452;
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
+
+    // ----- Notification effects (475-499, durable, notification-owned) -----
+    NotificationOccurrencePlannedEvent notification_occurrence_planned = 475;
+    NotificationOccurrenceRevokedEvent notification_occurrence_revoked = 476;
 
     // ----- Config / preferences (500-599, durable) -----
     // These variants live on the EVT stream (subjects under evt.config.>)

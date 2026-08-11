@@ -164,12 +164,19 @@ message NotificationReasonMatch {
   NotificationDeliveryIntensity intensity = 2;
 }
 
-// NotificationCandidate is durable source-event provenance for one recipient.
-// It lets notification materialization recover without re-evaluating later
-// preferences or transient @here presence.
-message NotificationCandidate {
+// NotificationRecipientDecision freezes one recipient's complete policy result
+// when a source activity commits.
+message NotificationRecipientDecision {
   string recipient_id = 1;
   repeated NotificationReasonMatch reasons = 2;
+}
+
+// NotificationSourceKind identifies the source fact whose notification
+// decision was recorded.
+enum NotificationSourceKind {
+  NOTIFICATION_SOURCE_KIND_UNSPECIFIED = 0;
+  NOTIFICATION_SOURCE_KIND_MESSAGE = 1;
+  NOTIFICATION_SOURCE_KIND_REACTION = 2;
 }
 
 // NotificationTarget identifies the exact activity destination without
@@ -179,6 +186,29 @@ message NotificationTarget {
   optional string thread_root_event_id = 2;
   string event_id = 3;
   optional string parent_event_id = 4;
+}
+
+// NotificationOccurrencePlannedEvent is the durable, notification-owned
+// outbox fact committed atomically with one source activity. The materializer
+// uses it without re-evaluating later policy, membership, follow, or presence
+// state.
+message NotificationOccurrencePlannedEvent {
+  string source_event_id = 1;
+  NotificationSourceKind source_kind = 2;
+  NotificationTarget target = 3;
+  repeated NotificationRecipientDecision recipients = 4;
+
+  // Set only for reaction sources so delayed materialization can verify that
+  // the exact reaction add is still active.
+  optional string reaction_emoji = 5;
+}
+
+// NotificationOccurrenceRevokedEvent prevents an occurrence from being
+// recreated after its source activity is explicitly undone.
+message NotificationOccurrenceRevokedEvent {
+  string recipient_id = 1;
+  string source_event_id = 2;
+  NotificationRemovalReason reason = 3;
 }
 
 // NotificationOccurrence is recipient-specific bounded runtime state derived
