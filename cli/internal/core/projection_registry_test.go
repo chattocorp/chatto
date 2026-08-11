@@ -24,8 +24,8 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 13 {
-		t.Fatalf("registered projections = %d, want 13", len(core.projections))
+	if len(core.projections) != 14 {
+		t.Fatalf("registered projections = %d, want 14", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -67,6 +67,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["Room Group Layout"]; !ok {
 		t.Fatal("Room Group Layout projection is not registered")
+	}
+	if _, ok := registryNames["Notification Visibility"]; !ok {
+		t.Fatal("Notification Visibility projection is not registered")
 	}
 	if _, ok := registryNames["Call State"]; !ok {
 		t.Fatal("Call State projection is not registered")
@@ -127,18 +130,19 @@ func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	wantEligible := map[string]struct{}{
-		projectionsnapshot.ProjectionThreadsKey:         {},
-		projectionsnapshot.ProjectionRoomDirectoryKey:   {},
-		projectionsnapshot.ProjectionServerConfigKey:    {},
-		projectionsnapshot.ProjectionRoomGroupLayoutKey: {},
-		projectionsnapshot.ProjectionRoomTimelineKey:    {},
-		projectionsnapshot.ProjectionCallStateKey:       {},
-		projectionsnapshot.ProjectionAssetsKey:          {},
-		projectionsnapshot.ProjectionReactionsKey:       {},
-		projectionsnapshot.ProjectionContentKeysKey:     {},
-		projectionsnapshot.ProjectionRBACKey:            {},
-		projectionsnapshot.ProjectionMentionablesKey:    {},
-		projectionsnapshot.ProjectionUsersKey:           {},
+		projectionsnapshot.ProjectionThreadsKey:                {},
+		projectionsnapshot.ProjectionRoomDirectoryKey:          {},
+		projectionsnapshot.ProjectionNotificationVisibilityKey: {},
+		projectionsnapshot.ProjectionServerConfigKey:           {},
+		projectionsnapshot.ProjectionRoomGroupLayoutKey:        {},
+		projectionsnapshot.ProjectionRoomTimelineKey:           {},
+		projectionsnapshot.ProjectionCallStateKey:              {},
+		projectionsnapshot.ProjectionAssetsKey:                 {},
+		projectionsnapshot.ProjectionReactionsKey:              {},
+		projectionsnapshot.ProjectionContentKeysKey:            {},
+		projectionsnapshot.ProjectionRBACKey:                   {},
+		projectionsnapshot.ProjectionMentionablesKey:           {},
+		projectionsnapshot.ProjectionUsersKey:                  {},
 	}
 
 	for _, registration := range core.projections {

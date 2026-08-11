@@ -50,10 +50,13 @@ losing the exact events and reasons underneath.
   offset page and validates each page-sized overfetch chunk once when stale
   groups are removed. The ordered writer also reconciles effective membership
   after universal-room, room-group placement, and relevant RBAC/role changes,
-  including visibility loss without an explicit leave. It reconstructs
-  effective membership at the change's exact EVT boundary, so a later regain
-  that reaches projections first cannot preserve pre-loss history or remove
-  post-regain activity. Before exhaustive totals and badge summaries are read,
+  including visibility loss without an explicit leave. A snapshot-capable
+  Notification Visibility projection retains effective membership at each
+  pending change's exact EVT boundary, so a later regain that reaches ordinary
+  projections first cannot preserve pre-loss history or remove post-regain
+  activity. Snapshot restore stops at the worker's acknowledged floor and
+  replays only its pending tail; an administrative fact never replays lifetime
+  membership or RBAC history on the notification lane. Before exhaustive totals and badge summaries are read,
   Chatto waits that writer through a captured tail of every relevant EVT filter,
   appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
   occurrence index through that fence's KV revision. Temporary projection,

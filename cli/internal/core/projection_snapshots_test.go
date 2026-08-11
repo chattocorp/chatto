@@ -60,6 +60,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
+		{notificationVisibilitySnapshotContractID, "v1", &corev1.NotificationVisibilityProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
@@ -191,6 +192,13 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.Groups.seq = 42
 			p.Layout.groupIDs = []string{"G1"}
 		}},
+		{"notification_visibility", func() snapshotProjection { return NewNotificationVisibilityProjection() }, func(raw snapshotProjection) {
+			p := raw.(*NotificationVisibilityProjection)
+			event := &corev1.Event{Id: "R1-created", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true}}}
+			if err := p.Apply(event, 41); err != nil {
+				t.Fatal(err)
+			}
+		}},
 		{"room_timeline", func() snapshotProjection { return NewRoomTimelineProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomTimelineProjection)
 			bodyEvent := &corev1.Event{Id: "BODY1", CreatedAt: timestamppb.New(now), Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{AuthorId: "U1", BodyEventId: "BODY1", EncryptionVersion: 2, ContentKeyEpoch: 1, EncryptedBody: []byte("ciphertext"), EncryptionNonce: bytes.Repeat([]byte{1}, 24)}}}}
@@ -260,7 +268,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v5-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"notification_visibility": "v1-",
+		"room_timeline":           "v5-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {

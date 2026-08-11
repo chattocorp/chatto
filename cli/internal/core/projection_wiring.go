@@ -19,19 +19,20 @@ type coreProjections struct {
 	registrations []projectionRegistration
 	snapshotJobs  []projectionSnapshotJob
 
-	roomDirectory   events.ProjectionHandle[*RoomDirectoryProjection]
-	serverConfig    events.ProjectionHandle[*ConfigProjection]
-	roomGroupLayout events.ProjectionHandle[*RoomGroupLayoutProjection]
-	roomTimeline    events.ProjectionHandle[*RoomTimelineProjection]
-	callState       events.ProjectionHandle[*CallStateProjection]
-	assets          events.ProjectionHandle[*AssetProjection]
-	threads         events.ProjectionHandle[*ThreadProjection]
-	reactions       events.ProjectionHandle[*ReactionProjection]
-	users           events.ProjectionHandle[*UserProjection]
-	userAuth        events.ProjectionHandle[*UserAuthProjection]
-	contentKeys     events.ProjectionHandle[*ContentKeyProjection]
-	rbac            events.ProjectionHandle[*RBACProjection]
-	mentionables    events.ProjectionHandle[*MentionablesProjection]
+	roomDirectory          events.ProjectionHandle[*RoomDirectoryProjection]
+	notificationVisibility events.ProjectionHandle[*NotificationVisibilityProjection]
+	serverConfig           events.ProjectionHandle[*ConfigProjection]
+	roomGroupLayout        events.ProjectionHandle[*RoomGroupLayoutProjection]
+	roomTimeline           events.ProjectionHandle[*RoomTimelineProjection]
+	callState              events.ProjectionHandle[*CallStateProjection]
+	assets                 events.ProjectionHandle[*AssetProjection]
+	threads                events.ProjectionHandle[*ThreadProjection]
+	reactions              events.ProjectionHandle[*ReactionProjection]
+	users                  events.ProjectionHandle[*UserProjection]
+	userAuth               events.ProjectionHandle[*UserAuthProjection]
+	contentKeys            events.ProjectionHandle[*ContentKeyProjection]
+	rbac                   events.ProjectionHandle[*RBACProjection]
+	mentionables           events.ProjectionHandle[*MentionablesProjection]
 }
 
 type projectionSnapshotPolicy bool
@@ -89,6 +90,16 @@ func initializeCoreProjections(
 		projectionsnapshot.ProjectionRoomDirectoryKey,
 		"Room Directory",
 		roomDirectory.adminProjectionEstimate,
+		sharedSnapshots,
+	)
+
+	notificationVisibility := NewNotificationVisibilityProjection()
+	projections.notificationVisibility = registerProjection(
+		registrar,
+		notificationVisibility,
+		projectionsnapshot.ProjectionNotificationVisibilityKey,
+		"Notification Visibility",
+		notificationVisibility.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
@@ -232,9 +243,16 @@ func configureProjectionSnapshots(
 		if registration.snapshotPolicy == coldReplayOnly {
 			continue
 		}
+		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})
+		if registration.key == projectionsnapshot.ProjectionNotificationVisibilityKey {
+			source = cappedNotificationVisibilitySnapshotSource{
+				source:     source,
+				projection: projections.notificationVisibility.Projection(),
+			}
+		}
 		if err := registration.projector.ConfigureSnapshots(
 			registration.key,
-			projectionSnapshotSource{repository: infra.snapshotRepository},
+			source,
 			evtstream.IdentityFromInfo,
 		); err != nil {
 			return fmt.Errorf("configure %s projection snapshots: %w", registration.key, err)

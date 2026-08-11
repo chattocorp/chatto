@@ -44,6 +44,15 @@ func (c *ChattoCore) CanRevokeRoleFromUser(ctx context.Context, actorID, targetU
 	if isProtectedSelfRoleRevocation(actorID, targetUserID, roleName) {
 		return false, nil
 	}
+	if roleName == RoleOwner {
+		configured, err := c.isConfiguredOwner(ctx, targetUserID)
+		if err != nil {
+			return false, err
+		}
+		if configured {
+			return false, nil
+		}
+	}
 	return c.CanRevokeRole(ctx, actorID, roleName)
 }
 

@@ -317,6 +317,51 @@ func TestChattoCore_ApplyConfigOwners(t *testing.T) {
 	}
 }
 
+func TestConfiguredOwnerRoleCannotDivergeFromEffectiveVisibility(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	configuredOwner, err := core.CreateVerifiedUser(ctx, SystemActorID, "configured-visibility-owner", "Configured Visibility Owner", "password123", "owner@example.com")
+	if err != nil {
+		t.Fatalf("create configured owner: %v", err)
+	}
+	otherOwner, err := core.CreateUser(ctx, SystemActorID, "other-visibility-owner", "Other Visibility Owner", "password123")
+	if err != nil {
+		t.Fatalf("create other owner: %v", err)
+	}
+	if err := core.AssignOwnerRole(ctx, otherOwner.Id); err != nil {
+		t.Fatalf("assign other owner: %v", err)
+	}
+	core.config.Owners = config.OwnersConfig{Emails: []string{"owner@example.com"}}
+	if err := core.applyConfigOwners(ctx); err != nil {
+		t.Fatalf("apply configured owner: %v", err)
+	}
+
+	room, err := core.CreateRoom(ctx, otherOwner.Id, KindChannel, "", "configured-owner-visibility", "")
+	if err != nil {
+		t.Fatalf("create room: %v", err)
+	}
+	if _, err := core.SetRoomUniversal(ctx, otherOwner.Id, KindChannel, room.Id, true); err != nil {
+		t.Fatalf("set room universal: %v", err)
+	}
+	if err := core.DenyRoomPermission(ctx, otherOwner.Id, room.Id, RoleEveryone, PermRoomJoin); err != nil {
+		t.Fatalf("deny everyone room.join: %v", err)
+	}
+	if visible, err := core.RoomMembershipExists(ctx, KindChannel, configuredOwner.Id, room.Id); err != nil || !visible {
+		t.Fatalf("configured owner visibility before revoke = (%v, %v), want true", visible, err)
+	}
+
+	if err := core.RevokeServerRole(ctx, otherOwner.Id, configuredOwner.Id, RoleOwner); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("revoke configured owner role error = %v, want ErrPermissionDenied", err)
+	}
+	if !core.rbacModel.hasRole(configuredOwner.Id, RoleOwner) {
+		t.Fatal("configured owner role was revoked")
+	}
+	if visible, err := core.RoomMembershipExists(ctx, KindChannel, configuredOwner.Id, room.Id); err != nil || !visible {
+		t.Fatalf("configured owner visibility after rejected revoke = (%v, %v), want true", visible, err)
+	}
+}
+
 func TestChattoCore_AddVerifiedEmailDirect(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -118,7 +118,7 @@ func initializeCoreServices(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationOccurrences"),
 	)
-	core.notificationMaterializer = NewNotificationMaterializer(core)
+	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationVisibility)
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
@@ -128,6 +128,9 @@ func initializeCoreServices(
 
 	if err := core.seedDefaultRBAC(ctx); err != nil {
 		return fmt.Errorf("failed to seed default RBAC: %w", err)
+	}
+	if err := core.notificationMaterializer.Initialize(ctx); err != nil {
+		return fmt.Errorf("failed to initialize notification materializer: %w", err)
 	}
 
 	core.permissionResolver = NewPermissionResolver(core)

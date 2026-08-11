@@ -104,15 +104,21 @@ during ordered recovery.
 Effective membership can also disappear without an explicit leave: a universal
 room can be disabled, moved across group permission scopes, or made inaccessible
 by a `room.join` RBAC or role change. The same ordered worker consumes those
-existing domain facts after their room-group or RBAC projection catches up,
-reconstructs the minimal room, membership, room-group, and RBAC state at the
-fact's exact EVT sequence, scans authoritative occurrences, and tombstones only
-recipient/room pairs that lacked effective membership at that boundary. A
+existing domain facts after a dedicated Notification Visibility projection
+captures the minimal room, membership, room-group, and RBAC state at the fact's
+exact EVT sequence. The worker scans authoritative occurrences and tombstones
+only recipient/room pairs that lacked effective membership at that boundary. A
 projection that already observed a later regain therefore cannot erase an
 intermediate visibility loss, and activity sourced after the regain is outside
-the earlier cleanup boundary. Those facts are rare administrative operations,
-so bounded event-time replay and exhaustive cleanup avoid another durable
-recipient index.
+the earlier cleanup boundary. Snapshot restore is capped at the shared worker's
+acknowledged floor, so pending boundaries are replayed rather than skipped by a
+newer projection snapshot. Each administrative fact reads one retained boundary
+instead of replaying lifetime EVT history on the single notification lane.
+
+Configured `owners.emails` identities are materialized as durable owner-role
+assignments. While an email remains configured, that role cannot be revoked;
+the event-time RBAC projection and the live effective-owner override therefore
+cannot disagree about room visibility.
 
 Prepared work contains enough immutable provenance to reproduce the recipient
 and reason decision without later policy evaluation. In particular, message

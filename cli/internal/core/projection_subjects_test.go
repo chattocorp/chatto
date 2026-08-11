@@ -20,6 +20,11 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			want: []string{evtstream.RoomSubjectFilter()},
 		},
 		{
+			name: "notification visibility uses focused authorization state facts",
+			got:  NewNotificationVisibilityProjection().Subjects(),
+			want: notificationVisibilityProjectionSubjects(),
+		},
+		{
 			name: "room membership uses room aggregate namespace",
 			got:  NewRoomMembershipProjection().Subjects(),
 			want: []string{evtstream.RoomSubjectFilter()},

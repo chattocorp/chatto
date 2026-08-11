@@ -1,0 +1,107 @@
+package core
+
+import (
+	"context"
+	"fmt"
+	"testing"
+	"time"
+
+	"google.golang.org/protobuf/types/known/timestamppb"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
+)
+
+func TestNotificationVisibilityProjectionRetainsExactBoundaryWhenCurrentStateAdvances(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	created := &corev1.Event{Id: "create", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	}}}
+	loss := &corev1.Event{Id: "loss", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+		RoomId: "R1", Universal: false,
+	}}}
+	regain := &corev1.Event{Id: "regain", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
+		RoomId: "R1", Universal: true,
+	}}}
+	for seq, event := range []*corev1.Event{created, loss, regain} {
+		if err := p.Apply(event, uint64(seq+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", seq+1, err)
+		}
+	}
+
+	lossState, err := p.Boundary(2, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary loss: %v", err)
+	}
+	lossRoom, ok := lossState.rooms.Catalog.Get("R1")
+	if !ok || lossRoom.GetUniversal() {
+		t.Fatalf("loss boundary room = (%+v, %v), want non-universal", lossRoom, ok)
+	}
+	regainState, err := p.Boundary(3, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary regain: %v", err)
+	}
+	regainRoom, ok := regainState.rooms.Catalog.Get("R1")
+	if !ok || !regainRoom.GetUniversal() {
+		t.Fatalf("regain boundary room = (%+v, %v), want universal", regainRoom, ok)
+	}
+}
+
+func TestNotificationVisibilityProjectionBoundaryWorkDoesNotGrowWithMembershipHistory(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
+	}}}
+	if err := p.Apply(created, 1); err != nil {
+		t.Fatalf("Apply room create: %v", err)
+	}
+	const historyEvents = 10_000
+	for i := 0; i < historyEvents/2; i++ {
+		userID := fmt.Sprintf("U%d", i)
+		joined := &corev1.Event{Id: fmt.Sprintf("join-%d", i), ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
+		left := &corev1.Event{Id: fmt.Sprintf("left-%d", i), ActorId: userID, Event: &corev1.Event_UserLeftRoom{UserLeftRoom: &corev1.UserLeftRoomEvent{RoomId: "R1"}}}
+		if err := p.Apply(joined, uint64(2+i*2)); err != nil {
+			t.Fatalf("Apply join %d: %v", i, err)
+		}
+		if err := p.Apply(left, uint64(3+i*2)); err != nil {
+			t.Fatalf("Apply leave %d: %v", i, err)
+		}
+	}
+	lossSequence := uint64(historyEvents + 2)
+	loss := &corev1.Event{Id: "loss", Event: &corev1.Event_RoomUniversalChanged{RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: "R1", Universal: false}}}
+	if err := p.Apply(loss, lossSequence); err != nil {
+		t.Fatalf("Apply loss after membership history: %v", err)
+	}
+
+	p.mu.RLock()
+	boundaryCount := len(p.boundaries)
+	p.mu.RUnlock()
+	if boundaryCount != 1 {
+		t.Fatalf("retained boundaries = %d, want 1 independent of %d membership events", boundaryCount, historyEvents)
+	}
+	if _, err := p.Boundary(lossSequence, time.Now()); err != nil {
+		t.Fatalf("Boundary after membership history: %v", err)
+	}
+}
+
+type notificationVisibilityCapturingSnapshotSource struct {
+	request events.ProjectionSnapshotLoadRequest
+}
+
+func (s *notificationVisibilityCapturingSnapshotSource) LoadProjectionSnapshot(_ context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
+	s.request = request
+	return events.ProjectionSnapshot{}, nil
+}
+
+func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) {
+	projection := NewNotificationVisibilityProjection()
+	projection.SetRestoreMaxCutoff(41)
+	underlying := &notificationVisibilityCapturingSnapshotSource{}
+	source := cappedNotificationVisibilitySnapshotSource{source: underlying, projection: projection}
+	if _, err := source.LoadProjectionSnapshot(context.Background(), events.ProjectionSnapshotLoadRequest{MaxCutoff: 99}); err != nil {
+		t.Fatalf("LoadProjectionSnapshot: %v", err)
+	}
+	if underlying.request.MaxCutoff != 41 {
+		t.Fatalf("snapshot max cutoff = %d, want worker floor 41", underlying.request.MaxCutoff)
+	}
+}

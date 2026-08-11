@@ -418,6 +418,13 @@ func TestNotificationVisibilityReconciliationUsesEventBoundaryWhenProjectionIsAh
 	}
 	preLossOccurrence := createOccurrence("ahead-pre-loss", beforeLoss.Id, beforeLossSequence)
 	postRegainOccurrence := createOccurrence("ahead-post-regain", afterRegain.Id, afterRegainSequence)
+	// The live worker has already released this acknowledged boundary. Reapply
+	// the loss to the dedicated projection to exercise reconciliation against
+	// the same retained exact-boundary state while the owning projections remain
+	// ahead at the restored value.
+	if err := chattoCore.notificationMaterializer.visibility.Projection().Apply(loss.Event, loss.Sequence); err != nil {
+		t.Fatalf("recapture loss boundary: %v", err)
+	}
 
 	if err := chattoCore.notificationMaterializer.reconcileOccurrenceVisibility(
 		ctx,

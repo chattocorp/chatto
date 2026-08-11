@@ -108,6 +108,13 @@ func (c *ChattoCore) IsServerOwner(ctx context.Context, userID string) (bool, er
 	if c.rbacModel.hasRole(userID, RoleOwner) {
 		return true, nil
 	}
+	return c.isConfiguredOwner(ctx, userID)
+}
+
+func (c *ChattoCore) isConfiguredOwner(ctx context.Context, userID string) (bool, error) {
+	if len(c.config.Owners.Emails) == 0 {
+		return false, nil
+	}
 	emails, err := c.userModel.verifiedEmails(ctx, userID)
 	if err != nil {
 		return false, err
@@ -291,6 +298,15 @@ func (c *ChattoCore) RevokeServerRole(ctx context.Context, actorID, userID, role
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
 		}
+		if roleName == RoleOwner {
+			configured, err := c.isConfiguredOwner(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if configured {
+				return ErrPermissionDenied
+			}
+		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
@@ -322,6 +338,15 @@ func (c *ChattoCore) RevokeServerRoleFromExistingUser(ctx context.Context, actor
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
 		if roleName == RoleOwner && actorID == userID {
 			return ErrCannotRevokeSelfAdmin
+		}
+		if roleName == RoleOwner {
+			configured, err := c.isConfiguredOwner(ctx, userID)
+			if err != nil {
+				return err
+			}
+			if configured {
+				return ErrPermissionDenied
+			}
 		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound

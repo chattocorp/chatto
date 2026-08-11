@@ -37,18 +37,49 @@ const (
 // short-lived RUNTIME_STATE work records before the source fact commits; EVT
 // contains no notification-only planning events.
 type NotificationMaterializer struct {
-	core      *ChattoCore
-	pollEvery time.Duration
-	ready     chan struct{}
-	consumer  jetstream.Consumer
+	core       *ChattoCore
+	visibility events.ProjectionHandle[*NotificationVisibilityProjection]
+	pollEvery  time.Duration
+	ready      chan struct{}
+	consumer   jetstream.Consumer
 }
 
-func NewNotificationMaterializer(core *ChattoCore) *NotificationMaterializer {
+func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionHandle[*NotificationVisibilityProjection]) *NotificationMaterializer {
 	return &NotificationMaterializer{
-		core:      core,
-		pollEvery: notificationMaterializerPollEvery,
-		ready:     make(chan struct{}),
+		core:       core,
+		visibility: visibility,
+		pollEvery:  notificationMaterializerPollEvery,
+		ready:      make(chan struct{}),
 	}
+}
+
+// Initialize creates the DeliverNew consumer before projectors start. Its
+// acknowledged floor caps visibility snapshot restore, ensuring every pending
+// administrative fact is replayed into an exact event-time boundary.
+func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
+	consumer, err := m.createConsumer(ctx)
+	if err != nil {
+		return err
+	}
+	// Capture the stream tail before reading consumer state. If the consumer is
+	// idle at the later read, every worker fact through this earlier tail is
+	// acknowledged; facts racing after the tail remain beyond the restore cap.
+	tail, err := m.core.EventPublisher.LastStreamSeq(ctx)
+	if err != nil {
+		return fmt.Errorf("read notification consumer initialization tail: %w", err)
+	}
+	info, err := consumer.Info(ctx)
+	if err != nil {
+		return fmt.Errorf("read notification consumer initialization floor: %w", err)
+	}
+	processed := info.AckFloor.Stream
+	if info.NumPending == 0 && info.NumAckPending == 0 {
+		processed = tail
+	}
+	m.visibility.Projection().SetRestoreMaxCutoff(processed)
+	m.consumer = consumer
+	close(m.ready)
+	return nil
 }
 
 func (m *NotificationMaterializer) Run(ctx context.Context) error {
@@ -59,14 +90,8 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		return fmt.Errorf("wait for notification index before worker: %w", err)
 	}
 
-	consumer, err := m.createConsumer(ctx)
-	if err != nil {
-		return err
-	}
-	m.consumer = consumer
-	close(m.ready)
 	worker, err := events.NewDurableWorker(
-		consumer,
+		m.consumer,
 		m.processDelivery,
 		events.DurableWorkerOptions{
 			MaxConcurrent:     notificationWorkerMaxPending,
@@ -96,9 +121,19 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return <-workerDone
 		case <-ticker.C:
+			m.releaseAcknowledgedVisibilityBoundaries(ctx)
 			m.deliverPendingAlerts(ctx)
 		}
 	}
+}
+
+func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx context.Context) {
+	info, err := m.consumer.Info(ctx)
+	if err != nil {
+		m.core.logger.Warn("Failed to read notification worker floor for visibility cleanup", "error", err)
+		return
+	}
+	m.visibility.Projection().ReleaseThrough(info.AckFloor.Stream)
 }
 
 // WaitReady waits until the durable consumer exists. Serving must not begin
@@ -222,6 +257,12 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return events.TerminateDelivery("invalid Chatto event envelope", err)
 	}
 	position := events.SubjectPosition(delivery.Subject, delivery.StreamSequence)
+	hasVisibilityBoundary := notificationVisibilityBoundaryEvent(&event)
+	if hasVisibilityBoundary {
+		if err := m.visibility.Projector().WaitFor(ctx, position); err != nil {
+			return fmt.Errorf("wait for notification visibility projection: %w", err)
+		}
+	}
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountDeleted:
 		if err := m.core.userModel.waitForUsers(ctx, position); err != nil {
@@ -245,7 +286,13 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 			return fmt.Errorf("wait for room projections: %w", err)
 		}
 	}
-	return m.materializeEvent(ctx, &event, delivery.StreamSequence, true)
+	if err := m.materializeEvent(ctx, &event, delivery.StreamSequence, true); err != nil {
+		return err
+	}
+	if hasVisibilityBoundary {
+		m.visibility.Projection().ReleaseThrough(delivery.StreamSequence)
+	}
+	return nil
 }
 
 // fenceLocalOccurrenceIndex appends a marker to the same KV stream as
@@ -555,7 +602,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	if len(entriesByPair) == 0 {
 		return nil
 	}
-	snapshot, err := m.visibilitySnapshotAt(ctx, streamSequence, visibilityAt)
+	snapshot, err := m.visibility.Projection().Boundary(streamSequence, visibilityAt)
 	if err != nil {
 		return err
 	}
