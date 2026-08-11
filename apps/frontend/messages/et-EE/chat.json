@@ -11,7 +11,16 @@
       "time_hours": "{count}h tagasi",
       "time_days": "{count}p tagasi",
       "unread": "Lugemata",
-      "activity": "Uus tegevus"
+      "activity": "Uus tegevus",
+      "summary": {
+        "direct_message": "{actor} saatis sulle otsesõnumi.",
+        "reaction": "{actor} reageeris sinu sõnumile.",
+        "reply": "{actor} vastas sinu sõnumile.",
+        "mention": "{actor} mainis sind.",
+        "followed_thread": "{actor} vastas lõimes, mida jälgid.",
+        "new_message": "{actor} postitas uue sõnumi.",
+        "activity": "{actor} saatis sulle teavituse."
+      }
     },
     "sign_out": {
       "title": "Logi välja",

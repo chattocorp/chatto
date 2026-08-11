@@ -11,7 +11,16 @@
       "time_hours": "vor {count} Std.",
       "time_days": "vor {count} Tg.",
       "unread": "Ungelesen",
-      "activity": "Neue Aktivität"
+      "activity": "Neue Aktivität",
+      "summary": {
+        "direct_message": "{actor} hat dir eine Direktnachricht gesendet.",
+        "reaction": "{actor} hat auf deine Nachricht reagiert.",
+        "reply": "{actor} hat auf deine Nachricht geantwortet.",
+        "mention": "{actor} hat dich erwähnt.",
+        "followed_thread": "{actor} hat in einem Thread geantwortet, dem du folgst.",
+        "new_message": "{actor} hat eine neue Nachricht gepostet.",
+        "activity": "{actor} hat dir eine Benachrichtigung gesendet."
+      }
     },
     "sign_out": {
       "title": "Abmelden",

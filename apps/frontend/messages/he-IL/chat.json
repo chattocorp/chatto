@@ -11,7 +11,16 @@
       "time_hours": "{count}h לפני",
       "time_days": "{count}d לפני",
       "unread": "לא נקרא",
-      "activity": "פעילות חדשה"
+      "activity": "פעילות חדשה",
+      "summary": {
+        "direct_message": "קיבלת הודעה ישירה מאת {actor}.",
+        "reaction": "נוספה תגובה מאת {actor} להודעה שלך.",
+        "reply": "נוספה תשובה מאת {actor} להודעה שלך.",
+        "mention": "קיבלת אזכור מאת {actor}.",
+        "followed_thread": "נוספה תשובה מאת {actor} בשרשור שבמעקב שלך.",
+        "new_message": "נוספה הודעה חדשה מאת {actor}.",
+        "activity": "קיבלת התראה מאת {actor}."
+      }
     },
     "sign_out": {
       "title": "צא",

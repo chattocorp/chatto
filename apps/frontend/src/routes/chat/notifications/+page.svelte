@@ -17,7 +17,9 @@
   import { serverIdToSegment } from '$lib/navigation';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import {
+    fileDateGroup,
     formatDate,
+    formatMonthYear,
     timeFormatSettingsFor,
     type TimeFormatSettings
   } from '$lib/utils/formatTime';
@@ -37,12 +39,19 @@
     hasMore: boolean;
   };
 
+  type NotificationDateSection = {
+    key: string;
+    label: string;
+    items: ServerGroup[];
+  };
+
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
   let groups = $state.raw<ServerGroup[]>([]);
   let loading = $state(true);
   let loadingMore = $state(false);
   let pageError = $state(false);
+  let dismissingAll = $state(false);
   let loadGeneration = 0;
   let pagination = $state.raw<PaginationSource[]>([]);
   const pendingMutationKeys = new SvelteSet<string>();
@@ -65,6 +74,7 @@
     const newestUnloadedBoundary = activeBoundaries.sort().at(-1);
     return sorted.filter((item) => item.group.latestAt >= newestUnloadedBoundary!);
   });
+  const dateSections = $derived.by(() => groupNotificationsByDate(visibleGroups));
   const notificationViewInvalidations = $derived(
     serverRegistry.servers
       .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
@@ -235,6 +245,31 @@
     return mutationKey(a).localeCompare(mutationKey(b));
   }
 
+  function groupNotificationsByDate(items: ServerGroup[]): NotificationDateSection[] {
+    const sections: NotificationDateSection[] = [];
+    const now = new Date();
+    for (const item of items) {
+      const dateGroup = fileDateGroup(
+        item.group.latestAt,
+        item.timeFormatSettings,
+        now,
+        activeLocale
+      );
+      const label =
+        dateGroup.key === 'this-month'
+          ? formatMonthYear(item.group.latestAt, item.timeFormatSettings, activeLocale)
+          : dateGroup.label;
+      const key = dateGroup.key === 'this-month' ? `this-month:${label}` : dateGroup.key;
+      let section = sections.find((candidate) => candidate.key === key);
+      if (!section) {
+        section = { key, label, items: [] };
+        sections.push(section);
+      }
+      section.items.push(item);
+    }
+    return sections;
+  }
+
   function setMutationPending(key: string, pending: boolean): void {
     if (pending) pendingMutationKeys.add(key);
     else pendingMutationKeys.delete(key);
@@ -276,35 +311,34 @@
     await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
   }
 
-  function occurrenceReasonLabel(reasons: NotificationReason[]): string {
+  function occurrenceSummary(occurrence: NotificationOccurrenceItem): string {
+    const actor = occurrence.actor?.displayName;
+    if (!actor) return m('chat.notifications.activity');
+    const reasons = occurrence.reasons;
     if (reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
-      return m('settings.notifications.policy.reason.direct_message');
+      return m('chat.notifications.summary.direct_message', { actor });
     }
     if (reasons.includes(NotificationReason.REACTION)) {
-      return m('settings.notifications.policy.reason.reaction');
+      return m('chat.notifications.summary.reaction', { actor });
     }
     if (reasons.includes(NotificationReason.REPLY)) {
-      return m('settings.notifications.policy.reason.reply');
+      return m('chat.notifications.summary.reply', { actor });
     }
-    if (reasons.includes(NotificationReason.DIRECT_MENTION)) {
-      return m('settings.notifications.policy.reason.direct_mention');
-    }
-    if (reasons.includes(NotificationReason.ROLE_MENTION)) {
-      return m('settings.notifications.policy.reason.role_mention');
-    }
-    if (reasons.includes(NotificationReason.HERE)) {
-      return m('settings.notifications.policy.reason.here');
-    }
-    if (reasons.includes(NotificationReason.ALL)) {
-      return m('settings.notifications.policy.reason.all');
+    if (
+      reasons.includes(NotificationReason.DIRECT_MENTION) ||
+      reasons.includes(NotificationReason.ROLE_MENTION) ||
+      reasons.includes(NotificationReason.HERE) ||
+      reasons.includes(NotificationReason.ALL)
+    ) {
+      return m('chat.notifications.summary.mention', { actor });
     }
     if (reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
-      return m('settings.notifications.policy.reason.followed_thread');
+      return m('chat.notifications.summary.followed_thread', { actor });
     }
     if (reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
-      return m('settings.notifications.policy.reason.followed_room');
+      return m('chat.notifications.summary.new_message', { actor });
     }
-    return m('settings.notifications.policy.reason.activity');
+    return m('chat.notifications.summary.activity', { actor });
   }
 
   async function openGroup(item: ServerGroup) {
@@ -339,14 +373,68 @@
     if (pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
+    const removed = groups.find((candidate) => rowKey(candidate) === rowKey(item));
+    groups = groups.filter((candidate) => rowKey(candidate) !== rowKey(item));
+    pagination = pagination.map((source) =>
+      source.serverId === item.serverId
+        ? { ...source, offset: Math.max(0, source.offset - 1) }
+        : source
+    );
     try {
       await store.deleteGroup(item.group.id);
     } catch (error) {
+      if (removed && !groups.some((candidate) => rowKey(candidate) === rowKey(removed))) {
+        groups = [...groups, removed].sort(compareGroups);
+        pagination = pagination.map((source) =>
+          source.serverId === item.serverId ? { ...source, offset: source.offset + 1 } : source
+        );
+      }
       console.error('Failed to update notification:', error);
       toast.error(m('common.error.network'));
     } finally {
       setMutationPending(key, false);
     }
+  }
+
+  async function dismissAll() {
+    if (dismissingAll || groups.length === 0) return;
+    dismissingAll = true;
+    const originalGroups = groups;
+    const originalPagination = pagination;
+    groups = [];
+    pagination = pagination.map((source) => ({ ...source, offset: 0, hasMore: false }));
+
+    const serverIds = serverRegistry.servers.flatMap((instance) => {
+      const store = serverRegistry.getStore(instance.id);
+      return store.isAuthenticated ? [instance.id] : [];
+    });
+    const results = await Promise.allSettled(
+      serverIds.map((serverId) =>
+        serverRegistry.getStore(serverId).notifications.deleteAllOccurrences()
+      )
+    );
+    const failedServerIds = new Set(
+      results.flatMap((result, index) => (result.status === 'rejected' ? [serverIds[index]!] : []))
+    );
+    if (failedServerIds.size > 0) {
+      groups = [
+        ...groups,
+        ...originalGroups.filter(
+          (item) =>
+            failedServerIds.has(item.serverId) &&
+            !groups.some((current) => rowKey(current) === rowKey(item))
+        )
+      ].sort(compareGroups);
+      pagination = pagination.map((source) => {
+        if (!failedServerIds.has(source.serverId)) return source;
+        return (
+          originalPagination.find((candidate) => candidate.serverId === source.serverId) ?? source
+        );
+      });
+      pageError = true;
+      toast.error(m('common.error.network'));
+    }
+    dismissingAll = false;
   }
 </script>
 
@@ -355,7 +443,22 @@
     title={m('chat.notifications.title')}
     subtitle={m('chat.notifications.subtitle')}
     showMobileNav
-  />
+  >
+    {#snippet actions()}
+      {#if groups.length > 0 || dismissingAll}
+        <Button
+          variant="danger-secondary"
+          size="sm"
+          disabled={dismissingAll}
+          label={m('chat.notifications.clear_all')}
+          onclick={dismissAll}
+        >
+          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+          <span>{m('chat.notifications.clear_all')}</span>
+        </Button>
+      {/if}
+    {/snippet}
+  </PaneHeader>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if loading && groups.length === 0}
@@ -371,69 +474,75 @@
         {m('chat.notifications.empty_body')}
       </EmptyState>
     {:else}
-      <div class="selectable-list">
-        {#each visibleGroups as item (rowKey(item))}
-          {@const occurrence = item.group.openTarget}
-          {@const actor = occurrence?.actor ?? null}
-          {@const mutationPending = pendingMutationKeys.has(mutationKey(item))}
-          <div
-            class={[
-              'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
-              item.group.unread && 'bg-attention/5'
-            ]}
-            data-testid="notification-group"
-            data-notification-state={item.group.unread ? 'unread' : 'read'}
-          >
-            <button
-              type="button"
-              class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait"
-              disabled={mutationPending}
-              onclick={() => openGroup(item)}
+      <div class="selectable-list pb-3">
+        {#each dateSections as section (section.key)}
+          <section aria-labelledby={`notification-date-${section.key}`}>
+            <h2
+              id={`notification-date-${section.key}`}
+              class="sticky top-0 z-10 border-y border-border bg-background/95 px-4 py-2 text-xs font-semibold tracking-wide text-muted uppercase backdrop-blur"
+              data-testid="notification-date-heading"
             >
-              {#if actor}<UserAvatar user={actor} size="md" />{/if}
-              {#if item.group.unread}
-                <span
-                  class="size-2 shrink-0 rounded-full bg-attention"
-                  aria-label={m('chat.notifications.unread')}
-                ></span>
-              {/if}
-              <span class="min-w-0 flex-1">
-                <span class="block truncate font-medium" dir="auto">
-                  {#if actor}<bdi dir="auto">{actor.displayName}</bdi><span
-                      class="mx-1.5"
-                      aria-hidden="true">·</span
-                    >{/if}<span
-                    >{occurrence
-                      ? occurrenceReasonLabel(occurrence.reasons)
-                      : m('chat.notifications.activity')}</span
-                  >
-                </span>
-                <span class="block truncate text-sm text-muted">
-                  {#if showServerHostname}{item.serverHostname}<span
-                      class="mx-1.5"
-                      aria-hidden="true">·</span
-                    >{/if}
-                  {#if occurrence?.room?.name}
-                    <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                      class="mx-1.5"
-                      aria-hidden="true">·</span
-                    >{/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
-                </span>
-              </span>
-            </button>
-            <div class="flex shrink-0 items-center gap-2">
-              <Button
-                variant="danger-secondary"
-                size="sm"
-                disabled={mutationPending}
-                label={m('common.delete')}
-                title={m('common.delete')}
-                onclick={() => dismiss(item)}
+              {section.label}
+            </h2>
+            {#each section.items as item (rowKey(item))}
+              {@const occurrence = item.group.openTarget}
+              {@const actor = occurrence?.actor ?? null}
+              {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
+              <div
+                class={[
+                  'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+                  item.group.unread && 'bg-attention/5'
+                ]}
+                data-testid="notification-group"
+                data-notification-state={item.group.unread ? 'unread' : 'read'}
               >
-                <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-              </Button>
-            </div>
-          </div>
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait"
+                  disabled={mutationPending}
+                  onclick={() => openGroup(item)}
+                >
+                  {#if actor}<UserAvatar user={actor} size="md" />{/if}
+                  {#if item.group.unread}
+                    <span
+                      class="size-2 shrink-0 rounded-full bg-attention"
+                      aria-label={m('chat.notifications.unread')}
+                    ></span>
+                  {/if}
+                  <span class="min-w-0 flex-1">
+                    <bdi class="block truncate font-medium" dir="auto">
+                      {occurrence
+                        ? occurrenceSummary(occurrence)
+                        : m('chat.notifications.activity')}
+                    </bdi>
+                    <span class="block truncate text-sm text-muted">
+                      {#if showServerHostname}{item.serverHostname}<span
+                          class="mx-1.5"
+                          aria-hidden="true">·</span
+                        >{/if}
+                      {#if occurrence?.room?.name}
+                        <bdi dir="auto">#{occurrence.room.name}</bdi><span
+                          class="mx-1.5"
+                          aria-hidden="true">·</span
+                        >{/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
+                    </span>
+                  </span>
+                </button>
+                <div class="flex shrink-0 items-center gap-2">
+                  <Button
+                    variant="danger-secondary"
+                    size="sm"
+                    disabled={mutationPending}
+                    label={m('common.delete')}
+                    title={m('common.delete')}
+                    onclick={() => dismiss(item)}
+                  >
+                    <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+                  </Button>
+                </div>
+              </div>
+            {/each}
+          </section>
         {/each}
         {#if pageError}
           <div class="flex min-h-14 items-center justify-center gap-3 p-4 text-muted" role="alert">

@@ -11,7 +11,16 @@
       "time_hours": "{count}sa önce",
       "time_days": "{count} gün önce",
       "unread": "Okunmadı",
-      "activity": "Yeni etkinlik"
+      "activity": "Yeni etkinlik",
+      "summary": {
+        "direct_message": "{actor} sana doğrudan mesaj gönderdi.",
+        "reaction": "{actor} mesajına tepki verdi.",
+        "reply": "{actor} mesajına yanıt verdi.",
+        "mention": "{actor} senden bahsetti.",
+        "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi.",
+        "new_message": "{actor} yeni bir mesaj yayınladı.",
+        "activity": "{actor} sana bir bildirim gönderdi."
+      }
     },
     "sign_out": {
       "title": "Oturumu Kapat",

@@ -11,7 +11,16 @@
       "time_hours": "{count}h atrás",
       "time_days": "{count}d atrás",
       "unread": "Não lido",
-      "activity": "Nova atividade"
+      "activity": "Nova atividade",
+      "summary": {
+        "direct_message": "{actor} enviou uma mensagem direta para você.",
+        "reaction": "{actor} reagiu à sua mensagem.",
+        "reply": "{actor} respondeu à sua mensagem.",
+        "mention": "{actor} mencionou você.",
+        "followed_thread": "{actor} respondeu em uma conversa que você segue.",
+        "new_message": "{actor} publicou uma nova mensagem.",
+        "activity": "{actor} enviou uma notificação para você."
+      }
     },
     "sign_out": {
       "title": "Sair",

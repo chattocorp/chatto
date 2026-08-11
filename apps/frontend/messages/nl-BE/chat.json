@@ -11,7 +11,16 @@
       "time_hours": "{count}h geleden",
       "time_days": "{count}d geleden",
       "unread": "Ongelezen",
-      "activity": "Nieuwe activiteit"
+      "activity": "Nieuwe activiteit",
+      "summary": {
+        "direct_message": "{actor} heeft je een privébericht gestuurd.",
+        "reaction": "{actor} heeft op je bericht gereageerd.",
+        "reply": "{actor} heeft op je bericht geantwoord.",
+        "mention": "{actor} heeft je vermeld.",
+        "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt.",
+        "new_message": "{actor} heeft een nieuw bericht geplaatst.",
+        "activity": "{actor} heeft je een melding gestuurd."
+      }
     },
     "sign_out": {
       "title": "Uitloggen",

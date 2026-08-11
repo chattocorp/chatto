@@ -183,6 +183,15 @@ message DeleteNotificationGroupResponse {
   int32 deleted_count = 1;
 }
 
+// Request permanent deletion of every current notification occurrence.
+message DeleteAllNotificationOccurrencesRequest {}
+
+// Result of deleting every current notification occurrence.
+message DeleteAllNotificationOccurrencesResponse {
+  // Number of current occurrences replaced by deletion tombstones.
+  int32 deleted_count = 1;
+}
+
 // Explicit and effective delivery policy for one notification cause.
 message NotificationPolicyPreference {
   // Notification cause controlled by this row.
@@ -249,6 +258,10 @@ service NotificationService {
   // retry this mutation automatically because later activity may reuse the
   // same derived group ID.
   rpc DeleteNotificationGroup(DeleteNotificationGroupRequest) returns (DeleteNotificationGroupResponse);
+  // Permanently deletes every occurrence current at the server's authoritative
+  // mutation boundary. Callers must not retry this mutation automatically
+  // because later activity may arrive after that boundary.
+  rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
   // Gets every supported cause and its effective inherited delivery intensity.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
   // Sets or clears one server- or room-scoped cause override.

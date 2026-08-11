@@ -11,7 +11,16 @@
       "time_hours": "{count} ore fa",
       "time_days": "{count}d fa",
       "unread": "Non letta",
-      "activity": "Nuova attività"
+      "activity": "Nuova attività",
+      "summary": {
+        "direct_message": "{actor} ti ha inviato un messaggio diretto.",
+        "reaction": "{actor} ha reagito al tuo messaggio.",
+        "reply": "{actor} ha risposto al tuo messaggio.",
+        "mention": "{actor} ti ha menzionato.",
+        "followed_thread": "{actor} ha risposto in una discussione che segui.",
+        "new_message": "{actor} ha pubblicato un nuovo messaggio.",
+        "activity": "{actor} ti ha inviato una notifica."
+      }
     },
     "sign_out": {
       "title": "Esci",

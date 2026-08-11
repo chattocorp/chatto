@@ -53,10 +53,13 @@ The public behavior follows these rules:
 - `DeleteNotificationOccurrence` permanently dismisses one occurrence.
 - `DeleteNotificationGroup` dismisses the occurrences that belong to the
   derived group at the server's authoritative mutation boundary.
+- `DeleteAllNotificationOccurrences` dismisses every occurrence current at the
+  server's authoritative mutation boundary. Later activity remains new.
 
 Read and delete mutations are server-owned and synchronize across sessions.
 A later source event can create a new occurrence with the same derived group
-ID, so clients must not automatically retry an ambiguous group deletion.
+ID, so clients must not automatically retry an ambiguous group or whole-list
+deletion.
 
 Muting a notification's source may be added as a separate policy action in the
 future. It is not part of this lifecycle or the initial bundled UI.
@@ -85,10 +88,20 @@ room, DM, or thread has thousands of retained occurrences. Clients render the
 first page immediately and automatically append later pages.
 
 All unread and read groups are assembled into one chronological server view.
+The bundled client separates that view into Today, Yesterday, This Week, and
+month sections using each server account's preferred time zone. Rows describe
+the activity in a full sentence rather than presenting a terse actor/reason
+tuple.
+
 The public API therefore needs only one paginated list request. The bundled
 multi-server client makes one request per authenticated server, preserves
 fulfilled results when another server fails, and reports the failure as
 partial.
+
+Single-group and whole-list dismissal update the bundled client optimistically.
+Whole-list dismissal uses one authoritative request per authenticated server;
+it never loops over only the groups currently loaded by pagination. A failed
+server restores its rows without restoring successful servers' rows.
 
 The bell, server indicator, room indicators, and installed-app badge derive
 from the same unread occurrences and grouping rules. The bell and server
@@ -135,5 +148,7 @@ an otherwise inaccessible room, actor, or message.
   can drift from their member occurrences.
 - Group deletion requires an authoritative boundary so concurrent later
   occurrences are not accidentally included.
+- Whole-list deletion has the same boundary semantics and is not safe for an
+  automatic retry after an ambiguous transport failure.
 - Read cursors, delivery policy, and notification attention can evolve without
   overloading one another's semantics.

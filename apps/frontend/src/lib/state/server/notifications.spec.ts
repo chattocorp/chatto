@@ -16,6 +16,7 @@ type MockNotificationAPI = NotificationAPI & {
   listNotificationGroups: ReturnType<typeof vi.fn>;
   markNotificationRead: ReturnType<typeof vi.fn>;
   deleteNotificationGroup: ReturnType<typeof vi.fn>;
+  deleteAllNotificationOccurrences: ReturnType<typeof vi.fn>;
   getNotificationPolicy: ReturnType<typeof vi.fn>;
   setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
 };
@@ -76,10 +77,12 @@ function groupPage(source: FlatNotificationPage): NotificationGroupPage {
 
 function deferred<T>() {
   let resolve!: (value: T | PromiseLike<T>) => void;
-  const promise = new Promise<T>((res) => {
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
     resolve = res;
+    reject = rej;
   });
-  return { promise, resolve };
+  return { promise, resolve, reject };
 }
 
 function makeAPI(
@@ -96,6 +99,7 @@ function makeAPI(
     markNotificationRead: vi.fn().mockResolvedValue(undefined),
     deleteNotificationOccurrence: vi.fn().mockResolvedValue(false),
     deleteNotificationGroup: vi.fn().mockResolvedValue(0),
+    deleteAllNotificationOccurrences: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
     setNotificationPolicyPreference: vi.fn().mockResolvedValue([])
   };
@@ -294,6 +298,63 @@ describe('NotificationStore', () => {
     expect(api.deleteNotificationGroup).toHaveBeenCalledWith('group-1');
     expect(api.markNotificationRead).toHaveBeenCalledWith('notification-1');
     expect(api.listNotificationGroups).not.toHaveBeenCalled();
+  });
+
+  it('deletes a group optimistically and restores it when the server rejects the mutation', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI();
+    api.deleteNotificationGroup.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceGroupProjection(groupPage(page([mention('n1')])));
+
+    const deletion = store.deleteGroup('group-n1');
+
+    expect(store.groups).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+
+    mutation.reject(new Error('offline'));
+    await expect(deletion).rejects.toThrow('offline');
+    expect(store.groups.map(({ id }) => id)).toEqual(['group-n1']);
+    expect(store.notifications.map(({ id }) => id)).toEqual(['n1']);
+    expect(store.unreadNotificationCount).toBe(1);
+  });
+
+  it('does not issue a replacement list request while deleting a group', async () => {
+    const list = deferred<NotificationGroupPage>();
+    const mutation = deferred<number>();
+    const api = makeAPI();
+    api.listNotificationGroups.mockReturnValueOnce(list.promise);
+    api.deleteNotificationGroup.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceGroupProjection(groupPage(page([mention('n1')])));
+
+    const fetch = store.fetch();
+    const deletion = store.deleteGroup('group-n1');
+    list.resolve(groupPage(page([mention('n1')])));
+    mutation.resolve(1);
+    await Promise.all([fetch, deletion]);
+
+    expect(api.listNotificationGroups).toHaveBeenCalledTimes(1);
+    expect(store.groups).toEqual([]);
+  });
+
+  it('deletes all occurrences optimistically', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI();
+    api.deleteAllNotificationOccurrences.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceGroupProjection(groupPage(page([mention('n1'), mention('n2')], 2)));
+
+    const deletion = store.deleteAllOccurrences();
+
+    expect(store.groups).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+
+    mutation.resolve(2);
+    await deletion;
+    expect(api.deleteAllNotificationOccurrences).toHaveBeenCalledTimes(1);
   });
 
   it('normalizes the room, thread, and event used by push payloads', () => {

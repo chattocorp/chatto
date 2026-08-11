@@ -11,7 +11,16 @@
       "time_hours": "{count}h antaŭ",
       "time_days": "{count}d antaŭ",
       "unread": "Nelegite",
-      "activity": "Nova aktiveco"
+      "activity": "Nova aktiveco",
+      "summary": {
+        "direct_message": "{actor} sendis al vi rektan mesaĝon.",
+        "reaction": "{actor} reagis al via mesaĝo.",
+        "reply": "{actor} respondis al via mesaĝo.",
+        "mention": "{actor} menciis vin.",
+        "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas.",
+        "new_message": "{actor} afiŝis novan mesaĝon.",
+        "activity": "{actor} sendis al vi sciigon."
+      }
     },
     "sign_out": {
       "title": "Eliru",

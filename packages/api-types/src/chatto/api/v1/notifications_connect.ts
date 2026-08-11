@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
+import { DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -62,6 +62,19 @@ export const NotificationService = {
       name: "DeleteNotificationGroup",
       I: DeleteNotificationGroupRequest,
       O: DeleteNotificationGroupResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Permanently deletes every occurrence current at the server's authoritative
+     * mutation boundary. Callers must not retry this mutation automatically
+     * because later activity may arrive after that boundary.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences
+     */
+    deleteAllNotificationOccurrences: {
+      name: "DeleteAllNotificationOccurrences",
+      I: DeleteAllNotificationOccurrencesRequest,
+      O: DeleteAllNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
     },
     /**

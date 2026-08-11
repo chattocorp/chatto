@@ -3,7 +3,7 @@
     "notifications": {
       "title": "Notifications",
       "subtitle": "Here's what's new",
-      "clear_all": "Clear all",
+      "clear_all": "Dismiss all",
       "empty_title": "No notifications",
       "empty_body": "You're all caught up!",
       "time_now": "Just now",
@@ -11,7 +11,16 @@
       "time_hours": "{count}h ago",
       "time_days": "{count}d ago",
       "unread": "Unread",
-      "activity": "New activity"
+      "activity": "New activity",
+      "summary": {
+        "direct_message": "{actor} has sent you a direct message.",
+        "reaction": "{actor} reacted to your message.",
+        "reply": "{actor} replied to your message.",
+        "mention": "{actor} mentioned you.",
+        "followed_thread": "{actor} replied in a thread you follow.",
+        "new_message": "{actor} posted a new message.",
+        "activity": "{actor} sent you a notification."
+      }
     },
     "sign_out": {
       "title": "Sign Out",

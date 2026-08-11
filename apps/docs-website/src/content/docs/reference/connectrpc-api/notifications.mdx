@@ -156,6 +156,36 @@ Result of deleting one derived notification group.
 | `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
 
 
+<a id="chatto-api-v1-NotificationService-DeleteAllNotificationOccurrences"></a>
+
+### DeleteAllNotificationOccurrences
+
+Permanently deletes every occurrence current at the server's authoritative
+mutation boundary. Callers must not retry this mutation automatically
+because later activity may arrive after that boundary.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences
+```
+
+<a id="chatto-api-v1-DeleteAllNotificationOccurrencesRequest"></a>
+
+#### Input: DeleteAllNotificationOccurrencesRequest
+
+Request permanent deletion of every current notification occurrence.
+
+
+<a id="chatto-api-v1-DeleteAllNotificationOccurrencesResponse"></a>
+
+#### Result: DeleteAllNotificationOccurrencesResponse
+
+Result of deleting every current notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted_count` | `int32` | Number of current occurrences replaced by deletion tombstones. |
+
+
 <a id="chatto-api-v1-NotificationService-GetNotificationPolicy"></a>
 
 ### GetNotificationPolicy

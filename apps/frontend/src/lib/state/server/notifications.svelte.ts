@@ -379,8 +379,70 @@ export class NotificationStore {
     await this.#api.markNotificationRead(notificationId);
   }
 
+  /** Delete one group optimistically, restoring it if the server rejects the mutation. */
   async deleteGroup(groupId: string): Promise<void> {
-    await this.#api.deleteNotificationGroup(groupId);
+    const originalGroups = this.groups;
+    const originalNotifications = this.notifications;
+    const originalCount = this.unreadNotificationCount;
+    const originalNextExpiryAt = this.nextExpiryAt;
+    const removed = this.groups.find((group) => group.id === groupId);
+    // Supersede stale list work without starting a second list request. The
+    // worker's realtime replacement performs authoritative reconciliation.
+    this.#fetchGeneration++;
+    this.loading = false;
+    const mutationGeneration = this.#fetchGeneration;
+    if (removed) {
+      const removedOccurrenceIds = new SvelteSet(
+        removed.occurrences.map((occurrence) => occurrence.id)
+      );
+      this.groups = this.groups.filter((group) => group.id !== groupId);
+      this.notifications = this.notifications.filter(
+        (notification) => !removedOccurrenceIds.has(notification.id)
+      );
+      if (removed.unread) {
+        this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+      }
+      this.nextExpiryAt = earliestNotificationGroupExpiry(this.groups);
+    }
+
+    try {
+      await this.#api.deleteNotificationGroup(groupId);
+    } catch (error) {
+      if (this.#fetchGeneration === mutationGeneration) {
+        this.groups = originalGroups;
+        this.notifications = originalNotifications;
+        this.unreadNotificationCount = originalCount;
+        this.nextExpiryAt = originalNextExpiryAt;
+      }
+      throw error;
+    }
+  }
+
+  /** Delete every current occurrence optimistically for this server. */
+  async deleteAllOccurrences(): Promise<void> {
+    const originalGroups = this.groups;
+    const originalNotifications = this.notifications;
+    const originalCount = this.unreadNotificationCount;
+    const originalNextExpiryAt = this.nextExpiryAt;
+    this.#fetchGeneration++;
+    this.loading = false;
+    const mutationGeneration = this.#fetchGeneration;
+    this.groups = [];
+    this.notifications = [];
+    this.unreadNotificationCount = 0;
+    this.nextExpiryAt = null;
+
+    try {
+      await this.#api.deleteAllNotificationOccurrences();
+    } catch (error) {
+      if (this.#fetchGeneration === mutationGeneration) {
+        this.groups = originalGroups;
+        this.notifications = originalNotifications;
+        this.unreadNotificationCount = originalCount;
+        this.nextExpiryAt = originalNextExpiryAt;
+      }
+      throw error;
+    }
   }
 
   getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
@@ -584,4 +646,13 @@ function redactedNotificationSummary(kind: NotificationItemKind): string {
     case NotificationItemKind.RoomMessage:
       return 'New message';
   }
+}
+
+function earliestNotificationGroupExpiry(groups: NotificationGroupItem[]): string | null {
+  return (
+    groups
+      .map((group) => group.nextExpiryAt)
+      .filter((expiry): expiry is string => Boolean(expiry))
+      .sort()[0] ?? null
+  );
 }

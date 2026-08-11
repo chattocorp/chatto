@@ -22,6 +22,9 @@ underneath.
 - The notification page is one chronological list of Unread and Read groups.
   Unread rows use Chatto's notification orange; Read rows remain visible
   without unread emphasis.
+- The list is divided into Today, Yesterday, This Week, and monthly sections
+  using the preferred time zone of the account on each server. Notification
+  titles are full localized sentences that identify the actor and activity.
 - Opening a notification navigates to the exact room, thread, and event. It
   marks that notification read; the room or thread becomes read only when the
   target is actually displayed.
@@ -31,7 +34,10 @@ underneath.
   coverage follows the reacted-to message rather than the later reaction time.
   It does not remove notifications from the list.
 - The trash action deletes a notification group without requiring the user to
-  open or otherwise handle its source activity.
+  open or otherwise handle its source activity. Dismiss All deletes every
+  occurrence current at an authoritative boundary on each authenticated
+  server. Both actions update the list optimistically; failures restore only
+  the affected server's rows.
 - Notifications expire 90 days after their source activity. Read and Delete
   mutations never extend that absolute lifetime.
 - Related occurrences are grouped by conversation or target: DM room, thread,
@@ -80,8 +86,9 @@ underneath.
   notification work. A preference change that completed before the source
   attempt therefore applies to that activity; a retry recaptures policy as well
   as recipients.
-- Before a single-occurrence or group deletion reads its target membership,
-  Chatto waits the durable notification worker through a fresh boundary and
+- Before single-occurrence and group deletion read target membership, and
+  before whole-list deletion captures the current occurrence set, Chatto waits
+  the durable notification worker through a fresh boundary and
   fences the serving replica's occurrence index through the worker's KV writes.
   Pending visibility cleanup cannot be bypassed by a stale triage request.
 - Attention state, groups, counts, sounds, Web Push, and installed-app badges

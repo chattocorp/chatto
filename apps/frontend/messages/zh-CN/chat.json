@@ -11,7 +11,16 @@
       "time_hours": "{count} 小时前",
       "time_days": "{count} 天前",
       "unread": "未读",
-      "activity": "新动态"
+      "activity": "新动态",
+      "summary": {
+        "direct_message": "{actor} 给你发了一条私信。",
+        "reaction": "{actor} 对你的消息作出了回应。",
+        "reply": "{actor} 回复了你的消息。",
+        "mention": "{actor} 提到了你。",
+        "followed_thread": "{actor} 回复了你关注的主题。",
+        "new_message": "{actor} 发布了一条新消息。",
+        "activity": "{actor} 向你发送了一条通知。"
+      }
     },
     "sign_out": {
       "title": "退出登录",

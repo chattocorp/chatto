@@ -1004,6 +1004,89 @@ func (x *DeleteNotificationGroupResponse) GetDeletedCount() int32 {
 	return 0
 }
 
+// Request permanent deletion of every current notification occurrence.
+type DeleteAllNotificationOccurrencesRequest struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAllNotificationOccurrencesRequest) Reset() {
+	*x = DeleteAllNotificationOccurrencesRequest{}
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAllNotificationOccurrencesRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAllNotificationOccurrencesRequest) ProtoMessage() {}
+
+func (x *DeleteAllNotificationOccurrencesRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAllNotificationOccurrencesRequest.ProtoReflect.Descriptor instead.
+func (*DeleteAllNotificationOccurrencesRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{13}
+}
+
+// Result of deleting every current notification occurrence.
+type DeleteAllNotificationOccurrencesResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Number of current occurrences replaced by deletion tombstones.
+	DeletedCount  int32 `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *DeleteAllNotificationOccurrencesResponse) Reset() {
+	*x = DeleteAllNotificationOccurrencesResponse{}
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *DeleteAllNotificationOccurrencesResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*DeleteAllNotificationOccurrencesResponse) ProtoMessage() {}
+
+func (x *DeleteAllNotificationOccurrencesResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use DeleteAllNotificationOccurrencesResponse.ProtoReflect.Descriptor instead.
+func (*DeleteAllNotificationOccurrencesResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *DeleteAllNotificationOccurrencesResponse) GetDeletedCount() int32 {
+	if x != nil {
+		return x.DeletedCount
+	}
+	return 0
+}
+
 // Explicit and effective delivery policy for one notification cause.
 type NotificationPolicyPreference struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -1021,7 +1104,7 @@ type NotificationPolicyPreference struct {
 
 func (x *NotificationPolicyPreference) Reset() {
 	*x = NotificationPolicyPreference{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1033,7 +1116,7 @@ func (x *NotificationPolicyPreference) String() string {
 func (*NotificationPolicyPreference) ProtoMessage() {}
 
 func (x *NotificationPolicyPreference) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[13]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1046,7 +1129,7 @@ func (x *NotificationPolicyPreference) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use NotificationPolicyPreference.ProtoReflect.Descriptor instead.
 func (*NotificationPolicyPreference) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{13}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{15}
 }
 
 func (x *NotificationPolicyPreference) GetReason() NotificationReason {
@@ -1089,7 +1172,7 @@ type GetNotificationPolicyRequest struct {
 
 func (x *GetNotificationPolicyRequest) Reset() {
 	*x = GetNotificationPolicyRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1101,7 +1184,7 @@ func (x *GetNotificationPolicyRequest) String() string {
 func (*GetNotificationPolicyRequest) ProtoMessage() {}
 
 func (x *GetNotificationPolicyRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1114,7 +1197,7 @@ func (x *GetNotificationPolicyRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationPolicyRequest.ProtoReflect.Descriptor instead.
 func (*GetNotificationPolicyRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *GetNotificationPolicyRequest) GetRoomId() string {
@@ -1137,7 +1220,7 @@ type GetNotificationPolicyResponse struct {
 
 func (x *GetNotificationPolicyResponse) Reset() {
 	*x = GetNotificationPolicyResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1149,7 +1232,7 @@ func (x *GetNotificationPolicyResponse) String() string {
 func (*GetNotificationPolicyResponse) ProtoMessage() {}
 
 func (x *GetNotificationPolicyResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1162,7 +1245,7 @@ func (x *GetNotificationPolicyResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use GetNotificationPolicyResponse.ProtoReflect.Descriptor instead.
 func (*GetNotificationPolicyResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *GetNotificationPolicyResponse) GetRoomId() string {
@@ -1194,7 +1277,7 @@ type SetNotificationPolicyPreferenceRequest struct {
 
 func (x *SetNotificationPolicyPreferenceRequest) Reset() {
 	*x = SetNotificationPolicyPreferenceRequest{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1206,7 +1289,7 @@ func (x *SetNotificationPolicyPreferenceRequest) String() string {
 func (*SetNotificationPolicyPreferenceRequest) ProtoMessage() {}
 
 func (x *SetNotificationPolicyPreferenceRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[16]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[18]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1219,7 +1302,7 @@ func (x *SetNotificationPolicyPreferenceRequest) ProtoReflect() protoreflect.Mes
 
 // Deprecated: Use SetNotificationPolicyPreferenceRequest.ProtoReflect.Descriptor instead.
 func (*SetNotificationPolicyPreferenceRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{16}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{18}
 }
 
 func (x *SetNotificationPolicyPreferenceRequest) GetRoomId() string {
@@ -1256,7 +1339,7 @@ type SetNotificationPolicyPreferenceResponse struct {
 
 func (x *SetNotificationPolicyPreferenceResponse) Reset() {
 	*x = SetNotificationPolicyPreferenceResponse{}
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1268,7 +1351,7 @@ func (x *SetNotificationPolicyPreferenceResponse) String() string {
 func (*SetNotificationPolicyPreferenceResponse) ProtoMessage() {}
 
 func (x *SetNotificationPolicyPreferenceResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_notifications_proto_msgTypes[17]
+	mi := &file_chatto_api_v1_notifications_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1281,7 +1364,7 @@ func (x *SetNotificationPolicyPreferenceResponse) ProtoReflect() protoreflect.Me
 
 // Deprecated: Use SetNotificationPolicyPreferenceResponse.ProtoReflect.Descriptor instead.
 func (*SetNotificationPolicyPreferenceResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{17}
+	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{19}
 }
 
 func (x *SetNotificationPolicyPreferenceResponse) GetRoomId() string {
@@ -1360,6 +1443,9 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x1eDeleteNotificationGroupRequest\x12\"\n" +
 	"\bgroup_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\agroupId\"F\n" +
 	"\x1fDeleteNotificationGroupResponse\x12#\n" +
+	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\")\n" +
+	"'DeleteAllNotificationOccurrencesRequest\"O\n" +
+	"(DeleteAllNotificationOccurrencesResponse\x12#\n" +
 	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\"\xe6\x02\n" +
 	"\x1cNotificationPolicyPreference\x129\n" +
 	"\x06reason\x18\x01 \x01(\x0e2!.chatto.api.v1.NotificationReasonR\x06reason\x12W\n" +
@@ -1404,12 +1490,13 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"+NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED\x10\x00\x12'\n" +
 	"#NOTIFICATION_DELIVERY_INTENSITY_OFF\x10\x01\x12)\n" +
 	"%NOTIFICATION_DELIVERY_INTENSITY_BADGE\x10\x02\x12)\n" +
-	"%NOTIFICATION_DELIVERY_INTENSITY_ALERT\x10\x032\x97\x06\n" +
+	"%NOTIFICATION_DELIVERY_INTENSITY_ALERT\x10\x032\xad\a\n" +
 	"\x13NotificationService\x12u\n" +
 	"\x16ListNotificationGroups\x12,.chatto.api.v1.ListNotificationGroupsRequest\x1a-.chatto.api.v1.ListNotificationGroupsResponse\x12t\n" +
 	"\x14MarkNotificationRead\x12*.chatto.api.v1.MarkNotificationReadRequest\x1a+.chatto.api.v1.MarkNotificationReadResponse\"\x03\x90\x02\x02\x12\x8c\x01\n" +
 	"\x1cDeleteNotificationOccurrence\x122.chatto.api.v1.DeleteNotificationOccurrenceRequest\x1a3.chatto.api.v1.DeleteNotificationOccurrenceResponse\"\x03\x90\x02\x02\x12x\n" +
-	"\x17DeleteNotificationGroup\x12-.chatto.api.v1.DeleteNotificationGroupRequest\x1a..chatto.api.v1.DeleteNotificationGroupResponse\x12r\n" +
+	"\x17DeleteNotificationGroup\x12-.chatto.api.v1.DeleteNotificationGroupRequest\x1a..chatto.api.v1.DeleteNotificationGroupResponse\x12\x93\x01\n" +
+	" DeleteAllNotificationOccurrences\x126.chatto.api.v1.DeleteAllNotificationOccurrencesRequest\x1a7.chatto.api.v1.DeleteAllNotificationOccurrencesResponse\x12r\n" +
 	"\x15GetNotificationPolicy\x12+.chatto.api.v1.GetNotificationPolicyRequest\x1a,.chatto.api.v1.GetNotificationPolicyResponse\x12\x95\x01\n" +
 	"\x1fSetNotificationPolicyPreference\x125.chatto.api.v1.SetNotificationPolicyPreferenceRequest\x1a6.chatto.api.v1.SetNotificationPolicyPreferenceResponse\"\x03\x90\x02\x02B\xae\x01\n" +
 	"\x11com.chatto.api.v1B\x12NotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -1427,78 +1514,82 @@ func file_chatto_api_v1_notifications_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_api_v1_notifications_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_api_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_chatto_api_v1_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 20)
 var file_chatto_api_v1_notifications_proto_goTypes = []any{
-	(NotificationReason)(0),                         // 0: chatto.api.v1.NotificationReason
-	(NotificationDeliveryIntensity)(0),              // 1: chatto.api.v1.NotificationDeliveryIntensity
-	(*NotificationReasonMatch)(nil),                 // 2: chatto.api.v1.NotificationReasonMatch
-	(*NotificationTarget)(nil),                      // 3: chatto.api.v1.NotificationTarget
-	(*NotificationOccurrence)(nil),                  // 4: chatto.api.v1.NotificationOccurrence
-	(*NotificationGroup)(nil),                       // 5: chatto.api.v1.NotificationGroup
-	(*ListNotificationGroupsRequest)(nil),           // 6: chatto.api.v1.ListNotificationGroupsRequest
-	(*ListNotificationGroupsResponse)(nil),          // 7: chatto.api.v1.ListNotificationGroupsResponse
-	(*NotificationRoomUnreadGroupCount)(nil),        // 8: chatto.api.v1.NotificationRoomUnreadGroupCount
-	(*MarkNotificationReadRequest)(nil),             // 9: chatto.api.v1.MarkNotificationReadRequest
-	(*MarkNotificationReadResponse)(nil),            // 10: chatto.api.v1.MarkNotificationReadResponse
-	(*DeleteNotificationOccurrenceRequest)(nil),     // 11: chatto.api.v1.DeleteNotificationOccurrenceRequest
-	(*DeleteNotificationOccurrenceResponse)(nil),    // 12: chatto.api.v1.DeleteNotificationOccurrenceResponse
-	(*DeleteNotificationGroupRequest)(nil),          // 13: chatto.api.v1.DeleteNotificationGroupRequest
-	(*DeleteNotificationGroupResponse)(nil),         // 14: chatto.api.v1.DeleteNotificationGroupResponse
-	(*NotificationPolicyPreference)(nil),            // 15: chatto.api.v1.NotificationPolicyPreference
-	(*GetNotificationPolicyRequest)(nil),            // 16: chatto.api.v1.GetNotificationPolicyRequest
-	(*GetNotificationPolicyResponse)(nil),           // 17: chatto.api.v1.GetNotificationPolicyResponse
-	(*SetNotificationPolicyPreferenceRequest)(nil),  // 18: chatto.api.v1.SetNotificationPolicyPreferenceRequest
-	(*SetNotificationPolicyPreferenceResponse)(nil), // 19: chatto.api.v1.SetNotificationPolicyPreferenceResponse
-	(*RoomSummary)(nil),                             // 20: chatto.api.v1.RoomSummary
-	(*timestamppb.Timestamp)(nil),                   // 21: google.protobuf.Timestamp
-	(*User)(nil),                                    // 22: chatto.api.v1.User
-	(*PageRequest)(nil),                             // 23: chatto.api.v1.PageRequest
-	(*PageInfo)(nil),                                // 24: chatto.api.v1.PageInfo
+	(NotificationReason)(0),                          // 0: chatto.api.v1.NotificationReason
+	(NotificationDeliveryIntensity)(0),               // 1: chatto.api.v1.NotificationDeliveryIntensity
+	(*NotificationReasonMatch)(nil),                  // 2: chatto.api.v1.NotificationReasonMatch
+	(*NotificationTarget)(nil),                       // 3: chatto.api.v1.NotificationTarget
+	(*NotificationOccurrence)(nil),                   // 4: chatto.api.v1.NotificationOccurrence
+	(*NotificationGroup)(nil),                        // 5: chatto.api.v1.NotificationGroup
+	(*ListNotificationGroupsRequest)(nil),            // 6: chatto.api.v1.ListNotificationGroupsRequest
+	(*ListNotificationGroupsResponse)(nil),           // 7: chatto.api.v1.ListNotificationGroupsResponse
+	(*NotificationRoomUnreadGroupCount)(nil),         // 8: chatto.api.v1.NotificationRoomUnreadGroupCount
+	(*MarkNotificationReadRequest)(nil),              // 9: chatto.api.v1.MarkNotificationReadRequest
+	(*MarkNotificationReadResponse)(nil),             // 10: chatto.api.v1.MarkNotificationReadResponse
+	(*DeleteNotificationOccurrenceRequest)(nil),      // 11: chatto.api.v1.DeleteNotificationOccurrenceRequest
+	(*DeleteNotificationOccurrenceResponse)(nil),     // 12: chatto.api.v1.DeleteNotificationOccurrenceResponse
+	(*DeleteNotificationGroupRequest)(nil),           // 13: chatto.api.v1.DeleteNotificationGroupRequest
+	(*DeleteNotificationGroupResponse)(nil),          // 14: chatto.api.v1.DeleteNotificationGroupResponse
+	(*DeleteAllNotificationOccurrencesRequest)(nil),  // 15: chatto.api.v1.DeleteAllNotificationOccurrencesRequest
+	(*DeleteAllNotificationOccurrencesResponse)(nil), // 16: chatto.api.v1.DeleteAllNotificationOccurrencesResponse
+	(*NotificationPolicyPreference)(nil),             // 17: chatto.api.v1.NotificationPolicyPreference
+	(*GetNotificationPolicyRequest)(nil),             // 18: chatto.api.v1.GetNotificationPolicyRequest
+	(*GetNotificationPolicyResponse)(nil),            // 19: chatto.api.v1.GetNotificationPolicyResponse
+	(*SetNotificationPolicyPreferenceRequest)(nil),   // 20: chatto.api.v1.SetNotificationPolicyPreferenceRequest
+	(*SetNotificationPolicyPreferenceResponse)(nil),  // 21: chatto.api.v1.SetNotificationPolicyPreferenceResponse
+	(*RoomSummary)(nil),                              // 22: chatto.api.v1.RoomSummary
+	(*timestamppb.Timestamp)(nil),                    // 23: google.protobuf.Timestamp
+	(*User)(nil),                                     // 24: chatto.api.v1.User
+	(*PageRequest)(nil),                              // 25: chatto.api.v1.PageRequest
+	(*PageInfo)(nil),                                 // 26: chatto.api.v1.PageInfo
 }
 var file_chatto_api_v1_notifications_proto_depIdxs = []int32{
 	0,  // 0: chatto.api.v1.NotificationReasonMatch.reason:type_name -> chatto.api.v1.NotificationReason
 	1,  // 1: chatto.api.v1.NotificationReasonMatch.intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
-	20, // 2: chatto.api.v1.NotificationTarget.room:type_name -> chatto.api.v1.RoomSummary
-	21, // 3: chatto.api.v1.NotificationOccurrence.created_at:type_name -> google.protobuf.Timestamp
-	22, // 4: chatto.api.v1.NotificationOccurrence.actor:type_name -> chatto.api.v1.User
+	22, // 2: chatto.api.v1.NotificationTarget.room:type_name -> chatto.api.v1.RoomSummary
+	23, // 3: chatto.api.v1.NotificationOccurrence.created_at:type_name -> google.protobuf.Timestamp
+	24, // 4: chatto.api.v1.NotificationOccurrence.actor:type_name -> chatto.api.v1.User
 	3,  // 5: chatto.api.v1.NotificationOccurrence.target:type_name -> chatto.api.v1.NotificationTarget
 	2,  // 6: chatto.api.v1.NotificationOccurrence.reasons:type_name -> chatto.api.v1.NotificationReasonMatch
 	1,  // 7: chatto.api.v1.NotificationOccurrence.strongest_intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
-	21, // 8: chatto.api.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
+	23, // 8: chatto.api.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
 	4,  // 9: chatto.api.v1.NotificationGroup.occurrences:type_name -> chatto.api.v1.NotificationOccurrence
 	3,  // 10: chatto.api.v1.NotificationGroup.open_target:type_name -> chatto.api.v1.NotificationTarget
-	21, // 11: chatto.api.v1.NotificationGroup.latest_at:type_name -> google.protobuf.Timestamp
+	23, // 11: chatto.api.v1.NotificationGroup.latest_at:type_name -> google.protobuf.Timestamp
 	1,  // 12: chatto.api.v1.NotificationGroup.strongest_intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
 	0,  // 13: chatto.api.v1.NotificationGroup.reasons:type_name -> chatto.api.v1.NotificationReason
-	21, // 14: chatto.api.v1.NotificationGroup.next_expiry_at:type_name -> google.protobuf.Timestamp
-	23, // 15: chatto.api.v1.ListNotificationGroupsRequest.page:type_name -> chatto.api.v1.PageRequest
+	23, // 14: chatto.api.v1.NotificationGroup.next_expiry_at:type_name -> google.protobuf.Timestamp
+	25, // 15: chatto.api.v1.ListNotificationGroupsRequest.page:type_name -> chatto.api.v1.PageRequest
 	5,  // 16: chatto.api.v1.ListNotificationGroupsResponse.groups:type_name -> chatto.api.v1.NotificationGroup
-	24, // 17: chatto.api.v1.ListNotificationGroupsResponse.page:type_name -> chatto.api.v1.PageInfo
-	21, // 18: chatto.api.v1.ListNotificationGroupsResponse.next_expiry_at:type_name -> google.protobuf.Timestamp
+	26, // 17: chatto.api.v1.ListNotificationGroupsResponse.page:type_name -> chatto.api.v1.PageInfo
+	23, // 18: chatto.api.v1.ListNotificationGroupsResponse.next_expiry_at:type_name -> google.protobuf.Timestamp
 	8,  // 19: chatto.api.v1.ListNotificationGroupsResponse.room_unread_group_counts:type_name -> chatto.api.v1.NotificationRoomUnreadGroupCount
 	4,  // 20: chatto.api.v1.MarkNotificationReadResponse.notification:type_name -> chatto.api.v1.NotificationOccurrence
 	0,  // 21: chatto.api.v1.NotificationPolicyPreference.reason:type_name -> chatto.api.v1.NotificationReason
 	1,  // 22: chatto.api.v1.NotificationPolicyPreference.server_intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
 	1,  // 23: chatto.api.v1.NotificationPolicyPreference.room_intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
 	1,  // 24: chatto.api.v1.NotificationPolicyPreference.effective_intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
-	15, // 25: chatto.api.v1.GetNotificationPolicyResponse.preferences:type_name -> chatto.api.v1.NotificationPolicyPreference
+	17, // 25: chatto.api.v1.GetNotificationPolicyResponse.preferences:type_name -> chatto.api.v1.NotificationPolicyPreference
 	0,  // 26: chatto.api.v1.SetNotificationPolicyPreferenceRequest.reason:type_name -> chatto.api.v1.NotificationReason
 	1,  // 27: chatto.api.v1.SetNotificationPolicyPreferenceRequest.intensity:type_name -> chatto.api.v1.NotificationDeliveryIntensity
-	15, // 28: chatto.api.v1.SetNotificationPolicyPreferenceResponse.preferences:type_name -> chatto.api.v1.NotificationPolicyPreference
+	17, // 28: chatto.api.v1.SetNotificationPolicyPreferenceResponse.preferences:type_name -> chatto.api.v1.NotificationPolicyPreference
 	6,  // 29: chatto.api.v1.NotificationService.ListNotificationGroups:input_type -> chatto.api.v1.ListNotificationGroupsRequest
 	9,  // 30: chatto.api.v1.NotificationService.MarkNotificationRead:input_type -> chatto.api.v1.MarkNotificationReadRequest
 	11, // 31: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:input_type -> chatto.api.v1.DeleteNotificationOccurrenceRequest
 	13, // 32: chatto.api.v1.NotificationService.DeleteNotificationGroup:input_type -> chatto.api.v1.DeleteNotificationGroupRequest
-	16, // 33: chatto.api.v1.NotificationService.GetNotificationPolicy:input_type -> chatto.api.v1.GetNotificationPolicyRequest
-	18, // 34: chatto.api.v1.NotificationService.SetNotificationPolicyPreference:input_type -> chatto.api.v1.SetNotificationPolicyPreferenceRequest
-	7,  // 35: chatto.api.v1.NotificationService.ListNotificationGroups:output_type -> chatto.api.v1.ListNotificationGroupsResponse
-	10, // 36: chatto.api.v1.NotificationService.MarkNotificationRead:output_type -> chatto.api.v1.MarkNotificationReadResponse
-	12, // 37: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:output_type -> chatto.api.v1.DeleteNotificationOccurrenceResponse
-	14, // 38: chatto.api.v1.NotificationService.DeleteNotificationGroup:output_type -> chatto.api.v1.DeleteNotificationGroupResponse
-	17, // 39: chatto.api.v1.NotificationService.GetNotificationPolicy:output_type -> chatto.api.v1.GetNotificationPolicyResponse
-	19, // 40: chatto.api.v1.NotificationService.SetNotificationPolicyPreference:output_type -> chatto.api.v1.SetNotificationPolicyPreferenceResponse
-	35, // [35:41] is the sub-list for method output_type
-	29, // [29:35] is the sub-list for method input_type
+	15, // 33: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:input_type -> chatto.api.v1.DeleteAllNotificationOccurrencesRequest
+	18, // 34: chatto.api.v1.NotificationService.GetNotificationPolicy:input_type -> chatto.api.v1.GetNotificationPolicyRequest
+	20, // 35: chatto.api.v1.NotificationService.SetNotificationPolicyPreference:input_type -> chatto.api.v1.SetNotificationPolicyPreferenceRequest
+	7,  // 36: chatto.api.v1.NotificationService.ListNotificationGroups:output_type -> chatto.api.v1.ListNotificationGroupsResponse
+	10, // 37: chatto.api.v1.NotificationService.MarkNotificationRead:output_type -> chatto.api.v1.MarkNotificationReadResponse
+	12, // 38: chatto.api.v1.NotificationService.DeleteNotificationOccurrence:output_type -> chatto.api.v1.DeleteNotificationOccurrenceResponse
+	14, // 39: chatto.api.v1.NotificationService.DeleteNotificationGroup:output_type -> chatto.api.v1.DeleteNotificationGroupResponse
+	16, // 40: chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences:output_type -> chatto.api.v1.DeleteAllNotificationOccurrencesResponse
+	19, // 41: chatto.api.v1.NotificationService.GetNotificationPolicy:output_type -> chatto.api.v1.GetNotificationPolicyResponse
+	21, // 42: chatto.api.v1.NotificationService.SetNotificationPolicyPreference:output_type -> chatto.api.v1.SetNotificationPolicyPreferenceResponse
+	36, // [36:43] is the sub-list for method output_type
+	29, // [29:36] is the sub-list for method input_type
 	29, // [29:29] is the sub-list for extension type_name
 	29, // [29:29] is the sub-list for extension extendee
 	0,  // [0:29] is the sub-list for field type_name
@@ -1513,17 +1604,17 @@ func file_chatto_api_v1_notifications_proto_init() {
 	file_chatto_api_v1_rooms_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_notifications_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_api_v1_notifications_proto_msgTypes[14].OneofWrappers = []any{}
-	file_chatto_api_v1_notifications_proto_msgTypes[15].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[16].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[17].OneofWrappers = []any{}
+	file_chatto_api_v1_notifications_proto_msgTypes[18].OneofWrappers = []any{}
+	file_chatto_api_v1_notifications_proto_msgTypes[19].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_notifications_proto_rawDesc), len(file_chatto_api_v1_notifications_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   18,
+			NumMessages:   20,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

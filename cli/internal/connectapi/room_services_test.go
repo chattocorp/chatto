@@ -1528,6 +1528,17 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	if err != nil || len(afterDelete.Msg.GetGroups()) != 0 {
 		t.Fatalf("list after delete = %+v, %v, want empty", afterDelete, err)
 	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "dismiss all of this", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage before DeleteAllNotificationOccurrences: %v", err)
+	}
+	deleteAll, err := env.notifications.DeleteAllNotificationOccurrences(ctx, connect.NewRequest(&apiv1.DeleteAllNotificationOccurrencesRequest{}))
+	if err != nil || deleteAll.Msg.GetDeletedCount() != 1 {
+		t.Fatalf("DeleteAllNotificationOccurrences = (%+v, %v), want one", deleteAll, err)
+	}
+	afterDeleteAll, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	if err != nil || len(afterDeleteAll.Msg.GetGroups()) != 0 {
+		t.Fatalf("list after delete all = %+v, %v, want empty", afterDeleteAll, err)
+	}
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
 		Reason:    apiv1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
@@ -1546,7 +1557,6 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	if !found {
 		t.Fatalf("notification policy = %+v, want direct mention Badge", policy.Msg.GetPreferences())
 	}
-
 }
 
 func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {

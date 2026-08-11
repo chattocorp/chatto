@@ -276,6 +276,21 @@ func (s *notificationService) DeleteNotificationGroup(ctx context.Context, req *
 	return connect.NewResponse(&apiv1.DeleteNotificationGroupResponse{DeletedCount: int32(count)}), nil
 }
 
+func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Context, _ *connect.Request[apiv1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[apiv1.DeleteAllNotificationOccurrencesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
+	}
+	count, err := s.api.core.NotificationOccurrences().DeleteAll(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteAllNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
+}
+
 func apiNotificationPolicy(roomID string, policy []core.NotificationPolicyPreference) (*apiv1.GetNotificationPolicyResponse, *apiv1.SetNotificationPolicyPreferenceResponse) {
 	preferences := make([]*apiv1.NotificationPolicyPreference, 0, len(policy))
 	for _, preference := range policy {

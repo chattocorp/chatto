@@ -11,7 +11,16 @@
       "time_hours": "{count}h temu",
       "time_days": "{count}d temu",
       "unread": "Nieprzeczytane",
-      "activity": "Nowa aktywność"
+      "activity": "Nowa aktywność",
+      "summary": {
+        "direct_message": "Masz nową wiadomość bezpośrednią od {actor}.",
+        "reaction": "Osoba {actor} zareagowała na Twoją wiadomość.",
+        "reply": "Osoba {actor} odpowiedziała na Twoją wiadomość.",
+        "mention": "Osoba {actor} wspomniała o Tobie.",
+        "followed_thread": "Osoba {actor} odpowiedziała w obserwowanym przez Ciebie wątku.",
+        "new_message": "Osoba {actor} opublikowała nową wiadomość.",
+        "activity": "Masz nowe powiadomienie od {actor}."
+      }
     },
     "sign_out": {
       "title": "Wyloguj się",

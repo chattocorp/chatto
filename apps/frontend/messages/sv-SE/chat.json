@@ -11,7 +11,16 @@
       "time_hours": "{count}h sedan",
       "time_days": "{count}d sedan",
       "unread": "Oläst",
-      "activity": "Ny aktivitet"
+      "activity": "Ny aktivitet",
+      "summary": {
+        "direct_message": "{actor} har skickat ett direktmeddelande till dig.",
+        "reaction": "{actor} reagerade på ditt meddelande.",
+        "reply": "{actor} svarade på ditt meddelande.",
+        "mention": "{actor} nämnde dig.",
+        "followed_thread": "{actor} svarade i en tråd som du följer.",
+        "new_message": "{actor} publicerade ett nytt meddelande.",
+        "activity": "{actor} skickade en avisering till dig."
+      }
     },
     "sign_out": {
       "title": "Logga ut",

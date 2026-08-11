@@ -40,7 +40,8 @@ const { mocks } = vi.hoisted(() => ({
         viewInvalidationVersion: 0,
         fetchPage: vi.fn(),
         markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-        deleteGroup: vi.fn().mockResolvedValue(undefined)
+        deleteGroup: vi.fn().mockResolvedValue(undefined),
+        deleteAllOccurrences: vi.fn().mockResolvedValue(undefined)
       },
       pendingHighlights: { set: vi.fn() }
     }
@@ -115,6 +116,8 @@ describe('notifications page', () => {
     mocks.store.notifications.viewInvalidationVersion = 0;
     mocks.store.notifications.fetchPage.mockResolvedValue(page());
     mocks.store.notifications.deleteGroup.mockResolvedValue(undefined);
+    mocks.store.notifications.deleteAllOccurrences.mockResolvedValue(undefined);
+    mocks.store.currentUser.user.settings = null;
     mocks.servers.splice(0, mocks.servers.length, {
       id: 'origin',
       url: 'https://chat.example.test'
@@ -192,7 +195,7 @@ describe('notifications page', () => {
     expect(q(readRow, '.bg-attention')).toBeNull();
   });
 
-  it('spaces title metadata and omits the single-occurrence counter', async () => {
+  it('renders a full-sentence summary and omits the single-occurrence counter', async () => {
     const actor = {
       id: 'alice',
       login: 'alice',
@@ -217,9 +220,8 @@ describe('notifications page', () => {
       return element as HTMLElement;
     });
 
-    expect(row.querySelectorAll('[aria-hidden="true"].mx-1\\.5').length).toBeGreaterThan(0);
-    expect(row.textContent).toContain('Alice');
-    expect(row.textContent).toContain('Followed threads');
+    expect(row.textContent).toContain('Alice replied in a thread you follow.');
+    expect(row.textContent).not.toContain('Followed threads');
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
   });
 
@@ -244,7 +246,7 @@ describe('notifications page', () => {
     expect(container.textContent).toContain('chat.example.test');
   });
 
-  it('fences row opening while dismissal is pending and reports failures', async () => {
+  it('removes a dismissed row immediately and restores it when the request fails', async () => {
     let rejectMutation: ((reason?: unknown) => void) | undefined;
     mocks.store.notifications.deleteGroup.mockImplementation(
       () =>
@@ -258,21 +260,89 @@ describe('notifications page', () => {
       expect(element).not.toBeNull();
       return element as HTMLButtonElement;
     });
-    const rowButton = q(
-      container,
-      '[data-testid="notification-group"] > button'
-    ) as HTMLButtonElement;
-
     deleteButton.click();
-    await vi.waitFor(() => expect(rowButton.disabled).toBe(true));
-    rowButton.click();
-    expect(mocks.goto).not.toHaveBeenCalled();
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="notification-group"]')).toBeNull();
+    });
 
     rejectMutation?.(new Error('offline'));
     await vi.waitFor(() => {
       expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
-      expect(rowButton.disabled).toBe(false);
+      expect(container.querySelector('[data-testid="notification-group"]')).not.toBeNull();
     });
+  });
+
+  it('groups rows by date in the viewer timezone', async () => {
+    const now = new Date();
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);
+    const older = new Date(now);
+    older.setUTCMonth(older.getUTCMonth() - 2);
+    const occurrences = [
+      { ...mocks.occurrence, id: 'today', createdAt: now.toISOString() },
+      { ...mocks.occurrence, id: 'yesterday', createdAt: yesterday.toISOString() },
+      { ...mocks.occurrence, id: 'older', createdAt: older.toISOString() }
+    ];
+    mocks.store.currentUser.user.settings = {
+      timezone: 'Pacific/Auckland',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
+    };
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page(occurrences.map((occurrence) => group(`group-${occurrence.id}`, occurrence)))
+    );
+
+    const { container } = render(NotificationsPage);
+    const headings = await vi.waitFor(() => {
+      const elements = container.querySelectorAll('[data-testid="notification-date-heading"]');
+      expect(elements.length).toBeGreaterThanOrEqual(3);
+      return [...elements].map((heading) => heading.textContent?.trim());
+    });
+
+    expect(headings).toContain('Today');
+    expect(headings).toContain('Yesterday');
+    expect(headings.some((heading) => heading?.match(/\w+ \d{4}/))).toBe(true);
+  });
+
+  it('dismisses all notifications optimistically with one request per server', async () => {
+    let resolveOrigin: (() => void) | undefined;
+    let resolveRemote: (() => void) | undefined;
+    mocks.store.notifications.deleteAllOccurrences.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveOrigin = resolve))
+    );
+    const remoteStore = {
+      ...mocks.store,
+      notifications: {
+        ...mocks.store.notifications,
+        fetchPage: vi.fn().mockResolvedValue(
+          page([
+            group('remote-group', {
+              ...mocks.occurrence,
+              id: 'remote-notification'
+            })
+          ])
+        ),
+        deleteAllOccurrences: vi.fn(() => new Promise<void>((resolve) => (resolveRemote = resolve)))
+      }
+    };
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', remoteStore);
+
+    const { container } = render(NotificationsPage);
+    const dismissAll = await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+      const button = q(container, 'button[aria-label="Dismiss all"]');
+      expect(button).not.toBeNull();
+      return button as HTMLButtonElement;
+    });
+
+    dismissAll.click();
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
+    });
+    expect(mocks.store.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
+    expect(remoteStore.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
+
+    resolveOrigin?.();
+    resolveRemote?.();
   });
 
   it('loads the next page from each server independently', async () => {

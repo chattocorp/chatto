@@ -11,7 +11,16 @@
       "time_hours": "{count} 小時前",
       "time_days": "{count} 天前",
       "unread": "未讀",
-      "activity": "新動態"
+      "activity": "新動態",
+      "summary": {
+        "direct_message": "{actor} 傳送了一則私人訊息給你。",
+        "reaction": "{actor} 對你的訊息做出了回應。",
+        "reply": "{actor} 回覆了你的訊息。",
+        "mention": "{actor} 提及了你。",
+        "followed_thread": "{actor} 回覆了你追蹤的討論串。",
+        "new_message": "{actor} 發布了一則新訊息。",
+        "activity": "{actor} 傳送了一則通知給你。"
+      }
     },
     "sign_out": {
       "title": "登出",

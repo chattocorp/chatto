@@ -11,7 +11,16 @@
       "time_hours": "{count}h منذ",
       "time_days": "{count}d منذ",
       "unread": "غير مقروء",
-      "activity": "نشاط جديد"
+      "activity": "نشاط جديد",
+      "summary": {
+        "direct_message": "أرسل إليك {actor} رسالة مباشرة.",
+        "reaction": "تفاعل {actor} مع رسالتك.",
+        "reply": "ردّ {actor} على رسالتك.",
+        "mention": "أشار إليك {actor}.",
+        "followed_thread": "ردّ {actor} في سلسلة تتابعها.",
+        "new_message": "نشر {actor} رسالة جديدة.",
+        "activity": "أرسل إليك {actor} إشعارًا."
+      }
     },
     "sign_out": {
       "title": "تسجيل الخروج",

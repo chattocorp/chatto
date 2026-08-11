@@ -171,6 +171,12 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       );
     },
 
+    async deleteAllNotificationOccurrences(): Promise<number> {
+      return Number(
+        (await client.deleteAllNotificationOccurrences({}, { headers: headers() })).deletedCount
+      );
+    },
+
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
       const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
       return response.preferences.map((preference) => ({

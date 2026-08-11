@@ -45,6 +45,9 @@ const (
 	// NotificationServiceDeleteNotificationGroupProcedure is the fully-qualified name of the
 	// NotificationService's DeleteNotificationGroup RPC.
 	NotificationServiceDeleteNotificationGroupProcedure = "/chatto.api.v1.NotificationService/DeleteNotificationGroup"
+	// NotificationServiceDeleteAllNotificationOccurrencesProcedure is the fully-qualified name of the
+	// NotificationService's DeleteAllNotificationOccurrences RPC.
+	NotificationServiceDeleteAllNotificationOccurrencesProcedure = "/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences"
 	// NotificationServiceGetNotificationPolicyProcedure is the fully-qualified name of the
 	// NotificationService's GetNotificationPolicy RPC.
 	NotificationServiceGetNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/GetNotificationPolicy"
@@ -67,6 +70,10 @@ type NotificationServiceClient interface {
 	// retry this mutation automatically because later activity may reuse the
 	// same derived group ID.
 	DeleteNotificationGroup(context.Context, *connect.Request[v1.DeleteNotificationGroupRequest]) (*connect.Response[v1.DeleteNotificationGroupResponse], error)
+	// Permanently deletes every occurrence current at the server's authoritative
+	// mutation boundary. Callers must not retry this mutation automatically
+	// because later activity may arrive after that boundary.
+	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped cause override.
@@ -110,6 +117,12 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationGroup")),
 			connect.WithClientOptions(opts...),
 		),
+		deleteAllNotificationOccurrences: connect.NewClient[v1.DeleteAllNotificationOccurrencesRequest, v1.DeleteAllNotificationOccurrencesResponse](
+			httpClient,
+			baseURL+NotificationServiceDeleteAllNotificationOccurrencesProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("DeleteAllNotificationOccurrences")),
+			connect.WithClientOptions(opts...),
+		),
 		getNotificationPolicy: connect.NewClient[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse](
 			httpClient,
 			baseURL+NotificationServiceGetNotificationPolicyProcedure,
@@ -128,12 +141,13 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 
 // notificationServiceClient implements NotificationServiceClient.
 type notificationServiceClient struct {
-	listNotificationGroups          *connect.Client[v1.ListNotificationGroupsRequest, v1.ListNotificationGroupsResponse]
-	markNotificationRead            *connect.Client[v1.MarkNotificationReadRequest, v1.MarkNotificationReadResponse]
-	deleteNotificationOccurrence    *connect.Client[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse]
-	deleteNotificationGroup         *connect.Client[v1.DeleteNotificationGroupRequest, v1.DeleteNotificationGroupResponse]
-	getNotificationPolicy           *connect.Client[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse]
-	setNotificationPolicyPreference *connect.Client[v1.SetNotificationPolicyPreferenceRequest, v1.SetNotificationPolicyPreferenceResponse]
+	listNotificationGroups           *connect.Client[v1.ListNotificationGroupsRequest, v1.ListNotificationGroupsResponse]
+	markNotificationRead             *connect.Client[v1.MarkNotificationReadRequest, v1.MarkNotificationReadResponse]
+	deleteNotificationOccurrence     *connect.Client[v1.DeleteNotificationOccurrenceRequest, v1.DeleteNotificationOccurrenceResponse]
+	deleteNotificationGroup          *connect.Client[v1.DeleteNotificationGroupRequest, v1.DeleteNotificationGroupResponse]
+	deleteAllNotificationOccurrences *connect.Client[v1.DeleteAllNotificationOccurrencesRequest, v1.DeleteAllNotificationOccurrencesResponse]
+	getNotificationPolicy            *connect.Client[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse]
+	setNotificationPolicyPreference  *connect.Client[v1.SetNotificationPolicyPreferenceRequest, v1.SetNotificationPolicyPreferenceResponse]
 }
 
 // ListNotificationGroups calls chatto.api.v1.NotificationService.ListNotificationGroups.
@@ -155,6 +169,12 @@ func (c *notificationServiceClient) DeleteNotificationOccurrence(ctx context.Con
 // DeleteNotificationGroup calls chatto.api.v1.NotificationService.DeleteNotificationGroup.
 func (c *notificationServiceClient) DeleteNotificationGroup(ctx context.Context, req *connect.Request[v1.DeleteNotificationGroupRequest]) (*connect.Response[v1.DeleteNotificationGroupResponse], error) {
 	return c.deleteNotificationGroup.CallUnary(ctx, req)
+}
+
+// DeleteAllNotificationOccurrences calls
+// chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences.
+func (c *notificationServiceClient) DeleteAllNotificationOccurrences(ctx context.Context, req *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error) {
+	return c.deleteAllNotificationOccurrences.CallUnary(ctx, req)
 }
 
 // GetNotificationPolicy calls chatto.api.v1.NotificationService.GetNotificationPolicy.
@@ -182,6 +202,10 @@ type NotificationServiceHandler interface {
 	// retry this mutation automatically because later activity may reuse the
 	// same derived group ID.
 	DeleteNotificationGroup(context.Context, *connect.Request[v1.DeleteNotificationGroupRequest]) (*connect.Response[v1.DeleteNotificationGroupResponse], error)
+	// Permanently deletes every occurrence current at the server's authoritative
+	// mutation boundary. Callers must not retry this mutation automatically
+	// because later activity may arrive after that boundary.
+	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped cause override.
@@ -221,6 +245,12 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		connect.WithSchema(notificationServiceMethods.ByName("DeleteNotificationGroup")),
 		connect.WithHandlerOptions(opts...),
 	)
+	notificationServiceDeleteAllNotificationOccurrencesHandler := connect.NewUnaryHandler(
+		NotificationServiceDeleteAllNotificationOccurrencesProcedure,
+		svc.DeleteAllNotificationOccurrences,
+		connect.WithSchema(notificationServiceMethods.ByName("DeleteAllNotificationOccurrences")),
+		connect.WithHandlerOptions(opts...),
+	)
 	notificationServiceGetNotificationPolicyHandler := connect.NewUnaryHandler(
 		NotificationServiceGetNotificationPolicyProcedure,
 		svc.GetNotificationPolicy,
@@ -244,6 +274,8 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 			notificationServiceDeleteNotificationOccurrenceHandler.ServeHTTP(w, r)
 		case NotificationServiceDeleteNotificationGroupProcedure:
 			notificationServiceDeleteNotificationGroupHandler.ServeHTTP(w, r)
+		case NotificationServiceDeleteAllNotificationOccurrencesProcedure:
+			notificationServiceDeleteAllNotificationOccurrencesHandler.ServeHTTP(w, r)
 		case NotificationServiceGetNotificationPolicyProcedure:
 			notificationServiceGetNotificationPolicyHandler.ServeHTTP(w, r)
 		case NotificationServiceSetNotificationPolicyPreferenceProcedure:
@@ -271,6 +303,10 @@ func (UnimplementedNotificationServiceHandler) DeleteNotificationOccurrence(cont
 
 func (UnimplementedNotificationServiceHandler) DeleteNotificationGroup(context.Context, *connect.Request[v1.DeleteNotificationGroupRequest]) (*connect.Response[v1.DeleteNotificationGroupResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DeleteNotificationGroup is not implemented"))
+}
+
+func (UnimplementedNotificationServiceHandler) DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences is not implemented"))
 }
 
 func (UnimplementedNotificationServiceHandler) GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error) {
