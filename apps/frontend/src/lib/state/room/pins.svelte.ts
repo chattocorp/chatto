@@ -249,7 +249,10 @@ export class RoomPinsStore {
       for (let start = 0; start < messageEventIds.length; start += 100) {
         batches.push(await this.api.batchGet(this.roomId, messageEventIds.slice(start, start + 100)));
       }
-      if (this.requestEpoch !== epoch) return;
+      if (this.requestEpoch !== epoch) {
+        for (const messageEventId of messageEventIds) this.ensureStatus(messageEventId);
+        return;
+      }
       for (const messageEventId of messageEventIds) this.pinStatuses.set(messageEventId, false);
       for (const item of batches.flat()) {
         if (item.message?.id) this.pinStatuses.set(item.message.id, true);

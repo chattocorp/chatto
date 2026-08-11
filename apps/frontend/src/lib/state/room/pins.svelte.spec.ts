@@ -168,6 +168,36 @@ describe('RoomPinsStore', () => {
     expect(store.isPinned('M2')).toBe(true);
   });
 
+  it('retries an in-flight status batch invalidated by a realtime pin change', async () => {
+    let resolveFirstBatch: (items: PinnedMessage[]) => void = () => undefined;
+    const firstBatch = new Promise<PinnedMessage[]>((resolve) => {
+      resolveFirstBatch = resolve;
+    });
+    const api = {
+      list: vi.fn(),
+      batchGet: vi.fn().mockReturnValueOnce(firstBatch).mockResolvedValueOnce([]),
+      create: vi.fn(),
+      remove: vi.fn()
+    } as unknown as PinnedMessagesAPI;
+    const store = makeStore(api);
+
+    store.ensureStatus('M1');
+    await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(1));
+    store.applyRealtimeChange(
+      new RealtimeProjectionPinnedMessageChange({
+        action: RealtimeProjectionPinnedMessageAction.CREATED,
+        roomId: 'R1',
+        messageEventId: 'M2'
+      })
+    );
+    resolveFirstBatch([]);
+
+    await vi.waitFor(() => expect(api.batchGet).toHaveBeenCalledTimes(2));
+    await vi.waitFor(() => expect(store.hasPinStatus('M1')).toBe(true));
+    expect(store.isPinned('M1')).toBe(false);
+    expect(store.isPinned('M2')).toBe(true);
+  });
+
   it('retries initial and load-more failures without discarding loaded pins', async () => {
     const firstPage = [pin('P1', 'M1', 10n)];
     const secondPage = [pin('P2', 'M2', 5n)];
