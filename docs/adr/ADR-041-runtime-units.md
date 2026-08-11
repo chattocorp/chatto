@@ -51,6 +51,13 @@ stays separate when a replaceable provider is involved. For example,
 `search_provider.enabled` decides whether `chatto run` embeds Chatto's bundled
 provider.
 
+`chatto run` supervises enabled optional units independently. A unit that
+returns unexpectedly is restarted with exponential backoff capped at 30
+seconds, while the main app remains available. Standalone commands instead
+return the unit failure to their process supervisor. Units must therefore make
+startup and repeated execution safe; durable workers resume through their
+application-owned consumer rather than process-local state.
+
 Runtime units are classified by behavior:
 
 - **Observer:** reads existing resources and exposes diagnostics, such as the
@@ -71,6 +78,12 @@ process.
 
 Standalone workers and embedded single-process deployments can share one unit
 implementation instead of maintaining separate boot paths.
+
+An embedded optional capability can recover from missing executables,
+projection failures, deleted durable consumers, and other unit-local failures
+without forcing the main app to restart. Persistent failures remain visible in
+logs at the bounded restart cadence instead of silently leaving the capability
+stopped.
 
 The main `chatto run` process remains the only path that starts embedded NATS
 and runs the full `ChattoCore` boot sequence. Side units stay explicit about

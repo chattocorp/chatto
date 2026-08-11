@@ -34,7 +34,8 @@ type DurableDelivery struct {
 // DurableDeliveryHandler performs one at-least-once piece of work. It must stop
 // promptly when its context is cancelled. Returning nil acknowledges the
 // delivery. Other errors retry after the worker's default delay unless wrapped
-// with RetryDeliveryAfter or TerminateDelivery.
+// with RetryDeliveryAfter or TerminateDelivery. Returned errors may be logged
+// and must not contain secrets or personally identifiable information.
 type DurableDeliveryHandler func(context.Context, DurableDelivery) error
 
 // DurableWorkerOptions controls process-local execution. The application
@@ -129,47 +130,56 @@ func NewDurableWorker(
 
 // Run fetches and processes deliveries until the context is cancelled. Fetch
 // failures are retried because durable workers must survive transient broker
-// outages. Cancellation stops progress heartbeats and negatively acknowledges
-// active deliveries before waiting for their handlers to stop.
+// outages. Cancellation first stops outstanding fetches, then stops progress
+// heartbeats and negatively acknowledges active deliveries before waiting for
+// their handlers to stop. This ordering prevents the stopping worker from
+// reclaiming its own handoffs through an outstanding pull.
 func (w *DurableWorker) Run(ctx context.Context) error {
 	if w == nil || w.consumer == nil || w.handle == nil {
 		return fmt.Errorf("durable worker is not configured")
 	}
 
-	runCtx, cancel := context.WithCancel(ctx)
+	handlerCtx, cancelHandlers := context.WithCancel(context.WithoutCancel(ctx))
 	var group sync.WaitGroup
 	defer func() {
-		cancel()
+		cancelHandlers()
 		group.Wait()
 	}()
 
 	active := make(chan struct{}, w.opts.MaxConcurrent)
-	for runCtx.Err() == nil {
+	for ctx.Err() == nil {
 		select {
 		case active <- struct{}{}:
-		case <-runCtx.Done():
+		case <-ctx.Done():
 			return nil
 		}
 
-		fetchCtx, cancelFetch := context.WithTimeout(runCtx, w.opts.FetchMaxWait)
+		fetchCtx, cancelFetch := context.WithTimeout(ctx, w.opts.FetchMaxWait)
 		msg, err := w.consumer.Next(jetstream.FetchContext(fetchCtx))
 		fetchCtxErr := fetchCtx.Err()
 		cancelFetch()
 		if err != nil {
 			<-active
-			if runCtx.Err() != nil {
+			if ctx.Err() != nil {
 				return nil
 			}
 			if errors.Is(fetchCtxErr, context.DeadlineExceeded) || errors.Is(err, nats.ErrTimeout) {
 				continue
 			}
+			// A configured consumer disappearing is an application-owned
+			// lifecycle failure, not a transport interruption. Returning lets the
+			// application recreate or deliberately retire the consumer instead of
+			// leaving this worker in a permanent retry loop on a stale handle.
+			if errors.Is(err, jetstream.ErrConsumerDeleted) || errors.Is(err, jetstream.ErrConsumerNotFound) {
+				return fmt.Errorf("durable worker consumer is unavailable: %w", err)
+			}
 			w.logWarn("Durable work fetch failed; retrying", "error", err)
-			if !waitForDurableWorkerRetry(runCtx, w.opts.FetchRetryDelay) {
+			if !waitForDurableWorkerRetry(ctx, w.opts.FetchRetryDelay) {
 				return nil
 			}
 			continue
 		}
-		if runCtx.Err() != nil {
+		if ctx.Err() != nil {
 			if err := msg.Nak(); err != nil {
 				w.logWarn("Durable delivery handoff failed", "subject", msg.Subject(), "error", err)
 			}
@@ -180,7 +190,7 @@ func (w *DurableWorker) Run(ctx context.Context) error {
 		go func(msg jetstream.Msg) {
 			defer group.Done()
 			defer func() { <-active }()
-			w.process(runCtx, msg)
+			w.process(handlerCtx, msg)
 		}(msg)
 	}
 	return nil
@@ -242,9 +252,25 @@ func (w *DurableWorker) process(ctx context.Context, msg jetstream.Msg) {
 }
 
 func (w *DurableWorker) handoff(msg jetstream.Msg, delivery DurableDelivery) {
-	if err := msg.Nak(); err != nil {
-		w.logWarn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
+	delay := durableWorkerHandoffDelay(w.opts.FetchMaxWait)
+	// Canceling a client-side pull does not guarantee that JetStream has already
+	// expired the corresponding server-side request. Delay redelivery past the
+	// maximum pull lifetime so an orphaned request from this stopping worker
+	// cannot reclaim the handoff.
+	if err := msg.NakWithDelay(delay); err != nil {
+		w.logWarn("Durable delivery handoff failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "retry_delay", delay, "error", err)
 	}
+}
+
+func durableWorkerHandoffDelay(fetchMaxWait time.Duration) time.Duration {
+	margin := fetchMaxWait / 10
+	if margin < time.Millisecond {
+		margin = time.Millisecond
+	}
+	if margin > 100*time.Millisecond {
+		margin = 100 * time.Millisecond
+	}
+	return fetchMaxWait + margin
 }
 
 func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery DurableDelivery, err error) {
@@ -252,6 +278,8 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 	if errors.As(err, &terminateErr) {
 		if termErr := msg.TermWithReason(terminateErr.reason); termErr != nil {
 			w.logWarn("Durable delivery termination failed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", termErr)
+		} else {
+			w.logError("Durable delivery terminated", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "reason", terminateErr.reason, "error", terminateErr.err)
 		}
 		return
 	}
@@ -262,6 +290,9 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 		if errors.As(err, &retryErr) {
 			delay = retryErr.delay
 		}
+		if shouldLogDurableDeliveryAttempt(delivery.NumDelivered) {
+			w.logWarn("Durable delivery failed; retrying", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "delivery_attempt", delivery.NumDelivered, "retry_delay", delay, "error", err)
+		}
 		w.retry(msg, delay)
 		return
 	}
@@ -271,6 +302,13 @@ func (w *DurableWorker) finish(ctx context.Context, msg jetstream.Msg, delivery 
 	if err := msg.DoubleAck(ackCtx); err != nil {
 		w.logWarn("Durable delivery acknowledgement was not confirmed", "subject", delivery.Subject, "stream_sequence", delivery.StreamSequence, "error", err)
 	}
+}
+
+// shouldLogDurableDeliveryAttempt keeps persistent failures observable without
+// emitting one log line on every unlimited redelivery. The first attempt and
+// powers of two provide exponentially sparse progress samples.
+func shouldLogDurableDeliveryAttempt(attempt uint64) bool {
+	return attempt <= 1 || attempt&(attempt-1) == 0
 }
 
 func (w *DurableWorker) retry(msg jetstream.Msg, delay time.Duration) {
