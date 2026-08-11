@@ -149,7 +149,7 @@ type PermissionMetadata struct {
 var allPermissions = []PermissionMetadata{
 	// Server
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
-	{PermInviteManage, "Manage Invitations", "List, create, copy, and revoke server invitations", CategoryServer, []PermissionScope{ScopeServer}},
+	{PermInviteManage, "Manage Invite Links", "List, create, copy, and revoke invite links", CategoryServer, []PermissionScope{ScopeServer}},
 
 	// Room
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},

@@ -10,7 +10,7 @@
       "event_log": "Ereignisprotokoll",
       "system": "System",
       "back_to_server": "Zurück zum Server",
-      "invitations": "Einladungen"
+      "invitations": "Einladungslinks"
     },
     "common": {
       "page_title": "{title} | Admin",
@@ -394,9 +394,9 @@
       "total": "{count} Benutzer insgesamt"
     },
     "invitations": {
-      "title": "Einladungen",
+      "title": "Einladungslinks",
       "subtitle": "Erstelle und verwalte Links, die neue Konten zulassen.",
-      "create_title": "Einladung erstellen",
+      "create_title": "Einladungslink erstellen",
       "max_uses": "Maximale Nutzungen",
       "max_uses_error": "Gib eine ganze Zahl von mindestens 1 ein.",
       "unlimited_uses": "Unbegrenzte Nutzungen erlauben",
@@ -405,10 +405,10 @@
       "expiry_7d": "7 Tage",
       "expiry_30d": "30 Tage",
       "expiry_never": "Nie",
-      "create": "Einladung erstellen",
-      "created": "Einladung erstellt",
-      "list_title": "Einladungen",
-      "empty": "Noch keine Einladungen.",
+      "create": "Einladungslink erstellen",
+      "created": "Einladungslink erstellt",
+      "list_title": "Einladungslinks",
+      "empty": "Noch keine Einladungslinks.",
       "uses": "Nutzungen",
       "created_at": "Erstellt",
       "actions": "Aktionen",
@@ -416,8 +416,8 @@
       "copy": "Link kopieren",
       "copied": "Einladungslink kopiert",
       "revoke": "Widerrufen",
-      "revoked": "Einladung widerrufen",
-      "revoke_title": "Einladung widerrufen?",
+      "revoked": "Einladungslink widerrufen",
+      "revoke_title": "Einladungslink widerrufen?",
       "revoke_description": "Dieser Link lässt sofort keine neuen Konten mehr zu.",
       "status": {
         "active": "Aktiv",

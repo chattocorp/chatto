@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -10,55 +11,55 @@ import (
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 )
 
-func TestAdminInvitationServiceLifecycleAndAuthorization(t *testing.T) {
+func TestAdminInviteLinkServiceLifecycleAndAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	regular, err := env.core.CreateUser(env.ctx, core.SystemActorID, "invite-api-regular", "Invite API Regular", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser regular: %v", err)
 	}
-	if _, err := env.adminInvitations.ListInvitations(
+	if _, err := env.adminInviteLinks.ListInviteLinks(
 		withCaller(env.ctx, regular),
-		connect.NewRequest(&adminv1.ListInvitationsRequest{}),
+		connect.NewRequest(&adminv1.ListInviteLinksRequest{}),
 	); err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
-		t.Fatalf("regular ListInvitations error = %v, want permission denied", err)
+		t.Fatalf("regular ListInviteLinks error = %v, want permission denied", err)
 	}
 
 	if err := env.core.AssignAdminRole(env.ctx, env.viewer.Id); err != nil {
 		t.Fatalf("AssignAdminRole: %v", err)
 	}
-	ctx := withCaller(env.ctx, env.viewer)
-	if _, err := env.adminInvitations.CreateInvitation(ctx, connect.NewRequest(&adminv1.CreateInvitationRequest{
+	ctx := WithRequestBaseURL(withCaller(env.ctx, env.viewer), "https://chat.example")
+	if _, err := env.adminInviteLinks.CreateInviteLink(ctx, connect.NewRequest(&adminv1.CreateInviteLinkRequest{
 		ExpiresAt: &timestamppb.Timestamp{Seconds: 253402300800},
 	})); err == nil || connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("invalid expiry error = %v, want invalid argument", err)
 	}
 	maxUses := uint32(3)
 	expiresAt := timestamppb.New(time.Now().Add(24 * time.Hour))
-	created, err := env.adminInvitations.CreateInvitation(ctx, connect.NewRequest(&adminv1.CreateInvitationRequest{
+	created, err := env.adminInviteLinks.CreateInviteLink(ctx, connect.NewRequest(&adminv1.CreateInviteLinkRequest{
 		MaxUses:   &maxUses,
 		ExpiresAt: expiresAt,
 	}))
 	if err != nil {
-		t.Fatalf("CreateInvitation: %v", err)
+		t.Fatalf("CreateInviteLink: %v", err)
 	}
-	invitation := created.Msg.GetInvitation()
-	if invitation.GetId() == "" || invitation.GetCode() == "" || invitation.GetMaxUses() != maxUses || invitation.GetStatus() != adminv1.InvitationStatus_INVITATION_STATUS_ACTIVE {
-		t.Fatalf("created invitation = %+v", invitation)
-	}
-
-	listed, err := env.adminInvitations.ListInvitations(ctx, connect.NewRequest(&adminv1.ListInvitationsRequest{}))
-	if err != nil {
-		t.Fatalf("ListInvitations: %v", err)
-	}
-	if len(listed.Msg.GetInvitations()) != 1 || listed.Msg.GetInvitations()[0].GetCode() != invitation.GetCode() {
-		t.Fatalf("listed invitations = %+v, want reconstructed code %q", listed.Msg.GetInvitations(), invitation.GetCode())
+	inviteLink := created.Msg.GetInviteLink()
+	if inviteLink.GetId() == "" || !strings.HasPrefix(inviteLink.GetLink(), "https://chat.example/invite/") || inviteLink.GetMaxUses() != maxUses || inviteLink.GetStatus() != adminv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE {
+		t.Fatalf("created invite link = %+v", inviteLink)
 	}
 
-	revoked, err := env.adminInvitations.RevokeInvitation(ctx, connect.NewRequest(&adminv1.RevokeInvitationRequest{Id: invitation.GetId()}))
+	listed, err := env.adminInviteLinks.ListInviteLinks(ctx, connect.NewRequest(&adminv1.ListInviteLinksRequest{}))
 	if err != nil {
-		t.Fatalf("RevokeInvitation: %v", err)
+		t.Fatalf("ListInviteLinks: %v", err)
 	}
-	if revoked.Msg.GetInvitation().GetStatus() != adminv1.InvitationStatus_INVITATION_STATUS_REVOKED || revoked.Msg.GetInvitation().GetRevokedAt() == nil {
-		t.Fatalf("revoked invitation = %+v", revoked.Msg.GetInvitation())
+	if len(listed.Msg.GetInviteLinks()) != 1 || listed.Msg.GetInviteLinks()[0].GetLink() != inviteLink.GetLink() {
+		t.Fatalf("listed invite links = %+v, want reconstructed link %q", listed.Msg.GetInviteLinks(), inviteLink.GetLink())
+	}
+
+	revoked, err := env.adminInviteLinks.RevokeInviteLink(ctx, connect.NewRequest(&adminv1.RevokeInviteLinkRequest{Id: inviteLink.GetId()}))
+	if err != nil {
+		t.Fatalf("RevokeInviteLink: %v", err)
+	}
+	if revoked.Msg.GetInviteLink().GetStatus() != adminv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED || revoked.Msg.GetInviteLink().GetRevokedAt() == nil {
+		t.Fatalf("revoked invite link = %+v", revoked.Msg.GetInviteLink())
 	}
 }

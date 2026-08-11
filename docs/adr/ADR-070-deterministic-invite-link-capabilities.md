@@ -1,4 +1,4 @@
-# ADR-070: Derive Invitation Capabilities from Durable EVT Identity
+# ADR-070: Derive Invite-Link Capabilities from Durable EVT Identity
 
 **Date:** 2026-08-11
 
@@ -6,12 +6,12 @@
 
 ## Context
 
-Invite-only account creation needs shareable invitation links that can be
+Invite-only account creation needs shareable invite links that can be
 copied again, limited by use count or expiry, revoked, and redeemed correctly
 when several Chatto replicas serve signups concurrently. Invitation lifecycle
 and usage also need durable audit history.
 
-Persisting a raw invitation code in `EVT` would put a live bearer capability in
+Persisting a raw invite-link token in `EVT` would put a live bearer capability in
 event history and backups. Persisting only a one-way hash avoids that exposure
 but makes an existing link impossible to recover, forcing administrators into
 a show-once workflow. A mutable latest-value record would make counters
@@ -38,33 +38,58 @@ creation and verified sign-in-factor facts. The existing whole-`EVT`
 account-uniqueness OCC boundary also covers the invitation tail, so any
 concurrent redemption forces the complete admission decision to retry.
 
-An invitation code is a versioned signed capability containing the public
-invitation ID and an HMAC signature. Chatto derives a purpose-specific signing
-key from `[core].secret_key` and a fixed invitation-code context before signing
-the versioned payload. The code is verified in constant time and never stored
-in `EVT`, `RUNTIME_STATE`, logs, or audit metadata. Authorized administrators
-can reproduce the same code from the invitation ID.
+An invite link uses `/invite/{token}`, where `token` is a fixed 32-character
+URL-safe capability. It concatenates a one-character format version, Chatto's
+existing 15-character public invitation ID, and a 96-bit truncated HMAC encoded
+as 16 unpadded base64url characters. The invitation ID already carries about
+83 bits of randomness; the 96-bit authenticator keeps forgery resistance
+comfortably above that identifier-guessing bound without making links unwieldy.
+
+Chatto derives a purpose-specific signing key from `[core].secret_key` and a
+fixed invite-link context before signing the versioned payload. The token is
+verified in constant time and never stored in `EVT`, `RUNTIME_STATE`, logs, or
+audit metadata. Authorized administrators can reproduce the same full link
+from the invitation ID.
+
+The `/invite/{token}` HTTP entry point validates the capability, stores only
+the invitation ID in the signed browser session, and redirects immediately to
+`/register?invited=1`. Invalid links redirect to the same generic registration
+error. Responses are non-cacheable and suppress referrers, and request logging
+records `/invite/:token` rather than the bearer value. Direct registration and
+external-provider auto-provisioning consume the session-bound invitation ID;
+there is no separate manual-entry flow.
+
+The application cannot redact an upstream reverse proxy's or CDN's access
+logs. Operators must configure those layers to replace the suffix of
+`/invite/*` with a placeholder. This is the unavoidable operational tradeoff
+of placing a directly usable bearer capability in a conventional link path.
 
 Changing `[core].secret_key` intentionally invalidates all previously shared
-invitation capabilities, alongside the other server-secret-derived runtime
+invite-link capabilities, alongside the other server-secret-derived runtime
 artifacts. It does not rewrite or revoke durable invitation aggregates; after
 rotation, an administrator can copy a newly derived link for any invitation
 that is otherwise still active.
 
 ## Consequences
 
-Invitation definitions and usage remain auditable, restorable domain history,
-while backups do not contain directly usable invitation links. The same link
+Invite-link definitions and usage remain auditable, restorable domain history,
+while backups do not contain directly usable links. The same link
 can be recovered without separate encrypted secret storage.
 
 Use limits remain correct across replicas, and failed account creation cannot
 consume a use. The signup implementation is more coupled to the atomic EVT
 batch boundary because it must commit user and invitation facts together.
 
-The signing format needs an explicit version and stable derivation context so
-future formats or key separation changes can coexist. Operators must treat
+The compact signing format fixes its current identifier and authenticator
+lengths. Its explicit version and stable derivation context allow future
+formats or key-separation changes to coexist. Operators must treat
 `[core].secret_key` as stable shared deployment state and understand that its
 rotation invalidates already-distributed links.
+
+Conventional paths are easier to share than fragment-based handoffs, but every
+HTTP intermediary sees the bearer path. Chatto redacts its own request and
+internal-error logs and returns no-store, no-referrer, and noindex directives;
+deployment-owned access logging needs equivalent redaction.
 
 Static admission policy is simple to bootstrap and operate, but changing it
 requires configuration rollout rather than an in-application toggle. Mixed

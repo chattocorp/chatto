@@ -1,7 +1,6 @@
 <script lang="ts">
   import { createInfiniteQuery, createMutation } from '@tanstack/svelte-query';
-  import { SvelteURL } from 'svelte/reactivity';
-  import { createInvitationAPI, type Invitation } from '$lib/api-client/invitations';
+  import { createInviteLinkAPI, type InviteLink } from '$lib/api-client/invitations';
   import { Panel, DataTable } from '$lib/components/admin';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
@@ -25,7 +24,7 @@
   let maxUses = $state('1');
   let unlimitedUses = $state(false);
   let expiry = $state('7d');
-  let revokeTarget = $state<Invitation | null>(null);
+  let revokeTarget = $state<InviteLink | null>(null);
 
   const invitationsQuery = createInfiniteQuery(
     () => {
@@ -34,11 +33,11 @@
       return {
         queryKey: adminQueryKeys.invitations(serverId, connection),
         queryFn: ({ pageParam, signal }) =>
-          connection.getAPI(createInvitationAPI).list(pageParam, PAGE_SIZE, { signal }),
+          connection.getAPI(createInviteLinkAPI).list(pageParam, PAGE_SIZE, { signal }),
         initialPageParam: 0,
         getNextPageParam: (lastPage, _pages, lastPageParam) =>
-          lastPage.hasMore && lastPage.invitations.length > 0
-            ? lastPageParam + lastPage.invitations.length
+          lastPage.hasMore && lastPage.inviteLinks.length > 0
+            ? lastPageParam + lastPage.inviteLinks.length
             : undefined
       };
     },
@@ -46,7 +45,7 @@
   );
 
   const invitations = $derived(
-    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.invitations)
+    (invitationsQuery.data?.pages ?? []).flatMap((page) => page.inviteLinks)
   );
   const loading = $derived(invitationsQuery.isPending);
   const loadingMore = $derived(invitationsQuery.isFetchingNextPage);
@@ -59,7 +58,7 @@
   const createInvitationMutation = createMutation(
     () => ({
       mutationFn: () =>
-        serverScope.connection.getAPI(createInvitationAPI).create({
+        serverScope.connection.getAPI(createInviteLinkAPI).create({
           maxUses: maxUsesValue,
           expiresAt: expiryDate(expiry)
         }),
@@ -76,8 +75,8 @@
 
   const revokeMutation = createMutation(
     () => ({
-      mutationFn: (invitation: Invitation) =>
-        serverScope.connection.getAPI(createInvitationAPI).revoke(invitation.id),
+      mutationFn: (invitation: InviteLink) =>
+        serverScope.connection.getAPI(createInviteLinkAPI).revoke(invitation.id),
       onSuccess: async () => {
         revokeTarget = null;
         await queryClient.invalidateQueries({
@@ -95,14 +94,8 @@
     return days === 0 ? null : new Date(Date.now() + days * 86_400_000).toISOString();
   }
 
-  function invitationLink(invitation: Invitation): string {
-    const link = new SvelteURL('/register', window.location.origin);
-    link.hash = new URLSearchParams({ invite: invitation.code }).toString();
-    return link.toString();
-  }
-
-  async function copyInvitation(invitation: Invitation) {
-    await navigator.clipboard.writeText(invitationLink(invitation));
+  async function copyInvitation(invitation: InviteLink) {
+    await navigator.clipboard.writeText(invitation.link);
     toast.success(m('admin.invitations.copied'));
   }
 
@@ -118,7 +111,7 @@
     if (!loading && !loadingMore && hasMore) await invitationsQuery.fetchNextPage();
   }
 
-  function statusTone(status: Invitation['status']): 'success' | 'danger' | 'muted' {
+  function statusTone(status: InviteLink['status']): 'success' | 'danger' | 'muted' {
     return status === 'active' ? 'success' : status === 'revoked' ? 'danger' : 'muted';
   }
 </script>

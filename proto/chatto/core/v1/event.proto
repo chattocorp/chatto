@@ -223,7 +223,7 @@ message Event {
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
 
-    // ----- Server invitations (930-939, durable, evt.invitation.{id}) -----
+    // ----- Invite links (930-939, durable, evt.invitation.{id}) -----
     InvitationCreatedEvent invitation_created = 930;
     InvitationRedeemedEvent invitation_redeemed = 931;
     InvitationRevokedEvent invitation_revoked = 932;

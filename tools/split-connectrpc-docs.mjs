@@ -151,10 +151,10 @@ const categories = [
     title: 'chatto.admin.v1',
     services: [
       {
-        name: 'AdminInvitationService',
-        slug: 'admin-invitations',
-        title: 'Admin Invitations',
-        description: 'Server invitation administration RPCs.'
+        name: 'AdminInviteLinkService',
+        slug: 'admin-invite-links',
+        title: 'Admin Invite Links',
+        description: 'Invite-link administration RPCs.'
       },
       {
         name: 'AdminDiagnosticsService',

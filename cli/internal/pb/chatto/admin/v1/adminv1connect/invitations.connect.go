@@ -21,8 +21,8 @@ import (
 const _ = connect.IsAtLeastVersion1_13_0
 
 const (
-	// AdminInvitationServiceName is the fully-qualified name of the AdminInvitationService service.
-	AdminInvitationServiceName = "chatto.admin.v1.AdminInvitationService"
+	// AdminInviteLinkServiceName is the fully-qualified name of the AdminInviteLinkService service.
+	AdminInviteLinkServiceName = "chatto.admin.v1.AdminInviteLinkService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -33,173 +33,173 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// AdminInvitationServiceListInvitationsProcedure is the fully-qualified name of the
-	// AdminInvitationService's ListInvitations RPC.
-	AdminInvitationServiceListInvitationsProcedure = "/chatto.admin.v1.AdminInvitationService/ListInvitations"
-	// AdminInvitationServiceGetInvitationProcedure is the fully-qualified name of the
-	// AdminInvitationService's GetInvitation RPC.
-	AdminInvitationServiceGetInvitationProcedure = "/chatto.admin.v1.AdminInvitationService/GetInvitation"
-	// AdminInvitationServiceCreateInvitationProcedure is the fully-qualified name of the
-	// AdminInvitationService's CreateInvitation RPC.
-	AdminInvitationServiceCreateInvitationProcedure = "/chatto.admin.v1.AdminInvitationService/CreateInvitation"
-	// AdminInvitationServiceRevokeInvitationProcedure is the fully-qualified name of the
-	// AdminInvitationService's RevokeInvitation RPC.
-	AdminInvitationServiceRevokeInvitationProcedure = "/chatto.admin.v1.AdminInvitationService/RevokeInvitation"
+	// AdminInviteLinkServiceListInviteLinksProcedure is the fully-qualified name of the
+	// AdminInviteLinkService's ListInviteLinks RPC.
+	AdminInviteLinkServiceListInviteLinksProcedure = "/chatto.admin.v1.AdminInviteLinkService/ListInviteLinks"
+	// AdminInviteLinkServiceGetInviteLinkProcedure is the fully-qualified name of the
+	// AdminInviteLinkService's GetInviteLink RPC.
+	AdminInviteLinkServiceGetInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/GetInviteLink"
+	// AdminInviteLinkServiceCreateInviteLinkProcedure is the fully-qualified name of the
+	// AdminInviteLinkService's CreateInviteLink RPC.
+	AdminInviteLinkServiceCreateInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/CreateInviteLink"
+	// AdminInviteLinkServiceRevokeInviteLinkProcedure is the fully-qualified name of the
+	// AdminInviteLinkService's RevokeInviteLink RPC.
+	AdminInviteLinkServiceRevokeInviteLinkProcedure = "/chatto.admin.v1.AdminInviteLinkService/RevokeInviteLink"
 )
 
-// AdminInvitationServiceClient is a client for the chatto.admin.v1.AdminInvitationService service.
-type AdminInvitationServiceClient interface {
-	// Lists invitations. Requires invite.manage.
-	ListInvitations(context.Context, *connect.Request[v1.ListInvitationsRequest]) (*connect.Response[v1.ListInvitationsResponse], error)
-	// Gets one invitation. Returns NOT_FOUND when it does not exist. Requires invite.manage.
-	GetInvitation(context.Context, *connect.Request[v1.GetInvitationRequest]) (*connect.Response[v1.GetInvitationResponse], error)
-	// Creates an invitation. Requires invite.manage.
-	CreateInvitation(context.Context, *connect.Request[v1.CreateInvitationRequest]) (*connect.Response[v1.CreateInvitationResponse], error)
-	// Permanently revokes an invitation while retaining its audit history. Requires invite.manage.
-	RevokeInvitation(context.Context, *connect.Request[v1.RevokeInvitationRequest]) (*connect.Response[v1.RevokeInvitationResponse], error)
+// AdminInviteLinkServiceClient is a client for the chatto.admin.v1.AdminInviteLinkService service.
+type AdminInviteLinkServiceClient interface {
+	// Lists invite links. Requires invite.manage.
+	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
+	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
+	// Creates an invite link. Requires invite.manage.
+	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
+	// Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
 }
 
-// NewAdminInvitationServiceClient constructs a client for the
-// chatto.admin.v1.AdminInvitationService service. By default, it uses the Connect protocol with the
+// NewAdminInviteLinkServiceClient constructs a client for the
+// chatto.admin.v1.AdminInviteLinkService service. By default, it uses the Connect protocol with the
 // binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To use the
 // gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb() options.
 //
 // The URL supplied here should be the base URL for the Connect or gRPC server (for example,
 // http://api.acme.com or https://acme.com/grpc).
-func NewAdminInvitationServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminInvitationServiceClient {
+func NewAdminInviteLinkServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) AdminInviteLinkServiceClient {
 	baseURL = strings.TrimRight(baseURL, "/")
-	adminInvitationServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInvitationService").Methods()
-	return &adminInvitationServiceClient{
-		listInvitations: connect.NewClient[v1.ListInvitationsRequest, v1.ListInvitationsResponse](
+	adminInviteLinkServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInviteLinkService").Methods()
+	return &adminInviteLinkServiceClient{
+		listInviteLinks: connect.NewClient[v1.ListInviteLinksRequest, v1.ListInviteLinksResponse](
 			httpClient,
-			baseURL+AdminInvitationServiceListInvitationsProcedure,
-			connect.WithSchema(adminInvitationServiceMethods.ByName("ListInvitations")),
+			baseURL+AdminInviteLinkServiceListInviteLinksProcedure,
+			connect.WithSchema(adminInviteLinkServiceMethods.ByName("ListInviteLinks")),
 			connect.WithClientOptions(opts...),
 		),
-		getInvitation: connect.NewClient[v1.GetInvitationRequest, v1.GetInvitationResponse](
+		getInviteLink: connect.NewClient[v1.GetInviteLinkRequest, v1.GetInviteLinkResponse](
 			httpClient,
-			baseURL+AdminInvitationServiceGetInvitationProcedure,
-			connect.WithSchema(adminInvitationServiceMethods.ByName("GetInvitation")),
+			baseURL+AdminInviteLinkServiceGetInviteLinkProcedure,
+			connect.WithSchema(adminInviteLinkServiceMethods.ByName("GetInviteLink")),
 			connect.WithClientOptions(opts...),
 		),
-		createInvitation: connect.NewClient[v1.CreateInvitationRequest, v1.CreateInvitationResponse](
+		createInviteLink: connect.NewClient[v1.CreateInviteLinkRequest, v1.CreateInviteLinkResponse](
 			httpClient,
-			baseURL+AdminInvitationServiceCreateInvitationProcedure,
-			connect.WithSchema(adminInvitationServiceMethods.ByName("CreateInvitation")),
+			baseURL+AdminInviteLinkServiceCreateInviteLinkProcedure,
+			connect.WithSchema(adminInviteLinkServiceMethods.ByName("CreateInviteLink")),
 			connect.WithClientOptions(opts...),
 		),
-		revokeInvitation: connect.NewClient[v1.RevokeInvitationRequest, v1.RevokeInvitationResponse](
+		revokeInviteLink: connect.NewClient[v1.RevokeInviteLinkRequest, v1.RevokeInviteLinkResponse](
 			httpClient,
-			baseURL+AdminInvitationServiceRevokeInvitationProcedure,
-			connect.WithSchema(adminInvitationServiceMethods.ByName("RevokeInvitation")),
+			baseURL+AdminInviteLinkServiceRevokeInviteLinkProcedure,
+			connect.WithSchema(adminInviteLinkServiceMethods.ByName("RevokeInviteLink")),
 			connect.WithClientOptions(opts...),
 		),
 	}
 }
 
-// adminInvitationServiceClient implements AdminInvitationServiceClient.
-type adminInvitationServiceClient struct {
-	listInvitations  *connect.Client[v1.ListInvitationsRequest, v1.ListInvitationsResponse]
-	getInvitation    *connect.Client[v1.GetInvitationRequest, v1.GetInvitationResponse]
-	createInvitation *connect.Client[v1.CreateInvitationRequest, v1.CreateInvitationResponse]
-	revokeInvitation *connect.Client[v1.RevokeInvitationRequest, v1.RevokeInvitationResponse]
+// adminInviteLinkServiceClient implements AdminInviteLinkServiceClient.
+type adminInviteLinkServiceClient struct {
+	listInviteLinks  *connect.Client[v1.ListInviteLinksRequest, v1.ListInviteLinksResponse]
+	getInviteLink    *connect.Client[v1.GetInviteLinkRequest, v1.GetInviteLinkResponse]
+	createInviteLink *connect.Client[v1.CreateInviteLinkRequest, v1.CreateInviteLinkResponse]
+	revokeInviteLink *connect.Client[v1.RevokeInviteLinkRequest, v1.RevokeInviteLinkResponse]
 }
 
-// ListInvitations calls chatto.admin.v1.AdminInvitationService.ListInvitations.
-func (c *adminInvitationServiceClient) ListInvitations(ctx context.Context, req *connect.Request[v1.ListInvitationsRequest]) (*connect.Response[v1.ListInvitationsResponse], error) {
-	return c.listInvitations.CallUnary(ctx, req)
+// ListInviteLinks calls chatto.admin.v1.AdminInviteLinkService.ListInviteLinks.
+func (c *adminInviteLinkServiceClient) ListInviteLinks(ctx context.Context, req *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error) {
+	return c.listInviteLinks.CallUnary(ctx, req)
 }
 
-// GetInvitation calls chatto.admin.v1.AdminInvitationService.GetInvitation.
-func (c *adminInvitationServiceClient) GetInvitation(ctx context.Context, req *connect.Request[v1.GetInvitationRequest]) (*connect.Response[v1.GetInvitationResponse], error) {
-	return c.getInvitation.CallUnary(ctx, req)
+// GetInviteLink calls chatto.admin.v1.AdminInviteLinkService.GetInviteLink.
+func (c *adminInviteLinkServiceClient) GetInviteLink(ctx context.Context, req *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error) {
+	return c.getInviteLink.CallUnary(ctx, req)
 }
 
-// CreateInvitation calls chatto.admin.v1.AdminInvitationService.CreateInvitation.
-func (c *adminInvitationServiceClient) CreateInvitation(ctx context.Context, req *connect.Request[v1.CreateInvitationRequest]) (*connect.Response[v1.CreateInvitationResponse], error) {
-	return c.createInvitation.CallUnary(ctx, req)
+// CreateInviteLink calls chatto.admin.v1.AdminInviteLinkService.CreateInviteLink.
+func (c *adminInviteLinkServiceClient) CreateInviteLink(ctx context.Context, req *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error) {
+	return c.createInviteLink.CallUnary(ctx, req)
 }
 
-// RevokeInvitation calls chatto.admin.v1.AdminInvitationService.RevokeInvitation.
-func (c *adminInvitationServiceClient) RevokeInvitation(ctx context.Context, req *connect.Request[v1.RevokeInvitationRequest]) (*connect.Response[v1.RevokeInvitationResponse], error) {
-	return c.revokeInvitation.CallUnary(ctx, req)
+// RevokeInviteLink calls chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink.
+func (c *adminInviteLinkServiceClient) RevokeInviteLink(ctx context.Context, req *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error) {
+	return c.revokeInviteLink.CallUnary(ctx, req)
 }
 
-// AdminInvitationServiceHandler is an implementation of the chatto.admin.v1.AdminInvitationService
+// AdminInviteLinkServiceHandler is an implementation of the chatto.admin.v1.AdminInviteLinkService
 // service.
-type AdminInvitationServiceHandler interface {
-	// Lists invitations. Requires invite.manage.
-	ListInvitations(context.Context, *connect.Request[v1.ListInvitationsRequest]) (*connect.Response[v1.ListInvitationsResponse], error)
-	// Gets one invitation. Returns NOT_FOUND when it does not exist. Requires invite.manage.
-	GetInvitation(context.Context, *connect.Request[v1.GetInvitationRequest]) (*connect.Response[v1.GetInvitationResponse], error)
-	// Creates an invitation. Requires invite.manage.
-	CreateInvitation(context.Context, *connect.Request[v1.CreateInvitationRequest]) (*connect.Response[v1.CreateInvitationResponse], error)
-	// Permanently revokes an invitation while retaining its audit history. Requires invite.manage.
-	RevokeInvitation(context.Context, *connect.Request[v1.RevokeInvitationRequest]) (*connect.Response[v1.RevokeInvitationResponse], error)
+type AdminInviteLinkServiceHandler interface {
+	// Lists invite links. Requires invite.manage.
+	ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error)
+	// Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+	GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error)
+	// Creates an invite link. Requires invite.manage.
+	CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error)
+	// Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
+	RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error)
 }
 
-// NewAdminInvitationServiceHandler builds an HTTP handler from the service implementation. It
+// NewAdminInviteLinkServiceHandler builds an HTTP handler from the service implementation. It
 // returns the path on which to mount the handler and the handler itself.
 //
 // By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
 // and JSON codecs. They also support gzip compression.
-func NewAdminInvitationServiceHandler(svc AdminInvitationServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
-	adminInvitationServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInvitationService").Methods()
-	adminInvitationServiceListInvitationsHandler := connect.NewUnaryHandler(
-		AdminInvitationServiceListInvitationsProcedure,
-		svc.ListInvitations,
-		connect.WithSchema(adminInvitationServiceMethods.ByName("ListInvitations")),
+func NewAdminInviteLinkServiceHandler(svc AdminInviteLinkServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	adminInviteLinkServiceMethods := v1.File_chatto_admin_v1_invitations_proto.Services().ByName("AdminInviteLinkService").Methods()
+	adminInviteLinkServiceListInviteLinksHandler := connect.NewUnaryHandler(
+		AdminInviteLinkServiceListInviteLinksProcedure,
+		svc.ListInviteLinks,
+		connect.WithSchema(adminInviteLinkServiceMethods.ByName("ListInviteLinks")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInvitationServiceGetInvitationHandler := connect.NewUnaryHandler(
-		AdminInvitationServiceGetInvitationProcedure,
-		svc.GetInvitation,
-		connect.WithSchema(adminInvitationServiceMethods.ByName("GetInvitation")),
+	adminInviteLinkServiceGetInviteLinkHandler := connect.NewUnaryHandler(
+		AdminInviteLinkServiceGetInviteLinkProcedure,
+		svc.GetInviteLink,
+		connect.WithSchema(adminInviteLinkServiceMethods.ByName("GetInviteLink")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInvitationServiceCreateInvitationHandler := connect.NewUnaryHandler(
-		AdminInvitationServiceCreateInvitationProcedure,
-		svc.CreateInvitation,
-		connect.WithSchema(adminInvitationServiceMethods.ByName("CreateInvitation")),
+	adminInviteLinkServiceCreateInviteLinkHandler := connect.NewUnaryHandler(
+		AdminInviteLinkServiceCreateInviteLinkProcedure,
+		svc.CreateInviteLink,
+		connect.WithSchema(adminInviteLinkServiceMethods.ByName("CreateInviteLink")),
 		connect.WithHandlerOptions(opts...),
 	)
-	adminInvitationServiceRevokeInvitationHandler := connect.NewUnaryHandler(
-		AdminInvitationServiceRevokeInvitationProcedure,
-		svc.RevokeInvitation,
-		connect.WithSchema(adminInvitationServiceMethods.ByName("RevokeInvitation")),
+	adminInviteLinkServiceRevokeInviteLinkHandler := connect.NewUnaryHandler(
+		AdminInviteLinkServiceRevokeInviteLinkProcedure,
+		svc.RevokeInviteLink,
+		connect.WithSchema(adminInviteLinkServiceMethods.ByName("RevokeInviteLink")),
 		connect.WithHandlerOptions(opts...),
 	)
-	return "/chatto.admin.v1.AdminInvitationService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	return "/chatto.admin.v1.AdminInviteLinkService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case AdminInvitationServiceListInvitationsProcedure:
-			adminInvitationServiceListInvitationsHandler.ServeHTTP(w, r)
-		case AdminInvitationServiceGetInvitationProcedure:
-			adminInvitationServiceGetInvitationHandler.ServeHTTP(w, r)
-		case AdminInvitationServiceCreateInvitationProcedure:
-			adminInvitationServiceCreateInvitationHandler.ServeHTTP(w, r)
-		case AdminInvitationServiceRevokeInvitationProcedure:
-			adminInvitationServiceRevokeInvitationHandler.ServeHTTP(w, r)
+		case AdminInviteLinkServiceListInviteLinksProcedure:
+			adminInviteLinkServiceListInviteLinksHandler.ServeHTTP(w, r)
+		case AdminInviteLinkServiceGetInviteLinkProcedure:
+			adminInviteLinkServiceGetInviteLinkHandler.ServeHTTP(w, r)
+		case AdminInviteLinkServiceCreateInviteLinkProcedure:
+			adminInviteLinkServiceCreateInviteLinkHandler.ServeHTTP(w, r)
+		case AdminInviteLinkServiceRevokeInviteLinkProcedure:
+			adminInviteLinkServiceRevokeInviteLinkHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
 	})
 }
 
-// UnimplementedAdminInvitationServiceHandler returns CodeUnimplemented from all methods.
-type UnimplementedAdminInvitationServiceHandler struct{}
+// UnimplementedAdminInviteLinkServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedAdminInviteLinkServiceHandler struct{}
 
-func (UnimplementedAdminInvitationServiceHandler) ListInvitations(context.Context, *connect.Request[v1.ListInvitationsRequest]) (*connect.Response[v1.ListInvitationsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationService.ListInvitations is not implemented"))
+func (UnimplementedAdminInviteLinkServiceHandler) ListInviteLinks(context.Context, *connect.Request[v1.ListInviteLinksRequest]) (*connect.Response[v1.ListInviteLinksResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.ListInviteLinks is not implemented"))
 }
 
-func (UnimplementedAdminInvitationServiceHandler) GetInvitation(context.Context, *connect.Request[v1.GetInvitationRequest]) (*connect.Response[v1.GetInvitationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationService.GetInvitation is not implemented"))
+func (UnimplementedAdminInviteLinkServiceHandler) GetInviteLink(context.Context, *connect.Request[v1.GetInviteLinkRequest]) (*connect.Response[v1.GetInviteLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.GetInviteLink is not implemented"))
 }
 
-func (UnimplementedAdminInvitationServiceHandler) CreateInvitation(context.Context, *connect.Request[v1.CreateInvitationRequest]) (*connect.Response[v1.CreateInvitationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationService.CreateInvitation is not implemented"))
+func (UnimplementedAdminInviteLinkServiceHandler) CreateInviteLink(context.Context, *connect.Request[v1.CreateInviteLinkRequest]) (*connect.Response[v1.CreateInviteLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.CreateInviteLink is not implemented"))
 }
 
-func (UnimplementedAdminInvitationServiceHandler) RevokeInvitation(context.Context, *connect.Request[v1.RevokeInvitationRequest]) (*connect.Response[v1.RevokeInvitationResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInvitationService.RevokeInvitation is not implemented"))
+func (UnimplementedAdminInviteLinkServiceHandler) RevokeInviteLink(context.Context, *connect.Request[v1.RevokeInviteLinkRequest]) (*connect.Response[v1.RevokeInviteLinkResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink is not implemented"))
 }

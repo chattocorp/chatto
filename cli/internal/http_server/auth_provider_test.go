@@ -411,14 +411,13 @@ func TestOIDCAutoProvisionRequiresAndRedeemsInvitation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	payload, _ := json.Marshal(map[string]string{"code": chattoCore.InvitationCode(invitation.ID)})
-	bindResp, err := client.Post(ts.URL+"/auth/invitation", "application/json", strings.NewReader(string(payload)))
+	bindResp, err := client.Get(ts.URL + chattoCore.InvitationLinkPath(invitation.ID))
 	if err != nil {
-		t.Fatalf("POST /auth/invitation: %v", err)
+		t.Fatalf("GET invite link: %v", err)
 	}
 	bindResp.Body.Close()
-	if bindResp.StatusCode != http.StatusOK {
-		t.Fatalf("POST /auth/invitation status = %d, want 200", bindResp.StatusCode)
+	if bindResp.StatusCode != http.StatusSeeOther || bindResp.Header.Get("Location") != "/register?invited=1" {
+		t.Fatalf("GET invite link = %d %q", bindResp.StatusCode, bindResp.Header.Get("Location"))
 	}
 
 	issuer.SetSubject("subject-invited-create")

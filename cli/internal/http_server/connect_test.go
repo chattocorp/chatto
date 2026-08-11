@@ -547,7 +547,7 @@ func TestConnectReflection(t *testing.T) {
 		protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName),
 		protoreflect.FullName(apiv1connect.RoomServiceName),
 		protoreflect.FullName(adminv1connect.AdminDiagnosticsServiceName),
-		protoreflect.FullName(adminv1connect.AdminInvitationServiceName),
+		protoreflect.FullName(adminv1connect.AdminInviteLinkServiceName),
 	} {
 		if !nameSet[want] {
 			t.Fatalf("reflection services = %v, missing %s", names, want)

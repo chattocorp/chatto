@@ -1668,7 +1668,7 @@ type Event_OauthConsentDenied struct {
 }
 
 type Event_InvitationCreated struct {
-	// ----- Server invitations (930-939, durable, evt.invitation.{id}) -----
+	// ----- Invite links (930-939, durable, evt.invitation.{id}) -----
 	InvitationCreated *InvitationCreatedEvent `protobuf:"bytes,930,opt,name=invitation_created,json=invitationCreated,proto3,oneof"`
 }
 

@@ -196,7 +196,7 @@ const (
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
 
-	// Server invitations
+	// Invite links
 	EventInvitationCreated  = "created"
 	EventInvitationRedeemed = "redeemed"
 	EventInvitationRevoked  = "revoked"

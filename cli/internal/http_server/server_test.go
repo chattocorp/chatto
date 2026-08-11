@@ -533,13 +533,12 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	invitationCode := chattoCore.InvitationCode(invitation.ID)
+	invitePath := chattoCore.InvitationLinkPath(invitation.ID)
 
-	postRegistration := func(code string) (int, string) {
+	postRegistration := func() (int, string) {
 		t.Helper()
 		body, _ := json.Marshal(map[string]string{
-			"email":          "invited@example.test",
-			"invitationCode": code,
+			"email": "invited@example.test",
 		})
 		resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
 		if err != nil {
@@ -550,12 +549,45 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 		return resp.StatusCode, string(responseBody)
 	}
 
-	missingStatus, missingBody := postRegistration("")
-	invalidStatus, invalidBody := postRegistration("not-an-invitation")
-	if missingStatus != http.StatusBadRequest || invalidStatus != http.StatusBadRequest || missingBody != invalidBody {
-		t.Fatalf("generic invitation errors = (%d, %q), (%d, %q)", missingStatus, missingBody, invalidStatus, invalidBody)
+	missingStatus, _ := postRegistration()
+	if missingStatus != http.StatusBadRequest {
+		t.Fatalf("registration without invite link status = %d, want %d", missingStatus, http.StatusBadRequest)
 	}
-	if status, body := postRegistration(invitationCode); status != http.StatusOK {
+
+	invalidResp, err := client.Get(ts.URL + "/invite/not-a-valid-token")
+	if err != nil {
+		t.Fatalf("GET invalid invite link: %v", err)
+	}
+	invalidResp.Body.Close()
+	if invalidResp.StatusCode != http.StatusSeeOther || invalidResp.Header.Get("Location") != "/register?error=invalid_invitation" {
+		t.Fatalf("invalid invite link = %d %q", invalidResp.StatusCode, invalidResp.Header.Get("Location"))
+	}
+
+	tamperedPath := invitePath[:len(invitePath)-1] + "A"
+	if invitePath[len(invitePath)-1] == 'A' {
+		tamperedPath = invitePath[:len(invitePath)-1] + "B"
+	}
+	tamperedResp, err := client.Get(ts.URL + tamperedPath)
+	if err != nil {
+		t.Fatalf("GET tampered invite link: %v", err)
+	}
+	tamperedResp.Body.Close()
+	if tamperedResp.StatusCode != http.StatusSeeOther || tamperedResp.Header.Get("Location") != "/register?error=invalid_invitation" {
+		t.Fatalf("tampered invite link = %d %q", tamperedResp.StatusCode, tamperedResp.Header.Get("Location"))
+	}
+
+	inviteResp, err := client.Get(ts.URL + invitePath)
+	if err != nil {
+		t.Fatalf("GET valid invite link: %v", err)
+	}
+	inviteResp.Body.Close()
+	if inviteResp.StatusCode != http.StatusSeeOther || inviteResp.Header.Get("Location") != "/register?invited=1" {
+		t.Fatalf("valid invite link = %d %q", inviteResp.StatusCode, inviteResp.Header.Get("Location"))
+	}
+	if inviteResp.Header.Get("Cache-Control") != "no-store" || inviteResp.Header.Get("Referrer-Policy") != "no-referrer" || inviteResp.Header.Get("X-Robots-Tag") != "noindex, nofollow" {
+		t.Fatalf("valid invite-link privacy headers = %v", inviteResp.Header)
+	}
+	if status, body := postRegistration(); status != http.StatusOK {
 		t.Fatalf("valid invitation registration status = %d: %s", status, body)
 	}
 
@@ -598,11 +630,18 @@ func TestAuthRoutes_InviteOnlyRegistration(t *testing.T) {
 	}
 }
 
-func TestAuthRoutes_OpenRegistrationIgnoresInvitationCode(t *testing.T) {
+func TestAuthRoutes_OpenRegistrationIgnoresInviteLinks(t *testing.T) {
 	ts, client, _, mockMailer := setupTestHTTPServerWithMailer(t)
+	inviteResp, err := client.Get(ts.URL + "/invite/not-a-valid-token")
+	if err != nil {
+		t.Fatalf("GET invite link: %v", err)
+	}
+	inviteResp.Body.Close()
+	if inviteResp.StatusCode != http.StatusSeeOther || inviteResp.Header.Get("Location") != "/register" {
+		t.Fatalf("open-mode invite link = %d %q", inviteResp.StatusCode, inviteResp.Header.Get("Location"))
+	}
 	body, _ := json.Marshal(map[string]string{
-		"email":          "open-with-code@example.test",
-		"invitationCode": "not-an-invitation",
+		"email": "open-with-link@example.test",
 	})
 	resp, err := client.Post(ts.URL+"/auth/register", "application/json", bytes.NewReader(body))
 	if err != nil {

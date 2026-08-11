@@ -64,6 +64,35 @@ func (s *HTTPServer) emailOTPExpirationText() string {
 }
 
 func (s *HTTPServer) setupAuthRoutes() {
+	// Invite links bind the durable invitation ID to the signed browser session,
+	// then immediately redirect so the bearer token does not remain in the URL.
+	s.router.GET("/invite/:token", func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.Header("Referrer-Policy", "no-referrer")
+		c.Header("X-Robots-Tag", "noindex, nofollow")
+
+		session := sessions.Default(c)
+		session.Delete(accountInvitationSessionKey)
+		destination := "/register"
+		if s.config.Auth.InvitationRequired() {
+			invitationID, err := s.core.ValidateInviteLinkToken(c.Request.Context(), c.Param("token"))
+			if err != nil {
+				if !errors.Is(err, core.ErrInvitationInvalid) {
+					log.Error("Failed to validate invite link", "error", err)
+				}
+				destination = "/register?error=invalid_invitation"
+			} else {
+				session.Set(accountInvitationSessionKey, invitationID)
+				destination = "/register?invited=1"
+			}
+		}
+		if err := session.Save(); err != nil {
+			log.Error("Failed to save invite-link session", "error", err)
+			destination = "/register?error=invalid_invitation"
+		}
+		c.Redirect(http.StatusSeeOther, destination)
+	})
+
 	auth := s.router.Group("/auth")
 	auth.Use(limitLegacyRequestBody())
 	auth.Use(func(c *gin.Context) {
@@ -274,40 +303,6 @@ func (s *HTTPServer) setupAuthRoutes() {
 		c.JSON(http.StatusOK, response)
 	})
 
-	// Validates a shareable invitation capability and binds only its public ID
-	// to the signed browser session for a subsequent external-provider flow.
-	auth.POST("invitation", func(c *gin.Context) {
-		if !s.config.Auth.InvitationRequired() {
-			c.JSON(http.StatusOK, gin.H{"valid": true})
-			return
-		}
-		var req struct {
-			Code string `json:"code" binding:"required"`
-		}
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
-			return
-		}
-		invitationID, err := s.core.ValidateInvitationCode(c.Request.Context(), req.Code)
-		if err != nil {
-			if errors.Is(err, core.ErrInvitationInvalid) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
-				return
-			}
-			log.Error("Failed to validate invitation", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invitation validation failed"})
-			return
-		}
-		session := sessions.Default(c)
-		session.Set(accountInvitationSessionKey, invitationID)
-		if err := session.Save(); err != nil {
-			log.Error("Failed to save invitation session", "error", err)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invitation validation failed"})
-			return
-		}
-		c.JSON(http.StatusOK, gin.H{"valid": true})
-	})
-
 	// Email-first registration endpoint (step 1)
 	// Accepts email only, creates a registration code, and sends it by email.
 	// The user exchanges the code via POST /auth/register/verify-code, then
@@ -320,8 +315,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 
 		var req struct {
-			Email          string `json:"email" binding:"required,email"`
-			InvitationCode string `json:"invitationCode"`
+			Email string `json:"email" binding:"required,email"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -333,23 +327,17 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		ctx := c.Request.Context()
 		invitationID := ""
-		var err error
 		if s.config.Auth.InvitationRequired() {
-			invitationID, err = s.core.ValidateInvitationCode(ctx, req.InvitationCode)
-			if err != nil {
-				if errors.Is(err, core.ErrInvitationInvalid) {
-					c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
-					return
-				}
-				log.Error("Failed to validate invitation", "error", err)
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Registration failed"})
+			session := sessions.Default(c)
+			invitationID, _ = session.Get(accountInvitationSessionKey).(string)
+			if invitationID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
 				return
 			}
 
 			// Direct registration carries the invitation forward in the OTP flow,
 			// so it must not remain available to a later provider login in the same
 			// browser session.
-			session := sessions.Default(c)
 			session.Delete(accountInvitationSessionKey)
 			if err := session.Save(); err != nil {
 				log.Warn("Failed to clear invitation session after direct registration", "error", err)
@@ -523,7 +511,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		var user *corev1.User
 		if s.config.Auth.InvitationRequired() {
 			if tokenData.InvitationID == "" {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
 				return
 			}
 			user, err = s.core.CreateVerifiedUserWithInvitation(ctx, "system", req.Login, req.Login, req.Password, tokenData.Email, tokenData.InvitationID)
@@ -532,7 +520,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 		}
 		if err != nil {
 			if errors.Is(err, core.ErrInvitationInvalid) {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "This invitation is invalid or no longer available"})
+				c.JSON(http.StatusBadRequest, gin.H{"error": "This invite link is invalid or no longer available"})
 				return
 			}
 			if errors.Is(err, core.ErrLoginAlreadyTaken) {

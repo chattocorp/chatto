@@ -11,13 +11,13 @@ import (
 )
 
 const (
-	defaultInvitationLimit = 20
-	maxInvitationLimit     = 100
+	defaultInviteLinkLimit = 20
+	maxInviteLinkLimit     = 100
 )
 
-type adminInvitationService struct{ api *API }
+type adminInviteLinkService struct{ api *API }
 
-func (s *adminInvitationService) ListInvitations(ctx context.Context, req *connect.Request[adminv1.ListInvitationsRequest]) (*connect.Response[adminv1.ListInvitationsResponse], error) {
+func (s *adminInviteLinkService) ListInviteLinks(ctx context.Context, req *connect.Request[adminv1.ListInviteLinksRequest]) (*connect.Response[adminv1.ListInviteLinksResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -26,7 +26,7 @@ func (s *adminInvitationService) ListInvitations(ctx context.Context, req *conne
 	if err != nil {
 		return nil, connectError(err)
 	}
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultInvitationLimit, maxInvitationLimit)
+	limit, offset := apiPagination(req.Msg.GetPage(), defaultInviteLinkLimit, maxInviteLinkLimit)
 	total := len(states)
 	if offset > total {
 		offset = total
@@ -35,17 +35,17 @@ func (s *adminInvitationService) ListInvitations(ctx context.Context, req *conne
 	if end > total {
 		end = total
 	}
-	result := make([]*adminv1.Invitation, 0, end-offset)
+	result := make([]*adminv1.InviteLink, 0, end-offset)
 	for _, state := range states[offset:end] {
-		result = append(result, s.apiInvitation(state))
+		result = append(result, s.apiInviteLink(ctx, state))
 	}
-	return connect.NewResponse(&adminv1.ListInvitationsResponse{
-		Invitations: result,
+	return connect.NewResponse(&adminv1.ListInviteLinksResponse{
+		InviteLinks: result,
 		Page:        apiPageInfo(total, end < total),
 	}), nil
 }
 
-func (s *adminInvitationService) GetInvitation(ctx context.Context, req *connect.Request[adminv1.GetInvitationRequest]) (*connect.Response[adminv1.GetInvitationResponse], error) {
+func (s *adminInviteLinkService) GetInviteLink(ctx context.Context, req *connect.Request[adminv1.GetInviteLinkRequest]) (*connect.Response[adminv1.GetInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -54,10 +54,10 @@ func (s *adminInvitationService) GetInvitation(ctx context.Context, req *connect
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.GetInvitationResponse{Invitation: s.apiInvitation(state)}), nil
+	return connect.NewResponse(&adminv1.GetInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInvitationService) CreateInvitation(ctx context.Context, req *connect.Request[adminv1.CreateInvitationRequest]) (*connect.Response[adminv1.CreateInvitationResponse], error) {
+func (s *adminInviteLinkService) CreateInviteLink(ctx context.Context, req *connect.Request[adminv1.CreateInviteLinkRequest]) (*connect.Response[adminv1.CreateInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -75,10 +75,10 @@ func (s *adminInvitationService) CreateInvitation(ctx context.Context, req *conn
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.CreateInvitationResponse{Invitation: s.apiInvitation(state)}), nil
+	return connect.NewResponse(&adminv1.CreateInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInvitationService) RevokeInvitation(ctx context.Context, req *connect.Request[adminv1.RevokeInvitationRequest]) (*connect.Response[adminv1.RevokeInvitationResponse], error) {
+func (s *adminInviteLinkService) RevokeInviteLink(ctx context.Context, req *connect.Request[adminv1.RevokeInviteLinkRequest]) (*connect.Response[adminv1.RevokeInviteLinkResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -87,39 +87,39 @@ func (s *adminInvitationService) RevokeInvitation(ctx context.Context, req *conn
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&adminv1.RevokeInvitationResponse{Invitation: s.apiInvitation(state)}), nil
+	return connect.NewResponse(&adminv1.RevokeInviteLinkResponse{InviteLink: s.apiInviteLink(ctx, state)}), nil
 }
 
-func (s *adminInvitationService) apiInvitation(state core.InvitationState) *adminv1.Invitation {
-	invitation := &adminv1.Invitation{
+func (s *adminInviteLinkService) apiInviteLink(ctx context.Context, state core.InvitationState) *adminv1.InviteLink {
+	inviteLink := &adminv1.InviteLink{
 		Id:        state.ID,
-		Code:      s.api.core.InvitationCode(state.ID),
+		Link:      s.api.absolutizeServerURL(ctx, s.api.core.InvitationLinkPath(state.ID)),
 		CreatedBy: state.CreatedBy,
 		CreatedAt: timestamppb.New(state.CreatedAt),
 		MaxUses:   state.MaxUses,
 		UseCount:  state.UseCount,
-		Status:    apiInvitationStatus(core.InvitationStatusAt(state, time.Now())),
+		Status:    apiInviteLinkStatus(core.InvitationStatusAt(state, time.Now())),
 	}
 	if state.ExpiresAt != nil {
-		invitation.ExpiresAt = timestamppb.New(*state.ExpiresAt)
+		inviteLink.ExpiresAt = timestamppb.New(*state.ExpiresAt)
 	}
 	if state.RevokedAt != nil {
-		invitation.RevokedAt = timestamppb.New(*state.RevokedAt)
+		inviteLink.RevokedAt = timestamppb.New(*state.RevokedAt)
 	}
-	return invitation
+	return inviteLink
 }
 
-func apiInvitationStatus(status core.InvitationStatus) adminv1.InvitationStatus {
+func apiInviteLinkStatus(status core.InvitationStatus) adminv1.InviteLinkStatus {
 	switch status {
 	case core.InvitationStatusActive:
-		return adminv1.InvitationStatus_INVITATION_STATUS_ACTIVE
+		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_ACTIVE
 	case core.InvitationStatusExpired:
-		return adminv1.InvitationStatus_INVITATION_STATUS_EXPIRED
+		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXPIRED
 	case core.InvitationStatusExhausted:
-		return adminv1.InvitationStatus_INVITATION_STATUS_EXHAUSTED
+		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_EXHAUSTED
 	case core.InvitationStatusRevoked:
-		return adminv1.InvitationStatus_INVITATION_STATUS_REVOKED
+		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_REVOKED
 	default:
-		return adminv1.InvitationStatus_INVITATION_STATUS_UNSPECIFIED
+		return adminv1.InviteLinkStatus_INVITE_LINK_STATUS_UNSPECIFIED
 	}
 }

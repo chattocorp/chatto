@@ -3,59 +3,59 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { CreateInvitationRequest, CreateInvitationResponse, GetInvitationRequest, GetInvitationResponse, ListInvitationsRequest, ListInvitationsResponse, RevokeInvitationRequest, RevokeInvitationResponse } from "./invitations_pb.js";
+import { CreateInviteLinkRequest, CreateInviteLinkResponse, GetInviteLinkRequest, GetInviteLinkResponse, ListInviteLinksRequest, ListInviteLinksResponse, RevokeInviteLinkRequest, RevokeInviteLinkResponse } from "./invitations_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Manages the server invitations used for invite-only account admission.
+ * Manages the invite links used for invite-only account admission.
  *
- * @generated from service chatto.admin.v1.AdminInvitationService
+ * @generated from service chatto.admin.v1.AdminInviteLinkService
  */
-export const AdminInvitationService = {
-  typeName: "chatto.admin.v1.AdminInvitationService",
+export const AdminInviteLinkService = {
+  typeName: "chatto.admin.v1.AdminInviteLinkService",
   methods: {
     /**
-     * Lists invitations. Requires invite.manage.
+     * Lists invite links. Requires invite.manage.
      *
-     * @generated from rpc chatto.admin.v1.AdminInvitationService.ListInvitations
+     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.ListInviteLinks
      */
-    listInvitations: {
-      name: "ListInvitations",
-      I: ListInvitationsRequest,
-      O: ListInvitationsResponse,
+    listInviteLinks: {
+      name: "ListInviteLinks",
+      I: ListInviteLinksRequest,
+      O: ListInviteLinksResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one invitation. Returns NOT_FOUND when it does not exist. Requires invite.manage.
+     * Gets one invite link. Returns NOT_FOUND when it does not exist. Requires invite.manage.
      *
-     * @generated from rpc chatto.admin.v1.AdminInvitationService.GetInvitation
+     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.GetInviteLink
      */
-    getInvitation: {
-      name: "GetInvitation",
-      I: GetInvitationRequest,
-      O: GetInvitationResponse,
+    getInviteLink: {
+      name: "GetInviteLink",
+      I: GetInviteLinkRequest,
+      O: GetInviteLinkResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Creates an invitation. Requires invite.manage.
+     * Creates an invite link. Requires invite.manage.
      *
-     * @generated from rpc chatto.admin.v1.AdminInvitationService.CreateInvitation
+     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.CreateInviteLink
      */
-    createInvitation: {
-      name: "CreateInvitation",
-      I: CreateInvitationRequest,
-      O: CreateInvitationResponse,
+    createInviteLink: {
+      name: "CreateInviteLink",
+      I: CreateInviteLinkRequest,
+      O: CreateInviteLinkResponse,
       kind: MethodKind.Unary,
     },
     /**
-     * Permanently revokes an invitation while retaining its audit history. Requires invite.manage.
+     * Permanently revokes an invite link while retaining its audit history. Requires invite.manage.
      *
-     * @generated from rpc chatto.admin.v1.AdminInvitationService.RevokeInvitation
+     * @generated from rpc chatto.admin.v1.AdminInviteLinkService.RevokeInviteLink
      */
-    revokeInvitation: {
-      name: "RevokeInvitation",
-      I: RevokeInvitationRequest,
-      O: RevokeInvitationResponse,
+    revokeInviteLink: {
+      name: "RevokeInviteLink",
+      I: RevokeInviteLinkRequest,
+      O: RevokeInviteLinkResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -3,6 +3,8 @@ package core
 import (
 	"errors"
 	"fmt"
+	"regexp"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -21,7 +23,7 @@ func invitationAdmin(t *testing.T, c *ChattoCore) string {
 	return admin.Id
 }
 
-func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
+func TestInviteLinkTokensAreCompactDeterministicAndSecretBound(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	adminID := invitationAdmin(t, c)
@@ -30,20 +32,24 @@ func TestInvitationCodesAreDeterministicAndSecretBound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateInvitation: %v", err)
 	}
-	first := c.InvitationCode(state.ID)
-	if second := c.InvitationCode(state.ID); second != first {
-		t.Fatalf("InvitationCode changed: %q != %q", second, first)
+	firstPath := c.InvitationLinkPath(state.ID)
+	first := strings.TrimPrefix(firstPath, "/invite/")
+	if len(first) != 32 || !regexp.MustCompile(`^[A-Za-z0-9_-]+$`).MatchString(first) {
+		t.Fatalf("invite-link token = %q, want 32 URL-safe characters", first)
 	}
-	if got, err := c.ValidateInvitationCode(ctx, first); err != nil || got != state.ID {
-		t.Fatalf("ValidateInvitationCode = %q, %v; want %q, nil", got, err, state.ID)
+	if second := c.InvitationLinkPath(state.ID); second != firstPath {
+		t.Fatalf("InvitationLinkPath changed: %q != %q", second, firstPath)
+	}
+	if got, err := c.ValidateInviteLinkToken(ctx, first); err != nil || got != state.ID {
+		t.Fatalf("ValidateInviteLinkToken = %q, %v; want %q, nil", got, err, state.ID)
 	}
 
 	rotated := newInvitationModel(c.EventPublisher, c.invitationModel.projection, "rotated-secret")
-	if _, err := rotated.ParseCode(first); !errors.Is(err, ErrInvitationInvalid) {
-		t.Fatalf("rotated secret ParseCode error = %v, want ErrInvitationInvalid", err)
+	if _, err := rotated.ParseLinkToken(first); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("rotated secret ParseLinkToken error = %v, want ErrInvitationInvalid", err)
 	}
-	if rotated.Code(state.ID) == first {
-		t.Fatal("rotating the root secret did not change the invitation code")
+	if rotated.LinkToken(state.ID) == first {
+		t.Fatal("rotating the root secret did not change the invite link")
 	}
 }
 
@@ -78,8 +84,9 @@ func TestInvitationManagementRequiresPermissionAndRetainsRevokedInvitation(t *te
 	if len(listed) != 1 || listed[0].ID != state.ID || listed[0].RevokedAt == nil {
 		t.Fatalf("ListInvitations = %+v, want retained revoked invitation %q", listed, state.ID)
 	}
-	if _, err := c.ValidateInvitationCode(ctx, c.InvitationCode(state.ID)); !errors.Is(err, ErrInvitationInvalid) {
-		t.Fatalf("revoked ValidateInvitationCode error = %v, want ErrInvitationInvalid", err)
+	token := strings.TrimPrefix(c.InvitationLinkPath(state.ID), "/invite/")
+	if _, err := c.ValidateInviteLinkToken(ctx, token); !errors.Is(err, ErrInvitationInvalid) {
+		t.Fatalf("revoked ValidateInviteLinkToken error = %v, want ErrInvitationInvalid", err)
 	}
 }
 

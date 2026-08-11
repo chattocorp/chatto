@@ -3,12 +3,11 @@ import { render } from 'vitest-browser-svelte';
 import type { PublicServerInfo } from '$lib/api-client/server';
 import RegisterPage from './+page.svelte';
 
-const navigation = vi.hoisted(() => ({ goto: vi.fn(), replaceState: vi.fn() }));
+const navigation = vi.hoisted(() => ({ goto: vi.fn() }));
 
 vi.mock('$app/navigation', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$app/navigation')>()),
-  goto: navigation.goto,
-  replaceState: navigation.replaceState
+  goto: navigation.goto
 }));
 
 function serverInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo {
@@ -30,75 +29,39 @@ function serverInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo
 describe('invite-only registration', () => {
   beforeEach(() => {
     navigation.goto.mockReset();
-    navigation.replaceState.mockReset();
   });
 
   afterEach(() => {
-    window.location.hash = '';
     vi.unstubAllGlobals();
   });
 
-  it('removes invitation capabilities from the URL even when admission is open', async () => {
-    window.location.hash = 'invite=shared-capability';
-    render(RegisterPage, {
+  it('requires an invite link before showing account creation choices', async () => {
+    const { getByText, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
           user: null,
+          serverInfo: serverInfo(),
           serverInfoLoaded: true,
-          serverInfo: serverInfo({ accountCreationPolicy: 'open' })
+          inviteAccepted: false,
+          inviteError: false
         }
       }
     });
 
-    await vi.waitFor(() =>
-      expect(navigation.replaceState).toHaveBeenCalledWith('/register', history.state)
-    );
+    await expect
+      .element(getByText('You need a valid invite link to create an account on this server.'))
+      .toBeVisible();
+    await expect.element(getByLabelText('Email')).not.toBeInTheDocument();
   });
 
-  it('requires a validated invitation before showing account creation choices', async () => {
-    const fetchMock = vi.fn(
-      async () =>
-        new Response(JSON.stringify({ valid: true }), {
-          status: 200,
-          headers: { 'Content-Type': 'application/json' }
-        })
-    );
-    vi.stubGlobal('fetch', fetchMock);
-
-    const { getByRole, getByLabelText } = render(RegisterPage, {
-      props: { data: { user: null, serverInfo: serverInfo(), serverInfoLoaded: true } }
-    });
-
-    await expect.element(getByRole('heading', { name: 'Enter invitation' })).toBeVisible();
-    await getByLabelText('Invitation code').fill('cht_INV1.example.signature');
-    await getByRole('button', { name: 'Continue' }).click();
-
-    expect(fetchMock).toHaveBeenCalledWith(
-      '/auth/invitation',
-      expect.objectContaining({
-        method: 'POST',
-        body: JSON.stringify({ code: 'cht_INV1.example.signature' })
-      })
-    );
-    await expect.element(getByLabelText('Email')).toBeVisible();
-  });
-
-  it('shows external providers only after invitation validation', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(
-        async () =>
-          new Response(JSON.stringify({ valid: true }), {
-            status: 200,
-            headers: { 'Content-Type': 'application/json' }
-          })
-      )
-    );
+  it('shows account creation choices after an invite link is accepted', async () => {
     const { getByRole, getByLabelText } = render(RegisterPage, {
       props: {
         data: {
           user: null,
           serverInfoLoaded: true,
+          inviteAccepted: true,
+          inviteError: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [
@@ -116,12 +79,26 @@ describe('invite-only registration', () => {
       }
     });
 
-    await expect
-      .element(getByRole('link', { name: 'Continue with Company SSO' }))
-      .not.toBeInTheDocument();
-    await getByLabelText('Invitation code').fill('cht_INV1.example.signature');
-    await getByRole('button', { name: 'Continue' }).click();
+    await expect.element(getByLabelText('Email')).not.toBeInTheDocument();
     await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+  });
+
+  it('shows the generic invite-link error after an invalid link redirect', async () => {
+    const { getByText } = render(RegisterPage, {
+      props: {
+        data: {
+          user: null,
+          serverInfoLoaded: true,
+          inviteAccepted: false,
+          inviteError: true,
+          serverInfo: serverInfo()
+        }
+      }
+    });
+
+    await expect
+      .element(getByText('This invite link is invalid or no longer available.'))
+      .toBeVisible();
   });
 
   it('does not offer sign-in-only providers as registration options', async () => {
@@ -130,6 +107,8 @@ describe('invite-only registration', () => {
         data: {
           user: null,
           serverInfoLoaded: true,
+          inviteAccepted: false,
+          inviteError: false,
           serverInfo: serverInfo({
             directRegistrationEnabled: false,
             authProviders: [

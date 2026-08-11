@@ -1,7 +1,6 @@
 <script lang="ts">
-  import { goto, replaceState } from '$app/navigation';
+  import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { onMount } from 'svelte';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -12,7 +11,7 @@
 
   const { data } = $props();
 
-  type Step = 'invitation' | 'email' | 'code' | 'details';
+  type Step = 'email' | 'code' | 'details';
 
   const registrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const invitationRequired = $derived(data.serverInfo?.accountCreationPolicy === 'invite_only');
@@ -21,9 +20,10 @@
     authProviders.filter((provider) => provider.autoProvision !== false)
   );
   const selfServiceAvailable = $derived(registrationEnabled || registrationProviders.length > 0);
+  const inviteAccepted = $derived(data.inviteAccepted ?? false);
+  const inviteError = $derived(data.inviteError ?? false);
 
   let step = $state<Step>('email');
-  let invitationCode = $state('');
   let email = $state('');
   let codeDigits = $state(['', '', '', '', '', '']);
   let completionToken = $state('');
@@ -57,7 +57,6 @@
       : undefined
   );
   const canSubmitEmail = $derived(normalizedEmail && !emailError);
-  const canSubmitInvitation = $derived(invitationCode.trim().length > 0);
   const canSubmitDetails = $derived(
     completionToken &&
       login &&
@@ -67,19 +66,6 @@
       !passwordError &&
       !confirmError
   );
-
-  onMount(() => {
-    const codeFromLink = new URLSearchParams(window.location.hash.slice(1)).get('invite')?.trim();
-    if (codeFromLink) {
-      replaceState(resolve('/register'), history.state);
-    }
-    if (!invitationRequired || !selfServiceAvailable) return;
-    step = 'invitation';
-    if (codeFromLink) {
-      invitationCode = codeFromLink;
-      void validateInvitation();
-    }
-  });
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -100,31 +86,6 @@
     return `${provider.loginUrl}?redirect=${encodeURIComponent('/')}`;
   }
 
-  async function validateInvitation(e?: Event) {
-    e?.preventDefault();
-    if (!canSubmitInvitation) return;
-    error = '';
-    isLoading = true;
-    try {
-      const response = await fetch('/auth/invitation', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ code: invitationCode.trim() }),
-        credentials: 'include'
-      });
-      const body = await response.json();
-      if (!response.ok) {
-        error = body.error || m('auth.register.invitation.invalid');
-        return;
-      }
-      step = 'email';
-    } catch (err) {
-      error = err instanceof Error ? err.message : m('auth.register.invitation.invalid');
-    } finally {
-      isLoading = false;
-    }
-  }
-
   async function requestRegistrationCode(options: { resend?: boolean } = {}) {
     error = '';
     if (emailError || !normalizedEmail) {
@@ -142,7 +103,7 @@
       const response = await fetch('/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: normalizedEmail, invitationCode: invitationCode.trim() })
+        body: JSON.stringify({ email: normalizedEmail })
       });
       const body = await response.json();
 
@@ -284,36 +245,22 @@
 
 <AuthLayout>
   <h1 class="mb-6 text-center text-2xl font-bold">
-    {step === 'invitation'
-      ? m('auth.register.invitation.title')
-      : step === 'code'
-        ? m('auth.register.code.title')
-        : step === 'details'
-          ? m('auth.register.complete_title')
-          : m('auth.register.title')}
+    {step === 'code'
+      ? m('auth.register.code.title')
+      : step === 'details'
+        ? m('auth.register.complete_title')
+        : m('auth.register.title')}
   </h1>
 
   {#if !selfServiceAvailable}
     <p class="text-center text-muted">{m('auth.register.unavailable')}</p>
-  {:else if step === 'invitation'}
-    <form onsubmit={validateInvitation} class="flex flex-col gap-4">
-      <p class="text-center text-muted">{m('auth.register.invitation.description')}</p>
-      <TextInput
-        id="invitation"
-        label={m('auth.register.invitation.label')}
-        bind:value={invitationCode}
-        placeholder={m('auth.register.invitation.placeholder')}
-        disabled={isLoading}
-        required
-        autofocus
-        autocomplete="off"
-      />
-      <FormError {error} />
-      <Button type="submit" size="lg" disabled={!canSubmitInvitation} loading={isLoading}>
-        {m('common.continue')}
-        <span class="iconify icon-[uil--arrow-right] rtl:-scale-x-100"></span>
-      </Button>
-    </form>
+  {:else if invitationRequired && !inviteAccepted}
+    <div class="flex flex-col gap-4 text-center">
+      <p class="text-muted">{m('auth.register.invitation.required')}</p>
+      {#if inviteError}
+        <FormError error={m('auth.register.invitation.invalid')} />
+      {/if}
+    </div>
   {:else if step === 'email'}
     {#if registrationEnabled}
       <form onsubmit={handleEmailSubmit} class="flex flex-col gap-4">
@@ -463,9 +410,7 @@
     </form>
   {/if}
 
-  {#if step !== 'invitation'}
-    <Divider label={m('common.or')} />
-  {/if}
+  <Divider label={m('common.or')} />
 
   <Button href={resolve('/login')} variant="secondary" size="lg" fullWidth>
     {m('common.sign_in')}

@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,7 +15,12 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-const invitationCodePrefix = "cht_INV1"
+const (
+	inviteLinkTokenVersion = byte('1')
+	inviteLinkMACBytes     = 12
+	invitationIDLength     = 1 + idLength
+	inviteLinkTokenLength  = 1 + invitationIDLength + 16 // 16 base64url characters encode the 96-bit MAC.
+)
 
 var (
 	ErrInvitationInvalid                = errors.New("invitation is invalid")
@@ -42,26 +46,25 @@ func newInvitationModel(publisher *evtstream.Publisher, projection events.Projec
 	return &InvitationModel{publisher: publisher, projection: projection, secretKey: secretKey}
 }
 
-func (m *InvitationModel) Code(id string) string {
-	payload := invitationCodePrefix + "." + id
+func (m *InvitationModel) LinkToken(id string) string {
+	payload := string(inviteLinkTokenVersion) + id
 	keyMAC := hmac.New(sha256.New, []byte(m.secretKey))
-	_, _ = keyMAC.Write([]byte("chatto/invitation-code/v1\x00"))
+	_, _ = keyMAC.Write([]byte("chatto/invite-link/v1\x00"))
 	signingKey := keyMAC.Sum(nil)
 	mac := hmac.New(sha256.New, signingKey)
 	_, _ = mac.Write([]byte(payload))
-	return payload + "." + base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+	return payload + base64.RawURLEncoding.EncodeToString(mac.Sum(nil)[:inviteLinkMACBytes])
 }
 
-func (m *InvitationModel) ParseCode(code string) (string, error) {
-	parts := strings.Split(strings.TrimSpace(code), ".")
-	if len(parts) != 3 || parts[0] != invitationCodePrefix || parts[1] == "" {
+func (m *InvitationModel) ParseLinkToken(token string) (string, error) {
+	if len(token) != inviteLinkTokenLength || token[0] != inviteLinkTokenVersion {
 		return "", ErrInvitationInvalid
 	}
-	expected := m.Code(parts[1])
-	if !hmac.Equal([]byte(expected), []byte(strings.TrimSpace(code))) {
+	id := token[1 : 1+invitationIDLength]
+	if id[0] != 'I' || !hmac.Equal([]byte(m.LinkToken(id)), []byte(token)) {
 		return "", ErrInvitationInvalid
 	}
-	return parts[1], nil
+	return id, nil
 }
 
 func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
@@ -77,8 +80,8 @@ func InvitationStatusAt(state InvitationState, now time.Time) InvitationStatus {
 	return InvitationStatusActive
 }
 
-func (m *InvitationModel) validateCodeAt(code string, now time.Time) (InvitationState, error) {
-	id, err := m.ParseCode(code)
+func (m *InvitationModel) validateLinkTokenAt(token string, now time.Time) (InvitationState, error) {
+	id, err := m.ParseLinkToken(token)
 	if err != nil {
 		return InvitationState{}, ErrInvitationInvalid
 	}
@@ -93,20 +96,20 @@ func (m *InvitationModel) validateIDAt(id string, now time.Time) (InvitationStat
 	return state, nil
 }
 
-func (c *ChattoCore) ValidateInvitationCode(ctx context.Context, code string) (string, error) {
+func (c *ChattoCore) ValidateInviteLinkToken(ctx context.Context, token string) (string, error) {
 	if err := c.invitationModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return "", err
 	}
-	state, err := c.invitationModel.validateCodeAt(code, time.Now())
+	state, err := c.invitationModel.validateLinkTokenAt(token, time.Now())
 	if err != nil {
 		return "", err
 	}
 	return state.ID, nil
 }
 
-// InvitationCode deterministically reconstructs the signed capability for an invitation ID.
-func (c *ChattoCore) InvitationCode(id string) string {
-	return c.invitationModel.Code(id)
+// InvitationLinkPath deterministically reconstructs the shareable path for an invitation ID.
+func (c *ChattoCore) InvitationLinkPath(id string) string {
+	return "/invite/" + c.invitationModel.LinkToken(id)
 }
 
 func (c *ChattoCore) GetInvitation(ctx context.Context, actorID, id string) (InvitationState, error) {

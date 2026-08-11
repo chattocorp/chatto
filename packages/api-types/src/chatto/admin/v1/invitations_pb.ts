@@ -8,61 +8,65 @@ import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { PageInfo, PageRequest } from "../../api/v1/pagination_pb.js";
 
 /**
- * Current lifecycle state of an invitation.
+ * Current lifecycle state of an invite link.
  *
- * @generated from enum chatto.admin.v1.InvitationStatus
+ * @generated from enum chatto.admin.v1.InviteLinkStatus
  */
-export enum InvitationStatus {
+export enum InviteLinkStatus {
   /**
-   * @generated from enum value: INVITATION_STATUS_UNSPECIFIED = 0;
+   * @generated from enum value: INVITE_LINK_STATUS_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: INVITATION_STATUS_ACTIVE = 1;
+   * @generated from enum value: INVITE_LINK_STATUS_ACTIVE = 1;
    */
   ACTIVE = 1,
 
   /**
-   * @generated from enum value: INVITATION_STATUS_EXPIRED = 2;
+   * @generated from enum value: INVITE_LINK_STATUS_EXPIRED = 2;
    */
   EXPIRED = 2,
 
   /**
-   * @generated from enum value: INVITATION_STATUS_EXHAUSTED = 3;
+   * @generated from enum value: INVITE_LINK_STATUS_EXHAUSTED = 3;
    */
   EXHAUSTED = 3,
 
   /**
-   * @generated from enum value: INVITATION_STATUS_REVOKED = 4;
+   * @generated from enum value: INVITE_LINK_STATUS_REVOKED = 4;
    */
   REVOKED = 4,
 }
-// Retrieve enum metadata with: proto3.getEnumType(InvitationStatus)
-proto3.util.setEnumType(InvitationStatus, "chatto.admin.v1.InvitationStatus", [
-  { no: 0, name: "INVITATION_STATUS_UNSPECIFIED" },
-  { no: 1, name: "INVITATION_STATUS_ACTIVE" },
-  { no: 2, name: "INVITATION_STATUS_EXPIRED" },
-  { no: 3, name: "INVITATION_STATUS_EXHAUSTED" },
-  { no: 4, name: "INVITATION_STATUS_REVOKED" },
+// Retrieve enum metadata with: proto3.getEnumType(InviteLinkStatus)
+proto3.util.setEnumType(InviteLinkStatus, "chatto.admin.v1.InviteLinkStatus", [
+  { no: 0, name: "INVITE_LINK_STATUS_UNSPECIFIED" },
+  { no: 1, name: "INVITE_LINK_STATUS_ACTIVE" },
+  { no: 2, name: "INVITE_LINK_STATUS_EXPIRED" },
+  { no: 3, name: "INVITE_LINK_STATUS_EXHAUSTED" },
+  { no: 4, name: "INVITE_LINK_STATUS_REVOKED" },
 ]);
 
 /**
- * An administrator-visible server invitation. The code is a bearer
- * capability and is returned only to callers with invite.manage.
+ * An administrator-visible invite link. The link is a bearer capability and
+ * is returned only to callers with invite.manage.
  *
- * @generated from message chatto.admin.v1.Invitation
+ * @generated from message chatto.admin.v1.InviteLink
  */
-export class Invitation extends Message<Invitation> {
+export class InviteLink extends Message<InviteLink> {
   /**
+   * Durable identifier used for administrative operations.
+   *
    * @generated from field: string id = 1;
    */
   id = "";
 
   /**
-   * @generated from field: string code = 2;
+   * Fully qualified bearer URL. Anyone who has it can use the link while active.
+   *
+   * @generated from field: string link = 2;
    */
-  code = "";
+  link = "";
 
   /**
    * @generated from field: string created_by = 3;
@@ -90,213 +94,213 @@ export class Invitation extends Message<Invitation> {
   useCount = 0;
 
   /**
-   * @generated from field: chatto.admin.v1.InvitationStatus status = 8;
+   * @generated from field: chatto.admin.v1.InviteLinkStatus status = 8;
    */
-  status = InvitationStatus.UNSPECIFIED;
+  status = InviteLinkStatus.UNSPECIFIED;
 
   /**
    * @generated from field: google.protobuf.Timestamp revoked_at = 9;
    */
   revokedAt?: Timestamp;
 
-  constructor(data?: PartialMessage<Invitation>) {
+  constructor(data?: PartialMessage<InviteLink>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.Invitation";
+  static readonly typeName = "chatto.admin.v1.InviteLink";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "code", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "link", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "created_by", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "created_at", kind: "message", T: Timestamp },
     { no: 5, name: "max_uses", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 6, name: "expires_at", kind: "message", T: Timestamp },
     { no: 7, name: "use_count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
-    { no: 8, name: "status", kind: "enum", T: proto3.getEnumType(InvitationStatus) },
+    { no: 8, name: "status", kind: "enum", T: proto3.getEnumType(InviteLinkStatus) },
     { no: 9, name: "revoked_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Invitation {
-    return new Invitation().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): InviteLink {
+    return new InviteLink().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): Invitation {
-    return new Invitation().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): InviteLink {
+    return new InviteLink().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): Invitation {
-    return new Invitation().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): InviteLink {
+    return new InviteLink().fromJsonString(jsonString, options);
   }
 
-  static equals(a: Invitation | PlainMessage<Invitation> | undefined, b: Invitation | PlainMessage<Invitation> | undefined): boolean {
-    return proto3.util.equals(Invitation, a, b);
+  static equals(a: InviteLink | PlainMessage<InviteLink> | undefined, b: InviteLink | PlainMessage<InviteLink> | undefined): boolean {
+    return proto3.util.equals(InviteLink, a, b);
   }
 }
 
 /**
- * Requests a page of server invitations, newest first.
+ * Requests a page of invite links, newest first.
  *
- * @generated from message chatto.admin.v1.ListInvitationsRequest
+ * @generated from message chatto.admin.v1.ListInviteLinksRequest
  */
-export class ListInvitationsRequest extends Message<ListInvitationsRequest> {
+export class ListInviteLinksRequest extends Message<ListInviteLinksRequest> {
   /**
    * @generated from field: chatto.api.v1.PageRequest page = 1;
    */
   page?: PageRequest;
 
-  constructor(data?: PartialMessage<ListInvitationsRequest>) {
+  constructor(data?: PartialMessage<ListInviteLinksRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListInvitationsRequest";
+  static readonly typeName = "chatto.admin.v1.ListInviteLinksRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "page", kind: "message", T: PageRequest },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInvitationsRequest {
-    return new ListInvitationsRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInviteLinksRequest {
+    return new ListInviteLinksRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInvitationsRequest {
-    return new ListInvitationsRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInviteLinksRequest {
+    return new ListInviteLinksRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInvitationsRequest {
-    return new ListInvitationsRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInviteLinksRequest {
+    return new ListInviteLinksRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListInvitationsRequest | PlainMessage<ListInvitationsRequest> | undefined, b: ListInvitationsRequest | PlainMessage<ListInvitationsRequest> | undefined): boolean {
-    return proto3.util.equals(ListInvitationsRequest, a, b);
+  static equals(a: ListInviteLinksRequest | PlainMessage<ListInviteLinksRequest> | undefined, b: ListInviteLinksRequest | PlainMessage<ListInviteLinksRequest> | undefined): boolean {
+    return proto3.util.equals(ListInviteLinksRequest, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.ListInvitationsResponse
+ * @generated from message chatto.admin.v1.ListInviteLinksResponse
  */
-export class ListInvitationsResponse extends Message<ListInvitationsResponse> {
+export class ListInviteLinksResponse extends Message<ListInviteLinksResponse> {
   /**
-   * @generated from field: repeated chatto.admin.v1.Invitation invitations = 1;
+   * @generated from field: repeated chatto.admin.v1.InviteLink invite_links = 1;
    */
-  invitations: Invitation[] = [];
+  inviteLinks: InviteLink[] = [];
 
   /**
    * @generated from field: chatto.api.v1.PageInfo page = 2;
    */
   page?: PageInfo;
 
-  constructor(data?: PartialMessage<ListInvitationsResponse>) {
+  constructor(data?: PartialMessage<ListInviteLinksResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.ListInvitationsResponse";
+  static readonly typeName = "chatto.admin.v1.ListInviteLinksResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "invitations", kind: "message", T: Invitation, repeated: true },
+    { no: 1, name: "invite_links", kind: "message", T: InviteLink, repeated: true },
     { no: 2, name: "page", kind: "message", T: PageInfo },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInvitationsResponse {
-    return new ListInvitationsResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInviteLinksResponse {
+    return new ListInviteLinksResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInvitationsResponse {
-    return new ListInvitationsResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInviteLinksResponse {
+    return new ListInviteLinksResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInvitationsResponse {
-    return new ListInvitationsResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInviteLinksResponse {
+    return new ListInviteLinksResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: ListInvitationsResponse | PlainMessage<ListInvitationsResponse> | undefined, b: ListInvitationsResponse | PlainMessage<ListInvitationsResponse> | undefined): boolean {
-    return proto3.util.equals(ListInvitationsResponse, a, b);
+  static equals(a: ListInviteLinksResponse | PlainMessage<ListInviteLinksResponse> | undefined, b: ListInviteLinksResponse | PlainMessage<ListInviteLinksResponse> | undefined): boolean {
+    return proto3.util.equals(ListInviteLinksResponse, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.GetInvitationRequest
+ * @generated from message chatto.admin.v1.GetInviteLinkRequest
  */
-export class GetInvitationRequest extends Message<GetInvitationRequest> {
+export class GetInviteLinkRequest extends Message<GetInviteLinkRequest> {
   /**
    * @generated from field: string id = 1;
    */
   id = "";
 
-  constructor(data?: PartialMessage<GetInvitationRequest>) {
+  constructor(data?: PartialMessage<GetInviteLinkRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.GetInvitationRequest";
+  static readonly typeName = "chatto.admin.v1.GetInviteLinkRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInvitationRequest {
-    return new GetInvitationRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInviteLinkRequest {
+    return new GetInviteLinkRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInvitationRequest {
-    return new GetInvitationRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInviteLinkRequest {
+    return new GetInviteLinkRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInvitationRequest {
-    return new GetInvitationRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInviteLinkRequest {
+    return new GetInviteLinkRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetInvitationRequest | PlainMessage<GetInvitationRequest> | undefined, b: GetInvitationRequest | PlainMessage<GetInvitationRequest> | undefined): boolean {
-    return proto3.util.equals(GetInvitationRequest, a, b);
+  static equals(a: GetInviteLinkRequest | PlainMessage<GetInviteLinkRequest> | undefined, b: GetInviteLinkRequest | PlainMessage<GetInviteLinkRequest> | undefined): boolean {
+    return proto3.util.equals(GetInviteLinkRequest, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.GetInvitationResponse
+ * @generated from message chatto.admin.v1.GetInviteLinkResponse
  */
-export class GetInvitationResponse extends Message<GetInvitationResponse> {
+export class GetInviteLinkResponse extends Message<GetInviteLinkResponse> {
   /**
-   * @generated from field: chatto.admin.v1.Invitation invitation = 1;
+   * @generated from field: chatto.admin.v1.InviteLink invite_link = 1;
    */
-  invitation?: Invitation;
+  inviteLink?: InviteLink;
 
-  constructor(data?: PartialMessage<GetInvitationResponse>) {
+  constructor(data?: PartialMessage<GetInviteLinkResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.GetInvitationResponse";
+  static readonly typeName = "chatto.admin.v1.GetInviteLinkResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "invitation", kind: "message", T: Invitation },
+    { no: 1, name: "invite_link", kind: "message", T: InviteLink },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInvitationResponse {
-    return new GetInvitationResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInviteLinkResponse {
+    return new GetInviteLinkResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInvitationResponse {
-    return new GetInvitationResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInviteLinkResponse {
+    return new GetInviteLinkResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInvitationResponse {
-    return new GetInvitationResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInviteLinkResponse {
+    return new GetInviteLinkResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: GetInvitationResponse | PlainMessage<GetInvitationResponse> | undefined, b: GetInvitationResponse | PlainMessage<GetInvitationResponse> | undefined): boolean {
-    return proto3.util.equals(GetInvitationResponse, a, b);
+  static equals(a: GetInviteLinkResponse | PlainMessage<GetInviteLinkResponse> | undefined, b: GetInviteLinkResponse | PlainMessage<GetInviteLinkResponse> | undefined): boolean {
+    return proto3.util.equals(GetInviteLinkResponse, a, b);
   }
 }
 
 /**
- * Creates an invitation. Absent constraints mean unlimited uses and no expiry.
+ * Creates an invite link. Absent constraints mean unlimited uses and no expiry.
  *
- * @generated from message chatto.admin.v1.CreateInvitationRequest
+ * @generated from message chatto.admin.v1.CreateInviteLinkRequest
  */
-export class CreateInvitationRequest extends Message<CreateInvitationRequest> {
+export class CreateInviteLinkRequest extends Message<CreateInviteLinkRequest> {
   /**
    * @generated from field: optional uint32 max_uses = 1;
    */
@@ -307,142 +311,142 @@ export class CreateInvitationRequest extends Message<CreateInvitationRequest> {
    */
   expiresAt?: Timestamp;
 
-  constructor(data?: PartialMessage<CreateInvitationRequest>) {
+  constructor(data?: PartialMessage<CreateInviteLinkRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.CreateInvitationRequest";
+  static readonly typeName = "chatto.admin.v1.CreateInviteLinkRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "max_uses", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
     { no: 2, name: "expires_at", kind: "message", T: Timestamp },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateInvitationRequest {
-    return new CreateInvitationRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateInviteLinkRequest {
+    return new CreateInviteLinkRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateInvitationRequest {
-    return new CreateInvitationRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateInviteLinkRequest {
+    return new CreateInviteLinkRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateInvitationRequest {
-    return new CreateInvitationRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateInviteLinkRequest {
+    return new CreateInviteLinkRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: CreateInvitationRequest | PlainMessage<CreateInvitationRequest> | undefined, b: CreateInvitationRequest | PlainMessage<CreateInvitationRequest> | undefined): boolean {
-    return proto3.util.equals(CreateInvitationRequest, a, b);
+  static equals(a: CreateInviteLinkRequest | PlainMessage<CreateInviteLinkRequest> | undefined, b: CreateInviteLinkRequest | PlainMessage<CreateInviteLinkRequest> | undefined): boolean {
+    return proto3.util.equals(CreateInviteLinkRequest, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.CreateInvitationResponse
+ * @generated from message chatto.admin.v1.CreateInviteLinkResponse
  */
-export class CreateInvitationResponse extends Message<CreateInvitationResponse> {
+export class CreateInviteLinkResponse extends Message<CreateInviteLinkResponse> {
   /**
-   * @generated from field: chatto.admin.v1.Invitation invitation = 1;
+   * @generated from field: chatto.admin.v1.InviteLink invite_link = 1;
    */
-  invitation?: Invitation;
+  inviteLink?: InviteLink;
 
-  constructor(data?: PartialMessage<CreateInvitationResponse>) {
+  constructor(data?: PartialMessage<CreateInviteLinkResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.CreateInvitationResponse";
+  static readonly typeName = "chatto.admin.v1.CreateInviteLinkResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "invitation", kind: "message", T: Invitation },
+    { no: 1, name: "invite_link", kind: "message", T: InviteLink },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateInvitationResponse {
-    return new CreateInvitationResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateInviteLinkResponse {
+    return new CreateInviteLinkResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateInvitationResponse {
-    return new CreateInvitationResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateInviteLinkResponse {
+    return new CreateInviteLinkResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateInvitationResponse {
-    return new CreateInvitationResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateInviteLinkResponse {
+    return new CreateInviteLinkResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: CreateInvitationResponse | PlainMessage<CreateInvitationResponse> | undefined, b: CreateInvitationResponse | PlainMessage<CreateInvitationResponse> | undefined): boolean {
-    return proto3.util.equals(CreateInvitationResponse, a, b);
+  static equals(a: CreateInviteLinkResponse | PlainMessage<CreateInviteLinkResponse> | undefined, b: CreateInviteLinkResponse | PlainMessage<CreateInviteLinkResponse> | undefined): boolean {
+    return proto3.util.equals(CreateInviteLinkResponse, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.RevokeInvitationRequest
+ * @generated from message chatto.admin.v1.RevokeInviteLinkRequest
  */
-export class RevokeInvitationRequest extends Message<RevokeInvitationRequest> {
+export class RevokeInviteLinkRequest extends Message<RevokeInviteLinkRequest> {
   /**
    * @generated from field: string id = 1;
    */
   id = "";
 
-  constructor(data?: PartialMessage<RevokeInvitationRequest>) {
+  constructor(data?: PartialMessage<RevokeInviteLinkRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.RevokeInvitationRequest";
+  static readonly typeName = "chatto.admin.v1.RevokeInviteLinkRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeInvitationRequest {
-    return new RevokeInvitationRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeInviteLinkRequest {
+    return new RevokeInviteLinkRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeInvitationRequest {
-    return new RevokeInvitationRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeInviteLinkRequest {
+    return new RevokeInviteLinkRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeInvitationRequest {
-    return new RevokeInvitationRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeInviteLinkRequest {
+    return new RevokeInviteLinkRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RevokeInvitationRequest | PlainMessage<RevokeInvitationRequest> | undefined, b: RevokeInvitationRequest | PlainMessage<RevokeInvitationRequest> | undefined): boolean {
-    return proto3.util.equals(RevokeInvitationRequest, a, b);
+  static equals(a: RevokeInviteLinkRequest | PlainMessage<RevokeInviteLinkRequest> | undefined, b: RevokeInviteLinkRequest | PlainMessage<RevokeInviteLinkRequest> | undefined): boolean {
+    return proto3.util.equals(RevokeInviteLinkRequest, a, b);
   }
 }
 
 /**
- * @generated from message chatto.admin.v1.RevokeInvitationResponse
+ * @generated from message chatto.admin.v1.RevokeInviteLinkResponse
  */
-export class RevokeInvitationResponse extends Message<RevokeInvitationResponse> {
+export class RevokeInviteLinkResponse extends Message<RevokeInviteLinkResponse> {
   /**
-   * @generated from field: chatto.admin.v1.Invitation invitation = 1;
+   * @generated from field: chatto.admin.v1.InviteLink invite_link = 1;
    */
-  invitation?: Invitation;
+  inviteLink?: InviteLink;
 
-  constructor(data?: PartialMessage<RevokeInvitationResponse>) {
+  constructor(data?: PartialMessage<RevokeInviteLinkResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.admin.v1.RevokeInvitationResponse";
+  static readonly typeName = "chatto.admin.v1.RevokeInviteLinkResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "invitation", kind: "message", T: Invitation },
+    { no: 1, name: "invite_link", kind: "message", T: InviteLink },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeInvitationResponse {
-    return new RevokeInvitationResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RevokeInviteLinkResponse {
+    return new RevokeInviteLinkResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeInvitationResponse {
-    return new RevokeInvitationResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RevokeInviteLinkResponse {
+    return new RevokeInviteLinkResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeInvitationResponse {
-    return new RevokeInvitationResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RevokeInviteLinkResponse {
+    return new RevokeInviteLinkResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RevokeInvitationResponse | PlainMessage<RevokeInvitationResponse> | undefined, b: RevokeInvitationResponse | PlainMessage<RevokeInvitationResponse> | undefined): boolean {
-    return proto3.util.equals(RevokeInvitationResponse, a, b);
+  static equals(a: RevokeInviteLinkResponse | PlainMessage<RevokeInviteLinkResponse> | undefined, b: RevokeInviteLinkResponse | PlainMessage<RevokeInviteLinkResponse> | undefined): boolean {
+    return proto3.util.equals(RevokeInviteLinkResponse, a, b);
   }
 }

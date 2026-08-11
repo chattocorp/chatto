@@ -24,7 +24,7 @@
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
     const membersBase = serverBase + '/members';
-    const invitationsBase = serverBase + '/invitations';
+    const invitationsBase = serverBase + '/invite-links';
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
     const roomGroupsBase = manageBase + '/room-groups';
     const moderationBase = serverBase + '/moderation';
