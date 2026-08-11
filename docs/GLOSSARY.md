@@ -56,6 +56,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Message** — A user-posted entry in a room. Root messages live at the top level; thread replies hang off a root.
 
+**Slow Mode** — Per-channel pacing rule that limits each non-exempt member to one new message per configured interval across roots and threads. `room.manage` and `message.manage` bypass it; edits and other message interactions do not affect its timer. See [FDR-035](fdr/FDR-035-slow-mode.md).
+
 **Thread** — Reply chain rooted at a message. See [FDR-002](fdr/FDR-002-replies-and-threads.md).
 
 **Echo** — Reposting a thread reply back to its parent channel so non-thread participants see it. Gated by `message.echo`. See [FDR-003](fdr/FDR-003-thread-reply-echo.md).

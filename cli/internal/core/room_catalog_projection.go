@@ -33,11 +33,12 @@ type RoomNameClaimSnapshot struct {
 // directly — callers go through Get() which clones into a *corev1.Room
 // for type symmetry with the rest of the codebase.
 type roomCatalogEntry struct {
-	name        string
-	description string
-	kind        corev1.RoomKind
-	archived    bool
-	universal   bool
+	name            string
+	description     string
+	kind            corev1.RoomKind
+	archived        bool
+	universal       bool
+	slowModeSeconds uint32
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -95,6 +96,10 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RoomUniversalChanged:
 		if entry := p.rooms[e.RoomUniversalChanged.GetRoomId()]; entry != nil {
 			entry.universal = e.RoomUniversalChanged.GetUniversal()
+		}
+	case *corev1.Event_RoomSlowModeChanged:
+		if entry := p.rooms[e.RoomSlowModeChanged.GetRoomId()]; entry != nil {
+			entry.slowModeSeconds = e.RoomSlowModeChanged.GetSlowModeSeconds()
 		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
@@ -184,12 +189,13 @@ func (p *RoomCatalogProjection) NameClaimSnapshot(name string) RoomNameClaimSnap
 // assignment lives in RoomGroupProjection.
 func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 	r := &corev1.Room{
-		Id:          id,
-		Name:        entry.name,
-		Description: entry.description,
-		Archived:    entry.archived,
-		Kind:        entry.kind,
-		Universal:   entry.universal,
+		Id:              id,
+		Name:            entry.name,
+		Description:     entry.description,
+		Archived:        entry.archived,
+		Kind:            entry.kind,
+		Universal:       entry.universal,
+		SlowModeSeconds: entry.slowModeSeconds,
 	}
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and

@@ -67,6 +67,7 @@ const (
 	EventRoomArchived         = "room_archived"
 	EventRoomUnarchived       = "room_unarchived"
 	EventRoomUniversalChanged = "room_universal_changed"
+	EventRoomSlowModeChanged  = "room_slow_mode_changed"
 	EventRoomDeleted          = "room_deleted"
 	EventUserJoinedRoom       = "user_joined"
 	EventUserLeftRoom         = "user_left"
@@ -216,6 +217,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomUnarchived
 	case *corev1.Event_RoomUniversalChanged:
 		return EventRoomUniversalChanged
+	case *corev1.Event_RoomSlowModeChanged:
+		return EventRoomSlowModeChanged
 	case *corev1.Event_RoomDeleted:
 		return EventRoomDeleted
 	case *corev1.Event_UserJoinedRoom:

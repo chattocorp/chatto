@@ -4,7 +4,8 @@ import { buildRoomSettingsUpdate, type RoomSettingsValues } from './roomSettings
 const original: RoomSettingsValues = {
   name: 'general',
   description: 'General discussion',
-  universal: false
+  universal: false,
+  slowModeSeconds: 0
 };
 
 describe('buildRoomSettingsUpdate', () => {
@@ -27,5 +28,11 @@ describe('buildRoomSettingsUpdate', () => {
       name: 'announcements',
       description: null
     });
+  });
+
+  it('includes Slow Mode only when its value changes', () => {
+    expect(
+      buildRoomSettingsUpdate('room-1', { ...original, slowModeSeconds: 30 }, original)
+    ).toEqual({ roomId: 'room-1', slowModeSeconds: 30 });
   });
 });

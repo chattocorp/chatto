@@ -2333,6 +2333,15 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 		want  string
 	}{
 		{
+			name: "RoomSlowModeChanged",
+			event: &corev1.Event{
+				Event: &corev1.Event_RoomSlowModeChanged{
+					RoomSlowModeChanged: &corev1.RoomSlowModeChangedEvent{RoomId: "R1", SlowModeSeconds: 30},
+				},
+			},
+			want: EventRoomSlowModeChanged,
+		},
+		{
 			name: "MessagePosted",
 			event: &corev1.Event{
 				Event: &corev1.Event_MessagePosted{

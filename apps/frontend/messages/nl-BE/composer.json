@@ -24,6 +24,10 @@
     "drop_files_title": "Zet bestanden hier neer",
     "drop_files_subtitle": "Afbeeldingen en video's worden aan je bericht toegevoegd",
     "send_failed": "Kan bericht niet verzenden",
+    "slow_mode_ready": "Langzame modus: één bericht per {interval}.",
+    "slow_mode_waiting": "Langzame modus: opnieuw verzenden over {countdown}.",
+    "slow_mode_bypassed": "Langzame modus: {interval} (je bent vrijgesteld).",
+    "slow_mode_rejected": "De langzame modus is actief. Wacht voordat je nog een bericht verzendt.",
     "edit_failed": "Kan bericht niet bewerken",
     "upload": {
       "preparing": "Voorbereiden…",

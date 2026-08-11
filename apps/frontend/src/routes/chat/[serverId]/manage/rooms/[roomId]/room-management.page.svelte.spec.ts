@@ -143,6 +143,7 @@ function managedRoom(
     description: null,
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
+    slowModeSeconds: 0,
     canManageRoom: overrides.canManageRoom ?? true,
     canManagePermissions: overrides.canManagePermissions ?? true
   };

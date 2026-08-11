@@ -68,7 +68,10 @@ func (p *RoomDirectoryProjection) Restore(data []byte) error {
 		if _, duplicate := rooms[room.GetId()]; duplicate {
 			return fmt.Errorf("room directory snapshot repeats room %q", room.GetId())
 		}
-		rooms[room.GetId()] = &roomCatalogEntry{name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(), archived: room.GetArchived(), universal: room.GetUniversal()}
+		rooms[room.GetId()] = &roomCatalogEntry{
+			name: room.GetName(), description: room.GetDescription(), kind: room.GetKind(),
+			archived: room.GetArchived(), universal: room.GetUniversal(), slowModeSeconds: room.GetSlowModeSeconds(),
+		}
 	}
 	byRoom := make(map[string]map[string]struct{}, len(snapshot.GetMemberships()))
 	byUser := make(map[string]map[string]struct{})

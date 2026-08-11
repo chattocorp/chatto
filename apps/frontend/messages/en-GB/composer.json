@@ -24,6 +24,10 @@
     "drop_files_title": "Drop files here",
     "drop_files_subtitle": "Images and videos will be added to your message",
     "send_failed": "Failed to send message",
+    "slow_mode_ready": "Slow Mode: one message every {interval}.",
+    "slow_mode_waiting": "Slow Mode: send again in {countdown}.",
+    "slow_mode_bypassed": "Slow Mode: {interval} (you're exempt).",
+    "slow_mode_rejected": "Slow Mode is active. Wait before sending another message.",
     "edit_failed": "Failed to edit message",
     "upload": {
       "preparing": "Preparing…",

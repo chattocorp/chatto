@@ -24,6 +24,10 @@
     "drop_files_title": "Dateien hier ablegen",
     "drop_files_subtitle": "Bilder und Videos werden deiner Nachricht hinzugefügt",
     "send_failed": "Nachricht konnte nicht gesendet werden",
+    "slow_mode_ready": "Langsamer Modus: eine Nachricht alle {interval}.",
+    "slow_mode_waiting": "Langsamer Modus: erneut senden in {countdown}.",
+    "slow_mode_bypassed": "Langsamer Modus: {interval} (du bist ausgenommen).",
+    "slow_mode_rejected": "Der langsame Modus ist aktiv. Warte, bevor du eine weitere Nachricht sendest.",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
     "upload": {
       "preparing": "Wird vorbereitet…",

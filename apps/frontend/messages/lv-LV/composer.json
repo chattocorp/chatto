@@ -24,6 +24,10 @@
     "drop_files_title": "Nometiet failus šeit",
     "drop_files_subtitle": "Jūsu ziņojumam tiks pievienoti attēli un video",
     "send_failed": "Neizdevās nosūtīt ziņojumu",
+    "slow_mode_ready": "Lēnais režīms: viens ziņojums ik pēc {interval}.",
+    "slow_mode_waiting": "Lēnais režīms: sūtiet vēlreiz pēc {countdown}.",
+    "slow_mode_bypassed": "Lēnais režīms: {interval} (uz jums ierobežojums neattiecas).",
+    "slow_mode_rejected": "Lēnais režīms ir aktīvs. Uzgaidiet pirms nākamā ziņojuma sūtīšanas.",
     "edit_failed": "Neizdevās rediģēt ziņojumu",
     "upload": {
       "preparing": "Notiek sagatavošana…",

@@ -64,6 +64,8 @@ const (
 	RoomNameMinLength        = 1
 	RoomNameMaxLength        = 30
 	RoomDescriptionMaxLength = 500
+	// MaxRoomSlowModeSeconds is the longest supported per-user posting interval.
+	MaxRoomSlowModeSeconds = 6 * 60 * 60
 )
 
 // ErrRoomNameExists is returned when a room with the same name (case-insensitive) already exists.
@@ -307,6 +309,38 @@ func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind 
 	}
 
 	c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
+	return c.GetRoom(ctx, kind, roomID)
+}
+
+// SetRoomSlowMode updates a channel room's per-user posting interval.
+// Authorization: Caller must verify room.manage before calling.
+func (c *ChattoCore) SetRoomSlowMode(ctx context.Context, actorID string, kind RoomKind, roomID string, seconds uint32) (*corev1.Room, error) {
+	if kind == KindDM {
+		return nil, invalidArgument("DM rooms cannot use slow mode")
+	}
+	if seconds > MaxRoomSlowModeSeconds {
+		return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
+	}
+	room, err := c.GetRoom(ctx, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if room.GetSlowModeSeconds() == seconds {
+		return room, nil
+	}
+
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RoomSlowModeChanged{
+		RoomSlowModeChanged: &corev1.RoomSlowModeChangedEvent{RoomId: roomID, SlowModeSeconds: seconds},
+	}})
+	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), event)
+	if err != nil {
+		return nil, fmt.Errorf("publish RoomSlowModeChangedEvent: %w", err)
+	}
+	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
+		return nil, err
+	}
+
+	c.logger.Info("Room slow mode updated", "kind", kind, "room_id", roomID, "seconds", seconds)
 	return c.GetRoom(ctx, kind, roomID)
 }
 

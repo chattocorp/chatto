@@ -24,6 +24,10 @@
     "drop_files_title": "Upuść pliki tutaj",
     "drop_files_subtitle": "Zdjęcia i filmy zostaną dodane do Twojej wiadomości",
     "send_failed": "Nie udało się wysłać wiadomości",
+    "slow_mode_ready": "Tryb powolny: jedna wiadomość co {interval}.",
+    "slow_mode_waiting": "Tryb powolny: wyślij ponownie za {countdown}.",
+    "slow_mode_bypassed": "Tryb powolny: {interval} (ograniczenie Cię nie dotyczy).",
+    "slow_mode_rejected": "Tryb powolny jest aktywny. Zaczekaj przed wysłaniem kolejnej wiadomości.",
     "edit_failed": "Nie udało się edytować wiadomości",
     "upload": {
       "preparing": "Przygotowywanie…",

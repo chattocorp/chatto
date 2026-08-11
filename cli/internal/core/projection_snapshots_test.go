@@ -64,7 +64,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v4", &corev1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v5", &corev1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v3", &corev1.UserProfileProjectionSnapshot{}},
 	}
@@ -81,7 +81,7 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 	}{
 		{userSnapshotContractID, snapshotContractID("v2", &corev1.UserProfileProjectionSnapshot{})},
 		{mentionablesSnapshotContractID, snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})},
-		{roomTimelineSnapshotContractID, snapshotContractID("v3", &corev1.RoomTimelineProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v4", &corev1.RoomTimelineProjectionSnapshot{})},
 		{threadSnapshotContractID, snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})},
 	}
 	for _, tt := range tests {

@@ -201,6 +201,51 @@ func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {
 	}
 }
 
+func TestRealtimeProjectionSnapshotIncludesSlowModeAndViewerDeadline(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("projection-slow-mode")
+	member, err := env.core.CreateUser(env.ctx, core.SystemActorID, "projection-slow-member", "Projection Slow Member", "password")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, member.Id, core.KindChannel, member.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom member: %v", err)
+	}
+	post, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, member.Id, "before slow mode", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if _, err := env.core.SetRoomSlowMode(env.ctx, env.viewer.Id, core.KindChannel, room.Id, 60); err != nil {
+		t.Fatalf("SetRoomSlowMode: %v", err)
+	}
+
+	snapshot, err := env.api.BuildRealtimeProjectionSnapshot(env.ctx, member.Id, []string{room.Id})
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	var foundRoom bool
+	for _, projected := range snapshot.Rooms {
+		if projected.Room.GetRoom().GetId() != room.Id {
+			continue
+		}
+		foundRoom = true
+		if got := projected.Room.GetRoom().GetSlowModeSeconds(); got != 60 {
+			t.Fatalf("snapshot slow_mode_seconds = %d, want 60", got)
+		}
+		deadline := projected.Room.GetViewerState().GetSlowModeNextPostAt()
+		if deadline == nil {
+			t.Fatal("snapshot Slow Mode deadline is absent")
+		}
+		want := post.CreatedAt.AsTime().Add(time.Minute)
+		if got := deadline.AsTime(); !got.Equal(want) {
+			t.Fatalf("snapshot Slow Mode deadline = %v, want %v", got, want)
+		}
+	}
+	if !foundRoom {
+		t.Fatalf("room %s missing from realtime projection snapshot", room.Id)
+	}
+}
+
 func realtimeRoomViewerState(states []*RealtimeProjectionRoomViewerState, roomID string) *apiv1.RoomViewerState {
 	for _, state := range states {
 		if state.RoomID == roomID {

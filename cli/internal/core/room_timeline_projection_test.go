@@ -601,6 +601,40 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 }
 
+func TestRoomTimeline_LatestOriginalPostIndexSurvivesMutationAndRestore(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	applyAll(t, p, []*corev1.Event{
+		postedEvent(postedOpts{envelopeID: "M1", roomID: "R1", actorID: "U1", at: 1}),
+		postedEvent(postedOpts{envelopeID: "ECHO", roomID: "R1", actorID: "U1", echoOfEventID: "M1", at: 2}),
+		editedEvent("EDIT", "M1", "R1", "U1", "edited", 3),
+		retractedEvent("RETRACT", "M1", "R1", "U1", "", 4),
+		postedEvent(postedOpts{envelopeID: "M2", roomID: "R2", actorID: "U1", at: 5}),
+		postedEvent(postedOpts{envelopeID: "M3", roomID: "R1", actorID: "U2", at: 6}),
+	})
+
+	if got, ok := p.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+		t.Fatalf("latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
+	}
+	if got, ok := p.LatestOriginalPostAt("R2", "U1"); !ok || !got.Equal(fixedTime(5)) {
+		t.Fatalf("latest R2/U1 post = (%v, %v), want %v", got, ok, fixedTime(5))
+	}
+	if got, ok := p.LatestOriginalPostAt("R1", "U2"); !ok || !got.Equal(fixedTime(6)) {
+		t.Fatalf("latest R1/U2 post = (%v, %v), want %v", got, ok, fixedTime(6))
+	}
+
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	if got, ok := restored.LatestOriginalPostAt("R1", "U1"); !ok || !got.Equal(fixedTime(1)) {
+		t.Fatalf("restored latest R1/U1 post = (%v, %v), want %v", got, ok, fixedTime(1))
+	}
+}
+
 func TestRoomTimeline_MessageDeletedAtTracksRetractionsAndEchoes(t *testing.T) {
 	p := NewRoomTimelineProjection()
 	root := postedEvent(postedOpts{envelopeID: "ENV-ROOT", roomID: "R1", actorID: "U1", at: 1})

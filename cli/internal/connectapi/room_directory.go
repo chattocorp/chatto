@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -120,24 +121,28 @@ func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState
 		return nil
 	}
 	state := room.ViewerState
+	viewerState := &apiv1.RoomViewerState{
+		IsMember:  state.IsMember,
+		HasUnread: state.HasUnread,
+		Permissions: permissionGrants(
+			permissionGrant(core.PermRoomList, state.CanListRoom),
+			permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
+			permissionGrant(core.PermMessagePost, state.CanPostMessage),
+			permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
+			permissionGrant(core.PermMessageAttach, state.CanAttach),
+			permissionGrant(core.PermMessageReact, state.CanReact),
+			permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
+			permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
+			permissionGrant(core.PermRoomManage, state.CanManageRoom),
+			permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
+		),
+	}
+	if !state.SlowModeNextPostAt.IsZero() {
+		viewerState.SlowModeNextPostAt = timestamppb.New(state.SlowModeNextPostAt)
+	}
 	return &apiv1.RoomWithViewerState{
-		Room: apiRoom(room.Room),
-		ViewerState: &apiv1.RoomViewerState{
-			IsMember:  state.IsMember,
-			HasUnread: state.HasUnread,
-			Permissions: permissionGrants(
-				permissionGrant(core.PermRoomList, state.CanListRoom),
-				permissionGrant(core.PermRoomJoin, state.CanJoinRoom),
-				permissionGrant(core.PermMessagePost, state.CanPostMessage),
-				permissionGrant(core.PermMessagePostInThread, state.CanPostInThread),
-				permissionGrant(core.PermMessageAttach, state.CanAttach),
-				permissionGrant(core.PermMessageReact, state.CanReact),
-				permissionGrant(core.PermMessageEcho, state.CanEchoMessage),
-				permissionGrant(core.PermMessageManage, state.CanManageOthersMessage),
-				permissionGrant(core.PermRoomManage, state.CanManageRoom),
-				permissionGrant(core.PermRoomMemberBan, state.CanBanRoomMembers),
-			),
-		},
+		Room:        apiRoom(room.Room),
+		ViewerState: viewerState,
 	}
 }
 

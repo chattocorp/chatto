@@ -38,6 +38,9 @@ message Room {
   string group_id = 6;
   // True when a channel grants effective membership to eligible server members.
   bool universal = 7;
+  // Minimum number of seconds a non-exempt member must wait between message
+  // posts. Channel rooms only; zero means slow mode is disabled.
+  uint32 slow_mode_seconds = 8;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -89,6 +92,10 @@ message UpdateRoomRequest {
   // New universal membership state, when changing it. Direct-message rooms
   // cannot be universal.
   optional bool universal = 4;
+  // New per-user posting interval in seconds. Zero disables slow mode. The
+  // maximum supported interval is six hours. Direct-message rooms cannot use
+  // slow mode.
+  optional uint32 slow_mode_seconds = 5 [(buf.validate.field).uint32.lte = 21600];
 }
 
 // Result of updating a room.

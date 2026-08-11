@@ -31,11 +31,12 @@ type RoomCreateInput struct {
 }
 
 type RoomUpdateInput struct {
-	ActorID     string
-	RoomID      string
-	Name        *string
-	Description *string
-	Universal   *bool
+	ActorID         string
+	RoomID          string
+	Name            *string
+	Description     *string
+	Universal       *bool
+	SlowModeSeconds *uint32
 }
 
 type RoomIDInput struct {
@@ -96,7 +97,7 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil && input.Universal == nil {
+	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
 	room, err := s.core.GetRoom(ctx, kind, input.RoomID)
@@ -105,6 +106,14 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	}
 	if input.Universal != nil && kind == KindDM {
 		return nil, fmt.Errorf("%w: DM rooms cannot be universal", ErrInvalidArgument)
+	}
+	if input.SlowModeSeconds != nil {
+		if kind == KindDM {
+			return nil, invalidArgument("DM rooms cannot use slow mode")
+		}
+		if *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
+			return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
+		}
 	}
 	name := room.GetName()
 	if input.Name != nil {
@@ -125,6 +134,12 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	}
 	if input.Universal != nil {
 		room, err = s.core.SetRoomUniversal(ctx, input.ActorID, kind, input.RoomID, *input.Universal)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.SlowModeSeconds != nil {
+		room, err = s.core.SetRoomSlowMode(ctx, input.ActorID, kind, input.RoomID, *input.SlowModeSeconds)
 		if err != nil {
 			return nil, err
 		}

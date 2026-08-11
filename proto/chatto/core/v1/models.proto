@@ -46,6 +46,9 @@ message Room {
   // who is currently eligible to join the room. Explicit memberships are
   // preserved separately so disabling universal restores the previous state.
   bool universal = 9;
+  // Minimum number of seconds a non-exempt member must wait between original
+  // message posts. Channel rooms only; zero disables slow mode.
+  uint32 slow_mode_seconds = 10;
 }
 
 // User represents a user account

@@ -234,6 +234,14 @@ room markers changed after that fence. This delta repairs concurrent or lost
 best-effort room-read invalidations with work proportional to concurrent
 changes; catch-up retries if the bounded change history is exceeded.
 
+Room Slow Mode configuration is embedded in every projected room. A
+`RoomSlowModeChangedEvent` produces an incremental `room_upsert`, immediately
+replacing the interval and the viewer's recalculated next-post timestamp.
+Every `MessagePostedEvent` already produces a `room_viewer_state_replace`; for
+the author this carries the new deadline to all sessions. The same fields are
+present in compacted room snapshots and finite reconciliation, so reconnects
+do not require a client-side timer record.
+
 Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
 viewer-state invalidation; after the finite replacement, a buffered signal is

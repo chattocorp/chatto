@@ -75,6 +75,17 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	if updateResp.Msg.GetRoom().GetName() != "connect-renamed" {
 		t.Fatalf("UpdateRoom name = %q, want connect-renamed", updateResp.Msg.GetRoom().GetName())
 	}
+	slowModeSeconds := uint32(30)
+	slowModeResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId:          room.GetId(),
+		SlowModeSeconds: &slowModeSeconds,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateRoom Slow Mode: %v", err)
+	}
+	if got := slowModeResp.Msg.GetRoom().GetSlowModeSeconds(); got != slowModeSeconds {
+		t.Fatalf("UpdateRoom slow_mode_seconds = %d, want %d", got, slowModeSeconds)
+	}
 	partialUpdateResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId:      room.GetId(),
 		Description: stringPtr("description-only patch"),
@@ -452,6 +463,13 @@ func TestRoomServiceRejectsDMRooms(t *testing.T) {
 		Universal: boolPtr(true),
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("UpdateRoom universal for DM code = %v, want invalid argument", connect.CodeOf(err))
+	}
+	slowModeSeconds := uint32(30)
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId:          dm.Id,
+		SlowModeSeconds: &slowModeSeconds,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("UpdateRoom Slow Mode for DM code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.rooms.AddMember(ctx, connect.NewRequest(&apiv1.AddMemberRequest{
 		RoomId: dm.Id,

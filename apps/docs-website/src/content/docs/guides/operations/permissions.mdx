@@ -92,6 +92,12 @@ Room-relevant permissions such as `message.post`, `message.attach`, `message.rea
 
 The full list is visible in the admin UI.
 
+Slow Mode is room configuration rather than a permission. It paces new
+messages from ordinary members across the room and its threads. Effective
+`room.manage` or `message.manage` grants bypass its timer; `message.post` and
+`message.post-in-thread` still decide whether the user may post at all. Edits,
+deletions, reactions, and attachment selection are unaffected.
+
 ## Common patterns
 
 ### Read-only announcements for normal members

@@ -24,6 +24,10 @@
     "drop_files_title": "Dosyaları buraya bırakın",
     "drop_files_subtitle": "Mesajınıza resim ve videolar eklenecek",
     "send_failed": "Mesaj gönderilemedi",
+    "slow_mode_ready": "Yavaş mod: her {interval} bir mesaj.",
+    "slow_mode_waiting": "Yavaş mod: {countdown} sonra tekrar gönderin.",
+    "slow_mode_bypassed": "Yavaş mod: {interval} (muafsınız).",
+    "slow_mode_rejected": "Yavaş mod etkin. Başka bir mesaj göndermeden önce bekleyin.",
     "edit_failed": "Mesaj düzenlenemedi",
     "upload": {
       "preparing": "Hazırlanıyor…",

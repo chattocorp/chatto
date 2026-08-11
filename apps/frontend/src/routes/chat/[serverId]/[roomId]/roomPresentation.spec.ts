@@ -10,7 +10,8 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
       name: 'general',
       type: RoomKind.CHANNEL,
       description: ' Room description ',
-      isUniversal: false
+      isUniversal: false,
+      slowModeSeconds: 0
     },
     spaceName: 'Test Space',
     canPostMessage: true,
@@ -21,6 +22,7 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
     canEchoMessage: true,
     canManageRoom: false,
     canBanRoomMembers: false,
+    slowModeNextPostAt: null,
     ...overrides
   };
 }
@@ -52,7 +54,8 @@ describe('buildRoomPresentation', () => {
         name: 'general',
         type: RoomKind.CHANNEL,
         description: ' ',
-        isUniversal: false
+        isUniversal: false,
+        slowModeSeconds: 0
       },
       spaceName: null
     });

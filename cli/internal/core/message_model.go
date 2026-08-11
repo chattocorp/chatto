@@ -318,7 +318,46 @@ func (s *MessageModel) AuthorizePost(ctx context.Context, input MessagePostAutho
 		}
 	}
 
+	if kind == KindChannel && room.GetSlowModeSeconds() > 0 {
+		bypasses, err := s.bypassesSlowMode(ctx, input.ActorID, kind, room.Id)
+		if err != nil {
+			return nil, err
+		}
+		if nextPostAt := s.slowModeNextPostAt(room, input.ActorID, bypasses, time.Now()); !nextPostAt.IsZero() {
+			return nil, &SlowModeActiveError{NextPostAt: nextPostAt}
+		}
+	}
+
 	return &MessagePostAuthorization{Room: room, Kind: kind}, nil
+}
+
+func (s *MessageModel) bypassesSlowMode(ctx context.Context, actorID string, kind RoomKind, roomID string) (bool, error) {
+	canManageRoom, err := s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermRoomManage)
+	if err != nil {
+		return false, err
+	}
+	if canManageRoom {
+		return true, nil
+	}
+	return s.core.PermResolver().HasRoomPermission(ctx, actorID, kind, roomID, PermMessageManage)
+}
+
+// slowModeNextPostAt returns a future eligibility timestamp, or zero when the
+// actor is currently allowed to post. The caller supplies now so boundary
+// behavior can be tested without sleeping.
+func (s *MessageModel) slowModeNextPostAt(room *corev1.Room, actorID string, bypasses bool, now time.Time) time.Time {
+	if room == nil || KindOfRoom(room) != KindChannel || room.GetSlowModeSeconds() == 0 || bypasses {
+		return time.Time{}
+	}
+	latest, ok := s.core.roomModel.latestOriginalPostAt(room.GetId(), actorID)
+	if !ok {
+		return time.Time{}
+	}
+	next := latest.Add(time.Duration(room.GetSlowModeSeconds()) * time.Second)
+	if !now.Before(next) {
+		return time.Time{}
+	}
+	return next
 }
 
 // UpdateMessage edits an existing message. Authorization: actor must be a room
