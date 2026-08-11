@@ -3,12 +3,7 @@
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
-  import {
-    hasValidRoomNameCharacters,
-    normalizeRoomName,
-    ROOM_NAME_MAX_LENGTH,
-    roomNameCharacterCount
-  } from '$lib/utils/roomName';
+  import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { buildRoomSettingsUpdate } from './roomSettings';
   import { m } from '$lib/i18n/messages';
@@ -63,12 +58,12 @@
     if (!name) return undefined;
     if (name.trim() === '') return m('admin.rooms_admin.room_name_empty');
     if (name !== name.trim()) return m('admin.rooms_admin.room_name_trim');
-    if (!hasValidRoomNameCharacters(normalizedName)) {
-      return m('admin.rooms_admin.room_name_charset');
-    }
-    if (roomNameCharacterCount(normalizedName) > ROOM_NAME_MAX_LENGTH) {
+    const validationError = roomNameValidationError(normalizedName);
+    if (validationError === 'empty') return m('admin.rooms_admin.room_name_empty');
+    if (validationError === 'too_long') {
       return m('admin.rooms_admin.room_name_too_long');
     }
+    if (validationError === 'invalid') return m('admin.rooms_admin.room_name_invalid');
     return undefined;
   });
   const changed = $derived(

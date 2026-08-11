@@ -129,8 +129,8 @@ func (m *RoomModel) roomIDByName(name string) string {
 	return m.directory.Projection().Catalog.FindByName(name)
 }
 
-func (m *RoomModel) nameClaimSnapshot(name string) RoomNameClaimSnapshot {
-	return m.directory.Projection().Catalog.NameClaimSnapshot(name)
+func (m *RoomModel) nameClaimSnapshot(name, excludeRoomID string) RoomNameClaimSnapshot {
+	return m.directory.Projection().Catalog.NameClaimSnapshot(name, excludeRoomID)
 }
 
 func (m *RoomModel) hasExplicitRoomMembership(roomID, userID string) bool {

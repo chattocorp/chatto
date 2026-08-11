@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (aktuellt värde)",
       "room_name_empty": "Rumsnamnet får inte vara tomt",
       "room_name_trim": "Rumsnamnet kan inte ha inledande eller efterföljande blanksteg",
-      "room_name_charset": "Rumsnamn får bara innehålla bokstäver, siffror, bindestreck och understreck",
+      "room_name_invalid": "Rumsnamnet får inte innehålla radbrytningar eller kontrolltecken",
       "room_name_too_long": "Rumsnamnet får inte överstiga 30 tecken",
       "create_group": "Skapa grupp",
       "group_name": "Gruppnamn",

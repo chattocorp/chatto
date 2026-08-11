@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (aktuální hodnota)",
       "room_name_empty": "Název místnosti nemůže být prázdný",
       "room_name_trim": "Název místnosti nesmí obsahovat mezery na začátku ani na konci",
-      "room_name_charset": "Název místnosti může obsahovat pouze písmena, čísla, pomlčky a podtržítka",
+      "room_name_invalid": "Název místnosti nesmí obsahovat konce řádků ani řídicí znaky",
       "room_name_too_long": "Název místnosti nesmí přesáhnout 30 znaků",
       "create_group": "Vytvořit skupinu",
       "group_name": "Název skupiny",

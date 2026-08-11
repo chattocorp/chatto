@@ -181,7 +181,7 @@
       "slow_mode_custom": "{interval} (bieżąca wartość)",
       "room_name_empty": "Nazwa pokoju nie może być pusta",
       "room_name_trim": "Nazwa pokoju nie może zawierać początkowych ani końcowych spacji",
-      "room_name_charset": "Nazwa pokoju może zawierać tylko litery, cyfry, łączniki i podkreślenia",
+      "room_name_invalid": "Nazwa pokoju nie może zawierać podziałów wiersza ani znaków sterujących",
       "room_name_too_long": "Nazwa pokoju nie może przekraczać 30 znaków",
       "create_group": "Utwórz grupę",
       "group_name": "Nazwa grupy",
