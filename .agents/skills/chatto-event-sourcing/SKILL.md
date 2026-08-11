@@ -30,6 +30,13 @@ Authoritative code anchors:
 ## Core Rules
 
 - Durable domain facts go into `EVT`. Do not add durable mirrors in KV or object metadata unless the architecture explicitly calls the state runtime, ephemeral, secret, binary, or cache data.
+- Treat every new `EVT` event type as a last resort. It must record an
+  authoritative fact that changes durable domain state, not implementation
+  bookkeeping, an invalidation, a work item, or an outbox/recovery trigger.
+  First exhaust existing domain facts, projections, `RUNTIME_STATE`, transient
+  live sync, reconciliation, and an explicitly acceptable best-effort effect.
+  If a new event is still necessary, document why those alternatives cannot
+  preserve the required domain behavior.
 - Domain state interactions should go through a Service for that domain. Avoid direct JetStream, KV, object-store, or projection manipulation from unrelated code.
 - `ChattoCore` is a facade and wiring point. Prefer moving domain-specific write/readiness logic into a focused Service.
 - Projections are process-local read models rebuilt from `EVT`. They are not locks, coordination points, or sources of durable truth.
@@ -61,15 +68,17 @@ For a hot, high-fanout `RUNTIME_STATE` or `MEMORY_CACHE` read path:
 Answer these questions before editing:
 
 1. Is this a durable domain fact, runtime state, transient live sync, binary/object data, a secret, or a cache?
-2. Which Service owns the domain? If none exists, should this change introduce one?
-3. Which aggregate owns the event subject?
-4. What invariant does the OCC filter protect?
-5. Which projections must consume the event?
-6. Which projections must be current before the mutation returns?
-7. Does the write need to publish transient `LiveEvent`s, or will `EVT` republish through `live.evt.>` be enough?
-8. What happens with multiple replicas racing the same write?
-9. What happens on forward deploy, mixed-version rolling deploy, and rollback?
-10. Which focused tests lock down the subject, replay, OCC, projection, and delivery behavior?
+2. If this proposes a new `EVT` event, what durable domain state changes, and
+   why can no existing fact or non-EVT mechanism represent the requirement?
+3. Which Service owns the domain? If none exists, should this change introduce one?
+4. Which aggregate owns the event subject?
+5. What invariant does the OCC filter protect?
+6. Which projections must consume the event?
+7. Which projections must be current before the mutation returns?
+8. Does the write need to publish transient `LiveEvent`s, or will `EVT` republish through `live.evt.>` be enough?
+9. What happens with multiple replicas racing the same write?
+10. What happens on forward deploy, mixed-version rolling deploy, and rollback?
+11. Which focused tests lock down the subject, replay, OCC, projection, and delivery behavior?
 
 ## Choosing An Aggregate Subject
 
@@ -188,6 +197,11 @@ Check:
 Treat the interval between an EVT commit and completion of any KMS, LiveKit,
 object-store, webhook, or other external side effect as a crash boundary.
 
+- Recovery requirements alone do not justify a new event type. Recover work
+  from the existing domain-changing fact whenever possible. If no such fact
+  exists, decide explicitly whether the effect belongs in `RUNTIME_STATE`, can
+  be reconciled from current authority, or may remain best-effort before
+  proposing another `EVT` fact.
 - External side effects required by a committed fact must be retryable from
   durable state after process restart and lease-holder turnover.
 - A process-local retry queue may reduce recovery latency, but must not be the
