@@ -37,6 +37,18 @@ type MessagePostAuthorizationInput struct {
 	CreateThread      bool
 }
 
+func authorizationInputForPost(input MessagePostInput, threadRootEventID string) MessagePostAuthorizationInput {
+	return MessagePostAuthorizationInput{
+		ActorID:           input.ActorID,
+		RoomID:            input.RoomID,
+		Body:              input.Body,
+		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
+		ThreadRootEventID: threadRootEventID,
+		AlsoSendToChannel: input.AlsoSendToChannel,
+		CreateThread:      input.CreateThread,
+	}
+}
+
 // MessagePostAuthorization is the resolved room context for an authorized post.
 type MessagePostAuthorization struct {
 	Room *corev1.Room
@@ -129,15 +141,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 		options = append(options, WithThreadCreation())
 	}
 	options = append(options, withPostMessageCommitAuthorization(func(attemptCtx context.Context, effectiveThreadRootEventID string) error {
-		_, err := s.AuthorizePost(attemptCtx, MessagePostAuthorizationInput{
-			ActorID:           input.ActorID,
-			RoomID:            input.RoomID,
-			Body:              input.Body,
-			HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
-			ThreadRootEventID: effectiveThreadRootEventID,
-			AlsoSendToChannel: input.AlsoSendToChannel,
-			CreateThread:      input.CreateThread,
-		})
+		_, err := s.AuthorizePost(attemptCtx, authorizationInputForPost(input, effectiveThreadRootEventID))
 		return err
 	}))
 
@@ -153,15 +157,7 @@ func (s *MessageModel) PostMessage(ctx context.Context, input MessagePostInput) 
 // PreflightPost checks authorization and request validity before a transport
 // uploads binary attachments.
 func (s *MessageModel) PreflightPost(ctx context.Context, input MessagePostInput) (*MessagePostPreflight, error) {
-	authorization, err := s.AuthorizePost(ctx, MessagePostAuthorizationInput{
-		ActorID:           input.ActorID,
-		RoomID:            input.RoomID,
-		Body:              input.Body,
-		HasAttachments:    input.HasPendingAttachments || len(input.AttachmentAssetIDs) > 0,
-		ThreadRootEventID: input.ThreadRootEventID,
-		AlsoSendToChannel: input.AlsoSendToChannel,
-		CreateThread:      input.CreateThread,
-	})
+	authorization, err := s.AuthorizePost(ctx, authorizationInputForPost(input, input.ThreadRootEventID))
 	if err != nil {
 		return nil, err
 	}

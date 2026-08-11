@@ -81,10 +81,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 			}
 			restored.messagePostsByRoom[roomID] = append(restored.messagePostsByRoom[roomID], index)
 			if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
-				if restored.latestOriginalPostAtByRoom[roomID] == nil {
-					restored.latestOriginalPostAtByRoom[roomID] = make(map[string]time.Time)
-				}
-				restored.latestOriginalPostAtByRoom[roomID][event.GetActorId()] = eventCreatedAt(event)
+				restored.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
 			}
 			if originalID := event.GetMessagePosted().GetEchoOfEventId(); originalID != "" {
 				restored.echoLinks[originalID] = append(restored.echoLinks[originalID], event.GetId())
@@ -180,7 +177,7 @@ func (p *RoomTimelineProjection) Restore(data []byte) error {
 		restored.refreshAttachmentMessageLocked(roomID, messageID, state.body)
 	}
 	p.Lock()
-	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAtByRoom, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAtByRoom, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
+	p.entries, p.byRoom, p.byEventID, p.messagePostsByRoom, p.latestOriginalPostAt, p.replayGuard, p.bodyStates, p.retractedFlags, p.tombstonedAt, p.shreddedAt, p.attachmentMessageIDsByRoom, p.attachmentMessageRoom, p.echoLinks, p.hiddenEchoes, p.shreddedUsers = restored.entries, restored.byRoom, restored.byEventID, restored.messagePostsByRoom, restored.latestOriginalPostAt, restored.replayGuard, restored.bodyStates, restored.retractedFlags, restored.tombstonedAt, restored.shreddedAt, restored.attachmentMessageIDsByRoom, restored.attachmentMessageRoom, restored.echoLinks, restored.hiddenEchoes, restored.shreddedUsers
 	p.Unlock()
 	return nil
 }

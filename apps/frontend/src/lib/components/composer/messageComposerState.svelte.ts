@@ -488,7 +488,6 @@ export class MessageComposerState {
   }
 
   async #createMessage(): Promise<void> {
-    if (this.#dependencies.getSlowModeBlocked()) return;
     const bodyToSend = bodyForSend(this.message);
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
     if (!hasVisibleContent(bodyToSend) && !filesToSend) return;

@@ -22,11 +22,11 @@ type RoomTimelineProjection struct {
 	byRoom             map[string][]int
 	byEventID          map[string]int
 	messagePostsByRoom map[string][]int
-	// latestOriginalPostAtByRoom retains the newest committed non-echo post
+	// latestOriginalPostAt retains the newest committed non-echo post
 	// timestamp per room and actor. Slow mode reads this O(1) index; edits and
 	// retractions intentionally do not change it.
-	latestOriginalPostAtByRoom map[string]map[string]time.Time
-	replayGuard                projectionReplayGuard
+	latestOriginalPostAt map[roomActorKey]time.Time
+	replayGuard          projectionReplayGuard
 	// bodyStates keeps the current encrypted body and its EVT lifecycle in one
 	// entry per message. supersededSequences stays nil until the first edit,
 	// avoiding a slice allocation for the common single-body case.
@@ -55,6 +55,11 @@ type RoomTimelineProjection struct {
 	// without deleting the original thread reply's content.
 	hiddenEchoes  map[string]struct{}
 	shreddedUsers map[string]struct{}
+}
+
+type roomActorKey struct {
+	roomID  string
+	actorID string
 }
 
 // TimelineEntry is one event's position in a room timeline. Carries
@@ -116,7 +121,7 @@ func NewRoomTimelineProjection() *RoomTimelineProjection {
 		byRoom:                     make(map[string][]int),
 		byEventID:                  make(map[string]int),
 		messagePostsByRoom:         make(map[string][]int),
-		latestOriginalPostAtByRoom: make(map[string]map[string]time.Time),
+		latestOriginalPostAt:       make(map[roomActorKey]time.Time),
 		replayGuard:                newProjectionReplayGuard(),
 		bodyStates:                 make(map[string]timelineBodyState),
 		retractedFlags:             make(map[string]struct{}),
@@ -230,10 +235,7 @@ func (p *RoomTimelineProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 		p.messagePostsByRoom[roomID] = append(p.messagePostsByRoom[roomID], entryIdx)
 		if event.GetMessagePosted().GetEchoOfEventId() == "" && event.GetActorId() != "" {
-			if p.latestOriginalPostAtByRoom[roomID] == nil {
-				p.latestOriginalPostAtByRoom[roomID] = make(map[string]time.Time)
-			}
-			p.latestOriginalPostAtByRoom[roomID][event.GetActorId()] = eventCreatedAt(event)
+			p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: event.GetActorId()}] = eventCreatedAt(event)
 		}
 	}
 	if isVisibleRoomTimelineEntry(event) {
@@ -474,11 +476,7 @@ func (p *RoomTimelineProjection) LastRoomMessageEntry(roomID string) (*TimelineE
 func (p *RoomTimelineProjection) LatestOriginalPostAt(roomID, actorID string) (time.Time, bool) {
 	p.RLock()
 	defer p.RUnlock()
-	byActor := p.latestOriginalPostAtByRoom[roomID]
-	if byActor == nil {
-		return time.Time{}, false
-	}
-	value, ok := byActor[actorID]
+	value, ok := p.latestOriginalPostAt[roomActorKey{roomID: roomID, actorID: actorID}]
 	return value, ok && !value.IsZero()
 }
 
