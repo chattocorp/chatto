@@ -428,11 +428,6 @@ export class NotificationStore {
     await this.fetch();
   }
 
-  async unsubscribeGroup(groupId: string, view: NotificationView): Promise<void> {
-    await this.#api.unsubscribeNotificationGroup(groupId, view);
-    await this.fetch();
-  }
-
   getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
     return this.#api.getNotificationPolicy(roomId);
   }

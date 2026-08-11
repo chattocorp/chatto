@@ -136,13 +136,8 @@ func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID 
 		if c.configModel.notificationServerIntensity(userID, reason) == intensity {
 			return nil, nil
 		}
-		if intensity == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserServerNotificationPreferenceCleared{
-				UserServerNotificationPreferenceCleared: &corev1.UserServerNotificationPreferenceClearedEvent{UserId: userID, Reason: reason},
-			}})}, nil
-		}
-		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserServerNotificationPreferenceSet{
-			UserServerNotificationPreferenceSet: &corev1.UserServerNotificationPreferenceSetEvent{UserId: userID, Reason: reason, Intensity: intensity},
+		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
+			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Reason: reason, Intensity: intensity},
 		}})}, nil
 	})
 }
@@ -155,13 +150,8 @@ func (c *ChattoCore) setRoomNotificationIntensity(ctx context.Context, userID, r
 		if c.configModel.notificationRoomIntensity(userID, roomID, reason) == intensity {
 			return nil, nil
 		}
-		if intensity == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserRoomNotificationPreferenceCleared{
-				UserRoomNotificationPreferenceCleared: &corev1.UserRoomNotificationPreferenceClearedEvent{UserId: userID, RoomId: roomID, Reason: reason},
-			}})}, nil
-		}
-		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserRoomNotificationPreferenceSet{
-			UserRoomNotificationPreferenceSet: &corev1.UserRoomNotificationPreferenceSetEvent{UserId: userID, RoomId: roomID, Reason: reason, Intensity: intensity},
+		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
+			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, RoomId: &roomID, Reason: reason, Intensity: intensity},
 		}})}, nil
 	})
 }

@@ -12,7 +12,7 @@ from room read state.
 
 [GitHub's notification inbox](https://docs.github.com/en/subscriptions-and-notifications/how-tos/viewing-and-triaging-notifications/managing-notifications-from-your-inbox)
 provides a useful interaction model: notifications can be read or unread,
-moved to Done, and unsubscribed without treating all of those actions as content
+moved to Done, and deleted without treating all of those actions as content
 reads. Chatto adopts the Inbox/Done distinction while keeping the first version
 focused on the two actions needed for ordinary triage: Done and Delete. Chatto
 also needs to group related occurrences, such as several DM messages, thread
@@ -49,10 +49,6 @@ The public behavior follows these rules:
   the source activity.
 - Moving a Done item back to Inbox restores it as read by default; the user may
   then mark it unread.
-- Unsubscribe moves the current group to Done and changes the relevant ambient
-  conversation subscription for future activity. Direct-attention reasons,
-  such as a direct mention or reply to the user, can still create a later
-  occurrence unless separately disabled by policy.
 
 These mutations are server-owned and synchronized across every session.
 Single-occurrence mutations are idempotent. Group mutations capture the
@@ -80,13 +76,14 @@ opens the newest unread visible occurrence, or the newest visible occurrence
 when all members are read.
 
 Group list responses contain a bounded newest-member preview, always including
-the open occurrence, plus total count and aggregate state. Exact members
-are available through a separately paginated occurrence list. This bounds both
-ConnectRPC pages and realtime replacement frames even when one busy room, DM,
-or thread has thousands of retained occurrences. Clients render the first
-group page immediately and automatically append later pages as the trailing
-sentinel becomes visible; broad realtime invalidations never eagerly download
-an entire 90-day view.
+the open occurrence, plus total count and aggregate state. The first API does
+not expose a separate exact-member listing; one can be added when a product
+flow needs group expansion. Bounding the preview keeps ConnectRPC pages and
+realtime replacement frames finite even when one busy room, DM, or thread has
+thousands of retained occurrences. Clients render the first group page
+immediately and automatically append later pages as the trailing sentinel
+becomes visible; broad realtime invalidations never eagerly download an entire
+90-day view.
 
 Groups are assembled within a view. Inbox membership includes only Unread and
 Read occurrences, while Done membership includes only Done occurrences. The

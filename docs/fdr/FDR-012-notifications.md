@@ -92,10 +92,8 @@ Alert while preserving its occurrence for later review.
   `@all` mentions do not implicitly follow it.
 - Following a thread or room establishes an ambient activity source whose
   delivery intensity is still controlled by notification policy.
-- Unsubscribe from a notification moves the current group to Done and disables
-  that ambient conversation subscription for future activity.
-- Unsubscribe does not block future direct-attention causes such as a direct
-  mention or a reply to the user. Those causes have their own policy controls.
+- Conversation subscriptions are changed through their owning room or thread
+  controls, not through the initial notification-inbox API.
 
 ## Design Decisions
 
@@ -197,11 +195,10 @@ ADR-069 and FDR-013.
 **Tradeoff:** Delivery waits for durable occurrence creation and may be delayed
 while the notification worker catches up.
 
-### 10. Preferences affect future activity only
+### 10. Policy and subscription changes affect future activity only
 
-**Decision:** Changing a cause intensity or subscription does not retroactively
-rewrite existing occurrences. Unsubscribe explicitly moves the current group
-to Done as part of that action.
+**Decision:** Changing a cause intensity or conversation subscription does not
+retroactively rewrite existing occurrences.
 **Why:** Existing notifications explain decisions made when their activity
 occurred. Silent retroactive cleanup would make inbox history unpredictable.
 **Tradeoff:** After turning a cause Off, users may still need to triage older

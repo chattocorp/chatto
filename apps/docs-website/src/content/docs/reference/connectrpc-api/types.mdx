@@ -735,7 +735,6 @@ A presentation group derived from occurrences in one view.
 | `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
-| `can_unsubscribe` | `bool` | True when the group contains an active ambient subscription that can be disabled through UnsubscribeNotificationGroup. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
 

@@ -2232,73 +2232,6 @@ One page of derived notification groups.
 | `next_inbox_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete Inbox, including groups outside this page. Clients refresh authoritative notification state at this boundary. |
 
 
-<a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
-
-### ListNotificationOccurrences
-
-Lists exact members of one derived notification group.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
-```
-
-<a id="chatto-api-v1-ListNotificationOccurrencesRequest"></a>
-
-#### Input: ListNotificationOccurrencesRequest
-
-Request one page of exact occurrences belonging to a derived group.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required stable group ID from the selected view. |
-| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View containing the group. Unspecified selects Inbox. |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
-
-#### Result: ListNotificationOccurrencesResponse
-
-One bounded page of exact notification occurrences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notifications` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrences in newest-first order. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata for all occurrences in the group and selected view. |
-
-
-<a id="chatto-api-v1-NotificationService-GetNotificationOccurrence"></a>
-
-### GetNotificationOccurrence
-
-Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
-```
-
-<a id="chatto-api-v1-GetNotificationOccurrenceRequest"></a>
-
-#### Input: GetNotificationOccurrenceRequest
-
-Request one notification occurrence owned by the authenticated viewer.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required stable occurrence ID. |
-
-
-<a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
-
-#### Result: GetNotificationOccurrenceResponse
-
-One visible notification occurrence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Requested occurrence. |
-
-
 <a id="chatto-api-v1-NotificationService-UpdateNotificationOccurrence"></a>
 
 ### UpdateNotificationOccurrence
@@ -2330,38 +2263,6 @@ Updated notification occurrence.
 | Field | Type | Description |
 | --- | --- | --- |
 | `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrence after applying the patch. |
-
-
-<a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
-
-### DeleteNotificationOccurrence
-
-Permanently deletes one occurrence from every notification view.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
-```
-
-<a id="chatto-api-v1-DeleteNotificationOccurrenceRequest"></a>
-
-#### Input: DeleteNotificationOccurrenceRequest
-
-Request permanent deletion of one notification occurrence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `notification_id` | `string` | Required stable occurrence ID. |
-
-
-<a id="chatto-api-v1-DeleteNotificationOccurrenceResponse"></a>
-
-#### Result: DeleteNotificationOccurrenceResponse
-
-Result of deleting one notification occurrence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `deleted` | `bool` | True when a visible occurrence was replaced by a deletion tombstone. |
 
 
 <a id="chatto-api-v1-NotificationService-UpdateNotificationGroup"></a>
@@ -2435,44 +2336,6 @@ Result of deleting one derived notification group.
 | Field | Type | Description |
 | --- | --- | --- |
 | `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
-
-
-<a id="chatto-api-v1-NotificationService-UnsubscribeNotificationGroup"></a>
-
-### UnsubscribeNotificationGroup
-
-Disables an ambient thread/room source and moves its current group to Done.
-Group membership is captured when the request is handled. Callers must not
-retry this mutation automatically because later activity may reuse the
-same derived group ID.
-
-```http
-POST /api/connect/chatto.api.v1.NotificationService/UnsubscribeNotificationGroup
-```
-
-<a id="chatto-api-v1-UnsubscribeNotificationGroupRequest"></a>
-
-#### Input: UnsubscribeNotificationGroupRequest
-
-Request to disable a group's ambient source and move it to Done.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `group_id` | `string` | Required stable group ID from the selected view. |
-| `view` | [`NotificationView`](#chatto-api-v1-NotificationView) | View containing the group. Unspecified selects Inbox. |
-
-
-<a id="chatto-api-v1-UnsubscribeNotificationGroupResponse"></a>
-
-#### Result: UnsubscribeNotificationGroupResponse
-
-Result of disabling the group's ambient source and moving its current
-occurrences to Done. Direct mentions and replies remain independently
-eligible under their own policy.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `updated_count` | `int32` | Number of occurrences moved to Done by the unsubscribe action. |
 
 
 <a id="chatto-api-v1-NotificationService-GetNotificationPolicy"></a>
@@ -4553,7 +4416,6 @@ A presentation group derived from occurrences in one view.
 | `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
 | `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
-| `can_unsubscribe` | `bool` | True when the group contains an active ambient subscription that can be disabled through UnsubscribeNotificationGroup. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
 | `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
 

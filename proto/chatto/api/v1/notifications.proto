@@ -253,9 +253,6 @@ enum NotificationInboxState {
 
 // Selects one derived notification-inbox view.
 enum NotificationView {
-  reserved 3;
-  reserved "NOTIFICATION_VIEW_SAVED";
-
   // Defaults to Inbox on reads and mutations.
   NOTIFICATION_VIEW_UNSPECIFIED = 0;
   // Unread and read occurrences that have not been moved to Done.
@@ -286,9 +283,6 @@ message NotificationTarget {
 
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
-  reserved 9;
-  reserved "saved";
-
   // Stable occurrence ID.
   string id = 1;
   // Durable source event from which this occurrence was derived.
@@ -311,9 +305,6 @@ message NotificationOccurrence {
 
 // A presentation group derived from occurrences in one view.
 message NotificationGroup {
-  reserved 9;
-  reserved "all_saved";
-
   // Stable ID derived from the viewer and grouping target.
   string id = 1;
   // Bounded newest-occurrence preview. It also includes the open target when
@@ -332,9 +323,6 @@ message NotificationGroup {
   NotificationDeliveryIntensity strongest_intensity = 7;
   // Distinct causes represented by member occurrences.
   repeated NotificationReason reasons = 8;
-  // True when the group contains an active ambient subscription that can be
-  // disabled through UnsubscribeNotificationGroup.
-  bool can_unsubscribe = 10;
   // Earliest member expiry. Clients refresh the group at this boundary.
   google.protobuf.Timestamp next_expiry_at = 11;
   // Occurrence ID corresponding to open_target, including when several
@@ -363,41 +351,8 @@ message ListNotificationGroupsResponse {
   google.protobuf.Timestamp next_inbox_expiry_at = 4;
 }
 
-// Request one page of exact occurrences belonging to a derived group.
-message ListNotificationOccurrencesRequest {
-  // Required stable group ID from the selected view.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // View containing the group. Unspecified selects Inbox.
-  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
-  // Page request. Defaults to 50 results when absent or limit is zero.
-  PageRequest page = 3;
-}
-
-// One bounded page of exact notification occurrences.
-message ListNotificationOccurrencesResponse {
-  // Occurrences in newest-first order.
-  repeated NotificationOccurrence notifications = 1;
-  // Page metadata for all occurrences in the group and selected view.
-  PageInfo page = 2;
-}
-
-// Request one notification occurrence owned by the authenticated viewer.
-message GetNotificationOccurrenceRequest {
-  // Required stable occurrence ID.
-  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// One visible notification occurrence.
-message GetNotificationOccurrenceResponse {
-  // Requested occurrence.
-  NotificationOccurrence notification = 1;
-}
-
 // Patch one notification occurrence's triage state.
 message UpdateNotificationOccurrenceRequest {
-  reserved 3;
-  reserved "saved";
-
   // Required stable occurrence ID.
   string notification_id = 1 [(buf.validate.field).string.min_len = 1];
   // New inbox state. Omit to leave unchanged.
@@ -413,23 +368,8 @@ message UpdateNotificationOccurrenceResponse {
   NotificationOccurrence notification = 1;
 }
 
-// Request permanent deletion of one notification occurrence.
-message DeleteNotificationOccurrenceRequest {
-  // Required stable occurrence ID.
-  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Result of deleting one notification occurrence.
-message DeleteNotificationOccurrenceResponse {
-  // True when a visible occurrence was replaced by a deletion tombstone.
-  bool deleted = 1;
-}
-
 // Patch all current members of one derived notification group.
 message UpdateNotificationGroupRequest {
-  reserved 4;
-  reserved "saved";
-
   // Required stable group ID from the selected view.
   string group_id = 1 [(buf.validate.field).string.min_len = 1];
   // View whose current group members are updated. Unspecified selects Inbox.
@@ -459,22 +399,6 @@ message DeleteNotificationGroupRequest {
 message DeleteNotificationGroupResponse {
   // Number of visible occurrences replaced by deletion tombstones.
   int32 deleted_count = 1;
-}
-
-// Request to disable a group's ambient source and move it to Done.
-message UnsubscribeNotificationGroupRequest {
-  // Required stable group ID from the selected view.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
-  // View containing the group. Unspecified selects Inbox.
-  NotificationView view = 2 [(buf.validate.field).enum.defined_only = true];
-}
-
-// Result of disabling the group's ambient source and moving its current
-// occurrences to Done. Direct mentions and replies remain independently
-// eligible under their own policy.
-message UnsubscribeNotificationGroupResponse {
-  // Number of occurrences moved to Done by the unsubscribe action.
-  int32 updated_count = 1;
 }
 
 // Explicit and effective delivery policy for one notification cause.
@@ -529,16 +453,8 @@ message SetNotificationPolicyPreferenceResponse {
 service NotificationService {
   // Lists the Notifications 2.0 Inbox or Done groups.
   rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
-  // Lists exact members of one derived notification group.
-  rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
-  // Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
-  rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
   // Patches one occurrence's inbox state.
   rpc UpdateNotificationOccurrence(UpdateNotificationOccurrenceRequest) returns (UpdateNotificationOccurrenceResponse) {
-    option idempotency_level = IDEMPOTENT;
-  }
-  // Permanently deletes one occurrence from every notification view.
-  rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Patches occurrences currently belonging to one derived group.
@@ -551,11 +467,6 @@ service NotificationService {
   // retry this mutation automatically because later activity may reuse the
   // same derived group ID.
   rpc DeleteNotificationGroup(DeleteNotificationGroupRequest) returns (DeleteNotificationGroupResponse);
-  // Disables an ambient thread/room source and moves its current group to Done.
-  // Group membership is captured when the request is handled. Callers must not
-  // retry this mutation automatically because later activity may reuse the
-  // same derived group ID.
-  rpc UnsubscribeNotificationGroup(UnsubscribeNotificationGroupRequest) returns (UnsubscribeNotificationGroupResponse);
   // Gets every supported cause and its effective inherited delivery intensity.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
   // Sets or clears one server- or room-scoped cause override.

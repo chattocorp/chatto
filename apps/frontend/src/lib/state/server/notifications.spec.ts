@@ -17,12 +17,9 @@ import {
 
 type MockNotificationAPI = NotificationAPI & {
   listNotificationGroups: ReturnType<typeof vi.fn>;
-  listNotificationOccurrences: ReturnType<typeof vi.fn>;
-  getNotificationOccurrence: ReturnType<typeof vi.fn>;
   updateNotificationOccurrence: ReturnType<typeof vi.fn>;
   updateNotificationGroup: ReturnType<typeof vi.fn>;
   deleteNotificationGroup: ReturnType<typeof vi.fn>;
-  unsubscribeNotificationGroup: ReturnType<typeof vi.fn>;
   getNotificationPolicy: ReturnType<typeof vi.fn>;
   setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
   listNotifications: ReturnType<typeof vi.fn>;
@@ -102,16 +99,9 @@ function makeAPI(
       if (options.notificationsError) throw options.notificationsError;
       return groupPage(options.notifications ?? page([]));
     }),
-    listNotificationOccurrences: vi.fn().mockResolvedValue({
-      notifications: [],
-      totalCount: 0,
-      hasMore: false
-    }),
-    getNotificationOccurrence: vi.fn<NotificationAPI['getNotificationOccurrence']>(),
     updateNotificationOccurrence: vi.fn().mockResolvedValue(undefined),
     updateNotificationGroup: vi.fn().mockResolvedValue(undefined),
     deleteNotificationGroup: vi.fn().mockResolvedValue(0),
-    unsubscribeNotificationGroup: vi.fn().mockResolvedValue(undefined),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
     setNotificationPolicyPreference: vi.fn().mockResolvedValue([]),
     listNotifications: vi.fn().mockImplementation(async () => {

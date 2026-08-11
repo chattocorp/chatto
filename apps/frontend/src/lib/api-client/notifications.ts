@@ -3,7 +3,6 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListNotificationGroupsResponse,
-  ListNotificationOccurrencesResponse,
   ListRoomNotificationsResponse,
   ListNotificationsResponse,
   NotificationGroup as APINotificationGroup,
@@ -128,7 +127,6 @@ export type NotificationGroupItem = {
   occurrenceCount: number;
   latestAt: string;
   reasons: NotificationReason[];
-  canUnsubscribe?: boolean;
   nextExpiryAt?: string | null;
 };
 
@@ -138,12 +136,6 @@ export type NotificationGroupPage = {
   totalCount: number;
   hasMore: boolean;
   nextInboxExpiryAt?: string | null;
-};
-
-export type NotificationOccurrencePage = {
-  notifications: NotificationOccurrenceItem[];
-  totalCount: number;
-  hasMore: boolean;
 };
 
 export {
@@ -183,35 +175,12 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       );
     },
 
-    async listNotificationOccurrences(
-      groupId: string,
-      view = NotificationView.INBOX,
-      limit = 50,
-      offset = 0
-    ): Promise<NotificationOccurrencePage> {
-      return mapNotificationOccurrencePage(
-        await client.listNotificationOccurrences(
-          { groupId, view, page: { limit, offset } },
-          { headers: headers() }
-        )
-      );
-    },
-
     async updateNotificationGroup(
       groupId: string,
       view: NotificationView,
       update: { inboxState?: NotificationInboxState }
     ): Promise<void> {
       await client.updateNotificationGroup({ groupId, view, ...update }, { headers: headers() });
-    },
-
-    async getNotificationOccurrence(notificationId: string): Promise<NotificationOccurrenceItem> {
-      const response = await client.getNotificationOccurrence(
-        { notificationId },
-        { headers: headers() }
-      );
-      if (!response.notification) throw new Error('Notification occurrence was not returned');
-      return notificationOccurrence(response.notification);
     },
 
     async updateNotificationOccurrence(
@@ -231,10 +200,6 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         (await client.deleteNotificationGroup({ groupId, view }, { headers: headers() }))
           .deletedCount
       );
-    },
-
-    async unsubscribeNotificationGroup(groupId: string, view: NotificationView): Promise<void> {
-      await client.unsubscribeNotificationGroup({ groupId, view }, { headers: headers() });
     },
 
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
@@ -321,16 +286,6 @@ export function mapNotificationGroupPage(
   };
 }
 
-export function mapNotificationOccurrencePage(
-  response: ListNotificationOccurrencesResponse
-): NotificationOccurrencePage {
-  return {
-    notifications: response.notifications.map(notificationOccurrence),
-    totalCount: Number(response.page?.totalCount ?? 0),
-    hasMore: response.page?.hasMore ?? false
-  };
-}
-
 function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
   const occurrences = group.occurrences.map(notificationOccurrence);
   const targetEventId = group.openTarget?.eventId;
@@ -346,7 +301,6 @@ function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
     occurrenceCount: Number(group.occurrenceCount),
     latestAt: group.latestAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     reasons: [...group.reasons],
-    canUnsubscribe: group.canUnsubscribe,
     nextExpiryAt: group.nextExpiryAt?.toDate().toISOString() ?? null
   };
 }

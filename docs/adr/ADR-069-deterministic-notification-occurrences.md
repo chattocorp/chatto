@@ -32,6 +32,12 @@ facts in `EVT`. A recipient-specific **notification occurrence** is a bounded
 latest-value record in `RUNTIME_STATE`; it is not appended to `EVT` and is not
 a second copy of the source content.
 
+Per-cause policy changes use one `UserNotificationPreferenceChangedEvent` for
+both server and room scope and for setting or clearing an override. The legacy
+notification-level event variants remain unchanged: their tags and payloads
+are already persisted, and reusing them for per-cause preferences would let an
+older replica misinterpret a new preference as a legacy level update.
+
 Each occurrence has one deterministic identity derived from the recipient ID
 and the canonical source event ID. One source event can therefore create at
 most one occurrence for a recipient, even when several notification reasons

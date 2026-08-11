@@ -45,8 +45,7 @@ const { mocks } = vi.hoisted(() => ({
         markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
         moveGroupToDone: vi.fn().mockResolvedValue(undefined),
         restoreGroupToInbox: vi.fn().mockResolvedValue(undefined),
-        deleteGroup: vi.fn().mockResolvedValue(undefined),
-        unsubscribeGroup: vi.fn().mockResolvedValue(undefined)
+        deleteGroup: vi.fn().mockResolvedValue(undefined)
       },
       pendingHighlights: {
         set: vi.fn()

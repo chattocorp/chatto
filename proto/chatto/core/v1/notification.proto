@@ -177,9 +177,6 @@ message NotificationTarget {
 // from one canonical source event. It is stored under a deterministic
 // notification_v2 key with an absolute 90-day lifetime.
 message NotificationOccurrence {
-  reserved 10;
-  reserved "saved";
-
   string id = 1;
   string recipient_id = 2;
   string source_event_id = 3;

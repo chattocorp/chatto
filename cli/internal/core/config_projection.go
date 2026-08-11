@@ -104,34 +104,35 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		if u := p.users[e.UserRoomNotificationLevelCleared.GetUserId()]; u != nil {
 			delete(u.roomLevelByRoom, e.UserRoomNotificationLevelCleared.GetRoomId())
 		}
-	case *corev1.Event_UserServerNotificationPreferenceSet:
-		u := p.ensureUserLocked(e.UserServerNotificationPreferenceSet.GetUserId())
-		if u.serverIntensityByReason == nil {
-			u.serverIntensityByReason = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+	case *corev1.Event_UserNotificationPreferenceChanged:
+		preference := e.UserNotificationPreferenceChanged
+		u := p.ensureUserLocked(preference.GetUserId())
+		if preference.RoomId == nil {
+			if preference.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+				delete(u.serverIntensityByReason, preference.GetReason())
+				break
+			}
+			if u.serverIntensityByReason == nil {
+				u.serverIntensityByReason = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+			}
+			u.serverIntensityByReason[preference.GetReason()] = preference.GetIntensity()
+			break
 		}
-		u.serverIntensityByReason[e.UserServerNotificationPreferenceSet.GetReason()] = e.UserServerNotificationPreferenceSet.GetIntensity()
-	case *corev1.Event_UserServerNotificationPreferenceCleared:
-		if u := p.users[e.UserServerNotificationPreferenceCleared.GetUserId()]; u != nil {
-			delete(u.serverIntensityByReason, e.UserServerNotificationPreferenceCleared.GetReason())
-		}
-	case *corev1.Event_UserRoomNotificationPreferenceSet:
-		u := p.ensureUserLocked(e.UserRoomNotificationPreferenceSet.GetUserId())
-		if u.roomIntensityByRoomAndCause == nil {
-			u.roomIntensityByRoomAndCause = make(map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
-		}
-		roomID := e.UserRoomNotificationPreferenceSet.GetRoomId()
-		if u.roomIntensityByRoomAndCause[roomID] == nil {
-			u.roomIntensityByRoomAndCause[roomID] = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
-		}
-		u.roomIntensityByRoomAndCause[roomID][e.UserRoomNotificationPreferenceSet.GetReason()] = e.UserRoomNotificationPreferenceSet.GetIntensity()
-	case *corev1.Event_UserRoomNotificationPreferenceCleared:
-		if u := p.users[e.UserRoomNotificationPreferenceCleared.GetUserId()]; u != nil {
-			roomID := e.UserRoomNotificationPreferenceCleared.GetRoomId()
-			delete(u.roomIntensityByRoomAndCause[roomID], e.UserRoomNotificationPreferenceCleared.GetReason())
+		roomID := preference.GetRoomId()
+		if preference.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+			delete(u.roomIntensityByRoomAndCause[roomID], preference.GetReason())
 			if len(u.roomIntensityByRoomAndCause[roomID]) == 0 {
 				delete(u.roomIntensityByRoomAndCause, roomID)
 			}
+			break
 		}
+		if u.roomIntensityByRoomAndCause == nil {
+			u.roomIntensityByRoomAndCause = make(map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+		}
+		if u.roomIntensityByRoomAndCause[roomID] == nil {
+			u.roomIntensityByRoomAndCause[roomID] = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+		}
+		u.roomIntensityByRoomAndCause[roomID][preference.GetReason()] = preference.GetIntensity()
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:

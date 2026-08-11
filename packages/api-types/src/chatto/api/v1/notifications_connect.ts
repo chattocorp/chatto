@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UnsubscribeNotificationGroupRequest, UnsubscribeNotificationGroupResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
+import { BatchGetNotificationsRequest, BatchGetNotificationsResponse, DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DismissAllNotificationsRequest, DismissAllNotificationsResponse, DismissNotificationRequest, DismissNotificationResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, GetNotificationRequest, GetNotificationResponse, HasNotificationsRequest, HasNotificationsResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, ListNotificationsRequest, ListNotificationsResponse, ListRoomNotificationCountsRequest, ListRoomNotificationCountsResponse, ListRoomNotificationsRequest, ListRoomNotificationsResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse, UpdateNotificationGroupRequest, UpdateNotificationGroupResponse, UpdateNotificationOccurrenceRequest, UpdateNotificationOccurrenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -26,28 +26,6 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists exact members of one derived notification group.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.ListNotificationOccurrences
-     */
-    listNotificationOccurrences: {
-      name: "ListNotificationOccurrences",
-      I: ListNotificationOccurrencesRequest,
-      O: ListNotificationOccurrencesResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets one visible occurrence. Returns NOT_FOUND when absent or inaccessible.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
-     */
-    getNotificationOccurrence: {
-      name: "GetNotificationOccurrence",
-      I: GetNotificationOccurrenceRequest,
-      O: GetNotificationOccurrenceResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
      * Patches one occurrence's inbox state.
      *
      * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationOccurrence
@@ -56,18 +34,6 @@ export const NotificationService = {
       name: "UpdateNotificationOccurrence",
       I: UpdateNotificationOccurrenceRequest,
       O: UpdateNotificationOccurrenceResponse,
-      kind: MethodKind.Unary,
-      idempotency: MethodIdempotency.Idempotent,
-    },
-    /**
-     * Permanently deletes one occurrence from every notification view.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationOccurrence
-     */
-    deleteNotificationOccurrence: {
-      name: "DeleteNotificationOccurrence",
-      I: DeleteNotificationOccurrenceRequest,
-      O: DeleteNotificationOccurrenceResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },
@@ -97,20 +63,6 @@ export const NotificationService = {
       name: "DeleteNotificationGroup",
       I: DeleteNotificationGroupRequest,
       O: DeleteNotificationGroupResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Disables an ambient thread/room source and moves its current group to Done.
-     * Group membership is captured when the request is handled. Callers must not
-     * retry this mutation automatically because later activity may reuse the
-     * same derived group ID.
-     *
-     * @generated from rpc chatto.api.v1.NotificationService.UnsubscribeNotificationGroup
-     */
-    unsubscribeNotificationGroup: {
-      name: "UnsubscribeNotificationGroup",
-      I: UnsubscribeNotificationGroupRequest,
-      O: UnsubscribeNotificationGroupResponse,
       kind: MethodKind.Unary,
     },
     /**

@@ -252,10 +252,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent`          |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent`                 |
 | `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent`             |
-| `evt.config.{subject}.user_server_notification_preference_set`   | `UserServerNotificationPreferenceSetEvent`               |
-| `evt.config.{subject}.user_server_notification_preference_cleared` | `UserServerNotificationPreferenceClearedEvent`         |
-| `evt.config.{subject}.user_room_notification_preference_set`     | `UserRoomNotificationPreferenceSetEvent`                 |
-| `evt.config.{subject}.user_room_notification_preference_cleared` | `UserRoomNotificationPreferenceClearedEvent`             |
+| `evt.config.{subject}.user_notification_preference_changed`     | `UserNotificationPreferenceChangedEvent`                 |
 | `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
 | `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
 | `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |

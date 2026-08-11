@@ -62,22 +62,6 @@ func (a *notificationAssembler) occurrenceWithPresence(ctx context.Context, occu
 	}, nil
 }
 
-func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) ([]*apiv1.NotificationOccurrence, error) {
-	actorIDs := make([]string, 0, len(occurrences))
-	for _, occurrence := range occurrences {
-		if actorID := occurrence.GetActorId(); actorID != "" {
-			actorIDs = append(actorIDs, actorID)
-		}
-	}
-	presences, err := a.api.core.GetUserPresences(ctx, actorIDs)
-	if err != nil {
-		return nil, err
-	}
-	return parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
-		return a.occurrenceWithPresence(ctx, occurrence, presences[occurrence.GetActorId()])
-	})
-}
-
 func (a *notificationAssembler) groups(ctx context.Context, groups []core.NotificationOccurrenceGroup) ([]*apiv1.NotificationGroup, error) {
 	actorIDs := make([]string, 0)
 	for _, group := range groups {
@@ -101,7 +85,6 @@ func (a *notificationAssembler) groupWithPresences(ctx context.Context, group co
 		return nil, nil
 	}
 	unread := false
-	canUnsubscribe := false
 	strongest := corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	reasonSet := make(map[corev1.NotificationReason]struct{})
 	var openOccurrence *corev1.NotificationOccurrence
@@ -121,8 +104,6 @@ func (a *notificationAssembler) groupWithPresences(ctx context.Context, group co
 		}
 		for _, match := range occurrence.GetReasons() {
 			reasonSet[match.GetReason()] = struct{}{}
-			active := match.GetIntensity() > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF
-			canUnsubscribe = canUnsubscribe || active && (match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD || match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
 		}
 	}
 	if openOccurrence == nil {
@@ -166,7 +147,6 @@ func (a *notificationAssembler) groupWithPresences(ctx context.Context, group co
 		LatestAt:           items[0].GetCreatedAt(),
 		StrongestIntensity: apiv1.NotificationDeliveryIntensity(strongest),
 		Reasons:            reasons,
-		CanUnsubscribe:     canUnsubscribe,
 		NextExpiryAt:       nextExpiry.GetExpiresAt(),
 		OpenNotificationId: openOccurrence.GetId(),
 	}, nil

@@ -1611,80 +1611,9 @@ func TestNotificationServiceOccurrenceInboxLifecycle(t *testing.T) {
 		t.Fatalf("notification policy = %+v, want direct mention Badge", policy.Msg.GetPreferences())
 	}
 
-	channel := env.createJoinedRoom("notification-v2-unsubscribe")
-	ambient, _, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
-		RecipientID:   env.viewer.Id,
-		SourceEventID: "notification-v2-ambient-source",
-		SourceCreated: time.Now().UTC(),
-		ActorID:       actor.Id,
-		Target:        &corev1.NotificationTarget{RoomId: channel.Id, EventId: "notification-v2-ambient-source"},
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		}},
-		SkipReadLookup: true,
-	})
-	if err != nil {
-		t.Fatalf("Create ambient occurrence: %v", err)
-	}
-	ambientGroups, err := env.core.NotificationOccurrences().Groups(env.ctx, env.viewer.Id, core.NotificationOccurrenceViewInbox)
-	if err != nil {
-		t.Fatalf("ambient Groups: %v", err)
-	}
-	var ambientGroupID string
-	for _, candidate := range ambientGroups {
-		for _, member := range candidate.Occurrences {
-			if member.GetId() == ambient.GetId() {
-				ambientGroupID = candidate.ID
-			}
-		}
-	}
-	if ambientGroupID == "" {
-		t.Fatal("ambient notification group missing")
-	}
-	if _, err := env.notifications.UnsubscribeNotificationGroup(ctx, connect.NewRequest(&apiv1.UnsubscribeNotificationGroupRequest{
-		GroupId: ambientGroupID,
-		View:    apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-	})); err != nil {
-		t.Fatalf("UnsubscribeNotificationGroup: %v", err)
-	}
-	preference := env.core.GetEffectiveNotificationIntensity(env.viewer.Id, channel.Id, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
-	if preference != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
-		t.Fatalf("followed-room intensity = %v, want Off", preference)
-	}
-	updatedAmbient, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, ambient.GetId())
-	if err != nil || updatedAmbient.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_DONE {
-		t.Fatalf("ambient occurrence after unsubscribe = %+v, %v, want Done", updatedAmbient, err)
-	}
-
-	mention, _, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
-		RecipientID:   env.viewer.Id,
-		SourceEventID: "notification-v2-mention-source",
-		SourceCreated: time.Now().UTC(),
-		ActorID:       actor.Id,
-		Target:        &corev1.NotificationTarget{RoomId: channel.Id, EventId: "notification-v2-mention-source"},
-		Reasons: []*corev1.NotificationReasonMatch{
-			{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT},
-			{Reason: corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF},
-		},
-		SkipReadLookup: true,
-	})
-	if err != nil {
-		t.Fatalf("Create mention occurrence: %v", err)
-	}
-	mentionGroups, err := env.core.NotificationOccurrences().Groups(env.ctx, env.viewer.Id, core.NotificationOccurrenceViewInbox)
-	if err != nil || len(mentionGroups) != 1 || len(mentionGroups[0].Occurrences) != 1 || mentionGroups[0].Occurrences[0].GetId() != mention.GetId() {
-		t.Fatalf("mention Groups = %+v, %v, want one mention group", mentionGroups, err)
-	}
-	if _, err := env.notifications.UnsubscribeNotificationGroup(ctx, connect.NewRequest(&apiv1.UnsubscribeNotificationGroupRequest{
-		GroupId: mentionGroups[0].ID,
-		View:    apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("UnsubscribeNotificationGroup inactive ambient cause code = %v, want invalid_argument", connect.CodeOf(err))
-	}
 }
 
-func TestNotificationServiceBoundsGroupPreviewAndPaginatesOccurrences(t *testing.T) {
+func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-v2-page-actor", "Notification Page Actor", "password")
@@ -1715,18 +1644,6 @@ func TestNotificationServiceBoundsGroupPreviewAndPaginatesOccurrences(t *testing
 	projection, err := env.api.BuildRealtimeProjectionNotifications(env.ctx, env.viewer.Id)
 	if err != nil || projection.Groups.GetNextInboxExpiryAt() == nil {
 		t.Fatalf("realtime Inbox expiry boundary = %+v, %v", projection, err)
-	}
-
-	page, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
-		GroupId: group.GetId(),
-		View:    apiv1.NotificationView_NOTIFICATION_VIEW_INBOX,
-		Page:    &apiv1.PageRequest{Limit: 10, Offset: 20},
-	}))
-	if err != nil {
-		t.Fatalf("ListNotificationOccurrences: %v", err)
-	}
-	if got := len(page.Msg.GetNotifications()); got != 5 || page.Msg.GetPage().GetTotalCount() != int64(notificationGroupOccurrencePreviewLimit+5) || page.Msg.GetPage().GetHasMore() {
-		t.Fatalf("occurrence page = %+v, want final five of 25", page.Msg)
 	}
 
 	live, err := env.nc.SubscribeSync(subjects.LiveSyncUserEvent(env.viewer.Id, "notification_v2"))

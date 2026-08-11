@@ -235,10 +235,8 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
       dismissNotification: vi.fn(),
       dismissAllNotifications: vi.fn(),
       updateNotificationOccurrence: vi.fn(),
-      deleteNotificationOccurrence: vi.fn(),
       updateNotificationGroup: vi.fn(),
       deleteNotificationGroup: vi.fn(),
-      unsubscribeNotificationGroup: vi.fn(),
       getNotificationPolicy: vi.fn(() => Promise.resolve([])),
       setNotificationPolicyPreference: vi.fn(() => Promise.resolve([]))
     }))
