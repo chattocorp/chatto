@@ -94,18 +94,25 @@ func apiOAuthClientSource(source corev1.OAuthClientSource) adminv1.OAuthClientSo
 	case corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN:
 		return adminv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN
 	default:
-		return adminv1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED
+		// The public and durable enums intentionally share numeric assignments.
+		// Preserve future values so an older administration client can fail
+		// closed instead of mislabelling an unsupported source.
+		return adminv1.OAuthClientSource(source)
 	}
 }
 
 func apiOAuthClientPolicy(policy corev1.OAuthClientPolicy) adminv1.OAuthClientPolicy {
 	switch policy {
+	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT:
+		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT
 	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED:
 		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED
 	case corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED:
 		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
 	default:
-		return adminv1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT
+		// Preserve unknown numeric values across the durable/public boundary so
+		// clients can render them as unsupported and disable policy editing.
+		return adminv1.OAuthClientPolicy(policy)
 	}
 }
 

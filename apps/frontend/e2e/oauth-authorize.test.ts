@@ -245,6 +245,14 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 			await adminContext.close();
 		}
 
+		// The remote connection was already live before the policy change. The
+		// server must terminate that exact OAuth client's socket so the bundled
+		// frontend observes the revoked credential without a reload.
+		await expect(
+			page.getByRole('status').filter({ hasText: 'E2E Test Server needs sign-in' })
+		).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+		await expect(page.getByRole('button', { name: 'Reconnect', exact: true })).toBeVisible();
+
 		try {
 			await getViewerOnRemote(baseURL, remoteToken!);
 			throw new Error('blocked OAuth access token remained valid');

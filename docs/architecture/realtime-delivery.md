@@ -23,6 +23,17 @@ It may name room timelines already retained with the projection. After
 subscription, `hydrate_room` materialises another joined room over the same
 ordered stream.
 
+OAuth access-token connections retain their validated client identity after the
+hello. Each connection registers a process-local watcher with the durable
+OAuth-client projection before continuing. When any replica commits a blocked
+or unsupported policy, every replica's projection closes only the watchers for
+that client; the handler first cancels authorized work, then best-effort sends
+the established terminal `authentication_required` close and tears down the socket.
+Registration and the projected-state check are atomic with projection
+application, so a block racing connection setup cannot leave an authorized
+socket behind. Cookie sessions, first-party bearer sessions, and OAuth sessions
+issued to other clients are unaffected.
+
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
 behavioural protocol version. Protocol 2 is the server-scoped projection
 stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on

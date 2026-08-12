@@ -256,7 +256,9 @@ describe('server security query lifecycle', () => {
       clientName: 'Alpha',
       clientOrigin: 'https://alpha.example',
       source: 'cimd' as const,
+      sourceCode: 1,
       policy: 'default' as const,
+      policyCode: 1,
       firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
       lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
       redirectOrigins: ['https://alpha.example'],
@@ -343,6 +345,41 @@ describe('server security query lifecycle', () => {
     );
     await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledWith('Policy update rejected'));
     expect(policy.value).toBe('default');
+  });
+
+  it('shows unknown future policies without allowing an overwrite', async () => {
+    const client: OAuthClient = {
+      clientId: 'https://future.example/oauth/client-metadata.json',
+      clientName: 'Future Client',
+      clientOrigin: 'https://future.example',
+      source: 'unknown',
+      sourceCode: 99,
+      policy: 'unknown',
+      policyCode: 101,
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://future.example'],
+      authorizedUserCount: 1
+    };
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [client],
+      totalCount: 1,
+      hasMore: false
+    });
+
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Future Client'));
+
+    const policy = container.querySelector('select') as HTMLSelectElement;
+    expect(policy.value).toBe('unknown');
+    expect(policy.disabled).toBe(true);
+    expect(policy.selectedOptions[0]?.textContent?.trim()).toBe('Unknown (101)');
+
+    policy.value = 'blocked';
+    policy.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(mocks.updateOAuthClientPolicy).not.toHaveBeenCalled();
+    expect(policy.value).toBe('unknown');
   });
 
   it('shows a confirmed policy when the background list refresh fails', async () => {

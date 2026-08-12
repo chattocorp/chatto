@@ -49,7 +49,9 @@ requests do not add entries.
 Managers can leave a client at its default policy, label it trusted, or block
 it. Trusted is an informational label; every user must still approve the
 client. Blocking prevents new authorization and rejects or revokes the
-client's existing OAuth access tokens.
+client's existing OAuth access tokens. Active realtime connections belonging
+to that client are closed across every server replica; the same user's
+first-party sessions and connections from other clients remain active.
 
 ## Deployment Requirements
 

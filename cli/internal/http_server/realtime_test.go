@@ -18,6 +18,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
@@ -593,6 +594,163 @@ func TestRealtimeWebSocketAuthenticatesWithBearerHello(t *testing.T) {
 
 	conn := env.connectRealtime(t)
 	subscribeRealtime(t, conn, token)
+}
+
+func TestRealtimeWebSocketClosesOnlyBlockedOAuthClientConnections(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-oauth-block", "RT OAuth Block", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	const (
+		clientID      = "https://realtime-client.example/oauth/client-metadata.json"
+		otherClientID = "https://other-client.example/oauth/client-metadata.json"
+	)
+	if err := env.core.RecordOAuthClientAuthorization(
+		env.ctx,
+		user.Id,
+		clientID,
+		"Realtime Client",
+		"https://realtime-client.example",
+		"https://realtime-client.example",
+		corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+	); err != nil {
+		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
+	}
+	if err := env.core.RecordOAuthClientAuthorization(
+		env.ctx,
+		user.Id,
+		otherClientID,
+		"Other Client",
+		"https://other-client.example",
+		"https://other-client.example",
+		corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+	); err != nil {
+		t.Fatalf("RecordOAuthClientAuthorization(other): %v", err)
+	}
+	authGeneration, err := env.core.CurrentAuthGeneration(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	oauthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, clientID, authGeneration)
+	if err != nil {
+		t.Fatalf("CreateOAuthAccessTokenForClient: %v", err)
+	}
+	otherOAuthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, otherClientID, authGeneration)
+	if err != nil {
+		t.Fatalf("CreateOAuthAccessTokenForClient(other): %v", err)
+	}
+	firstPartyToken, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	oauthConn := env.connectRealtime(t)
+	subscribeRealtime(t, oauthConn, oauthToken)
+	firstPartyConn := env.connectRealtime(t)
+	subscribeRealtime(t, firstPartyConn, firstPartyToken)
+	otherOAuthConn := env.connectRealtime(t)
+	subscribeRealtime(t, otherOAuthConn, otherOAuthToken)
+
+	// Commit only the policy fact so socket termination cannot accidentally
+	// depend on the best-effort runtime-token cleanup performed by the admin
+	// operation.
+	aggregate := evtstream.OAuthClientAggregate(clientID)
+	sequence, err := env.core.EventPublisher.LastSubjectSeq(env.ctx, aggregate.AllEventsFilter())
+	if err != nil {
+		t.Fatalf("read OAuth client aggregate sequence: %v", err)
+	}
+	blocked := &corev1.Event{
+		Id:        core.NewEventID(),
+		ActorId:   user.Id,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_OauthClientPolicyChanged{
+			OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{
+				ClientId: clientID,
+				Policy:   corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
+			},
+		},
+	}
+	if _, err := env.core.EventPublisher.AppendAtFilter(
+		env.ctx,
+		aggregate.SubjectFor(blocked),
+		blocked,
+		aggregate.AllEventsFilter(),
+		sequence,
+	); err != nil {
+		t.Fatalf("publish OAuth client block: %v", err)
+	}
+
+	frame, ok := readRealtimeServerFrame(t, oauthConn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("blocked OAuth socket frame = %+v, want terminal authentication_required", frame)
+	}
+	if err := realtimePingRoundTrip(firstPartyConn, "still-authorized"); err != nil {
+		t.Fatalf("first-party socket was affected by OAuth client block: %v", err)
+	}
+	if err := realtimePingRoundTrip(otherOAuthConn, "other-client-still-authorized"); err != nil {
+		t.Fatalf("other OAuth client's socket was affected by block: %v", err)
+	}
+
+	reconnect := env.connectRealtime(t)
+	sendRealtimeClientFrame(t, reconnect, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_Hello{
+		Hello: &realtimev1.RealtimeClientHello{
+			ProtocolVersion: realtimeProtocolVersion,
+			BearerToken:     proto.String(oauthToken),
+		},
+	}})
+	rejected, ok := readRealtimeServerFrame(t, reconnect, 5*time.Second)
+	if !ok || rejected.GetError().GetCode() != "authentication_required" {
+		t.Fatalf("blocked OAuth reconnect = %+v, want authentication_required", rejected)
+	}
+}
+
+func TestOAuthClientBlockCancelsAuthorizationBeforeCloseWriteCompletes(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	writeStarted := make(chan *realtimev1.RealtimeServerFrame, 1)
+	releaseWrite := make(chan struct{})
+	connectionClosed := make(chan struct{})
+	finished := make(chan struct{})
+
+	go func() {
+		defer close(finished)
+		terminateRealtimeForOAuthClientBlock(
+			cancel,
+			func(frame *realtimev1.RealtimeServerFrame) error {
+				writeStarted <- frame
+				<-releaseWrite
+				return nil
+			},
+			func() { close(connectionClosed) },
+		)
+	}()
+
+	frame := <-writeStarted
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("authorized context remained active while close-frame write was blocked")
+	}
+	if frame.GetClose().GetCode() != "authentication_required" || frame.GetClose().GetReconnect() {
+		t.Fatalf("terminal frame = %+v, want non-reconnecting authentication_required", frame)
+	}
+	select {
+	case <-connectionClosed:
+		t.Fatal("connection closed before the best-effort terminal frame completed")
+	default:
+	}
+
+	close(releaseWrite)
+	select {
+	case <-finished:
+	case <-time.After(time.Second):
+		t.Fatal("blocked OAuth client termination did not finish after releasing writer")
+	}
+	select {
+	case <-connectionClosed:
+	default:
+		t.Fatal("connection remained open after terminal-frame write completed")
+	}
 }
 
 func TestRealtimeWebSocketBoundsWholeCatchUpDuration(t *testing.T) {

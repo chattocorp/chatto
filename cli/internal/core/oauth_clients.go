@@ -45,18 +45,41 @@ func (c *ChattoCore) RequireOAuthClientAllowed(ctx context.Context, clientID str
 	if err := c.oauthClientModel.projection.Projector().WaitForCurrent(ctx); err != nil {
 		return err
 	}
-	if c.oauthClientBlocked(clientID) {
+	if c.oauthClientAccessDenied(clientID) {
 		return ErrOAuthClientBlocked
 	}
 	return nil
 }
 
-func (c *ChattoCore) oauthClientBlocked(clientID string) bool {
+func (c *ChattoCore) oauthClientAccessDenied(clientID string) bool {
 	if c.oauthClientModel == nil || clientID == "" {
 		return false
 	}
 	state, ok := c.oauthClientModel.projection.Projection().get(clientID)
-	return ok && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
+	return ok && oauthClientPolicyDeniesAccess(state.Policy)
+}
+
+func oauthClientPolicyDeniesAccess(policy corev1.OAuthClientPolicy) bool {
+	return policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT &&
+		policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED
+}
+
+func oauthClientPolicySupported(policy corev1.OAuthClientPolicy) bool {
+	return policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT ||
+		policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED ||
+		policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
+}
+
+// WatchOAuthClientAccessDenied returns a process-local notification backed by
+// the durable OAuth-client projection. The channel closes when this replica
+// observes a blocked or unsupported policy. Callers must invoke the returned
+// cleanup function when they stop watching.
+func (c *ChattoCore) WatchOAuthClientAccessDenied(clientID string) (<-chan struct{}, func()) {
+	clientID = strings.TrimSpace(clientID)
+	if c.oauthClientModel == nil || clientID == "" {
+		return nil, func() {}
+	}
+	return c.oauthClientModel.projection.Projection().watchAccessDenied(clientID)
 }
 
 // CreateOAuthClientAuthorizationCode creates an authorization code before it
@@ -121,7 +144,7 @@ func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID
 		}
 		state, exists := c.oauthClientModel.projection.Projection().get(clientID)
 		origin := OAuthConsentOrigin(redirectOrigin)
-		if exists && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+		if exists && oauthClientPolicyDeniesAccess(state.Policy) {
 			return events.StreamPosition{}, ErrOAuthClientBlocked
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
@@ -170,7 +193,7 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 	if err := c.requireServerPermission(ctx, actorID, PermServerManage); err != nil {
 		return OAuthClientState{}, err
 	}
-	if policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT && policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED && policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
+	if !oauthClientPolicySupported(policy) {
 		return OAuthClientState{}, ErrInvalidArgument
 	}
 	clientID = strings.TrimSpace(clientID)
@@ -186,6 +209,9 @@ func (c *ChattoCore) UpdateOAuthClientPolicy(ctx context.Context, actorID, clien
 		state, ok := c.oauthClientModel.projection.Projection().get(clientID)
 		if !ok {
 			return OAuthClientState{}, ErrNotFound
+		}
+		if !oauthClientPolicySupported(state.Policy) {
+			return OAuthClientState{}, ErrInvalidArgument
 		}
 		if state.Policy == policy {
 			return state, nil

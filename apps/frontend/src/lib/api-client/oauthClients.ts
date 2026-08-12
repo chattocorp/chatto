@@ -6,14 +6,18 @@ import {
 } from '@chatto/api-types/admin/v1/oauth_clients_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 
-export type OAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
+export type EditableOAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
+export type OAuthClientPolicyName = EditableOAuthClientPolicyName | 'unknown';
+export type OAuthClientSourceName = 'cimd' | 'built-in' | 'unknown';
 
 export type OAuthClient = {
   clientId: string;
   clientName: string;
   clientOrigin: string;
-  source: 'cimd' | 'built-in';
+  source: OAuthClientSourceName;
+  sourceCode: number;
   policy: OAuthClientPolicyName;
+  policyCode: number;
   firstAuthorizationAt: string;
   lastAuthorizationAt: string;
   redirectOrigins: string[];
@@ -41,7 +45,7 @@ export function createOAuthClientAPI(config: OAuthClientAPIConfig) {
         hasMore: response.page?.hasMore ?? false
       };
     },
-    async updatePolicy(clientId: string, policy: OAuthClientPolicyName) {
+    async updatePolicy(clientId: string, policy: EditableOAuthClientPolicyName) {
       const response = await client.updateOAuthClientPolicy(
         { clientId, policy: apiPolicy(policy) },
         { headers: headers() }
@@ -52,14 +56,15 @@ export function createOAuthClientAPI(config: OAuthClientAPIConfig) {
   };
 }
 
-function mapOAuthClient(client: APIOAuthClient): OAuthClient {
+export function mapOAuthClient(client: APIOAuthClient): OAuthClient {
   return {
     clientId: client.clientId,
     clientName: client.clientName,
     clientOrigin: client.clientOrigin,
-    source:
-      client.source === OAuthClientSource.OAUTH_CLIENT_SOURCE_BUILT_IN ? 'built-in' : 'cimd',
+    source: sourceName(client.source),
+    sourceCode: client.source,
     policy: policyName(client.policy),
+    policyCode: client.policy,
     firstAuthorizationAt: client.firstAuthorizationAt?.toDate().toISOString() ?? '',
     lastAuthorizationAt: client.lastAuthorizationAt?.toDate().toISOString() ?? '',
     redirectOrigins: [...client.redirectOrigins],
@@ -67,14 +72,22 @@ function mapOAuthClient(client: APIOAuthClient): OAuthClient {
   };
 }
 
-function policyName(policy: OAuthClientPolicy): OAuthClientPolicyName {
-  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_TRUSTED) return 'trusted';
-  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_BLOCKED) return 'blocked';
-  return 'default';
+function sourceName(source: OAuthClientSource): OAuthClientSourceName {
+  if (source === OAuthClientSource.OAUTH_CLIENT_SOURCE_CIMD) return 'cimd';
+  if (source === OAuthClientSource.OAUTH_CLIENT_SOURCE_BUILT_IN) return 'built-in';
+  return 'unknown';
 }
 
-function apiPolicy(policy: OAuthClientPolicyName): OAuthClientPolicy {
+function policyName(policy: OAuthClientPolicy): OAuthClientPolicyName {
+  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_DEFAULT) return 'default';
+  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_TRUSTED) return 'trusted';
+  if (policy === OAuthClientPolicy.OAUTH_CLIENT_POLICY_BLOCKED) return 'blocked';
+  return 'unknown';
+}
+
+function apiPolicy(policy: EditableOAuthClientPolicyName): OAuthClientPolicy {
+  if (policy === 'default') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_DEFAULT;
   if (policy === 'trusted') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_TRUSTED;
   if (policy === 'blocked') return OAuthClientPolicy.OAUTH_CLIENT_POLICY_BLOCKED;
-  return OAuthClientPolicy.OAUTH_CLIENT_POLICY_DEFAULT;
+  throw new Error('Unsupported OAuth client policy.');
 }

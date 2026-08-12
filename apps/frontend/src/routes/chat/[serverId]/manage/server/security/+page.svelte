@@ -10,7 +10,7 @@
   import {
     createOAuthClientAPI,
     type OAuthClient,
-    type OAuthClientPolicyName
+    type EditableOAuthClientPolicyName
   } from '$lib/api-client/oauthClients';
   import { getServerSecurityConfig, updateBlockedUsernames } from '$lib/api-client/serverState';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -58,7 +58,7 @@
     serverId: string;
     connection: ServerConnection;
     clientId: string;
-    policy: OAuthClientPolicyName;
+    policy: EditableOAuthClientPolicyName;
     privacyGeneration: number;
   };
 
@@ -228,8 +228,17 @@
 
   function updateOAuthClientPolicy(client: OAuthClient, event: Event) {
     const select = event.currentTarget as HTMLSelectElement;
-    const policy = select.value as OAuthClientPolicyName;
-    if (policy === client.policy || !['default', 'trusted', 'blocked'].includes(policy)) return;
+    const policy = select.value;
+    if (client.policy === 'unknown') {
+      select.value = client.policy;
+      return;
+    }
+    if (
+      policy === client.policy ||
+      !isEditableOAuthClientPolicy(policy)
+    ) {
+      return;
+    }
 
     // Keep displaying the last server-confirmed security policy until the
     // mutation succeeds and the authoritative list has been refreshed.
@@ -248,7 +257,12 @@
     oauthClientPolicyMutation.mutate(variables);
   }
 
+  function isEditableOAuthClientPolicy(value: string): value is EditableOAuthClientPolicyName {
+    return value === 'default' || value === 'trusted' || value === 'blocked';
+  }
+
   function policySaving(client: OAuthClient): boolean {
+    if (client.policy === 'unknown') return false;
     return pendingOAuthClientPolicies.has(
       oauthClientPolicyMutationKey({
         serverId: serverScope.serverId,
@@ -368,9 +382,14 @@
               aria-label={m('admin.security.oauth_clients.policy_for', {
                 client: client.clientName || client.clientId
               })}
-              disabled={policySaving(client)}
+              disabled={client.policy === 'unknown' || policySaving(client)}
               onchange={(event) => updateOAuthClientPolicy(client, event)}
             >
+              {#if client.policy === 'unknown'}
+                <option value="unknown">
+                  {m('admin.common.unknown')} ({client.policyCode})
+                </option>
+              {/if}
               <option value="default">{m('admin.security.oauth_clients.policy_default')}</option>
               <option value="trusted">{m('admin.security.oauth_clients.policy_trusted')}</option>
               <option value="blocked">{m('admin.security.oauth_clients.policy_blocked')}</option>

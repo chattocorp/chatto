@@ -108,9 +108,17 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 	return presentedRuntimeCredential{
 		user: user,
 		auth: authctx.RuntimeCredential{
-			Kind:   authctx.RuntimeCredentialKindBearerToken,
-			UserID: credential.UserID,
-			Handle: token,
+			Kind:          authctx.RuntimeCredentialKindBearerToken,
+			UserID:        credential.UserID,
+			Handle:        token,
+			OAuthClientID: oauthClientIDForRuntimeCredential(credential),
 		},
 	}, true, nil
+}
+
+func oauthClientIDForRuntimeCredential(credential core.ValidatedRuntimeCredential) string {
+	if credential.Kind != core.AuthTokenKindOAuthAccessToken {
+		return ""
+	}
+	return credential.ClientID
 }

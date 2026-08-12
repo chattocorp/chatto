@@ -2,6 +2,7 @@ package core
 
 import (
 	"sort"
+	"sync"
 	"time"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -29,11 +30,16 @@ type OAuthClientState struct {
 
 type OAuthClientProjection struct {
 	events.MemoryProjection
-	clients map[string]*OAuthClientState
+	clients                      map[string]*OAuthClientState
+	nextAccessDeniedWatcherID    uint64
+	accessDeniedWatchersByClient map[string]map[uint64]chan struct{}
 }
 
 func NewOAuthClientProjection() *OAuthClientProjection {
-	return &OAuthClientProjection{clients: make(map[string]*OAuthClientState)}
+	return &OAuthClientProjection{
+		clients:                      make(map[string]*OAuthClientState),
+		accessDeniedWatchersByClient: make(map[string]map[uint64]chan struct{}),
+	}
 }
 
 func (p *OAuthClientProjection) Subjects() []string {
@@ -81,9 +87,57 @@ func (p *OAuthClientProjection) Apply(event *corev1.Event, sequence uint64) erro
 		payload := e.OauthClientPolicyChanged
 		if state := p.clients[payload.GetClientId()]; state != nil {
 			state.Policy = payload.GetPolicy()
+			if oauthClientPolicyDeniesAccess(state.Policy) {
+				p.closeAccessDeniedWatchersLocked(payload.GetClientId())
+			}
 		}
 	}
 	return nil
+}
+
+// watchAccessDenied registers a process-local notification that closes when
+// the durable projection observes a blocked or unsupported policy. Registration
+// and the current-state check share the projection lock so a concurrent Apply
+// cannot leave a watcher active after access is denied.
+func (p *OAuthClientProjection) watchAccessDenied(clientID string) (<-chan struct{}, func()) {
+	accessDenied := make(chan struct{})
+	p.Lock()
+	if state := p.clients[clientID]; state != nil &&
+		oauthClientPolicyDeniesAccess(state.Policy) {
+		close(accessDenied)
+		p.Unlock()
+		return accessDenied, func() {}
+	}
+	p.nextAccessDeniedWatcherID++
+	watcherID := p.nextAccessDeniedWatcherID
+	watchers := p.accessDeniedWatchersByClient[clientID]
+	if watchers == nil {
+		watchers = make(map[uint64]chan struct{})
+		p.accessDeniedWatchersByClient[clientID] = watchers
+	}
+	watchers[watcherID] = accessDenied
+	p.Unlock()
+
+	var cancelOnce sync.Once
+	return accessDenied, func() {
+		cancelOnce.Do(func() {
+			p.Lock()
+			if watchers := p.accessDeniedWatchersByClient[clientID]; watchers != nil {
+				delete(watchers, watcherID)
+				if len(watchers) == 0 {
+					delete(p.accessDeniedWatchersByClient, clientID)
+				}
+			}
+			p.Unlock()
+		})
+	}
+}
+
+func (p *OAuthClientProjection) closeAccessDeniedWatchersLocked(clientID string) {
+	for _, accessDenied := range p.accessDeniedWatchersByClient[clientID] {
+		close(accessDenied)
+	}
+	delete(p.accessDeniedWatchersByClient, clientID)
 }
 
 func (p *OAuthClientProjection) get(clientID string) (OAuthClientState, bool) {

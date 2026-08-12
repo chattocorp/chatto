@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
@@ -13,6 +14,67 @@ import (
 	"hmans.de/chatto/internal/testutil"
 	"hmans.de/chatto/pkg/events"
 )
+
+func TestOAuthClientAccessDeniedWatchersAreClientTargetedAndRaceFree(t *testing.T) {
+	projection := NewOAuthClientProjection()
+	const (
+		alpha = "https://alpha.example/oauth/client-metadata.json"
+		bravo = "https://bravo.example/oauth/client-metadata.json"
+	)
+	for index, clientID := range []string{alpha, bravo} {
+		if err := projection.Apply(newEvent("member", &corev1.Event{
+			Event: &corev1.Event_OauthClientAuthorizationRecorded{
+				OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
+					ClientId: clientID,
+					Source:   corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+				},
+			},
+		}), uint64(index+1)); err != nil {
+			t.Fatalf("apply authorization for %s: %v", clientID, err)
+		}
+	}
+
+	alphaBlocked, stopAlpha := projection.watchAccessDenied(alpha)
+	defer stopAlpha()
+	bravoBlocked, stopBravo := projection.watchAccessDenied(bravo)
+	if err := projection.Apply(newEvent("admin", &corev1.Event{
+		Event: &corev1.Event_OauthClientPolicyChanged{
+			OauthClientPolicyChanged: &corev1.OAuthClientPolicyChangedEvent{
+				ClientId: alpha,
+				Policy:   corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED,
+			},
+		},
+	}), 3); err != nil {
+		t.Fatalf("apply block: %v", err)
+	}
+
+	select {
+	case <-alphaBlocked:
+	default:
+		t.Fatal("matching client watcher remained open after block")
+	}
+	select {
+	case <-bravoBlocked:
+		t.Fatal("unrelated client watcher closed after block")
+	default:
+	}
+
+	stopBravo()
+	projection.RLock()
+	_, retained := projection.accessDeniedWatchersByClient[bravo]
+	projection.RUnlock()
+	if retained {
+		t.Fatal("cancelled client watcher remained registered")
+	}
+
+	alreadyBlocked, stopAlreadyBlocked := projection.watchAccessDenied(alpha)
+	defer stopAlreadyBlocked()
+	select {
+	case <-alreadyBlocked:
+	default:
+		t.Fatal("watcher registered after block was not closed atomically")
+	}
+}
 
 func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	c, _ := setupTestCore(t)
@@ -252,6 +314,8 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 	if userID, err := second.ValidateAuthToken(ctx, token); err != nil || userID != member.Id {
 		t.Fatalf("second replica pre-block validation = %q, %v", userID, err)
 	}
+	blockedOnSecond, stopBlockWatch := second.WatchOAuthClientAccessDenied(clientID)
+	defer stopBlockWatch()
 
 	// Publish only the durable policy fact, as if another replica committed the
 	// block but its best-effort runtime-token cleanup had not run yet. The
@@ -277,6 +341,11 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 
 	if _, err := second.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("second replica validation after block = %v, want token not found", err)
+	}
+	select {
+	case <-blockedOnSecond:
+	case <-time.After(5 * time.Second):
+		t.Fatal("second replica did not notify active client watchers after block")
 	}
 	state, err := second.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {

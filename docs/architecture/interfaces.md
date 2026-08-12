@@ -27,7 +27,7 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Surface | Mount | Contract | Access boundary |
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
-| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents` |
+| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents`; OAuth-client blocks terminate matching established bearer connections |
 | Client bootstrap | `GET /client-config.json` | Versioned, non-secret selection of the Authling issuer and frontend CIMD client ID | Public, same-origin frontend configuration; always mounted and returned with `Cache-Control: no-store` |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact SPA callbacks for connecting to Chatto servers and optional Authling account data | Public; always mounted, with the Authling callback included only when `frontend.authling_issuer` is configured |
@@ -65,7 +65,8 @@ ID in the signed browser session, and immediately redirects to registration.
 have completed a successful user-approved authorization, exposes aggregate
 usage counts rather than user identities, and changes default/trusted/blocked
 policy. Trusted never skips consent; blocked clients are rejected throughout
-authorization and token validation.
+authorization and token validation, and matching established realtime
+connections are terminated on every replica.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive
