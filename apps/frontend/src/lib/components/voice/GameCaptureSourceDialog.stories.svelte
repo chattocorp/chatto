@@ -13,6 +13,7 @@
       id: 'window:moonring',
       kind: 'window' as const,
       applicationName: 'Moonring',
+      bundleIdentifier: 'com.fluttermind.moonring',
       title: 'Moonring',
       width: 1920,
       height: 1080
@@ -21,9 +22,19 @@
       id: 'window:strategy',
       kind: 'window' as const,
       applicationName: 'Strategy Game',
+      bundleIdentifier: 'example.strategy-game',
       title: 'Campaign — Turn 42',
       width: 2560,
       height: 1440
+    },
+    {
+      id: 'window:strategy-map',
+      kind: 'window' as const,
+      applicationName: 'Strategy Game',
+      bundleIdentifier: 'example.strategy-game',
+      title: 'World map',
+      width: 1920,
+      height: 1080
     }
   ];
 </script>

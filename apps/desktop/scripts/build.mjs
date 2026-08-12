@@ -17,8 +17,7 @@ const packagerOut = path.join(distRoot, ".packager");
 const platform = process.platform;
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
 const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
-const embedCaptureProbe =
-  platform === "darwin" && process.env.CHATTO_EMBED_MACOS_CAPTURE_PROBE === "1";
+const embedCaptureHelper = platform === "darwin";
 const macOSSignIdentity =
   platform === "darwin"
     ? (process.env.CHATTO_MACOS_SIGN_IDENTITY ?? "-")
@@ -70,7 +69,7 @@ const [bundleRoot] = await packager({
   download: electronChecksum
     ? { checksums: { [electronArchiveName]: electronChecksum } }
     : undefined,
-  afterPrune: embedCaptureProbe
+  afterPrune: embedCaptureHelper
     ? [
         async ({ buildPath }) => {
           const appBundle = path.resolve(buildPath, "../../..");

@@ -23,6 +23,8 @@ export function parseMacOSGameCaptureSources(output) {
         !Number.isSafeInteger(window.windowID) ||
         window.windowID <= 0 ||
         typeof window.applicationName !== "string" ||
+        typeof window.bundleIdentifier !== "string" ||
+        window.bundleIdentifier.length === 0 ||
         typeof window.title !== "string" ||
         !Number.isSafeInteger(window.width) ||
         window.width <= 0 ||
@@ -38,6 +40,7 @@ export function parseMacOSGameCaptureSources(output) {
         id: `window:${window.windowID}`,
         kind: "window",
         applicationName: window.applicationName,
+        bundleIdentifier: window.bundleIdentifier,
         title: window.title,
         width: window.width,
         height: window.height,

@@ -116,13 +116,13 @@ network latency, protected-content behavior, or Windows viability. The direct
 publisher establishes the intended LiveKit path, but its actual 60 fps cadence,
 encoder choice, congestion behavior, and remote playback still need measurement.
 
-## Package it with Chatto Desktop
+## Chatto Desktop integration
 
-The normal desktop build does not include this discovery prototype. On macOS,
-build an instrumented bundle with:
+The helper is an official part of every macOS Chatto Desktop build. Build the
+complete application with the ordinary host-platform task:
 
 ```sh
-mise x -- pnpm --dir apps/desktop run build:macos-capture-probe
+mise desktop-build
 ```
 
 This places the executable in a background application at
@@ -130,7 +130,9 @@ This places the executable in a background application at
 the stable bundle identifier `run.chatto.desktop.capture-helper`, and the
 packager signs it in dependency order with the rest of the Electron bundle.
 Current local and CI artifacts use ad-hoc signing; a production build still
-needs a stable Developer ID identity and notarisation.
+needs a stable Developer ID identity and notarisation. macOS CI asserts that
+the helper is executable, can start without invoking capture, has its framework
+rpath, and satisfies the complete app bundle's strict signature validation.
 Ad-hoc builds disable hardened runtime because they have no Team ID; builds
 using a real identity enable it.
 
@@ -147,7 +149,7 @@ To make the packaged parent launch the helper and list capture sources:
 ```
 
 This private switch exists only for packaging and macOS privacy-attribution
-diagnostics. The normal instrumented app exposes the source list through its
+diagnostics. The normal macOS app exposes the source list through its
 narrow game-capture bridge.
 
 To exercise the packaged proof of concept, first open the game or other window
@@ -166,7 +168,7 @@ The recording is stored in a private `chatto-capture-poc-*` directory beneath
 the current user's temporary directory and is not uploaded or retained by the
 repository.
 
-The instrumented bundle also exposes a complete real-time proof of concept
+The macOS bundle exposes a complete real-time game-streaming path
 through the normal Chatto call interface. Launch the app without a private
 switch, join a call, and use the gamepad control in the call toolbar. The shared
 frontend opens its own picker containing the helper's ordinary visible windows.
@@ -177,7 +179,7 @@ The initial profile requests a single 1920×1080, 60 fps H.264 layer at up to
 E2EE key. Only `started`, `error`, and `ended` lifecycle messages cross the
 desktop bridge. The active gamepad control stops the helper. Starting browser
 screen sharing also stops game capture; camera and microphone remain
-independent. Normal desktop builds omit the native provider, so they do not
+independent. Non-macOS builds omit this platform provider and therefore do not
 show this control.
 
 The helper uses a separate opaque LiveKit identity because reusing the joined
@@ -196,7 +198,7 @@ grant stop matching; during discovery, run
 and grant access again. A stable Apple Development or Developer ID signature
 should avoid this ad-hoc-build limitation.
 
-In the ad-hoc-signed prototype, launching the instrumented app through macOS
+In the ad-hoc-signed prototype, launching the app through macOS
 Launch Services caused TCC to identify `run.chatto.desktop` as the responsible
 subject for the nested `run.chatto.desktop.capture-helper` process. That is the
 desired user-facing permission boundary: Chatto Desktop owns the permission

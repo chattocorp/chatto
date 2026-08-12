@@ -26,14 +26,16 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
   explicit native source choice.
-- An opt-in macOS discovery build embeds a native game-capture provider. Joined
+- Every macOS build embeds a native game-capture provider. Joined
   call participants can open a Chatto-owned picker of ordinary visible windows;
   selecting one publishes its video and owning-application audio to the existing
   LiveKit call. Starting game capture replaces a browser screen share and vice
-  versa, while camera and microphone can remain enabled. Normal desktop builds
-  omit the provider and its call control.
-- macOS, Windows, and Linux bundles are built in CI. Experimental release
-  artifacts are unsigned until platform signing and notarisation are added.
+  versa, while camera and microphone can remain enabled. Acknowledged lifecycle
+  control keeps the UI in a stopping state until the helper disconnects its
+  LiveKit companion and exits. Non-macOS builds omit this platform provider.
+- macOS, Windows, and Linux bundles are built in CI. Experimental macOS
+  artifacts are ad-hoc signed, while the other platform artifacts remain
+  unsigned until trusted platform signing and macOS notarisation are added.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - The application requires a network connection. It does not provide an

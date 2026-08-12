@@ -5,6 +5,7 @@ export type GameCaptureSource = {
   id: string;
   kind: 'window';
   applicationName: string;
+  bundleIdentifier: string;
   title: string;
   width: number;
   height: number;
@@ -63,6 +64,8 @@ function isGameCaptureSource(value: unknown): value is GameCaptureSource {
     source.id.length > 0 &&
     source.kind === 'window' &&
     typeof source.applicationName === 'string' &&
+    typeof source.bundleIdentifier === 'string' &&
+    source.bundleIdentifier.length > 0 &&
     typeof source.title === 'string' &&
     Number.isSafeInteger(source.width) &&
     (source.width ?? 0) > 0 &&

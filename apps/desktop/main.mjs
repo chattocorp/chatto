@@ -425,6 +425,7 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
   let stdout = "";
   let stderr = "";
   let stopping = false;
+  let forceStopTimer;
   const session = { child, port, stop };
   activeGameCaptureSession = session;
 
@@ -467,6 +468,7 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
     });
   });
   child.once("exit", (code, signal) => {
+    clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session)
       activeGameCaptureSession = undefined;
     if (!stopping && (code !== 0 || signal)) {
@@ -500,8 +502,14 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
     stopping = true;
     if (activeGameCaptureSession === session)
       activeGameCaptureSession = undefined;
-    if (child.exitCode === null && child.signalCode === null)
+    if (child.exitCode === null && child.signalCode === null) {
       child.kill("SIGTERM");
+      forceStopTimer = setTimeout(() => {
+        if (child.exitCode === null && child.signalCode === null)
+          child.kill("SIGKILL");
+      }, 3_000);
+      forceStopTimer.unref();
+    }
   }
 }
 

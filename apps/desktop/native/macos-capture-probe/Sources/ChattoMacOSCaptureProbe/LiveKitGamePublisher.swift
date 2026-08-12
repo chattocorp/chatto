@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import CoreGraphics
+import Darwin
 import Foundation
 import LiveKit
 
@@ -34,6 +35,7 @@ enum LiveKitGamePublisher {
     // The helper reports only its small JSON lifecycle protocol. In particular,
     // signaling URLs and credentials must never leak into application logs.
     LiveKitSDK.disableLogging()
+    let terminationSignal = TerminationSignal()
     let credential = try readCredential()
     let sources = try await MacOSScreenCapturer.sources(for: .window)
     guard
@@ -102,11 +104,11 @@ enum LiveKitGamePublisher {
       )
     )
 
-    // Desktop owns process lifetime and terminates this helper when the user
-    // stops sharing, leaves the call, or replaces the selected source.
-    while true {
-      try await Task.sleep(for: .seconds(3600))
-    }
+    // Desktop owns process lifetime. Convert SIGTERM into a graceful LiveKit
+    // disconnect so receivers see the companion publisher disappear before
+    // the helper acknowledges completion by exiting.
+    await terminationSignal.wait()
+    await room.disconnect()
   }
 
   private static func readCredential() throws -> PublisherCredential {
@@ -131,6 +133,31 @@ enum LiveKitGamePublisher {
     let data = try JSONEncoder().encode(status)
     FileHandle.standardOutput.write(data)
     FileHandle.standardOutput.write(Data("\n".utf8))
+  }
+}
+
+private final class TerminationSignal: @unchecked Sendable {
+  private let source: DispatchSourceSignal
+  private let stream: AsyncStream<Void>
+
+  init() {
+    Darwin.signal(SIGTERM, SIG_IGN)
+    let pair = AsyncStream<Void>.makeStream()
+    stream = pair.stream
+    source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
+    source.setEventHandler {
+      pair.continuation.yield()
+      pair.continuation.finish()
+    }
+    source.resume()
+  }
+
+  func wait() async {
+    for await _ in stream { return }
+  }
+
+  deinit {
+    source.cancel()
   }
 }
 

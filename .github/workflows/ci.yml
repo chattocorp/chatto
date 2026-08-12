@@ -123,7 +123,7 @@ jobs:
             os: ubuntu-latest
             artifact-path: apps/desktop/dist/chatto-desktop
           - platform: macos
-            os: macos-latest
+            os: macos-15
             artifact-path: apps/desktop/dist/Chatto Desktop.app
           - platform: windows
             os: windows-latest
@@ -153,6 +153,15 @@ jobs:
       - name: Verify macOS bundle signature
         if: runner.os == 'macOS'
         run: codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+
+      - name: Verify macOS game-capture helper
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
+          test -x "$helper"
+          "$helper" help | grep -F 'publish --window'
+          otool -l "$helper" | grep -F '@executable_path/../Frameworks'
 
       - name: Upload desktop bundle
         uses: actions/upload-artifact@v7

@@ -612,6 +612,32 @@ describe('VoiceCallState', () => {
     expect(state.isScreenShareEnabled).toBe(true);
   });
 
+  it('keeps game sharing active until the native publisher acknowledges stop', async () => {
+    const stopGate = deferredVoid();
+    const session = {
+      stop: vi.fn(() => stopGate.promise),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.startGameCapture('window:42', 'Moonring');
+
+    const stopping = state.stopGameCapture();
+    await flushPromises();
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(state.isGameCapturePending).toBe(true);
+    expect(state.isGameCaptureEnabled).toBe(true);
+
+    stopGate.resolve();
+    await stopping;
+
+    expect(state.isGameCapturePending).toBe(false);
+    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(false);
+  });
+
   it('replaces an existing browser screen share when game capture starts', async () => {
     const session = {
       stop: vi.fn(),

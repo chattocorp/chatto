@@ -756,14 +756,17 @@ export class VoiceCallState {
   private async performStopGameCapture(room: Room): Promise<void> {
     const session = this.gameCaptureSession;
     if (!session) return;
-    this.gameCaptureSession = null;
     session.onEnded = null;
-    session.stop();
-    if (this.room !== room) return;
-    this.isGameCaptureEnabled = false;
-    this.gameCaptureSourceName = null;
-    this.isScreenShareEnabled = false;
-    this.updateParticipants();
+    try {
+      await session.stop();
+    } finally {
+      if (this.gameCaptureSession === session) this.gameCaptureSession = null;
+      if (this.room !== room) return;
+      this.isGameCaptureEnabled = false;
+      this.gameCaptureSourceName = null;
+      this.isScreenShareEnabled = false;
+      this.updateParticipants();
+    }
   }
 
   private async handleGameCaptureEnded(
@@ -1205,7 +1208,7 @@ export class VoiceCallState {
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;
     this.gameCaptureToggleInFlight = null;
-    this.gameCaptureSession?.stop();
+    if (this.gameCaptureSession) void this.gameCaptureSession.stop().catch(() => undefined);
     this.gameCaptureSession = null;
     this.suppressDisconnectToast = false;
     this.connected = false;

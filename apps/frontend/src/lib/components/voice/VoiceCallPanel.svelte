@@ -323,6 +323,19 @@ Room sidebar panel for voice/video calls.
     }
   }
 
+  async function handleGameCaptureControl() {
+    if (!voiceCallState.isGameCaptureEnabled) {
+      openGameCaptureDialog();
+      return;
+    }
+    try {
+      await voiceCallState.stopGameCapture();
+    } catch {
+      if (!serverScope.isCurrent()) return;
+      toast.error(m('voice.screen_share_failed'));
+    }
+  }
+
   async function toggleFullscreenElement(element: HTMLElement | null): Promise<void> {
     if (!element || typeof document === 'undefined') return;
 
@@ -672,10 +685,7 @@ Room sidebar panel for voice/video calls.
             testId="call-game-stream-button"
             icon="icon-[mdi--gamepad-variant-outline]"
             iconClass="text-lg"
-            onclick={() =>
-              voiceCallState.isGameCaptureEnabled
-                ? void voiceCallState.stopGameCapture()
-                : openGameCaptureDialog()}
+            onclick={() => void handleGameCaptureControl()}
             pending={gameCaptureSourcesLoading || voiceCallState.isGameCapturePending}
           />
         {/if}

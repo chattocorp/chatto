@@ -34,6 +34,7 @@ test("maps macOS windows to opaque renderer capture sources", () => {
           id: "window:42",
           kind: "window",
           applicationName: "Example Game",
+          bundleIdentifier: "com.example.game",
           title: "Example Game — Main Menu",
           width: 1920,
           height: 1080,
@@ -60,6 +61,7 @@ test("rejects unsupported or malformed helper responses", () => {
             {
               windowID: 0,
               applicationName: "Example Game",
+              bundleIdentifier: "com.example.game",
               title: "",
               width: 1920,
               height: 1080,

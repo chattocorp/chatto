@@ -5,6 +5,7 @@ import type { GameCapturePublisherRequest } from './gameCapture';
 
 const publisherMessageType = 'chatto:game-capture:publisher';
 const publisherStartTimeoutMs = 20_000;
+const publisherStopTimeoutMs = 5_000;
 
 type PublisherMessage =
   | { kind: 'started'; width: number; height: number; frameRate: number }
@@ -16,7 +17,11 @@ export class GameCapturePublisherSession {
   onEnded: ((error?: Error) => void) | null = null;
 
   readonly #port: MessagePort;
-  #stopped = false;
+  #finished = false;
+  #stopPromise: Promise<void> | null = null;
+  #resolveStop: (() => void) | null = null;
+  #rejectStop: ((error: Error) => void) | null = null;
+  #stopTimeout: number | null = null;
 
   private constructor(port: MessagePort) {
     this.#port = port;
@@ -40,18 +45,35 @@ export class GameCapturePublisherSession {
     return new GameCapturePublisherSession(port);
   }
 
-  stop(): void {
-    if (this.#stopped) return;
-    this.#stopped = true;
+  /** Ask Desktop to stop publishing and wait for the helper to exit. */
+  stop(): Promise<void> {
+    if (this.#stopPromise) return this.#stopPromise;
+    if (this.#finished) return Promise.resolve();
+
+    this.#stopPromise = new Promise<void>((resolve, reject) => {
+      this.#resolveStop = resolve;
+      this.#rejectStop = reject;
+    });
     this.#port.postMessage({ kind: 'stop' });
-    this.#port.close();
+    this.#stopTimeout = window.setTimeout(() => {
+      this.finish(new Error('The native game publisher did not stop in time.'));
+    }, publisherStopTimeoutMs);
+    return this.#stopPromise;
   }
 
   private finish(error?: Error): void {
-    if (this.#stopped) return;
-    this.#stopped = true;
+    if (this.#finished) return;
+    this.#finished = true;
+    if (this.#stopTimeout !== null) window.clearTimeout(this.#stopTimeout);
     this.#port.close();
-    this.onEnded?.(error);
+    if (this.#stopPromise) {
+      if (error) this.#rejectStop?.(error);
+      else this.#resolveStop?.();
+    } else {
+      this.onEnded?.(error);
+    }
+    this.#resolveStop = null;
+    this.#rejectStop = null;
   }
 }
 

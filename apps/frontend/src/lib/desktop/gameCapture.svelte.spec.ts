@@ -25,6 +25,7 @@ describe('desktop game capture', () => {
         id: 'window:42',
         kind: 'window' as const,
         applicationName: 'Example Game',
+        bundleIdentifier: 'example.game',
         title: 'Main Menu',
         width: 1920,
         height: 1080
