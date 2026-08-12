@@ -266,9 +266,12 @@ reaction, subscription ownership, and DND. Before account, room, message, or
 reaction absence is treated as authoritative, the serving replica captures the
 current recipient, server-wide room-event, room-group-layout, and RBAC tails
 and waits its relevant projections through those boundaries.
-List and mutation APIs use the same causally fenced validation, so projection
-lag cannot tombstone a valid occurrence or expose a removed target. Before a
-mutation reads occurrences, it waits the durable notification materializer
+List, realtime, delivery, and mark-read paths use the same causally fenced
+target validation, so projection lag cannot tombstone a valid occurrence or
+expose a removed target. Delete paths need no target hydration: they accept
+only opaque occurrence IDs scoped to the authenticated viewer, but still wait
+for the durable notification materializer before reading occurrence state.
+Before a mutation reads occurrences, it waits that materializer
 through a fresh worker boundary and then
 fences the process-local occurrence index through the resulting KV writes.
 Before list or realtime responses derive

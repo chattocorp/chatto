@@ -44,7 +44,7 @@ type ChattoCore struct {
 	readStateModel            *ReadStateModel
 	notificationOccurrences   *NotificationOccurrenceModel
 	notificationMaterializer  *NotificationMaterializer
-	notificationAlertDelivery *NotificationAlertDelivery
+	notificationAlertDelivery *notificationAlertDelivery
 	threadFollows             *ThreadFollowModel
 	reactionModel             *ReactionModel
 	userModel                 *UserModel
@@ -77,10 +77,10 @@ type ChattoCore struct {
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
 
-	// NotificationAlertsEnabled makes materialization enqueue interruptive
+	// notificationAlertsEnabled makes materialization enqueue interruptive
 	// delivery work. The queue and occurrence remain durable across replicas;
 	// the configured transport handler performs only the provider side effect.
-	NotificationAlertsEnabled bool
+	notificationAlertsEnabled bool
 	notificationAlertHandler  func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
@@ -197,7 +197,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
-	g.Go(func() error { return c.notificationAlertDelivery.Run(gctx) })
+	g.Go(func() error { return c.notificationAlertDelivery.run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })

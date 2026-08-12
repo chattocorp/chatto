@@ -64,10 +64,10 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 	originalExpiry := created.GetExpiresAt().AsTime()
 
-	if err := model.CompleteAlertDelivery(ctx, &corev1.NotificationAlertJob{
+	if err := model.completeAlertDelivery(ctx, &corev1.NotificationAlertJob{
 		RecipientId: created.GetRecipientId(), SourceEventId: created.GetSourceEventId(), NotificationId: created.GetId(),
 	}, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED); err != nil {
-		t.Fatalf("CompleteAlertDelivery: %v", err)
+		t.Fatalf("completeAlertDelivery: %v", err)
 	}
 
 	duplicate, wasCreated, err := model.Create(ctx, input)
@@ -189,8 +189,8 @@ func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	if updated.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("alert state = %v, want SILENCED", updated.GetAlertState())
 	}
-	if current, err := model.AlertDeliveryCurrent(ctx, created); err != nil || current {
-		t.Fatalf("AlertDeliveryCurrent after read = (%v, %v), want false, nil", current, err)
+	if current, err := model.alertDeliveryCurrent(ctx, created); err != nil || current {
+		t.Fatalf("alertDeliveryCurrent after read = (%v, %v), want false, nil", current, err)
 	}
 }
 

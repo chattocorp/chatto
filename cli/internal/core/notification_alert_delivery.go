@@ -29,25 +29,25 @@ const (
 	notificationAlertDeliveryTTL  = 2 * time.Minute
 )
 
-// NotificationAlertDelivery owns the application queue and durable consumer
+// notificationAlertDelivery owns the application queue and durable consumer
 // that turn persisted occurrences into optional provider side effects.
-type NotificationAlertDelivery struct {
+type notificationAlertDelivery struct {
 	core     *ChattoCore
 	consumer jetstream.Consumer
 }
 
-func NewNotificationAlertDelivery(core *ChattoCore) *NotificationAlertDelivery {
-	return &NotificationAlertDelivery{core: core}
+func newNotificationAlertDelivery(core *ChattoCore) *notificationAlertDelivery {
+	return &notificationAlertDelivery{core: core}
 }
 
 // SetNotificationAlertHandler enables alert work and configures its provider
 // transport. It must be called during process setup, before ChattoCore.Run.
 func (c *ChattoCore) SetNotificationAlertHandler(handler func(context.Context, *corev1.NotificationOccurrence) error) {
 	c.notificationAlertHandler = handler
-	c.NotificationAlertsEnabled = handler != nil
+	c.notificationAlertsEnabled = handler != nil
 }
 
-func (d *NotificationAlertDelivery) Initialize(ctx context.Context) error {
+func (d *notificationAlertDelivery) initialize(ctx context.Context) error {
 	consumer, err := d.core.storage.notificationQueue.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
 		Name:          notificationAlertConsumerName,
 		Durable:       notificationAlertConsumerName,
@@ -66,7 +66,7 @@ func (d *NotificationAlertDelivery) Initialize(ctx context.Context) error {
 	return nil
 }
 
-func (d *NotificationAlertDelivery) Run(ctx context.Context) error {
+func (d *notificationAlertDelivery) run(ctx context.Context) error {
 	if err := d.core.notificationOccurrences.WaitReady(ctx); err != nil {
 		return fmt.Errorf("wait for notification index before alert delivery: %w", err)
 	}
@@ -87,8 +87,8 @@ func (d *NotificationAlertDelivery) Run(ctx context.Context) error {
 // Enqueue publishes only an opaque occurrence coordinate. Message-ID
 // deduplication covers source-worker redelivery; the occurrence's terminal
 // alert state is the durable idempotency fence after queue acknowledgement.
-func (d *NotificationAlertDelivery) Enqueue(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
-	if !d.core.NotificationAlertsEnabled || occurrence == nil ||
+func (d *notificationAlertDelivery) enqueue(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
+	if !d.core.notificationAlertsEnabled || occurrence == nil ||
 		occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
 		return nil
 	}
@@ -106,7 +106,7 @@ func (d *NotificationAlertDelivery) Enqueue(ctx context.Context, occurrence *cor
 	return nil
 }
 
-func (d *NotificationAlertDelivery) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
+func (d *notificationAlertDelivery) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
 	var job corev1.NotificationAlertJob
 	if err := proto.Unmarshal(delivery.Data, &job); err != nil {
 		return events.TerminateDelivery("invalid notification alert job", err)
@@ -115,7 +115,7 @@ func (d *NotificationAlertDelivery) processDelivery(ctx context.Context, deliver
 		return events.TerminateDelivery("invalid notification alert coordinate", errors.New("required coordinate is empty"))
 	}
 	if time.Since(delivery.PublishedAt) > notificationAlertDeliveryTTL {
-		return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 	}
 
 	occurrence, err := d.core.notificationOccurrences.Get(ctx, job.GetRecipientId(), job.GetNotificationId())
@@ -133,21 +133,21 @@ func (d *NotificationAlertDelivery) processDelivery(ctx context.Context, deliver
 		return err
 	}
 	if !eligible {
-		return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 	}
 	if d.core.suppressesNotificationAlertsForPresence(ctx, job.GetRecipientId()) {
-		return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 	}
 	if d.core.notificationAlertHandler == nil {
-		return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 	}
 	if err := d.core.notificationAlertHandler(ctx, occurrence); err != nil {
 		if errors.Is(err, ErrNotificationAlertSuppressed) {
-			return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+			return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 		}
 		return err
 	}
-	return d.core.notificationOccurrences.CompleteAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED)
+	return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED)
 }
 
 // NotificationAlertEligible fences notification materialization and policy,
@@ -163,7 +163,7 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 	if err := c.waitForCurrentNotificationPolicy(ctx); err != nil {
 		return false, err
 	}
-	current, err := c.notificationOccurrences.AlertDeliveryCurrent(ctx, occurrence)
+	current, err := c.notificationOccurrences.alertDeliveryCurrent(ctx, occurrence)
 	if err != nil || !current {
 		return false, err
 	}
@@ -181,7 +181,7 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 	return true, nil
 }
 
-func (d *NotificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
+func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
 	roomID := occurrence.GetTarget().GetRoomId()
 	for _, match := range occurrence.GetReasons() {
 		if d.core.GetEffectiveNotificationIntensity(occurrence.GetRecipientId(), roomID, match.GetReason()) == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {

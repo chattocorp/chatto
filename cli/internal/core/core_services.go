@@ -120,7 +120,7 @@ func initializeCoreServices(
 		logger.WithPrefix("core.NotificationOccurrences"),
 	)
 	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationVisibility)
-	core.notificationAlertDelivery = NewNotificationAlertDelivery(core)
+	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))
@@ -134,7 +134,7 @@ func initializeCoreServices(
 	if err := core.notificationMaterializer.Initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize notification materializer: %w", err)
 	}
-	if err := core.notificationAlertDelivery.Initialize(ctx); err != nil {
+	if err := core.notificationAlertDelivery.initialize(ctx); err != nil {
 		return fmt.Errorf("failed to initialize notification alert delivery: %w", err)
 	}
 

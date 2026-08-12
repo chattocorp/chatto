@@ -1518,9 +1518,10 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("ListNotificationOccurrences after read = %+v, %v, want one read occurrence", readList, err)
 	}
 
-	if _, err := env.notifications.BatchDeleteNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchDeleteNotificationOccurrencesRequest{
-		NotificationIds: []string{occurrence.GetId()},
-	})); err != nil {
+	deleted, err := env.notifications.BatchDeleteNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchDeleteNotificationOccurrencesRequest{
+		NotificationIds: []string{occurrence.GetId(), occurrence.GetId()},
+	}))
+	if err != nil || deleted.Msg.GetDeletedCount() != 1 {
 		t.Fatalf("BatchDeleteNotificationOccurrences: %v", err)
 	}
 	afterDelete, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))

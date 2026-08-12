@@ -167,3 +167,60 @@ func TestNotificationAlertQueueSilencesWorkWhenPushIsDisabled(t *testing.T) {
 		t.Fatalf("disabled alert state = (%v, %v), want silenced", stored, err)
 	}
 }
+
+func TestNotificationAlertQueueRechecksCurrentPolicyBeforeProvider(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-alert-alice", "Policy Alert Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-alert-bob", "Policy Alert Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "policy downgrade", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, notificationOccurrenceID(alice.Id, posted.GetId()))
+	if err != nil {
+		t.Fatalf("Get occurrence: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(
+		ctx,
+		alice.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+	); err != nil {
+		t.Fatalf("SetServerNotificationIntensity: %v", err)
+	}
+	called := false
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		called = true
+		return nil
+	})
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("processDelivery: %v", err)
+	}
+	if called {
+		t.Fatal("policy-downgraded delivery called provider")
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("downgraded alert state = (%v, %v), want silenced", stored, err)
+	}
+}

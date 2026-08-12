@@ -42,7 +42,6 @@ type NotificationMaterializer struct {
 	visibility                events.ProjectionHandle[*NotificationVisibilityProjection]
 	assignConfiguredOwnerRole func(context.Context, string) error
 	pollEvery                 time.Duration
-	waitCurrent               func(context.Context) error
 	ready                     chan struct{}
 	consumer                  jetstream.Consumer
 	consumerInfoMu            sync.Mutex
@@ -58,7 +57,6 @@ func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionH
 		pollEvery: notificationMaterializerPollEvery,
 		ready:     make(chan struct{}),
 	}
-	materializer.waitCurrent = materializer.WaitCurrent
 	return materializer
 }
 
@@ -884,7 +882,7 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 	if err != nil {
 		return fmt.Errorf("create occurrence for recipient %s: %w", occurrence.GetRecipientId(), err)
 	}
-	if err := m.core.notificationAlertDelivery.Enqueue(ctx, createdOccurrence); err != nil {
+	if err := m.core.notificationAlertDelivery.enqueue(ctx, createdOccurrence); err != nil {
 		return err
 	}
 	return nil

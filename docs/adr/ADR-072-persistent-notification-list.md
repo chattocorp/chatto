@@ -99,12 +99,13 @@ existing history.
 
 ### Reconciliation and visibility
 
-Before list/realtime assembly, the server fences the notification materializer
-and the recipient, room, group-layout, and RBAC projections used to validate
-current visibility. Retracted targets, removed reactions, and inaccessible
-rooms are tombstoned before they can be returned. The complete retained list is
-validated before exact totals are derived, including occurrences outside the
-requested page.
+Before list/realtime assembly and mark-read, the server fences the notification
+materializer and the recipient, room, group-layout, and RBAC projections used
+to validate current visibility. Retracted targets, removed reactions, and
+inaccessible rooms are tombstoned before they can be returned. Delete accepts
+only opaque occurrence IDs scoped to the authenticated viewer and does not
+hydrate target content. The complete retained list is validated before exact
+totals are derived, including occurrences outside the requested page.
 
 ## Consequences
 

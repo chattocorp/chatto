@@ -1321,9 +1321,10 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"#DeleteNotificationOccurrenceRequest\x120\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0enotificationId\"@\n" +
 	"$DeleteNotificationOccurrenceResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted\"j\n" +
-	")BatchDeleteNotificationOccurrencesRequest\x12=\n" +
-	"\x10notification_ids\x18\x01 \x03(\tB\x12\xbaH\x0f\x92\x01\f\b\x01\x10d\x18\x01\"\x04r\x02\x10\x01R\x0fnotificationIds\"Q\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted\"h\n" +
+	")BatchDeleteNotificationOccurrencesRequest\x12;\n" +
+	"\x10notification_ids\x18\x01 \x03(\tB\x10\xbaH\r\x92\x01\n" +
+	"\b\x01\x10d\"\x04r\x02\x10\x01R\x0fnotificationIds\"Q\n" +
 	"*BatchDeleteNotificationOccurrencesResponse\x12#\n" +
 	"\rdeleted_count\x18\x01 \x01(\x05R\fdeletedCount\")\n" +
 	"'DeleteAllNotificationOccurrencesRequest\"O\n" +

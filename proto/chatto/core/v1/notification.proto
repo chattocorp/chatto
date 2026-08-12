@@ -211,7 +211,10 @@ message NotificationOccurrence {
 // application-owned NOTIFICATIONS_QUEUE stream; the occurrence remains the
 // authoritative source for policy, visibility, presentation, and lifecycle.
 message NotificationAlertJob {
+  // Owner of the referenced occurrence.
   string recipient_id = 1;
+  // Canonical domain event that produced the occurrence.
   string source_event_id = 2;
+  // Deterministic occurrence ID used as the delivery idempotency fence.
   string notification_id = 3;
 }

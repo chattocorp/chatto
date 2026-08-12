@@ -288,9 +288,9 @@ func (m *NotificationOccurrenceModel) UnreadCount(ctx context.Context, userID st
 	return count, nil
 }
 
-// AlertDeliveryCurrent revalidates the exact pending occurrence immediately
+// alertDeliveryCurrent revalidates the exact pending occurrence immediately
 // before an external provider side effect.
-func (m *NotificationOccurrenceModel) AlertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
+func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
 	if expected == nil {
 		return false, nil
 	}
@@ -304,9 +304,9 @@ func (m *NotificationOccurrenceModel) AlertDeliveryCurrent(ctx context.Context, 
 		entry.occurrence.GetRemovalReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED, nil
 }
 
-// CompleteAlertDelivery records a queue job's terminal outcome if the exact
+// completeAlertDelivery records a queue job's terminal outcome if the exact
 // occurrence is still pending. Concurrent read/delete mutations win cleanly.
-func (m *NotificationOccurrenceModel) CompleteAlertDelivery(ctx context.Context, job *corev1.NotificationAlertJob, state corev1.NotificationAlertState) error {
+func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context, job *corev1.NotificationAlertJob, state corev1.NotificationAlertState) error {
 	if job == nil || (state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED &&
 		state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED) {
 		return nil

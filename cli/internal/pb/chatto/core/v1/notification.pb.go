@@ -1058,10 +1058,13 @@ func (x *NotificationOccurrence) GetSourceStreamSequence() uint64 {
 // application-owned NOTIFICATIONS_QUEUE stream; the occurrence remains the
 // authoritative source for policy, visibility, presentation, and lifecycle.
 type NotificationAlertJob struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	RecipientId    string                 `protobuf:"bytes,1,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
-	SourceEventId  string                 `protobuf:"bytes,2,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	NotificationId string                 `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Owner of the referenced occurrence.
+	RecipientId string `protobuf:"bytes,1,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	// Canonical domain event that produced the occurrence.
+	SourceEventId string `protobuf:"bytes,2,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	// Deterministic occurrence ID used as the delivery idempotency fence.
+	NotificationId string `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }

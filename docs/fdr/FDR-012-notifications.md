@@ -121,12 +121,14 @@ least once, so a crash after provider acceptance can still duplicate a push.
 
 ## Visibility and consistency
 
-List, realtime, and delivery paths fence the materializer plus current user,
-room, room-group-layout, and RBAC projections before treating absence or access
-loss as authoritative. The complete retained occurrence set is validated before
-exact totals are returned, including rows outside the requested page. A
-`RUNTIME_STATE` read fence then makes replica-local occurrence-index lag fail or
-wait instead of exposing stale state.
+List, realtime, mark-read, and delivery paths fence the materializer plus
+current user, room, room-group-layout, and RBAC projections before treating
+absence or access loss as authoritative. Delete operates only on opaque
+occurrence IDs scoped to the authenticated viewer and does not hydrate target
+content. The complete retained occurrence set is validated before exact totals
+are returned, including rows outside the requested page. A `RUNTIME_STATE` read
+fence then makes replica-local occurrence-index lag fail or wait instead of
+exposing stale state.
 
 Occurrences retain references and cause provenance, not copied room names,
 profiles, or message bodies. Public assembly hydrates current visible data.
