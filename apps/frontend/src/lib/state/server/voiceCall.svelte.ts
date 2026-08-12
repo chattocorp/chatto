@@ -761,11 +761,12 @@ export class VoiceCallState {
       await session.stop();
     } finally {
       if (this.gameCaptureSession === session) this.gameCaptureSession = null;
-      if (this.room !== room) return;
-      this.isGameCaptureEnabled = false;
-      this.gameCaptureSourceName = null;
-      this.isScreenShareEnabled = false;
-      this.updateParticipants();
+      if (this.room === room) {
+        this.isGameCaptureEnabled = false;
+        this.gameCaptureSourceName = null;
+        this.isScreenShareEnabled = false;
+        this.updateParticipants();
+      }
     }
   }
 
