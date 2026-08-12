@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import type { RoomPermissions } from '$lib/state/room';
 import { findLastEditableMessage } from './lastEditableMessage';
 
@@ -17,6 +14,7 @@ const canEchoRoomPermissions: RoomPermissions = {
   canManageOthersMessage: false,
   canEchoMessage: true,
   canManageRoom: false,
+  canViewPinnedMessages: false,
   canPinMessages: false,
   canBanRoomMembers: false
 };

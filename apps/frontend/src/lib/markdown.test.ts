@@ -295,6 +295,16 @@ describe('renderMarkdown', () => {
       const html = await renderMarkdown('`*not bold*`');
       expect(html).toContain('<code>*not bold*</code>');
     });
+
+    it('groups inline content in tight list items', async () => {
+      const html = await renderMarkdown(
+        '1. Connect to `/api/realtime` using `chatto.realtime.v1`.'
+      );
+
+      expect(html).toContain(
+        '<li><span class="list-item-content">Connect to <code>/api/realtime</code> using <code>chatto.realtime.v1</code>.</span>'
+      );
+    });
   });
 
   describe('code blocks', () => {

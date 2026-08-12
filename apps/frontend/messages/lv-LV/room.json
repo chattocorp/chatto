@@ -97,6 +97,7 @@
         "copy_link": "Kopēt saiti"
       },
       "meta": {
+        "pinned": "Piesprausta ziņa",
         "thread": "Pavediens",
         "reply_count_one": "1 atbilde",
         "reply_count_many": "{count} atbildes",
@@ -182,6 +183,7 @@
       "hide": "Paslēpt piespraustās ziņas",
       "pin": "Piespraust ziņu",
       "unpin": "Atspraust ziņu",
+      "unpin_prompt": "Vai tiešām vēlaties noņemt šīs ziņas piespraudi?",
       "loading": "Ielādē piespraustās ziņas...",
       "empty_title": "Nav piespraustu ziņu",
       "empty_description": "Telpas pārvaldnieki šeit var piespraust svarīgas ziņas.",

@@ -97,6 +97,7 @@
         "copy_link": "Kopiera länk"
       },
       "meta": {
+        "pinned": "Fäst meddelande",
         "thread": "Tråd",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarar",
@@ -182,6 +183,7 @@
       "hide": "Dölj fästa meddelanden",
       "pin": "Fäst meddelande",
       "unpin": "Lossa meddelande",
+      "unpin_prompt": "Vill du verkligen ta bort den här fästningen?",
       "loading": "Läser in fästa meddelanden...",
       "empty_title": "Inga fästa meddelanden",
       "empty_description": "Rumsansvariga kan fästa viktiga meddelanden här.",

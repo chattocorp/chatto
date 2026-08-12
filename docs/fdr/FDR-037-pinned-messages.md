@@ -30,7 +30,8 @@ pins.
 - A dot on the room-header pin icon indicates that this device has not opened
   the Pins tab since a newer pin arrived. Opening the tab clears the dot. This
   marker is device-local, is not a server read receipt, and never opens the tab
-  automatically.
+  automatically. The dot is hidden when the room has no current pins, including
+  after a live unpin removes the last unseen pin.
 - Archived rooms reject pin changes. They retain their existing pins for
   historical rendering while members can still read the room.
 

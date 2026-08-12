@@ -97,6 +97,7 @@
         "copy_link": "Kopeeri link"
       },
       "meta": {
+        "pinned": "Kinnitatud sõnum",
         "thread": "Niit",
         "reply_count_one": "1 vastus",
         "reply_count_many": "{count} vastust",
@@ -182,6 +183,7 @@
       "hide": "Peida kinnitatud sõnumid",
       "pin": "Kinnita sõnum",
       "unpin": "Eemalda sõnumi kinnitus",
+      "unpin_prompt": "Kas soovid kindlasti selle sõnumi kinnituse eemaldada?",
       "loading": "Kinnitatud sõnumite laadimine...",
       "empty_title": "Kinnitatud sõnumeid pole",
       "empty_description": "Ruumi haldurid saavad siin olulisi sõnumeid kinnitada.",

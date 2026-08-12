@@ -200,11 +200,11 @@
   const editChannelEchoEventId = $derived(eventReferences?.editChannelEchoEventId ?? null);
   const threadRootEventId = $derived(eventReferences?.threadRootEventId ?? null);
   const pinsStore = $derived(
-    roomPermissions.canPinMessages ? stores.pinsForRoom(roomId) : null
+    roomPermissions.canViewPinnedMessages ? stores.pinsForRoom(roomId) : null
   );
-  const canPin = $derived(Boolean(pinsStore));
+  const canPin = $derived(roomPermissions.canPinMessages && Boolean(pinsStore));
   const isPinned = $derived(
-    Boolean(pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false))
+    pinsStore?.isPinned(editEventId, messageEvent?.pinned ?? false) ?? messageEvent?.pinned ?? false
   );
   const canReconcileChannelEcho = $derived(
     isAuthor &&
@@ -278,7 +278,7 @@
       canEdit,
       canDelete,
       canPin,
-      isPinned: canPin && isPinned,
+      isPinned,
       togglePin: async () => {
         const pins = pinsStore;
         if (!pins) return;
@@ -358,7 +358,10 @@
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
   const hasMessageFooter = $derived(
-    (isEcho && !!onOpenThread) || (hasThread && !!onOpenThread) || (msg?.reactions?.length ?? 0) > 0
+    (isEcho && !!onOpenThread) ||
+      (hasThread && !!onOpenThread) ||
+      (msg?.reactions?.length ?? 0) > 0 ||
+      isPinned
   );
 
   // Check if current user is mentioned (but not by themselves)

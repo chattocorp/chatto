@@ -97,6 +97,7 @@
         "copy_link": "Copier le lien"
       },
       "meta": {
+        "pinned": "Message épinglé",
         "thread": "Sujet",
         "reply_count_one": "1 réponse",
         "reply_count_many": "Réponses de {count}",
@@ -182,6 +183,7 @@
       "hide": "Masquer les messages épinglés",
       "pin": "Épingler le message",
       "unpin": "Désépingler le message",
+      "unpin_prompt": "Voulez-vous vraiment retirer cette épingle du message?",
       "loading": "Chargement des messages épinglés...",
       "empty_title": "Aucun message épinglé",
       "empty_description": "Les gestionnaires du salon peuvent épingler ici les messages importants.",

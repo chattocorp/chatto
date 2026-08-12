@@ -97,6 +97,7 @@
         "copy_link": "Copy link"
       },
       "meta": {
+        "pinned": "Pinned message",
         "thread": "Thread",
         "reply_count_one": "1 reply",
         "reply_count_many": "{count} replies",
@@ -182,6 +183,7 @@
       "hide": "Hide pinned messages",
       "pin": "Pin message",
       "unpin": "Unpin message",
+      "unpin_prompt": "Are you sure you want to remove this pin?",
       "loading": "Loading pinned messages...",
       "empty_title": "No pinned messages",
       "empty_description": "Room managers can pin important messages here.",
