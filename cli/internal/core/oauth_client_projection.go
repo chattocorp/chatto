@@ -14,14 +14,17 @@ import (
 type OAuthClientState struct {
 	ClientID             string
 	ClientName           string
-	ClientURI            string
+	ClientOrigin         string
 	Source               corev1.OAuthClientSource
 	Policy               corev1.OAuthClientPolicy
 	FirstAuthorizationAt time.Time
 	LastAuthorizationAt  time.Time
 	RedirectOrigins      []string
 	AuthorizedUserCount  uint32
-	authorizedUsers      map[string]struct{}
+	// Clients are never deleted, so their first EVT sequence provides an
+	// append-stable order for the administration API's offset pagination.
+	firstAuthorizationSeq uint64
+	authorizedUsers       map[string]struct{}
 }
 
 type OAuthClientProjection struct {
@@ -37,7 +40,7 @@ func (p *OAuthClientProjection) Subjects() []string {
 	return []string{evtstream.OAuthClientSubjectFilter()}
 }
 
-func (p *OAuthClientProjection) Apply(event *corev1.Event, _ uint64) error {
+func (p *OAuthClientProjection) Apply(event *corev1.Event, sequence uint64) error {
 	if event == nil {
 		return nil
 	}
@@ -54,15 +57,16 @@ func (p *OAuthClientProjection) Apply(event *corev1.Event, _ uint64) error {
 		authorizedAt := event.GetCreatedAt().AsTime()
 		if state == nil {
 			state = &OAuthClientState{
-				ClientID:             clientID,
-				Policy:               corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
-				FirstAuthorizationAt: authorizedAt,
-				authorizedUsers:      make(map[string]struct{}),
+				ClientID:              clientID,
+				Policy:                corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
+				FirstAuthorizationAt:  authorizedAt,
+				firstAuthorizationSeq: sequence,
+				authorizedUsers:       make(map[string]struct{}),
 			}
 			p.clients[clientID] = state
 		}
 		state.ClientName = payload.GetClientName()
-		state.ClientURI = payload.GetClientUri()
+		state.ClientOrigin = payload.GetClientUri()
 		state.Source = payload.GetSource()
 		state.LastAuthorizationAt = authorizedAt
 		if origin := payload.GetRedirectOrigin(); origin != "" && !containsString(state.RedirectOrigins, origin) {
@@ -100,7 +104,7 @@ func (p *OAuthClientProjection) all() []OAuthClientState {
 		result = append(result, cloneOAuthClientState(state))
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].LastAuthorizationAt.After(result[j].LastAuthorizationAt)
+		return result[i].firstAuthorizationSeq < result[j].firstAuthorizationSeq
 	})
 	return result
 }
@@ -126,7 +130,7 @@ func (p *OAuthClientProjection) adminProjectionEstimate() (int64, int64, []Proje
 	defer p.RUnlock()
 	var estimatedBytes int64
 	for _, state := range p.clients {
-		estimatedBytes += int64(len(state.ClientID) + len(state.ClientName) + len(state.ClientURI) + 64)
+		estimatedBytes += int64(len(state.ClientID) + len(state.ClientName) + len(state.ClientOrigin) + 64)
 		for _, origin := range state.RedirectOrigins {
 			estimatedBytes += int64(len(origin))
 		}

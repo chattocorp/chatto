@@ -11,7 +11,7 @@ export type OAuthClientPolicyName = 'default' | 'trusted' | 'blocked';
 export type OAuthClient = {
   clientId: string;
   clientName: string;
-  clientUri: string;
+  clientOrigin: string;
   source: 'cimd' | 'built-in';
   policy: OAuthClientPolicyName;
   firstAuthorizationAt: string;
@@ -56,7 +56,7 @@ function mapOAuthClient(client: APIOAuthClient): OAuthClient {
   return {
     clientId: client.clientId,
     clientName: client.clientName,
-    clientUri: client.clientUri,
+    clientOrigin: client.clientOrigin,
     source:
       client.source === OAuthClientSource.OAUTH_CLIENT_SOURCE_BUILT_IN ? 'built-in' : 'cimd',
     policy: policyName(client.policy),

@@ -105,11 +105,11 @@ export class OAuthClient extends Message<OAuthClient> {
   clientName = "";
 
   /**
-   * Informational application URL from validated client metadata, when present.
+   * Privacy-safe canonical origin derived from validated client metadata.
    *
-   * @generated from field: string client_uri = 3;
+   * @generated from field: string client_origin = 3;
    */
-  clientUri = "";
+  clientOrigin = "";
 
   /**
    * How the client identity was established.
@@ -163,7 +163,7 @@ export class OAuthClient extends Message<OAuthClient> {
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "client_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "client_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "client_uri", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "client_origin", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "source", kind: "enum", T: proto3.getEnumType(OAuthClientSource) },
     { no: 5, name: "policy", kind: "enum", T: proto3.getEnumType(OAuthClientPolicy) },
     { no: 6, name: "first_authorization_at", kind: "message", T: Timestamp },
@@ -231,7 +231,7 @@ export class ListOAuthClientsRequest extends Message<ListOAuthClientsRequest> {
 }
 
 /**
- * One page of OAuth clients, newest authorization first.
+ * One page of OAuth clients in stable first-authorization order.
  *
  * @generated from message chatto.admin.v1.ListOAuthClientsResponse
  */

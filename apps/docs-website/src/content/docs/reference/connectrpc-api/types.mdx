@@ -1244,7 +1244,7 @@ An OAuth client that completed at least one successful user authorization.
 | --- | --- | --- |
 | `client_id` | `string` | Stable client identifier: a CIMD URL or built-in application URI. |
 | `client_name` | `string` | Display name from validated client metadata. |
-| `client_uri` | `string` | Informational application URL from validated client metadata, when present. |
+| `client_origin` | `string` | Privacy-safe canonical origin derived from validated client metadata. |
 | `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
 | `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
 | `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |

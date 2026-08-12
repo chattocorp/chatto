@@ -142,8 +142,8 @@ type OAuthClient struct {
 	ClientId string `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	// Display name from validated client metadata.
 	ClientName string `protobuf:"bytes,2,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
-	// Informational application URL from validated client metadata, when present.
-	ClientUri string `protobuf:"bytes,3,opt,name=client_uri,json=clientUri,proto3" json:"client_uri,omitempty"`
+	// Privacy-safe canonical origin derived from validated client metadata.
+	ClientOrigin string `protobuf:"bytes,3,opt,name=client_origin,json=clientOrigin,proto3" json:"client_origin,omitempty"`
 	// How the client identity was established.
 	Source OAuthClientSource `protobuf:"varint,4,opt,name=source,proto3,enum=chatto.admin.v1.OAuthClientSource" json:"source,omitempty"`
 	// Current server-administrator policy for the client.
@@ -204,9 +204,9 @@ func (x *OAuthClient) GetClientName() string {
 	return ""
 }
 
-func (x *OAuthClient) GetClientUri() string {
+func (x *OAuthClient) GetClientOrigin() string {
 	if x != nil {
-		return x.ClientUri
+		return x.ClientOrigin
 	}
 	return ""
 }
@@ -299,7 +299,7 @@ func (x *ListOAuthClientsRequest) GetPage() *v1.PageRequest {
 	return nil
 }
 
-// One page of OAuth clients, newest authorization first.
+// One page of OAuth clients in stable first-authorization order.
 type ListOAuthClientsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Clients visible to the caller in this page.
@@ -551,13 +551,12 @@ var File_chatto_admin_v1_oauth_clients_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/admin/v1/oauth_clients.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe3\x03\n" +
+	"#chatto/admin/v1/oauth_clients.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe9\x03\n" +
 	"\vOAuthClient\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1f\n" +
 	"\vclient_name\x18\x02 \x01(\tR\n" +
-	"clientName\x12\x1d\n" +
-	"\n" +
-	"client_uri\x18\x03 \x01(\tR\tclientUri\x12:\n" +
+	"clientName\x12#\n" +
+	"\rclient_origin\x18\x03 \x01(\tR\fclientOrigin\x12:\n" +
 	"\x06source\x18\x04 \x01(\x0e2\".chatto.admin.v1.OAuthClientSourceR\x06source\x12:\n" +
 	"\x06policy\x18\x05 \x01(\x0e2\".chatto.admin.v1.OAuthClientPolicyR\x06policy\x12P\n" +
 	"\x16first_authorization_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14firstAuthorizationAt\x12N\n" +

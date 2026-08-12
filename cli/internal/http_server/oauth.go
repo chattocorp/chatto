@@ -575,7 +575,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		UserID:         userID,
 		ClientID:       params.ClientID,
 		ClientName:     params.ClientName,
-		ClientURI:      params.ClientURI,
+		ClientOrigin:   params.ClientURI,
 		RedirectOrigin: redirectOrigin,
 		Source:         source,
 	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)

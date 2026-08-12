@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
+import type { OAuthClient } from '$lib/api-client/oauthClients';
 import { adminQueryKeys } from '$lib/query/admin';
 import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminQueries } from '$lib/query/cacheRegistry';
@@ -92,7 +93,7 @@ describe('server security query lifecycle', () => {
     mocks.updateOAuthClientPolicy.mockResolvedValue({
       clientId: 'https://remote.example/oauth/client-metadata.json',
       clientName: 'Remote Chatto',
-      clientUri: 'https://remote.example',
+      clientOrigin: 'https://remote.example',
       source: 'cimd',
       policy: 'blocked',
       firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
@@ -198,11 +199,23 @@ describe('server security query lifecycle', () => {
     );
   });
 
+  it('does not show the OAuth client empty state when the initial list fails', async () => {
+    mocks.listOAuthClients.mockRejectedValue(new Error('Inventory unavailable'));
+
+    const view = render(SecurityPage);
+
+    await vi.waitFor(
+      () => expect(view.container.textContent).toContain('Inventory unavailable'),
+      5_000
+    );
+    expect(view.container.textContent).not.toContain('No OAuth clients have been authorised');
+  });
+
   it('lists authorized OAuth clients and saves policy changes immediately', async () => {
     const client = {
       clientId: 'https://remote.example/oauth/client-metadata.json',
       clientName: 'Remote Chatto',
-      clientUri: 'https://remote.example',
+      clientOrigin: 'https://remote.example',
       source: 'cimd' as const,
       policy: 'default' as const,
       firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
@@ -221,6 +234,9 @@ describe('server security query lifecycle', () => {
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
     expect(container.textContent).toContain('Last authorisation');
+    expect(
+      Array.from(container.querySelectorAll('bdi[dir="ltr"]'), (element) => element.textContent)
+    ).toEqual([client.clientId, client.redirectOrigins[0]]);
 
     const policy = container.querySelector('select') as HTMLSelectElement;
     policy.value = 'blocked';
@@ -234,11 +250,72 @@ describe('server security query lifecycle', () => {
     expect(policy.value).toBe('blocked');
   });
 
+  it('tracks pending policy saves independently for each OAuth client', async () => {
+    const alpha: OAuthClient = {
+      clientId: 'https://alpha.example/oauth/client-metadata.json',
+      clientName: 'Alpha',
+      clientOrigin: 'https://alpha.example',
+      source: 'cimd' as const,
+      policy: 'default' as const,
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://alpha.example'],
+      authorizedUserCount: 1
+    };
+    const bravo: OAuthClient = {
+      ...alpha,
+      clientId: 'https://bravo.example/oauth/client-metadata.json',
+      clientName: 'Bravo',
+      clientOrigin: 'https://bravo.example',
+      redirectOrigins: ['https://bravo.example']
+    };
+    const alphaSave = deferred<OAuthClient>();
+    const bravoSave = deferred<OAuthClient>();
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [alpha, bravo],
+      totalCount: 2,
+      hasMore: false
+    });
+    mocks.updateOAuthClientPolicy.mockImplementation((clientId: string) =>
+      clientId === alpha.clientId ? alphaSave.promise : bravoSave.promise
+    );
+
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.querySelectorAll('select')).toHaveLength(2));
+    const [alphaPolicy, bravoPolicy] = Array.from(
+      container.querySelectorAll('select')
+    ) as HTMLSelectElement[];
+
+    alphaPolicy.value = 'blocked';
+    alphaPolicy.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledOnce());
+    expect(alphaPolicy.disabled).toBe(true);
+    expect(bravoPolicy.disabled).toBe(false);
+
+    bravoPolicy.value = 'trusted';
+    bravoPolicy.dispatchEvent(new Event('change', { bubbles: true }));
+    await vi.waitFor(() => expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledTimes(2));
+    expect(alphaPolicy.disabled).toBe(true);
+    expect(bravoPolicy.disabled).toBe(true);
+
+    alphaPolicy.value = 'trusted';
+    alphaPolicy.dispatchEvent(new Event('change', { bubbles: true }));
+    await settle();
+    expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledTimes(2);
+
+    alphaSave.resolve({ ...alpha, policy: 'blocked' });
+    await vi.waitFor(() => expect(alphaPolicy.disabled).toBe(false));
+    expect(bravoPolicy.disabled).toBe(true);
+
+    bravoSave.resolve({ ...bravo, policy: 'trusted' });
+    await vi.waitFor(() => expect(bravoPolicy.disabled).toBe(false));
+  });
+
   it('keeps the confirmed policy visible when an update is rejected', async () => {
     const client = {
       clientId: 'https://remote.example/oauth/client-metadata.json',
       clientName: 'Remote Chatto',
-      clientUri: 'https://remote.example',
+      clientOrigin: 'https://remote.example',
       source: 'cimd' as const,
       policy: 'default' as const,
       firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
@@ -272,7 +349,7 @@ describe('server security query lifecycle', () => {
     const client = {
       clientId: 'https://remote.example/oauth/client-metadata.json',
       clientName: 'Remote Chatto',
-      clientUri: 'https://remote.example',
+      clientOrigin: 'https://remote.example',
       source: 'cimd' as const,
       policy: 'default' as const,
       firstAuthorizationAt: '2026-08-10T12:00:00.000Z',

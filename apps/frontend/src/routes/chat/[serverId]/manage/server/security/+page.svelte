@@ -6,6 +6,7 @@
     type InfiniteData
   } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
+  import { SvelteSet } from 'svelte/reactivity';
   import {
     createOAuthClientAPI,
     type OAuthClient,
@@ -66,6 +67,17 @@
     totalCount: number;
     hasMore: boolean;
   };
+
+  const pendingOAuthClientPolicies = new SvelteSet<string>();
+
+  function oauthClientPolicyMutationKey(variables: OAuthClientPolicyMutationVariables): string {
+    return JSON.stringify([
+      variables.serverId,
+      variables.connection.queryScope,
+      variables.privacyGeneration,
+      variables.clientId
+    ]);
+  }
 
   const securityQuery = createQuery(
     () => {
@@ -166,6 +178,9 @@
       onError: (mutationError, variables) => {
         if (!isCurrentOAuthClientSession(variables)) return;
         toast.error(mutationError instanceof Error ? mutationError.message : String(mutationError));
+      },
+      onSettled: (_client, _mutationError, variables) => {
+        pendingOAuthClientPolicies.delete(oauthClientPolicyMutationKey(variables));
       }
     }),
     () => queryClient
@@ -219,20 +234,29 @@
     // Keep displaying the last server-confirmed security policy until the
     // mutation succeeds and the authoritative list has been refreshed.
     select.value = client.policy;
-    oauthClientPolicyMutation.mutate({
+    const variables = {
       serverId: serverScope.serverId,
       connection: serverScope.connection,
       clientId: client.clientId,
       policy,
       privacyGeneration
-    });
+    };
+    const mutationKey = oauthClientPolicyMutationKey(variables);
+    if (pendingOAuthClientPolicies.has(mutationKey)) return;
+
+    pendingOAuthClientPolicies.add(mutationKey);
+    oauthClientPolicyMutation.mutate(variables);
   }
 
   function policySaving(client: OAuthClient): boolean {
-    return (
-      oauthClientPolicyMutation.isPending &&
-      isCurrentOAuthClientSession(oauthClientPolicyMutation.variables) &&
-      oauthClientPolicyMutation.variables.clientId === client.clientId
+    return pendingOAuthClientPolicies.has(
+      oauthClientPolicyMutationKey({
+        serverId: serverScope.serverId,
+        connection: serverScope.connection,
+        clientId: client.clientId,
+        policy: client.policy,
+        privacyGeneration
+      })
     );
   }
 
@@ -301,9 +325,7 @@
       {#if oauthClientsQuery.error}
         <div class="p-5"><Hint tone="danger">{String(oauthClientsQuery.error)}</Hint></div>
       {/if}
-      {#if oauthClientsLoading && oauthClients.length === 0}
-        <div class="p-5 text-muted">{m('admin.common.loading')}</div>
-      {:else}
+      {#if oauthClientsQuery.data !== undefined}
         <DataTable
           items={oauthClients}
           columns={5}
@@ -326,11 +348,13 @@
           <td class="max-w-72 px-4 py-3 align-top">
             <div class="font-medium">{client.clientName || m('admin.common.unknown')}</div>
             <div class="mt-1 truncate font-mono text-xs text-muted" title={client.clientId}>
-              {client.clientId}
+              <bdi dir="ltr">{client.clientId}</bdi>
             </div>
           </td>
           <td class="max-w-64 px-4 py-3 align-top text-sm text-muted">
-            {client.redirectOrigins.join(', ')}
+            {#each client.redirectOrigins as origin, index (origin)}
+              {#if index > 0}, {/if}<bdi dir="ltr">{origin}</bdi>
+            {/each}
           </td>
           <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
           <td class="px-4 py-3 align-top whitespace-nowrap text-sm text-muted">
@@ -354,6 +378,8 @@
           </td>
         {/snippet}
         </DataTable>
+      {:else if oauthClientsLoading}
+        <div class="p-5 text-muted">{m('admin.common.loading')}</div>
       {/if}
     </Panel>
   </div>

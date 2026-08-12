@@ -104,7 +104,7 @@ func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
 		UserID:         member.Id,
 		ClientID:       clientID,
 		ClientName:     "Code Failure Client",
-		ClientURI:      "https://code-failure.example",
+		ClientOrigin:   "https://code-failure.example",
 		RedirectOrigin: "https://code-failure.example",
 		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 	}
@@ -141,7 +141,7 @@ func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
 		UserID:         member.Id,
 		ClientID:       clientID,
 		ClientName:     "Record Failure Client",
-		ClientURI:      "https://record-failure.example",
+		ClientOrigin:   "https://record-failure.example",
 		RedirectOrigin: "https://record-failure.example",
 		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED,
 	}
@@ -174,7 +174,7 @@ func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
 		UserID:         member.Id,
 		ClientID:       clientID,
 		ClientName:     "Wait Failure Client",
-		ClientURI:      "https://wait-failure.example",
+		ClientOrigin:   "https://wait-failure.example",
 		RedirectOrigin: "https://wait-failure.example",
 		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
 	}

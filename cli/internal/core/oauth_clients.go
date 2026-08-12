@@ -28,7 +28,7 @@ type OAuthClientAuthorization struct {
 	UserID         string
 	ClientID       string
 	ClientName     string
-	ClientURI      string
+	ClientOrigin   string
 	RedirectOrigin string
 	Source         corev1.OAuthClientSource
 }
@@ -72,7 +72,7 @@ func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, aut
 	if err != nil {
 		return "", err
 	}
-	position, err := c.appendOAuthClientAuthorization(ctx, authorization.UserID, authorization.ClientID, authorization.ClientName, authorization.ClientURI, authorization.RedirectOrigin, authorization.Source)
+	position, err := c.appendOAuthClientAuthorization(ctx, authorization.UserID, authorization.ClientID, authorization.ClientName, authorization.ClientOrigin, authorization.RedirectOrigin, authorization.Source)
 	if err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
@@ -94,15 +94,15 @@ func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, aut
 // RecordOAuthClientAuthorization records one successful user authorization.
 // Every authorization advances the durable last-authorization timestamp; the
 // projection de-duplicates callback origins and authorizing users.
-func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) error {
-	position, err := c.appendOAuthClientAuthorization(ctx, actorID, clientID, clientName, clientURI, redirectOrigin, source)
+func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source corev1.OAuthClientSource) error {
+	position, err := c.appendOAuthClientAuthorization(ctx, actorID, clientID, clientName, clientOrigin, redirectOrigin, source)
 	if err != nil {
 		return err
 	}
 	return c.oauthClientModel.projection.Projector().WaitFor(ctx, position)
 }
 
-func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) (events.StreamPosition, error) {
+func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientOrigin, redirectOrigin string, source corev1.OAuthClientSource) (events.StreamPosition, error) {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
 		return events.StreamPosition{}, ErrInvalidArgument
@@ -126,7 +126,7 @@ func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
 			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
-				ClientId: clientID, ClientName: strings.TrimSpace(clientName), ClientUri: strings.TrimSpace(clientURI),
+				ClientId: clientID, ClientName: strings.TrimSpace(clientName), ClientUri: strings.TrimSpace(clientOrigin),
 				RedirectOrigin: origin, Source: source,
 			},
 		}})

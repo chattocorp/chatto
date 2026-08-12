@@ -77,7 +77,7 @@ func apiOAuthClient(state core.OAuthClientState) *adminv1.OAuthClient {
 	return &adminv1.OAuthClient{
 		ClientId:             state.ClientID,
 		ClientName:           state.ClientName,
-		ClientUri:            state.ClientURI,
+		ClientOrigin:         state.ClientOrigin,
 		Source:               apiOAuthClientSource(state.Source),
 		Policy:               apiOAuthClientPolicy(state.Policy),
 		FirstAuthorizationAt: timestamppb.New(state.FirstAuthorizationAt),

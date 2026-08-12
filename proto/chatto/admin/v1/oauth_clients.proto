@@ -35,8 +35,8 @@ message OAuthClient {
   string client_id = 1;
   // Display name from validated client metadata.
   string client_name = 2;
-  // Informational application URL from validated client metadata, when present.
-  string client_uri = 3;
+  // Privacy-safe canonical origin derived from validated client metadata.
+  string client_origin = 3;
   // How the client identity was established.
   OAuthClientSource source = 4;
   // Current server-administrator policy for the client.
@@ -57,7 +57,7 @@ message ListOAuthClientsRequest {
   chatto.api.v1.PageRequest page = 1;
 }
 
-// One page of OAuth clients, newest authorization first.
+// One page of OAuth clients in stable first-authorization order.
 message ListOAuthClientsResponse {
   // Clients visible to the caller in this page.
   repeated OAuthClient oauth_clients = 1;
