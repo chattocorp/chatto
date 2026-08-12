@@ -10,7 +10,9 @@ bot's profile shows its purpose, data-handling description, and the application
 capabilities its owner or a server administrator approved.
 
 <Aside type="caution">
-  Bot APIs are experimental in Chatto 0.5. Pin and test the server versions your integration supports, and treat capability identifiers as unstable until Chatto reaches 1.0.
+  Bot APIs are experimental in Chatto 0.5. Pin and test the server versions your
+  integration supports, and treat capability identifiers as unstable until
+  Chatto reaches 1.0.
 </Aside>
 
 ## The Authorization Model
@@ -28,11 +30,11 @@ self-join rooms.
 
 ## Initial Capabilities
 
-| Capability | Allows |
-| ---------- | ------ |
-| `dm.messages.read` | Listing and reading complete histories of DMs in which the bot is an explicit participant. Users cannot start a DM with the bot without this grant. |
-| `thread.messages.read` | Listing and reading only channel threads where an installed bot was directly mentioned. |
-| `messages.write` | Posting text messages in explicit DMs and invited threads, or posting root text messages through the incoming webhook to an explicitly installed channel. |
+| Capability             | Allows                                                                                                                                                    |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `dm.messages.read`     | Listing and reading complete histories of DMs in which the bot is an explicit participant. Users cannot start a DM with the bot without this grant.       |
+| `thread.messages.read` | Listing and reading only channel threads where an installed bot was directly mentioned.                                                                   |
+| `messages.write`       | Posting text messages in explicit DMs and invited threads, or posting root text messages through the incoming webhook to an explicitly installed channel. |
 
 Use `BotService.ListApplicationCapabilities` instead of hard-coding this table.
 The response is the exhaustive catalogue understood by that server and includes
@@ -44,6 +46,10 @@ Bot creation issues one show-once API key. Send it as a bearer token only to
 `BotRuntimeService`. The normal user ConnectRPC API, realtime WebSocket,
 protected asset endpoints, room directory, and self-join operations reject bot
 keys even when the key itself is valid.
+
+The bot owner can reset an active key, and a server administrator can revoke
+it. A revoked bot has no API access until its owner selects **Generate API key**
+and copies the new show-once secret.
 
 The bot runtime API supports listing explicit bot DMs and invited threads,
 reading their timeline pages, and posting text messages in those contexts. Use
@@ -74,6 +80,28 @@ token:
 }
 ```
 
+For a bot in the local `mise dev` stack, copy the bot ID from its settings URL
+and the channel room ID from the channel URL. Then run:
+
+```sh
+CHATTO_URL="http://localhost:${CONDUCTOR_PORT:-4000}"
+BOT_ID="paste-bot-id"
+ROOM_ID="paste-channel-room-id"
+BOT_API_KEY="paste-show-once-api-key"
+
+curl --fail-with-body --request POST \
+  "$CHATTO_URL/webhooks/bots/$BOT_ID" \
+  --header "Authorization: Bearer $BOT_API_KEY" \
+  --header "Content-Type: application/json" \
+  --data "{\"room_id\":\"$ROOM_ID\",\"body\":\"Hello from curl!\"}"
+```
+
+Before sending the request, add the bot to the channel and grant it the
+`messages.write` capability. A successful request returns HTTP `201` and posts
+the message as the bot. In a Conductor workspace, `CONDUCTOR_PORT` points at
+that workspace's frontend proxy; outside Conductor, `mise dev` defaults to port
+`4000`.
+
 The endpoint can only create a root text message in a channel where the bot is
 explicitly installed. It cannot read or enumerate anything. Delivery is at
 least once: retrying after an uncertain response can create a duplicate, so
@@ -87,7 +115,19 @@ server-authored capability list on public profile cards, so users can make an
 informed choice before starting a DM.
 
 <CardGrid>
-  <LinkCard title="Bot Management API" href="/reference/connectrpc-api/bots/" description="Create bots, rotate keys, and approve capabilities." />
-  <LinkCard title="Bot Runtime API" href="/reference/connectrpc-api/bot-runtime/" description="Capability-gated operations for bot API keys." />
-  <LinkCard title="API Compatibility" href="/guides/integrations/api-compatibility/" description="Version-skew and experimental API guidance." />
+  <LinkCard
+    title="Bot Management API"
+    href="/reference/connectrpc-api/bots/"
+    description="Create bots, rotate keys, and approve capabilities."
+  />
+  <LinkCard
+    title="Bot Runtime API"
+    href="/reference/connectrpc-api/bot-runtime/"
+    description="Capability-gated operations for bot API keys."
+  />
+  <LinkCard
+    title="API Compatibility"
+    href="/guides/integrations/api-compatibility/"
+    description="Version-skew and experimental API guidance."
+  />
 </CardGrid>
