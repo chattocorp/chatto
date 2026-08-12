@@ -1,13 +1,20 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 
-const { soundMocks, toastMocks } = vi.hoisted(() => ({
+const { gameCaptureMocks, soundMocks, toastMocks } = vi.hoisted(() => ({
+  gameCaptureMocks: {
+    start: vi.fn()
+  },
   soundMocks: {
     playCallSound: vi.fn(() => Promise.resolve())
   },
   toastMocks: {
     error: vi.fn()
   }
+}));
+
+vi.mock('$lib/desktop/gameCapturePublisher', () => ({
+  GameCapturePublisherSession: { start: gameCaptureMocks.start }
 }));
 
 vi.mock('$lib/audio/callSounds', () => ({
@@ -35,6 +42,8 @@ let lastRoom: {
     setMicrophoneEnabled: ReturnType<typeof vi.fn>;
     setScreenShareEnabled: ReturnType<typeof vi.fn>;
     setCameraEnabled: ReturnType<typeof vi.fn>;
+    publishTrack: ReturnType<typeof vi.fn>;
+    unpublishTrack: ReturnType<typeof vi.fn>;
   };
   switchActiveDevice: ReturnType<typeof vi.fn>;
 } | null = null;
@@ -123,6 +132,19 @@ vi.mock('livekit-client', () => {
             track: { source: 'screen_share' }
           });
         }
+      }),
+      publishTrack: vi.fn(async (track: MediaStreamTrack, options: { source: string }) => {
+        calls.push(`publishTrack:${options.source}`);
+        localTrackPublications.push({
+          isMuted: false,
+          track: { source: options.source, mediaStreamTrack: track }
+        });
+      }),
+      unpublishTrack: vi.fn(async (track: MediaStreamTrack) => {
+        calls.push(`unpublishTrack:${track.kind}`);
+        localTrackPublications = localTrackPublications.filter(
+          (publication) => publication.track.mediaStreamTrack !== track
+        );
       }),
       getTrackPublication: vi.fn(),
       identity: 'local-user',
@@ -219,6 +241,12 @@ function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCall
       e2eeKey: 'shared-e2ee-key',
       callId: 'call-1'
     })),
+    createGameSharePublisherToken: vi.fn(async () => ({
+      token: 'publisher-token',
+      e2eeKey: 'shared-e2ee-key',
+      callId: 'call-1',
+      publisherIdentity: 'publisher-1'
+    })),
     leaveCall: vi.fn(async () => true),
     ...overrides
   };
@@ -256,6 +284,7 @@ describe('VoiceCallState', () => {
     roomEventHandlers = new Map();
     localTrackPublications = [];
     mockRemoteParticipants = new Map();
+    gameCaptureMocks.start.mockReset();
     vi.stubGlobal('Worker', class MockWorker {});
     vi.stubGlobal('TransformStream', class MockTransformStream {});
     vi.stubGlobal('ReadableStream', class MockReadableStream {});
@@ -549,6 +578,59 @@ describe('VoiceCallState', () => {
     expect(state.participants[0].screenShareTrack).toBeNull();
   });
 
+  it('publishes camera and one native game share under the local participant', async () => {
+    const session = {
+      stop: vi.fn(),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+
+    await state.toggleCamera();
+    await state.startGameCapture('window:42', 'Moonring');
+
+    expect(gameCaptureMocks.start).toHaveBeenCalledWith({
+      sourceId: 'window:42',
+      livekitUrl: 'wss://livekit.example.test',
+      token: 'publisher-token',
+      e2eeKey: 'shared-e2ee-key'
+    });
+    expect(state.isCameraEnabled).toBe(true);
+    expect(state.isGameCaptureEnabled).toBe(true);
+    expect(state.gameCaptureSourceName).toBe('Moonring');
+    expect(state.participants[0]).toMatchObject({
+      isCameraEnabled: true,
+      isScreenShareEnabled: true
+    });
+
+    await state.toggleScreenShare();
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(state.isCameraEnabled).toBe(true);
+    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(true);
+  });
+
+  it('replaces an existing browser screen share when game capture starts', async () => {
+    const session = {
+      stop: vi.fn(),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleScreenShare();
+
+    await state.startGameCapture('window:42', 'Moonring');
+
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenLastCalledWith(false);
+    expect(
+      localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
+    ).toHaveLength(0);
+    expect(state.isGameCaptureEnabled).toBe(true);
+  });
+
   it('keeps microphone pending until LiveKit applies the toggle', async () => {
     const client = createVoiceCallClient();
     const state = new VoiceCallState(client);
@@ -830,7 +912,11 @@ describe('VoiceCallState', () => {
       detach: vi.fn()
     };
 
-    roomEventHandlers.get('TrackSubscribed')?.(screenShareAudio, {});
+    roomEventHandlers.get('TrackSubscribed')?.(
+      screenShareAudio,
+      {},
+      mockRemoteParticipants.get('remote-user')
+    );
 
     expect(screenShareAudio.attach).toHaveBeenCalledOnce();
     expect(setVolume).toHaveBeenCalledWith(0, 'microphone');
@@ -885,5 +971,73 @@ describe('VoiceCallState', () => {
 
     expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
     expect(state.locallyMutedParticipantIds).toEqual({});
+  });
+
+  it('merges a companion game publisher into its owning participant', async () => {
+    const gameVideoTrack = { source: 'screen_share' };
+    const ownerSetVolume = vi.fn();
+    const companionSetVolume = vi.fn();
+    mockRemoteParticipants.set('remote-user', {
+      identity: 'remote-user',
+      name: 'Remote User',
+      metadata: '{"login":"remote"}',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: ownerSetVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [{ isMuted: false, track: { source: 'microphone' } }])
+    });
+    mockRemoteParticipants.set('publisher-1', {
+      identity: 'publisher-1',
+      name: 'Remote User',
+      metadata: '{"publisherKind":"game_share","ownerIdentity":"remote-user"}',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: companionSetVolume,
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [{ isMuted: false, track: gameVideoTrack }])
+    });
+
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(state.participants.map((participant) => participant.identity)).toEqual([
+      'local-user',
+      'remote-user'
+    ]);
+    expect(state.participants[1]).toMatchObject({
+      login: 'remote',
+      isScreenShareEnabled: true,
+      screenShareTrack: gameVideoTrack
+    });
+
+    state.toggleParticipantLocalMute('remote-user');
+    expect(ownerSetVolume).toHaveBeenCalledWith(0, 'microphone');
+    expect(companionSetVolume).toHaveBeenCalledWith(0, 'microphone');
+  });
+
+  it('does not attach game audio published by the local companion', async () => {
+    const companion = {
+      identity: 'publisher-1',
+      name: 'Local User',
+      metadata: '{"publisherKind":"game_share","ownerIdentity":"local-user"}',
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: vi.fn(),
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [])
+    };
+    mockRemoteParticipants.set('publisher-1', companion);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    const gameAudio = { kind: 'audio', attach: vi.fn(), detach: vi.fn() };
+
+    roomEventHandlers.get('TrackSubscribed')?.(gameAudio, {}, companion);
+
+    expect(gameAudio.attach).not.toHaveBeenCalled();
+    expect(companion.setVolume).toHaveBeenCalledWith(0, 'microphone');
   });
 });

@@ -45,10 +45,11 @@ const (
 )
 
 type liveKitParticipantSnapshot struct {
-	LegacySpaceID string
-	RoomID        string
-	CallID        string
-	UserIDs       []string
+	LegacySpaceID         string
+	RoomID                string
+	CallID                string
+	UserIDs               []string
+	ParticipantIdentities []string
 }
 
 type liveKitParticipantLister interface {
@@ -275,13 +276,26 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			return nil, err
 		}
 		userIDs := make([]string, 0, len(participantsResp.GetParticipants()))
+		participantIdentities := make([]string, 0, len(participantsResp.GetParticipants()))
 		for _, participant := range participantsResp.GetParticipants() {
-			if participant.GetIdentity() != "" {
-				userIDs = append(userIDs, participant.GetIdentity())
+			identity := participant.GetIdentity()
+			if identity == "" {
+				continue
+			}
+			participantIdentities = append(participantIdentities, identity)
+			if !IsCallMediaPublisher(participant.GetMetadata()) {
+				userIDs = append(userIDs, identity)
 			}
 		}
 		sort.Strings(userIDs)
-		out = append(out, liveKitParticipantSnapshot{LegacySpaceID: legacySpaceID, RoomID: roomID, CallID: callID, UserIDs: userIDs})
+		sort.Strings(participantIdentities)
+		out = append(out, liveKitParticipantSnapshot{
+			LegacySpaceID:         legacySpaceID,
+			RoomID:                roomID,
+			CallID:                callID,
+			UserIDs:               userIDs,
+			ParticipantIdentities: participantIdentities,
+		})
 	}
 	return out, nil
 }
@@ -779,11 +793,15 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 		return err
 	}
 	keyRef := kms.CallKeyRef(snapshot.CallID)
-	for _, userID := range snapshot.UserIDs {
-		if userID == "" {
+	identities := snapshot.ParticipantIdentities
+	if identities == nil {
+		identities = snapshot.UserIDs
+	}
+	for _, identity := range identities {
+		if identity == "" {
 			continue
 		}
-		if err := remover.RemoveCallParticipant(ctx, snapshot.LegacySpaceID, snapshot.RoomID, snapshot.CallID, userID); err != nil {
+		if err := remover.RemoveCallParticipant(ctx, snapshot.LegacySpaceID, snapshot.RoomID, snapshot.CallID, identity); err != nil {
 			return fmt.Errorf("remove participant from unmatched LiveKit call: %w", err)
 		}
 	}

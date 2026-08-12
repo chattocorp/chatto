@@ -38,6 +38,12 @@ func NewCallID() string {
 	return newID("C")
 }
 
+// NewCallMediaPublisherID generates an opaque LiveKit companion-publisher ID
+// with a distinct prefix so it can never collide with a user identity.
+func NewCallMediaPublisherID() string {
+	return newID("CP")
+}
+
 // NewRoomGroupID generates a new room-group ID with "G" prefix.
 func NewRoomGroupID() string {
 	return newID("G")

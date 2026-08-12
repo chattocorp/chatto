@@ -34,9 +34,13 @@ Electron's default persistent session stores browser state in the application's
 user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
-The shell owns no Chatto backend, NATS resources, projections, durable domain
-state, or renderer API bridge. It restricts navigation and browser permissions
-at the Electron boundary, while OAuth behavior remains specified by
+The shell owns no Chatto backend, NATS resources, projections, or durable
+domain state. Opt-in macOS discovery builds add a narrow renderer bridge and a
+nested ScreenCaptureKit helper. The bridge lists temporary opaque window
+sources and controls a publish-only native LiveKit companion; media remains in
+the helper's native WebRTC path and only credentials, stop commands, and
+lifecycle status cross IPC. The shell restricts navigation and browser
+permissions at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.

@@ -53,6 +53,13 @@
     "screen_share_failed": "Ekraani jagamist ei saanud alustada.",
     "speaker_switch_failed": "Kõlareid ei saanud vahetada. See brauser või seade ei pruugi kõlarite valikut toetada.",
     "device_switch_failed": "Sellele seadmele ei saanud lülituda.",
-    "media_device_failed": "Meediumiseadmele ei pääsenud juurde."
+    "media_device_failed": "Meediumiseadmele ei pääsenud juurde.",
+    "stream_game": "Voogedasta mängu",
+    "stream_game_description": "Vali mänguaken, mida soovid kõigi kõnes osalejatega jagada.",
+    "game_windows": "Mänguaknad",
+    "no_game_windows": "Jagatavaid aknaid ei leitud. Ava mäng akna- või ääristeta režiimis ja proovi uuesti.",
+    "game_windows_failed": "Jagatavate akende laadimine ebaõnnestus.",
+    "untitled_window": "Pealkirjata aken",
+    "game_window_selected": "{name} valitud"
   }
 }

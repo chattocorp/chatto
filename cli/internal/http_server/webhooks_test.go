@@ -151,6 +151,53 @@ func TestLiveKitWebhookParticipantLeftUsesParsedRoomID(t *testing.T) {
 	}
 }
 
+func TestLiveKitWebhookIgnoresCompanionPublisherMembership(t *testing.T) {
+	const (
+		apiKey    = "devkey"
+		apiSecret = "devsecret"
+		serverID  = "test-server"
+		roomID    = "room1"
+		userID    = "user1"
+	)
+	ctx := testContext(t)
+	s := setupHTTPServerTestServer(t, config.AuthConfig{})
+	s.config.LiveKit = config.LiveKitConfig{
+		Enabled: true, URL: "ws://livekit.example.test", APIKey: apiKey, APISecret: apiSecret, ServerID: serverID,
+	}
+	s.setupWebhookRoutes()
+	if err := s.core.RecordCallParticipantJoined(ctx, roomID, userID, corev1.CallParticipantEventSource_CALL_PARTICIPANT_EVENT_SOURCE_USER); err != nil {
+		t.Fatalf("RecordCallParticipantJoined() error = %v", err)
+	}
+	active, ok, err := s.core.GetActiveCall(roomID)
+	if err != nil || !ok {
+		t.Fatalf("GetActiveCall() = %+v, %v", active, err)
+	}
+
+	for _, eventName := range []string{webhook.EventParticipantJoined, webhook.EventParticipantLeft} {
+		event := &livekit.WebhookEvent{
+			Event: eventName,
+			Room:  &livekit.Room{Name: core.LiveKitRoomName(serverID, core.KindChannel, roomID, active.CallID)},
+			Participant: &livekit.ParticipantInfo{
+				Identity: "publisher1",
+				Metadata: `{"publisherKind":"game_share","ownerIdentity":"user1"}`,
+			},
+		}
+		recorder := httptest.NewRecorder()
+		s.router.ServeHTTP(recorder, signedLiveKitWebhookRequest(t, apiKey, apiSecret, event))
+		if recorder.Code != http.StatusOK {
+			t.Fatalf("%s webhook status = %d", eventName, recorder.Code)
+		}
+	}
+
+	participants, err := s.core.GetCallParticipants(roomID)
+	if err != nil {
+		t.Fatalf("GetCallParticipants() error = %v", err)
+	}
+	if len(participants) != 1 || participants[0].UserID != userID {
+		t.Fatalf("participants = %+v, want only owner", participants)
+	}
+}
+
 func signedLiveKitWebhookRequest(t *testing.T, apiKey, apiSecret string, event *livekit.WebhookEvent) *http.Request {
 	t.Helper()
 	body, err := protojson.Marshal(event)

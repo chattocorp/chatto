@@ -18,6 +18,7 @@ import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
+import { GameCapturePublisherSession } from '$lib/desktop/gameCapturePublisher';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -46,6 +47,8 @@ export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
 type ParticipantMetadata = {
   login?: string;
   avatarUrl?: string;
+  publisherKind?: string;
+  ownerIdentity?: string;
 };
 
 type LiveKitModule = typeof import('livekit-client');
@@ -192,6 +195,9 @@ export class VoiceCallState {
   isScreenShareEnabled = $state(false);
   // True while LiveKit is applying local screen-share enable/disable changes.
   isScreenSharePending = $state(false);
+  isGameCaptureEnabled = $state(false);
+  isGameCapturePending = $state(false);
+  gameCaptureSourceName = $state<string | null>(null);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -213,6 +219,7 @@ export class VoiceCallState {
 
   // Internal LiveKit room instance
   private room: Room | null = null;
+  private liveKitURL: string | null = null;
   private activeCallId: string | null = null;
   private pendingOwnJoinSound: {
     roomId: string;
@@ -229,6 +236,8 @@ export class VoiceCallState {
   private microphoneToggleInFlight: Promise<void> | null = null;
   private cameraToggleInFlight: Promise<void> | null = null;
   private screenShareToggleInFlight: Promise<void> | null = null;
+  private gameCaptureToggleInFlight: Promise<void> | null = null;
+  private gameCaptureSession: GameCapturePublisherSession | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
@@ -428,6 +437,7 @@ export class VoiceCallState {
       await keyProvider.setKey(e2eeKey);
       await this.room.setE2EEEnabled(true);
       await this.room.connect(livekitUrl, token);
+      this.liveKitURL = livekitUrl;
 
       // Try to enable microphone, but join muted if no device is available
       try {
@@ -639,6 +649,10 @@ export class VoiceCallState {
    * Toggle video-only screen/window/tab sharing.
    */
   async toggleScreenShare(): Promise<void> {
+    if (this.gameCaptureToggleInFlight) await this.gameCaptureToggleInFlight;
+    if (this.gameCaptureSession) {
+      await this.stopGameCapture();
+    }
     if (this.screenShareToggleInFlight) return this.screenShareToggleInFlight;
 
     const room = this.room;
@@ -655,6 +669,114 @@ export class VoiceCallState {
         this.isScreenSharePending = false;
       }
     }
+  }
+
+  /** Publish a host-provided game capture as this participant's screen share. */
+  async startGameCapture(sourceId: string, sourceName: string): Promise<void> {
+    if (this.gameCaptureToggleInFlight) return this.gameCaptureToggleInFlight;
+    if (this.screenShareToggleInFlight) await this.screenShareToggleInFlight;
+    const room = this.room;
+    if (!room) return;
+
+    const startPromise = this.performStartGameCapture(room, sourceId, sourceName);
+    this.gameCaptureToggleInFlight = startPromise;
+    this.isGameCapturePending = true;
+    try {
+      await startPromise;
+    } finally {
+      if (this.gameCaptureToggleInFlight === startPromise) {
+        this.gameCaptureToggleInFlight = null;
+        this.isGameCapturePending = false;
+      }
+    }
+  }
+
+  private async performStartGameCapture(
+    room: Room,
+    sourceId: string,
+    sourceName: string
+  ): Promise<void> {
+    if (this.gameCaptureSession) await this.performStopGameCapture(room);
+    if (this.isScreenShareEnabled) {
+      await room.localParticipant.setScreenShareEnabled(false);
+      if (this.room !== room) return;
+      this.isScreenShareEnabled = false;
+    }
+
+    const livekitUrl = this.liveKitURL;
+    const roomId = this.roomId;
+    if (!livekitUrl || !roomId) return;
+    const credential = await this.#api.createGameSharePublisherToken(roomId);
+    if (!credential || credential.callId !== this.activeCallId) {
+      throw new Error('The server could not create a game-share publisher credential.');
+    }
+    const session = await GameCapturePublisherSession.start({
+      sourceId,
+      livekitUrl,
+      token: credential.token,
+      e2eeKey: credential.e2eeKey
+    });
+    if (this.room !== room) {
+      session.stop();
+      return;
+    }
+
+    this.gameCaptureSession = session;
+    session.onEnded = (error) => void this.handleGameCaptureEnded(session, error);
+    if (this.room !== room || this.gameCaptureSession !== session) {
+      session.stop();
+      return;
+    }
+
+    this.isGameCaptureEnabled = true;
+    this.gameCaptureSourceName = sourceName;
+    this.isScreenShareEnabled = true;
+    this.updateParticipants();
+  }
+
+  /** Stop the active native game capture companion publisher. */
+  async stopGameCapture(): Promise<void> {
+    if (this.gameCaptureToggleInFlight) return this.gameCaptureToggleInFlight;
+    const room = this.room;
+    if (!room || !this.gameCaptureSession) return;
+
+    const stopPromise = this.performStopGameCapture(room);
+    this.gameCaptureToggleInFlight = stopPromise;
+    this.isGameCapturePending = true;
+    try {
+      await stopPromise;
+    } finally {
+      if (this.gameCaptureToggleInFlight === stopPromise) {
+        this.gameCaptureToggleInFlight = null;
+        this.isGameCapturePending = false;
+      }
+    }
+  }
+
+  private async performStopGameCapture(room: Room): Promise<void> {
+    const session = this.gameCaptureSession;
+    if (!session) return;
+    this.gameCaptureSession = null;
+    session.onEnded = null;
+    session.stop();
+    if (this.room !== room) return;
+    this.isGameCaptureEnabled = false;
+    this.gameCaptureSourceName = null;
+    this.isScreenShareEnabled = false;
+    this.updateParticipants();
+  }
+
+  private async handleGameCaptureEnded(
+    session: GameCapturePublisherSession,
+    error?: Error
+  ): Promise<void> {
+    if (this.gameCaptureSession !== session) return;
+    this.gameCaptureSession = null;
+    this.isGameCaptureEnabled = false;
+    this.gameCaptureSourceName = null;
+    this.isScreenShareEnabled = false;
+    this.updateParticipants();
+    if (error) toast.error(m('voice.screen_share_failed'));
   }
 
   private async performToggleScreenShare(room: Room): Promise<void> {
@@ -830,9 +952,13 @@ export class VoiceCallState {
     // Video tracks are NOT attached here — VideoThumbnail manages its own lifecycle.
     this.room.on(
       RoomEvent.TrackSubscribed,
-      (track: RemoteTrack, _publication: RemoteTrackPublication) => {
+      (
+        track: RemoteTrack,
+        _publication: RemoteTrackPublication,
+        participant: RemoteParticipant
+      ) => {
         if (track.kind === Track.Kind.Audio) {
-          track.attach();
+          if (!this.isLocalCompanionPublisher(participant)) track.attach();
           this.applyAllParticipantAudioVolumes();
         }
         this.updateParticipants();
@@ -877,17 +1003,29 @@ export class VoiceCallState {
       return;
     }
 
+    const companionPublishers = Array.from(this.room.remoteParticipants.values()).filter(
+      isCompanionPublisher
+    );
     const allParticipants: Participant[] = [
       this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values())
+      ...Array.from(this.room.remoteParticipants.values()).filter(
+        (participant) => !isCompanionPublisher(participant)
+      )
     ];
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
-    this.isScreenShareEnabled = isParticipantScreenShareEnabled(this.room.localParticipant);
+    this.isScreenShareEnabled =
+      isParticipantScreenShareEnabled(this.room.localParticipant) || this.isGameCaptureEnabled;
     this.applyAllParticipantAudioVolumes();
 
     this.participants = allParticipants.map((p) => {
       const md = parseParticipantMetadata(p.metadata);
       const isLocal = p === this.room!.localParticipant;
+      const companion = companionPublishers.find(
+        (candidate) => parseParticipantMetadata(candidate.metadata).ownerIdentity === p.identity
+      );
+      const screenShareTrack =
+        getParticipantScreenShareTrack(p) ??
+        (companion ? getParticipantScreenShareTrack(companion) : null);
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
@@ -898,8 +1036,8 @@ export class VoiceCallState {
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
         videoTrack: getParticipantCameraTrack(p),
-        isScreenShareEnabled: isParticipantScreenShareEnabled(p),
-        screenShareTrack: getParticipantScreenShareTrack(p),
+        isScreenShareEnabled: screenShareTrack !== null || (isLocal && this.isGameCaptureEnabled),
+        screenShareTrack,
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
@@ -913,15 +1051,34 @@ export class VoiceCallState {
   }
 
   private applyParticipantAudioVolume(identity: string): void {
-    const participant = this.room?.remoteParticipants.get(identity);
-    if (participant) this.applyRemoteParticipantAudioVolume(participant);
+    if (!this.room) return;
+    for (const participant of this.room.remoteParticipants.values()) {
+      const ownerIdentity = parseParticipantMetadata(participant.metadata).ownerIdentity;
+      if (participant.identity === identity || ownerIdentity === identity) {
+        this.applyRemoteParticipantAudioVolume(participant);
+      }
+    }
   }
 
   private applyRemoteParticipantAudioVolume(participant: RemoteParticipant): void {
     const { Track } = getLoadedLiveKit();
-    const volume = this.isParticipantLocallyMuted(participant.identity) ? 0 : 1;
+    const ownerIdentity = parseParticipantMetadata(participant.metadata).ownerIdentity;
+    const logicalIdentity = ownerIdentity || participant.identity;
+    const volume =
+      logicalIdentity === this.room?.localParticipant.identity ||
+      this.isParticipantLocallyMuted(logicalIdentity)
+        ? 0
+        : 1;
     participant.setVolume(volume, Track.Source.Microphone);
     participant.setVolume(volume, Track.Source.ScreenShareAudio);
+  }
+
+  private isLocalCompanionPublisher(participant: RemoteParticipant): boolean {
+    const metadata = parseParticipantMetadata(participant.metadata);
+    return (
+      isCompanionPublisher(participant) &&
+      metadata.ownerIdentity === this.room?.localParticipant.identity
+    );
   }
 
   /**
@@ -936,7 +1093,9 @@ export class VoiceCallState {
 
     const allParticipants: Participant[] = [
       this.room.localParticipant,
-      ...Array.from(this.room.remoteParticipants.values())
+      ...Array.from(this.room.remoteParticipants.values()).filter(
+        (participant) => !isCompanionPublisher(participant)
+      )
     ];
 
     for (const p of allParticipants) {
@@ -1038,12 +1197,16 @@ export class VoiceCallState {
       };
     }
     this.activeCallId = null;
+    this.liveKitURL = null;
     this.pendingOwnJoinSound = null;
     this.joinInFlight = null;
     this.joinInFlightRoomId = null;
     this.microphoneToggleInFlight = null;
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;
+    this.gameCaptureToggleInFlight = null;
+    this.gameCaptureSession?.stop();
+    this.gameCaptureSession = null;
     this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;
@@ -1054,6 +1217,9 @@ export class VoiceCallState {
     this.isCameraPending = false;
     this.isScreenShareEnabled = false;
     this.isScreenSharePending = false;
+    this.isGameCaptureEnabled = false;
+    this.isGameCapturePending = false;
+    this.gameCaptureSourceName = null;
     this.participants = [];
     this.locallyMutedParticipantIds = {};
     this.audioDevices = [];
@@ -1122,6 +1288,11 @@ function parseParticipantMetadata(metadata: string | undefined): ParticipantMeta
   } catch {
     return {};
   }
+}
+
+function isCompanionPublisher(participant: Participant): boolean {
+  const metadata = parseParticipantMetadata(participant.metadata);
+  return metadata.publisherKind === 'game_share' && !!metadata.ownerIdentity;
 }
 
 function isParticipantMuted(participant: Participant): boolean {

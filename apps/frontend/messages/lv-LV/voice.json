@@ -53,6 +53,13 @@
     "screen_share_failed": "Nevarēja sākt ekrāna kopīgošanu.",
     "speaker_switch_failed": "Nevarēja pārslēgt skaļruņus. Šī pārlūkprogramma vai ierīce var neatbalstīt skaļruņu atlasi.",
     "device_switch_failed": "Nevarēja pārslēgties uz šo ierīci.",
-    "media_device_failed": "Nevarēja piekļūt multivides ierīcei."
+    "media_device_failed": "Nevarēja piekļūt multivides ierīcei.",
+    "stream_game": "Straumēt spēli",
+    "stream_game_description": "Izvēlieties spēles logu, ko kopīgot ar visiem zvana dalībniekiem.",
+    "game_windows": "Spēļu logi",
+    "no_game_windows": "Kopīgojami logi nav atrasti. Atveriet spēli loga vai bezmalu režīmā un mēģiniet vēlreiz.",
+    "game_windows_failed": "Neizdevās ielādēt kopīgojamos logus.",
+    "untitled_window": "Logs bez nosaukuma",
+    "game_window_selected": "Atlasīts: {name}"
   }
 }

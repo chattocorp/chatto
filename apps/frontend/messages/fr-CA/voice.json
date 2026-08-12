@@ -53,6 +53,13 @@
     "screen_share_failed": "Impossible de démarrer le partage d'écran.",
     "speaker_switch_failed": "Impossible de changer de haut-parleur. Ce navigateur ou cet appareil pourrait ne pas prendre en charge la sélection des haut-parleurs.",
     "device_switch_failed": "Impossible de basculer vers cet appareil.",
-    "media_device_failed": "Impossible d'accéder à un périphérique multimédia."
+    "media_device_failed": "Impossible d'accéder à un périphérique multimédia.",
+    "stream_game": "Diffuser un jeu",
+    "stream_game_description": "Choisissez la fenêtre de jeu à partager avec tous les participants à l’appel.",
+    "game_windows": "Fenêtres de jeu",
+    "no_game_windows": "Aucune fenêtre partageable trouvée. Ouvrez un jeu en mode fenêtré ou sans bordure et réessayez.",
+    "game_windows_failed": "Impossible de charger les fenêtres partageables.",
+    "untitled_window": "Fenêtre sans titre",
+    "game_window_selected": "{name} sélectionné"
   }
 }

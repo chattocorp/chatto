@@ -25,7 +25,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-013](FDR-013-web-push-notifications.md) | Web Push Notifications | Active | 2026-08-08 |
 | [FDR-014](FDR-014-jump-to-present.md) | Jump to Present | Active | 2026-05-19 |
 | [FDR-015](FDR-015-quick-switcher.md) | Quick Switcher (Cmd-K) | Active | 2026-05-31 |
-| [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-08-11 |
+| [FDR-016](FDR-016-voice-calls.md) | Voice Calls | Active | 2026-08-12 |
 | [FDR-017](FDR-017-room-groups-and-sidebar-layout.md) | Room Groups & Sidebar Layout | Active | 2026-07-20 |
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-08-11 |
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-07-25 |
@@ -43,7 +43,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-031](FDR-031-client-server-compatibility-discovery.md) | Client–Server Compatibility Discovery | Experimental | 2026-07-30 |
 | [FDR-032](FDR-032-message-formatting.md) | Message Formatting | Active | 2026-07-19 |
 | [FDR-033](FDR-033-message-search.md) | Message Search | Experimental | 2026-07-31 |
-| [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-08 |
+| [FDR-034](FDR-034-chatto-desktop.md) | Chatto Desktop | Experimental | 2026-08-12 |
 | [FDR-035](FDR-035-slow-mode.md) | Slow Mode | Active | 2026-08-11 |
 | [FDR-036](FDR-036-invite-links.md) | Invite Links | Active | 2026-08-11 |
 | [FDR-037](FDR-037-pinned-messages.md) | Pinned Messages | Active | 2026-08-11 |

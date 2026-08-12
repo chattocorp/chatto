@@ -57,6 +57,9 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 		if event.Participant == nil {
 			break
 		}
+		if core.IsCallMediaPublisher(event.Participant.Metadata) {
+			break
+		}
 		md := core.ParseParticipantMetadata(event.Participant.Metadata)
 		eventCallID := callID
 		if eventCallID == "" {
@@ -76,6 +79,9 @@ func (s *HTTPServer) handleLiveKitWebhook(c *gin.Context) {
 
 	case webhook.EventParticipantLeft:
 		if event.Participant == nil {
+			break
+		}
+		if core.IsCallMediaPublisher(event.Participant.Metadata) {
 			break
 		}
 		if liveKitParticipantLeftIsConnectionHandoff(event.Participant) {

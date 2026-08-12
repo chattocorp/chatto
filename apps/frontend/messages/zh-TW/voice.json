@@ -53,6 +53,13 @@
     "screen_share_failed": "無法開始分享螢幕。",
     "speaker_switch_failed": "無法切換揚聲器。此瀏覽器或裝置可能不支援選擇揚聲器。",
     "device_switch_failed": "無法切換至該裝置。",
-    "media_device_failed": "無法存取媒體裝置。"
+    "media_device_failed": "無法存取媒體裝置。",
+    "stream_game": "直播遊戲",
+    "stream_game_description": "選擇要與通話中所有人分享的遊戲視窗。",
+    "game_windows": "遊戲視窗",
+    "no_game_windows": "找不到可分享的視窗。請以視窗或無邊框模式開啟遊戲，然後再試一次。",
+    "game_windows_failed": "無法載入可分享的視窗。",
+    "untitled_window": "未命名視窗",
+    "game_window_selected": "已選擇 {name}"
   }
 }

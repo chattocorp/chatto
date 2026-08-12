@@ -407,9 +407,12 @@ Listing failures increment the shared
 end projected calls only after three consecutive failed elected reconciliation
 cycles. A successful elected pass deletes the counter.
 
-`VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`, and
-`ListCallParticipants` expose the active call ID to integrations and command
-flows. The bundled frontend receives complete authorized active-call state in
+`VoiceCallService.GetActiveCall`, `BatchGetActiveCalls`, `GetCallToken`,
+`CreateCallMediaPublisherToken`, and `ListCallParticipants` expose the active
+call ID to integrations and command flows. The publisher-token operation mints
+a short-lived, publish-only LiveKit credential for a caller who is already in
+the active call; its companion identity is excluded from durable call
+membership. The bundled frontend receives complete authorized active-call state in
 `active_calls_replace` projection operations and infers one-shot join/leave/end
 presentation effects by comparing replacements. Room membership remains the
 authorization boundary for live delivery.

@@ -53,6 +53,13 @@
     "screen_share_failed": "画面共有を開始できませんでした。",
     "speaker_switch_failed": "スピーカーを切り替えられませんでした。このブラウザまたはデバイスはスピーカーの選択をサポートしていない可能性があります。",
     "device_switch_failed": "そのデバイスに切り替えることができませんでした。",
-    "media_device_failed": "メディアデバイスにアクセスできませんでした。"
+    "media_device_failed": "メディアデバイスにアクセスできませんでした。",
+    "stream_game": "ゲームを配信",
+    "stream_game_description": "通話中の全員と共有するゲームウィンドウを選択してください。",
+    "game_windows": "ゲームウィンドウ",
+    "no_game_windows": "共有できるウィンドウが見つかりません。ゲームをウィンドウまたはボーダーレスモードで開いて、もう一度お試しください。",
+    "game_windows_failed": "共有できるウィンドウを読み込めませんでした。",
+    "untitled_window": "タイトルなしのウィンドウ",
+    "game_window_selected": "{name}を選択しました"
   }
 }

@@ -53,6 +53,13 @@
     "screen_share_failed": "Det gick inte att starta skärmdelning.",
     "speaker_switch_failed": "Det gick inte att byta högtalare. Den här webbläsaren eller enheten kanske inte stöder val av högtalare.",
     "device_switch_failed": "Kunde inte byta till den enheten.",
-    "media_device_failed": "Kunde inte komma åt en mediaenhet."
+    "media_device_failed": "Kunde inte komma åt en mediaenhet.",
+    "stream_game": "Strömma ett spel",
+    "stream_game_description": "Välj spelfönstret som du vill dela med alla i samtalet.",
+    "game_windows": "Spelfönster",
+    "no_game_windows": "Inga delningsbara fönster hittades. Öppna ett spel i fönsterläge eller kantlöst läge och försök igen.",
+    "game_windows_failed": "Det gick inte att läsa in delningsbara fönster.",
+    "untitled_window": "Namnlöst fönster",
+    "game_window_selected": "{name} har valts"
   }
 }

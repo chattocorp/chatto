@@ -8,6 +8,7 @@ import (
 	"time"
 
 	lkauth "github.com/livekit/protocol/auth"
+	"github.com/livekit/protocol/livekit"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -15,9 +16,10 @@ import (
 
 // VoiceCallToken contains the LiveKit JWT for a client to join a call.
 type VoiceCallToken struct {
-	Token   string
-	E2EEKey string
-	CallID  string
+	Token             string
+	E2EEKey           string
+	CallID            string
+	PublisherIdentity string
 }
 
 // VoiceCallTokenTTL gives browser clients enough time for E2EE worker setup,
@@ -25,13 +27,23 @@ type VoiceCallToken struct {
 // long-lived.
 const VoiceCallTokenTTL = 5 * time.Minute
 
+// CallMediaPublisherTokenTTL only needs to cover starting the native helper's
+// LiveKit connection. An established connection remains valid after expiry.
+const CallMediaPublisherTokenTTL = time.Minute
+
+// ParticipantPublisherKindGameShare identifies a native companion connection
+// that contributes game media to another participant.
+const ParticipantPublisherKindGameShare = "game_share"
+
 // participantMetadata is serialized as JSON and stored in the LiveKit token's
 // metadata field so the frontend can display avatars without extra queries.
 // Also used to parse metadata from LiveKit webhook participant info.
 type participantMetadata struct {
-	Login     string `json:"login"`
-	AvatarURL string `json:"avatarUrl,omitempty"`
-	CallID    string `json:"callId,omitempty"`
+	Login         string `json:"login"`
+	AvatarURL     string `json:"avatarUrl,omitempty"`
+	CallID        string `json:"callId,omitempty"`
+	PublisherKind string `json:"publisherKind,omitempty"`
+	OwnerIdentity string `json:"ownerIdentity,omitempty"`
 }
 
 // ParseParticipantMetadata parses JSON metadata from a LiveKit participant.
@@ -45,6 +57,13 @@ func ParseParticipantMetadata(metadata string) participantMetadata {
 		return participantMetadata{}
 	}
 	return md
+}
+
+// IsCallMediaPublisher reports whether metadata belongs to a native companion
+// publisher rather than a Chatto call participant.
+func IsCallMediaPublisher(metadata string) bool {
+	md := ParseParticipantMetadata(metadata)
+	return md.PublisherKind == ParticipantPublisherKindGameShare && md.OwnerIdentity != ""
 }
 
 // LiveKitRoomName constructs a deterministic LiveKit room name from a room kind
@@ -135,6 +154,49 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 		return nil, fmt.Errorf("generate LiveKit token: %w", err)
 	}
 	return &VoiceCallToken{Token: token, E2EEKey: e2eeKey, CallID: activeCallID}, nil
+}
+
+// GenerateCallMediaPublisherToken creates a publish-only LiveKit credential
+// for a native companion process. The companion has its own opaque identity so
+// it cannot evict the owner's primary LiveKit connection.
+// Authorization: Caller must verify room membership and active participation.
+func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdentity, ownerIdentity, displayName, e2eeKey, callID, publisherKind string) (*VoiceCallToken, error) {
+	grant := &lkauth.VideoGrant{RoomJoin: true, Room: roomName}
+	grant.SetCanSubscribe(false)
+	grant.SetCanPublishData(false)
+	grant.SetCanPublishSources([]livekit.TrackSource{
+		livekit.TrackSource_SCREEN_SHARE,
+		// The Swift SDK currently publishes ScreenCaptureKit application audio
+		// through its local audio/mixer path, whose wire source is microphone.
+		livekit.TrackSource_MICROPHONE,
+	})
+
+	at := lkauth.NewAccessToken(apiKey, apiSecret)
+	at.SetVideoGrant(grant).
+		SetIdentity(publisherIdentity).
+		SetName(displayName).
+		SetValidFor(CallMediaPublisherTokenTTL)
+
+	md, err := json.Marshal(participantMetadata{
+		CallID:        callID,
+		PublisherKind: publisherKind,
+		OwnerIdentity: ownerIdentity,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("marshal media publisher metadata: %w", err)
+	}
+	at.SetMetadata(string(md))
+
+	token, err := at.ToJWT()
+	if err != nil {
+		return nil, fmt.Errorf("generate LiveKit media publisher token: %w", err)
+	}
+	return &VoiceCallToken{
+		Token:             token,
+		E2EEKey:           e2eeKey,
+		CallID:            callID,
+		PublisherIdentity: publisherIdentity,
+	}, nil
 }
 
 // HandleCallParticipantJoined appends a durable LiveKit-observed join fact.

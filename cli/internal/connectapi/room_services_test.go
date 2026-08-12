@@ -1882,6 +1882,16 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if tokenResp.Msg.GetToken() == "" || tokenResp.Msg.GetE2EeKey() == "" || tokenResp.Msg.GetCallId() != participants[0].GetCallId() {
 		t.Fatalf("GetCallToken response = %+v, want token/e2ee key/call id", tokenResp.Msg)
 	}
+	publisherResp, err := env.voice.CreateCallMediaPublisherToken(ctx, connect.NewRequest(&apiv1.CreateCallMediaPublisherTokenRequest{
+		RoomId: room.Id,
+		Kind:   apiv1.CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE,
+	}))
+	if err != nil {
+		t.Fatalf("CreateCallMediaPublisherToken: %v", err)
+	}
+	if publisherResp.Msg.GetToken() == "" || publisherResp.Msg.GetE2EeKey() == "" || publisherResp.Msg.GetCallId() != participants[0].GetCallId() || publisherResp.Msg.GetPublisherIdentity() == "" {
+		t.Fatalf("CreateCallMediaPublisherToken response = %+v", publisherResp.Msg)
+	}
 
 	leaveResp, err := env.voice.LeaveCall(ctx, connect.NewRequest(&apiv1.LeaveCallRequest{
 		RoomId: room.Id,
@@ -1910,6 +1920,12 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 		RoomId: room.Id,
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("GetCallToken after leave code = %v, want failed_precondition", connect.CodeOf(err))
+	}
+	if _, err := env.voice.CreateCallMediaPublisherToken(ctx, connect.NewRequest(&apiv1.CreateCallMediaPublisherTokenRequest{
+		RoomId: room.Id,
+		Kind:   apiv1.CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE,
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("CreateCallMediaPublisherToken after leave code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 }
 
