@@ -247,7 +247,7 @@
         "application": "Applicatie",
         "origins": "Callback-origins",
         "users": "Geautoriseerde gebruikers",
-        "observed": "Laatst waargenomen",
+        "last_authorization": "Laatste autorisatie",
         "policy": "Beleid",
         "policy_for": "Beleid voor {client}",
         "policy_default": "Standaard",

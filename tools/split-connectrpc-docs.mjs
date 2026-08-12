@@ -160,7 +160,7 @@ const categories = [
         name: 'AdminOAuthClientService',
         slug: 'admin-oauth-clients',
         title: 'Admin OAuth Clients',
-        description: 'Observed OAuth-client policy administration RPCs.'
+        description: 'Recorded OAuth-client authorization and policy administration RPCs.'
       },
       {
         name: 'AdminDiagnosticsService',

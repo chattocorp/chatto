@@ -247,7 +247,7 @@
         "application": "應用程式",
         "origins": "回呼來源",
         "users": "已授權使用者",
-        "observed": "上次觀察",
+        "last_authorization": "最近授權",
         "policy": "原則",
         "policy_for": "{client} 的原則",
         "policy_default": "預設",

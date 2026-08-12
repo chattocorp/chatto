@@ -247,7 +247,7 @@
         "application": "アプリケーション",
         "origins": "コールバックオリジン",
         "users": "承認済みユーザー",
-        "observed": "最終確認",
+        "last_authorization": "最終認可",
         "policy": "ポリシー",
         "policy_for": "{client} のポリシー",
         "policy_default": "デフォルト",

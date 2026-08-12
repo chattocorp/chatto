@@ -247,7 +247,7 @@
         "application": "Rakendus",
         "origins": "Tagasikutse lähtekohad",
         "users": "Volitatud kasutajad",
-        "observed": "Viimati täheldatud",
+        "last_authorization": "Viimane autoriseerimine",
         "policy": "Reegel",
         "policy_for": "Reegel kliendile {client}",
         "policy_default": "Vaikimisi",

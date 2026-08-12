@@ -1238,7 +1238,7 @@ admin/member metadata with visibility controlled by the service.
 
 ### OAuthClient
 
-An OAuth client observed after at least one successful user authorization.
+An OAuth client that completed at least one successful user authorization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -1247,8 +1247,8 @@ An OAuth client observed after at least one successful user authorization.
 | `client_uri` | `string` | Informational application URL from validated client metadata, when present. |
 | `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
 | `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
-| `first_observed_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
-| `last_observed_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
+| `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
+| `last_authorization_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
 | `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
 | `authorized_user_count` | `uint32` | Number of distinct users who have authorized this client. |
 

@@ -247,7 +247,7 @@
         "application": "App",
         "origins": "Tilbakekallingsopprinnelser",
         "users": "Autoriserte brukere",
-        "observed": "Sist observert",
+        "last_authorization": "Siste autorisering",
         "policy": "Retningslinje",
         "policy_for": "Retningslinje for {client}",
         "policy_default": "Standard",

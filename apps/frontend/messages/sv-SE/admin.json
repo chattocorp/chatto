@@ -247,7 +247,7 @@
         "application": "App",
         "origins": "Callback-ursprung",
         "users": "Auktoriserade användare",
-        "observed": "Senast observerad",
+        "last_authorization": "Senaste auktorisering",
         "policy": "Policy",
         "policy_for": "Policy för {client}",
         "policy_default": "Standard",

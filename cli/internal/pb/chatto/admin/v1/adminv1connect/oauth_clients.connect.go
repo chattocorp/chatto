@@ -49,7 +49,7 @@ const (
 type AdminOAuthClientServiceClient interface {
 	// Lists clients that completed at least one authorization. Requires server.manage.
 	ListOAuthClients(context.Context, *connect.Request[v1.ListOAuthClientsRequest]) (*connect.Response[v1.ListOAuthClientsResponse], error)
-	// Gets one observed client or returns NOT_FOUND. Requires server.manage.
+	// Gets one recorded client or returns NOT_FOUND. Requires server.manage.
 	GetOAuthClient(context.Context, *connect.Request[v1.GetOAuthClientRequest]) (*connect.Response[v1.GetOAuthClientResponse], error)
 	// Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
 	UpdateOAuthClientPolicy(context.Context, *connect.Request[v1.UpdateOAuthClientPolicyRequest]) (*connect.Response[v1.UpdateOAuthClientPolicyResponse], error)
@@ -114,7 +114,7 @@ func (c *adminOAuthClientServiceClient) UpdateOAuthClientPolicy(ctx context.Cont
 type AdminOAuthClientServiceHandler interface {
 	// Lists clients that completed at least one authorization. Requires server.manage.
 	ListOAuthClients(context.Context, *connect.Request[v1.ListOAuthClientsRequest]) (*connect.Response[v1.ListOAuthClientsResponse], error)
-	// Gets one observed client or returns NOT_FOUND. Requires server.manage.
+	// Gets one recorded client or returns NOT_FOUND. Requires server.manage.
 	GetOAuthClient(context.Context, *connect.Request[v1.GetOAuthClientRequest]) (*connect.Response[v1.GetOAuthClientResponse], error)
 	// Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
 	UpdateOAuthClientPolicy(context.Context, *connect.Request[v1.UpdateOAuthClientPolicyRequest]) (*connect.Response[v1.UpdateOAuthClientPolicyResponse], error)

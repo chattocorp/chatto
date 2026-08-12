@@ -45,10 +45,10 @@ func (c *ChattoCore) oauthClientBlocked(clientID string) bool {
 	return ok && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
 }
 
-// ObserveOAuthClient records a client after a successful user authorization.
-// Every authorization advances the durable last-observed timestamp; the
+// RecordOAuthClientAuthorization records one successful user authorization.
+// Every authorization advances the durable last-authorization timestamp; the
 // projection de-duplicates callback origins and authorizing users.
-func (c *ChattoCore) ObserveOAuthClient(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) error {
+func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) error {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
 		return ErrInvalidArgument
@@ -70,8 +70,8 @@ func (c *ChattoCore) ObserveOAuthClient(ctx context.Context, actorID, clientID, 
 		if exists && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
 			return ErrOAuthClientBlocked
 		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientObserved{
-			OauthClientObserved: &corev1.OAuthClientObservedEvent{
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
+			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
 				ClientId: clientID, ClientName: strings.TrimSpace(clientName), ClientUri: strings.TrimSpace(clientURI),
 				RedirectOrigin: origin, Source: source,
 			},

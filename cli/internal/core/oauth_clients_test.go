@@ -12,7 +12,7 @@ import (
 	"hmans.de/chatto/internal/testutil"
 )
 
-func TestOAuthClientObservationPolicyAndTokenRevocation(t *testing.T) {
+func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	admin := invitationAdmin(t, c)
@@ -29,32 +29,32 @@ func TestOAuthClientObservationPolicyAndTokenRevocation(t *testing.T) {
 		t.Fatalf("initial ListOAuthClients = %+v, %v", clients, err)
 	}
 
-	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("ObserveOAuthClient: %v", err)
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
 	}
-	firstObservation, err := c.GetOAuthClient(ctx, admin, clientID)
+	firstAuthorization, err := c.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {
-		t.Fatalf("GetOAuthClient after first observation: %v", err)
+		t.Fatalf("GetOAuthClient after first authorization: %v", err)
 	}
-	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("repeat ObserveOAuthClient: %v", err)
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("repeat RecordOAuthClientAuthorization: %v", err)
 	}
-	repeatObservation, err := c.GetOAuthClient(ctx, admin, clientID)
+	repeatAuthorization, err := c.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {
-		t.Fatalf("GetOAuthClient after repeat observation: %v", err)
+		t.Fatalf("GetOAuthClient after repeat authorization: %v", err)
 	}
-	if !repeatObservation.LastObservedAt.After(firstObservation.LastObservedAt) {
-		t.Fatalf("repeat observation timestamp = %v, want after %v", repeatObservation.LastObservedAt, firstObservation.LastObservedAt)
+	if !repeatAuthorization.LastAuthorizationAt.After(firstAuthorization.LastAuthorizationAt) {
+		t.Fatalf("repeat authorization timestamp = %v, want after %v", repeatAuthorization.LastAuthorizationAt, firstAuthorization.LastAuthorizationAt)
 	}
-	if err := c.ObserveOAuthClient(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("second-user ObserveOAuthClient: %v", err)
+	if err := c.RecordOAuthClientAuthorization(ctx, admin, clientID, "Remote Chatto", "https://remote.example", "https://other.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("second-user RecordOAuthClientAuthorization: %v", err)
 	}
 	state, err := c.GetOAuthClient(ctx, admin, clientID)
 	if err != nil {
 		t.Fatalf("GetOAuthClient: %v", err)
 	}
-	if state.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT || state.Source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD || state.AuthorizedUserCount != 2 || len(state.RedirectOrigins) != 2 || state.FirstObservedAt.IsZero() || state.LastObservedAt.IsZero() {
-		t.Fatalf("observed OAuth client = %+v", state)
+	if state.Policy != corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT || state.Source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD || state.AuthorizedUserCount != 2 || len(state.RedirectOrigins) != 2 || state.FirstAuthorizationAt.IsZero() || state.LastAuthorizationAt.IsZero() {
+		t.Fatalf("recorded OAuth client = %+v", state)
 	}
 
 	generation := mustCurrentAuthGeneration(t, c, member.Id)
@@ -75,8 +75,8 @@ func TestOAuthClientObservationPolicyAndTokenRevocation(t *testing.T) {
 	if _, err := c.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation); !errors.Is(err, ErrOAuthClientBlocked) {
 		t.Fatalf("CreateOAuthAccessTokenForClient after block = %v, want blocked", err)
 	}
-	if err := c.ObserveOAuthClient(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
-		t.Fatalf("ObserveOAuthClient after block = %v, want blocked", err)
+	if err := c.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); !errors.Is(err, ErrOAuthClientBlocked) {
+		t.Fatalf("RecordOAuthClientAuthorization after block = %v, want blocked", err)
 	}
 
 	trusted, err := c.UpdateOAuthClientPolicy(ctx, admin, clientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED)
@@ -132,8 +132,8 @@ func TestOAuthClientBlockEventInvalidatesTokenOnAnotherReplicaBeforeCleanup(t *t
 		t.Fatalf("create member: %v", err)
 	}
 	const clientID = "https://replica-client.example/oauth/client-metadata.json"
-	if err := first.ObserveOAuthClient(ctx, member.Id, clientID, "Replica Client", "https://replica-client.example", "https://replica-client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("observe OAuth client: %v", err)
+	if err := first.RecordOAuthClientAuthorization(ctx, member.Id, clientID, "Replica Client", "https://replica-client.example", "https://replica-client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("record OAuth client authorization: %v", err)
 	}
 	generation := mustCurrentAuthGeneration(t, first, member.Id)
 	token, err := first.CreateOAuthAccessTokenForClient(ctx, member.Id, clientID, generation)

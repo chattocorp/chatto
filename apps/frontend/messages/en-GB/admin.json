@@ -247,7 +247,7 @@
         "application": "Application",
         "origins": "Callback origins",
         "users": "Authorised users",
-        "observed": "Last observed",
+        "last_authorization": "Last authorisation",
         "policy": "Policy",
         "policy_for": "Policy for {client}",
         "policy_default": "Default",

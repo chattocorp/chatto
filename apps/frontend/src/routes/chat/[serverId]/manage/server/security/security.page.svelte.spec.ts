@@ -95,8 +95,8 @@ describe('server security query lifecycle', () => {
       clientUri: 'https://remote.example',
       source: 'cimd',
       policy: 'blocked',
-      firstObservedAt: '2026-08-10T12:00:00.000Z',
-      lastObservedAt: '2026-08-11T12:00:00.000Z',
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
       redirectOrigins: ['https://remote.example'],
       authorizedUserCount: 2
     });
@@ -198,15 +198,15 @@ describe('server security query lifecycle', () => {
     );
   });
 
-  it('lists observed OAuth clients and saves policy changes immediately', async () => {
+  it('lists authorized OAuth clients and saves policy changes immediately', async () => {
     const client = {
       clientId: 'https://remote.example/oauth/client-metadata.json',
       clientName: 'Remote Chatto',
       clientUri: 'https://remote.example',
       source: 'cimd' as const,
       policy: 'default' as const,
-      firstObservedAt: '2026-08-10T12:00:00.000Z',
-      lastObservedAt: '2026-08-11T12:00:00.000Z',
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
       redirectOrigins: ['https://remote.example'],
       authorizedUserCount: 2
     };
@@ -218,6 +218,7 @@ describe('server security query lifecycle', () => {
 
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
+    expect(container.textContent).toContain('Last authorisation');
 
     const policy = container.querySelector('select') as HTMLSelectElement;
     policy.value = 'blocked';

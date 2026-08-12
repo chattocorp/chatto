@@ -19,9 +19,9 @@ enum OAuthClientPolicy {
   OAUTH_CLIENT_POLICY_BLOCKED = 3;
 }
 
-// OAuthClientObservedEvent records a client only after a user authorizes it.
-// Metadata retrieval by itself never creates durable server state.
-message OAuthClientObservedEvent {
+// OAuthClientAuthorizationRecordedEvent records one successful user
+// authorization. Metadata retrieval by itself never creates durable state.
+message OAuthClientAuthorizationRecordedEvent {
   string client_id = 1;
   string client_name = 2;
   string client_uri = 3;

@@ -124,9 +124,9 @@ func (OAuthClientPolicy) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_oauth_client_events_proto_rawDescGZIP(), []int{1}
 }
 
-// OAuthClientObservedEvent records a client only after a user authorizes it.
-// Metadata retrieval by itself never creates durable server state.
-type OAuthClientObservedEvent struct {
+// OAuthClientAuthorizationRecordedEvent records one successful user
+// authorization. Metadata retrieval by itself never creates durable state.
+type OAuthClientAuthorizationRecordedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	ClientId       string                 `protobuf:"bytes,1,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	ClientName     string                 `protobuf:"bytes,2,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
@@ -137,20 +137,20 @@ type OAuthClientObservedEvent struct {
 	sizeCache      protoimpl.SizeCache
 }
 
-func (x *OAuthClientObservedEvent) Reset() {
-	*x = OAuthClientObservedEvent{}
+func (x *OAuthClientAuthorizationRecordedEvent) Reset() {
+	*x = OAuthClientAuthorizationRecordedEvent{}
 	mi := &file_chatto_core_v1_oauth_client_events_proto_msgTypes[0]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *OAuthClientObservedEvent) String() string {
+func (x *OAuthClientAuthorizationRecordedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*OAuthClientObservedEvent) ProtoMessage() {}
+func (*OAuthClientAuthorizationRecordedEvent) ProtoMessage() {}
 
-func (x *OAuthClientObservedEvent) ProtoReflect() protoreflect.Message {
+func (x *OAuthClientAuthorizationRecordedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_oauth_client_events_proto_msgTypes[0]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -162,40 +162,40 @@ func (x *OAuthClientObservedEvent) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use OAuthClientObservedEvent.ProtoReflect.Descriptor instead.
-func (*OAuthClientObservedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use OAuthClientAuthorizationRecordedEvent.ProtoReflect.Descriptor instead.
+func (*OAuthClientAuthorizationRecordedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_oauth_client_events_proto_rawDescGZIP(), []int{0}
 }
 
-func (x *OAuthClientObservedEvent) GetClientId() string {
+func (x *OAuthClientAuthorizationRecordedEvent) GetClientId() string {
 	if x != nil {
 		return x.ClientId
 	}
 	return ""
 }
 
-func (x *OAuthClientObservedEvent) GetClientName() string {
+func (x *OAuthClientAuthorizationRecordedEvent) GetClientName() string {
 	if x != nil {
 		return x.ClientName
 	}
 	return ""
 }
 
-func (x *OAuthClientObservedEvent) GetClientUri() string {
+func (x *OAuthClientAuthorizationRecordedEvent) GetClientUri() string {
 	if x != nil {
 		return x.ClientUri
 	}
 	return ""
 }
 
-func (x *OAuthClientObservedEvent) GetRedirectOrigin() string {
+func (x *OAuthClientAuthorizationRecordedEvent) GetRedirectOrigin() string {
 	if x != nil {
 		return x.RedirectOrigin
 	}
 	return ""
 }
 
-func (x *OAuthClientObservedEvent) GetSource() OAuthClientSource {
+func (x *OAuthClientAuthorizationRecordedEvent) GetSource() OAuthClientSource {
 	if x != nil {
 		return x.Source
 	}
@@ -259,8 +259,8 @@ var File_chatto_core_v1_oauth_client_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_oauth_client_events_proto_rawDesc = "" +
 	"\n" +
-	"(chatto/core/v1/oauth_client_events.proto\x12\x0echatto.core.v1\"\xdb\x01\n" +
-	"\x18OAuthClientObservedEvent\x12\x1b\n" +
+	"(chatto/core/v1/oauth_client_events.proto\x12\x0echatto.core.v1\"\xe8\x01\n" +
+	"%OAuthClientAuthorizationRecordedEvent\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1f\n" +
 	"\vclient_name\x18\x02 \x01(\tR\n" +
 	"clientName\x12\x1d\n" +
@@ -297,13 +297,13 @@ func file_chatto_core_v1_oauth_client_events_proto_rawDescGZIP() []byte {
 var file_chatto_core_v1_oauth_client_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
 var file_chatto_core_v1_oauth_client_events_proto_msgTypes = make([]protoimpl.MessageInfo, 2)
 var file_chatto_core_v1_oauth_client_events_proto_goTypes = []any{
-	(OAuthClientSource)(0),                // 0: chatto.core.v1.OAuthClientSource
-	(OAuthClientPolicy)(0),                // 1: chatto.core.v1.OAuthClientPolicy
-	(*OAuthClientObservedEvent)(nil),      // 2: chatto.core.v1.OAuthClientObservedEvent
-	(*OAuthClientPolicyChangedEvent)(nil), // 3: chatto.core.v1.OAuthClientPolicyChangedEvent
+	(OAuthClientSource)(0),                        // 0: chatto.core.v1.OAuthClientSource
+	(OAuthClientPolicy)(0),                        // 1: chatto.core.v1.OAuthClientPolicy
+	(*OAuthClientAuthorizationRecordedEvent)(nil), // 2: chatto.core.v1.OAuthClientAuthorizationRecordedEvent
+	(*OAuthClientPolicyChangedEvent)(nil),         // 3: chatto.core.v1.OAuthClientPolicyChangedEvent
 }
 var file_chatto_core_v1_oauth_client_events_proto_depIdxs = []int32{
-	0, // 0: chatto.core.v1.OAuthClientObservedEvent.source:type_name -> chatto.core.v1.OAuthClientSource
+	0, // 0: chatto.core.v1.OAuthClientAuthorizationRecordedEvent.source:type_name -> chatto.core.v1.OAuthClientSource
 	1, // 1: chatto.core.v1.OAuthClientPolicyChangedEvent.policy:type_name -> chatto.core.v1.OAuthClientPolicy
 	2, // [2:2] is the sub-list for method output_type
 	2, // [2:2] is the sub-list for method input_type

@@ -247,7 +247,7 @@
         "application": "Lietotne",
         "origins": "Atzvana izcelsmes",
         "users": "Autorizētie lietotāji",
-        "observed": "Pēdējoreiz novērots",
+        "last_authorization": "Pēdējā autorizācija",
         "policy": "Politika",
         "policy_for": "Politika klientam {client}",
         "policy_default": "Noklusējuma",

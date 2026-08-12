@@ -559,7 +559,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
-	if err := s.core.ObserveOAuthClient(ctx, userID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, source); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, userID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, source); err != nil {
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "invalid_client",

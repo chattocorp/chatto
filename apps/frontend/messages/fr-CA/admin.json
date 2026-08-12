@@ -247,7 +247,7 @@
         "application": "Application",
         "origins": "Origines de rappel",
         "users": "Utilisateurs autorisés",
-        "observed": "Dernière observation",
+        "last_authorization": "Dernière autorisation",
         "policy": "Politique",
         "policy_for": "Politique pour {client}",
         "policy_default": "Par défaut",

@@ -247,7 +247,7 @@
         "application": "יישום",
         "origins": "מקורות חזרה",
         "users": "משתמשים מורשים",
-        "observed": "נצפה לאחרונה",
+        "last_authorization": "הרשאה אחרונה",
         "policy": "מדיניות",
         "policy_for": "מדיניות עבור {client}",
         "policy_default": "ברירת מחדל",

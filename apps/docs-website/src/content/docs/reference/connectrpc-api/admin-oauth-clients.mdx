@@ -1,6 +1,6 @@
 ---
 title: AdminOAuthClientService
-description: Observed OAuth-client policy administration RPCs.
+description: Recorded OAuth-client authorization and policy administration RPCs.
 editUrl: false
 ---
 
@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## AdminOAuthClientService
 
-Manages OAuth clients observed by this server. Requires server.manage.
+Manages OAuth clients authorized through this server. Requires server.manage.
 
 <a id="chatto-admin-v1-AdminOAuthClientService-ListOAuthClients"></a>
 
@@ -34,7 +34,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
 
 #### Input: ListOAuthClientsRequest
 
-Lists observed OAuth clients using offset pagination.
+Lists OAuth clients with recorded authorizations using offset pagination.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -45,7 +45,7 @@ Lists observed OAuth clients using offset pagination.
 
 #### Result: ListOAuthClientsResponse
 
-One page of observed OAuth clients, newest observation first.
+One page of OAuth clients, newest authorization first.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -57,7 +57,7 @@ One page of observed OAuth clients, newest observation first.
 
 ### GetOAuthClient
 
-Gets one observed client or returns NOT_FOUND. Requires server.manage.
+Gets one recorded client or returns NOT_FOUND. Requires server.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
@@ -67,7 +67,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
 
 #### Input: GetOAuthClientRequest
 
-Identifies one observed OAuth client by its exact stable client ID.
+Identifies one OAuth client by its exact stable client ID.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -78,7 +78,7 @@ Identifies one observed OAuth client by its exact stable client ID.
 
 #### Result: GetOAuthClientResponse
 
-Returns one observed OAuth client.
+Returns one OAuth client with a recorded authorization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -99,7 +99,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/UpdateOAuthClientPolic
 
 #### Input: UpdateOAuthClientPolicyRequest
 
-Replaces the administrative policy for one observed OAuth client.
+Replaces the administrative policy for one OAuth client.
 
 | Field | Type | Description |
 | --- | --- | --- |

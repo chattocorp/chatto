@@ -247,7 +247,7 @@
         "application": "Applicazione",
         "origins": "Origini di callback",
         "users": "Utenti autorizzati",
-        "observed": "Ultima osservazione",
+        "last_authorization": "Ultima autorizzazione",
         "policy": "Criterio",
         "policy_for": "Criterio per {client}",
         "policy_default": "Predefinito",

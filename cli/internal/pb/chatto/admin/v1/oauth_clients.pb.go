@@ -135,7 +135,7 @@ func (OAuthClientPolicy) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_admin_v1_oauth_clients_proto_rawDescGZIP(), []int{1}
 }
 
-// An OAuth client observed after at least one successful user authorization.
+// An OAuth client that completed at least one successful user authorization.
 type OAuthClient struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stable client identifier: a CIMD URL or built-in application URI.
@@ -149,9 +149,9 @@ type OAuthClient struct {
 	// Current server-administrator policy for the client.
 	Policy OAuthClientPolicy `protobuf:"varint,5,opt,name=policy,proto3,enum=chatto.admin.v1.OAuthClientPolicy" json:"policy,omitempty"`
 	// When this server first completed an authorization for the client.
-	FirstObservedAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=first_observed_at,json=firstObservedAt,proto3" json:"first_observed_at,omitempty"`
+	FirstAuthorizationAt *timestamppb.Timestamp `protobuf:"bytes,6,opt,name=first_authorization_at,json=firstAuthorizationAt,proto3" json:"first_authorization_at,omitempty"`
 	// When this server most recently completed an authorization for the client.
-	LastObservedAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_observed_at,json=lastObservedAt,proto3" json:"last_observed_at,omitempty"`
+	LastAuthorizationAt *timestamppb.Timestamp `protobuf:"bytes,7,opt,name=last_authorization_at,json=lastAuthorizationAt,proto3" json:"last_authorization_at,omitempty"`
 	// Canonical web origins or native callback schemes seen during authorization.
 	RedirectOrigins []string `protobuf:"bytes,8,rep,name=redirect_origins,json=redirectOrigins,proto3" json:"redirect_origins,omitempty"`
 	// Number of distinct users who have authorized this client.
@@ -225,16 +225,16 @@ func (x *OAuthClient) GetPolicy() OAuthClientPolicy {
 	return OAuthClientPolicy_OAUTH_CLIENT_POLICY_UNSPECIFIED
 }
 
-func (x *OAuthClient) GetFirstObservedAt() *timestamppb.Timestamp {
+func (x *OAuthClient) GetFirstAuthorizationAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.FirstObservedAt
+		return x.FirstAuthorizationAt
 	}
 	return nil
 }
 
-func (x *OAuthClient) GetLastObservedAt() *timestamppb.Timestamp {
+func (x *OAuthClient) GetLastAuthorizationAt() *timestamppb.Timestamp {
 	if x != nil {
-		return x.LastObservedAt
+		return x.LastAuthorizationAt
 	}
 	return nil
 }
@@ -253,7 +253,7 @@ func (x *OAuthClient) GetAuthorizedUserCount() uint32 {
 	return 0
 }
 
-// Lists observed OAuth clients using offset pagination.
+// Lists OAuth clients with recorded authorizations using offset pagination.
 type ListOAuthClientsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Requested offset and page size.
@@ -299,7 +299,7 @@ func (x *ListOAuthClientsRequest) GetPage() *v1.PageRequest {
 	return nil
 }
 
-// One page of observed OAuth clients, newest observation first.
+// One page of OAuth clients, newest authorization first.
 type ListOAuthClientsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Clients visible to the caller in this page.
@@ -354,7 +354,7 @@ func (x *ListOAuthClientsResponse) GetPage() *v1.PageInfo {
 	return nil
 }
 
-// Identifies one observed OAuth client by its exact stable client ID.
+// Identifies one OAuth client by its exact stable client ID.
 type GetOAuthClientRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Exact CIMD URL or built-in application URI.
@@ -400,7 +400,7 @@ func (x *GetOAuthClientRequest) GetClientId() string {
 	return ""
 }
 
-// Returns one observed OAuth client.
+// Returns one OAuth client with a recorded authorization.
 type GetOAuthClientResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The requested client.
@@ -446,7 +446,7 @@ func (x *GetOAuthClientResponse) GetOauthClient() *OAuthClient {
 	return nil
 }
 
-// Replaces the administrative policy for one observed OAuth client.
+// Replaces the administrative policy for one OAuth client.
 type UpdateOAuthClientPolicyRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Exact CIMD URL or built-in application URI.
@@ -551,7 +551,7 @@ var File_chatto_admin_v1_oauth_clients_proto protoreflect.FileDescriptor
 
 const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\n" +
-	"#chatto/admin/v1/oauth_clients.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xcf\x03\n" +
+	"#chatto/admin/v1/oauth_clients.proto\x12\x0fchatto.admin.v1\x1a\x1bbuf/validate/validate.proto\x1a\x1echatto/api/v1/pagination.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe3\x03\n" +
 	"\vOAuthClient\x12\x1b\n" +
 	"\tclient_id\x18\x01 \x01(\tR\bclientId\x12\x1f\n" +
 	"\vclient_name\x18\x02 \x01(\tR\n" +
@@ -559,9 +559,9 @@ const file_chatto_admin_v1_oauth_clients_proto_rawDesc = "" +
 	"\n" +
 	"client_uri\x18\x03 \x01(\tR\tclientUri\x12:\n" +
 	"\x06source\x18\x04 \x01(\x0e2\".chatto.admin.v1.OAuthClientSourceR\x06source\x12:\n" +
-	"\x06policy\x18\x05 \x01(\x0e2\".chatto.admin.v1.OAuthClientPolicyR\x06policy\x12F\n" +
-	"\x11first_observed_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x0ffirstObservedAt\x12D\n" +
-	"\x10last_observed_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x0elastObservedAt\x12)\n" +
+	"\x06policy\x18\x05 \x01(\x0e2\".chatto.admin.v1.OAuthClientPolicyR\x06policy\x12P\n" +
+	"\x16first_authorization_at\x18\x06 \x01(\v2\x1a.google.protobuf.TimestampR\x14firstAuthorizationAt\x12N\n" +
+	"\x15last_authorization_at\x18\a \x01(\v2\x1a.google.protobuf.TimestampR\x13lastAuthorizationAt\x12)\n" +
 	"\x10redirect_origins\x18\b \x03(\tR\x0fredirectOrigins\x122\n" +
 	"\x15authorized_user_count\x18\t \x01(\rR\x13authorizedUserCount\"I\n" +
 	"\x17ListOAuthClientsRequest\x12.\n" +
@@ -627,8 +627,8 @@ var file_chatto_admin_v1_oauth_clients_proto_goTypes = []any{
 var file_chatto_admin_v1_oauth_clients_proto_depIdxs = []int32{
 	0,  // 0: chatto.admin.v1.OAuthClient.source:type_name -> chatto.admin.v1.OAuthClientSource
 	1,  // 1: chatto.admin.v1.OAuthClient.policy:type_name -> chatto.admin.v1.OAuthClientPolicy
-	9,  // 2: chatto.admin.v1.OAuthClient.first_observed_at:type_name -> google.protobuf.Timestamp
-	9,  // 3: chatto.admin.v1.OAuthClient.last_observed_at:type_name -> google.protobuf.Timestamp
+	9,  // 2: chatto.admin.v1.OAuthClient.first_authorization_at:type_name -> google.protobuf.Timestamp
+	9,  // 3: chatto.admin.v1.OAuthClient.last_authorization_at:type_name -> google.protobuf.Timestamp
 	10, // 4: chatto.admin.v1.ListOAuthClientsRequest.page:type_name -> chatto.api.v1.PageRequest
 	2,  // 5: chatto.admin.v1.ListOAuthClientsResponse.oauth_clients:type_name -> chatto.admin.v1.OAuthClient
 	11, // 6: chatto.admin.v1.ListOAuthClientsResponse.page:type_name -> chatto.api.v1.PageInfo

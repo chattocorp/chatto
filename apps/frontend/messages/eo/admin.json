@@ -247,7 +247,7 @@
         "application": "Aplikaĵo",
         "origins": "Revokaj originoj",
         "users": "Rajtigitaj uzantoj",
-        "observed": "Laste observita",
+        "last_authorization": "Lasta rajtigo",
         "policy": "Politiko",
         "policy_for": "Politiko por {client}",
         "policy_default": "Defaŭlta",

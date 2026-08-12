@@ -289,7 +289,7 @@
           <th class="table-header-cell">{m('admin.security.oauth_clients.application')}</th>
           <th class="table-header-cell">{m('admin.security.oauth_clients.origins')}</th>
           <th class="table-header-cell">{m('admin.security.oauth_clients.users')}</th>
-          <th class="table-header-cell">{m('admin.security.oauth_clients.observed')}</th>
+          <th class="table-header-cell">{m('admin.security.oauth_clients.last_authorization')}</th>
           <th class="table-header-cell">{m('admin.security.oauth_clients.policy')}</th>
         {/snippet}
         {#snippet row(client)}
@@ -304,7 +304,7 @@
           </td>
           <td class="px-4 py-3 align-top">{client.authorizedUserCount}</td>
           <td class="px-4 py-3 align-top whitespace-nowrap text-sm text-muted">
-            {formatTimestamp(client.lastObservedAt)}
+            {formatTimestamp(client.lastAuthorizationAt)}
           </td>
           <td class="min-w-44 px-4 py-3 align-top">
             <select

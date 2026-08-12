@@ -225,7 +225,7 @@ message Event {
     BearerTokenRevokedEvent bearer_token_revoked = 912;
     OAuthConsentGrantedEvent oauth_consent_granted = 913;
     OAuthConsentDeniedEvent oauth_consent_denied = 914;
-    OAuthClientObservedEvent oauth_client_observed = 915;
+    OAuthClientAuthorizationRecordedEvent oauth_client_authorization_recorded = 915;
     OAuthClientPolicyChangedEvent oauth_client_policy_changed = 916;
 
     // ----- Invite links (930-939, durable, evt.invitation.{id}) -----

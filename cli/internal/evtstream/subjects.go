@@ -200,7 +200,7 @@ const (
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
-	EventOAuthClientObserved                = "observed"
+	EventOAuthClientAuthorizationRecorded   = "authorization_recorded"
 	EventOAuthClientPolicyChanged           = "policy_changed"
 
 	// Invite links
@@ -442,8 +442,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:
 		return EventOAuthConsentDenied
-	case *corev1.Event_OauthClientObserved:
-		return EventOAuthClientObserved
+	case *corev1.Event_OauthClientAuthorizationRecorded:
+		return EventOAuthClientAuthorizationRecorded
 	case *corev1.Event_OauthClientPolicyChanged:
 		return EventOAuthClientPolicyChanged
 	case *corev1.Event_InvitationCreated:
@@ -579,7 +579,7 @@ func InvitationAggregate(invitationID string) Aggregate {
 	return Aggregate{Type: AggregateInvitation, ID: invitationID}
 }
 
-// OAuthClientAggregate owns the durable observation and policy history for a
+// OAuthClientAggregate owns the durable authorization and policy history for a
 // public client. Hashing keeps URL-shaped client identifiers out of NATS
 // subject tokens while the event payload retains the exact public identifier.
 func OAuthClientAggregate(clientID string) Aggregate {
@@ -644,7 +644,7 @@ func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
 // InvitationSubjectFilter matches every server invitation aggregate.
 func InvitationSubjectFilter() string { return SubjectRoot + AggregateInvitation + ".>" }
 
-// OAuthClientSubjectFilter matches every observed OAuth client aggregate.
+// OAuthClientSubjectFilter matches every recorded OAuth client aggregate.
 func OAuthClientSubjectFilter() string { return SubjectRoot + AggregateOAuthClient + ".>" }
 
 // AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow

@@ -29,7 +29,7 @@ enum OAuthClientPolicy {
   OAUTH_CLIENT_POLICY_BLOCKED = 3;
 }
 
-// An OAuth client observed after at least one successful user authorization.
+// An OAuth client that completed at least one successful user authorization.
 message OAuthClient {
   // Stable client identifier: a CIMD URL or built-in application URI.
   string client_id = 1;
@@ -42,22 +42,22 @@ message OAuthClient {
   // Current server-administrator policy for the client.
   OAuthClientPolicy policy = 5;
   // When this server first completed an authorization for the client.
-  google.protobuf.Timestamp first_observed_at = 6;
+  google.protobuf.Timestamp first_authorization_at = 6;
   // When this server most recently completed an authorization for the client.
-  google.protobuf.Timestamp last_observed_at = 7;
+  google.protobuf.Timestamp last_authorization_at = 7;
   // Canonical web origins or native callback schemes seen during authorization.
   repeated string redirect_origins = 8;
   // Number of distinct users who have authorized this client.
   uint32 authorized_user_count = 9;
 }
 
-// Lists observed OAuth clients using offset pagination.
+// Lists OAuth clients with recorded authorizations using offset pagination.
 message ListOAuthClientsRequest {
   // Requested offset and page size.
   chatto.api.v1.PageRequest page = 1;
 }
 
-// One page of observed OAuth clients, newest observation first.
+// One page of OAuth clients, newest authorization first.
 message ListOAuthClientsResponse {
   // Clients visible to the caller in this page.
   repeated OAuthClient oauth_clients = 1;
@@ -65,7 +65,7 @@ message ListOAuthClientsResponse {
   chatto.api.v1.PageInfo page = 2;
 }
 
-// Identifies one observed OAuth client by its exact stable client ID.
+// Identifies one OAuth client by its exact stable client ID.
 message GetOAuthClientRequest {
   // Exact CIMD URL or built-in application URI.
   string client_id = 1 [(buf.validate.field).string = {
@@ -74,13 +74,13 @@ message GetOAuthClientRequest {
   }];
 }
 
-// Returns one observed OAuth client.
+// Returns one OAuth client with a recorded authorization.
 message GetOAuthClientResponse {
   // The requested client.
   OAuthClient oauth_client = 1;
 }
 
-// Replaces the administrative policy for one observed OAuth client.
+// Replaces the administrative policy for one OAuth client.
 message UpdateOAuthClientPolicyRequest {
   // Exact CIMD URL or built-in application URI.
   string client_id = 1 [(buf.validate.field).string = {
@@ -100,11 +100,11 @@ message UpdateOAuthClientPolicyResponse {
   OAuthClient oauth_client = 1;
 }
 
-// Manages OAuth clients observed by this server. Requires server.manage.
+// Manages OAuth clients authorized through this server. Requires server.manage.
 service AdminOAuthClientService {
   // Lists clients that completed at least one authorization. Requires server.manage.
   rpc ListOAuthClients(ListOAuthClientsRequest) returns (ListOAuthClientsResponse);
-  // Gets one observed client or returns NOT_FOUND. Requires server.manage.
+  // Gets one recorded client or returns NOT_FOUND. Requires server.manage.
   rpc GetOAuthClient(GetOAuthClientRequest) returns (GetOAuthClientResponse);
   // Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
   rpc UpdateOAuthClientPolicy(UpdateOAuthClientPolicyRequest) returns (UpdateOAuthClientPolicyResponse);

@@ -247,7 +247,7 @@
         "application": "Aplikacja",
         "origins": "Źródła wywołań zwrotnych",
         "users": "Autoryzowani użytkownicy",
-        "observed": "Ostatnio zaobserwowano",
+        "last_authorization": "Ostatnia autoryzacja",
         "policy": "Zasada",
         "policy_for": "Zasada dla {client}",
         "policy_default": "Domyślna",

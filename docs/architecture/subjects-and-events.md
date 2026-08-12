@@ -165,7 +165,7 @@ and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client observation/policy, and auth workflow audit facts. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
 
 The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is an internal server-side feed; `StreamMyEvents` waits for projections and authorization before delivering anything to clients.
@@ -189,7 +189,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.authorization.server.fence_advanced`        | Singleton OCC fence for changes that can alter mutation authority               |
 | `evt.auth.server.{eventType}`                    | Server-wide auth audit facts before a user aggregate exists                     |
 | `evt.invitation.{invitationId}.{eventType}`      | Invitation creation, redemption, and revocation facts                           |
-| `evt.oauth_client.{sha256(clientId)}.{eventType}` | Successful-authorization client observation and administrative policy facts; the aggregate ID is a lowercase SHA-256 digest, while the event payload retains the client ID |
+| `evt.oauth_client.{sha256(clientId)}.{eventType}` | Successful OAuth-client authorization and administrative policy facts; the aggregate ID is a lowercase SHA-256 digest, while the event payload retains the client ID |
 | `live.evt.>`                                     | JetStream republish of committed `EVT` facts                                    |
 
 The aggregate ID is intentionally part of the subject; actor/user and detailed context stay in the protobuf payload. Asset subjects are keyed by asset ID, while room scope lives in `AssetCreatedEvent` and is resolved by `AssetProjection`. Cross-event-type invariants use wildcard OCC filters such as `evt.room.>`, `evt.asset.>`, or `evt.rbac.>`.
@@ -328,7 +328,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.invitation.{invitationId}.created`                    | `InvitationCreatedEvent`                            |
 | `evt.invitation.{invitationId}.redeemed`                   | `InvitationRedeemedEvent`                           |
 | `evt.invitation.{invitationId}.revoked`                    | `InvitationRevokedEvent`                            |
-| `evt.oauth_client.{sha256(clientId)}.observed`             | `OAuthClientObservedEvent`                         |
+| `evt.oauth_client.{sha256(clientId)}.authorization_recorded` | `OAuthClientAuthorizationRecordedEvent`          |
 | `evt.oauth_client.{sha256(clientId)}.policy_changed`       | `OAuthClientPolicyChangedEvent`                    |
 
 Notes: Subject suffixes are stable NATS event tokens defined in [`cli/internal/evtstream/subjects.go`](../../cli/internal/evtstream/subjects.go). Protobuf message types are the concrete `corev1.Event` oneof payloads defined in [`proto/chatto/core/v1/event.proto`](../../proto/chatto/core/v1/event.proto) and sibling `*_events.proto` files. The current asset write path uses `evt.asset.{assetId}.*`; `AssetProjection` also consumes beta-era `evt.room.{roomId}.asset_*` histories for replay compatibility.

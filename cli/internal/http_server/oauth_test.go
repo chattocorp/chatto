@@ -388,7 +388,7 @@ func TestOAuthAuthorize_RejectsBlockedClient(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED); err != nil {
@@ -419,7 +419,7 @@ func TestOAuthAuthorize_TrustedClientStillRequiresUserConsent(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
 	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED); err != nil {
@@ -454,7 +454,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+	if err := s.core.RecordOAuthClientAuthorization(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
 		t.Fatal(err)
 	}
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"

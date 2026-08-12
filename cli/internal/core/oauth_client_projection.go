@@ -10,18 +10,18 @@ import (
 )
 
 // OAuthClientState is the durable administrator-visible state of one public
-// client observed after a successful user authorization.
+// client that completed a successful user authorization.
 type OAuthClientState struct {
-	ClientID            string
-	ClientName          string
-	ClientURI           string
-	Source              corev1.OAuthClientSource
-	Policy              corev1.OAuthClientPolicy
-	FirstObservedAt     time.Time
-	LastObservedAt      time.Time
-	RedirectOrigins     []string
-	AuthorizedUserCount uint32
-	authorizedUsers     map[string]struct{}
+	ClientID             string
+	ClientName           string
+	ClientURI            string
+	Source               corev1.OAuthClientSource
+	Policy               corev1.OAuthClientPolicy
+	FirstAuthorizationAt time.Time
+	LastAuthorizationAt  time.Time
+	RedirectOrigins      []string
+	AuthorizedUserCount  uint32
+	authorizedUsers      map[string]struct{}
 }
 
 type OAuthClientProjection struct {
@@ -44,27 +44,27 @@ func (p *OAuthClientProjection) Apply(event *corev1.Event, _ uint64) error {
 	p.Lock()
 	defer p.Unlock()
 	switch e := event.GetEvent().(type) {
-	case *corev1.Event_OauthClientObserved:
-		payload := e.OauthClientObserved
+	case *corev1.Event_OauthClientAuthorizationRecorded:
+		payload := e.OauthClientAuthorizationRecorded
 		clientID := payload.GetClientId()
 		if clientID == "" {
 			return nil
 		}
 		state := p.clients[clientID]
-		observedAt := event.GetCreatedAt().AsTime()
+		authorizedAt := event.GetCreatedAt().AsTime()
 		if state == nil {
 			state = &OAuthClientState{
-				ClientID:        clientID,
-				Policy:          corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
-				FirstObservedAt: observedAt,
-				authorizedUsers: make(map[string]struct{}),
+				ClientID:             clientID,
+				Policy:               corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_DEFAULT,
+				FirstAuthorizationAt: authorizedAt,
+				authorizedUsers:      make(map[string]struct{}),
 			}
 			p.clients[clientID] = state
 		}
 		state.ClientName = payload.GetClientName()
 		state.ClientURI = payload.GetClientUri()
 		state.Source = payload.GetSource()
-		state.LastObservedAt = observedAt
+		state.LastAuthorizationAt = authorizedAt
 		if origin := payload.GetRedirectOrigin(); origin != "" && !containsString(state.RedirectOrigins, origin) {
 			state.RedirectOrigins = append(state.RedirectOrigins, origin)
 			sort.Strings(state.RedirectOrigins)
@@ -100,7 +100,7 @@ func (p *OAuthClientProjection) all() []OAuthClientState {
 		result = append(result, cloneOAuthClientState(state))
 	}
 	sort.Slice(result, func(i, j int) bool {
-		return result[i].LastObservedAt.After(result[j].LastObservedAt)
+		return result[i].LastAuthorizationAt.After(result[j].LastAuthorizationAt)
 	})
 	return result
 }

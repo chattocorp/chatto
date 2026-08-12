@@ -75,15 +75,15 @@ func (s *adminOAuthClientService) UpdateOAuthClientPolicy(ctx context.Context, r
 
 func apiOAuthClient(state core.OAuthClientState) *adminv1.OAuthClient {
 	return &adminv1.OAuthClient{
-		ClientId:            state.ClientID,
-		ClientName:          state.ClientName,
-		ClientUri:           state.ClientURI,
-		Source:              apiOAuthClientSource(state.Source),
-		Policy:              apiOAuthClientPolicy(state.Policy),
-		FirstObservedAt:     timestamppb.New(state.FirstObservedAt),
-		LastObservedAt:      timestamppb.New(state.LastObservedAt),
-		RedirectOrigins:     append([]string(nil), state.RedirectOrigins...),
-		AuthorizedUserCount: state.AuthorizedUserCount,
+		ClientId:             state.ClientID,
+		ClientName:           state.ClientName,
+		ClientUri:            state.ClientURI,
+		Source:               apiOAuthClientSource(state.Source),
+		Policy:               apiOAuthClientPolicy(state.Policy),
+		FirstAuthorizationAt: timestamppb.New(state.FirstAuthorizationAt),
+		LastAuthorizationAt:  timestamppb.New(state.LastAuthorizationAt),
+		RedirectOrigins:      append([]string(nil), state.RedirectOrigins...),
+		AuthorizedUserCount:  state.AuthorizedUserCount,
 	}
 }
 

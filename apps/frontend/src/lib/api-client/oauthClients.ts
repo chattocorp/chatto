@@ -14,8 +14,8 @@ export type OAuthClient = {
   clientUri: string;
   source: 'cimd' | 'built-in';
   policy: OAuthClientPolicyName;
-  firstObservedAt: string;
-  lastObservedAt: string;
+  firstAuthorizationAt: string;
+  lastAuthorizationAt: string;
   redirectOrigins: string[];
   authorizedUserCount: number;
 };
@@ -60,8 +60,8 @@ function mapOAuthClient(client: APIOAuthClient): OAuthClient {
     source:
       client.source === OAuthClientSource.OAUTH_CLIENT_SOURCE_BUILT_IN ? 'built-in' : 'cimd',
     policy: policyName(client.policy),
-    firstObservedAt: client.firstObservedAt?.toDate().toISOString() ?? '',
-    lastObservedAt: client.lastObservedAt?.toDate().toISOString() ?? '',
+    firstAuthorizationAt: client.firstAuthorizationAt?.toDate().toISOString() ?? '',
+    lastAuthorizationAt: client.lastAuthorizationAt?.toDate().toISOString() ?? '',
     redirectOrigins: [...client.redirectOrigins],
     authorizedUserCount: client.authorizedUserCount
   };

@@ -247,7 +247,7 @@
         "application": "应用",
         "origins": "回调来源",
         "users": "已授权用户",
-        "observed": "上次观察",
+        "last_authorization": "最近授权",
         "policy": "策略",
         "policy_for": "{client} 的策略",
         "policy_default": "默认",

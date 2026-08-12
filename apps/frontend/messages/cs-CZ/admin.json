@@ -247,7 +247,7 @@
         "application": "Aplikace",
         "origins": "Počátky zpětného volání",
         "users": "Autorizovaní uživatelé",
-        "observed": "Naposledy zaznamenáno",
+        "last_authorization": "Poslední autorizace",
         "policy": "Zásada",
         "policy_for": "Zásada pro {client}",
         "policy_default": "Výchozí",

@@ -68,11 +68,11 @@ paths and queries are not persisted.
 CIMD identifies a client; it does not endorse it. Users still see and approve
 the client application before a token is issued. After a user successfully
 authorizes a client, Chatto records the client's validated identity, display
-metadata, callback origins, first and latest observation times, and distinct
+metadata, callback origins, first and latest authorization times, and distinct
 authorized-user count. Metadata probes alone do not create durable known-client
 state.
 
-Administrators can leave an observed client at the default policy, label it
+Administrators can leave a recorded client at the default policy, label it
 trusted, or block it. Trust is an administrative annotation and never bypasses
 user consent. Blocking rejects new authorization attempts, authorization-code
 issuance, code exchange, and access-token use; changing a client to blocked also
@@ -96,7 +96,7 @@ who may ask, while providing exact callback binding and a stable identity for
 audit and policy.
 
 The administration surface shows only clients that have completed at least one
-user-approved authorization. It is therefore an inventory of observed access,
+user-approved authorization. It is therefore an inventory of successful access,
 not a registry of every metadata document that anyone has asked the server to
 retrieve.
 

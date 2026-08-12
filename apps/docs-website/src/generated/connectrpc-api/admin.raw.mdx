@@ -835,7 +835,7 @@ Result of deleting a user account.
 
 ## AdminOAuthClientService
 
-Manages OAuth clients observed by this server. Requires server.manage.
+Manages OAuth clients authorized through this server. Requires server.manage.
 
 <a id="chatto-admin-v1-AdminOAuthClientService-ListOAuthClients"></a>
 
@@ -851,7 +851,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
 
 #### Input: ListOAuthClientsRequest
 
-Lists observed OAuth clients using offset pagination.
+Lists OAuth clients with recorded authorizations using offset pagination.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -862,7 +862,7 @@ Lists observed OAuth clients using offset pagination.
 
 #### Result: ListOAuthClientsResponse
 
-One page of observed OAuth clients, newest observation first.
+One page of OAuth clients, newest authorization first.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -874,7 +874,7 @@ One page of observed OAuth clients, newest observation first.
 
 ### GetOAuthClient
 
-Gets one observed client or returns NOT_FOUND. Requires server.manage.
+Gets one recorded client or returns NOT_FOUND. Requires server.manage.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
@@ -884,7 +884,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
 
 #### Input: GetOAuthClientRequest
 
-Identifies one observed OAuth client by its exact stable client ID.
+Identifies one OAuth client by its exact stable client ID.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -895,7 +895,7 @@ Identifies one observed OAuth client by its exact stable client ID.
 
 #### Result: GetOAuthClientResponse
 
-Returns one observed OAuth client.
+Returns one OAuth client with a recorded authorization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -916,7 +916,7 @@ POST /api/connect/chatto.admin.v1.AdminOAuthClientService/UpdateOAuthClientPolic
 
 #### Input: UpdateOAuthClientPolicyRequest
 
-Replaces the administrative policy for one observed OAuth client.
+Replaces the administrative policy for one OAuth client.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2217,7 +2217,7 @@ admin/member metadata with visibility controlled by the service.
 
 ### OAuthClient
 
-An OAuth client observed after at least one successful user authorization.
+An OAuth client that completed at least one successful user authorization.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -2226,8 +2226,8 @@ An OAuth client observed after at least one successful user authorization.
 | `client_uri` | `string` | Informational application URL from validated client metadata, when present. |
 | `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
 | `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
-| `first_observed_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
-| `last_observed_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
+| `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
+| `last_authorization_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
 | `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
 | `authorized_user_count` | `uint32` | Number of distinct users who have authorized this client. |
 

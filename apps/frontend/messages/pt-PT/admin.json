@@ -247,7 +247,7 @@
         "application": "Aplicação",
         "origins": "Origens de retorno",
         "users": "Utilizadores autorizados",
-        "observed": "Última observação",
+        "last_authorization": "Última autorização",
         "policy": "Política",
         "policy_for": "Política para {client}",
         "policy_default": "Predefinida",

@@ -2266,8 +2266,11 @@ func TestSubjectHelpers(t *testing.T) {
 
 	t.Run("OAuthClientAggregate hashes the client ID", func(t *testing.T) {
 		const clientID = "https://remote.example/oauth/client-metadata.json"
-		got := OAuthClientAggregate(clientID).Subject(EventOAuthClientObserved)
-		want := "evt.oauth_client.5e155b7992d0702f7826580094fee3aff9d6bfb6e94d4ddd25da630c5b0e6035.observed"
+		event := &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
+			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{ClientId: clientID},
+		}}
+		got := OAuthClientAggregate(clientID).SubjectFor(event)
+		want := "evt.oauth_client.5e155b7992d0702f7826580094fee3aff9d6bfb6e94d4ddd25da630c5b0e6035.authorization_recorded"
 		if got != want {
 			t.Errorf("OAuthClientAggregate.Subject: got %q, want %q", got, want)
 		}

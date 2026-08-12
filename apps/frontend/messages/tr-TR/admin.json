@@ -247,7 +247,7 @@
         "application": "Uygulama",
         "origins": "Geri çağırma kaynakları",
         "users": "Yetkili kullanıcılar",
-        "observed": "Son gözlem",
+        "last_authorization": "Son yetkilendirme",
         "policy": "İlke",
         "policy_for": "{client} için ilke",
         "policy_default": "Varsayılan",

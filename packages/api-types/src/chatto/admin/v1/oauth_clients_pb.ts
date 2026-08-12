@@ -85,7 +85,7 @@ proto3.util.setEnumType(OAuthClientPolicy, "chatto.admin.v1.OAuthClientPolicy", 
 ]);
 
 /**
- * An OAuth client observed after at least one successful user authorization.
+ * An OAuth client that completed at least one successful user authorization.
  *
  * @generated from message chatto.admin.v1.OAuthClient
  */
@@ -128,16 +128,16 @@ export class OAuthClient extends Message<OAuthClient> {
   /**
    * When this server first completed an authorization for the client.
    *
-   * @generated from field: google.protobuf.Timestamp first_observed_at = 6;
+   * @generated from field: google.protobuf.Timestamp first_authorization_at = 6;
    */
-  firstObservedAt?: Timestamp;
+  firstAuthorizationAt?: Timestamp;
 
   /**
    * When this server most recently completed an authorization for the client.
    *
-   * @generated from field: google.protobuf.Timestamp last_observed_at = 7;
+   * @generated from field: google.protobuf.Timestamp last_authorization_at = 7;
    */
-  lastObservedAt?: Timestamp;
+  lastAuthorizationAt?: Timestamp;
 
   /**
    * Canonical web origins or native callback schemes seen during authorization.
@@ -166,8 +166,8 @@ export class OAuthClient extends Message<OAuthClient> {
     { no: 3, name: "client_uri", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "source", kind: "enum", T: proto3.getEnumType(OAuthClientSource) },
     { no: 5, name: "policy", kind: "enum", T: proto3.getEnumType(OAuthClientPolicy) },
-    { no: 6, name: "first_observed_at", kind: "message", T: Timestamp },
-    { no: 7, name: "last_observed_at", kind: "message", T: Timestamp },
+    { no: 6, name: "first_authorization_at", kind: "message", T: Timestamp },
+    { no: 7, name: "last_authorization_at", kind: "message", T: Timestamp },
     { no: 8, name: "redirect_origins", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
     { no: 9, name: "authorized_user_count", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
   ]);
@@ -190,7 +190,7 @@ export class OAuthClient extends Message<OAuthClient> {
 }
 
 /**
- * Lists observed OAuth clients using offset pagination.
+ * Lists OAuth clients with recorded authorizations using offset pagination.
  *
  * @generated from message chatto.admin.v1.ListOAuthClientsRequest
  */
@@ -231,7 +231,7 @@ export class ListOAuthClientsRequest extends Message<ListOAuthClientsRequest> {
 }
 
 /**
- * One page of observed OAuth clients, newest observation first.
+ * One page of OAuth clients, newest authorization first.
  *
  * @generated from message chatto.admin.v1.ListOAuthClientsResponse
  */
@@ -280,7 +280,7 @@ export class ListOAuthClientsResponse extends Message<ListOAuthClientsResponse> 
 }
 
 /**
- * Identifies one observed OAuth client by its exact stable client ID.
+ * Identifies one OAuth client by its exact stable client ID.
  *
  * @generated from message chatto.admin.v1.GetOAuthClientRequest
  */
@@ -321,7 +321,7 @@ export class GetOAuthClientRequest extends Message<GetOAuthClientRequest> {
 }
 
 /**
- * Returns one observed OAuth client.
+ * Returns one OAuth client with a recorded authorization.
  *
  * @generated from message chatto.admin.v1.GetOAuthClientResponse
  */
@@ -362,7 +362,7 @@ export class GetOAuthClientResponse extends Message<GetOAuthClientResponse> {
 }
 
 /**
- * Replaces the administrative policy for one observed OAuth client.
+ * Replaces the administrative policy for one OAuth client.
  *
  * @generated from message chatto.admin.v1.UpdateOAuthClientPolicyRequest
  */

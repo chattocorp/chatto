@@ -247,7 +247,7 @@
         "application": "التطبيق",
         "origins": "أصول معاودة الاتصال",
         "users": "المستخدمون المفوضون",
-        "observed": "آخر ظهور",
+        "last_authorization": "آخر تفويض",
         "policy": "السياسة",
         "policy_for": "سياسة {client}",
         "policy_default": "افتراضي",

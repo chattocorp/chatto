@@ -7,7 +7,7 @@ import { GetOAuthClientRequest, GetOAuthClientResponse, ListOAuthClientsRequest,
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Manages OAuth clients observed by this server. Requires server.manage.
+ * Manages OAuth clients authorized through this server. Requires server.manage.
  *
  * @generated from service chatto.admin.v1.AdminOAuthClientService
  */
@@ -26,7 +26,7 @@ export const AdminOAuthClientService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one observed client or returns NOT_FOUND. Requires server.manage.
+     * Gets one recorded client or returns NOT_FOUND. Requires server.manage.
      *
      * @generated from rpc chatto.admin.v1.AdminOAuthClientService.GetOAuthClient
      */

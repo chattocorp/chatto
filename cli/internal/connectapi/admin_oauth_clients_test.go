@@ -11,8 +11,8 @@ import (
 func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	clientID := "https://remote.example/oauth/client-metadata.json"
-	if err := env.core.ObserveOAuthClient(env.ctx, env.viewer.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
-		t.Fatalf("ObserveOAuthClient: %v", err)
+	if err := env.core.RecordOAuthClientAuthorization(env.ctx, env.viewer.Id, clientID, "Remote Chatto", "https://remote.example", "https://remote.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatalf("RecordOAuthClientAuthorization: %v", err)
 	}
 	if _, err := env.adminOAuthClients.ListOAuthClients(withCaller(env.ctx, env.viewer), connect.NewRequest(&adminv1.ListOAuthClientsRequest{})); err == nil || connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("regular ListOAuthClients error = %v, want permission denied", err)
@@ -25,7 +25,7 @@ func TestAdminOAuthClientServiceLifecycleAndAuthorization(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListOAuthClients: %v", err)
 	}
-	if len(listed.Msg.GetOauthClients()) != 1 || listed.Msg.GetOauthClients()[0].GetClientId() != clientID || listed.Msg.GetOauthClients()[0].GetAuthorizedUserCount() != 1 {
+	if len(listed.Msg.GetOauthClients()) != 1 || listed.Msg.GetOauthClients()[0].GetClientId() != clientID || listed.Msg.GetOauthClients()[0].GetAuthorizedUserCount() != 1 || !listed.Msg.GetOauthClients()[0].GetFirstAuthorizationAt().IsValid() || !listed.Msg.GetOauthClients()[0].GetLastAuthorizationAt().IsValid() {
 		t.Fatalf("listed OAuth clients = %+v", listed.Msg.GetOauthClients())
 	}
 	updated, err := env.adminOAuthClients.UpdateOAuthClientPolicy(ctx, connect.NewRequest(&adminv1.UpdateOAuthClientPolicyRequest{
