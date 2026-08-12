@@ -187,8 +187,13 @@
   }
 
   function updateOAuthClientPolicy(client: OAuthClient, event: Event) {
-    const policy = (event.currentTarget as HTMLSelectElement).value as OAuthClientPolicyName;
+    const select = event.currentTarget as HTMLSelectElement;
+    const policy = select.value as OAuthClientPolicyName;
     if (policy === client.policy || !['default', 'trusted', 'blocked'].includes(policy)) return;
+
+    // Keep displaying the last server-confirmed security policy until the
+    // mutation succeeds and the authoritative list has been refreshed.
+    select.value = client.policy;
     oauthClientPolicyMutation.mutate({
       serverId: serverScope.serverId,
       connection: serverScope.connection,

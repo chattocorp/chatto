@@ -230,4 +230,38 @@ describe('server security query lifecycle', () => {
     await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
     expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
   });
+
+  it('keeps the confirmed policy visible when an update is rejected', async () => {
+    const client = {
+      clientId: 'https://remote.example/oauth/client-metadata.json',
+      clientName: 'Remote Chatto',
+      clientUri: 'https://remote.example',
+      source: 'cimd' as const,
+      policy: 'default' as const,
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://remote.example'],
+      authorizedUserCount: 2
+    };
+    mocks.listOAuthClients.mockResolvedValue({
+      oauthClients: [client],
+      totalCount: 1,
+      hasMore: false
+    });
+    mocks.updateOAuthClientPolicy.mockRejectedValue(new Error('Policy update rejected'));
+
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
+
+    const policy = container.querySelector('select') as HTMLSelectElement;
+    policy.value = 'blocked';
+    policy.dispatchEvent(new Event('change', { bubbles: true }));
+
+    expect(policy.value).toBe('default');
+    await vi.waitFor(() =>
+      expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledWith(client.clientId, 'blocked')
+    );
+    await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledWith('Policy update rejected'));
+    expect(policy.value).toBe('default');
+  });
 });

@@ -89,6 +89,76 @@ func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
 	}
 }
 
+func TestOAuthClientAuthorizationCodeFailureDoesNotRecordClient(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := invitationAdmin(t, c)
+	member, err := c.CreateUser(ctx, SystemActorID, "oauth-code-failure-member", "OAuth Code Failure Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	clientID := "https://code-failure.example/oauth/client-metadata.json"
+	request := OAuthClientAuthorization{
+		UserID:         member.Id,
+		ClientID:       clientID,
+		ClientName:     "Code Failure Client",
+		ClientURI:      "https://code-failure.example",
+		RedirectOrigin: "https://code-failure.example",
+		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+	}
+
+	publisher := c.EventPublisher
+	c.EventPublisher = nil // Fail the durable auth-code issuance audit append.
+	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://code-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id)); err == nil || code != "" {
+		t.Fatalf("CreateOAuthClientAuthorizationCode = %q, %v; want failed issuance", code, err)
+	}
+	c.EventPublisher = publisher
+
+	if clients, err := c.ListOAuthClients(ctx, admin); err != nil || len(clients) != 0 {
+		t.Fatalf("ListOAuthClients after failed issuance = %+v, %v; want empty", clients, err)
+	}
+	grantCount, err := countTestKVKeys(ctx, c.storage.runtimeStateKV, "grant.*")
+	if err != nil {
+		t.Fatalf("count grant keys: %v", err)
+	}
+	if grantCount != 0 {
+		t.Fatalf("failed issuance retained %d authorization codes", grantCount)
+	}
+}
+
+func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := invitationAdmin(t, c)
+	member, err := c.CreateUser(ctx, SystemActorID, "oauth-record-failure-member", "OAuth Record Failure Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	clientID := "https://record-failure.example/oauth/client-metadata.json"
+	request := OAuthClientAuthorization{
+		UserID:         member.Id,
+		ClientID:       clientID,
+		ClientName:     "Record Failure Client",
+		ClientURI:      "https://record-failure.example",
+		RedirectOrigin: "https://record-failure.example",
+		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_UNSPECIFIED,
+	}
+
+	if code, err := c.CreateOAuthClientAuthorizationCode(ctx, request, "https://record-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id)); !errors.Is(err, ErrInvalidArgument) || code != "" {
+		t.Fatalf("CreateOAuthClientAuthorizationCode = %q, %v; want invalid record", code, err)
+	}
+	if clients, err := c.ListOAuthClients(ctx, admin); err != nil || len(clients) != 0 {
+		t.Fatalf("ListOAuthClients after failed record = %+v, %v; want empty", clients, err)
+	}
+	grantCount, err := countTestKVKeys(ctx, c.storage.runtimeStateKV, "grant.*")
+	if err != nil {
+		t.Fatalf("count grant keys: %v", err)
+	}
+	if grantCount != 0 {
+		t.Fatalf("failed authorization record retained %d authorization codes", grantCount)
+	}
+}
+
 func TestOAuthClientPolicyRejectsUnknownClientAndInvalidPolicy(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

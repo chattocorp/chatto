@@ -559,39 +559,10 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
-	if err := s.core.RecordOAuthClientAuthorization(ctx, userID, params.ClientID, params.ClientName, params.ClientURI, redirectOrigin, source); err != nil {
-		if errors.Is(err, core.ErrOAuthClientBlocked) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":             "invalid_client",
-				"error_description": "The OAuth client is blocked by this server",
-			})
-			return "", false
-		}
-		log.Error("Failed to record OAuth client", "error", err)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":             "server_error",
-			"error_description": "Failed to record OAuth client",
-		})
-		return "", false
-	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, userID, params.ClientID, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
-	if err != nil {
-		if errors.Is(err, core.ErrOAuthClientBlocked) {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":             "invalid_client",
-				"error_description": "The OAuth client is blocked by this server",
-			})
-			return "", false
-		}
-		log.Error("Failed to create authorization code", "error", err, "userId", userID)
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":             "server_error",
-			"error_description": "Failed to generate authorization code",
-		})
-		return "", false
-	}
 
-	// Build redirect URL with code and state
+	// Parse the already-validated redirect before creating any durable or
+	// runtime authorization state so a malformed value cannot leave a phantom
+	// completed authorization.
 	u, err := url.Parse(params.RedirectURI)
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -600,7 +571,31 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		})
 		return "", false
 	}
+	code, err := s.core.CreateOAuthClientAuthorizationCode(ctx, core.OAuthClientAuthorization{
+		UserID:         userID,
+		ClientID:       params.ClientID,
+		ClientName:     params.ClientName,
+		ClientURI:      params.ClientURI,
+		RedirectOrigin: redirectOrigin,
+		Source:         source,
+	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
+	if err != nil {
+		if errors.Is(err, core.ErrOAuthClientBlocked) {
+			c.JSON(http.StatusBadRequest, gin.H{
+				"error":             "invalid_client",
+				"error_description": "The OAuth client is blocked by this server",
+			})
+			return "", false
+		}
+		log.Error("Failed to complete OAuth authorization", "error", err, "userId", userID)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":             "server_error",
+			"error_description": "Failed to complete authorization",
+		})
+		return "", false
+	}
 
+	// Build redirect URL with code and state
 	q := u.Query()
 	q.Set("code", code)
 	if params.State != "" {

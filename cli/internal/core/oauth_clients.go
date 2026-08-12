@@ -3,8 +3,11 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
+	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
@@ -17,6 +20,17 @@ var (
 
 type OAuthClientModel struct {
 	projection events.ProjectionHandle[*OAuthClientProjection]
+}
+
+// OAuthClientAuthorization describes the validated client identity attached to
+// one user-approved authorization request.
+type OAuthClientAuthorization struct {
+	UserID         string
+	ClientID       string
+	ClientName     string
+	ClientURI      string
+	RedirectOrigin string
+	Source         corev1.OAuthClientSource
 }
 
 func newOAuthClientModel(projection events.ProjectionHandle[*OAuthClientProjection]) *OAuthClientModel {
@@ -43,6 +57,27 @@ func (c *ChattoCore) oauthClientBlocked(clientID string) bool {
 	}
 	state, ok := c.oauthClientModel.projection.Projection().get(clientID)
 	return ok && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED
+}
+
+// CreateOAuthClientAuthorizationCode creates an authorization code before it
+// records the successful client authorization. If the durable record cannot be
+// committed, the undisclosed code is removed so callers cannot complete an
+// authorization that is absent from the administrator inventory.
+func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	code, err := c.CreateAuthCodeForClientGeneration(ctx, authorization.UserID, authorization.ClientID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
+	if err != nil {
+		return "", err
+	}
+	if err := c.RecordOAuthClientAuthorization(ctx, authorization.UserID, authorization.ClientID, authorization.ClientName, authorization.ClientURI, authorization.RedirectOrigin, authorization.Source); err != nil {
+		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		cleanupErr := c.storage.runtimeStateKV.Delete(cleanupCtx, c.authCodeKey(code))
+		if cleanupErr != nil && !errors.Is(cleanupErr, jetstream.ErrKeyNotFound) && !errors.Is(cleanupErr, jetstream.ErrKeyDeleted) {
+			return "", fmt.Errorf("record OAuth client authorization: %w; discard authorization code: %v", err, cleanupErr)
+		}
+		return "", err
+	}
+	return code, nil
 }
 
 // RecordOAuthClientAuthorization records one successful user authorization.

@@ -166,7 +166,7 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		expect(errorData.error).toBe('invalid_grant');
 	});
 
-	test('remote admin can observe and block the client, revoking access and reconnects', async ({
+	test('remote admin can see and block the authorized client, revoking access and reconnects', async ({
 		page,
 		chatPage,
 		browser,
