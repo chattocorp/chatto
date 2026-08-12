@@ -2162,40 +2162,41 @@ Result of removing a room ban.
 
 Reads, marks read, and deletes notifications for the authenticated viewer.
 
-<a id="chatto-api-v1-NotificationService-ListNotificationGroups"></a>
+<a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
 
-### ListNotificationGroups
+### ListNotificationOccurrences
 
-Lists Notifications 2.0 groups.
+Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+presentation groups without changing occurrence identity or counts.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotificationGroups
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-ListNotificationGroupsRequest"></a>
+<a id="chatto-api-v1-ListNotificationOccurrencesRequest"></a>
 
-#### Input: ListNotificationGroupsRequest
+#### Input: ListNotificationOccurrencesRequest
 
-Request for one page of grouped notification occurrences.
+Request for one page of notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
 
 
-<a id="chatto-api-v1-ListNotificationGroupsResponse"></a>
+<a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
 
-#### Result: ListNotificationGroupsResponse
+#### Result: ListNotificationOccurrencesResponse
 
-One page of derived notification groups.
+One page of exact notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `groups` | repeated [`NotificationGroup`](#chatto-api-v1-NotificationGroup) | Groups newest activity first. |
+| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Occurrences newest activity first. |
 | `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-| `unread_group_count` | `int32` | Total unread group count. |
-| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including groups outside this page. Clients refresh authoritative notification state at this boundary. |
-| `room_unread_group_counts` | repeated [`NotificationRoomUnreadGroupCount`](#chatto-api-v1-NotificationRoomUnreadGroupCount) | Complete unread-group counts by target room. This is independent of the bounded group page so room indicators remain authoritative. |
+| `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
+| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
+| `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
@@ -2263,35 +2264,33 @@ Result of deleting one notification occurrence.
 | `deleted` | `bool` | True when this call replaced a visible occurrence with a deletion tombstone. False when the occurrence was already absent or deleted. |
 
 
-<a id="chatto-api-v1-NotificationService-DeleteNotificationGroup"></a>
+<a id="chatto-api-v1-NotificationService-BatchDeleteNotificationOccurrences"></a>
 
-### DeleteNotificationGroup
+### BatchDeleteNotificationOccurrences
 
-Permanently deletes occurrences currently belonging to one derived group.
-Group membership is captured when the request is handled. Callers must not
-retry this mutation automatically because later activity may reuse the
-same derived group ID.
+Permanently deletes an exact set of occurrences. Repeating the call is
+safe because later activity receives different occurrence IDs.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationGroup
+POST /api/connect/chatto.api.v1.NotificationService/BatchDeleteNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-DeleteNotificationGroupRequest"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesRequest"></a>
 
-#### Input: DeleteNotificationGroupRequest
+#### Input: BatchDeleteNotificationOccurrencesRequest
 
-Request permanent deletion of one derived notification group.
+Request permanent deletion of an explicit bounded set of occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `group_id` | `string` | Required stable group ID. |
+| `notification_ids` | `repeated string` | Stable occurrence IDs to delete. Duplicates and already absent IDs are ignored. The server accepts at most 100 IDs. |
 
 
-<a id="chatto-api-v1-DeleteNotificationGroupResponse"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesResponse"></a>
 
-#### Result: DeleteNotificationGroupResponse
+#### Result: BatchDeleteNotificationOccurrencesResponse
 
-Result of deleting one derived notification group.
+Result of deleting exact notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4104,28 +4103,6 @@ Lightweight room reference for cross-resource rows.
 
 
 
-<a id="chatto-api-v1-NotificationGroup"></a>
-
-### NotificationGroup
-
-A presentation group derived from related notification occurrences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable ID derived from the viewer and grouping target. |
-| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Bounded newest-occurrence preview. It also includes the open target when that target falls outside the newest preview window. |
-| `open_target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Target to open: newest unread, or newest when all are read. |
-| `unread` | `bool` | True when at least one member occurrence is unread. |
-| `occurrence_count` | `int32` | Total number of occurrences in this group, including those not in the bounded preview. |
-| `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
-| `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
-| `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
-| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
-| `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
-| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from this thread group's root message. Absent for non-thread groups and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
-
-
-
 <a id="chatto-api-v1-NotificationOccurrence"></a>
 
 ### NotificationOccurrence
@@ -4142,7 +4119,9 @@ One exact Notifications 2.0 source occurrence.
 | `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
+| `reaction_emoji` | `string` | Exact emoji for a reaction occurrence. Empty for every other cause. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from the target thread's root message. Absent outside threads and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
 
 
 
@@ -4174,16 +4153,16 @@ One cause that matched an occurrence and its evaluated delivery intensity.
 
 
 
-<a id="chatto-api-v1-NotificationRoomUnreadGroupCount"></a>
+<a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
-### NotificationRoomUnreadGroupCount
+### NotificationRoomUnreadCount
 
-Unread notification groups currently targeting one room.
+Unread notification occurrences currently targeting one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Target room ID. |
-| `unread_group_count` | `int32` | Number of unread groups targeting this room. |
+| `unread_count` | `int32` | Number of unread occurrences targeting this room. |
 
 
 

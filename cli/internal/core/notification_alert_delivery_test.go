@@ -1,0 +1,169 @@
+package core
+
+import (
+	"context"
+	"testing"
+	"time"
+
+	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
+)
+
+func TestNotificationAlertQueueConfigurationIsDurableAndBackedUp(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	info, err := chattoCore.storage.notificationQueue.Info(ctx)
+	if err != nil {
+		t.Fatalf("notification queue info: %v", err)
+	}
+	if info.Config.Name != notificationQueueStreamName || info.Config.Storage != jetstream.FileStorage ||
+		info.Config.Retention != jetstream.WorkQueuePolicy || info.Config.MaxAge != notificationAlertDeliveryTTL {
+		t.Fatalf("notification queue config = %+v", info.Config)
+	}
+	consumer, err := chattoCore.storage.notificationQueue.Consumer(ctx, notificationAlertConsumerName)
+	if err != nil {
+		t.Fatalf("notification alert consumer: %v", err)
+	}
+	consumerInfo, err := consumer.Info(ctx)
+	if err != nil || consumerInfo.Config.AckPolicy != jetstream.AckExplicitPolicy {
+		t.Fatalf("notification consumer info = (%+v, %v)", consumerInfo, err)
+	}
+}
+
+func TestNotificationAlertQueueDeliversMaterializedOccurrence(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	delivered := make(chan *corev1.NotificationOccurrence, 1)
+	chattoCore.SetNotificationAlertHandler(func(_ context.Context, occurrence *corev1.NotificationOccurrence) error {
+		delivered <- occurrence
+		return nil
+	})
+
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "queue-alice", "Queue Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "queue-bob", "Queue Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "queued", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	select {
+	case occurrence := <-delivered:
+		if occurrence.GetRecipientId() != alice.Id || occurrence.GetSourceEventId() != posted.GetId() {
+			t.Fatalf("delivered occurrence = %+v", occurrence)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("notification alert was not delivered from the durable queue")
+	}
+
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		occurrence, getErr := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, notificationOccurrenceID(alice.Id, posted.GetId()))
+		if getErr == nil && occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("terminal alert state = (%v, %v), want delivered", occurrence, getErr)
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+}
+
+func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	called := false
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		called = true
+		return nil
+	})
+	now := time.Now().UTC()
+	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-expired-alert",
+		SourceEventID: "E-expired-alert",
+		SourceCreated: now,
+		Target:        &corev1.NotificationTarget{RoomId: "R-expired-alert", EventId: "E-expired-alert"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: now.Add(-notificationAlertDeliveryTTL - time.Second),
+	}); err != nil {
+		t.Fatalf("processDelivery: %v", err)
+	}
+	if called {
+		t.Fatal("expired delivery called provider")
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("expired alert state = (%v, %v), want silenced", stored, err)
+	}
+}
+
+func TestNotificationAlertQueueSilencesWorkWhenPushIsDisabled(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "disabled-alert-alice", "Disabled Alert Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "disabled-alert-bob", "Disabled Alert Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "disabled push", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, notificationOccurrenceID(alice.Id, posted.GetId()))
+	if err != nil {
+		t.Fatalf("Get occurrence: %v", err)
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("processDelivery: %v", err)
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("disabled alert state = (%v, %v), want silenced", stored, err)
+	}
+}

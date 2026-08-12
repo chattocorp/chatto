@@ -197,9 +197,21 @@ message NotificationOccurrence {
   NotificationRemovalReason removal_reason = 14;
   google.protobuf.Timestamp removed_at = 15;
   NotificationAlertState alert_state = 16;
+  // Retained for persisted compatibility with the superseded claim-based
+  // delivery implementation. Current code clears but never sets this field.
   google.protobuf.Timestamp alert_claimed_until = 17;
   // Internal EVT stream position of the source fact. Used for causal lifecycle
   // cleanup and read-boundary reconciliation; never exposed through the public
   // API.
   uint64 source_stream_sequence = 18;
+}
+
+// NotificationAlertJob is the content-free handoff from occurrence
+// materialization to interruptive delivery. It is stored transiently in the
+// application-owned NOTIFICATIONS_QUEUE stream; the occurrence remains the
+// authoritative source for policy, visibility, presentation, and lifecycle.
+message NotificationAlertJob {
+  string recipient_id = 1;
+  string source_event_id = 2;
+  string notification_id = 3;
 }

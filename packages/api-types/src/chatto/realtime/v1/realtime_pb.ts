@@ -13,7 +13,7 @@ import { RoomGroup, RoomViewerState, RoomWithViewerState } from "../../api/v1/ro
 import { PresenceStatus } from "../../api/v1/presence_pb.js";
 import { ThreadViewerState } from "../../api/v1/message_types_pb.js";
 import { RoomTimelineEvent, RoomTimelineIncludes, RoomTimelinePage } from "../../api/v1/room_timeline_pb.js";
-import { ListNotificationGroupsResponse } from "../../api/v1/notifications_pb.js";
+import { ListNotificationOccurrencesResponse } from "../../api/v1/notifications_pb.js";
 import { ActiveCall } from "../../api/v1/voice_calls_pb.js";
 
 /**
@@ -809,7 +809,8 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     case: "roomTimelineEventRemove";
   } | {
     /**
-     * Replaces the viewer's current pending-notification page and room counts.
+     * Replaces the viewer's current notification-occurrence page and exact
+     * unread occurrence counts.
      *
      * @generated from field: chatto.realtime.v1.RealtimeProjectionNotificationsReplace notifications_replace = 13;
      */
@@ -1620,11 +1621,11 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
   change?: RealtimeProjectionNotificationChange;
 
   /**
-   * Authoritative Notifications 2.0 groups and unread group count.
+   * Authoritative Notifications 2.0 occurrences and exact unread count.
    *
-   * @generated from field: chatto.api.v1.ListNotificationGroupsResponse groups = 4;
+   * @generated from field: chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 5;
    */
-  groups?: ListNotificationGroupsResponse;
+  occurrences?: ListNotificationOccurrencesResponse;
 
   constructor(data?: PartialMessage<RealtimeProjectionNotificationsReplace>) {
     super();
@@ -1635,7 +1636,7 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
   static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationsReplace";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 3, name: "change", kind: "message", T: RealtimeProjectionNotificationChange, opt: true },
-    { no: 4, name: "groups", kind: "message", T: ListNotificationGroupsResponse },
+    { no: 5, name: "occurrences", kind: "message", T: ListNotificationOccurrencesResponse },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationsReplace {

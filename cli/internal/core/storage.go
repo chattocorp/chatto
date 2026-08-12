@@ -24,8 +24,9 @@ type storage struct {
 	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
-	serverAssets    jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
-	serverEvtStream jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
+	serverAssets      jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
+	serverEvtStream   jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
+	notificationQueue jetstream.Stream      // NOTIFICATIONS_QUEUE - short-lived interruptive delivery work.
 
 	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
@@ -154,13 +155,31 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
+	notificationQueue, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+			Name:        notificationQueueStreamName,
+			Description: "Short-lived notification alert delivery work",
+			Subjects:    []string{notificationAlertSubject},
+			Retention:   jetstream.WorkQueuePolicy,
+			Storage:     jetstream.FileStorage,
+			Compression: jetstream.S2Compression,
+			Replicas:    cfg.Replicas,
+			MaxAge:      notificationAlertDeliveryTTL,
+			Duplicates:  notificationAlertDeliveryTTL,
+		})
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create %s stream: %w", notificationQueueStreamName, err)
+	}
+
 	return &storage{
-		encryptionKV:    encryptionKV,
-		runtimeStateKV:  runtimeStateKV,
-		serverAssets:    serverAssets,
-		serverEvtStream: serverEvtStream,
-		memoryCacheKV:   memoryCacheKV,
-		imageCacheStore: imageCacheStore,
+		encryptionKV:      encryptionKV,
+		runtimeStateKV:    runtimeStateKV,
+		serverAssets:      serverAssets,
+		serverEvtStream:   serverEvtStream,
+		notificationQueue: notificationQueue,
+		memoryCacheKV:     memoryCacheKV,
+		imageCacheStore:   imageCacheStore,
 	}, nil
 }
 

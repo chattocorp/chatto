@@ -249,7 +249,7 @@ Finite current notification state emitted on bootstrap and every resume.
 | Field | Type | Description |
 | --- | --- | --- |
 | `change` | optional [`RealtimeProjectionNotificationChange`](#chatto-realtime-v1-RealtimeProjectionNotificationChange) | Live transition that caused this replacement, when one exists. Bootstrap, replay reconciliation, and compacted reset replacements omit this field. |
-| `groups` | `chatto.api.v1.ListNotificationGroupsResponse` | Authoritative Notifications 2.0 groups and unread group count. |
+| `occurrences` | `chatto.api.v1.ListNotificationOccurrencesResponse` | Authoritative Notifications 2.0 occurrences and exact unread count. |
 
 
 
@@ -273,7 +273,7 @@ One mutation of a server-scoped client projection.
 | `operation.room_timeline_event_upsert` | [`RealtimeProjectionRoomTimelineEventUpsert`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineEventUpsert) | Adds or replaces one renderable event in a retained room timeline. |
 | `operation.server_state_upsert` | [`RealtimeProjectionServerState`](#chatto-realtime-v1-RealtimeProjectionServerState) | Replaces authenticated server-wide presentation and runtime state. |
 | `operation.room_timeline_event_remove` | [`RealtimeProjectionRoomTimelineEventRemove`](#chatto-realtime-v1-RealtimeProjectionRoomTimelineEventRemove) | Removes one event from a retained room timeline. This is distinct from a message tombstone: projection-only channel echoes disappear when the underlying thread reply is no longer echoed into the room. |
-| `operation.notifications_replace` | [`RealtimeProjectionNotificationsReplace`](#chatto-realtime-v1-RealtimeProjectionNotificationsReplace) | Replaces the viewer's current pending-notification page and room counts. |
+| `operation.notifications_replace` | [`RealtimeProjectionNotificationsReplace`](#chatto-realtime-v1-RealtimeProjectionNotificationsReplace) | Replaces the viewer's current notification-occurrence page and exact unread occurrence counts. |
 | `operation.room_viewer_state_replace` | [`RealtimeProjectionRoomViewerStateReplace`](#chatto-realtime-v1-RealtimeProjectionRoomViewerStateReplace) | Replaces one room's current viewer state without retransmitting room metadata or membership. |
 | `operation.active_calls_replace` | [`RealtimeProjectionActiveCallsReplace`](#chatto-realtime-v1-RealtimeProjectionActiveCallsReplace) | Replaces every active call visible to the caller. |
 | `operation.presences_replace` | [`RealtimeProjectionPresencesReplace`](#chatto-realtime-v1-RealtimeProjectionPresencesReplace) | Replaces the latest presence status for every server member. Presence is transient and not replayed from EVT, so every subscription emits this reconciliation before caught_up. |

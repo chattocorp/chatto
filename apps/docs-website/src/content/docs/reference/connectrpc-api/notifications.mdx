@@ -20,40 +20,41 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Reads, marks read, and deletes notifications for the authenticated viewer.
 
-<a id="chatto-api-v1-NotificationService-ListNotificationGroups"></a>
+<a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
 
-### ListNotificationGroups
+### ListNotificationOccurrences
 
-Lists Notifications 2.0 groups.
+Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+presentation groups without changing occurrence identity or counts.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/ListNotificationGroups
+POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-ListNotificationGroupsRequest"></a>
+<a id="chatto-api-v1-ListNotificationOccurrencesRequest"></a>
 
-#### Input: ListNotificationGroupsRequest
+#### Input: ListNotificationOccurrencesRequest
 
-Request for one page of grouped notification occurrences.
+Request for one page of notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `page` | [`PageRequest`](/reference/connectrpc-api/types/#chatto-api-v1-PageRequest) | Page request. Defaults to 50 results when absent or limit is zero. |
 
 
-<a id="chatto-api-v1-ListNotificationGroupsResponse"></a>
+<a id="chatto-api-v1-ListNotificationOccurrencesResponse"></a>
 
-#### Result: ListNotificationGroupsResponse
+#### Result: ListNotificationOccurrencesResponse
 
-One page of derived notification groups.
+One page of exact notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `groups` | repeated [`NotificationGroup`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationGroup) | Groups newest activity first. |
+| `occurrences` | repeated [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Occurrences newest activity first. |
 | `page` | [`PageInfo`](/reference/connectrpc-api/types/#chatto-api-v1-PageInfo) | Page metadata. |
-| `unread_group_count` | `int32` | Total unread group count. |
-| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including groups outside this page. Clients refresh authoritative notification state at this boundary. |
-| `room_unread_group_counts` | repeated [`NotificationRoomUnreadGroupCount`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationRoomUnreadGroupCount) | Complete unread-group counts by target room. This is independent of the bounded group page so room indicators remain authoritative. |
+| `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
+| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
+| `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
@@ -121,35 +122,33 @@ Result of deleting one notification occurrence.
 | `deleted` | `bool` | True when this call replaced a visible occurrence with a deletion tombstone. False when the occurrence was already absent or deleted. |
 
 
-<a id="chatto-api-v1-NotificationService-DeleteNotificationGroup"></a>
+<a id="chatto-api-v1-NotificationService-BatchDeleteNotificationOccurrences"></a>
 
-### DeleteNotificationGroup
+### BatchDeleteNotificationOccurrences
 
-Permanently deletes occurrences currently belonging to one derived group.
-Group membership is captured when the request is handled. Callers must not
-retry this mutation automatically because later activity may reuse the
-same derived group ID.
+Permanently deletes an exact set of occurrences. Repeating the call is
+safe because later activity receives different occurrence IDs.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationGroup
+POST /api/connect/chatto.api.v1.NotificationService/BatchDeleteNotificationOccurrences
 ```
 
-<a id="chatto-api-v1-DeleteNotificationGroupRequest"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesRequest"></a>
 
-#### Input: DeleteNotificationGroupRequest
+#### Input: BatchDeleteNotificationOccurrencesRequest
 
-Request permanent deletion of one derived notification group.
+Request permanent deletion of an explicit bounded set of occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `group_id` | `string` | Required stable group ID. |
+| `notification_ids` | `repeated string` | Stable occurrence IDs to delete. Duplicates and already absent IDs are ignored. The server accepts at most 100 IDs. |
 
 
-<a id="chatto-api-v1-DeleteNotificationGroupResponse"></a>
+<a id="chatto-api-v1-BatchDeleteNotificationOccurrencesResponse"></a>
 
-#### Result: DeleteNotificationGroupResponse
+#### Result: BatchDeleteNotificationOccurrencesResponse
 
-Result of deleting one derived notification group.
+Result of deleting exact notification occurrences.
 
 | Field | Type | Description |
 | --- | --- | --- |

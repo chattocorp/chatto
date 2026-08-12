@@ -688,26 +688,6 @@ Lightweight room reference for cross-resource rows.
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
 
-<a id="chatto-api-v1-NotificationGroup"></a>
-
-### NotificationGroup
-
-A presentation group derived from related notification occurrences.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable ID derived from the viewer and grouping target. |
-| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Bounded newest-occurrence preview. It also includes the open target when that target falls outside the newest preview window. |
-| `open_target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Target to open: newest unread, or newest when all are read. |
-| `unread` | `bool` | True when at least one member occurrence is unread. |
-| `occurrence_count` | `int32` | Total number of occurrences in this group, including those not in the bounded preview. |
-| `latest_at` | `google.protobuf.Timestamp` | Time of the newest occurrence. |
-| `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest intensity among member occurrences. |
-| `reasons` | repeated [`NotificationReason`](#chatto-api-v1-NotificationReason) | Distinct causes represented by member occurrences. |
-| `next_expiry_at` | `google.protobuf.Timestamp` | Earliest member expiry. Clients refresh the group at this boundary. |
-| `open_notification_id` | `string` | Occurrence ID corresponding to open_target, including when several occurrences share the same message target. |
-| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from this thread group's root message. Absent for non-thread groups and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
-
 <a id="chatto-api-v1-NotificationOccurrence"></a>
 
 ### NotificationOccurrence
@@ -724,7 +704,9 @@ One exact Notifications 2.0 source occurrence.
 | `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
+| `reaction_emoji` | `string` | Exact emoji for a reaction occurrence. Empty for every other cause. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
+| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from the target thread's root message. Absent outside threads and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
 
 <a id="chatto-api-v1-NotificationPolicyPreference"></a>
 
@@ -750,16 +732,16 @@ One cause that matched an occurrence and its evaluated delivery intensity.
 | `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Cause that matched the viewer. |
 | `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity when the source activity occurred. |
 
-<a id="chatto-api-v1-NotificationRoomUnreadGroupCount"></a>
+<a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
-### NotificationRoomUnreadGroupCount
+### NotificationRoomUnreadCount
 
-Unread notification groups currently targeting one room.
+Unread notification occurrences currently targeting one room.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Target room ID. |
-| `unread_group_count` | `int32` | Number of unread groups targeting this room. |
+| `unread_count` | `int32` | Number of unread occurrences targeting this room. |
 
 <a id="chatto-api-v1-NotificationTarget"></a>
 

@@ -1453,11 +1453,11 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing
 		t.Fatalf("created projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
 	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
-	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 1 || replacement.GetGroups().GetUnreadGroupCount() != 1 {
-		t.Fatalf("created replacement = %+v, want one unread group", replacement)
+	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetUnreadCount() != 1 {
+		t.Fatalf("created replacement = %+v, want one unread occurrence", replacement)
 	}
-	if counts := replacement.GetGroups().GetRoomUnreadGroupCounts(); len(counts) != 1 || counts[0].GetRoomId() != room.Id || counts[0].GetUnreadGroupCount() != 1 {
-		t.Fatalf("created room unread-group counts = %+v, want one group for %s", counts, room.Id)
+	if counts := replacement.GetOccurrences().GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != room.Id || counts[0].GetUnreadCount() != 1 {
+		t.Fatalf("created room unread-occurrence counts = %+v, want one group for %s", counts, room.Id)
 	}
 	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != occurrence.GetId() || change.GetSilent() {
 		t.Fatalf("created change = %+v", change)
@@ -1481,8 +1481,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing
 		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
 	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
-	if replacement == nil || len(replacement.GetGroups().GetGroups()) != 1 || replacement.GetGroups().GetGroups()[0].GetUnread() || replacement.GetGroups().GetUnreadGroupCount() != 0 {
-		t.Fatalf("updated replacement = %+v, want one read group", replacement)
+	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetOccurrences()[0].GetUnread() || replacement.GetOccurrences().GetUnreadCount() != 0 {
+		t.Fatalf("updated replacement = %+v, want one read occurrence", replacement)
 	}
 	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
 		t.Fatalf("updated change = %+v", change)
@@ -1655,7 +1655,7 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 	}
 	if notifications := operations[1].GetNotificationsReplace(); notifications == nil {
 		t.Fatal("room-read event did not replace current notification state")
-	} else if len(notifications.GetGroups().GetGroups()) != 0 {
+	} else if len(notifications.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("room-read notifications = %+v, want no unread notification state", notifications)
 	}
 }

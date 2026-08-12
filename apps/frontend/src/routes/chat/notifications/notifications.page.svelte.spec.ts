@@ -3,11 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import {
-  NotificationReason,
-  type NotificationGroupItem,
-  type NotificationOccurrenceItem
-} from '$lib/api-client/notifications';
+import { NotificationReason, type NotificationOccurrenceItem } from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 
@@ -44,7 +40,7 @@ const { mocks } = vi.hoisted(() => ({
         viewInvalidationVersion: 0,
         fetchPage: vi.fn(),
         markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
-        deleteGroup: vi.fn().mockResolvedValue(undefined),
+        deleteOccurrences: vi.fn().mockResolvedValue(undefined),
         deleteAllOccurrences: vi.fn().mockResolvedValue(undefined)
       },
       pendingHighlights: { set: vi.fn() }
@@ -85,29 +81,17 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
 
 import NotificationsPage from './+page.svelte';
 
-function group(
-  id = 'group-1',
-  occurrence: NotificationOccurrenceItem = mocks.occurrence as NotificationOccurrenceItem,
-  unread = occurrence.unread
-): NotificationGroupItem {
+function page(
+  occurrences: NotificationOccurrenceItem[] = [mocks.occurrence as NotificationOccurrenceItem],
+  hasMore = false
+) {
   return {
-    id,
-    occurrences: [occurrence],
-    openTarget: occurrence,
-    unread,
-    occurrenceCount: 1,
-    latestAt: occurrence.createdAt,
-    reasons: occurrence.reasons
-  };
-}
-
-function page(groups = [group()], hasMore = false) {
-  return {
-    groups,
-    unreadGroupCount: groups.filter((candidate) => candidate.unread).length,
-    roomUnreadGroupCounts: {},
-    totalCount: groups.length,
-    hasMore
+    occurrences,
+    unreadCount: occurrences.filter((candidate) => candidate.unread).length,
+    roomUnreadCounts: {},
+    totalCount: occurrences.length,
+    hasMore,
+    nextExpiryAt: null
   };
 }
 
@@ -119,7 +103,7 @@ describe('notifications page', () => {
     setReactiveLocale('en-GB');
     mocks.store.notifications.viewInvalidationVersion = 0;
     mocks.store.notifications.fetchPage.mockResolvedValue(page());
-    mocks.store.notifications.deleteGroup.mockResolvedValue(undefined);
+    mocks.store.notifications.deleteOccurrences.mockResolvedValue(undefined);
     mocks.store.notifications.deleteAllOccurrences.mockResolvedValue(undefined);
     mocks.store.currentUser.user.settings = null;
     mocks.servers.splice(0, mocks.servers.length, {
@@ -185,7 +169,7 @@ describe('notifications page', () => {
       createdAt: new Date(Date.now() - 60_000).toISOString()
     };
     mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([group('unread', mocks.occurrence, true), group('read', readOccurrence, false)])
+      page([mocks.occurrence as NotificationOccurrenceItem, readOccurrence])
     );
 
     const { container } = render(NotificationsPage);
@@ -215,7 +199,7 @@ describe('notifications page', () => {
       reasons: [NotificationReason.FOLLOWED_THREAD],
       reasonMatches: [{ reason: NotificationReason.FOLLOWED_THREAD, intensity: 2 }]
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(page([group('followed', occurrence)]));
+    mocks.store.notifications.fetchPage.mockResolvedValue(page([occurrence]));
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -229,31 +213,60 @@ describe('notifications page', () => {
     expect(row.textContent).not.toMatch(/·\s*1\s*·/);
   });
 
+  it('consolidates reactions to one target while showing their emoji and actors', async () => {
+    const alice = {
+      id: 'alice',
+      login: 'alice',
+      displayName: 'Alice',
+      deleted: false,
+      avatarUrl: null,
+      presenceStatus: 1,
+      customStatus: null
+    };
+    const bob = { ...alice, id: 'bob', login: 'bob', displayName: 'Bob' };
+    const reaction = (id: string, actor: typeof alice, emoji: string) => ({
+      ...mocks.occurrence,
+      id,
+      actor,
+      eventId: 'reacted-to-message',
+      threadRootId: null,
+      reasons: [NotificationReason.REACTION],
+      reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
+      reactionEmoji: emoji
+    });
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page([reaction('reaction-alice', alice, '👍'), reaction('reaction-bob', bob, '❤️')])
+    );
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const rows = container.querySelectorAll('[data-testid="notification-group"]');
+      expect(rows).toHaveLength(1);
+      return rows[0] as HTMLElement;
+    });
+
+    expect(row.textContent).toContain('👍 ❤️');
+    expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
+  });
+
   it('distinguishes thread groups with their current root-message excerpts', async () => {
     const now = Date.now();
     const firstOccurrence = {
       ...mocks.occurrence,
       id: 'reply-first',
       threadRootId: 'thread-first',
+      threadRootMessageExcerpt: 'Where should we deploy the preview environment?',
       createdAt: new Date(now).toISOString()
     };
     const secondOccurrence = {
       ...mocks.occurrence,
       id: 'reply-second',
       threadRootId: 'thread-second',
+      threadRootMessageExcerpt: 'Can somebody review the migration plan?',
       createdAt: new Date(now - 1_000).toISOString()
     };
     mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([
-        {
-          ...group('thread-first', firstOccurrence),
-          threadRootMessageExcerpt: 'Where should we deploy the preview environment?'
-        },
-        {
-          ...group('thread-second', secondOccurrence),
-          threadRootMessageExcerpt: 'Can somebody review the migration plan?'
-        }
-      ])
+      page([firstOccurrence, secondOccurrence])
     );
 
     const { container } = render(NotificationsPage);
@@ -294,7 +307,7 @@ describe('notifications page', () => {
 
   it('removes a dismissed row immediately and restores it when the request fails', async () => {
     let rejectMutation: ((reason?: unknown) => void) | undefined;
-    mocks.store.notifications.deleteGroup.mockImplementation(
+    mocks.store.notifications.deleteOccurrences.mockImplementation(
       () =>
         new Promise((_, reject) => {
           rejectMutation = reject;
@@ -332,9 +345,7 @@ describe('notifications page', () => {
       timezone: 'Pacific/Auckland',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page(occurrences.map((occurrence) => group(`group-${occurrence.id}`, occurrence)))
-    );
+    mocks.store.notifications.fetchPage.mockResolvedValue(page(occurrences));
 
     const { container } = render(NotificationsPage);
     const headings = await vi.waitFor(() => {
@@ -358,14 +369,9 @@ describe('notifications page', () => {
       ...mocks.store,
       notifications: {
         ...mocks.store.notifications,
-        fetchPage: vi.fn().mockResolvedValue(
-          page([
-            group('remote-group', {
-              ...mocks.occurrence,
-              id: 'remote-notification'
-            })
-          ])
-        ),
+        fetchPage: vi
+          .fn()
+          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
         deleteAllOccurrences: vi.fn(() => new Promise<void>((resolve) => (resolveRemote = resolve)))
       }
     };
@@ -416,7 +422,7 @@ describe('notifications page', () => {
         id: `notification-${offset}`,
         createdAt: `2026-08-11T12:0${offset}:00Z`
       };
-      return Promise.resolve(page([group(`group-${offset}`, occurrence)], offset === 0));
+      return Promise.resolve(page([occurrence], offset === 0));
     });
 
     const { container } = render(NotificationsPage);

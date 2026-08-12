@@ -7,7 +7,7 @@ and installed-app badge updates.
 **Responsibilities:**
 - Listens for live notification transitions attached to authoritative projection replacements
 - Plays the user's selected sound for non-silent creations
-- Reconciles the installed-app badge from authoritative unread group counts
+- Reconciles the installed-app badge from authoritative unread occurrence counts
 
 Include this component once in the application root so signed-out pages also clear stale badges.
 -->
@@ -59,16 +59,16 @@ Include this component once in the application root so signed-out pages also cle
   });
 
   function appBadgeIntent(): AppBadgeIntent | null {
-    let unreadGroupCount = 0;
+    let unreadOccurrenceCount = 0;
 
     for (const instance of serverRegistry.servers) {
       const stores = serverRegistry.getStore(instance.id);
       if (!stores.isAuthenticated) continue;
       if (!stores.notifications.hasLoaded) return null;
-      unreadGroupCount += stores.notifications.unreadNotificationCount;
+      unreadOccurrenceCount += stores.notifications.unreadNotificationCount;
     }
 
-    if (unreadGroupCount > 0) return { kind: 'count', count: unreadGroupCount };
+    if (unreadOccurrenceCount > 0) return { kind: 'count', count: unreadOccurrenceCount };
     return { kind: 'clear' };
   }
 

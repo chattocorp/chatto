@@ -250,6 +250,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_RBAC", false, false, ""},
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
+		{"NOTIFICATIONS_QUEUE", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
 		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
 		{"OBJ_SERVER_ASSETS", false, false, ""},
@@ -456,6 +457,26 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
+	// Pending notification alerts and their durable acknowledgement position
+	// cross the same backup boundary as the occurrence they reference.
+	notificationQueue, err := srcJS.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS_QUEUE", Subjects: []string{"notifications.alert"},
+		Storage: jetstream.FileStorage, Retention: jetstream.WorkQueuePolicy,
+		MaxAge: 2 * time.Minute,
+	})
+	if err != nil {
+		t.Fatal("Failed to create notification queue:", err)
+	}
+	if _, err := notificationQueue.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		Name: "chatto-notification-alert-delivery-v1", Durable: "chatto-notification-alert-delivery-v1",
+		FilterSubject: "notifications.alert", AckPolicy: jetstream.AckExplicitPolicy,
+	}); err != nil {
+		t.Fatal("Failed to create notification queue consumer:", err)
+	}
+	if _, err := srcJS.Publish(ctx, "notifications.alert", []byte("pending-alert")); err != nil {
+		t.Fatal("Failed to publish pending notification alert:", err)
+	}
+
 	// NATS-backed projection snapshots use a dedicated Object Store and an
 	// encrypted OCC pointer in RUNTIME_STATE. Save a real snapshot so the test
 	// proves the two restored resources remain usable together.
@@ -650,6 +671,22 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	if got := info.Config.Metadata[evtstream.IdentityMetadataKey]; got != "evt-incarnation-v1:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa" {
 		t.Errorf("Restored EVT stream identity = %q", got)
+	}
+
+	restoredNotificationQueue, err := dstJS.Stream(ctx, "NOTIFICATIONS_QUEUE")
+	if err != nil {
+		t.Fatal("Failed to open restored notification queue:", err)
+	}
+	restoredNotificationConsumer, err := restoredNotificationQueue.Consumer(ctx, "chatto-notification-alert-delivery-v1")
+	if err != nil {
+		t.Fatal("Failed to open restored notification queue consumer:", err)
+	}
+	alert, err := restoredNotificationConsumer.Next()
+	if err != nil {
+		t.Fatal("Failed to fetch restored pending notification alert:", err)
+	}
+	if string(alert.Data()) != "pending-alert" {
+		t.Fatalf("Restored notification alert = %q, want pending-alert", alert.Data())
 	}
 
 	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")

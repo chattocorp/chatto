@@ -8,8 +8,8 @@ import {
   type DirectMessageNotificationItem,
   type MentionNotificationItem,
   type NotificationAPI,
-  type NotificationGroupItem,
-  type NotificationGroupPage,
+  type NotificationOccurrenceItem,
+  type NotificationOccurrencePage,
   type NotificationPolicyItem,
   type NotificationReason,
   type NotificationItem,
@@ -125,7 +125,7 @@ export class NotificationStore {
   #api: NotificationAPI;
   #fetchGeneration = 0;
   notifications = $state<NotificationItem[]>([]);
-  groups = $state.raw<NotificationGroupItem[]>([]);
+  occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
   nextExpiryAt = $state<string | null>(null);
   /** Advances only for realtime invalidations, including changes made in another session. */
@@ -147,17 +147,15 @@ export class NotificationStore {
   }
 
   /** Replace notification state from the realtime projection. */
-  replaceGroupProjection(page: NotificationGroupPage): void {
+  replaceOccurrenceProjection(page: NotificationOccurrencePage): void {
     this.#fetchGeneration++;
-    this.groups = page.groups;
-    this.notifications = page.groups
-      .flatMap((group) =>
-        group.occurrences.filter((occurrence) => occurrence.unread && group.unread)
-      )
+    this.occurrences = page.occurrences;
+    this.notifications = page.occurrences
+      .filter((occurrence) => occurrence.unread)
       .map(occurrenceAsNotificationItem)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 50);
-    this.unreadNotificationCount = page.unreadGroupCount;
+    this.unreadNotificationCount = page.unreadCount;
     this.nextExpiryAt = page.nextExpiryAt ?? null;
     this.loading = false;
     this.hasLoaded = true;
@@ -172,7 +170,7 @@ export class NotificationStore {
   resetProjectionState(): void {
     this.#fetchGeneration++;
     this.notifications = [];
-    this.groups = [];
+    this.occurrences = [];
     this.unreadNotificationCount = 0;
     this.nextExpiryAt = null;
     this.loading = true;
@@ -197,52 +195,30 @@ export class NotificationStore {
     });
     if (changed) this.notifications = notifications;
 
-    let groupsChanged = false;
-    const groups = this.groups.map((group) => {
-      let groupChanged = false;
-      const occurrences = group.occurrences.map((occurrence) => {
-        if (occurrence.actor?.id !== userId) return occurrence;
-        groupChanged = true;
-        groupsChanged = true;
-        return {
-          ...occurrence,
-          actor: null
-        };
-      });
-      if (!groupChanged) return group;
-      return {
-        ...group,
-        occurrences,
-        openTarget:
-          occurrences.find((occurrence) => occurrence.id === group.openTarget?.id) ??
-          occurrences[0] ??
-          null
-      };
-    });
-    if (groupsChanged) this.groups = groups;
+    const occurrences = this.occurrences.map((occurrence) =>
+      occurrence.actor?.id === userId ? { ...occurrence, actor: null } : occurrence
+    );
+    if (occurrences.some((occurrence, index) => occurrence !== this.occurrences[index])) {
+      this.occurrences = occurrences;
+    }
   }
 
   /** Drop notification payloads for a room at an authorization boundary. */
   clearRoom(roomId: string): void {
-    const originalGroups = this.groups;
-    const groups = originalGroups.filter(
-      (group) => !group.occurrences.some((occurrence) => occurrence.room?.id === roomId)
-    );
-    const removedUnreadGroups = originalGroups.filter(
-      (group) =>
-        group.unread && group.occurrences.some((occurrence) => occurrence.room?.id === roomId)
+    const removedUnreadOccurrences = this.occurrences.filter(
+      (occurrence) => occurrence.unread && occurrence.room?.id === roomId
     ).length;
-    if (groups.length !== originalGroups.length) this.groups = groups;
+    this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
 
     const notifications = this.notifications.filter(
       (notification) => notificationTarget(notification).roomId !== roomId
     );
     const removed = this.notifications.length - notifications.length;
     if (removed > 0) this.notifications = notifications;
-    if (removedUnreadGroups > 0) {
+    if (removedUnreadOccurrences > 0) {
       this.unreadNotificationCount = Math.max(
         0,
-        this.unreadNotificationCount - removedUnreadGroups
+        this.unreadNotificationCount - removedUnreadOccurrences
       );
     }
   }
@@ -354,10 +330,10 @@ export class NotificationStore {
     this.error = null;
 
     try {
-      const page = await this.#api.listNotificationGroups(50);
+      const page = await this.#api.listNotificationOccurrences(50);
       if (generation !== this.#fetchGeneration) return;
 
-      this.replaceGroupProjection(page);
+      this.replaceOccurrenceProjection(page);
     } catch (e) {
       if (generation !== this.#fetchGeneration) return;
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
@@ -369,9 +345,9 @@ export class NotificationStore {
     }
   }
 
-  async fetchPage(offset = 0): Promise<NotificationGroupPage> {
-    const page = await this.#api.listNotificationGroups(50, offset);
-    if (offset === 0) this.replaceGroupProjection(page);
+  async fetchPage(offset = 0): Promise<NotificationOccurrencePage> {
+    const page = await this.#api.listNotificationOccurrences(50, offset);
+    if (offset === 0) this.replaceOccurrenceProjection(page);
     return page;
   }
 
@@ -379,37 +355,33 @@ export class NotificationStore {
     await this.#api.markNotificationRead(notificationId);
   }
 
-  /** Delete one group optimistically, restoring it if the server rejects the mutation. */
-  async deleteGroup(groupId: string): Promise<void> {
-    const originalGroups = this.groups;
+  /** Delete exact occurrences optimistically, restoring them on failure. */
+  async deleteOccurrences(notificationIds: string[], knownUnreadCount?: number): Promise<void> {
+    const originalOccurrences = this.occurrences;
     const originalNotifications = this.notifications;
     const originalCount = this.unreadNotificationCount;
     const originalNextExpiryAt = this.nextExpiryAt;
-    const removed = this.groups.find((group) => group.id === groupId);
+    const removedIds = new SvelteSet(notificationIds);
+    const removed = this.occurrences.filter((occurrence) => removedIds.has(occurrence.id));
     // Supersede stale list work without starting a second list request. The
     // worker's realtime replacement performs authoritative reconciliation.
     this.#fetchGeneration++;
     this.loading = false;
     const mutationGeneration = this.#fetchGeneration;
-    if (removed) {
-      const removedOccurrenceIds = new SvelteSet(
-        removed.occurrences.map((occurrence) => occurrence.id)
-      );
-      this.groups = this.groups.filter((group) => group.id !== groupId);
-      this.notifications = this.notifications.filter(
-        (notification) => !removedOccurrenceIds.has(notification.id)
-      );
-      if (removed.unread) {
-        this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-      }
-      this.nextExpiryAt = earliestNotificationGroupExpiry(this.groups);
-    }
+    this.occurrences = this.occurrences.filter((occurrence) => !removedIds.has(occurrence.id));
+    this.notifications = this.notifications.filter(
+      (notification) => !removedIds.has(notification.id)
+    );
+    const removedUnreadCount =
+      knownUnreadCount ?? removed.filter((occurrence) => occurrence.unread).length;
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removedUnreadCount);
+    this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
 
     try {
-      await this.#api.deleteNotificationGroup(groupId);
+      await this.#api.batchDeleteNotificationOccurrences(notificationIds);
     } catch (error) {
       if (this.#fetchGeneration === mutationGeneration) {
-        this.groups = originalGroups;
+        this.occurrences = originalOccurrences;
         this.notifications = originalNotifications;
         this.unreadNotificationCount = originalCount;
         this.nextExpiryAt = originalNextExpiryAt;
@@ -420,14 +392,14 @@ export class NotificationStore {
 
   /** Delete every current occurrence optimistically for this server. */
   async deleteAllOccurrences(): Promise<void> {
-    const originalGroups = this.groups;
+    const originalOccurrences = this.occurrences;
     const originalNotifications = this.notifications;
     const originalCount = this.unreadNotificationCount;
     const originalNextExpiryAt = this.nextExpiryAt;
     this.#fetchGeneration++;
     this.loading = false;
     const mutationGeneration = this.#fetchGeneration;
-    this.groups = [];
+    this.occurrences = [];
     this.notifications = [];
     this.unreadNotificationCount = 0;
     this.nextExpiryAt = null;
@@ -436,7 +408,7 @@ export class NotificationStore {
       await this.#api.deleteAllNotificationOccurrences();
     } catch (error) {
       if (this.#fetchGeneration === mutationGeneration) {
-        this.groups = originalGroups;
+        this.occurrences = originalOccurrences;
         this.notifications = originalNotifications;
         this.unreadNotificationCount = originalCount;
         this.nextExpiryAt = originalNextExpiryAt;
@@ -474,17 +446,16 @@ export class NotificationStore {
       let notification: NotificationItem | null = null;
       let hasMore = false;
       do {
-        const page = await this.#api.listNotificationGroups(50, offset);
-        const matches = page.groups
-          .flatMap((group) => group.occurrences)
+        const page = await this.#api.listNotificationOccurrences(50, offset);
+        const matches = page.occurrences
           .filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
           .map(occurrenceAsNotificationItem)
           .filter((item) => (options.isDM ? isDMNotification(item) : !isDMNotification(item)));
         totalCount += matches.length;
         if (!notification && matches.length > 0) notification = matches[0]!;
         hasMore = page.hasMore;
-        if (!hasMore || page.groups.length === 0) break;
-        offset += page.groups.length;
+        if (!hasMore || page.occurrences.length === 0) break;
+        offset += page.occurrences.length;
       } while (hasMore);
       if (notification) {
         this.#upsertNotification(notification);
@@ -513,7 +484,7 @@ export class NotificationStore {
     return this.fetchRoomNotification(roomId, options);
   }
 
-  /** Mark one occurrence read optimistically, then reconcile authoritative groups. */
+  /** Mark one occurrence read optimistically, then reconcile authoritative state. */
   async markRead(notificationId: string): Promise<boolean> {
     const removed = this.notifications.find((n) => n.id === notificationId);
     if (!removed) return false;
@@ -522,32 +493,20 @@ export class NotificationStore {
     // this mutation performs one authoritative refresh after the write.
     this.#fetchGeneration++;
     this.loading = false;
-    const originalGroups = this.groups;
+    const originalOccurrences = this.occurrences;
     const originalCount = this.unreadNotificationCount;
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
-    let resolvedUnreadGroups = 0;
-    this.groups = this.groups.map((group) => {
-      const occurrences = group.occurrences.map((occurrence) =>
-        occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
-      );
-      const unread = occurrences.some((occurrence) => occurrence.unread);
-      if (group.unread && !unread) resolvedUnreadGroups++;
-      return {
-        ...group,
-        occurrences,
-        openTarget: occurrences.find((occurrence) => occurrence.unread) ?? occurrences[0] ?? null,
-        unread
-      };
-    });
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - resolvedUnreadGroups);
+    this.occurrences = this.occurrences.map((occurrence) =>
+      occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
+    );
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
 
     try {
       await this.#api.markNotificationRead(notificationId);
-      await this.fetch();
       return true;
     } catch (e) {
       console.error('Failed to mark notification read:', e);
-      this.groups = originalGroups;
+      this.occurrences = originalOccurrences;
       this.#restoreNotification(removed);
       this.unreadNotificationCount = originalCount;
       return false;
@@ -648,10 +607,12 @@ function redactedNotificationSummary(kind: NotificationItemKind): string {
   }
 }
 
-function earliestNotificationGroupExpiry(groups: NotificationGroupItem[]): string | null {
+function earliestNotificationOccurrenceExpiry(
+  occurrences: NotificationOccurrenceItem[]
+): string | null {
   return (
-    groups
-      .map((group) => group.nextExpiryAt)
+    occurrences
+      .map((occurrence) => occurrence.expiresAt)
       .filter((expiry): expiry is string => Boolean(expiry))
       .sort()[0] ?? null
   );

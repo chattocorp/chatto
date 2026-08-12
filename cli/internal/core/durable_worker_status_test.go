@@ -40,8 +40,8 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 4 {
-		t.Fatalf("statuses len = %d, want 4", len(statuses))
+	if len(statuses) != 5 {
+		t.Fatalf("statuses len = %d, want 5", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.Health != DurableWorkerHealthUnavailable {

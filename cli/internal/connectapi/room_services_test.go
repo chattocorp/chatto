@@ -1492,18 +1492,17 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("PostMessage: %v", err)
 	}
 
-	list, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	list, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
 	if err != nil {
-		t.Fatalf("ListNotificationGroups: %v", err)
+		t.Fatalf("ListNotificationOccurrences: %v", err)
 	}
-	if len(list.Msg.GetGroups()) != 1 || list.Msg.GetUnreadGroupCount() != 1 {
-		t.Fatalf("groups = %+v, unread = %d, want one unread group", list.Msg.GetGroups(), list.Msg.GetUnreadGroupCount())
+	if len(list.Msg.GetOccurrences()) != 1 || list.Msg.GetUnreadCount() != 1 {
+		t.Fatalf("occurrences = %+v, unread = %d, want one unread occurrence", list.Msg.GetOccurrences(), list.Msg.GetUnreadCount())
 	}
-	if counts := list.Msg.GetRoomUnreadGroupCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadGroupCount() != 1 {
-		t.Fatalf("room unread-group counts = %+v, want one group for %s", counts, dm.Id)
+	if counts := list.Msg.GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadCount() != 1 {
+		t.Fatalf("room unread-occurrence counts = %+v, want one group for %s", counts, dm.Id)
 	}
-	group := list.Msg.GetGroups()[0]
-	occurrence := group.GetOccurrences()[0]
+	occurrence := list.Msg.GetOccurrences()[0]
 	if occurrence.GetTarget().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetEventId() != posted.Id ||
 		!occurrence.GetUnread() {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
@@ -1514,18 +1513,18 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("MarkNotificationRead: %v", err)
 	}
-	readList, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(readList.Msg.GetGroups()) != 1 || readList.Msg.GetGroups()[0].GetUnread() || readList.Msg.GetUnreadGroupCount() != 0 {
-		t.Fatalf("ListNotificationGroups after read = %+v, %v, want one read group", readList, err)
+	readList, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(readList.Msg.GetOccurrences()) != 1 || readList.Msg.GetOccurrences()[0].GetUnread() || readList.Msg.GetUnreadCount() != 0 {
+		t.Fatalf("ListNotificationOccurrences after read = %+v, %v, want one read occurrence", readList, err)
 	}
 
-	if _, err := env.notifications.DeleteNotificationGroup(ctx, connect.NewRequest(&apiv1.DeleteNotificationGroupRequest{
-		GroupId: group.GetId(),
+	if _, err := env.notifications.BatchDeleteNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchDeleteNotificationOccurrencesRequest{
+		NotificationIds: []string{occurrence.GetId()},
 	})); err != nil {
-		t.Fatalf("DeleteNotificationGroup: %v", err)
+		t.Fatalf("BatchDeleteNotificationOccurrences: %v", err)
 	}
-	afterDelete, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(afterDelete.Msg.GetGroups()) != 0 {
+	afterDelete, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(afterDelete.Msg.GetOccurrences()) != 0 {
 		t.Fatalf("list after delete = %+v, %v, want empty", afterDelete, err)
 	}
 	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "dismiss all of this", nil, "", "", nil, false); err != nil {
@@ -1535,8 +1534,8 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	if err != nil || deleteAll.Msg.GetDeletedCount() != 1 {
 		t.Fatalf("DeleteAllNotificationOccurrences = (%+v, %v), want one", deleteAll, err)
 	}
-	afterDeleteAll, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(afterDeleteAll.Msg.GetGroups()) != 0 {
+	afterDeleteAll, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(afterDeleteAll.Msg.GetOccurrences()) != 0 {
 		t.Fatalf("list after delete all = %+v, %v, want empty", afterDeleteAll, err)
 	}
 
@@ -1571,13 +1570,13 @@ func TestNotificationServiceHydratesCurrentThreadRootExcerpts(t *testing.T) {
 	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, firstReply, firstRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
 	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, secondReply, secondRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
 
-	list, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	list, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
 	if err != nil {
-		t.Fatalf("ListNotificationGroups: %v", err)
+		t.Fatalf("ListNotificationOccurrences: %v", err)
 	}
-	excerpts := make(map[string]string, len(list.Msg.GetGroups()))
-	for _, group := range list.Msg.GetGroups() {
-		excerpts[group.GetOpenTarget().GetThreadRootEventId()] = group.GetThreadRootMessageExcerpt()
+	excerpts := make(map[string]string, len(list.Msg.GetOccurrences()))
+	for _, occurrence := range list.Msg.GetOccurrences() {
+		excerpts[occurrence.GetTarget().GetThreadRootEventId()] = occurrence.GetThreadRootMessageExcerpt()
 	}
 	if got := excerpts[firstRoot.Id]; got != "First thread root with context" {
 		t.Fatalf("first thread excerpt = %q, want whitespace-collapsed root", got)
@@ -1589,13 +1588,13 @@ func TestNotificationServiceHydratesCurrentThreadRootExcerpts(t *testing.T) {
 	if err := env.core.EditMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, firstRoot.Id, "Updated first thread context"); err != nil {
 		t.Fatalf("EditMessage root: %v", err)
 	}
-	updated, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
+	updated, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
 	if err != nil {
-		t.Fatalf("ListNotificationGroups after root edit: %v", err)
+		t.Fatalf("ListNotificationOccurrences after root edit: %v", err)
 	}
-	for _, group := range updated.Msg.GetGroups() {
-		if group.GetOpenTarget().GetThreadRootEventId() == firstRoot.Id && group.GetThreadRootMessageExcerpt() != "Updated first thread context" {
-			t.Fatalf("edited thread excerpt = %q, want current root body", group.GetThreadRootMessageExcerpt())
+	for _, occurrence := range updated.Msg.GetOccurrences() {
+		if occurrence.GetTarget().GetThreadRootEventId() == firstRoot.Id && occurrence.GetThreadRootMessageExcerpt() != "Updated first thread context" {
+			t.Fatalf("edited thread excerpt = %q, want current root body", occurrence.GetThreadRootMessageExcerpt())
 		}
 	}
 }
@@ -1614,11 +1613,11 @@ func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
 	if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "delete exactly this", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(inbox.Msg.GetGroups()) != 1 || len(inbox.Msg.GetGroups()[0].GetOccurrences()) != 1 {
-		t.Fatalf("ListNotificationGroups = (%+v, %v), want one occurrence", inbox, err)
+	inbox, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(inbox.Msg.GetOccurrences()) != 1 {
+		t.Fatalf("ListNotificationOccurrences = (%+v, %v), want one occurrence", inbox, err)
 	}
-	notificationID := inbox.Msg.GetGroups()[0].GetOccurrences()[0].GetId()
+	notificationID := inbox.Msg.GetOccurrences()[0].GetId()
 	first, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
 		NotificationId: notificationID,
 	}))
@@ -1631,9 +1630,9 @@ func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
 	if err != nil || second.Msg.GetDeleted() {
 		t.Fatalf("second DeleteNotificationOccurrence = (%+v, %v), want idempotent deleted=false", second, err)
 	}
-	after, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(after.Msg.GetGroups()) != 0 {
-		t.Fatalf("ListNotificationGroups after delete = (%+v, %v), want empty", after, err)
+	after, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(after.Msg.GetOccurrences()) != 0 {
+		t.Fatalf("ListNotificationOccurrences after delete = (%+v, %v), want empty", after, err)
 	}
 }
 
@@ -1681,9 +1680,9 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	}
 
 	createStale("stale-list-" + posted.Id)
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(inbox.Msg.GetGroups()) != 0 {
-		t.Fatalf("ListNotificationGroups with retracted target = (%+v, %v), want empty", inbox, err)
+	inbox, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(inbox.Msg.GetOccurrences()) != 0 {
+		t.Fatalf("ListNotificationOccurrences with retracted target = (%+v, %v), want empty", inbox, err)
 	}
 
 	staleUpdate := createStale("stale-update-" + posted.Id)
@@ -1746,20 +1745,20 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 		created = append(created, occurrence)
 	}
 
-	first, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+	first, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
 		Page: &apiv1.PageRequest{Limit: 1},
 	}))
-	if err != nil || len(first.Msg.GetGroups()) != 1 || !first.Msg.GetPage().GetHasMore() || first.Msg.GetPage().GetTotalCount() != 2 {
+	if err != nil || len(first.Msg.GetOccurrences()) != 1 || !first.Msg.GetPage().GetHasMore() || first.Msg.GetPage().GetTotalCount() != 2 {
 		t.Fatalf("first filtered page = (%+v, %v), want one of two with more", first, err)
 	}
-	second, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+	second, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
 		Page: &apiv1.PageRequest{Limit: 1, Offset: 1},
 	}))
-	if err != nil || len(second.Msg.GetGroups()) != 1 || second.Msg.GetPage().GetHasMore() {
+	if err != nil || len(second.Msg.GetOccurrences()) != 1 || second.Msg.GetPage().GetHasMore() {
 		t.Fatalf("second filtered page = (%+v, %v), want final row", second, err)
 	}
-	if first.Msg.GetGroups()[0].GetId() == second.Msg.GetGroups()[0].GetId() {
-		t.Fatalf("filtered pages repeated group %s", first.Msg.GetGroups()[0].GetId())
+	if first.Msg.GetOccurrences()[0].GetId() == second.Msg.GetOccurrences()[0].GetId() {
+		t.Fatalf("filtered pages repeated occurrence %s", first.Msg.GetOccurrences()[0].GetId())
 	}
 	if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, created[0].GetId()); !errors.Is(err, core.ErrNotFound) {
 		t.Fatalf("stale occurrence Get error = %v, want not found after visibility purge", err)
@@ -1826,14 +1825,14 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 		t.Fatalf("SetRoomUniversal false: %v", err)
 	}
 
-	response, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{
+	response, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{
 		Page: &apiv1.PageRequest{Limit: 1},
 	}))
 	if err != nil {
-		t.Fatalf("ListNotificationGroups: %v", err)
+		t.Fatalf("ListNotificationOccurrences: %v", err)
 	}
-	if len(response.Msg.GetGroups()) != 1 || response.Msg.GetPage().GetTotalCount() != 3 ||
-		response.Msg.GetUnreadGroupCount() != 3 || len(response.Msg.GetRoomUnreadGroupCounts()) != 3 {
+	if len(response.Msg.GetOccurrences()) != 1 || response.Msg.GetPage().GetTotalCount() != 3 ||
+		response.Msg.GetUnreadCount() != 3 || len(response.Msg.GetRoomUnreadCounts()) != 3 {
 		t.Fatalf("summary after implicit membership loss = %+v, want three visible groups", response.Msg)
 	}
 	if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, stale.GetId()); !errors.Is(err, core.ErrNotFound) {
@@ -1841,7 +1840,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 	}
 }
 
-func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
+func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
 	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-v2-page-actor", "Notification Page Actor", "password")
@@ -1852,25 +1851,21 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 	if err != nil {
 		t.Fatalf("FindOrCreateDM: %v", err)
 	}
-	for index := 0; index < notificationGroupOccurrencePreviewLimit+5; index++ {
+	for index := 0; index < defaultNotificationLimit+5; index++ {
 		if _, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, fmt.Sprintf("message %d", index), nil, "", "", nil, false); err != nil {
 			t.Fatalf("PostMessage %d: %v", index, err)
 		}
 	}
 
-	inbox, err := env.notifications.ListNotificationGroups(ctx, connect.NewRequest(&apiv1.ListNotificationGroupsRequest{}))
-	if err != nil || len(inbox.Msg.GetGroups()) != 1 {
-		t.Fatalf("ListNotificationGroups = %+v, %v, want one group", inbox, err)
+	inbox, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
+	if err != nil || len(inbox.Msg.GetOccurrences()) != defaultNotificationLimit {
+		t.Fatalf("ListNotificationOccurrences = %+v, %v, want one bounded page", inbox, err)
 	}
-	group := inbox.Msg.GetGroups()[0]
-	if got := len(group.GetOccurrences()); got != notificationGroupOccurrencePreviewLimit {
-		t.Fatalf("group preview size = %d, want %d", got, notificationGroupOccurrencePreviewLimit)
-	}
-	if group.GetOccurrenceCount() != int32(notificationGroupOccurrencePreviewLimit+5) || group.GetOpenNotificationId() == "" || group.GetNextExpiryAt() == nil || inbox.Msg.GetNextExpiryAt() == nil {
-		t.Fatalf("bounded group metadata = %+v", group)
+	if inbox.Msg.GetPage().GetTotalCount() != int64(defaultNotificationLimit+5) || !inbox.Msg.GetPage().GetHasMore() || inbox.Msg.GetUnreadCount() != int32(defaultNotificationLimit+5) || inbox.Msg.GetNextExpiryAt() == nil {
+		t.Fatalf("bounded occurrence metadata = %+v", inbox.Msg)
 	}
 	projection, err := env.api.BuildRealtimeProjectionNotifications(env.ctx, env.viewer.Id)
-	if err != nil || projection.Groups.GetNextExpiryAt() == nil {
+	if err != nil || projection.Occurrences.GetNextExpiryAt() == nil {
 		t.Fatalf("realtime expiry boundary = %+v, %v", projection, err)
 	}
 
@@ -1883,7 +1878,7 @@ func TestNotificationServiceBoundsGroupPreview(t *testing.T) {
 		t.Fatalf("flush notification subscription: %v", err)
 	}
 	updated, err := env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
-		NotificationId: group.GetOpenNotificationId(),
+		NotificationId: inbox.Msg.GetOccurrences()[0].GetId(),
 	}))
 	if err != nil || updated.Msg.GetNotification().GetUnread() {
 		t.Fatalf("MarkNotificationRead = %+v, %v", updated, err)

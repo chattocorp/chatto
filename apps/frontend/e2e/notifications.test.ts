@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './setup';
-import { ChatPage, NotificationsPage } from './pages';
+import { ChatPage, DMPage, NotificationsPage } from './pages';
 import { createAndLoginTestUser, loginAsAdmin, loginTestUser } from './fixtures/testUser';
 import {
   joinRoomFromOverview,
@@ -303,6 +303,31 @@ test.describe('Notification Bell & Page', () => {
     await notificationsPage.expectEmptyState();
     await notificationsPage.expectUnreadEmpty();
   });
+
+  test('counts individual unread DMs while presenting one conversation row', async ({
+    page,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+    await page.goto(routes.settings);
+
+    await withServerUser(browser!, serverURL, async ({ page: senderPage }) => {
+      const room = await new DMPage(senderPage).startConversation(userA.login);
+      await room.sendMessage(`first unread DM ${Date.now()}`);
+      await room.sendMessage(`second unread DM ${Date.now()}`);
+    });
+
+    const notificationBadge = serverNotificationBadge(page);
+    await expect(notificationBadge).toHaveText('2', { timeout: TIMEOUTS.REALTIME_EVENT });
+
+    await notificationsPage.goto();
+    await notificationsPage.expectNotificationCount(1, TIMEOUTS.REALTIME_EVENT);
+    await expect(
+      notificationsPage.getNotificationBySummary('has sent you a direct message.')
+    ).toBeVisible();
+  });
 });
 
 test.describe('Notification Page Display', () => {
@@ -415,6 +440,27 @@ test.describe('Notification Page Display', () => {
 
     // User A: Verify both notifications appear
     // Use longer timeout to allow real-time events to propagate
+    await notificationsPage.goto();
+    await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
+  });
+
+  test('keeps two mentions in the same room as separate jump targets', async ({
+    page,
+    chatPage,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('announcements');
+
+    await withServerUser(browser!, serverURL, async ({ chatPage: senderChat, roomPage }) => {
+      await senderChat.enterRoom('general');
+      await roomPage.sendMessage(`@${userA.login} first same-room mention`);
+      await roomPage.sendMessage(`@${userA.login} second same-room mention`);
+    });
+
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
   });
@@ -780,9 +826,9 @@ test.describe('Cross-Tab Sync', () => {
     // Verifies the cross-device fix: dismissing a mention notification on
     // Tab 1 not only removes the notification on Tab 2, but also clears the
     // room-level mention indicator (notification badge in the room list). The reload
-    // step proves the server-side occurrence was marked read — not just the
-    // local frontend state — by hitting the room notification count API on a
-    // fresh load.
+    // step proves the server-side occurrence was deleted — not just removed
+    // from local frontend state — by hitting the room notification count API
+    // on a fresh load.
 
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();

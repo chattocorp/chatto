@@ -1236,7 +1236,8 @@ type RealtimeProjectionOperation_RoomTimelineEventRemove struct {
 }
 
 type RealtimeProjectionOperation_NotificationsReplace struct {
-	// Replaces the viewer's current pending-notification page and room counts.
+	// Replaces the viewer's current notification-occurrence page and exact
+	// unread occurrence counts.
 	NotificationsReplace *RealtimeProjectionNotificationsReplace `protobuf:"bytes,13,opt,name=notifications_replace,json=notificationsReplace,proto3,oneof"`
 }
 
@@ -2108,8 +2109,8 @@ type RealtimeProjectionNotificationsReplace struct {
 	// Live transition that caused this replacement, when one exists. Bootstrap,
 	// replay reconciliation, and compacted reset replacements omit this field.
 	Change *RealtimeProjectionNotificationChange `protobuf:"bytes,3,opt,name=change,proto3,oneof" json:"change,omitempty"`
-	// Authoritative Notifications 2.0 groups and unread group count.
-	Groups        *v1.ListNotificationGroupsResponse `protobuf:"bytes,4,opt,name=groups,proto3" json:"groups,omitempty"`
+	// Authoritative Notifications 2.0 occurrences and exact unread count.
+	Occurrences   *v1.ListNotificationOccurrencesResponse `protobuf:"bytes,5,opt,name=occurrences,proto3" json:"occurrences,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -2151,9 +2152,9 @@ func (x *RealtimeProjectionNotificationsReplace) GetChange() *RealtimeProjection
 	return nil
 }
 
-func (x *RealtimeProjectionNotificationsReplace) GetGroups() *v1.ListNotificationGroupsResponse {
+func (x *RealtimeProjectionNotificationsReplace) GetOccurrences() *v1.ListNotificationOccurrencesResponse {
 	if x != nil {
-		return x.Groups
+		return x.Occurrences
 	}
 	return nil
 }
@@ -3125,11 +3126,11 @@ const file_chatto_realtime_v1_realtime_proto_rawDesc = "" +
 	"\x10_reaction_change\"_\n" +
 	")RealtimeProjectionRoomTimelineEventRemove\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\xf0\x01\n" +
+	"\bevent_id\x18\x02 \x01(\tR\aeventId\"\x8d\x02\n" +
 	"&RealtimeProjectionNotificationsReplace\x12U\n" +
-	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01\x12E\n" +
-	"\x06groups\x18\x04 \x01(\v2-.chatto.api.v1.ListNotificationGroupsResponseR\x06groupsB\t\n" +
-	"\a_changeJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03R\x04pageR\vroom_counts\"\xb9\x01\n" +
+	"\x06change\x18\x03 \x01(\v28.chatto.realtime.v1.RealtimeProjectionNotificationChangeH\x00R\x06change\x88\x01\x01\x12T\n" +
+	"\voccurrences\x18\x05 \x01(\v22.chatto.api.v1.ListNotificationOccurrencesResponseR\voccurrencesB\t\n" +
+	"\a_changeJ\x04\b\x01\x10\x02J\x04\b\x02\x10\x03J\x04\b\x04\x10\x05R\x04pageR\vroom_countsR\x06groups\"\xb9\x01\n" +
 	"$RealtimeProjectionNotificationChange\x12P\n" +
 	"\x06action\x18\x01 \x01(\x0e28.chatto.realtime.v1.RealtimeProjectionNotificationActionR\x06action\x12'\n" +
 	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12\x16\n" +
@@ -3272,7 +3273,7 @@ var file_chatto_realtime_v1_realtime_proto_goTypes = []any{
 	(*v1.RoomTimelinePage)(nil),                         // 51: chatto.api.v1.RoomTimelinePage
 	(*v1.RoomTimelineEvent)(nil),                        // 52: chatto.api.v1.RoomTimelineEvent
 	(*v1.RoomTimelineIncludes)(nil),                     // 53: chatto.api.v1.RoomTimelineIncludes
-	(*v1.ListNotificationGroupsResponse)(nil),           // 54: chatto.api.v1.ListNotificationGroupsResponse
+	(*v1.ListNotificationOccurrencesResponse)(nil),      // 54: chatto.api.v1.ListNotificationOccurrencesResponse
 	(*v1.RoomViewerState)(nil),                          // 55: chatto.api.v1.RoomViewerState
 	(*v1.ActiveCall)(nil),                               // 56: chatto.api.v1.ActiveCall
 	(v1.PresenceStatus)(0),                              // 57: chatto.api.v1.PresenceStatus
@@ -3325,7 +3326,7 @@ var file_chatto_realtime_v1_realtime_proto_depIdxs = []int32{
 	53, // 44: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.includes:type_name -> chatto.api.v1.RoomTimelineIncludes
 	31, // 45: chatto.realtime.v1.RealtimeProjectionRoomTimelineEventUpsert.reaction_change:type_name -> chatto.realtime.v1.RealtimeProjectionReactionChange
 	28, // 46: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.change:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationChange
-	54, // 47: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.groups:type_name -> chatto.api.v1.ListNotificationGroupsResponse
+	54, // 47: chatto.realtime.v1.RealtimeProjectionNotificationsReplace.occurrences:type_name -> chatto.api.v1.ListNotificationOccurrencesResponse
 	1,  // 48: chatto.realtime.v1.RealtimeProjectionNotificationChange.action:type_name -> chatto.realtime.v1.RealtimeProjectionNotificationAction
 	55, // 49: chatto.realtime.v1.RealtimeProjectionRoomViewerStateReplace.viewer_state:type_name -> chatto.api.v1.RoomViewerState
 	56, // 50: chatto.realtime.v1.RealtimeProjectionActiveCallsReplace.calls:type_name -> chatto.api.v1.ActiveCall

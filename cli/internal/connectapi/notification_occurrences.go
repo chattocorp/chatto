@@ -27,7 +27,7 @@ func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) err
 	return nil
 }
 
-func (s *notificationService) ListNotificationGroups(ctx context.Context, req *connect.Request[apiv1.ListNotificationGroupsRequest]) (*connect.Response[apiv1.ListNotificationGroupsResponse], error) {
+func (s *notificationService) ListNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.ListNotificationOccurrencesRequest]) (*connect.Response[apiv1.ListNotificationOccurrencesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -35,88 +35,47 @@ func (s *notificationService) ListNotificationGroups(ctx context.Context, req *c
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID)
+	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	occurrences, err = s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
 		return nil, connectError(err)
 	}
 	limit, offset := apiPagination(req.Msg.GetPage(), defaultNotificationLimit, maxNotificationLimit)
-	page, total, hasMore, err := s.visibleNotificationPage(ctx, caller.UserID, groups, limit, offset)
-	if err != nil {
-		return nil, connectError(err)
+	total := len(occurrences)
+	if offset > total {
+		offset = total
 	}
+	end := min(total, offset+limit)
+	page := occurrences[offset:end]
 	assembler := newNotificationAssembler(s.api)
-	hydrated, err := assembler.groups(ctx, page)
+	hydrated, err := assembler.occurrences(ctx, page)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	// Visibility filtering may have tombstoned stale rows. Re-read the
-	// local occurrence index so summary counts reflect those writes without
-	// performing another projection fence or exhaustive target validation.
-	groups, err = s.api.core.NotificationOccurrences().Groups(ctx, caller.UserID)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	unreadGroupCount, nextExpiryAt, roomCounts := notificationSummary(groups)
-	return connect.NewResponse(&apiv1.ListNotificationGroupsResponse{
-		Groups:                hydrated,
-		Page:                  apiPageInfo(total, hasMore),
-		UnreadGroupCount:      unreadGroupCount,
-		NextExpiryAt:          nextExpiryAt,
-		RoomUnreadGroupCounts: roomCounts,
+	unreadCount, nextExpiryAt, roomCounts := notificationSummary(occurrences)
+	return connect.NewResponse(&apiv1.ListNotificationOccurrencesResponse{
+		Occurrences:      hydrated,
+		Page:             apiPageInfo(total, end < total),
+		UnreadCount:      unreadCount,
+		NextExpiryAt:     nextExpiryAt,
+		RoomUnreadCounts: roomCounts,
 	}), nil
 }
 
-// visibleNotificationPage validates only the visible prefix needed for an
-// offset page. It grows by one page when stale rows are filtered, instead of
-// fencing and revalidating the entire 90-day list for every request.
-func (s *notificationService) visibleNotificationPage(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup, limit, offset int) ([]core.NotificationOccurrenceGroup, int, bool, error) {
-	if offset >= len(groups) {
-		return []core.NotificationOccurrenceGroup{}, len(groups), false, nil
-	}
-	targetCount := offset + limit + 1
-	scanEnd := min(len(groups), targetCount)
-	scanStart := 0
-	visible := make([]core.NotificationOccurrenceGroup, 0, targetCount)
-	for {
-		batch, err := s.visibleNotificationGroups(ctx, userID, groups[scanStart:scanEnd])
-		if err != nil {
-			return nil, 0, false, err
-		}
-		visible = append(visible, batch...)
-		if len(visible) >= targetCount || scanEnd == len(groups) {
-			break
-		}
-		scanStart = scanEnd
-		scanEnd = min(len(groups), scanEnd+max(limit, defaultNotificationLimit))
-	}
-	total := len(groups) - (scanEnd - len(visible))
-	if offset >= len(visible) {
-		return []core.NotificationOccurrenceGroup{}, total, scanEnd < len(groups), nil
-	}
-	end := min(len(visible), offset+limit)
-	hasMore := len(visible) > end || scanEnd < len(groups)
-	return visible[offset:end], total, hasMore, nil
-}
-
-func notificationSummary(groups []core.NotificationOccurrenceGroup) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadGroupCount) {
-	unreadGroupCount := int32(0)
+func notificationSummary(occurrences []*corev1.NotificationOccurrence) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadCount) {
+	unreadCount := int32(0)
 	roomCounts := make(map[string]int32)
 	var nextExpiryAt *timestamppb.Timestamp
-	for _, group := range groups {
-		groupUnread := false
-		roomID := ""
-		for _, occurrence := range group.Occurrences {
-			if roomID == "" {
-				roomID = occurrence.GetTarget().GetRoomId()
-			}
-			if nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextExpiryAt.AsTime()) {
-				nextExpiryAt = occurrence.GetExpiresAt()
-			}
-			groupUnread = groupUnread || occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
+	for _, occurrence := range occurrences {
+		if nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextExpiryAt.AsTime()) {
+			nextExpiryAt = occurrence.GetExpiresAt()
 		}
-		if groupUnread {
-			unreadGroupCount++
-			if roomID != "" {
+		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+			unreadCount++
+			if roomID := occurrence.GetTarget().GetRoomId(); roomID != "" {
 				roomCounts[roomID]++
 			}
 		}
@@ -126,21 +85,17 @@ func notificationSummary(groups []core.NotificationOccurrenceGroup) (int32, *tim
 		roomIDs = append(roomIDs, roomID)
 	}
 	sort.Strings(roomIDs)
-	result := make([]*apiv1.NotificationRoomUnreadGroupCount, 0, len(roomIDs))
+	result := make([]*apiv1.NotificationRoomUnreadCount, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		result = append(result, &apiv1.NotificationRoomUnreadGroupCount{
-			RoomId:           roomID,
-			UnreadGroupCount: roomCounts[roomID],
+		result = append(result, &apiv1.NotificationRoomUnreadCount{
+			RoomId:      roomID,
+			UnreadCount: roomCounts[roomID],
 		})
 	}
-	return unreadGroupCount, nextExpiryAt, result
+	return unreadCount, nextExpiryAt, result
 }
 
-func (s *notificationService) visibleNotificationGroups(ctx context.Context, userID string, groups []core.NotificationOccurrenceGroup) ([]core.NotificationOccurrenceGroup, error) {
-	occurrences := make([]*corev1.NotificationOccurrence, 0)
-	for _, group := range groups {
-		occurrences = append(occurrences, group.Occurrences...)
-	}
+func (s *notificationService) visibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
 	allowedOccurrences, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return nil, err
@@ -149,23 +104,15 @@ func (s *notificationService) visibleNotificationGroups(ctx context.Context, use
 	for _, occurrence := range allowedOccurrences {
 		allowedIDs[occurrence.GetId()] = struct{}{}
 	}
-	visible := make([]core.NotificationOccurrenceGroup, 0, len(groups))
-	for _, group := range groups {
-		visibleOccurrences := make([]*corev1.NotificationOccurrence, 0, len(group.Occurrences))
-		for _, occurrence := range group.Occurrences {
-			if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
-				if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
-					return nil, err
-				}
-				continue
+	visible := make([]*corev1.NotificationOccurrence, 0, len(allowedOccurrences))
+	for _, occurrence := range occurrences {
+		if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
+			if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
+				return nil, err
 			}
-			visibleOccurrences = append(visibleOccurrences, occurrence)
-		}
-		if len(visibleOccurrences) == 0 {
 			continue
 		}
-		group.Occurrences = visibleOccurrences
-		visible = append(visible, group)
+		visible = append(visible, occurrence)
 	}
 	return visible, nil
 }
@@ -226,39 +173,7 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted}), nil
 }
 
-func (s *notificationService) requireVisibleNotificationGroup(ctx context.Context, userID, groupID string) error {
-	groups, err := s.api.core.NotificationOccurrences().Groups(ctx, userID)
-	if err != nil {
-		return err
-	}
-	for _, group := range groups {
-		if group.ID != groupID || len(group.Occurrences) == 0 {
-			continue
-		}
-		visible, err := s.api.core.NotificationOccurrences().VisibleOccurrences(ctx, userID, group.Occurrences)
-		if err != nil {
-			return err
-		}
-		visibleIDs := make(map[string]struct{}, len(visible))
-		for _, occurrence := range visible {
-			visibleIDs[occurrence.GetId()] = struct{}{}
-		}
-		for _, occurrence := range group.Occurrences {
-			if _, allowed := visibleIDs[occurrence.GetId()]; !allowed {
-				if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
-					return err
-				}
-			}
-		}
-		if len(visible) > 0 {
-			return nil
-		}
-		return core.ErrNotFound
-	}
-	return core.ErrNotFound
-}
-
-func (s *notificationService) DeleteNotificationGroup(ctx context.Context, req *connect.Request[apiv1.DeleteNotificationGroupRequest]) (*connect.Response[apiv1.DeleteNotificationGroupResponse], error) {
+func (s *notificationService) BatchDeleteNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[apiv1.BatchDeleteNotificationOccurrencesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
 		return nil, err
@@ -266,14 +181,11 @@ func (s *notificationService) DeleteNotificationGroup(ctx context.Context, req *
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	if err := s.requireVisibleNotificationGroup(ctx, caller.UserID, req.Msg.GetGroupId()); err != nil {
-		return nil, connectError(err)
-	}
-	count, err := s.api.core.NotificationOccurrences().DeleteGroup(ctx, caller.UserID, req.Msg.GetGroupId())
+	count, err := s.api.core.NotificationOccurrences().DeleteMany(ctx, caller.UserID, req.Msg.GetNotificationIds())
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteNotificationGroupResponse{DeletedCount: int32(count)}), nil
+	return connect.NewResponse(&apiv1.BatchDeleteNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
 }
 
 func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Context, _ *connect.Request[apiv1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[apiv1.DeleteAllNotificationOccurrencesResponse], error) {

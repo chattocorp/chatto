@@ -2,8 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
-  ListNotificationGroupsResponse,
-  NotificationGroup as APINotificationGroup,
+  ListNotificationOccurrencesResponse,
   NotificationOccurrence as APINotificationOccurrence
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
@@ -106,6 +105,8 @@ export type NotificationOccurrenceItem = {
     intensity: NotificationDeliveryIntensity;
   }>;
   unread: boolean;
+  reactionEmoji?: string | null;
+  threadRootMessageExcerpt?: string | null;
   expiresAt?: string;
 };
 
@@ -121,10 +122,10 @@ export type NotificationGroupItem = {
   nextExpiryAt?: string | null;
 };
 
-export type NotificationGroupPage = {
-  groups: NotificationGroupItem[];
-  unreadGroupCount: number;
-  roomUnreadGroupCounts: Record<string, number>;
+export type NotificationOccurrencePage = {
+  occurrences: NotificationOccurrenceItem[];
+  unreadCount: number;
+  roomUnreadCounts: Record<string, number>;
   totalCount: number;
   hasMore: boolean;
   nextExpiryAt?: string | null;
@@ -143,9 +144,12 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
   const headers = () => authHeaders(config);
 
   return {
-    async listNotificationGroups(limit = 50, offset = 0): Promise<NotificationGroupPage> {
-      return mapNotificationGroupPage(
-        await client.listNotificationGroups({ page: { limit, offset } }, { headers: headers() })
+    async listNotificationOccurrences(limit = 50, offset = 0): Promise<NotificationOccurrencePage> {
+      return mapNotificationOccurrencePage(
+        await client.listNotificationOccurrences(
+          { page: { limit, offset } },
+          { headers: headers() }
+        )
       );
     },
 
@@ -166,10 +170,17 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       return response.deleted;
     },
 
-    async deleteNotificationGroup(groupId: string): Promise<number> {
-      return Number(
-        (await client.deleteNotificationGroup({ groupId }, { headers: headers() })).deletedCount
-      );
+    async batchDeleteNotificationOccurrences(notificationIds: string[]): Promise<number> {
+      const uniqueIds = [...new Set(notificationIds)];
+      let deletedCount = 0;
+      for (let offset = 0; offset < uniqueIds.length; offset += 100) {
+        const response = await client.batchDeleteNotificationOccurrences(
+          { notificationIds: uniqueIds.slice(offset, offset + 100) },
+          { headers: headers() }
+        );
+        deletedCount += Number(response.deletedCount);
+      }
+      return deletedCount;
     },
 
     async deleteAllNotificationOccurrences(): Promise<number> {
@@ -209,38 +220,18 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
 
-export function mapNotificationGroupPage(
-  response: ListNotificationGroupsResponse
-): NotificationGroupPage {
+export function mapNotificationOccurrencePage(
+  response: ListNotificationOccurrencesResponse
+): NotificationOccurrencePage {
   return {
-    groups: response.groups.map(notificationGroup),
-    unreadGroupCount: Number(response.unreadGroupCount),
-    roomUnreadGroupCounts: Object.fromEntries(
-      response.roomUnreadGroupCounts.map((count) => [count.roomId, Number(count.unreadGroupCount)])
+    occurrences: response.occurrences.map(notificationOccurrence),
+    unreadCount: Number(response.unreadCount),
+    roomUnreadCounts: Object.fromEntries(
+      response.roomUnreadCounts.map((count) => [count.roomId, Number(count.unreadCount)])
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
     nextExpiryAt: response.nextExpiryAt?.toDate().toISOString() ?? null
-  };
-}
-
-function notificationGroup(group: APINotificationGroup): NotificationGroupItem {
-  const occurrences = group.occurrences.map(notificationOccurrence);
-  const targetEventId = group.openTarget?.eventId;
-  return {
-    id: group.id,
-    occurrences,
-    openTarget:
-      occurrences.find((occurrence) => occurrence.id === group.openNotificationId) ??
-      occurrences.find((occurrence) => occurrence.eventId === targetEventId) ??
-      occurrences[0] ??
-      null,
-    threadRootMessageExcerpt: group.threadRootMessageExcerpt ?? null,
-    unread: group.unread,
-    occurrenceCount: Number(group.occurrenceCount),
-    latestAt: group.latestAt?.toDate().toISOString() ?? new Date(0).toISOString(),
-    reasons: [...group.reasons],
-    nextExpiryAt: group.nextExpiryAt?.toDate().toISOString() ?? null
   };
 }
 
@@ -265,8 +256,73 @@ export function notificationOccurrence(
     reasons,
     reasonMatches,
     unread: item.unread,
+    reactionEmoji: item.reactionEmoji || null,
+    threadRootMessageExcerpt: item.threadRootMessageExcerpt ?? null,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
+}
+
+/** Derive temporary presentation groups from exact server occurrences. */
+export function groupNotificationOccurrences(
+  source: NotificationOccurrenceItem[]
+): NotificationGroupItem[] {
+  const groups = new Map<string, NotificationOccurrenceItem[]>();
+  for (const occurrence of source) {
+    const key = notificationPresentationGroupKey(occurrence);
+    const current = groups.get(key);
+    if (current) current.push(occurrence);
+    else groups.set(key, [occurrence]);
+  }
+  return [...groups.entries()]
+    .map(([id, unsorted]) => {
+      const occurrences = [...unsorted].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+      const openTarget =
+        occurrences.find((occurrence) => occurrence.unread) ?? occurrences[0] ?? null;
+      const reasons = [...new Set(occurrences.flatMap((occurrence) => occurrence.reasons))].sort();
+      const expiries = occurrences.flatMap((occurrence) =>
+        occurrence.expiresAt ? [occurrence.expiresAt] : []
+      );
+      return {
+        id,
+        occurrences,
+        openTarget,
+        threadRootMessageExcerpt: openTarget?.threadRootMessageExcerpt ?? null,
+        unread: occurrences.some((occurrence) => occurrence.unread),
+        occurrenceCount: occurrences.length,
+        latestAt: occurrences[0]?.createdAt ?? new Date(0).toISOString(),
+        reasons,
+        nextExpiryAt: expiries.sort()[0] ?? null
+      };
+    })
+    .sort((a, b) => b.latestAt.localeCompare(a.latestAt));
+}
+
+function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {
+  const roomId = occurrence.room?.id ?? '';
+  if (occurrence.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+    return `dm:${roomId}`;
+  }
+  if (
+    occurrence.reasons.includes(NotificationReason.REPLY) ||
+    occurrence.reasons.includes(NotificationReason.DIRECT_MENTION) ||
+    occurrence.reasons.includes(NotificationReason.ROLE_MENTION) ||
+    occurrence.reasons.includes(NotificationReason.HERE) ||
+    occurrence.reasons.includes(NotificationReason.ALL)
+  ) {
+    return `occurrence:${occurrence.id}`;
+  }
+  if (occurrence.reasons.includes(NotificationReason.REACTION)) {
+    return `reaction:${roomId}:${occurrence.threadRootId ?? ''}:${occurrence.eventId}`;
+  }
+  if (occurrence.reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+    return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
+  }
+  if (occurrence.reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
+    return `room:${roomId}`;
+  }
+  // Unknown future causes stay exact until the client deliberately chooses a
+  // safe presentation boundary for them.
+  return `occurrence:${occurrence.id}`;
 }
 
 export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): NotificationItem {

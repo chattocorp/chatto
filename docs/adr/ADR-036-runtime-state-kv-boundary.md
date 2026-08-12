@@ -115,8 +115,8 @@ legacy `SERVER_RUNTIME video.*` records are historical pre-0.1 state and are
 not written by current code.
 
 Mention flags are not a target runtime-state model. Attention indicators derive
-from unread notification groups instead of preserving `room_mention_status.*`
-as canonical state.
+from exact unread notification occurrences instead of preserving
+`room_mention_status.*` as canonical state.
 
 ## Consequences
 

@@ -24,10 +24,9 @@ import { Room, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import {
-  ListNotificationGroupsResponse,
-  NotificationGroup,
+  ListNotificationOccurrencesResponse,
   NotificationOccurrence,
-  NotificationRoomUnreadGroupCount,
+  NotificationRoomUnreadCount,
   NotificationTarget
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
@@ -75,30 +74,23 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
   });
 }
 
-function notificationGroups(roomId: string, count: number): ListNotificationGroupsResponse {
-  return new ListNotificationGroupsResponse({
-    groups: Array.from(
+function notificationOccurrences(
+  roomId: string,
+  count: number
+): ListNotificationOccurrencesResponse {
+  return new ListNotificationOccurrencesResponse({
+    occurrences: Array.from(
       { length: count },
       (_, index) =>
-        new NotificationGroup({
-          id: `G${index}`,
+        new NotificationOccurrence({
+          id: `N${index}`,
           unread: true,
-          occurrences: [
-            new NotificationOccurrence({
-              id: `N${index}`,
-              actor: new User({ id: 'U1', displayName: 'Ada' }),
-              unread: true,
-              target: new NotificationTarget({
-                room: new RoomSummary({ id: roomId })
-              })
-            })
-          ]
+          actor: new User({ id: 'U1', displayName: 'Ada' }),
+          target: new NotificationTarget({ room: new RoomSummary({ id: roomId }) })
         })
     ),
-    unreadGroupCount: count,
-    roomUnreadGroupCounts: [
-      new NotificationRoomUnreadGroupCount({ roomId, unreadGroupCount: count })
-    ]
+    unreadCount: count,
+    roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId, unreadCount: count })]
   });
 }
 
@@ -240,7 +232,7 @@ describe('ServerProjectionStore', () => {
         operation({
           case: 'notificationsReplace',
           value: new RealtimeProjectionNotificationsReplace({
-            groups: notificationGroups('R1', 3)
+            occurrences: notificationOccurrences('R1', 3)
           })
         }),
         operation({
@@ -280,7 +272,7 @@ describe('ServerProjectionStore', () => {
     expect(store.roomGroups).toEqual([group]);
     expect(store.rooms.get('R1')?.room?.viewerState?.isMember).toBe(false);
     expect(store.rooms.get('R1')?.memberUserIds).toEqual(['U1']);
-    expect(store.notificationGroups?.unreadGroupCount).toBe(3);
+    expect(store.notificationOccurrences?.unreadCount).toBe(3);
 
     store.apply(
       event(
@@ -297,7 +289,7 @@ describe('ServerProjectionStore', () => {
     expect(store.users.has('U1')).toBe(false);
     expect(store.rooms.get('R1')?.memberUserIds).toEqual([]);
     expect(store.timelines.get('R1')?.includes?.users.U1).toBeUndefined();
-    expect(store.notificationGroups?.groups[0]?.occurrences[0]?.actor).toBeUndefined();
+    expect(store.notificationOccurrences?.occurrences[0]?.actor).toBeUndefined();
     expect(store.activeCalls[0]?.participants).toEqual([]);
     expect(store.roomGroups).toEqual([]);
   });
@@ -484,7 +476,7 @@ describe('ServerProjectionStore', () => {
         operation({
           case: 'notificationsReplace',
           value: new RealtimeProjectionNotificationsReplace({
-            groups: notificationGroups('R1', 2)
+            occurrences: notificationOccurrences('R1', 2)
           })
         })
       )
@@ -494,7 +486,7 @@ describe('ServerProjectionStore', () => {
     expect(store.timelines.get('R1')?.events[0]?.id).toBe('M5');
     expect(store.timelines.get('R1')?.startCursor).toBe('cursor-5');
     expect(store.timelines.get('R1')?.endCursor).toBe('cursor-54');
-    expect(store.notificationGroups?.unreadGroupCount).toBe(2);
+    expect(store.notificationOccurrences?.unreadCount).toBe(2);
 
     store.apply(
       event(
@@ -506,7 +498,7 @@ describe('ServerProjectionStore', () => {
         })
       )
     );
-    expect(store.notificationGroups?.unreadGroupCount).toBe(2);
+    expect(store.notificationOccurrences?.unreadCount).toBe(2);
   });
 
   it('retains root-message room activity order across viewer-state replacements', () => {

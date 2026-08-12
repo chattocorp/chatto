@@ -131,7 +131,6 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 			return <-workerDone
 		case <-ticker.C:
 			m.releaseAcknowledgedVisibilityBoundaries(ctx)
-			m.deliverPendingAlerts(ctx)
 		}
 	}
 }
@@ -547,47 +546,6 @@ func notificationWorkFilter(triggerEventID string) string {
 	return notificationWorkKeyPrefix + triggerEventID + ".*"
 }
 
-func (m *NotificationMaterializer) deliverPendingAlerts(ctx context.Context) {
-	if m.core.OnNotificationOccurrenceCreated == nil {
-		return
-	}
-	for {
-		hasCandidate, err := m.core.notificationOccurrences.HasClaimableAlert(ctx)
-		if err != nil {
-			m.core.logger.Warn("Failed to inspect pending notification alerts", "error", err)
-			return
-		}
-		if !hasCandidate {
-			return
-		}
-		// A visibility-loss fact may be committed while the occurrence index
-		// still contains an older Alert. The sole durable writer must process
-		// every relevant fact through this boundary before an OCC claim can make
-		// that occurrence externally visible.
-		if err := m.waitCurrent(ctx); err != nil {
-			m.core.logger.Warn("Failed to fence pending notification alert", "error", err)
-			return
-		}
-		occurrence, claimed, err := m.core.notificationOccurrences.ClaimPendingAlert(ctx)
-		if err != nil {
-			m.core.logger.Warn("Failed to claim notification alert", "error", err)
-			return
-		}
-		if !claimed {
-			return
-		}
-		deliveryErr := m.core.OnNotificationOccurrenceCreated(context.WithoutCancel(ctx), occurrence)
-		if err := m.core.notificationOccurrences.CompleteAlertClaim(ctx, occurrence, deliveryErr == nil); err != nil {
-			m.core.logger.Warn("Failed to complete notification alert claim", "notification_id", occurrence.GetId(), "error", err)
-			return
-		}
-		if deliveryErr != nil {
-			m.core.logger.Warn("Notification alert delivery failed", "notification_id", occurrence.GetId(), "error", deliveryErr)
-			return
-		}
-	}
-}
-
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64, durableDelivery bool) error {
 	if event == nil {
 		return nil
@@ -912,7 +870,7 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 	if !afterBoundary {
 		return nil
 	}
-	_, _, err = m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
+	createdOccurrence, _, err := m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID:          occurrence.GetRecipientId(),
 		SourceEventID:        occurrence.GetSourceEventId(),
 		SourceCreated:        occurrence.GetSourceCreatedAt().AsTime(),
@@ -925,6 +883,9 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 	})
 	if err != nil {
 		return fmt.Errorf("create occurrence for recipient %s: %w", occurrence.GetRecipientId(), err)
+	}
+	if err := m.core.notificationAlertDelivery.Enqueue(ctx, createdOccurrence); err != nil {
+		return err
 	}
 	return nil
 }

@@ -26,45 +26,46 @@ import (
 // It provides a unified API for spaces, users, rooms, and messages,
 // managing current JetStream resources internally.
 type ChattoCore struct {
-	nc                       *nats.Conn
-	js                       jetstream.JetStream
-	logger                   *log.Logger
-	storage                  *storage
-	config                   config.CoreConfig
-	encryption               *encryptionManager
-	dekResolver              *unwrappedDEKResolver
-	configModel              *ConfigModel
-	roomModel                *RoomModel
-	roomCommands             *RoomCommandModel
-	roomDirectoryReads       *RoomDirectoryReadModel
-	messageModel             *MessageModel
-	messageSearchReads       *MessageSearchReadModel
-	notificationPolicy       *NotificationPolicyModel
-	roomTimelineReads        *RoomTimelineReadModel
-	readStateModel           *ReadStateModel
-	notificationOccurrences  *NotificationOccurrenceModel
-	notificationMaterializer *NotificationMaterializer
-	threadFollows            *ThreadFollowModel
-	reactionModel            *ReactionModel
-	userModel                *UserModel
-	rbacModel                *RBACModel
-	mentionables             *MentionablesModel
-	invitationModel          *InvitationModel
-	myEventsModel            *MyEventsModel
-	presenceModel            *PresenceModel
-	mediaModel               *MediaModel
-	callModel                *CallModel
-	assetModel               *AssetModel
-	assetUploadModel         *AssetUploadModel
-	keyShredding             *UserKeyShreddingModel
-	s3Client                 *S3Client            // Optional S3 client for S3-compatible storage
-	permissionResolver       *PermissionResolver  // Hierarchical permission resolver
-	linkPreviewCache         *linkpreview.Cache   // Cache for link preview metadata
-	linkPreviewFetcher       *linkpreview.Fetcher // Fetcher for link preview metadata
-	projectionSnapshotWorker *projectionSnapshotWorker
-	natsRecoveryState        atomic.Int32
-	natsRecoveryStartedAt    atomic.Int64
-	natsRecoveredReconnects  atomic.Uint64
+	nc                        *nats.Conn
+	js                        jetstream.JetStream
+	logger                    *log.Logger
+	storage                   *storage
+	config                    config.CoreConfig
+	encryption                *encryptionManager
+	dekResolver               *unwrappedDEKResolver
+	configModel               *ConfigModel
+	roomModel                 *RoomModel
+	roomCommands              *RoomCommandModel
+	roomDirectoryReads        *RoomDirectoryReadModel
+	messageModel              *MessageModel
+	messageSearchReads        *MessageSearchReadModel
+	notificationPolicy        *NotificationPolicyModel
+	roomTimelineReads         *RoomTimelineReadModel
+	readStateModel            *ReadStateModel
+	notificationOccurrences   *NotificationOccurrenceModel
+	notificationMaterializer  *NotificationMaterializer
+	notificationAlertDelivery *NotificationAlertDelivery
+	threadFollows             *ThreadFollowModel
+	reactionModel             *ReactionModel
+	userModel                 *UserModel
+	rbacModel                 *RBACModel
+	mentionables              *MentionablesModel
+	invitationModel           *InvitationModel
+	myEventsModel             *MyEventsModel
+	presenceModel             *PresenceModel
+	mediaModel                *MediaModel
+	callModel                 *CallModel
+	assetModel                *AssetModel
+	assetUploadModel          *AssetUploadModel
+	keyShredding              *UserKeyShreddingModel
+	s3Client                  *S3Client            // Optional S3 client for S3-compatible storage
+	permissionResolver        *PermissionResolver  // Hierarchical permission resolver
+	linkPreviewCache          *linkpreview.Cache   // Cache for link preview metadata
+	linkPreviewFetcher        *linkpreview.Fetcher // Fetcher for link preview metadata
+	projectionSnapshotWorker  *projectionSnapshotWorker
+	natsRecoveryState         atomic.Int32
+	natsRecoveryStartedAt     atomic.Int64
+	natsRecoveredReconnects   atomic.Uint64
 
 	// VideoMaxUploadSize is the maximum size for video uploads in bytes.
 	// When set (> 0), video attachments use this limit instead of the asset limit.
@@ -76,10 +77,11 @@ type ChattoCore struct {
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
 
-	// OnNotificationOccurrenceCreated delivers a claimed Alert occurrence. The
-	// claim is retried after a lease timeout when the callback returns an error
-	// or the delivering replica stops before recording completion.
-	OnNotificationOccurrenceCreated func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
+	// NotificationAlertsEnabled makes materialization enqueue interruptive
+	// delivery work. The queue and occurrence remain durable across replicas;
+	// the configured transport handler performs only the provider side effect.
+	NotificationAlertsEnabled bool
+	notificationAlertHandler  func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
@@ -195,6 +197,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
+	g.Go(func() error { return c.notificationAlertDelivery.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })

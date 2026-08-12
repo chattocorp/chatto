@@ -13,10 +13,9 @@ import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import {
-  ListNotificationGroupsResponse,
-  NotificationGroup,
+  ListNotificationOccurrencesResponse,
   NotificationOccurrence,
-  NotificationRoomUnreadGroupCount,
+  NotificationRoomUnreadCount,
   NotificationTarget
 } from '@chatto/api-types/api/v1/notifications_pb';
 import { ServerProjectionStore } from './projection.svelte';
@@ -81,25 +80,17 @@ describe('NavigationStore', () => {
         hasMessageHistory: true
       })
     );
-    projection.notificationGroups = new ListNotificationGroupsResponse({
-      groups: Array.from(
+    projection.notificationOccurrences = new ListNotificationOccurrencesResponse({
+      occurrences: Array.from(
         { length: 3 },
         (_, index) =>
-          new NotificationGroup({
-            id: `G${index}`,
+          new NotificationOccurrence({
+            id: `N${index}`,
             unread: true,
-            occurrences: [
-              new NotificationOccurrence({
-                id: `N${index}`,
-                unread: true,
-                target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
-              })
-            ]
+            target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
           })
       ),
-      roomUnreadGroupCounts: [
-        new NotificationRoomUnreadGroupCount({ roomId: 'dm', unreadGroupCount: 3 })
-      ]
+      roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId: 'dm', unreadCount: 3 })]
     });
     projection.rooms.set('managed', projectedRoom('managed'));
 

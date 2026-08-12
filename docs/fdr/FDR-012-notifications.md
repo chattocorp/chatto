@@ -1,291 +1,163 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-12
 
 > **Implementation status:** Implemented for the upcoming 0.5.0 release by
-> [#1556](https://github.com/chattocorp/chatto/issues/1556), using the documented
-> clean cutover from legacy notification records.
+> [#1556](https://github.com/chattocorp/chatto/issues/1556), with a clean
+> replacement of legacy notifications.
 
 ## Overview
 
-Notifications are a persistent, user-scoped list of activity that deserves
-attention. They cover direct messages, replies, mentions, followed
-conversations, reactions, and future attention causes. The list takes
-inspiration from GitHub notifications while using a simpler lifecycle: items
-are unread or read, and users delete items they no longer want to retain.
-Related activity is grouped without losing the exact events and reasons
-underneath.
+Notifications are a persistent, user-scoped list of exact activity that
+deserves attention. They cover direct messages, replies, direct and role
+mentions, `@here`, `@all`, followed conversations, and reactions. They borrow
+GitHub's durable-history idea but use a smaller lifecycle: Unread, Read, or
+explicitly Deleted.
+
+The server emits and stores occurrences individually. The bundled frontend may
+consolidate them for presentation without changing occurrence identity, jump
+targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
 
-- The notification page is one chronological list of Unread and Read groups.
-  Unread rows use Chatto's notification orange; Read rows remain visible
-  without unread emphasis.
-- The list is divided into Today, Yesterday, This Week, and monthly sections
-  using the preferred time zone of the account on each server. Notification
-  titles are full localized sentences that identify the actor and activity.
-- Opening a notification navigates to the exact room, thread, and event. It
-  marks that notification read; the room or thread becomes read only when the
-  target is actually displayed.
-- Mark Read is a one-way, idempotent attention transition. Notifications cannot
-  be marked unread.
-- Reading a room or thread marks covered notifications read. For a reaction,
-  coverage follows the reacted-to message rather than the later reaction time.
-  It does not remove notifications from the list.
-- The trash action deletes a notification group without requiring the user to
-  open or otherwise handle its source activity. Dismiss All deletes every
-  occurrence current at an authoritative boundary on each authenticated
-  server. Both actions update the list optimistically; failures restore only
-  the affected server's rows.
-- Notifications expire 90 days after their source activity. Read and Delete
-  mutations never extend that absolute lifetime.
-- Related occurrences are grouped by conversation or target: DM room, thread,
-  reacted-to message, or channel room. Later activity makes the grouping target
-  appear as unread again even when older occurrences in the group are read.
-- Thread groups show a short excerpt from the current root message, so replies
-  to separate threads in one room remain distinguishable. The excerpt is
-  hydrated after current visibility validation and is never persisted in the
-  notification occurrence.
-- A group opens its newest unread occurrence, or its newest occurrence when all
-  members are read. Individual occurrences retain exact destinations.
-- The bell, current-server indicator, and installed-app badge are active when
-  at least one unread group exists. The public API still exposes exact unread
-  group counts for clients that need them; the bundled list does not render a
-  single-occurrence counter.
-- The combined multi-server list preserves results from healthy servers and
-  servers when another source fails, and presents the failure as partial with
-  a retry instead of replacing the whole list with an error.
-- Retraction, reaction removal, lost room visibility, and account deletion
-  remove notifications that the user can no longer act on or view. List and
-  mutation requests validate the exact current target after waiting local
-  projections through freshly captured recipient, server-wide room-event,
-  room-group-layout, and RBAC boundaries. List validation scans only far enough
-  to fill the requested offset page and validates each page-sized overfetch
-  chunk once when stale groups are removed. The ordered writer also reconciles effective membership
-  after universal-room, room-group placement, and relevant RBAC/role changes,
-  including visibility loss without an explicit leave. A snapshot-capable
-  Notification Visibility projection retains effective membership at each
-  pending change's exact EVT boundary, so a later regain that reaches ordinary
-  projections first cannot preserve pre-loss history or remove post-regain
-  activity. Snapshot restore stops at the worker's acknowledged floor and
-  replays only its pending tail. Pending facts share one full checkpoint plus a
-  compact event-delta journal, and exact boundary data remains available until
-  the consumer's acknowledgement is confirmed; an administrative fact never
-  copies the full visibility graph or replays lifetime membership/RBAC history
-  on the notification lane. Snapshot publication pauses whenever a captured
-  generation would cross the worker's full acknowledged floor, including when
-  a non-boundary notification fact is pending. On restart, Chatto reconstructs
-  that full floor immediately before the earliest worker-filtered fact after
-  the consumer's sparse AckFloor. This preserves the last safe restore point
-  instead of rotating it away.
-  Before exhaustive totals and badge summaries are read,
-  Chatto waits that writer through a captured tail of every relevant EVT filter,
-  appends a read fence to `RUNTIME_STATE`, then waits the serving replica's
-  occurrence index through that fence's KV revision. Temporary projection,
-  worker, or replica-watcher lag is therefore never interpreted as permanent
-  visibility loss or an authoritative stale count.
-- Source commands capture the current notification-policy config tail on every
-  OCC attempt and wait the local Config projection through it before preparing
-  notification work. A preference change that completed before the source
-  attempt therefore applies to that activity; a retry recaptures policy as well
-  as recipients.
-- Before single-occurrence and group deletion read target membership, and
-  before whole-list deletion captures the current occurrence set, Chatto waits
-  the durable notification worker through a fresh boundary and
-  fences the serving replica's occurrence index through the worker's KV writes.
-  Pending visibility cleanup cannot be bypassed by a stale triage request.
-- Attention state, groups, counts, sounds, Web Push, and installed-app badges
-  reconcile from authoritative server state after reconnect. Missing one live
-  update cannot leave the client permanently wrong.
+- The notification page is one chronological list containing both Unread and
+  Read activity. Unread rows use Chatto's notification orange.
+- The list is divided into Today, Yesterday, This Week, and month sections
+  using the preferred time zone of the account on each server.
+- Rows use full localized sentences. Thread activity includes a current root
+  excerpt. Reaction rows show the emoji that were given.
+- Opening a row navigates to the chosen occurrence's exact room, thread, and
+  event. The occurrence is marked Read only after the target is displayed.
+- Reading a room or thread marks covered occurrences Read. A reaction is
+  covered according to the reacted-to message and reaction horizon.
+- Notifications cannot be marked Unread. There is no Done state or Inbox/Done
+  split.
+- Trash deletes the exact occurrence IDs represented by the current row.
+  Dismiss All deletes everything current at the server boundary. Both are
+  optimistic; a failed server restores only that server's rows.
+- Every occurrence and deletion tombstone expires exactly 90 days after source
+  activity. Mutations never extend the lifetime.
+- The combined multi-server list preserves healthy results when another server
+  fails and exposes the failure as partial.
 
-## Notification Policy
+## Exact occurrences and frontend consolidation
 
-Every supported cause has an independent delivery intensity:
+`ListNotificationOccurrences` and the realtime notification replacement expose
+individual newest-first occurrences. Totals are exact and independent of list
+pagination or presentation grouping:
 
-- **Off** — do not create a notification occurrence for this cause.
-- **Badge** — create an occurrence and update the list and badges without an
-  interruptive sound, Web Push, or native notification.
-- **Alert** — create the same occurrence and allow configured interruptive
-  delivery.
+- each unread occurrence contributes one to the bell/server/app badge;
+- each unread occurrence contributes one to its room's notification count;
+- two unread DMs consolidated into one row still display a badge count of two.
 
-Preferences inherit independently for each cause from the Chatto product
-default, through the user's server-level preference, to an optional room-level
-override. A user can return any override to Inherit. Effective values are
-computed by the server; clients do not reproduce policy evaluation.
+The bundled frontend derives temporary groups as follows:
 
-The initial product defaults are:
+- DMs group by conversation room;
+- reactions group by reacted-to target and consolidate actors and emoji;
+- followed-thread activity may group by thread root;
+- followed-room activity may group by room; and
+- mentions and replies remain separate for each exact jump target.
 
-| Cause | Default intensity |
+A presentation group opens its newest unread occurrence, or newest occurrence
+when all are Read. It contains the exact member IDs used by the idempotent batch
+delete API. Groups are not persisted or transmitted and may evolve per client.
+The bundled list does not display a redundant count of one.
+
+## Notification policy
+
+Every cause independently inherits one delivery intensity through product
+default, user/server override, and optional room override:
+
+- **Off** — create no occurrence for this cause.
+- **Badge** — create an occurrence without interruptive delivery.
+- **Alert** — create the same occurrence and make it eligible for sound, Web
+  Push, or native delivery.
+
+| Cause | Default |
 | --- | --- |
 | Direct message | Alert |
 | Direct username mention | Alert |
 | Reply to the user's message | Alert |
-| Mention of a role the user belongs to | Alert |
+| Role mention | Alert |
 | `@here` | Alert |
 | `@all` | Alert |
-| New activity in a followed thread | Badge |
-| New activity in a followed room | Off |
+| Followed thread activity | Badge |
+| Followed room activity | Off |
 | Reaction to the user's message | Badge |
 
-Room invitations are not an implemented notification cause and therefore do
-not appear in policy responses or settings. The protobuf reason value is kept
-for future additive support, but cannot be persisted as a preference today.
+One source event produces at most one occurrence per recipient, even when it
+matches several causes. The occurrence records all matches and uses the
+strongest source-time intensity. A user's own activity does not notify them.
+Policy changes affect future activity and never rewrite existing history.
 
-Direct username mentions, role mentions, `@here`, and `@all` remain separate
-causes. A message can match several causes for one recipient, but it produces
-one occurrence containing every matched reason and uses the strongest effective
-intensity. The user's own activity does not notify them.
+## Durable derivation and push delivery
 
-Notification policy affects future activity. Changing a preference does not
-mark content read, rewrite existing notification intensity, or erase retained
-history. Do Not Disturb and other temporary delivery conditions may silence an
-Alert while preserving its occurrence for later review.
+Source-command OCC attempts recompute recipients, mention expansion, and
+policy after waiting the current Config projection. They stage exact temporary
+work in `RUNTIME_STATE` before appending the existing message or reaction fact.
+No notification-only fact is added to `EVT`.
 
-## Conversation Subscriptions
+The shared `chatto-notification-materializer-v2` durable consumer applies
+occurrence creation and lifecycle cleanup in source order. It handles
+retraction, reaction removal, explicit and implicit visibility loss, room
+deletion, and account deletion. The Notification Visibility projection retains
+the event-time room/group/RBAC boundary needed to prevent a quick regain from
+preserving pre-loss notification content.
 
-- Posting in a thread follows it. A delivered direct username mention follows
-  the thread unless the recipient previously opted out; role, `@here`, and
-  `@all` mentions do not implicitly follow it.
-- Following a thread or room establishes an ambient activity source whose
-  delivery intensity is still controlled by notification policy.
-- Conversation subscriptions are changed through their owning room or thread
-  controls, not through the initial notification API.
+An eligible Alert is published as an opaque occurrence coordinate to the
+file-backed `NOTIFICATIONS_QUEUE`. The
+`chatto-notification-alert-delivery-v1` consumer uses the shared durable-worker
+runtime. Before provider delivery it fences materialization and current policy,
+then revalidates unread state, target/reaction visibility, subscription
+ownership, and DND. A current preference may downgrade an already queued Alert
+but never upgrades an occurrence that was source-time Badge.
 
-## Design Decisions
+The queue and its consumer are included in normal backups. This preserves
+accepted work across restore; excluding it would silently drop valid alerts at
+an arbitrary backup boundary. A strict two-minute stream and worker age horizon
+prevents restored jobs from producing stale interruptions. Delivery is at
+least once, so a crash after provider acceptance can still duplicate a push.
 
-### 1. A persistent list replaces delete-on-read pending alerts
+## Visibility and consistency
 
-**Decision:** Notification occurrences are Unread or Read; Delete is explicit.
-There is no Done state and no Mark Unread operation.
-**Why:** Users need to review a read notification later and discard noise
-without pretending they opened it. A one-way attention transition keeps the
-useful persistence of GitHub-style notifications without its additional
-Inbox/Done organization. See ADR-072.
-**Tradeoff:** Read notifications consume bounded storage until deletion or
-expiry, and deleted notifications cannot be restored.
+List, realtime, and delivery paths fence the materializer plus current user,
+room, room-group-layout, and RBAC projections before treating absence or access
+loss as authoritative. The complete retained occurrence set is validated before
+exact totals are returned, including rows outside the requested page. A
+`RUNTIME_STATE` read fence then makes replica-local occurrence-index lag fail or
+wait instead of exposing stale state.
 
-### 2. Content read state and notification attention are separate
+Occurrences retain references and cause provenance, not copied room names,
+profiles, or message bodies. Public assembly hydrates current visible data.
+Retracted targets, removed reactions, and inaccessible rooms are tombstoned
+instead of leaking stale presentation.
 
-**Decision:** Room/thread read cursors can mark covered occurrences read, but
-notification actions do not advance content read state until the target is
-actually displayed.
-**Why:** “I cleared this alert” and “I read this conversation through here” are
-different claims. Keeping them separate closes accidental read receipts and
-allows direct list cleanup. See ADR-028 and ADR-072.
-**Tradeoff:** A user can intentionally mark a notification read while its room
-still has unread messages.
+## Conversation subscriptions
 
-### 3. One occurrence records every reason
+- Posting in a thread follows it.
+- A delivered direct username mention follows the thread unless the recipient
+  previously opted out; role, `@here`, and `@all` mentions do not.
+- Following a thread or room establishes an activity source whose intensity is
+  still controlled by notification policy.
+- Subscription controls belong to rooms and threads, not notification rows.
 
-**Decision:** One source event produces at most one occurrence per recipient.
-It records all matched reasons and uses their strongest effective intensity.
-**Why:** A followed-thread reply that also mentions the recipient is one piece
-of activity, not two alerts. Retaining all reasons makes the decision
-explainable and prevents independent fanout paths from disagreeing. See
-ADR-071.
-**Tradeoff:** Policy evaluation must gather every cause before committing the
-occurrence instead of stopping after the first match.
+## Compatibility
 
-### 4. Delivery intensity is independent per cause
-
-**Decision:** Each cause inherits an Off, Badge, or Alert value through server
-and room scopes.
-**Why:** The legacy Muted/Normal/All Messages level combines too many choices.
-A user may want direct mentions to alert, reactions to appear silently, and
-ambient room activity off in the same room. The bundled settings matrix has a
-server/room scope selector; Inherit clears the override at the selected scope.
-**Tradeoff:** The settings UI becomes a matrix. Presets and inheritance cues
-must keep the common case understandable.
-
-### 5. Notification policy no longer hides ordinary unread rooms
-
-**Decision:** Turning notification causes Off suppresses new notification
-occurrences but does not suppress ordinary room unread state.
-**Why:** Read state describes unseen content; notification policy describes how
-strongly to surface selected activity. Coupling them makes “quiet but still
-unread” impossible. See ADR-072.
-**Tradeoff:** This deliberately retires the legacy behavior where Muted also
-removed the room's unread indicator.
-
-### 6. Groups are derived from exact occurrences
-
-**Decision:** DM, thread, reaction, and room groups are presentation resources
-derived from member occurrences rather than independently mutable canonical
-records. The only group mutation is deletion.
-**Why:** Grouping should reduce notification noise without creating a second
-lifecycle that can drift from exact targets. A group deletion removes the
-members present at its authoritative boundary; later activity remains new. See
-ADR-072.
-**Tradeoff:** Group assembly and group deletion require an indexed membership
-view and explicit concurrency semantics. Because later activity can reuse a
-derived group ID, group mutations are not safe for automatic retries after an
-ambiguous transport failure; its response is a bounded affected-count
-acknowledgements and realtime delivery is coalesced to one invalidation.
-
-### 7. Notifications retain references, not presentation copies
-
-**Decision:** Occurrences retain stable source, reason, actor, and destination
-IDs. Names, avatars, message text, and room presentation are hydrated from
-current visible resources. Thread groups may include a bounded current root
-message excerpt as response-only presentation data.
-**Why:** Copied presentation becomes stale and can outlive authorization or
-content deletion. Exact references are sufficient to navigate and reconcile.
-See ADR-071.
-**Tradeoff:** Rendering a notification depends on current projection hydration;
-an inaccessible or deleted target removes the occurrence rather than showing a
-stale preview.
-
-### 8. Ninety days is an absolute lifetime
-
-**Decision:** Every occurrence expires 90 days
-after the source activity. Mutations do not reset the clock.
-**Why:** The notification list is bounded attention state, not a permanent activity archive.
-The limit gives predictable storage and privacy behavior while retaining three
-months of useful history. See ADR-071.
-**Tradeoff:** Notifications cannot be retained as a permanent personal archive.
-
-### 9. Persistent state precedes interruptive delivery
-
-**Decision:** Sounds, Web Push, native notifications, and installed-app badges
-are driven from a committed occurrence evaluated as Alert. Badge occurrences
-stay silent, and Off creates nothing.
-**Why:** Every interrupt should correspond to something the user can find in
-the app, and every surface should reflect the same policy decision. See
-ADR-071 and FDR-013.
-**Tradeoff:** Delivery waits for durable occurrence creation and may be delayed
-while the notification worker catches up.
-
-### 10. Policy and subscription changes affect future activity only
-
-**Decision:** Changing a cause intensity or conversation subscription does not
-retroactively rewrite existing occurrences.
-**Why:** Existing notifications explain decisions made when their activity
-occurred. Silent retroactive cleanup would make notification history unpredictable.
-**Tradeoff:** After turning a cause Off, users may still need to triage older
-items from that cause.
-
-### 11. Notifications 2.0 is a clean replacement
-
-**Decision:** The grouped notification list and per-cause policy replace the legacy pending
-notification list and coarse Muted/Normal/All Messages preferences at one
-release boundary. Existing pending rows and coarse preferences are not migrated
-or interpreted.
-**Why:** Maintaining two APIs, stores, and policy systems would make it unclear
-which state is authoritative and would preserve the limitations this redesign
-exists to remove. Historical persisted event variants remain decode-only so EVT
-replay stays valid. See ADR-071.
-**Tradeoff:** The 2.0 list starts empty after upgrade, prior preference choices
-must be set again, and older clients cannot use notifications on the upgraded
-server.
+Notifications 2.0 supersedes Notifications 1.0 at one pre-1.0 release boundary.
+Legacy records and coarse Muted/Normal/All Messages preferences are not
+migrated or interpreted. Historical persisted event variants remain
+replay-decodable, but new code adds no notification facts to `EVT`. Older
+clients cannot use the replacement notification API on an upgraded server.
 
 ## Permissions
 
-Notification policy and notification mutations are user-scoped and require no RBAC
-permission. Visibility of the source room, message, thread, actor, or reaction
-still governs whether the notification can be listed and opened.
+Notification policy and triage are user-scoped. Current permission to see the
+source room, message, thread, actor, and reaction still governs whether an
+occurrence may be listed, opened, or delivered.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events), ADR-028 (event-ID-keyed read state), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-038 (room-owned thread state), ADR-051 (server-scoped resumable client projection), ADR-071 (deterministic notification occurrences), ADR-072 (persistent notification list)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-005 (Reactions), FDR-006 (@Mentions), FDR-007 (Direct Messages), FDR-013 (Web Push Notifications)
+- **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-071,
+  ADR-072
+- **FDRs:** FDR-002, FDR-005, FDR-006, FDR-007, FDR-013

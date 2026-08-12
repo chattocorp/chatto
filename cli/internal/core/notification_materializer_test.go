@@ -183,49 +183,6 @@ func TestMessageNotificationWorkWaitsForCurrentPolicyProjection(t *testing.T) {
 	}
 }
 
-func TestNotificationAlertClaimWaitsForMaterializerFence(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	model := chattoCore.NotificationOccurrences()
-	now := time.Now().UTC()
-	created, wasCreated, err := model.Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID: "U-alert-fence", SourceEventID: "E-alert-fence", SourceCreated: now,
-		Target: &corev1.NotificationTarget{RoomId: "R-alert-fence", EventId: "E-alert-target"},
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
-		}},
-		SkipReadLookup: true,
-	})
-	if err != nil || !wasCreated {
-		t.Fatalf("Create alert occurrence = (%+v, %v, %v)", created, wasCreated, err)
-	}
-	fenceCalls := 0
-	deliveryCalls := 0
-	chattoCore.notificationMaterializer.waitCurrent = func(fenceCtx context.Context) error {
-		fenceCalls++
-		_, err := model.Delete(
-			fenceCtx,
-			created.GetRecipientId(),
-			created.GetId(),
-			corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST,
-		)
-		return err
-	}
-	chattoCore.OnNotificationOccurrenceCreated = func(context.Context, *corev1.NotificationOccurrence) error {
-		deliveryCalls++
-		return nil
-	}
-
-	chattoCore.notificationMaterializer.deliverPendingAlerts(ctx)
-	if fenceCalls == 0 {
-		t.Fatal("alert delivery did not wait for the materializer fence")
-	}
-	if deliveryCalls != 0 {
-		t.Fatalf("delivery calls = %d, want none after fenced visibility cleanup", deliveryCalls)
-	}
-}
-
 func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

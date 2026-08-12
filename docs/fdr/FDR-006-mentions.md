@@ -7,7 +7,7 @@
 
 Users can mention users, roles, and room-scoped virtual groups with `@handle`
 syntax. An eligible delivered mention creates a notification occurrence,
-contributes to the room's unread-group indicator, and renders as styled text in
+contributes to the room's unread-notification indicator, and renders as styled text in
 the message body.
 
 ## Behavior
@@ -75,7 +75,7 @@ may miss them.
 ### 7. Mention attention state is a notification
 
 **Decision:** An eligible delivered mention creates a notification occurrence.
-Sidebar mention indicators derive from unread groups, not from a separate
+Sidebar mention indicators derive from unread occurrences, not from a separate
 room-level mention-status key.
 **Why:** Mention attention state has the same read, delete, cross-device,
 and retention lifecycle as other notifications. Keeping it in the notification

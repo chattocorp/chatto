@@ -43,7 +43,7 @@ import {
   removeUserSummaryCacheEntry
 } from '$lib/state/userSummaries.svelte';
 import { avatarUserFromDirectoryMember } from './rooms.svelte';
-import { mapNotificationGroupPage } from '$lib/api-client/notifications';
+import { mapNotificationOccurrencePage } from '$lib/api-client/notifications';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { MessageSearchStore } from './messageSearch.svelte';
@@ -543,8 +543,10 @@ export class ServerStateStore {
         }
         case 'notificationsReplace': {
           const replacement = operation.operation.value;
-          if (replacement.groups) {
-            this.notifications.replaceGroupProjection(mapNotificationGroupPage(replacement.groups));
+          if (replacement.occurrences) {
+            this.notifications.replaceOccurrenceProjection(
+              mapNotificationOccurrencePage(replacement.occurrences)
+            );
             this.notifications.invalidateViews();
           }
           break;

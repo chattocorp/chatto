@@ -50,9 +50,6 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if candidates, err := model.index.alertCandidates(ctx); err != nil || len(candidates) != 1 {
-		t.Fatalf("alert candidates after create = (%d, %v), want one", len(candidates), err)
-	}
 	if !wasCreated || created == nil {
 		t.Fatalf("Create = (%v, %v), want a new occurrence", created, wasCreated)
 	}
@@ -67,31 +64,10 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 	originalExpiry := created.GetExpiresAt().AsTime()
 
-	claim, claimed, err := model.ClaimPendingAlert(ctx)
-	if err != nil || !claimed || claim.GetId() != created.GetId() {
-		t.Fatalf("ClaimPendingAlert = (%v, %v, %v), want created occurrence", claim, claimed, err)
-	}
-	renewed, renewedClaim, err := model.RenewAlertClaim(ctx, claim)
-	if err != nil || !renewedClaim || !renewed.GetAlertClaimedUntil().AsTime().After(claim.GetAlertClaimedUntil().AsTime()) {
-		t.Fatalf("RenewAlertClaim = (%v, %v, %v), want extended exact claim", renewed, renewedClaim, err)
-	}
-	claim = renewed
-	if err := model.CompleteAlertClaim(ctx, claim, false); err != nil {
-		t.Fatalf("CompleteAlertClaim failed delivery: %v", err)
-	}
-	if retry, retryClaimed, err := model.ClaimPendingAlert(ctx); err != nil || retryClaimed || retry != nil {
-		t.Fatalf("immediate retry ClaimPendingAlert = (%v, %v, %v), want paced retry", retry, retryClaimed, err)
-	}
-	now = now.Add(notificationAlertRetryDelay + time.Millisecond)
-	claim, claimed, err = model.ClaimPendingAlert(ctx)
-	if err != nil || !claimed {
-		t.Fatalf("retry ClaimPendingAlert = (%v, %v, %v), want retry", claim, claimed, err)
-	}
-	if err := model.CompleteAlertClaim(ctx, claim, true); err != nil {
-		t.Fatalf("CompleteAlertClaim delivered: %v", err)
-	}
-	if claim, claimed, err := model.ClaimPendingAlert(ctx); err != nil || claimed || claim != nil {
-		t.Fatalf("ClaimPendingAlert after delivery = (%v, %v, %v), want none", claim, claimed, err)
+	if err := model.CompleteAlertDelivery(ctx, &corev1.NotificationAlertJob{
+		RecipientId: created.GetRecipientId(), SourceEventId: created.GetSourceEventId(), NotificationId: created.GetId(),
+	}, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED); err != nil {
+		t.Fatalf("CompleteAlertDelivery: %v", err)
 	}
 
 	duplicate, wasCreated, err := model.Create(ctx, input)
@@ -121,19 +97,12 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 		t.Fatalf("Create second grouped occurrence = (%v, %v, %v), want occurrence, true, nil", second, wasCreated, err)
 	}
 
-	groups, err := model.Groups(ctx, input.RecipientID)
-	if err != nil || len(groups) != 1 {
-		t.Fatalf("Groups = (%v, %v), want one", groups, err)
-	}
-	if got := len(groups[0].Occurrences); got != 2 {
-		t.Fatalf("Group occurrences = %d, want two", got)
-	}
-	deleted, err := model.DeleteGroup(ctx, input.RecipientID, groups[0].ID)
+	deleted, err := model.DeleteMany(ctx, input.RecipientID, []string{created.GetId(), notificationOccurrenceID(secondInput.RecipientID, secondInput.SourceEventID)})
 	if err != nil || deleted != 2 {
-		t.Fatalf("DeleteGroup = (%v, %v), want two", deleted, err)
+		t.Fatalf("DeleteMany = (%v, %v), want two", deleted, err)
 	}
-	if groups, err := model.Groups(ctx, input.RecipientID); err != nil || len(groups) != 0 {
-		t.Fatalf("Groups after delete = (%v, %v), want empty", groups, err)
+	if occurrences, err := model.List(ctx, input.RecipientID); err != nil || len(occurrences) != 0 {
+		t.Fatalf("List after delete = (%v, %v), want empty", occurrences, err)
 	}
 	if _, err := model.Get(ctx, input.RecipientID, created.GetId()); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("Get deleted occurrence = %v, want ErrNotFound", err)
@@ -183,53 +152,13 @@ func TestNotificationOccurrenceDeleteAll(t *testing.T) {
 	if err != nil || deleted != 2 {
 		t.Fatalf("DeleteAll = (%d, %v), want two", deleted, err)
 	}
-	if groups, err := model.Groups(ctx, inputs[0].RecipientID); err != nil || len(groups) != 0 {
-		t.Fatalf("Groups after DeleteAll = (%v, %v), want empty", groups, err)
+	if occurrences, err := model.List(ctx, inputs[0].RecipientID); err != nil || len(occurrences) != 0 {
+		t.Fatalf("List after DeleteAll = (%v, %v), want empty", occurrences, err)
 	}
 	for _, input := range inputs {
 		if occurrence, created, err := model.Create(ctx, input); err != nil || created || occurrence != nil {
 			t.Fatalf("Create tombstoned %q = (%v, %v, %v), want nil, false, nil", input.SourceEventID, occurrence, created, err)
 		}
-	}
-}
-
-func TestCompleteAlertClaimDoesNotDeliverAfterLeaseExpiry(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	model := chattoCore.NotificationOccurrences()
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	model.now = func() time.Time { return now }
-	created, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   "U-expired-claim-recipient",
-		SourceEventID: "E-expired-claim-source",
-		SourceCreated: now,
-		Target:        &corev1.NotificationTarget{RoomId: "R-expired-claim", EventId: "E-expired-claim-source"},
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
-		}},
-		SkipReadLookup: true,
-	})
-	if err != nil || created == nil {
-		t.Fatalf("Create = (%v, %v)", created, err)
-	}
-	claim, claimed, err := model.ClaimPendingAlert(ctx)
-	if err != nil || !claimed {
-		t.Fatalf("ClaimPendingAlert = (%v, %v, %v)", claim, claimed, err)
-	}
-	now = claim.GetAlertClaimedUntil().AsTime().Add(time.Millisecond)
-	if err := model.CompleteAlertClaim(ctx, claim, true); err != nil {
-		t.Fatalf("CompleteAlertClaim: %v", err)
-	}
-	current, err := model.Get(ctx, created.GetRecipientId(), created.GetId())
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
-		t.Fatal("expired claim was recorded as delivered")
-	}
-	if retry, retryClaimed, err := model.ClaimPendingAlert(ctx); err != nil || !retryClaimed || retry == nil {
-		t.Fatalf("ClaimPendingAlert after expiry = (%v, %v, %v), want retry", retry, retryClaimed, err)
 	}
 }
 
@@ -260,53 +189,8 @@ func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	if updated.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("alert state = %v, want SILENCED", updated.GetAlertState())
 	}
-	if candidates, err := model.index.alertCandidates(ctx); err != nil || len(candidates) != 0 {
-		t.Fatalf("alert candidates after read = (%d, %v), want none", len(candidates), err)
-	}
-	if claim, claimed, err := model.ClaimPendingAlert(ctx); err != nil || claimed || claim != nil {
-		t.Fatalf("ClaimPendingAlert after read = (%v, %v, %v), want none", claim, claimed, err)
-	}
-}
-
-func TestSilenceAlertClaimTerminatesExactClaim(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	model := chattoCore.NotificationOccurrences()
-	now := time.Now().UTC()
-	model.now = func() time.Time { return now }
-	created, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   "U-dnd-claim-recipient",
-		SourceEventID: "E-dnd-claim-source",
-		SourceCreated: now,
-		Target:        &corev1.NotificationTarget{RoomId: "R-dnd-claim", EventId: "E-dnd-claim-source"},
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
-		}},
-		SkipReadLookup: true,
-	})
-	if err != nil {
-		t.Fatalf("Create: %v", err)
-	}
-	claim, claimed, err := model.ClaimPendingAlert(ctx)
-	if err != nil || !claimed {
-		t.Fatalf("ClaimPendingAlert = (%v, %v, %v)", claim, claimed, err)
-	}
-	if silenced, err := model.SilenceAlertClaim(ctx, claim); err != nil || !silenced {
-		t.Fatalf("SilenceAlertClaim = (%v, %v), want true, nil", silenced, err)
-	}
-	current, err := model.Get(ctx, created.GetRecipientId(), created.GetId())
-	if err != nil {
-		t.Fatalf("Get: %v", err)
-	}
-	if current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
-		t.Fatalf("alert state = %v, want SILENCED", current.GetAlertState())
-	}
-	if err := model.CompleteAlertClaim(ctx, claim, true); err != nil {
-		t.Fatalf("CompleteAlertClaim after silence: %v", err)
-	}
-	if current, err = model.Get(ctx, created.GetRecipientId(), created.GetId()); err != nil || current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
-		t.Fatalf("state after completion = (%v, %v), want SILENCED", current.GetAlertState(), err)
+	if current, err := model.AlertDeliveryCurrent(ctx, created); err != nil || current {
+		t.Fatalf("AlertDeliveryCurrent after read = (%v, %v), want false, nil", current, err)
 	}
 }
 

@@ -17,6 +17,7 @@ inventories.
 | Type         | Name                | Storage | Backup | Description                                                                 |
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
+| Stream       | `NOTIFICATIONS_QUEUE` | File   | Yes    | Two-minute work queue for opaque `NotificationAlertJob` payloads on `notifications.alert`; preserves accepted pending push work and consumer acknowledgements across backup/restore without retaining notification history |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, auth/session tokens, notification occurrences and tombstones, wrapped app DEKs, encrypted snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
@@ -34,17 +35,24 @@ inventories.
 | `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `NOTIFICATIONS_QUEUE` | `chatto-notification-alert-delivery-v1` | `notifications.alert` | Explicit ack after the occurrence has a terminal delivered/silenced state; transient provider failures are redelivered within the two-minute horizon | Shared `ChattoCore` replicas through `events.DurableWorker` |
 
-All consumers use file-backed durable consumer state inherited from `EVT` and
-do not introduce separate work streams. Replaying older facts is safe:
-asset-processing workers acknowledge projected terminal outcomes, while
-key-shredding and cleanup workers repeat idempotent deletion; user-key workers
-additionally acknowledge an existing physical-completion fact.
+All consumers use file-backed durable consumer state. Most consume domain facts
+from `EVT`: replaying those facts is safe because asset-processing workers
+acknowledge projected terminal outcomes, key-shredding and cleanup workers
+repeat idempotent deletion, and user-key workers additionally acknowledge an
+existing physical-completion fact. Alert delivery is deliberately separate:
+`NOTIFICATIONS_QUEUE` carries interruptive work, not domain history, while the
+persisted occurrence is its idempotency fence.
 
 The consumer names are versioned persisted resource contracts. Required effect
 consumers have no inactivity cleanup and survive worker shutdown or
-scale-to-zero; `EVT` backups include their consumer state. Chatto currently has
-no retired durable effect consumers. A future removal or incompatible contract
+scale-to-zero; normal backups include both durable streams and their consumer
+state. Backing up the Alert queue preserves already accepted pending work at an
+arbitrary backup boundary. Its two-minute stream retention and publication-time
+validation prevent an old restore from producing stale alerts, while omission
+would create an unavoidable recent-alert loss window. Chatto currently has no
+retired durable effect consumers. A future removal or incompatible contract
 change follows ADR-069's explicit drain, rollout, and deletion lifecycle.
 If a required consumer disappears while its worker is running, the stale worker
 returns an error. Main-app lifecycle replacement or the embedded runtime-unit

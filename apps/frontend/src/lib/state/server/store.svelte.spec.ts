@@ -212,18 +212,18 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
   return {
     ...actual,
     createNotificationAPI: vi.fn(() => ({
-      listNotificationGroups: vi.fn(() =>
+      listNotificationOccurrences: vi.fn(() =>
         Promise.resolve({
-          groups: [],
+          occurrences: [],
           totalCount: 0,
           hasMore: false,
-          unreadGroupCount: 0,
-          roomUnreadGroupCounts: {}
+          unreadCount: 0,
+          roomUnreadCounts: {}
         })
       ),
       markNotificationRead: vi.fn(),
       deleteNotificationOccurrence: vi.fn(),
-      deleteNotificationGroup: vi.fn(),
+      batchDeleteNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(() => Promise.resolve([])),
       setNotificationPolicyPreference: vi.fn(() => Promise.resolve([]))
     }))
@@ -666,12 +666,12 @@ describe('ServerStateStore live server updates', () => {
     flushSync();
     const bus = eventBusManager.getBus(registered.id)!;
 
-    store.notifications.replaceGroupProjection({
-      groups: [],
+    store.notifications.replaceOccurrenceProjection({
+      occurrences: [],
       totalCount: 0,
       hasMore: false,
-      unreadGroupCount: 1,
-      roomUnreadGroupCounts: {},
+      unreadCount: 1,
+      roomUnreadCounts: {},
       nextExpiryAt: null
     });
     store.activeCallRooms.replaceProjection([

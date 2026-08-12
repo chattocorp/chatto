@@ -450,24 +450,16 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		return errors.New("push provider did not accept the test notification")
 	}
 
-	chattoCore.OnNotificationOccurrenceCreated = func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
-		visibleOccurrences, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
-		if err != nil {
-			return fmt.Errorf("revalidate notification target visibility: %w", err)
-		}
-		if len(visibleOccurrences) == 0 {
-			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
-			return nil
-		}
+	chattoCore.SetNotificationAlertHandler(func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
 		if occurrence.GetTarget() == nil {
-			return nil
+			return core.ErrNotificationAlertSuppressed
 		}
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
 		if err != nil {
 			return fmt.Errorf("get push subscriptions: %w", err)
 		}
 		if len(subscriptions) == 0 {
-			return nil
+			return core.ErrNotificationAlertSuppressed
 		}
 		actorName := "Someone"
 		if occurrence.GetActorId() != "" {
@@ -479,44 +471,29 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			}
 		}
 		payload := push.BuildPayloadFromOccurrence(occurrence, actorName, cfg.Webserver.URL, fetchOccurrencePayloadContext(ctx, chattoCore, occurrence, logger))
-		if count, countErr := chattoCore.NotificationOccurrences().UnreadGroupCount(ctx, occurrence.GetRecipientId()); countErr == nil {
+		if count, countErr := chattoCore.NotificationOccurrences().UnreadCount(ctx, occurrence.GetRecipientId()); countErr == nil {
 			payload.AppBadge = strconv.Itoa(count)
 		}
 
 		// Revalidate after hydration so a concurrent delete or visibility purge
 		// cannot overtake a slow alert preparation.
-		claimCurrent, err := chattoCore.NotificationOccurrences().AlertClaimCurrent(ctx, occurrence)
-		if err != nil || !claimCurrent {
+		eligible, err := chattoCore.NotificationAlertEligible(ctx, occurrence)
+		if err != nil || !eligible {
 			return err
-		}
-		visibleOccurrences, err = chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
-		if err != nil {
-			return fmt.Errorf("revalidate notification target visibility before delivery: %w", err)
-		}
-		if len(visibleOccurrences) == 0 {
-			_, _ = chattoCore.NotificationOccurrences().Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
-			return nil
 		}
 		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions)
 		if err != nil {
 			return fmt.Errorf("revalidate push endpoint ownership: %w", err)
 		}
 		if len(subscriptions) == 0 {
-			return nil
+			return core.ErrNotificationAlertSuppressed
 		}
-		renewed, renewedClaim, err := chattoCore.NotificationOccurrences().RenewAlertClaim(ctx, occurrence)
-		if err != nil || !renewedClaim {
-			return err
-		}
-		// CompleteAlertClaim fences on this exact renewed timestamp.
-		occurrence.AlertClaimedUntil = renewed.GetAlertClaimedUntil()
 		status, err := chattoCore.GetUserPresence(ctx, occurrence.GetRecipientId())
 		if err != nil {
 			return fmt.Errorf("revalidate notification presence before delivery: %w", err)
 		}
 		if status == core.PresenceStatusDoNotDisturb {
-			_, err := chattoCore.NotificationOccurrences().SilenceAlertClaim(ctx, occurrence)
-			return err
+			return core.ErrNotificationAlertSuppressed
 		}
 		results := sender.SendToMany(ctx, subscriptions, payload)
 		var sendErr error
@@ -535,13 +512,16 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			}
 		}
 		// Delivery is occurrence-scoped: once any current device accepts the
-		// alert, complete the claim. Retrying the whole occurrence for another
+		// alert, complete delivery. Retrying the whole occurrence for another
 		// failing endpoint would duplicate alerts on every successful device.
 		if accepted {
 			return nil
 		}
+		if sendErr == nil {
+			return core.ErrNotificationAlertSuppressed
+		}
 		return sendErr
-	}
+	})
 
 }
 

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationGroupRequest, DeleteNotificationGroupResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationGroupsRequest, ListNotificationGroupsResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -15,14 +15,15 @@ export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
     /**
-     * Lists Notifications 2.0 groups.
+     * Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+     * presentation groups without changing occurrence identity or counts.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.ListNotificationGroups
+     * @generated from rpc chatto.api.v1.NotificationService.ListNotificationOccurrences
      */
-    listNotificationGroups: {
-      name: "ListNotificationGroups",
-      I: ListNotificationGroupsRequest,
-      O: ListNotificationGroupsResponse,
+    listNotificationOccurrences: {
+      name: "ListNotificationOccurrences",
+      I: ListNotificationOccurrencesRequest,
+      O: ListNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
     },
     /**
@@ -51,18 +52,17 @@ export const NotificationService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Permanently deletes occurrences currently belonging to one derived group.
-     * Group membership is captured when the request is handled. Callers must not
-     * retry this mutation automatically because later activity may reuse the
-     * same derived group ID.
+     * Permanently deletes an exact set of occurrences. Repeating the call is
+     * safe because later activity receives different occurrence IDs.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationGroup
+     * @generated from rpc chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences
      */
-    deleteNotificationGroup: {
-      name: "DeleteNotificationGroup",
-      I: DeleteNotificationGroupRequest,
-      O: DeleteNotificationGroupResponse,
+    batchDeleteNotificationOccurrences: {
+      name: "BatchDeleteNotificationOccurrences",
+      I: BatchDeleteNotificationOccurrencesRequest,
+      O: BatchDeleteNotificationOccurrencesResponse,
       kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
     /**
      * Permanently deletes every occurrence current at the server's authoritative

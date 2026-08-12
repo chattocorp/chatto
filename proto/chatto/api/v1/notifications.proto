@@ -85,69 +85,44 @@ message NotificationOccurrence {
   NotificationDeliveryIntensity strongest_intensity = 7;
   // Whether this occurrence still contributes unread attention.
   bool unread = 8;
+  // Exact emoji for a reaction occurrence. Empty for every other cause.
+  string reaction_emoji = 9;
   // Absolute expiry, 90 days after the source activity.
   google.protobuf.Timestamp expires_at = 10;
+  // Current whitespace-collapsed text excerpt from the target thread's root
+  // message. Absent outside threads and when no root text is available. The
+  // server truncates the excerpt to at most 180 Unicode code points.
+  optional string thread_root_message_excerpt = 11;
 }
 
-// A presentation group derived from related notification occurrences.
-message NotificationGroup {
-  // Stable ID derived from the viewer and grouping target.
-  string id = 1;
-  // Bounded newest-occurrence preview. It also includes the open target when
-  // that target falls outside the newest preview window.
-  repeated NotificationOccurrence occurrences = 2;
-  // Target to open: newest unread, or newest when all are read.
-  NotificationTarget open_target = 3;
-  // True when at least one member occurrence is unread.
-  bool unread = 4;
-  // Total number of occurrences in this group, including those not in the
-  // bounded preview.
-  int32 occurrence_count = 5;
-  // Time of the newest occurrence.
-  google.protobuf.Timestamp latest_at = 6;
-  // Strongest intensity among member occurrences.
-  NotificationDeliveryIntensity strongest_intensity = 7;
-  // Distinct causes represented by member occurrences.
-  repeated NotificationReason reasons = 8;
-  // Earliest member expiry. Clients refresh the group at this boundary.
-  google.protobuf.Timestamp next_expiry_at = 11;
-  // Occurrence ID corresponding to open_target, including when several
-  // occurrences share the same message target.
-  string open_notification_id = 12;
-  // Current whitespace-collapsed text excerpt from this thread group's root
-  // message. Absent for non-thread groups and when no root text is available.
-  // The server truncates the excerpt to at most 180 Unicode code points.
-  optional string thread_root_message_excerpt = 13;
-}
-
-// Request for one page of grouped notification occurrences.
-message ListNotificationGroupsRequest {
+// Request for one page of notification occurrences.
+message ListNotificationOccurrencesRequest {
   // Page request. Defaults to 50 results when absent or limit is zero.
   PageRequest page = 1;
 }
 
-// One page of derived notification groups.
-message ListNotificationGroupsResponse {
-  // Groups newest activity first.
-  repeated NotificationGroup groups = 1;
+// One page of exact notification occurrences.
+message ListNotificationOccurrencesResponse {
+  // Occurrences newest activity first.
+  repeated NotificationOccurrence occurrences = 1;
   // Page metadata.
   PageInfo page = 2;
-  // Total unread group count.
-  int32 unread_group_count = 3;
-  // Earliest expiry in the complete list, including groups outside this page.
+  // Total unread occurrence count, independent of presentation grouping.
+  int32 unread_count = 3;
+  // Earliest expiry in the complete list, including occurrences outside this page.
   // Clients refresh authoritative notification state at this boundary.
   google.protobuf.Timestamp next_expiry_at = 4;
-  // Complete unread-group counts by target room. This is independent of the
-  // bounded group page so room indicators remain authoritative.
-  repeated NotificationRoomUnreadGroupCount room_unread_group_counts = 5;
+  // Complete unread-occurrence counts by target room. This is independent of
+  // the bounded page so room indicators remain authoritative.
+  repeated NotificationRoomUnreadCount room_unread_counts = 5;
 }
 
-// Unread notification groups currently targeting one room.
-message NotificationRoomUnreadGroupCount {
+// Unread notification occurrences currently targeting one room.
+message NotificationRoomUnreadCount {
   // Target room ID.
   string room_id = 1;
-  // Number of unread groups targeting this room.
-  int32 unread_group_count = 2;
+  // Number of unread occurrences targeting this room.
+  int32 unread_count = 2;
 }
 
 // Request to mark one notification occurrence read.
@@ -175,14 +150,22 @@ message DeleteNotificationOccurrenceResponse {
   bool deleted = 1;
 }
 
-// Request permanent deletion of one derived notification group.
-message DeleteNotificationGroupRequest {
-  // Required stable group ID.
-  string group_id = 1 [(buf.validate.field).string.min_len = 1];
+// Request permanent deletion of an explicit bounded set of occurrences.
+message BatchDeleteNotificationOccurrencesRequest {
+  // Stable occurrence IDs to delete. Duplicates and already absent IDs are
+  // ignored. The server accepts at most 100 IDs.
+  repeated string notification_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    unique: true
+    items: {
+      string: {min_len: 1}
+    }
+  }];
 }
 
-// Result of deleting one derived notification group.
-message DeleteNotificationGroupResponse {
+// Result of deleting exact notification occurrences.
+message BatchDeleteNotificationOccurrencesResponse {
   // Number of visible occurrences replaced by deletion tombstones.
   int32 deleted_count = 1;
 }
@@ -246,8 +229,9 @@ message SetNotificationPolicyPreferenceResponse {
 
 // Reads, marks read, and deletes notifications for the authenticated viewer.
 service NotificationService {
-  // Lists Notifications 2.0 groups.
-  rpc ListNotificationGroups(ListNotificationGroupsRequest) returns (ListNotificationGroupsResponse);
+  // Lists exact Notifications 2.0 occurrences. Clients may derive temporary
+  // presentation groups without changing occurrence identity or counts.
+  rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
   // Marks one occurrence read. Repeating the call is safe.
   rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -257,11 +241,11 @@ service NotificationService {
   rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
-  // Permanently deletes occurrences currently belonging to one derived group.
-  // Group membership is captured when the request is handled. Callers must not
-  // retry this mutation automatically because later activity may reuse the
-  // same derived group ID.
-  rpc DeleteNotificationGroup(DeleteNotificationGroupRequest) returns (DeleteNotificationGroupResponse);
+  // Permanently deletes an exact set of occurrences. Repeating the call is
+  // safe because later activity receives different occurrence IDs.
+  rpc BatchDeleteNotificationOccurrences(BatchDeleteNotificationOccurrencesRequest) returns (BatchDeleteNotificationOccurrencesResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
   // Permanently deletes every occurrence current at the server's authoritative
   // mutation boundary. Callers must not retry this mutation automatically
   // because later activity may arrive after that boundary.

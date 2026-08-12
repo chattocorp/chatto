@@ -190,7 +190,8 @@ message RealtimeProjectionOperation {
     // a message tombstone: projection-only channel echoes disappear when the
     // underlying thread reply is no longer echoed into the room.
     RealtimeProjectionRoomTimelineEventRemove room_timeline_event_remove = 12;
-    // Replaces the viewer's current pending-notification page and room counts.
+    // Replaces the viewer's current notification-occurrence page and exact
+    // unread occurrence counts.
     RealtimeProjectionNotificationsReplace notifications_replace = 13;
     // Replaces one room's current viewer state without
     // retransmitting room metadata or membership.
@@ -346,13 +347,13 @@ message RealtimeProjectionRoomTimelineEventRemove {
 
 // Finite current notification state emitted on bootstrap and every resume.
 message RealtimeProjectionNotificationsReplace {
-  reserved 1, 2;
-  reserved "page", "room_counts";
+  reserved 1, 2, 4;
+  reserved "page", "room_counts", "groups";
   // Live transition that caused this replacement, when one exists. Bootstrap,
   // replay reconciliation, and compacted reset replacements omit this field.
   optional RealtimeProjectionNotificationChange change = 3;
-  // Authoritative Notifications 2.0 groups and unread group count.
-  chatto.api.v1.ListNotificationGroupsResponse groups = 4;
+  // Authoritative Notifications 2.0 occurrences and exact unread count.
+  chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 5;
 }
 
 // One live notification transition accompanying authoritative current state.

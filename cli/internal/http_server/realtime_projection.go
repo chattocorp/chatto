@@ -878,7 +878,7 @@ func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectio
 		return &realtimev1.RealtimeProjectionNotificationsReplace{}
 	}
 	return &realtimev1.RealtimeProjectionNotificationsReplace{
-		Groups: notifications.Groups,
+		Occurrences: notifications.Occurrences,
 	}
 }
 

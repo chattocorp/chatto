@@ -190,9 +190,9 @@ sequence; a reaction is covered only when both its reacted-to message and its
 source sequence were visible to the later read. A reaction arriving after a
 read therefore remains new until another read action.
 
-New occurrence rows are initially persisted in an unfinalized, non-claimable
+New occurrence rows are initially persisted in an unfinalized, non-deliverable
 state. Finalization applies the read boundary and only then makes an unread
-Alert claimable. A durable redelivery finalizes an interrupted row, but never
+Alert eligible for queueing. A durable redelivery finalizes an interrupted row, but never
 reconciles an already-finalized row or turns a Read occurrence back to Unread.
 
 User read/delete mutations, read reconciliation, retraction, reaction removal, and
@@ -227,9 +227,8 @@ Each Chatto process owns one filtered `RUNTIME_STATE` watcher and an in-memory
 notification index. The watcher's initial latest-value delivery is a startup
 readiness barrier. KV remains authoritative; successful writes wait for their
 revision to reach the local index when read-your-writes matters. Public list,
-count, pending-Alert claims, and realtime replacement assembly use dedicated
-index views instead of scanning all retained records or a KV prefix per request,
-connection, or delivery poll. Index reads also prune records whose
+count, and realtime replacement assembly use dedicated index views instead of
+scanning a KV prefix per request or connection. Index reads also prune records whose
 absolute expiry has passed, so a delayed or missing KV expiry notification
 cannot leave an occurrence visible in a long-running process.
 
@@ -242,24 +241,35 @@ signal cannot permanently corrupt counts, and a cursor cannot advance with a
 replacement assembled from stale local notification state.
 
 Sound, Web Push, native notifications, and installed-app badges are downstream
-presentations of a committed occurrence. Interruptive delivery begins only
-after the occurrence exists and is still eligible. A revision-claimed delivery
-state lets another worker recover an abandoned attempt without sending from two
-replicas concurrently. Current transient conditions such as Do Not Disturb may
-silence delivery without suppressing the occurrence. Effect delivery is
-retryable and at least once; provider-level deduplication is used where
-available, but a crash after provider acceptance may produce a duplicate alert.
-Marking an occurrence Read silences any pending or claimed Alert.
-Workers verify the exact claim immediately before delivery and revalidate the
-current account, membership, unretracted target message, exact reaction, and
-subscription ownership before sending. Before account, room, message, or
+presentations of a committed occurrence. An unread Alert occurrence is handed
+off as an opaque coordinate to the file-backed `NOTIFICATIONS_QUEUE` work-queue
+stream. The `chatto-notification-alert-delivery-v1` durable pull consumer runs
+through `events.DurableWorker`; queue acknowledgement occurs only after a
+terminal occurrence state is persisted. The occurrence is the durable
+idempotency fence, while JetStream message-ID deduplication covers prompt
+source-worker redelivery. Current transient conditions such as Do Not Disturb
+may silence delivery without suppressing the occurrence. Provider delivery is
+at least once, so a crash after provider acceptance can produce a duplicate.
+Marking an occurrence Read silences a pending Alert.
+
+The queue is file-backed and included in normal backups together with its
+consumer state. This preserves accepted delivery work across restore instead
+of silently turning a backup boundary into alert loss. Both stream retention
+and the worker's `PublishedAt` check enforce a two-minute delivery horizon:
+restoring inside it may resume the job; restoring later records it as silenced.
+
+Before sending, the alert worker fences occurrence materialization and the
+current notification-policy projection, reloads the exact unread occurrence,
+permits current preferences only to downgrade the source-time Alert decision,
+and revalidates account, membership, unretracted target message, exact
+reaction, subscription ownership, and DND. Before account, room, message, or
 reaction absence is treated as authoritative, the serving replica captures the
 current recipient, server-wide room-event, room-group-layout, and RBAC tails
 and waits its relevant projections through those boundaries.
 List and mutation APIs use the same causally fenced validation, so projection
 lag cannot tombstone a valid occurrence or expose a removed target. Before a
-mutation reads one occurrence or captures a derived group's members, it waits
-the durable notification consumer through a fresh worker boundary and then
+mutation reads occurrences, it waits the durable notification materializer
+through a fresh worker boundary and then
 fences the process-local occurrence index through the resulting KV writes.
 Before list or realtime responses derive
 exhaustive totals and notification summaries, they capture the latest sequence for
@@ -269,22 +279,18 @@ and waits its process-local occurrence watcher through that marker's KV
 revision. Because the marker follows the acknowledged worker's occurrence
 mutations in the same KV stream, a retrying lifecycle cleanup or lagging replica
 index fails or delays the read instead of leaking stale counts. List validation
-scans only the prefix needed to fill the requested offset page, validating each
-bounded page-sized overfetch chunk once when stale groups are removed. The
-worker renews the claim, then makes a final Do Not Disturb
-check immediately before the provider call; newly active DND silences that
-exact claim. Subscription storage and ownership read failures fail the attempt
-instead of masquerading as an empty device set. Failed delivery remains
-claimed until a bounded retry delay, avoiding a hot loop.
-Before claiming a locally pending Alert, delivery waits the durable consumer
-through a fresh worker-event boundary. An intermediate visibility loss is
-therefore applied before an old occurrence can be claimed, even when current
-authorization already reflects a later regain.
+covers the complete retained occurrence set before deriving exact totals,
+including rows outside the requested page. Immediately before the provider
+call, the transport repeats eligibility, subscription ownership, and DND
+checks. Subscription storage and ownership read failures retry through the
+durable worker instead of masquerading as an empty device set. An intermediate
+visibility loss is therefore applied before an old occurrence can be
+delivered, even when current authorization already reflects a later regain.
 Delivery completes once any current device accepts the push; it retries only
 when no device accepted and at least one current endpoint failed transiently.
 This occurrence-level success rule avoids repeatedly alerting successful
 devices because another endpoint is persistently broken.
-A crash after provider acceptance but before claim completion can still cause
+A crash after provider acceptance but before terminal delivery state is persisted can still cause
 a duplicate alert, consistent with the at-least-once contract.
 
 ### Compatibility and rollout
@@ -296,11 +302,12 @@ with an empty 2.0 list; old rows remain inert until their retention removes
 them. This is an intentional pre-1.0 product reset, not a dual-store period.
 
 The public `chatto.api.v1` notification and coarse-preference RPCs are removed
-at the same release boundary and replaced by the grouped list, occurrence,
-group, and per-cause policy operations. The bundled client contains no fallback
+at the same release boundary and replaced by an exact occurrence list,
+single/batch occurrence deletion, and per-cause policy operations. Presentation
+grouping is client-owned. The bundled client contains no fallback
 to the old API or preference levels. Older clients are therefore incompatible
 with an upgraded server for notifications, and the 0.5 client requires a 0.5
-server through the normal feature-version gate. This intentional breaking
+server through the bundled client's minimum-supported-server check. This intentional breaking
 change avoids maintaining a second API, compatibility projection, or preset
 translation layer.
 

@@ -24,9 +24,6 @@ import (
 const (
 	notificationOccurrenceKeyPrefix = "notification_v2."
 	maxNotificationUpdateRetries    = 8
-	notificationAlertClaimTTL       = 30 * time.Second
-	notificationAlertDeliveryTTL    = 2 * time.Minute
-	notificationAlertRetryDelay     = 30 * time.Second
 )
 
 type CreateNotificationOccurrenceInput struct {
@@ -43,15 +40,9 @@ type CreateNotificationOccurrenceInput struct {
 	SkipReadLookup       bool
 }
 
-type NotificationOccurrenceGroup struct {
-	ID          string
-	Key         string
-	Occurrences []*corev1.NotificationOccurrence
-}
-
 // WaitCurrent waits until the sole durable occurrence/lifecycle writer has
 // processed every notification-relevant EVT fact visible at a captured
-// boundary. Exhaustive counts and group metadata should read after this fence.
+// boundary. Exhaustive occurrence lists and counts should read after this fence.
 func (m *NotificationOccurrenceModel) WaitCurrent(ctx context.Context) error {
 	return m.core.notificationMaterializer.WaitCurrent(ctx)
 }
@@ -108,11 +99,6 @@ func notificationOccurrenceKey(recipientID, sourceEventID string) string {
 func notificationOccurrenceID(recipientID, sourceEventID string) string {
 	digest := sha256.Sum256([]byte(recipientID + "\x00" + sourceEventID))
 	return "ntf_" + base64.RawURLEncoding.EncodeToString(digest[:20])
-}
-
-func notificationGroupID(recipientID, groupKey string) string {
-	digest := sha256.Sum256([]byte(recipientID + "\x00" + groupKey))
-	return "ntg_" + base64.RawURLEncoding.EncodeToString(digest[:20])
 }
 
 func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, bool, error) {
@@ -286,47 +272,68 @@ func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string) (
 	return result, nil
 }
 
-func (m *NotificationOccurrenceModel) Groups(ctx context.Context, userID string) ([]NotificationOccurrenceGroup, error) {
+// UnreadCount returns the exact number of unread occurrences. Presentation
+// grouping must never change bell, room, or installed-app badge counts.
+func (m *NotificationOccurrenceModel) UnreadCount(ctx context.Context, userID string) (int, error) {
 	occurrences, err := m.List(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	grouped := make(map[string][]*corev1.NotificationOccurrence)
-	for _, occurrence := range occurrences {
-		key := notificationOccurrenceGroupKey(occurrence)
-		grouped[key] = append(grouped[key], occurrence)
-	}
-	groups := make([]NotificationOccurrenceGroup, 0, len(grouped))
-	for key, members := range grouped {
-		groups = append(groups, NotificationOccurrenceGroup{
-			ID:          notificationGroupID(userID, key),
-			Key:         key,
-			Occurrences: members,
-		})
-	}
-	sort.Slice(groups, func(a, b int) bool {
-		return groups[a].Occurrences[0].GetSourceCreatedAt().AsTime().After(groups[b].Occurrences[0].GetSourceCreatedAt().AsTime())
-	})
-	return groups, nil
-}
-
-// UnreadGroupCount returns the bell/app-badge count. Multiple unread
-// occurrences in one conversation group count once.
-func (m *NotificationOccurrenceModel) UnreadGroupCount(ctx context.Context, userID string) (int, error) {
-	groups, err := m.Groups(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
 	count := 0
-	for _, group := range groups {
-		for _, occurrence := range group.Occurrences {
-			if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
-				count++
-				break
-			}
+	for _, occurrence := range occurrences {
+		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+			count++
 		}
 	}
 	return count, nil
+}
+
+// AlertDeliveryCurrent revalidates the exact pending occurrence immediately
+// before an external provider side effect.
+func (m *NotificationOccurrenceModel) AlertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
+	if expected == nil {
+		return false, nil
+	}
+	entry, exists, err := m.index.occurrenceByID(ctx, expected.GetRecipientId(), expected.GetId())
+	if err != nil || !exists {
+		return false, err
+	}
+	return entry.occurrence.GetSourceEventId() == expected.GetSourceEventId() &&
+		entry.occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING &&
+		entry.occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
+		entry.occurrence.GetRemovalReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED, nil
+}
+
+// CompleteAlertDelivery records a queue job's terminal outcome if the exact
+// occurrence is still pending. Concurrent read/delete mutations win cleanly.
+func (m *NotificationOccurrenceModel) CompleteAlertDelivery(ctx context.Context, job *corev1.NotificationAlertJob, state corev1.NotificationAlertState) error {
+	if job == nil || (state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED &&
+		state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED) {
+		return nil
+	}
+	for attempt := 0; attempt < maxNotificationUpdateRetries; attempt++ {
+		entry, exists, err := m.index.occurrenceByID(ctx, job.GetRecipientId(), job.GetNotificationId())
+		if err != nil || !exists {
+			return err
+		}
+		if entry.occurrence.GetSourceEventId() != job.GetSourceEventId() ||
+			entry.occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+			return nil
+		}
+		updated := proto.Clone(entry.occurrence).(*corev1.NotificationOccurrence)
+		updated.AlertState = state
+		updated.AlertClaimedUntil = nil
+		updated.UpdatedAt = timestamppb.New(m.now().UTC())
+		_, err = m.updateAtRevision(ctx, entry, updated)
+		if jetstreamutil.IsSequenceConflict(err) {
+			if waitErr := m.index.waitForRevisionAfter(ctx, entry.key, entry.revision); waitErr != nil {
+				return waitErr
+			}
+			continue
+		}
+		return err
+	}
+	return fmt.Errorf("complete notification alert delivery after %d attempts", maxNotificationUpdateRetries)
 }
 
 func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, occurrenceID string) (*corev1.NotificationOccurrence, error) {
@@ -411,36 +418,44 @@ func (m *NotificationOccurrenceModel) delete(ctx context.Context, userID, occurr
 	return false, fmt.Errorf("notification occurrence delete failed after %d retries", maxNotificationUpdateRetries)
 }
 
-func (m *NotificationOccurrenceModel) DeleteGroup(ctx context.Context, userID, groupID string) (int, error) {
-	groups, err := m.Groups(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-	for _, group := range groups {
-		if group.ID != groupID {
+// DeleteMany replaces the exact requested occurrences with anti-recreation
+// tombstones. Repeating the same batch is safe because later activity receives
+// different occurrence IDs.
+func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID string, occurrenceIDs []string) (int, error) {
+	deleted := 0
+	seen := make(map[string]struct{}, len(occurrenceIDs))
+	var lastDeleted *corev1.NotificationOccurrence
+	for _, occurrenceID := range occurrenceIDs {
+		if occurrenceID == "" {
 			continue
 		}
-		deleted := 0
-		var lastDeleted *corev1.NotificationOccurrence
-		for _, occurrence := range group.Occurrences {
-			ok, err := m.delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED, false)
-			if err != nil {
-				if lastDeleted != nil {
-					m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
-				}
-				return deleted, err
-			}
-			if ok {
-				deleted++
-				lastDeleted = occurrence
-			}
+		if _, duplicate := seen[occurrenceID]; duplicate {
+			continue
 		}
-		if lastDeleted != nil {
-			m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
+		seen[occurrenceID] = struct{}{}
+		occurrence, getErr := m.Get(ctx, userID, occurrenceID)
+		if errors.Is(getErr, ErrNotFound) {
+			continue
 		}
-		return deleted, nil
+		if getErr != nil {
+			return deleted, getErr
+		}
+		ok, err := m.delete(ctx, userID, occurrenceID, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED, false)
+		if err != nil {
+			if lastDeleted != nil {
+				m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
+			}
+			return deleted, err
+		}
+		if ok {
+			deleted++
+			lastDeleted = occurrence
+		}
 	}
-	return 0, ErrNotFound
+	if lastDeleted != nil {
+		m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
+	}
+	return deleted, nil
 }
 
 // DeleteAll replaces every occurrence current at the authoritative
@@ -550,166 +565,6 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	return updated, nil
 }
 
-// ClaimPendingAlert leases one interruptive delivery to this replica. A
-// crashed or failed claim becomes eligible again after the short lease.
-func (m *NotificationOccurrenceModel) ClaimPendingAlert(ctx context.Context) (*corev1.NotificationOccurrence, bool, error) {
-	entries, err := m.index.alertCandidates(ctx)
-	if err != nil {
-		return nil, false, err
-	}
-	now := m.now().UTC()
-	for _, entry := range entries {
-		occurrence := entry.occurrence
-		if !notificationAlertClaimable(occurrence, now) {
-			continue
-		}
-		if m.core.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId()) {
-			if _, updateErr := m.setAlertState(ctx, entry, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED, time.Time{}); updateErr != nil && !jetstreamutil.IsSequenceConflict(updateErr) {
-				return nil, false, updateErr
-			}
-			continue
-		}
-		claimed, updateErr := m.setAlertState(ctx, entry, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED, now.Add(notificationAlertClaimTTL))
-		if jetstreamutil.IsSequenceConflict(updateErr) {
-			continue
-		}
-		if updateErr != nil {
-			return nil, false, updateErr
-		}
-		return claimed, true, nil
-	}
-	return nil, false, nil
-}
-
-// HasClaimableAlert avoids an expensive durable-worker fence on idle delivery
-// polls. A positive result is only a hint: callers must still fence the worker
-// and use ClaimPendingAlert's OCC mutation before delivering anything.
-func (m *NotificationOccurrenceModel) HasClaimableAlert(ctx context.Context) (bool, error) {
-	entries, err := m.index.alertCandidates(ctx)
-	if err != nil {
-		return false, err
-	}
-	now := m.now().UTC()
-	for _, entry := range entries {
-		if notificationAlertClaimable(entry.occurrence, now) {
-			return true, nil
-		}
-	}
-	return false, nil
-}
-
-func notificationAlertClaimable(occurrence *corev1.NotificationOccurrence, now time.Time) bool {
-	if occurrence == nil ||
-		occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
-		occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
-		occurrence.GetStrongestIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
-		return false
-	}
-	if occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
-		return true
-	}
-	return occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED &&
-		occurrence.GetAlertClaimedUntil() != nil && occurrence.GetAlertClaimedUntil().AsTime().Before(now)
-}
-
-// CompleteAlertClaim records whether a claimed alert reached its configured
-// delivery callback. Failed attempts return to Pending for retry.
-func (m *NotificationOccurrenceModel) CompleteAlertClaim(ctx context.Context, occurrence *corev1.NotificationOccurrence, delivered bool) error {
-	if occurrence == nil {
-		return nil
-	}
-	entry, exists, err := m.index.occurrenceBySource(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId())
-	if err != nil || !exists || entry.occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED ||
-		entry.occurrence.GetAlertClaimedUntil() == nil || occurrence.GetAlertClaimedUntil() == nil ||
-		!entry.occurrence.GetAlertClaimedUntil().AsTime().Equal(occurrence.GetAlertClaimedUntil().AsTime()) {
-		return err
-	}
-	now := m.now().UTC()
-	if delivered && !entry.occurrence.GetAlertClaimedUntil().AsTime().After(now) {
-		// A callback may return nil after discovering that its lease expired.
-		// Leave the expired claim retryable instead of recording a delivery that
-		// never reached a provider.
-		return nil
-	}
-	state := corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED
-	claimedUntil := now.Add(notificationAlertRetryDelay)
-	if delivered {
-		state = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED
-		claimedUntil = time.Time{}
-	}
-	_, err = m.setAlertState(ctx, entry, state, claimedUntil)
-	return err
-}
-
-// AlertClaimCurrent checks that the caller still owns the exact unexpired
-// claim and that user triage has not made the occurrence ineligible.
-func (m *NotificationOccurrenceModel) AlertClaimCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
-	if expected == nil || expected.GetAlertClaimedUntil() == nil {
-		return false, nil
-	}
-	current, err := m.Get(ctx, expected.GetRecipientId(), expected.GetId())
-	if err != nil {
-		if errors.Is(err, ErrNotFound) {
-			return false, nil
-		}
-		return false, err
-	}
-	return current.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
-		current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED &&
-		current.GetAlertClaimedUntil() != nil &&
-		current.GetAlertClaimedUntil().AsTime().Equal(expected.GetAlertClaimedUntil().AsTime()) &&
-		current.GetAlertClaimedUntil().AsTime().After(m.now().UTC()), nil
-}
-
-// RenewAlertClaim fences provider delivery with a fresh delivery-sized lease.
-// The caller must use the returned occurrence when completing the claim.
-func (m *NotificationOccurrenceModel) RenewAlertClaim(ctx context.Context, expected *corev1.NotificationOccurrence) (*corev1.NotificationOccurrence, bool, error) {
-	if expected == nil || expected.GetAlertClaimedUntil() == nil {
-		return nil, false, nil
-	}
-	entry, exists, err := m.index.occurrenceBySource(ctx, expected.GetRecipientId(), expected.GetSourceEventId())
-	if err != nil || !exists {
-		return nil, false, err
-	}
-	current := entry.occurrence
-	if current.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
-		current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED ||
-		current.GetAlertClaimedUntil() == nil ||
-		!current.GetAlertClaimedUntil().AsTime().Equal(expected.GetAlertClaimedUntil().AsTime()) ||
-		!current.GetAlertClaimedUntil().AsTime().After(m.now().UTC()) {
-		return nil, false, nil
-	}
-	renewed, err := m.setAlertState(ctx, entry, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED, m.now().UTC().Add(notificationAlertDeliveryTTL))
-	if jetstreamutil.IsSequenceConflict(err) {
-		return nil, false, nil
-	}
-	return renewed, err == nil, err
-}
-
-// SilenceAlertClaim terminates the exact in-flight claim without delivery.
-// It is used when DND becomes active after the original claim but before the
-// provider call.
-func (m *NotificationOccurrenceModel) SilenceAlertClaim(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
-	if expected == nil || expected.GetAlertClaimedUntil() == nil {
-		return false, nil
-	}
-	entry, exists, err := m.index.occurrenceBySource(ctx, expected.GetRecipientId(), expected.GetSourceEventId())
-	if err != nil || !exists {
-		return false, err
-	}
-	current := entry.occurrence
-	if current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_CLAIMED ||
-		current.GetAlertClaimedUntil() == nil ||
-		!current.GetAlertClaimedUntil().AsTime().Equal(expected.GetAlertClaimedUntil().AsTime()) {
-		return false, nil
-	}
-	_, err = m.setAlertState(ctx, entry, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED, time.Time{})
-	if jetstreamutil.IsSequenceConflict(err) {
-		return false, nil
-	}
-	return err == nil, err
-}
-
 // VisibleOccurrences waits this replica's authoritative projections through a
 // freshly captured user, room, group-layout, and RBAC boundaries, then returns the occurrences whose
 // recipient, membership, target-message lifecycle, and exact reaction remain
@@ -814,17 +669,6 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 		return snapshot.Exists && snapshot.SourceEventID == occurrence.GetSourceEventId(), nil
 	}
 	return true, nil
-}
-
-func (m *NotificationOccurrenceModel) setAlertState(ctx context.Context, entry notificationOccurrenceIndexEntry, state corev1.NotificationAlertState, claimedUntil time.Time) (*corev1.NotificationOccurrence, error) {
-	updated := proto.Clone(entry.occurrence).(*corev1.NotificationOccurrence)
-	updated.AlertState = state
-	updated.AlertClaimedUntil = nil
-	if !claimedUntil.IsZero() {
-		updated.AlertClaimedUntil = timestamppb.New(claimedUntil.UTC())
-	}
-	updated.UpdatedAt = timestamppb.New(m.now().UTC())
-	return m.updateAtRevision(ctx, entry, updated)
 }
 
 func (m *NotificationOccurrenceModel) RemoveTarget(ctx context.Context, roomID, eventID string, reason corev1.NotificationRemovalReason) (int, error) {
@@ -1028,27 +872,4 @@ func strongestNotificationIntensity(reasons []*corev1.NotificationReasonMatch) c
 		}
 	}
 	return strongest
-}
-
-func notificationOccurrenceGroupKey(occurrence *corev1.NotificationOccurrence) string {
-	target := occurrence.GetTarget()
-	if hasNotificationReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
-		return "reaction:" + target.GetRoomId() + ":" + target.GetEventId()
-	}
-	if target.GetThreadRootEventId() != "" {
-		return "thread:" + target.GetRoomId() + ":" + target.GetThreadRootEventId()
-	}
-	if hasNotificationReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE) {
-		return "dm:" + target.GetRoomId()
-	}
-	return "room:" + target.GetRoomId()
-}
-
-func hasNotificationReason(occurrence *corev1.NotificationOccurrence, wanted corev1.NotificationReason) bool {
-	for _, reason := range occurrence.GetReasons() {
-		if reason.GetReason() == wanted {
-			return true
-		}
-	}
-	return false
 }

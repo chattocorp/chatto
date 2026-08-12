@@ -60,9 +60,9 @@ type RealtimeProjectionRoomTimeline struct {
 }
 
 // RealtimeProjectionNotifications is the finite current Notifications 2.0
-// group page reconciled on bootstrap and every socket resume.
+// occurrence page reconciled on bootstrap and every socket resume.
 type RealtimeProjectionNotifications struct {
-	Groups *apiv1.ListNotificationGroupsResponse
+	Occurrences *apiv1.ListNotificationOccurrencesResponse
 }
 
 // RealtimeProjectionRoomViewerState is one latest-value room read/permission
@@ -423,39 +423,35 @@ func (a *API) BuildRealtimeProjectionRoomViewerState(ctx context.Context, userID
 }
 
 // BuildRealtimeProjectionNotifications returns the viewer's authoritative
-// Notifications 2.0 groups. It is emitted on every resume because
+// Notifications 2.0 occurrences. It is emitted on every resume because
 // RUNTIME_STATE occurrence mutations have no EVT cursor.
 func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID string) (*RealtimeProjectionNotifications, error) {
 	if err := a.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
 		return nil, err
 	}
-	groups, err := a.core.NotificationOccurrences().Groups(ctx, userID)
+	occurrences, err := a.core.NotificationOccurrences().List(ctx, userID)
 	if err != nil {
 		return nil, err
 	}
-	page, total, hasMore, err := (&notificationService{api: a}).visibleNotificationPage(ctx, userID, groups, defaultNotificationLimit, 0)
+	occurrences, err = (&notificationService{api: a}).visibleNotificationOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return nil, err
 	}
+	total := len(occurrences)
+	page := occurrences[:min(total, defaultNotificationLimit)]
 	assembler := newNotificationAssembler(a)
-	// The page validation may have purged stale occurrences. Refresh the local
-	// index-backed groups before deriving aggregate counts.
-	groups, err = a.core.NotificationOccurrences().Groups(ctx, userID)
-	if err != nil {
-		return nil, err
-	}
-	unreadGroups, nextExpiryAt, roomCounts := notificationSummary(groups)
-	hydratedGroups, err := assembler.groups(ctx, page)
+	unreadCount, nextExpiryAt, roomCounts := notificationSummary(occurrences)
+	hydratedOccurrences, err := assembler.occurrences(ctx, page)
 	if err != nil {
 		return nil, err
 	}
 	return &RealtimeProjectionNotifications{
-		Groups: &apiv1.ListNotificationGroupsResponse{
-			Groups:                hydratedGroups,
-			Page:                  apiPageInfo(total, hasMore),
-			UnreadGroupCount:      unreadGroups,
-			NextExpiryAt:          nextExpiryAt,
-			RoomUnreadGroupCounts: roomCounts,
+		Occurrences: &apiv1.ListNotificationOccurrencesResponse{
+			Occurrences:      hydratedOccurrences,
+			Page:             apiPageInfo(total, total > len(page)),
+			UnreadCount:      unreadCount,
+			NextExpiryAt:     nextExpiryAt,
+			RoomUnreadCounts: roomCounts,
 		},
 	}, nil
 }

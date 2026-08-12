@@ -92,9 +92,9 @@ export class NavigationStore {
         return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
       });
       const viewerNotificationCount = Number(
-        this.projection.notificationGroups?.roomUnreadGroupCounts.find(
+        this.projection.notificationOccurrences?.roomUnreadCounts.find(
           (count) => count.roomId === room.id
-        )?.unreadGroupCount ?? 0
+        )?.unreadCount ?? 0
       );
       return [
         {

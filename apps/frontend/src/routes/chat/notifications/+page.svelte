@@ -1,13 +1,15 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { SvelteSet } from 'svelte/reactivity';
+  import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
   import {
+    groupNotificationOccurrences,
     NotificationReason,
+    type NotificationActor,
     type NotificationGroupItem,
     type NotificationOccurrenceItem
   } from '$lib/api-client/notifications';
@@ -134,7 +136,7 @@
             return {
               serverId: instance.id,
               page,
-              groups: page.groups.map((group): ServerGroup => ({
+              groups: groupNotificationOccurrences(page.occurrences).map((group): ServerGroup => ({
                 serverId: instance.id,
                 serverHostname: hostname,
                 timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
@@ -163,7 +165,7 @@
       return [
         {
           serverId: result.value.serverId,
-          offset: result.value.page.groups.length,
+          offset: result.value.page.occurrences.length,
           hasMore: result.value.page.hasMore
         }
       ];
@@ -192,7 +194,7 @@
         return {
           serverId: source.serverId,
           page,
-          groups: page.groups.map((group): ServerGroup => ({
+          groups: groupNotificationOccurrences(page.occurrences).map((group): ServerGroup => ({
             serverId: source.serverId,
             serverHostname: hostname,
             timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
@@ -205,10 +207,10 @@
       loadingMore = false;
       return;
     }
-    groups = [
-      ...groups,
-      ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-    ].sort(compareGroups);
+    groups = mergeServerGroups(
+      groups,
+      results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
+    );
     pagination = pagination.map((source) => {
       const result = results.find(
         (candidate) =>
@@ -217,8 +219,8 @@
       if (!result || result.status !== 'fulfilled') return source;
       return {
         ...source,
-        offset: source.offset + result.value.page.groups.length,
-        hasMore: result.value.page.hasMore && result.value.page.groups.length > 0
+        offset: source.offset + result.value.page.occurrences.length,
+        hasMore: result.value.page.hasMore && result.value.page.occurrences.length > 0
       };
     });
     pageError = results.some((result) => result.status === 'rejected');
@@ -243,6 +245,27 @@
     const byTime = b.group.latestAt.localeCompare(a.group.latestAt);
     if (byTime !== 0) return byTime;
     return mutationKey(a).localeCompare(mutationKey(b));
+  }
+
+  function mergeServerGroups(current: ServerGroup[], incoming: ServerGroup[]): ServerGroup[] {
+    const metadata = new SvelteMap<string, Omit<ServerGroup, 'group'>>();
+    const occurrences = new SvelteMap<string, NotificationOccurrenceItem[]>();
+    for (const item of [...current, ...incoming]) {
+      metadata.set(item.serverId, item);
+      const existing = occurrences.get(item.serverId) ?? [];
+      occurrences.set(item.serverId, [
+        ...existing,
+        ...item.group.occurrences.filter(
+          (occurrence) => !existing.some((candidate) => candidate.id === occurrence.id)
+        )
+      ]);
+    }
+    return [...occurrences.entries()]
+      .flatMap(([serverId, items]) => {
+        const server = metadata.get(serverId)!;
+        return groupNotificationOccurrences(items).map((group) => ({ ...server, group }));
+      })
+      .sort(compareGroups);
   }
 
   function groupNotificationsByDate(items: ServerGroup[]): NotificationDateSection[] {
@@ -311,7 +334,9 @@
     await goto(resolve('/chat/[serverId]/[roomId]', { serverId: serverIdSegment, roomId }));
   }
 
-  function occurrenceSummary(occurrence: NotificationOccurrenceItem): string {
+  function occurrenceSummary(group: NotificationGroupItem): string {
+    const occurrence = group.openTarget;
+    if (!occurrence) return m('chat.notifications.activity');
     const actor = occurrence.actor?.displayName;
     if (!actor) return m('chat.notifications.activity');
     const reasons = occurrence.reasons;
@@ -319,7 +344,12 @@
       return m('chat.notifications.summary.direct_message', { actor });
     }
     if (reasons.includes(NotificationReason.REACTION)) {
-      return m('chat.notifications.summary.reaction', { actor });
+      const emojis = [
+        ...new Set(group.occurrences.map((item) => item.reactionEmoji).filter(Boolean))
+      ];
+      const prefix = emojis.join(' ');
+      const summary = m('chat.notifications.summary.reaction', { actor });
+      return prefix ? `${prefix} ${summary}` : summary;
     }
     if (reasons.includes(NotificationReason.REPLY)) {
       return m('chat.notifications.summary.reply', { actor });
@@ -339,6 +369,14 @@
       return m('chat.notifications.summary.new_message', { actor });
     }
     return m('chat.notifications.summary.activity', { actor });
+  }
+
+  function notificationActors(group: NotificationGroupItem): NotificationActor[] {
+    const actors = new SvelteMap<string, NotificationActor>();
+    for (const occurrence of group.occurrences) {
+      if (occurrence.actor) actors.set(occurrence.actor.id, occurrence.actor);
+    }
+    return [...actors.values()].slice(0, 3);
   }
 
   async function openGroup(item: ServerGroup) {
@@ -377,16 +415,21 @@
     groups = groups.filter((candidate) => rowKey(candidate) !== rowKey(item));
     pagination = pagination.map((source) =>
       source.serverId === item.serverId
-        ? { ...source, offset: Math.max(0, source.offset - 1) }
+        ? { ...source, offset: Math.max(0, source.offset - item.group.occurrences.length) }
         : source
     );
     try {
-      await store.deleteGroup(item.group.id);
+      await store.deleteOccurrences(
+        item.group.occurrences.map((occurrence) => occurrence.id),
+        item.group.occurrences.filter((occurrence) => occurrence.unread).length
+      );
     } catch (error) {
       if (removed && !groups.some((candidate) => rowKey(candidate) === rowKey(removed))) {
         groups = [...groups, removed].sort(compareGroups);
         pagination = pagination.map((source) =>
-          source.serverId === item.serverId ? { ...source, offset: source.offset + 1 } : source
+          source.serverId === item.serverId
+            ? { ...source, offset: source.offset + item.group.occurrences.length }
+            : source
         );
       }
       console.error('Failed to update notification:', error);
@@ -487,6 +530,7 @@
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
               {@const actor = occurrence?.actor ?? null}
+              {@const actors = notificationActors(item.group)}
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
               <div
                 class={[
@@ -502,7 +546,16 @@
                   disabled={mutationPending}
                   onclick={() => openGroup(item)}
                 >
-                  {#if actor}<UserAvatar user={actor} size="md" />{/if}
+                  {#if actors.length > 1}
+                    <span
+                      class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
+                      data-testid="notification-actor-stack"
+                    >
+                      {#each actors as groupedActor (groupedActor.id)}
+                        <UserAvatar user={groupedActor} size="md" class="ring-2 ring-background" />
+                      {/each}
+                    </span>
+                  {:else if actor}<UserAvatar user={actor} size="md" />{/if}
                   {#if item.group.unread}
                     <span
                       class="size-2 shrink-0 rounded-full bg-attention"
@@ -511,9 +564,7 @@
                   {/if}
                   <span class="min-w-0 flex-1">
                     <bdi class="block truncate font-medium" dir="auto">
-                      {occurrence
-                        ? occurrenceSummary(occurrence)
-                        : m('chat.notifications.activity')}
+                      {occurrenceSummary(item.group)}
                     </bdi>
                     {#if item.group.threadRootMessageExcerpt}
                       <span

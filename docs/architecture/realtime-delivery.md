@@ -71,7 +71,8 @@ idempotent operations:
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events only
   for rooms named as retained by the subscribing client;
-- the newest finite Notifications 2.0 groups, unread-group count, and complete per-room unread-group counts;
+- the newest finite Notifications 2.0 occurrences, exact unread-occurrence
+  count, and complete per-room unread-occurrence counts;
 - every active call visible to the viewer; and
 - a complete latest-value presence map for the projected user directory.
 
@@ -214,8 +215,8 @@ windows (3,200 recent rows), bounding decryption and transient response memory.
 
 Every subscription emits one finite latest-value reconciliation before
 `caught_up`. It replaces the viewer resource; the complete followed-thread
-viewer-state set, including RUNTIME_STATE unread markers; notification groups
-and room counts; and the server directory's current presence. Missing
+viewer-state set, including RUNTIME_STATE unread markers; notification
+occurrences and room counts; and the server directory's current presence. Missing
 followed-thread entries authoritatively clear follow/unread state on retained
 thread roots.
 

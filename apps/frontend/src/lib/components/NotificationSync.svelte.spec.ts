@@ -179,7 +179,7 @@ describe('NotificationSync', () => {
     await vi.waitFor(() => expect(mocks.stores.origin.notifications.fetch).toHaveBeenCalledOnce());
   });
 
-  it('uses the exact unread-group count for the installed-app badge', async () => {
+  it('uses the exact unread-occurrence count for the installed-app badge', async () => {
     mocks.stores.origin.notifications.unreadNotificationCount = 2;
 
     await renderAndWaitForSubscription();
@@ -209,7 +209,7 @@ describe('NotificationSync', () => {
     );
   });
 
-  it('aggregates exact unread-group counts across authenticated servers', async () => {
+  it('aggregates exact unread-occurrence counts across authenticated servers', async () => {
     mocks.servers.push({ id: 'remote' });
     mocks.stores.origin.notifications.unreadNotificationCount = 1;
     mocks.stores.remote.notifications.unreadNotificationCount = 2;
