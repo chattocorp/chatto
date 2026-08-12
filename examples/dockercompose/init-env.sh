@@ -3,7 +3,7 @@ set -eu
 
 usage() {
 	cat <<'EOF'
-Usage: ./init-env.sh [--force] [domain] [owner-email] [smtp-from]
+Usage: ./init-env.sh [--force] <domain> <owner-email> [smtp-from]
 
 Creates .env and livekit.generated.yaml with matching generated secrets.
 
@@ -27,6 +27,11 @@ while [ "$#" -gt 0 ]; do
 			usage
 			exit 0
 			;;
+		-*)
+			echo "Unknown option: $1" >&2
+			usage >&2
+			exit 1
+			;;
 		*)
 			if [ -z "$domain" ]; then
 				domain=$1
@@ -43,6 +48,12 @@ while [ "$#" -gt 0 ]; do
 	shift
 done
 
+if [ -z "$domain" ] || [ -z "$owner_email" ]; then
+	echo "The domain and owner-email arguments are required." >&2
+	usage >&2
+	exit 1
+fi
+
 if ! command -v openssl >/dev/null 2>&1; then
 	echo "openssl is required to generate secrets" >&2
 	exit 1
@@ -58,11 +69,9 @@ if [ -e livekit.generated.yaml ] && [ "$force" != "true" ]; then
 	exit 1
 fi
 
-domain=${domain:-chat.example.com}
 domain=${domain#https://}
 domain=${domain#http://}
 domain=${domain%/}
-owner_email=${owner_email:-admin@example.com}
 smtp_from=${smtp_from:-noreply@example.com}
 
 rand_hex() {
