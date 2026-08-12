@@ -43,7 +43,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
   let originalLogin = $state('');
   let originalDisplayName = $state('');
   let originalDescription = $state('');
-  let credentialAction = $state<'rotate' | 'revoke' | null>(null);
+  let credentialAction = $state<'generate' | 'rotate' | 'revoke' | null>(null);
   let deleteConfirmationVisible = $state(false);
   let deleting = $state(false);
   let deleteError = $state<string | null>(null);
@@ -60,6 +60,9 @@ the authorization boundary; `scope` controls navigation and credential actions.
   );
   const formValid = $derived(
     loginValid && normalizedDisplayName.length > 0 && normalizedDescription.length > 0 && dirty
+  );
+  const viewerOwnsBot = $derived(
+    scope === 'owner' || bot?.ownerId === serverScope.store.currentUser.user?.id
   );
   const serverId = $derived(serverIdToSegment(serverScope.serverId));
   const backHref = $derived(
@@ -157,9 +160,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
 </script>
 
 <PageTitle
-  title={bot
-    ? `${bot.displayName} | ${m('bots.settings.title')}`
-    : m('bots.settings.page_title')}
+  title={bot ? `${bot.displayName} | ${m('bots.settings.title')}` : m('bots.settings.page_title')}
 />
 
 {#if loading}
@@ -194,9 +195,7 @@ the authorization boundary; `scope` controls navigation and credential actions.
               id="bot-detail-username"
               label={m('bots.field.username')}
               description={m('bots.help.username')}
-              error={login.length > 0 && !loginValid
-                ? m('bots.error.username_suffix')
-                : undefined}
+              error={login.length > 0 && !loginValid ? m('bots.error.username_suffix') : undefined}
               maxlength={64}
               required
               disabled={saving}
@@ -221,34 +220,53 @@ the authorization boundary; `scope` controls navigation and credential actions.
         </Panel>
 
         <Panel title={m('bots.field.api_key')} icon="iconify icon-[uil--key-skeleton]">
-          <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
-            <div class="min-w-0 max-w-2xl">
+          <div
+            class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between"
+          >
+            <div class="max-w-2xl min-w-0">
               <p>
                 {bot.apiKeyCreatedAt
                   ? m('bots.credentials.active_description')
                   : m('bots.credentials.none_description')}
               </p>
             </div>
-            {#if scope === 'owner'}
-              <div class="shrink-0 whitespace-nowrap">
-                <Button variant="secondary" onclick={() => (credentialAction = 'rotate')}>
-                  <span class="iconify icon-[uil--repeat]" aria-hidden="true"></span>
-                  {m('bots.credentials.rotate')}
-                </Button>
-              </div>
-            {:else if bot.apiKeyCreatedAt}
-              <div class="shrink-0 whitespace-nowrap">
-                <Button variant="danger-secondary" onclick={() => (credentialAction = 'revoke')}>
-                  <span class="iconify icon-[uil--key-skeleton-alt]" aria-hidden="true"></span>
-                  {m('bots.credentials.revoke')}
-                </Button>
+            {#if viewerOwnsBot || (scope === 'admin' && bot.apiKeyCreatedAt)}
+              <div class="flex shrink-0 flex-wrap gap-2 whitespace-nowrap">
+                {#if viewerOwnsBot}
+                  <Button
+                    variant="secondary"
+                    onclick={() =>
+                      (credentialAction = bot?.apiKeyCreatedAt ? 'rotate' : 'generate')}
+                  >
+                    <span
+                      class={bot.apiKeyCreatedAt
+                        ? 'iconify icon-[uil--repeat]'
+                        : 'iconify icon-[uil--key-skeleton]'}
+                      aria-hidden="true"
+                    ></span>
+                    {bot.apiKeyCreatedAt
+                      ? m('bots.credentials.rotate')
+                      : m('bots.credentials.generate')}
+                  </Button>
+                {/if}
+                {#if scope === 'admin' && bot.apiKeyCreatedAt}
+                  <Button variant="danger-secondary" onclick={() => (credentialAction = 'revoke')}>
+                    <span class="iconify icon-[uil--key-skeleton-alt]" aria-hidden="true"></span>
+                    {m('bots.credentials.revoke')}
+                  </Button>
+                {/if}
               </div>
             {/if}
           </div>
         </Panel>
 
-        <Panel title={m('admin.common.danger_zone')} icon="iconify icon-[uil--exclamation-triangle]">
-          <div class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <Panel
+          title={m('admin.common.danger_zone')}
+          icon="iconify icon-[uil--exclamation-triangle]"
+        >
+          <div
+            class="flex flex-col items-start gap-4 sm:flex-row sm:items-center sm:justify-between"
+          >
             <p class="max-w-2xl">{m('settings.account.delete_modal.warning_text')}</p>
             <Button
               variant="danger-secondary"
