@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"github.com/stretchr/testify/require"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
@@ -411,11 +412,12 @@ func TestNotificationAcknowledgedFloorReconstructsIdleTailOnStartupWithPendingFa
 	if err != nil {
 		t.Fatalf("append pending worker fact: %v", err)
 	}
-	info, err := first.notificationMaterializer.consumerInfo(ctx)
-	if err != nil {
-		t.Fatalf("notification consumer Info: %v", err)
-	}
-	if info.NumPending == 0 || info.AckFloor.Stream >= safeTail {
+	var info *jetstream.ConsumerInfo
+	require.Eventually(t, func() bool {
+		info, err = first.notificationMaterializer.consumerInfo(ctx)
+		return err == nil && info.NumPending > 0
+	}, time.Second, 10*time.Millisecond, "notification consumer did not observe pending fact")
+	if info.AckFloor.Stream >= safeTail {
 		t.Fatalf("consumer pending=%d ack floor=%d, want pending fact %d behind durable safe tail %d", info.NumPending, info.AckFloor.Stream, pendingSequence, safeTail)
 	}
 

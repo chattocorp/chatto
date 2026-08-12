@@ -119,11 +119,24 @@ class RealtimeProtobufClient {
         timer: setTimeout(() => {
           const index = this.#waiters.indexOf(waiter);
           if (index >= 0) this.#waiters.splice(index, 1);
-          const queued = this.#frames.map((frame) =>
-            frame.frame.case === 'event'
-              ? `event:${frame.frame.value.event.case ?? 'unknown'}`
-              : (frame.frame.case ?? 'unknown')
-          );
+          const queued = this.#frames.map((frame) => {
+            if (frame.frame.case === 'event') {
+              return `event:${frame.frame.value.event.case ?? 'unknown'}`;
+            }
+            if (frame.frame.case === 'projectionEvent') {
+              const operations = frame.frame.value.operations.map((operation) => {
+                if (operation.operation.case !== 'notificationsReplace') {
+                  return operation.operation.case ?? 'unknown';
+                }
+                const reasons = operation.operation.value.occurrences?.occurrences.flatMap(
+                  (occurrence) => occurrence.reasons.map((match) => match.reason)
+                );
+                return `notificationsReplace[${reasons?.join(',') ?? ''}]`;
+              });
+              return `projectionEvent:${operations.join('+')}`;
+            }
+            return frame.frame.case ?? 'unknown';
+          });
           reject(new Error(`timed out waiting for realtime frame; queued: ${queued.join(', ')}`));
         }, TIMEOUTS.REALTIME_EVENT)
       };
@@ -238,8 +251,10 @@ test.describe('protobuf realtime stream', () => {
         frame.frame.case === 'projectionEvent'
           ? frame.frame.value.operations.some((operation) =>
               operation.operation.case === 'notificationsReplace'
-                ? operation.operation.value.groups?.groups.some((group) =>
-                    group.reasons.includes(NotificationReason.DIRECT_MENTION)
+                ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
+                    occurrence.reasons.some(
+                      (match) => match.reason === NotificationReason.DIRECT_MENTION
+                    )
                   )
                 : false
             )
@@ -253,14 +268,10 @@ test.describe('protobuf realtime stream', () => {
         .map((operation) =>
           operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
         )
-        .find((replacement) => replacement?.groups?.groups.length);
-      const mentionGroup = mentionReplacement?.groups?.groups.find((group) =>
-        group.reasons.includes(NotificationReason.DIRECT_MENTION)
+        .find((replacement) => replacement?.occurrences?.occurrences.length);
+      const mention = mentionReplacement?.occurrences?.occurrences.find((occurrence) =>
+        occurrence.reasons.some((match) => match.reason === NotificationReason.DIRECT_MENTION)
       );
-      const mention =
-        mentionGroup?.occurrences.find(
-          (occurrence) => occurrence.id === mentionGroup.openNotificationId
-        ) ?? mentionGroup?.occurrences[0];
       expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
       expect(mention?.actor?.id).toBeTruthy();
       expect(mention?.target?.room?.name).toBe('general');
@@ -278,8 +289,10 @@ test.describe('protobuf realtime stream', () => {
         frame.frame.case === 'projectionEvent'
           ? frame.frame.value.operations.some((operation) =>
               operation.operation.case === 'notificationsReplace'
-                ? operation.operation.value.groups?.groups.some((group) =>
-                    group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
+                ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
+                    occurrence.reasons.some(
+                      (match) => match.reason === NotificationReason.DIRECT_MESSAGE
+                    )
                   )
                 : false
             )
@@ -293,13 +306,10 @@ test.describe('protobuf realtime stream', () => {
         .map((operation) =>
           operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
         )
-        .find((replacement) => replacement?.groups?.groups.length);
-      const dmGroup = dmReplacement?.groups?.groups.find((group) =>
-        group.reasons.includes(NotificationReason.DIRECT_MESSAGE)
+        .find((replacement) => replacement?.occurrences?.occurrences.length);
+      const dm = dmReplacement?.occurrences?.occurrences.find((occurrence) =>
+        occurrence.reasons.some((match) => match.reason === NotificationReason.DIRECT_MESSAGE)
       );
-      const dm =
-        dmGroup?.occurrences.find((occurrence) => occurrence.id === dmGroup.openNotificationId) ??
-        dmGroup?.occurrences[0];
       expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
       expect(dm?.actor?.id).toBeTruthy();
       expect(dm?.target?.room?.id).toBeTruthy();

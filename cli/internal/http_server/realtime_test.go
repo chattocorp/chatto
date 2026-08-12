@@ -1409,7 +1409,7 @@ func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T
 	}
 }
 
-func TestRealtimeProjectionNotificationOccurrenceChangesReplaceGroups(t *testing.T) {
+func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-notification-v2-viewer", "RT Notification V2 Viewer", "password123")
 	if err != nil {
