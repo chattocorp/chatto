@@ -8,7 +8,7 @@ import CoreMedia
 import CoreVideo
 import Darwin
 import Foundation
-import ScreenCaptureKit
+@preconcurrency import ScreenCaptureKit
 import VideoToolbox
 
 private let defaultDuration = 15.0
