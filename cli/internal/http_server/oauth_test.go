@@ -421,6 +421,77 @@ func TestOAuthAuthorize_NativeCIMDRedirectReachesConsent(t *testing.T) {
 	if response["redirectOrigin"] != "com.example.chatto:" {
 		t.Fatalf("redirectOrigin = %q", response["redirectOrigin"])
 	}
+
+	approveReq := httptest.NewRequest(http.MethodPost, "/oauth/consent/approve", nil)
+	addCookies(approveReq, cookies)
+	approveW := httptest.NewRecorder()
+	s.router.ServeHTTP(approveW, approveReq)
+	if approveW.Code != http.StatusOK {
+		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
+	}
+	var approval map[string]string
+	if err := json.Unmarshal(approveW.Body.Bytes(), &approval); err != nil {
+		t.Fatal(err)
+	}
+	redirect, err := url.Parse(approval["redirectUrl"])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if redirect.Scheme != "com.example.chatto" || redirect.Path != "/oauth/callback" || redirect.Query().Get("code") == "" {
+		t.Fatalf("native approval redirect = %q", approval["redirectUrl"])
+	}
+}
+
+func TestOAuthAuthorize_LargeValidCIMDMetadataSurvivesConsentRedirect(t *testing.T) {
+	s := setupOAuthServer(t)
+	cookies, _ := loginOAuthTestUser(t, s, "large-cimd-consent")
+	redirectURI := "https://callback.example/" + strings.Repeat("r", 1900)
+	var clientID string
+	var metadataOrigin string
+	metadataServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(cimdDocument{
+			ClientID: clientID, ClientName: strings.Repeat("N", 100),
+			ClientURI:       metadataOrigin + "/products/chatto?account=person@example.com",
+			ApplicationType: "web", RedirectURIs: []string{redirectURI}, TokenEndpointAuthMethod: "none",
+			GrantTypes: []string{"authorization_code"}, ResponseTypes: []string{"code"},
+		})
+	}))
+	t.Cleanup(metadataServer.Close)
+	metadataOrigin = metadataServer.URL
+	clientID = metadataServer.URL + "/" + strings.Repeat("c", 1900)
+	resolver, err := newOAuthClientResolver("http://localhost:4000", metadataServer.Client())
+	if err != nil {
+		t.Fatal(err)
+	}
+	s.oauthClientResolver = resolver
+
+	authorizeReq := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type": {"code"}, "client_id": {clientID}, "redirect_uri": {redirectURI},
+		"code_challenge": {"challenge"}, "code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(authorizeReq, cookies)
+	authorizeW := httptest.NewRecorder()
+	s.router.ServeHTTP(authorizeW, authorizeReq)
+	if authorizeW.Code != http.StatusTemporaryRedirect || authorizeW.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("authorize status/location = %d/%q: %s", authorizeW.Code, authorizeW.Header().Get("Location"), authorizeW.Body.String())
+	}
+	cookies = mergeCookies(cookies, authorizeW.Result().Cookies())
+
+	consentReq := httptest.NewRequest(http.MethodGet, "/oauth/consent/request", nil)
+	addCookies(consentReq, cookies)
+	consentW := httptest.NewRecorder()
+	s.router.ServeHTTP(consentW, consentReq)
+	if consentW.Code != http.StatusOK {
+		t.Fatalf("consent status = %d: %s", consentW.Code, consentW.Body.String())
+	}
+	var response map[string]string
+	if err := json.Unmarshal(consentW.Body.Bytes(), &response); err != nil {
+		t.Fatal(err)
+	}
+	if response["clientId"] != clientID || response["redirectUri"] != redirectURI {
+		t.Fatalf("consent request lost large validated metadata")
+	}
 }
 
 func newOAuthCIMDTestServer(t *testing.T, redirectURI string) (string, *httptest.Server) {
@@ -1027,11 +1098,12 @@ func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
 	challenge := core.GenerateCodeChallenge(verifier)
 	s.router.GET("/test/complete-stale-oauth", func(c *gin.Context) {
 		session := sessions.Default(c)
-		session.Set(sessionKeyOAuthRedirectURI, "https://example.com/callback")
-		session.Set(sessionKeyOAuthCodeChallenge, challenge)
-		session.Set(sessionKeyOAuthCodeMethod, "S256")
-		session.Set(sessionKeyOAuthState, "state123")
-		if err := session.Save(); err != nil {
+		if err := s.storePendingOAuthAuthorize(c.Request.Context(), session, pendingOAuthAuthorize{
+			RedirectURI:         "https://example.com/callback",
+			CodeChallenge:       challenge,
+			CodeChallengeMethod: "S256",
+			State:               "state123",
+		}); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}

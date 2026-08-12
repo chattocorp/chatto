@@ -44,20 +44,26 @@ The authorization server retrieves a CIMD document itself and validates that:
   `application_type = "native"`.
 
 CIMD retrieval is an unauthenticated network boundary. Chatto disables proxy
-inheritance and redirects, limits concurrency, response time and body size,
-requires a JSON media type, rejects special-use destination addresses, pins
+inheritance and redirects, limits concurrency, the complete resolution/fetch
+time and body size, requires a JSON media type, rejects special-use destination addresses, pins
 the validated destination through dialing to resist DNS rebinding, and caches
 only valid metadata for at most five minutes in a bounded cache. The retrieval
 concurrency limit covers destination resolution as well as HTTP. Loopback destinations are
 available only for a loopback development server.
 
-The validated `client_id` is carried through the signed authorization session,
-the single-use authorization code, and the resulting opaque OAuth access-token
+The validated authorization request is stored behind an opaque, HMAC-keyed,
+single-use `RUNTIME_STATE` handle; the signed browser session carries only that
+small handle. This keeps large valid metadata out of the browser cookie and lets
+any replica continue the flow. The `client_id` is then carried through the
+single-use authorization code and the resulting opaque OAuth access-token
 record. Token exchange requires the same client identifier, callback, and PKCE
 verifier used by authorization. A mismatch consumes the code and fails closed.
-Consent is remembered by user plus stable client identifier; audit facts retain
-the client identifier, validated display metadata, and canonical callback
-origin or native callback scheme observed at the time of the decision.
+Consent is remembered by user plus stable client identifier. The consent page
+shows the validated client name and identifier origin, rather than attributing
+the request to a potentially unrelated callback service. Audit facts retain the
+client identifier, validated client URI origin, and canonical callback origin
+or native callback scheme observed at the time of the decision; client URI
+paths and queries are not persisted.
 
 CIMD identifies a client; it does not endorse it. Users still see and approve
 the client application before a token is issued. A future administrative policy

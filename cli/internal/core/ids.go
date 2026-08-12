@@ -127,3 +127,8 @@ func NewCookieSessionID() string {
 func NewAuthCode() string {
 	return "cht_" + newID("AC")
 }
+
+// NewPendingOAuthAuthorizeToken generates an opaque browser-flow handle.
+func NewPendingOAuthAuthorizeToken() string {
+	return "cht_" + newID("OA")
+}

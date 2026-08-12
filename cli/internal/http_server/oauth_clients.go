@@ -56,6 +56,7 @@ type cachedOAuthClient struct {
 type OAuthClientResolver struct {
 	client              *http.Client
 	allowLoopback       bool
+	timeout             time.Duration
 	slots               chan struct{}
 	validateDestination func(context.Context, string) error
 
@@ -82,6 +83,7 @@ func newOAuthClientResolver(serverURL string, client *http.Client) (*OAuthClient
 	resolver := &OAuthClientResolver{
 		client:        client,
 		allowLoopback: allowLoopback,
+		timeout:       client.Timeout,
 		slots:         make(chan struct{}, 8),
 		cache:         make(map[string]cachedOAuthClient),
 	}
@@ -108,6 +110,8 @@ func (r *OAuthClientResolver) Resolve(ctx context.Context, clientID string) (OAu
 	if err != nil {
 		return OAuthClient{}, err
 	}
+	ctx, cancel := context.WithTimeout(ctx, r.timeout)
+	defer cancel()
 	select {
 	case r.slots <- struct{}{}:
 		defer func() { <-r.slots }()
@@ -238,12 +242,14 @@ func validateOAuthClientMetadata(clientID string, identifier *url.URL, document 
 	if len(document.ResponseTypes) > 0 && !(len(document.ResponseTypes) == 1 && document.ResponseTypes[0] == "code") {
 		return OAuthClient{}, fmt.Errorf("CIMD client supports an unsupported response type")
 	}
+	clientURIValue := ""
 	if document.ClientURI != "" {
 		clientURI, err := url.Parse(document.ClientURI)
 		validScheme := clientURI != nil && (clientURI.Scheme == "https" || allowLoopback && clientURI.Scheme == "http" && isLoopbackOAuthRedirectHost(clientURI.Hostname()))
 		if err != nil || !validScheme || clientURI.Host == "" || clientURI.User != nil || clientURI.Fragment != "" || canonicalOrigin(clientURI) != canonicalOrigin(identifier) {
 			return OAuthClient{}, fmt.Errorf("CIMD client_uri must share the client identifier origin")
 		}
+		clientURIValue = canonicalOrigin(clientURI)
 	}
 	name := strings.TrimSpace(document.ClientName)
 	if name == "" {
@@ -252,7 +258,7 @@ func validateOAuthClientMetadata(clientID string, identifier *url.URL, document 
 	if len(name) > 100 {
 		return OAuthClient{}, fmt.Errorf("CIMD client_name exceeds 100 characters")
 	}
-	return OAuthClient{ClientID: clientID, ClientName: name, ClientURI: document.ClientURI, RedirectURIs: append([]string(nil), document.RedirectURIs...)}, nil
+	return OAuthClient{ClientID: clientID, ClientName: name, ClientURI: clientURIValue, RedirectURIs: append([]string(nil), document.RedirectURIs...)}, nil
 }
 
 func validOAuthClientRedirectURI(redirect *url.URL, applicationType string, allowLoopback bool) bool {
@@ -330,6 +336,7 @@ func resolveOAuthClientAddresses(ctx context.Context, host string, allowLoopback
 }
 
 func blockedOAuthClientAddress(address netip.Addr) bool {
+	address = address.Unmap()
 	if !address.IsValid() || address.IsUnspecified() || address.IsLoopback() || address.IsMulticast() || address.IsLinkLocalUnicast() || address.IsPrivate() {
 		return true
 	}
@@ -344,9 +351,16 @@ func blockedOAuthClientAddress(address netip.Addr) bool {
 var oauthClientSpecialUsePrefixes = []netip.Prefix{
 	netip.MustParsePrefix("0.0.0.0/8"), netip.MustParsePrefix("100.64.0.0/10"),
 	netip.MustParsePrefix("192.0.0.0/24"), netip.MustParsePrefix("192.0.2.0/24"),
+	netip.MustParsePrefix("192.31.196.0/24"), netip.MustParsePrefix("192.52.193.0/24"),
+	netip.MustParsePrefix("192.88.99.0/24"), netip.MustParsePrefix("192.175.48.0/24"),
 	netip.MustParsePrefix("198.18.0.0/15"), netip.MustParsePrefix("198.51.100.0/24"),
 	netip.MustParsePrefix("203.0.113.0/24"), netip.MustParsePrefix("240.0.0.0/4"),
-	netip.MustParsePrefix("2001:db8::/32"),
+	netip.MustParsePrefix("::ffff:0:0:0/96"),
+	netip.MustParsePrefix("64:ff9b::/96"), netip.MustParsePrefix("64:ff9b:1::/48"),
+	netip.MustParsePrefix("100::/64"), netip.MustParsePrefix("2001::/23"),
+	netip.MustParsePrefix("2001:db8::/32"), netip.MustParsePrefix("2002::/16"),
+	netip.MustParsePrefix("2620:4f:8000::/48"), netip.MustParsePrefix("3fff::/20"),
+	netip.MustParsePrefix("5f00::/16"),
 }
 
 func (s *HTTPServer) resolveOAuthClient(ctx context.Context, clientID string) (OAuthClient, error) {

@@ -11,10 +11,13 @@
   type ConsentRequest = {
     redirectUri: string;
     redirectOrigin: string;
+    clientId: string;
+    clientName: string;
+    clientUri: string;
   };
 
   let request = $state<ConsentRequest | null>(null);
-  let requesterHost = $state('');
+  let clientHost = $state('');
   let error = $state('');
   let loading = $state(true);
   let submitting = $state<'approve' | 'deny' | null>(null);
@@ -40,15 +43,18 @@
 
       const pendingRequest = {
         redirectUri: result.redirectUri,
-        redirectOrigin: result.redirectOrigin
+        redirectOrigin: result.redirectOrigin,
+        clientId: result.clientId,
+        clientName: result.clientName,
+        clientUri: result.clientUri
       };
-      const verifiedHost = verifiedRequesterHost(pendingRequest);
+      const verifiedHost = verifiedClientHost(pendingRequest);
       if (!verifiedHost) {
         error = m('auth.oauth.unverifiable');
         return;
       }
 
-      requesterHost = verifiedHost;
+      clientHost = verifiedHost;
       request = pendingRequest;
     } catch (err) {
       if (err instanceof DOMException && err.name === 'AbortError') {
@@ -61,18 +67,26 @@
     }
   });
 
-  function verifiedRequesterHost(pendingRequest: ConsentRequest) {
+  function verifiedClientHost(pendingRequest: ConsentRequest) {
     try {
       const redirectUri = new URL(pendingRequest.redirectUri);
-      const redirectOrigin = new URL(pendingRequest.redirectOrigin);
-      if (
-        redirectUri.protocol !== redirectOrigin.protocol ||
-        redirectUri.hostname !== redirectOrigin.hostname ||
-        redirectUri.port !== redirectOrigin.port
-      ) {
+      if (redirectUri.host) {
+        const redirectOrigin = new URL(pendingRequest.redirectOrigin);
+        if (
+          redirectUri.protocol !== redirectOrigin.protocol ||
+          redirectUri.hostname !== redirectOrigin.hostname ||
+          redirectUri.port !== redirectOrigin.port
+        ) {
+          return '';
+        }
+      } else if (pendingRequest.redirectOrigin !== redirectUri.protocol) {
         return '';
       }
-      return redirectOrigin.host;
+
+      if (!pendingRequest.clientId) {
+        return redirectUri.host;
+      }
+      return new URL(pendingRequest.clientId).host;
     } catch {
       return '';
     }
@@ -127,8 +141,10 @@
     {:else if request}
       <div class="flex flex-col gap-4">
         <div class="text-center">
-          <p class="text-sm leading-relaxed text-muted">{m('auth.oauth.requester_intro')}</p>
-          <p class="mt-1 font-semibold break-all">{requesterHost}</p>
+          <p class="font-semibold break-all">{request.clientName || clientHost}</p>
+          {#if request.clientName}
+            <p class="mt-1 text-sm break-all text-muted">{clientHost}</p>
+          {/if}
         </div>
 
         <div class="surface-box p-4">

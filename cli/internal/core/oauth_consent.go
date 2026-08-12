@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"net/url"
 	"strings"
 
 	"hmans.de/chatto/internal/evtstream"
@@ -59,7 +60,7 @@ func (c *ChattoCore) GrantOAuthClientConsent(ctx context.Context, userID, client
 			Request:        auditRequestMetadata(ctx),
 			ClientId:       strings.TrimSpace(clientID),
 			ClientName:     strings.TrimSpace(clientName),
-			ClientUri:      strings.TrimSpace(clientURI),
+			ClientUri:      privacySafeOAuthClientURI(clientURI),
 		},
 	}})
 	_, err := c.appendUserEvent(ctx, userID, event, "", func() error {
@@ -91,11 +92,22 @@ func (c *ChattoCore) RecordOAuthClientConsentDenied(ctx context.Context, userID,
 			Request:        auditRequestMetadata(ctx),
 			ClientId:       strings.TrimSpace(clientID),
 			ClientName:     strings.TrimSpace(clientName),
-			ClientUri:      strings.TrimSpace(clientURI),
+			ClientUri:      privacySafeOAuthClientURI(clientURI),
 		},
 	}})
 	if err := c.appendAuthAuditEvent(ctx, evtstream.UserAggregate(userID), event); err != nil {
 		return err
 	}
 	return nil
+}
+
+// privacySafeOAuthClientURI retains only the URI origin needed to recognise a
+// client. Paths and queries are attacker-controlled metadata and must not enter
+// the durable audit stream.
+func privacySafeOAuthClientURI(raw string) string {
+	parsed, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || parsed.Scheme == "" || parsed.Host == "" || parsed.User != nil {
+		return ""
+	}
+	return strings.ToLower(parsed.Scheme) + "://" + strings.ToLower(parsed.Host)
 }

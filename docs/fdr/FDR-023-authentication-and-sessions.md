@@ -110,9 +110,9 @@ Chatto authenticates users with typed opaque runtime credentials. API and multi-
 
 ### 10. Short-lived auth codes in runtime state
 
-**Decision:** OAuth authorization codes, external-identity link-start handoffs, and pending external-identity confirmation flows live in `RUNTIME_STATE` as HMAC-derived records with short per-key TTLs and are deleted on successful exchange/confirmation. OAuth authorization codes use `grant.{hmac}` with a 5-minute TTL. External identity confirmations use capability-scoped `external_identity_create.{hmac}` and `external_identity_link.{hmac}` records with a 15-minute TTL. Provider link-start handoffs use `external_identity_link_start.{hmac}` with a 15-minute TTL and are consumed before provider authorization begins.
+**Decision:** Pending OAuth authorization browser flows, OAuth authorization codes, external-identity link-start handoffs, and pending external-identity confirmation flows live in `RUNTIME_STATE` as HMAC-derived records with short per-key TTLs and are deleted on successful consumption/exchange/confirmation. Pending OAuth authorization flows use `oauth_authorize.{hmac}` with a 15-minute TTL; the browser session carries only the opaque lookup token. OAuth authorization codes use `grant.{hmac}` with a 5-minute TTL. External identity confirmations use capability-scoped `external_identity_create.{hmac}` and `external_identity_link.{hmac}` records with a 15-minute TTL. Provider link-start handoffs use `external_identity_link_start.{hmac}` with a 15-minute TTL and are consumed before provider authorization begins.
 **Why:** Authorization codes and external-identity tokens are short-lived runtime credentials. They need restart survival and TTL enforcement, but they are not domain history and must not be copied into `EVT`.
-**Tradeoff:** The returned authorization code remains opaque and unchanged for clients, but the stored key is not human-recoverable from a backup without `[core].secret_key`.
+**Tradeoff:** Pending browser authorization now requires shared runtime storage even before a code is issued. The returned authorization code and browser behavior remain opaque and unchanged for clients, but stored keys are not human-recoverable from a backup without `[core].secret_key`.
 
 ## Permissions
 

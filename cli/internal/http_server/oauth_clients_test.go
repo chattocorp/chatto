@@ -3,6 +3,7 @@ package http_server
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -12,6 +13,12 @@ import (
 	"testing"
 	"time"
 )
+
+type oauthRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f oauthRoundTripFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
 
 func TestOAuthClientResolverFetchesValidCIMDAndCachesIt(t *testing.T) {
 	var requests atomic.Int32
@@ -90,6 +97,16 @@ func TestValidateOAuthClientMetadataRequiresExactIdentityAndRedirects(t *testing
 		t.Fatalf("redirect matching was not exact: %#v", client.RedirectURIs)
 	}
 
+	withPrivateClientURIData := valid
+	withPrivateClientURIData.ClientURI = "https://client.example/products/chatto?account=person@example.com&token=secret"
+	client, err = validateOAuthClientMetadata(valid.ClientID, identifier, withPrivateClientURIData, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.ClientURI != "https://client.example" {
+		t.Fatalf("client URI = %q, want privacy-safe origin", client.ClientURI)
+	}
+
 	mismatch := valid
 	mismatch.ClientID = "https://other.example/oauth/metadata.json"
 	if _, err := validateOAuthClientMetadata(valid.ClientID, identifier, mismatch, false); err == nil {
@@ -118,7 +135,12 @@ func TestValidateOAuthClientMetadataSupportsNativeAppRedirect(t *testing.T) {
 }
 
 func TestOAuthClientMetadataBlocksSpecialUseAddresses(t *testing.T) {
-	blocked := []string{"127.0.0.1", "10.0.0.1", "169.254.169.254", "192.0.2.1", "::1", "2001:db8::1"}
+	blocked := []string{
+		"127.0.0.1", "10.0.0.1", "169.254.169.254", "192.0.2.1",
+		"192.31.196.1", "192.52.193.1", "192.88.99.1", "192.175.48.1",
+		"::1", "::ffff:0:0:1", "64:ff9b::1", "64:ff9b:1::1", "100::1", "2001::1",
+		"2001:db8::1", "2002::1", "2620:4f:8000::1", "3fff::1", "5f00::1",
+	}
 	for _, raw := range blocked {
 		address := netip.MustParseAddr(raw)
 		if !blockedOAuthClientAddress(address) {
@@ -127,6 +149,48 @@ func TestOAuthClientMetadataBlocksSpecialUseAddresses(t *testing.T) {
 	}
 	if blockedOAuthClientAddress(netip.MustParseAddr("8.8.8.8")) {
 		t.Fatal("public address was blocked")
+	}
+	if blockedOAuthClientAddress(netip.MustParseAddr("2606:4700:4700::1111")) {
+		t.Fatal("public IPv6 address was blocked")
+	}
+}
+
+func TestOAuthClientResolverDeadlineIncludesDestinationValidation(t *testing.T) {
+	releaseValidation := make(chan struct{})
+	client := &http.Client{
+		Timeout: 25 * time.Millisecond,
+		Transport: oauthRoundTripFunc(func(*http.Request) (*http.Response, error) {
+			return nil, errors.New("HTTP fetch should not be reached")
+		}),
+	}
+	resolver, err := newOAuthClientResolver("https://chatto.example", client)
+	if err != nil {
+		t.Fatal(err)
+	}
+	resolver.validateDestination = func(ctx context.Context, _ string) error {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-releaseValidation:
+			return nil
+		}
+	}
+
+	result := make(chan error, 1)
+	go func() {
+		_, resolveErr := resolver.Resolve(context.Background(), "https://client.example/oauth/metadata.json")
+		result <- resolveErr
+	}()
+
+	select {
+	case resolveErr := <-result:
+		if !errors.Is(resolveErr, context.DeadlineExceeded) {
+			t.Fatalf("Resolve error = %v, want deadline exceeded", resolveErr)
+		}
+	case <-time.After(250 * time.Millisecond):
+		close(releaseValidation)
+		<-result
+		t.Fatal("destination validation outlived the resolver timeout")
 	}
 }
 
