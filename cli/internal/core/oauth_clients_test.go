@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"errors"
 	"testing"
 
@@ -10,6 +11,7 @@ import (
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestOAuthClientAuthorizationPolicyAndTokenRevocation(t *testing.T) {
@@ -156,6 +158,43 @@ func TestOAuthClientAuthorizationRecordFailureDiscardsCode(t *testing.T) {
 	}
 	if grantCount != 0 {
 		t.Fatalf("failed authorization record retained %d authorization codes", grantCount)
+	}
+}
+
+func TestOAuthClientAuthorizationPostCommitWaitFailureKeepsCode(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	admin := invitationAdmin(t, c)
+	member, err := c.CreateUser(ctx, SystemActorID, "oauth-wait-failure-member", "OAuth Wait Failure Member", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser member: %v", err)
+	}
+	clientID := "https://wait-failure.example/oauth/client-metadata.json"
+	request := OAuthClientAuthorization{
+		UserID:         member.Id,
+		ClientID:       clientID,
+		ClientName:     "Wait Failure Client",
+		ClientURI:      "https://wait-failure.example",
+		RedirectOrigin: "https://wait-failure.example",
+		Source:         corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD,
+	}
+	waitErr := errors.New("forced post-commit projection wait failure")
+
+	code, err := c.createOAuthClientAuthorizationCode(ctx, request, "https://wait-failure.example/callback", GenerateCodeChallenge("verifier"), "S256", mustCurrentAuthGeneration(t, c, member.Id), func(context.Context, events.StreamPosition) error {
+		return waitErr
+	})
+	if err != nil || code == "" {
+		t.Fatalf("createOAuthClientAuthorizationCode = %q, %v; want committed authorization", code, err)
+	}
+	if _, err := c.storage.runtimeStateKV.Get(ctx, c.authCodeKey(code)); err != nil {
+		t.Fatalf("authorization code missing after post-commit wait failure: %v", err)
+	}
+	state, err := c.GetOAuthClient(ctx, admin, clientID)
+	if err != nil {
+		t.Fatalf("GetOAuthClient after post-commit wait failure: %v", err)
+	}
+	if state.AuthorizedUserCount != 1 || state.ClientName != request.ClientName {
+		t.Fatalf("recorded OAuth client = %+v", state)
 	}
 }
 

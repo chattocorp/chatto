@@ -210,11 +210,13 @@ describe('server security query lifecycle', () => {
       redirectOrigins: ['https://remote.example'],
       authorizedUserCount: 2
     };
-    mocks.listOAuthClients.mockResolvedValue({
-      oauthClients: [client],
-      totalCount: 1,
-      hasMore: false
-    });
+    mocks.listOAuthClients
+      .mockResolvedValueOnce({ oauthClients: [client], totalCount: 1, hasMore: false })
+      .mockResolvedValue({
+        oauthClients: [{ ...client, policy: 'blocked' as const }],
+        totalCount: 1,
+        hasMore: false
+      });
 
     const { container } = render(SecurityPage);
     await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
@@ -229,6 +231,7 @@ describe('server security query lifecycle', () => {
     );
     await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
     expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
+    expect(policy.value).toBe('blocked');
   });
 
   it('keeps the confirmed policy visible when an update is rejected', async () => {
@@ -263,5 +266,34 @@ describe('server security query lifecycle', () => {
     );
     await vi.waitFor(() => expect(mocks.error).toHaveBeenCalledWith('Policy update rejected'));
     expect(policy.value).toBe('default');
+  });
+
+  it('shows a confirmed policy when the background list refresh fails', async () => {
+    const client = {
+      clientId: 'https://remote.example/oauth/client-metadata.json',
+      clientName: 'Remote Chatto',
+      clientUri: 'https://remote.example',
+      source: 'cimd' as const,
+      policy: 'default' as const,
+      firstAuthorizationAt: '2026-08-10T12:00:00.000Z',
+      lastAuthorizationAt: '2026-08-11T12:00:00.000Z',
+      redirectOrigins: ['https://remote.example'],
+      authorizedUserCount: 2
+    };
+    mocks.listOAuthClients
+      .mockResolvedValueOnce({ oauthClients: [client], totalCount: 1, hasMore: false })
+      .mockRejectedValue(new Error('List refresh failed'));
+
+    const { container } = render(SecurityPage);
+    await vi.waitFor(() => expect(container.textContent).toContain('Remote Chatto'));
+
+    const policy = container.querySelector('select') as HTMLSelectElement;
+    policy.value = 'blocked';
+    policy.dispatchEvent(new Event('change', { bubbles: true }));
+
+    await vi.waitFor(() => expect(mocks.updateOAuthClientPolicy).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.listOAuthClients).toHaveBeenCalledTimes(2));
+    expect(mocks.success).toHaveBeenCalledWith('OAuth client policy saved');
+    expect(policy.value).toBe('blocked');
   });
 });

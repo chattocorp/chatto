@@ -1,5 +1,10 @@
 <script lang="ts">
-  import { createInfiniteQuery, createMutation, createQuery } from '@tanstack/svelte-query';
+  import {
+    createInfiniteQuery,
+    createMutation,
+    createQuery,
+    type InfiniteData
+  } from '@tanstack/svelte-query';
   import { onDestroy } from 'svelte';
   import {
     createOAuthClientAPI,
@@ -54,6 +59,12 @@
     clientId: string;
     policy: OAuthClientPolicyName;
     privacyGeneration: number;
+  };
+
+  type OAuthClientPage = {
+    oauthClients: OAuthClient[];
+    totalCount: number;
+    hasMore: boolean;
   };
 
   const securityQuery = createQuery(
@@ -131,10 +142,24 @@
     () => ({
       mutationFn: ({ connection, clientId, policy }: OAuthClientPolicyMutationVariables) =>
         connection.getAPI(createOAuthClientAPI).updatePolicy(clientId, policy),
-      onSuccess: async (_client, variables) => {
+      onSuccess: (client, variables) => {
         if (!isCurrentOAuthClientSession(variables)) return;
-        await queryClient.invalidateQueries({
-          queryKey: adminQueryKeys.oauthClients(variables.serverId, variables.connection)
+        const queryKey = adminQueryKeys.oauthClients(variables.serverId, variables.connection);
+        queryClient.setQueryData<InfiniteData<OAuthClientPage, number>>(queryKey, (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  oauthClients: page.oauthClients.map((cached) =>
+                    cached.clientId === client.clientId ? client : cached
+                  )
+                }))
+              }
+            : current
+        );
+        void queryClient.invalidateQueries({
+          queryKey
         });
         toast.success(m('admin.security.oauth_clients.policy_saved'));
       },

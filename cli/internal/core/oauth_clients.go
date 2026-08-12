@@ -64,11 +64,16 @@ func (c *ChattoCore) oauthClientBlocked(clientID string) bool {
 // committed, the undisclosed code is removed so callers cannot complete an
 // authorization that is absent from the administrator inventory.
 func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64) (string, error) {
+	return c.createOAuthClientAuthorizationCode(ctx, authorization, redirectURI, codeChallenge, codeChallengeMethod, authGeneration, c.oauthClientModel.projection.Projector().WaitFor)
+}
+
+func (c *ChattoCore) createOAuthClientAuthorizationCode(ctx context.Context, authorization OAuthClientAuthorization, redirectURI, codeChallenge, codeChallengeMethod string, authGeneration uint64, waitFor func(context.Context, events.StreamPosition) error) (string, error) {
 	code, err := c.CreateAuthCodeForClientGeneration(ctx, authorization.UserID, authorization.ClientID, redirectURI, codeChallenge, codeChallengeMethod, authGeneration)
 	if err != nil {
 		return "", err
 	}
-	if err := c.RecordOAuthClientAuthorization(ctx, authorization.UserID, authorization.ClientID, authorization.ClientName, authorization.ClientURI, authorization.RedirectOrigin, authorization.Source); err != nil {
+	position, err := c.appendOAuthClientAuthorization(ctx, authorization.UserID, authorization.ClientID, authorization.ClientName, authorization.ClientURI, authorization.RedirectOrigin, authorization.Source)
+	if err != nil {
 		cleanupCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
 		defer cancel()
 		cleanupErr := c.storage.runtimeStateKV.Delete(cleanupCtx, c.authCodeKey(code))
@@ -77,6 +82,12 @@ func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, aut
 		}
 		return "", err
 	}
+	if err := waitFor(ctx, position); err != nil {
+		// The event is already committed. The code and durable fact now describe
+		// the same successful authorization, so a local catch-up failure must not
+		// turn it into a phantom record by deleting the code.
+		c.logger.Warn("OAuth client authorization committed before projection catch-up failed", "error", err)
+	}
 	return code, nil
 }
 
@@ -84,26 +95,34 @@ func (c *ChattoCore) CreateOAuthClientAuthorizationCode(ctx context.Context, aut
 // Every authorization advances the durable last-authorization timestamp; the
 // projection de-duplicates callback origins and authorizing users.
 func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) error {
+	position, err := c.appendOAuthClientAuthorization(ctx, actorID, clientID, clientName, clientURI, redirectOrigin, source)
+	if err != nil {
+		return err
+	}
+	return c.oauthClientModel.projection.Projector().WaitFor(ctx, position)
+}
+
+func (c *ChattoCore) appendOAuthClientAuthorization(ctx context.Context, actorID, clientID, clientName, clientURI, redirectOrigin string, source corev1.OAuthClientSource) (events.StreamPosition, error) {
 	clientID = strings.TrimSpace(clientID)
 	if clientID == "" {
-		return ErrInvalidArgument
+		return events.StreamPosition{}, ErrInvalidArgument
 	}
 	if source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD && source != corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_BUILT_IN {
-		return ErrInvalidArgument
+		return events.StreamPosition{}, ErrInvalidArgument
 	}
 	agg := evtstream.OAuthClientAggregate(clientID)
 	for attempt := 0; attempt < 5; attempt++ {
 		seq, err := c.EventPublisher.LastSubjectSeq(ctx, agg.AllEventsFilter())
 		if err != nil {
-			return err
+			return events.StreamPosition{}, err
 		}
 		if err := c.oauthClientModel.projection.Projector().WaitFor(ctx, events.SubjectPosition(agg.AllEventsFilter(), seq)); err != nil {
-			return err
+			return events.StreamPosition{}, err
 		}
 		state, exists := c.oauthClientModel.projection.Projection().get(clientID)
 		origin := OAuthConsentOrigin(redirectOrigin)
 		if exists && state.Policy == corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_BLOCKED {
-			return ErrOAuthClientBlocked
+			return events.StreamPosition{}, ErrOAuthClientBlocked
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_OauthClientAuthorizationRecorded{
 			OauthClientAuthorizationRecorded: &corev1.OAuthClientAuthorizationRecordedEvent{
@@ -116,11 +135,11 @@ func (c *ChattoCore) RecordOAuthClientAuthorization(ctx context.Context, actorID
 			continue
 		}
 		if err != nil {
-			return err
+			return events.StreamPosition{}, err
 		}
-		return c.oauthClientModel.projection.Projector().WaitFor(ctx, events.SubjectPosition(agg.SubjectFor(event), published))
+		return events.SubjectPosition(agg.SubjectFor(event), published), nil
 	}
-	return errOAuthClientMutationRetryExhausted
+	return events.StreamPosition{}, errOAuthClientMutationRetryExhausted
 }
 
 func (c *ChattoCore) GetOAuthClient(ctx context.Context, actorID, clientID string) (OAuthClientState, error) {
