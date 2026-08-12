@@ -1889,7 +1889,7 @@ func TestVoiceCallServiceRecordsAndListsCalls(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateCallMediaPublisherToken: %v", err)
 	}
-	if publisherResp.Msg.GetToken() == "" || publisherResp.Msg.GetE2EeKey() == "" || publisherResp.Msg.GetCallId() != participants[0].GetCallId() || publisherResp.Msg.GetPublisherIdentity() == "" {
+	if publisherResp.Msg.GetToken() == "" || publisherResp.Msg.GetE2EeKey() == "" || publisherResp.Msg.GetCallId() != participants[0].GetCallId() {
 		t.Fatalf("CreateCallMediaPublisherToken response = %+v", publisherResp.Msg)
 	}
 

@@ -244,8 +244,7 @@ function createVoiceCallClient(overrides: Partial<VoiceCallAPI> = {}): VoiceCall
     createGameSharePublisherToken: vi.fn(async () => ({
       token: 'publisher-token',
       e2eeKey: 'shared-e2ee-key',
-      callId: 'call-1',
-      publisherIdentity: 'publisher-1'
+      callId: 'call-1'
     })),
     leaveCall: vi.fn(async () => true),
     ...overrides

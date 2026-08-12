@@ -186,14 +186,15 @@ message CreateCallMediaPublisherTokenRequest {
 
 // Credential for one native companion publisher connection.
 message CreateCallMediaPublisherTokenResponse {
+  reserved 4;
+  reserved "publisher_identity";
+
   // Short-lived LiveKit JWT token.
   string token = 1;
   // Shared E2EE key for this active call.
   string e2ee_key = 2;
   // Active call session ID.
   string call_id = 3;
-  // Opaque LiveKit identity for this companion connection.
-  string publisher_identity = 4;
 }
 
 // Request to record leaving a room call.

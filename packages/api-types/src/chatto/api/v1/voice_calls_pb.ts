@@ -724,13 +724,6 @@ export class CreateCallMediaPublisherTokenResponse extends Message<CreateCallMed
    */
   callId = "";
 
-  /**
-   * Opaque LiveKit identity for this companion connection.
-   *
-   * @generated from field: string publisher_identity = 4;
-   */
-  publisherIdentity = "";
-
   constructor(data?: PartialMessage<CreateCallMediaPublisherTokenResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -742,7 +735,6 @@ export class CreateCallMediaPublisherTokenResponse extends Message<CreateCallMed
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "e2ee_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 4, name: "publisher_identity", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallMediaPublisherTokenResponse {

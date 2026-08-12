@@ -533,7 +533,7 @@ func TestGenerateCallMediaPublisherToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GenerateCallMediaPublisherToken() error = %v", err)
 	}
-	if result.PublisherIdentity != "publisher123" || result.CallID != "call789" || result.E2EEKey != "e2ee-test-key" {
+	if result.CallID != "call789" || result.E2EEKey != "e2ee-test-key" {
 		t.Fatalf("GenerateCallMediaPublisherToken() = %+v", result)
 	}
 
@@ -750,6 +750,90 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 	model.callKeys = &hookedCallKeyStore{keys: map[string]string{}}
 	if _, err := model.GetAccessMaterial(context.Background(), roomID); err == nil {
 		t.Fatal("GetAccessMaterial() without projected key error = nil, want key read error")
+	}
+}
+
+func TestCallModel_GetParticipantAccessMaterialRejectsCallGenerationTransition(t *testing.T) {
+	projection := NewCallStateProjection()
+	roomID := "room-publisher-access-generation"
+	userID := "user1"
+	oldCallID := "call-old"
+	newCallID := "call-new"
+	oldKeyRef := "key-ref-old"
+	newKeyRef := "key-ref-new"
+
+	if err := projection.Apply(newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{
+				RoomId:     roomID,
+				CallId:     oldCallID,
+				E2EeKeyRef: oldKeyRef,
+			},
+		},
+	}), 1); err != nil {
+		t.Fatalf("Apply old VoiceCallStarted: %v", err)
+	}
+	if err := projection.Apply(newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: oldCallID,
+			},
+		},
+	}), 2); err != nil {
+		t.Fatalf("Apply old VoiceCallParticipantJoined: %v", err)
+	}
+
+	keyStore := &hookedCallKeyStore{
+		keys: map[string]string{
+			oldKeyRef: "key-old",
+			newKeyRef: "key-new",
+		},
+	}
+	keyStore.beforeGet = func(keyRef string) error {
+		if keyRef != oldKeyRef {
+			return fmt.Errorf("GetCallKey key ref = %q, want captured old ref %q", keyRef, oldKeyRef)
+		}
+		if err := projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallEnded{
+				VoiceCallEnded: &corev1.CallEndedEvent{RoomId: roomID, CallId: oldCallID},
+			},
+		}), 3); err != nil {
+			return err
+		}
+		if err := projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallStarted{
+				VoiceCallStarted: &corev1.CallStartedEvent{
+					RoomId:     roomID,
+					CallId:     newCallID,
+					E2EeKeyRef: newKeyRef,
+				},
+			},
+		}), 4); err != nil {
+			return err
+		}
+		return projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+					RoomId: roomID,
+					CallId: newCallID,
+				},
+			},
+		}), 5)
+	}
+
+	model := &CallModel{
+		callState: detachedTestProjectionHandle(projection),
+		callKeys:  keyStore,
+	}
+	access, err := model.GetParticipantAccessMaterial(context.Background(), roomID, userID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetParticipantAccessMaterial() = %#v, %v; want call transition error", access, err)
+	}
+
+	keyStore.beforeGet = nil
+	if _, err := model.GetParticipantAccessMaterial(context.Background(), roomID, "not-participating"); !errors.Is(err, ErrCallParticipationRequired) {
+		t.Fatalf("GetParticipantAccessMaterial() non-participant error = %v, want ErrCallParticipationRequired", err)
 	}
 }
 

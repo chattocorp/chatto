@@ -824,11 +824,9 @@ type CreateCallMediaPublisherTokenResponse struct {
 	// Shared E2EE key for this active call.
 	E2EeKey string `protobuf:"bytes,2,opt,name=e2ee_key,json=e2eeKey,proto3" json:"e2ee_key,omitempty"`
 	// Active call session ID.
-	CallId string `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
-	// Opaque LiveKit identity for this companion connection.
-	PublisherIdentity string `protobuf:"bytes,4,opt,name=publisher_identity,json=publisherIdentity,proto3" json:"publisher_identity,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	CallId        string `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateCallMediaPublisherTokenResponse) Reset() {
@@ -878,13 +876,6 @@ func (x *CreateCallMediaPublisherTokenResponse) GetE2EeKey() string {
 func (x *CreateCallMediaPublisherTokenResponse) GetCallId() string {
 	if x != nil {
 		return x.CallId
-	}
-	return ""
-}
-
-func (x *CreateCallMediaPublisherTokenResponse) GetPublisherIdentity() string {
-	if x != nil {
-		return x.PublisherIdentity
 	}
 	return ""
 }
@@ -1024,12 +1015,11 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"$CreateCallMediaPublisherTokenRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12E\n" +
 	"\x04kind\x18\x02 \x01(\x0e2%.chatto.api.v1.CallMediaPublisherKindB\n" +
-	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\"\xa0\x01\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\"\x8b\x01\n" +
 	"%CreateCallMediaPublisherTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
 	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
-	"\acall_id\x18\x03 \x01(\tR\x06callId\x12-\n" +
-	"\x12publisher_identity\x18\x04 \x01(\tR\x11publisherIdentity\"4\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callIdJ\x04\b\x04\x10\x05R\x12publisher_identity\"4\n" +
 	"\x10LeaveCallRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
 	"\x11LeaveCallResponse\x12\x12\n" +

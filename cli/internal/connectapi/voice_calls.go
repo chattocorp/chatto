@@ -207,27 +207,15 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported call media publisher kind"))
 	}
 
-	participants, err := s.api.core.GetCallParticipants(req.Msg.GetRoomId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	participating := false
-	for _, participant := range participants {
-		if participant.UserID == caller.UserID {
-			participating = true
-			break
-		}
-	}
-	if !participating {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("join the active voice call before publishing media"))
-	}
-
 	user, err := s.api.core.GetUser(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	access, err := s.api.core.GetVoiceCallAccessMaterial(ctx, req.Msg.GetRoomId())
+	access, err := s.api.core.GetVoiceCallPublisherAccessMaterial(ctx, req.Msg.GetRoomId(), caller.UserID)
 	if err != nil {
+		if errors.Is(err, core.ErrCallParticipationRequired) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("join the active voice call before publishing media"))
+		}
 		if errors.Is(err, core.ErrNotFound) {
 			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
 		}
@@ -251,10 +239,9 @@ func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, re
 	}
 
 	return connect.NewResponse(&apiv1.CreateCallMediaPublisherTokenResponse{
-		Token:             token.Token,
-		E2EeKey:           token.E2EEKey,
-		CallId:            token.CallID,
-		PublisherIdentity: token.PublisherIdentity,
+		Token:   token.Token,
+		E2EeKey: token.E2EEKey,
+		CallId:  token.CallID,
 	}), nil
 }
 

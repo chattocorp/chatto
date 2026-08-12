@@ -16,10 +16,9 @@ import (
 
 // VoiceCallToken contains the LiveKit JWT for a client to join a call.
 type VoiceCallToken struct {
-	Token             string
-	E2EEKey           string
-	CallID            string
-	PublisherIdentity string
+	Token   string
+	E2EEKey string
+	CallID  string
 }
 
 // VoiceCallTokenTTL gives browser clients enough time for E2EE worker setup,
@@ -192,10 +191,9 @@ func GenerateCallMediaPublisherToken(apiKey, apiSecret, roomName, publisherIdent
 		return nil, fmt.Errorf("generate LiveKit media publisher token: %w", err)
 	}
 	return &VoiceCallToken{
-		Token:             token,
-		E2EEKey:           e2eeKey,
-		CallID:            callID,
-		PublisherIdentity: publisherIdentity,
+		Token:   token,
+		E2EEKey: e2eeKey,
+		CallID:  callID,
 	}, nil
 }
 
@@ -280,6 +278,16 @@ func (c *ChattoCore) GetVoiceCallAccessMaterial(ctx context.Context, roomID stri
 		return CallAccessMaterial{}, fmt.Errorf("call model is not initialized")
 	}
 	return c.callModel.GetAccessMaterial(ctx, roomID)
+}
+
+// GetVoiceCallPublisherAccessMaterial returns generation-consistent access
+// data only when userID participates in that same active call generation.
+// Authorization: Caller must verify room membership before calling.
+func (c *ChattoCore) GetVoiceCallPublisherAccessMaterial(ctx context.Context, roomID, userID string) (CallAccessMaterial, error) {
+	if c.callModel == nil {
+		return CallAccessMaterial{}, fmt.Errorf("call model is not initialized")
+	}
+	return c.callModel.GetParticipantAccessMaterial(ctx, roomID, userID)
 }
 
 // GetCallParticipants returns the participants currently in a voice call.

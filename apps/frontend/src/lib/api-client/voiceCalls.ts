@@ -14,10 +14,6 @@ export type VoiceCallToken = {
   callId: string;
 };
 
-export type CallMediaPublisherToken = VoiceCallToken & {
-  publisherIdentity: string;
-};
-
 export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
   const client = createChattoClient(VoiceCallService, config);
   const headers = () => authHeaders(config);
@@ -37,19 +33,16 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
       };
     },
 
-    async createGameSharePublisherToken(roomId: string): Promise<CallMediaPublisherToken | null> {
+    async createGameSharePublisherToken(roomId: string): Promise<VoiceCallToken | null> {
       const response = await client.createCallMediaPublisherToken(
         { roomId, kind: CallMediaPublisherKind.GAME_SHARE },
         { headers: headers() }
       );
-      if (!response.token || !response.e2eeKey || !response.callId || !response.publisherIdentity) {
-        return null;
-      }
+      if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,
         e2eeKey: response.e2eeKey,
-        callId: response.callId,
-        publisherIdentity: response.publisherIdentity
+        callId: response.callId
       };
     },
 

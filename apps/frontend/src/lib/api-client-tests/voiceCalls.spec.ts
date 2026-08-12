@@ -46,8 +46,7 @@ describe('createVoiceCallAPI', () => {
     mocks.createCallMediaPublisherToken.mockResolvedValue({
       token: 'publisher-jwt',
       e2eeKey: 'key',
-      callId: 'call-1',
-      publisherIdentity: 'publisher-1'
+      callId: 'call-1'
     });
 
     const api = createVoiceCallAPI({ baseUrl: '/api/connect', bearerToken: null });
@@ -61,8 +60,7 @@ describe('createVoiceCallAPI', () => {
     await expect(api.createGameSharePublisherToken('room-1')).resolves.toEqual({
       token: 'publisher-jwt',
       e2eeKey: 'key',
-      callId: 'call-1',
-      publisherIdentity: 'publisher-1'
+      callId: 'call-1'
     });
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
