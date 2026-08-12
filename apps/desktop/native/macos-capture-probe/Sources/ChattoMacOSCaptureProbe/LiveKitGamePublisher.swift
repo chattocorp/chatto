@@ -35,7 +35,7 @@ enum LiveKitGamePublisher {
     // The helper reports only its small JSON lifecycle protocol. In particular,
     // signaling URLs and credentials must never leak into application logs.
     LiveKitSDK.disableLogging()
-    let terminationSignal = TerminationSignal()
+    let lifetime = PublisherLifetime()
     let credential = try readCredential()
     let sources = try await MacOSScreenCapturer.sources(for: .window)
     guard
@@ -66,7 +66,7 @@ enum LiveKitGamePublisher {
       defaultAudioPublishOptions: audioOptions,
       encryptionOptions: .sharedKey(credential.e2eeKey)
     )
-    let room = Room()
+    let room = Room(delegate: lifetime)
     try await room.connect(
       url: credential.livekitURL,
       token: credential.token,
@@ -107,8 +107,12 @@ enum LiveKitGamePublisher {
     // Desktop owns process lifetime. Convert SIGTERM into a graceful LiveKit
     // disconnect so receivers see the companion publisher disappear before
     // the helper acknowledges completion by exiting.
-    await terminationSignal.wait()
-    await room.disconnect()
+    switch await lifetime.wait() {
+    case .terminationRequested:
+      await room.disconnect()
+    case .roomDisconnected:
+      throw PublisherError.liveKitDisconnected
+    }
   }
 
   private static func readCredential() throws -> PublisherCredential {
@@ -136,24 +140,40 @@ enum LiveKitGamePublisher {
   }
 }
 
-private final class TerminationSignal: @unchecked Sendable {
-  private let source: DispatchSourceSignal
-  private let stream: AsyncStream<Void>
+private final class PublisherLifetime: NSObject, RoomDelegate, @unchecked Sendable {
+  enum StopReason: Sendable {
+    case terminationRequested
+    case roomDisconnected
+  }
 
-  init() {
+  private let source: DispatchSourceSignal
+  private let stream: AsyncStream<StopReason>
+  private let continuation: AsyncStream<StopReason>.Continuation
+
+  override init() {
     Darwin.signal(SIGTERM, SIG_IGN)
-    let pair = AsyncStream<Void>.makeStream()
+    let pair = AsyncStream<StopReason>.makeStream()
     stream = pair.stream
+    continuation = pair.continuation
     source = DispatchSource.makeSignalSource(signal: SIGTERM, queue: .main)
     source.setEventHandler {
-      pair.continuation.yield()
+      pair.continuation.yield(.terminationRequested)
       pair.continuation.finish()
     }
+    super.init()
     source.resume()
   }
 
-  func wait() async {
-    for await _ in stream { return }
+  func wait() async -> StopReason {
+    for await reason in stream { return reason }
+    return .terminationRequested
+  }
+
+  func room(_ room: Room, didDisconnectWithError error: LiveKitError?) {
+    _ = room
+    _ = error
+    continuation.yield(.roomDisconnected)
+    continuation.finish()
   }
 
   deinit {
@@ -163,12 +183,15 @@ private final class TerminationSignal: @unchecked Sendable {
 
 private enum PublisherError: LocalizedError {
   case invalidCredential
+  case liveKitDisconnected
   case sourceNotFound
 
   var errorDescription: String? {
     switch self {
     case .invalidCredential:
       "The native publisher received an invalid LiveKit credential."
+    case .liveKitDisconnected:
+      "The native publisher disconnected from LiveKit unexpectedly."
     case .sourceNotFound:
       "The selected window is no longer available. Choose it again."
     }
