@@ -97,6 +97,7 @@
         "copy_link": "Copiar link"
       },
       "meta": {
+        "pinned": "Mensagem fixada",
         "thread": "Tópico",
         "reply_count_one": "1 resposta",
         "reply_count_many": "Respostas {count}",
@@ -182,6 +183,7 @@
       "hide": "Ocultar mensagens fixadas",
       "pin": "Fixar mensagem",
       "unpin": "Desafixar mensagem",
+      "unpin_prompt": "Tem certeza de que deseja remover esta mensagem fixada?",
       "loading": "Carregando mensagens fixadas...",
       "empty_title": "Nenhuma mensagem fixada",
       "empty_description": "Os gestores da sala podem fixar mensagens importantes aqui.",

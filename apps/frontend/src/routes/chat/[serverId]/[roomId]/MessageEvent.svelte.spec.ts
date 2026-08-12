@@ -292,4 +292,34 @@ describe('MessageEvent action model integration', () => {
     expect(actionSheetButton(rendered.container, 'Delete')).toBeUndefined();
     expect(q(rendered.container, 'dialog[open] button[aria-label="React with 👍"]')).toBeNull();
   });
+
+  it('updates the pin indicator for viewers who can view but cannot manage room pins', async () => {
+    const event = messageEvent({ id: 'remotely-pinned-message' });
+    const rendered = render(MessageEventTestHarness, {
+      props: { event, canViewPinnedMessages: true, canPinMessages: false, pinStatus: false }
+    });
+
+    expect(q(rendered.container, '[role="img"][aria-label="Pinned message"]')).toBeNull();
+
+    await rendered.rerender({
+      event,
+      canViewPinnedMessages: true,
+      canPinMessages: false,
+      pinStatus: true
+    });
+    await vi.waitFor(() =>
+      expect(q(rendered.container, '[role="img"][aria-label="Pinned message"]')).not.toBeNull()
+    );
+    expect(q(rendered.container, 'button[aria-label="Unpin message"]')).toBeNull();
+
+    await rendered.rerender({
+      event,
+      canViewPinnedMessages: true,
+      canPinMessages: false,
+      pinStatus: false
+    });
+    await vi.waitFor(() =>
+      expect(q(rendered.container, '[role="img"][aria-label="Pinned message"]')).toBeNull()
+    );
+  });
 });

@@ -97,6 +97,7 @@
         "copy_link": "Kopieer link"
       },
       "meta": {
+        "pinned": "Vastgezet bericht",
         "thread": "Discussie",
         "reply_count_one": "1 antwoord",
         "reply_count_many": "{count} antwoordt",
@@ -182,6 +183,7 @@
       "hide": "Vastgezette berichten verbergen",
       "pin": "Bericht vastzetten",
       "unpin": "Bericht losmaken",
+      "unpin_prompt": "Weet je zeker dat je deze vastzetting wilt verwijderen?",
       "loading": "Vastgezette berichten laden...",
       "empty_title": "Geen vastgezette berichten",
       "empty_description": "Kamerbeheerders kunnen hier belangrijke berichten vastzetten.",

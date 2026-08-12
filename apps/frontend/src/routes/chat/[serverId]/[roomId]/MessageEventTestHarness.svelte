@@ -22,6 +22,9 @@
     permalinkThreadRootEventId = null,
     canReact = true,
     canManageOthersMessage = false,
+    canViewPinnedMessages = false,
+    canPinMessages = false,
+    pinStatus = null,
     onOpenThread
   }: {
     event: TimelineEventView;
@@ -30,6 +33,9 @@
     permalinkThreadRootEventId?: string | null;
     canReact?: boolean;
     canManageOthersMessage?: boolean;
+    canViewPinnedMessages?: boolean;
+    canPinMessages?: boolean;
+    pinStatus?: boolean | null;
     onOpenThread?: OpenThreadHandler;
   } = $props();
 
@@ -41,7 +47,12 @@
     currentUser: {
       user: { id: 'viewer', login: 'viewer', settings: undefined }
     },
-    permissions: { canStartDMs: false }
+    permissions: { canStartDMs: false },
+    pinsForRoom: () => ({
+      isPinned: (_messageEventId: string, hydratedStatus = false) => pinStatus ?? hydratedStatus,
+      create: async () => undefined,
+      remove: async () => undefined
+    })
   } as unknown as ServerStateStore;
 
   provideServerScope({
@@ -61,7 +72,9 @@
     canPostInThread: true,
     canReact,
     canManageOthersMessage,
-    canEchoMessage: true
+    canEchoMessage: true,
+    canViewPinnedMessages,
+    canPinMessages
   }));
   createPresenceCache();
   createUserProfileCache();

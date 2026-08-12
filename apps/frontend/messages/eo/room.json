@@ -97,6 +97,7 @@
         "copy_link": "Kopiu ligilon"
       },
       "meta": {
+        "pinned": "Alpinglita mesaĝo",
         "thread": "Fadeno",
         "reply_count_one": "1 respondo",
         "reply_count_many": "{count} respondas",
@@ -182,6 +183,7 @@
       "hide": "Kaŝi alpinglitajn mesaĝojn",
       "pin": "Alpingli mesaĝon",
       "unpin": "Malpingli mesaĝon",
+      "unpin_prompt": "Ĉu vi certas, ke vi volas forigi ĉi tiun alpinglon?",
       "loading": "Ŝargante alpinglitajn mesaĝojn...",
       "empty_title": "Neniuj alpinglitaj mesaĝoj",
       "empty_description": "Ĉambroadministrantoj povas alpingli gravajn mesaĝojn ĉi tie.",

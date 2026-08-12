@@ -2,22 +2,24 @@
 @component
 
 Channel pinned messages rendered through the room timeline's canonical
-MessageEvent component. Each message row itself opens the original message.
+message presentation. Each message row itself opens the original message.
 -->
 <script lang="ts">
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import type { Attachment } from 'svelte/attachments';
   import type { Message } from '@chatto/api-types/api/v1/message_types_pb';
-  import type { User } from '@chatto/api-types/api/v1/users_pb';
+  import MessageView from '$lib/components/messages/MessageView.svelte';
   import { m } from '$lib/i18n/messages';
-  import { messageToTimelineEvent } from '$lib/api-client/roomTimeline';
+  import { getLocale } from '$lib/i18n/runtime';
+  import type { UserAvatarUserView } from '$lib/render/users';
   import { getRoomMembers, type RoomMember, type RoomPinsStore } from '$lib/state/room';
   import { getUserSummaryCache } from '$lib/state/userSummaries.svelte';
   import type { UserSummary } from '$lib/api-client/users';
   import { useServerScope } from '$lib/state/server/scope.svelte';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { EmptyState, ScrollFader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
-  import MessageEvent from './MessageEvent.svelte';
-  import type { OpenThreadHandler } from './threadOpenOptions';
+  import ClampedMessagePreview from './ClampedMessagePreview.svelte';
 
   let {
     store,
@@ -30,31 +32,31 @@ MessageEvent component. Each message row itself opens the original message.
   const serverScope = useServerScope();
   const userSummaries = getUserSummaryCache(serverScope.serverId);
   const members = $derived(getRoomMembers());
-  const messageStore = $derived(serverScope.store.messagesForRoom(store.roomId));
+  const userSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
+  const activeLocale = $derived(getLocale());
 
   function user(userId: string): RoomMember | UserSummary | null {
     return members.find((member) => member.id === userId) ?? userSummaries.get(userId);
   }
 
-  function renderableEvent(message: Message) {
-    const users: Record<string, User> = {};
-    const userIds = new Set([
-      message.actorId,
-      ...(message.thread?.participantPreviewUserIds ?? []),
-      ...message.reactions.flatMap((reaction) => reaction.previewUserIds)
-    ]);
-    for (const userId of userIds) {
-      const summary = user(userId);
-      if (!summary) continue;
-      users[userId] = {
-        id: summary.id,
-        login: summary.login,
-        displayName: summary.displayName,
-        deleted: summary.deleted ?? false,
-        avatarUrl: summary.avatarUrl ?? ''
-      } as User;
-    }
-    return messageToTimelineEvent(message, users);
+  function messageActor(message: Message): UserAvatarUserView | null {
+    const summary = user(message.actorId);
+    if (!summary) return null;
+    return {
+      id: summary.id,
+      login: summary.login,
+      displayName: summary.displayName,
+      deleted: summary.deleted ?? false,
+      avatarUrl: summary.avatarUrl,
+      presenceStatus: PresenceStatus.OFFLINE
+    };
+  }
+
+  function formatTimestamp(message: Message): string {
+    const createdAt = message.createdAt?.toDate().toISOString() ?? '';
+    return createdAt ? formatDateTime(createdAt, userSettings, activeLocale) : '';
   }
 
   function openPin(message: Message): void {
@@ -79,10 +81,6 @@ MessageEvent component. Each message row itself opens the original message.
     event.preventDefault();
     openPin(message);
   }
-
-  const openThread: OpenThreadHandler = (threadRootEventId, options) => {
-    onOpenPin?.(options?.highlightEventId ?? threadRootEventId, threadRootEventId);
-  };
 
   const loadMoreWhenVisible: Attachment = (element) => {
     const observer = new IntersectionObserver(([entry]) => {
@@ -112,27 +110,56 @@ MessageEvent component. Each message row itself opens the original message.
         {m('room.pins.empty_description')}
       </EmptyState>
     {:else}
-      <ol class="flex flex-col py-2">
+      <ol class="selectable-list gap-3 py-2">
         {#each store.items as item (item.message?.id)}
           {@const message = item.message}
-          {@const event = message ? renderableEvent(message) : null}
-          {#if message && event}
+          {@const actor = message ? messageActor(message) : null}
+          {#if message}
             <li>
               <div
                 role="link"
                 tabindex="0"
-                aria-label={`${event.actor?.displayName || event.actor?.login || m('common.unknown')}: ${message.body}`}
+                aria-label={`${actor?.displayName || actor?.login || m('common.unknown')}: ${message.body || ''}`}
                 data-room-pin-id={message.id}
-                class="cursor-pointer rounded-md focus-visible:outline-2 focus-visible:outline-action"
+                class="group/search-result cursor-pointer selectable-list-item"
                 onclick={(pointerEvent) => openPinFromPointer(pointerEvent, message)}
                 onkeydown={(keyboardEvent) => openPinFromKeyboard(keyboardEvent, message)}
               >
-                <MessageEvent
-                  {event}
-                  roomId={store.roomId}
-                  {messageStore}
-                  onOpenThread={openThread}
-                />
+                <div class="pointer-events-none" inert data-room-pin-preview>
+                  <ClampedMessagePreview>
+                    <MessageView
+                      eventId={message.id}
+                      {actor}
+                      displayName={actor?.displayName || actor?.login || m('common.unknown')}
+                      missingActorIsDeleted={false}
+                      body={message.body || null}
+                      viewerLogin={serverScope.store.currentUser.user?.login}
+                      timestampSettings={userSettings}
+                      timestampLocale={activeLocale}
+                      rowClass="hover:bg-transparent md:mx-0 md:pe-2"
+                    >
+                      {#snippet headerMeta()}
+                        {#if message.createdAt}
+                          <time
+                            class="text-xs text-muted"
+                            datetime={message.createdAt.toDate().toISOString()}
+                          >
+                            {formatTimestamp(message)}
+                          </time>
+                        {/if}
+                      {/snippet}
+
+                      {#snippet afterBody()}
+                        {#if message.attachments.length > 0}
+                          <p class="inline-flex items-center gap-1 text-xs text-muted">
+                            <span class="iconify icon-[uil--paperclip]" aria-hidden="true"></span>
+                            {m('search.attachments', { count: message.attachments.length })}
+                          </p>
+                        {/if}
+                      {/snippet}
+                    </MessageView>
+                  </ClampedMessagePreview>
+                </div>
               </div>
             </li>
           {/if}

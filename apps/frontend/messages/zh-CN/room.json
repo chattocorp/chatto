@@ -97,6 +97,7 @@
         "copy_link": "复制链接"
       },
       "meta": {
+        "pinned": "已置顶消息",
         "thread": "话题串",
         "reply_count_one": "1 条回复",
         "reply_count_many": "{count} 条回复",
@@ -182,6 +183,7 @@
       "hide": "隐藏置顶消息",
       "pin": "置顶消息",
       "unpin": "取消置顶",
+      "unpin_prompt": "确定要取消置顶这条消息吗？",
       "loading": "正在加载置顶消息...",
       "empty_title": "暂无置顶消息",
       "empty_description": "房间管理员可以在这里置顶重要消息。",

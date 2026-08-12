@@ -15,7 +15,8 @@ export function roomPinsSeenStorageKey(serverId: string, viewerId: string, roomI
 }
 
 export function clearRoomPinsSeenMarker(serverId: string, viewerId: string, roomId: string): void {
-  if (browser && viewerId) localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
+  if (browser && viewerId)
+    localStorage.removeItem(roomPinsSeenStorageKey(serverId, viewerId, roomId));
 }
 
 export class RoomPinsStore {
@@ -40,7 +41,12 @@ export class RoomPinsStore {
   private latestKnownMarker = $state('');
   private lastSeenMarker = $state('');
 
-  constructor(serverConnection: ServerConnection, serverId: string, viewerId: string, roomId: string) {
+  constructor(
+    serverConnection: ServerConnection,
+    serverId: string,
+    viewerId: string,
+    roomId: string
+  ) {
     this.roomId = roomId;
     this.serverId = serverId;
     this.viewerId = viewerId;
@@ -50,7 +56,11 @@ export class RoomPinsStore {
   }
 
   get hasUnseen(): boolean {
-    return this.latestKnownMarker !== '' && this.latestKnownMarker !== this.lastSeenMarker;
+    return (
+      this.totalCount > 0 &&
+      this.latestKnownMarker !== '' &&
+      this.latestKnownMarker !== this.lastSeenMarker
+    );
   }
 
   isPinned(messageEventId: string, hydratedStatus = false): boolean {

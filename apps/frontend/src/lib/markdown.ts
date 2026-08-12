@@ -379,6 +379,14 @@ function renderChatLineBreak(tokens: Token[], idx: number): string {
   return lineAfterBreakIsWhitespaceOnly(tokens, idx) ? '' : '<br>\n';
 }
 
+function renderParagraphOpen(tokens: Token[], idx: number): string {
+  return tokens[idx].hidden ? '<span class="list-item-content">' : '<p>';
+}
+
+function renderParagraphClose(tokens: Token[], idx: number): string {
+  return tokens[idx].hidden ? '</span>\n' : '</p>\n';
+}
+
 function normalizeInlineNonBreakingSpaces(state: StateCore): void {
   for (let i = 0; i < state.tokens.length; i++) {
     const token = state.tokens[i];
@@ -451,6 +459,11 @@ function initialize(): void {
   md.renderer.rules.hardbreak = renderChatLineBreak;
   md.renderer.rules.table_open = () => '<div class="table-scroll" tabindex="0"><table>\n';
   md.renderer.rules.table_close = () => '</table></div>\n';
+  // Markdown-it hides paragraph tags in tight lists. Keep their inline content
+  // grouped so ordered-list grid markers do not turn each inline element into
+  // a separate grid row.
+  md.renderer.rules.paragraph_open = renderParagraphOpen;
+  md.renderer.rules.paragraph_close = renderParagraphClose;
 
   // Customize link rendering for security
   const defaultLinkRender =
