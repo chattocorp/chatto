@@ -408,6 +408,41 @@ func TestOAuthAuthorize_RejectsBlockedClient(t *testing.T) {
 	}
 }
 
+func TestOAuthAuthorize_TrustedClientStillRequiresUserConsent(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	admin, err := s.core.CreateUser(ctx, core.SystemActorID, "trusted-client-admin", "Trusted Client Admin", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.AssignAdminRole(ctx, admin.Id); err != nil {
+		t.Fatal(err)
+	}
+	if err := s.core.ObserveOAuthClient(ctx, admin.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example", corev1.OAuthClientSource_OAUTH_CLIENT_SOURCE_CIMD); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := s.core.UpdateOAuthClientPolicy(ctx, admin.Id, testOAuthClientID, corev1.OAuthClientPolicy_OAUTH_CLIENT_POLICY_TRUSTED); err != nil {
+		t.Fatal(err)
+	}
+
+	cookies, _ := loginOAuthTestUser(t, s, "trusted-client-new-user")
+	req := httptest.NewRequest(http.MethodGet, "/oauth/authorize?"+url.Values{
+		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
+		"redirect_uri":          {"https://client.example/callback"},
+		"code_challenge":        {"challenge"},
+		"code_challenge_method": {"S256"},
+	}.Encode(), nil)
+	addCookies(req, cookies)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusTemporaryRedirect || w.Header().Get("Location") != "/oauth/consent" {
+		t.Fatalf("trusted-client authorize status/location = %d/%q, want consent: %s", w.Code, w.Header().Get("Location"), w.Body.String())
+	}
+}
+
 func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	s := setupOAuthServer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)

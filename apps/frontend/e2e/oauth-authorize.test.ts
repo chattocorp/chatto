@@ -1,9 +1,11 @@
+import { Code, ConnectError } from '@connectrpc/connect';
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
 	startSecondServer,
 	stopSecondServer,
-	createUserOnRemote
+	createUserOnRemote,
+	getViewerOnRemote
 } from './fixtures/multiServer';
 import type { ServerInfo } from './fixtures/server';
 import { TIMEOUTS } from './constants';
@@ -164,4 +166,115 @@ test.describe('OAuth Authorization Code + PKCE Flow', () => {
 		expect(errorData.error).toBe('invalid_grant');
 	});
 
+	test('remote admin can observe and block the client, revoking access and reconnects', async ({
+		page,
+		chatPage,
+		browser,
+		serverURL
+	}) => {
+		await createAndLoginTestUser(page);
+		await chatPage.goto();
+
+		const baseURL = remoteBaseURL(remoteServer);
+		await createUserOnRemote(baseURL, 'blockedremoteuser', 'password123');
+		const hostPort = remoteHostPort(remoteServer);
+
+		await page.getByTitle('Add Server').click();
+		await page.getByLabel('Server URL').fill(hostPort);
+		await page.getByRole('button', { name: 'Connect' }).click();
+		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		const popupPromise = page.waitForEvent('popup');
+		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		const remoteAuthPage = await popupPromise;
+		await expect(remoteAuthPage.locator('input[autocomplete="username"]')).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await remoteAuthPage.locator('input[autocomplete="username"]').fill('blockedremoteuser');
+		await remoteAuthPage.locator('input[autocomplete="current-password"]').fill('password123');
+		await remoteAuthPage.getByRole('button', { name: 'Sign In' }).click();
+		await expect(remoteAuthPage).toHaveURL(/\/oauth\/consent/, {
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		const popupClosed = remoteAuthPage.waitForEvent('close');
+		await remoteAuthPage.getByRole('button', { name: 'Allow Access' }).click();
+		await popupClosed;
+		await expect(page).toHaveURL(/\/chat\/127\.0\.0\.1(\/|$)/, {
+			timeout: TIMEOUTS.COMPLEX_OPERATION
+		});
+
+		const remoteToken = await page.evaluate(() => {
+			const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]') as Array<{
+				url: string;
+				token?: string;
+			}>;
+			return instances.find((instance) => instance.url.includes('127.0.0.1'))?.token ?? null;
+		});
+		expect(remoteToken).toBeTruthy();
+
+		const adminContext = await browser.newContext();
+		try {
+			const adminPage = await adminContext.newPage();
+			await adminPage.goto(`${baseURL}/login`);
+			await adminPage.locator('input[autocomplete="username"]').fill('e2eadmin');
+			await adminPage
+				.locator('input[autocomplete="current-password"]')
+				.fill('adminpassword123');
+			await adminPage.getByRole('button', { name: 'Sign In' }).click();
+			await expect(adminPage).toHaveURL(/\/chat(\/|$)/, {
+				timeout: TIMEOUTS.REALTIME_EVENT
+			});
+			await adminPage.goto(`${baseURL}/chat/-/manage/server/security`);
+
+			const clientID = `${new URL(serverURL).origin}/oauth/frontend-client-metadata.json`;
+			const clientRow = adminPage.getByRole('row').filter({ hasText: 'Chatto Web' });
+			await expect(clientRow).toContainText(clientID, { timeout: TIMEOUTS.COMPLEX_OPERATION });
+			await expect(clientRow.getByRole('cell', { name: '1', exact: true })).toBeVisible();
+
+			const policy = clientRow.getByRole('combobox', { name: 'Policy for Chatto Web' });
+			const updateResponse = adminPage.waitForResponse(
+				(response) =>
+					response.url().includes('AdminOAuthClientService/UpdateOAuthClientPolicy') &&
+					response.request().method() === 'POST'
+			);
+			await policy.selectOption('blocked');
+			expect((await updateResponse).ok()).toBeTruthy();
+			await expect(policy).toHaveValue('blocked');
+		} finally {
+			await adminContext.close();
+		}
+
+		try {
+			await getViewerOnRemote(baseURL, remoteToken!);
+			throw new Error('blocked OAuth access token remained valid');
+		} catch (error) {
+			expect(ConnectError.from(error).code).toBe(Code.Unauthenticated);
+		}
+
+		await page.evaluate(() => {
+			const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]') as Array<{
+				url: string;
+			}>;
+			localStorage.setItem(
+				'chatto:instances',
+				JSON.stringify(instances.filter((instance) => !instance.url.includes('127.0.0.1')))
+			);
+		});
+		await page.goto('/chat/-');
+		await page.getByTitle('Add Server').click();
+		await page.getByLabel('Server URL').fill(hostPort);
+		await page.getByRole('button', { name: 'Connect' }).click();
+		await expect(page.getByRole('button', { name: 'Sign in', exact: true })).toBeVisible({
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		const blockedPopupPromise = page.waitForEvent('popup');
+		await page.getByRole('button', { name: 'Sign in', exact: true }).click();
+		const blockedPopup = await blockedPopupPromise;
+		await expect(blockedPopup.locator('body')).toContainText('invalid_client', {
+			timeout: TIMEOUTS.REALTIME_EVENT
+		});
+		await expect(blockedPopup.locator('body')).toContainText('blocked by this server');
+		await blockedPopup.close();
+	});
 });

@@ -424,6 +424,15 @@ export async function loginAdminOnRemote(
 }
 
 /**
+ * Resolves the current viewer with a remote bearer token. Tests use this to
+ * prove whether a client-bound token remains valid after administrative policy
+ * changes.
+ */
+export async function getViewerOnRemote(remoteBaseURL: string, token: string) {
+  return viewerClient(remoteBaseURL).getViewer({}, { headers: authHeaders(token) });
+}
+
+/**
  * Updates the MOTD on a remote server via the admin ConnectRPC.
  * The token must belong to a user with admin/owner permission.
  */
