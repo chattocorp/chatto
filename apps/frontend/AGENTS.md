@@ -29,6 +29,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
+- Reusable leaf render components, especially timeline rows, must not acquire
+  app-shell UI context solely to navigate or open sidebars. Accept callback
+  props from the owning route or room component so app-shell responsibilities
+  stay with the owner and the leaf remains independently mountable in tests and
+  stories.
 - Prefer SvelteKit and Vite's automatic route and dynamic-import chunking.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
