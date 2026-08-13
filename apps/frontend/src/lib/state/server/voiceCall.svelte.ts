@@ -697,11 +697,7 @@ export class VoiceCallState {
     sourceName: string
   ): Promise<void> {
     if (this.gameCaptureSession) await this.performStopGameCapture(room);
-    if (this.isScreenShareEnabled) {
-      await room.localParticipant.setScreenShareEnabled(false);
-      if (this.room !== room) return;
-      this.isScreenShareEnabled = false;
-    }
+    const replacingBrowserScreenShare = this.isScreenShareEnabled;
 
     const livekitUrl = this.liveKitURL;
     const roomId = this.roomId;
@@ -717,8 +713,22 @@ export class VoiceCallState {
       e2eeKey: credential.e2eeKey
     });
     if (this.room !== room) {
-      session.stop();
+      await session.stop().catch(() => undefined);
       return;
+    }
+
+    if (replacingBrowserScreenShare) {
+      try {
+        await room.localParticipant.setScreenShareEnabled(false);
+      } catch (error) {
+        await session.stop().catch(() => undefined);
+        throw error;
+      }
+      if (this.room !== room) {
+        await session.stop().catch(() => undefined);
+        return;
+      }
+      this.isScreenShareEnabled = false;
     }
 
     this.gameCaptureSession = session;

@@ -8,7 +8,20 @@ import {
   parseGameCapturePublisherStatus,
   parseMacOSGameCaptureSourceId,
   parseMacOSGameCaptureSources,
+  supportsMacOSGameCapture,
 } from "./game_capture.mjs";
+
+test("advertises native game capture only on supported macOS versions", () => {
+  assert.equal(supportsMacOSGameCapture("12.7.6"), false);
+  assert.equal(supportsMacOSGameCapture("14.7.6"), false);
+  assert.equal(supportsMacOSGameCapture("15"), true);
+  assert.equal(supportsMacOSGameCapture("15.0"), true);
+  assert.equal(supportsMacOSGameCapture("16.1.2"), true);
+  assert.equal(supportsMacOSGameCapture("Version 15.0"), false);
+  assert.equal(supportsMacOSGameCapture("15.0-beta"), false);
+  assert.equal(supportsMacOSGameCapture(""), false);
+  assert.equal(supportsMacOSGameCapture(undefined), false);
+});
 
 test("maps macOS windows to opaque renderer capture sources", () => {
   assert.deepEqual(

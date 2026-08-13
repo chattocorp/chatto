@@ -5,6 +5,20 @@ export const gameCaptureListSourcesChannel = "chatto:game-capture:list-sources";
 export const gameCaptureStartChannel = "chatto:game-capture:start";
 export const gameCapturePublisherChannel = "chatto:game-capture:publisher";
 
+const minimumMacOSGameCaptureMajorVersion = 15;
+
+/** Whether the host macOS version can launch the bundled capture helper. */
+export function supportsMacOSGameCapture(systemVersion) {
+  if (typeof systemVersion !== "string") return false;
+  const match = /^([0-9]+)(?:\.[0-9]+){0,2}$/.exec(systemVersion);
+  if (!match) return false;
+  const majorVersion = Number(match[1]);
+  return (
+    Number.isSafeInteger(majorVersion) &&
+    majorVersion >= minimumMacOSGameCaptureMajorVersion
+  );
+}
+
 /**
  * Convert the macOS helper response into the platform-neutral source contract
  * exposed to the bundled frontend. Source IDs are temporary and opaque to the

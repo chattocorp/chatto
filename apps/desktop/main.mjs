@@ -27,6 +27,7 @@ import {
   parseGameCapturePublisherStatus,
   parseMacOSGameCaptureSourceId,
   parseMacOSGameCaptureSources,
+  supportsMacOSGameCapture,
 } from "./game_capture.mjs";
 import { hasAppOrigin, isDesktopPermissionAllowed } from "./security.mjs";
 
@@ -522,6 +523,7 @@ function isGameCaptureAvailable() {
   return (
     process.platform === "darwin" &&
     app.isPackaged &&
+    supportsMacOSGameCapture(process.getSystemVersion()) &&
     existsSync(macOSCaptureHelperExecutable())
   );
 }
