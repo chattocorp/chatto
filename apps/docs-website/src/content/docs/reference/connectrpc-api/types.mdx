@@ -1182,7 +1182,7 @@ One durable EVT entry decoded for operator inspection.
 | `event_id` | `string` | Durable event ID. |
 | `actor_id` | `string` | Actor user ID stored on the event. |
 | `created_at` | `google.protobuf.Timestamp` | Event creation timestamp. |
-| `payload_json` | `string` | Pretty-printed JSON representation of the event payload. |
+| `payload_json` | `string` | Pretty-printed, sanitized JSON representation of the event payload. Password verifiers are omitted. |
 
 <a id="chatto-admin-v1-AdminEventLogFilter"></a>
 

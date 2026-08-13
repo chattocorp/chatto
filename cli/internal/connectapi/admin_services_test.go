@@ -1362,6 +1362,37 @@ func TestAdminEventLogServiceListsFiltersAndReadsEntries(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser actor: %v", err)
 	}
+
+	passwordEvents, err := env.adminEventLog.ListEvents(ctx, connect.NewRequest(&adminv1.ListEventsRequest{
+		Limit: 10,
+		Filter: &adminv1.AdminEventLogFilter{
+			EventType: "UserPasswordHashChangedEvent",
+		},
+	}))
+	if err != nil {
+		t.Fatalf("ListEvents password changes: %v", err)
+	}
+	var passwordEntry *adminv1.AdminEventLogEntry
+	for _, candidate := range passwordEvents.Msg.GetEntries() {
+		if strings.Contains(candidate.GetPayloadJson(), actor.Id) {
+			passwordEntry = candidate
+			break
+		}
+	}
+	if passwordEntry == nil {
+		t.Fatalf("password-change event for user %q not found: %+v", actor.Id, passwordEvents.Msg.GetEntries())
+	}
+	if strings.Contains(passwordEntry.GetPayloadJson(), "passwordHash") {
+		t.Fatalf("ListEvents exposed passwordHash: %s", passwordEntry.GetPayloadJson())
+	}
+	passwordDetail, err := env.adminEventLog.GetEvent(ctx, connect.NewRequest(&adminv1.GetEventRequest{Sequence: passwordEntry.GetSequence()}))
+	if err != nil {
+		t.Fatalf("GetEvent password change: %v", err)
+	}
+	if strings.Contains(passwordDetail.Msg.GetEntry().GetPayloadJson(), "passwordHash") {
+		t.Fatalf("GetEvent exposed passwordHash: %s", passwordDetail.Msg.GetEntry().GetPayloadJson())
+	}
+
 	if _, err := env.core.JoinRoom(env.ctx, actor.Id, core.KindChannel, actor.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom actor: %v", err)
 	}
