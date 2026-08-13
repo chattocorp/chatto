@@ -53,6 +53,13 @@
     "screen_share_failed": "לא ניתן היה להתחיל בשיתוף מסך.",
     "speaker_switch_failed": "לא הצליח להחליף רמקולים. ייתכן שהדפדפן או המכשיר הזה לא יתמכו בבחירת רמקולים.",
     "device_switch_failed": "לא ניתן היה לעבור למכשיר זה.",
-    "media_device_failed": "לא ניתן לגשת להתקן מדיה."
+    "media_device_failed": "לא ניתן לגשת להתקן מדיה.",
+    "stream_game": "הזרמת משחק",
+    "stream_game_description": "בחר את חלון המשחק לשיתוף עם כל המשתתפים בשיחה.",
+    "game_windows": "חלונות משחק",
+    "no_game_windows": "לא נמצאו חלונות שניתן לשתף. פתח משחק במצב חלון או ללא שוליים ונסה שוב.",
+    "game_windows_failed": "לא ניתן לטעון חלונות שניתן לשתף.",
+    "untitled_window": "חלון ללא כותרת",
+    "game_window_selected": "{name} נבחר"
   }
 }

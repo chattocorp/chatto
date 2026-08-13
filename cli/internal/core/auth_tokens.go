@@ -52,6 +52,7 @@ const (
 // service API.
 type AuthTokenData struct {
 	UserID          string                       `json:"user_id"`
+	ClientID        string                       `json:"client_id,omitempty"`
 	Kind            AuthTokenKind                `json:"kind,omitempty"`
 	Presentation    AuthTokenPresentation        `json:"presentation,omitempty"`
 	Source          string                       `json:"source,omitempty"`
@@ -68,6 +69,7 @@ type AuthTokenData struct {
 type ValidatedRuntimeCredential struct {
 	Handle          string
 	UserID          string
+	ClientID        string
 	Kind            AuthTokenKind
 	Presentation    AuthTokenPresentation
 	Source          string
@@ -104,6 +106,7 @@ func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) 
 	return ValidatedRuntimeCredential{
 		Handle:          handle,
 		UserID:          data.UserID,
+		ClientID:        data.ClientID,
 		Kind:            data.kindOrDefault(),
 		Presentation:    data.presentationOrDefault(),
 		Source:          data.Source,
@@ -172,6 +175,15 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
+	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken {
+		if err := c.RequireOAuthClientAllowed(ctx, tokenData.ClientID); err != nil {
+			if !errors.Is(err, ErrOAuthClientBlocked) {
+				return ValidatedRuntimeCredential{}, err
+			}
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+	}
 
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,
@@ -218,6 +230,30 @@ func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, sour
 // CreateAuthTokenWithSourceGeneration creates a bearer token for an
 // authentication that proved credentials against authGeneration.
 func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, error) {
+	return c.createAuthTokenWithSourceGeneration(ctx, userID, "", source, authGeneration)
+}
+
+// CreateOAuthAccessTokenForClient creates a bearer token bound to the public
+// OAuth client that completed the authorization-code flow.
+func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID, clientID string, authGeneration uint64) (string, error) {
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
+		return "", err
+	}
+	token, err := c.createAuthTokenWithSourceGeneration(ctx, userID, clientID, "oauth_code_exchange", authGeneration)
+	if err != nil {
+		return "", err
+	}
+	// Close the race with a concurrent policy change. If the block committed
+	// before token creation, this check removes the token; if it commits after,
+	// the blocking operation's global cleanup sees the already-created token.
+	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
+		_ = c.RevokeAuthTokenWithReason(ctx, token, "oauth_client_blocked_during_issuance")
+		return "", err
+	}
+	return token, nil
+}
+
+func (c *ChattoCore) createAuthTokenWithSourceGeneration(ctx context.Context, userID, clientID, source string, authGeneration uint64) (string, error) {
 	if userID == "" {
 		return "", ErrAuthTokenNotFound
 	}
@@ -233,6 +269,7 @@ func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, us
 	key := c.authTokenKey(token)
 	tokenData := AuthTokenData{
 		UserID:         userID,
+		ClientID:       clientID,
 		Kind:           authTokenKindForSource(source),
 		Presentation:   AuthTokenPresentationBearer,
 		Source:         source,
@@ -388,6 +425,56 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 				continue
 			}
 			return revoked, fmt.Errorf("failed to revoke auth token: %w", err)
+		}
+		revoked++
+	}
+	return revoked, nil
+}
+
+// RevokeOAuthClientTokens removes all bearer credentials issued to a public
+// OAuth client. Policy enforcement remains authoritative even if this
+// defense-in-depth cleanup is interrupted.
+func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID string) (int, error) {
+	if clientID == "" {
+		return 0, nil
+	}
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, authTokenKeyPrefix+"*")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to list OAuth client tokens: %w", err)
+	}
+	var keys []string
+	for key := range lister.Keys() {
+		keys = append(keys, key)
+	}
+	revoked := 0
+	for _, key := range keys {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return revoked, fmt.Errorf("failed to get OAuth client token: %w", err)
+		}
+		var tokenData AuthTokenData
+		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+			continue
+		}
+		if tokenData.kindOrDefault() != AuthTokenKindOAuthAccessToken || tokenData.presentationOrDefault() != AuthTokenPresentationBearer || tokenData.ClientID != clientID {
+			continue
+		}
+		if tokenData.UserID != "" {
+			if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, "oauth_client_blocked"); err != nil {
+				return revoked, err
+			}
+		}
+		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) {
+				continue
+			}
+			return revoked, fmt.Errorf("failed to revoke OAuth client token: %w", err)
 		}
 		revoked++
 	}

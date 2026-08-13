@@ -45,10 +45,11 @@ const (
 )
 
 type liveKitParticipantSnapshot struct {
-	LegacySpaceID string
-	RoomID        string
-	CallID        string
-	UserIDs       []string
+	LegacySpaceID         string
+	RoomID                string
+	CallID                string
+	UserIDs               []string
+	ParticipantIdentities []string
 }
 
 type liveKitParticipantLister interface {
@@ -275,13 +276,26 @@ func (c *liveKitRoomClient) ListCallParticipants(ctx context.Context) ([]liveKit
 			return nil, err
 		}
 		userIDs := make([]string, 0, len(participantsResp.GetParticipants()))
+		participantIdentities := make([]string, 0, len(participantsResp.GetParticipants()))
 		for _, participant := range participantsResp.GetParticipants() {
-			if participant.GetIdentity() != "" {
-				userIDs = append(userIDs, participant.GetIdentity())
+			identity := participant.GetIdentity()
+			if identity == "" {
+				continue
+			}
+			participantIdentities = append(participantIdentities, identity)
+			if !IsCallMediaPublisher(participant.GetMetadata()) {
+				userIDs = append(userIDs, identity)
 			}
 		}
 		sort.Strings(userIDs)
-		out = append(out, liveKitParticipantSnapshot{LegacySpaceID: legacySpaceID, RoomID: roomID, CallID: callID, UserIDs: userIDs})
+		sort.Strings(participantIdentities)
+		out = append(out, liveKitParticipantSnapshot{
+			LegacySpaceID:         legacySpaceID,
+			RoomID:                roomID,
+			CallID:                callID,
+			UserIDs:               userIDs,
+			ParticipantIdentities: participantIdentities,
+		})
 	}
 	return out, nil
 }
@@ -339,25 +353,51 @@ type CallAccessMaterial struct {
 }
 
 func (s *CallModel) GetAccessMaterial(ctx context.Context, roomID string) (CallAccessMaterial, error) {
+	return s.getAccessMaterial(ctx, roomID, "")
+}
+
+// GetParticipantAccessMaterial resolves access for the active call only when
+// userID participates in that same generation before and after the key read.
+func (s *CallModel) GetParticipantAccessMaterial(ctx context.Context, roomID, userID string) (CallAccessMaterial, error) {
+	return s.getAccessMaterial(ctx, roomID, userID)
+}
+
+func (s *CallModel) getAccessMaterial(ctx context.Context, roomID, requiredParticipantID string) (CallAccessMaterial, error) {
 	if s.callKeys == nil {
 		return CallAccessMaterial{}, fmt.Errorf("call key store is not initialized")
 	}
-	call, ok := s.callState.Projection().ActiveCall(roomID)
-	if !ok || call.CallID == "" || call.E2EEKeyRef == "" {
+	snapshot := s.callState.Projection().RoomSnapshot(roomID)
+	call := snapshot.Call
+	if call.CallID == "" || call.E2EEKeyRef == "" {
 		return CallAccessMaterial{}, fmt.Errorf("no active voice call for room %s: %w", roomID, ErrNotFound)
+	}
+	if requiredParticipantID != "" && !callSnapshotHasParticipant(snapshot, requiredParticipantID) {
+		return CallAccessMaterial{}, fmt.Errorf("user does not participate in active voice call for room %s: %w", roomID, ErrCallParticipationRequired)
 	}
 	key, err := s.callKeys.GetCallKey(ctx, call.E2EEKeyRef)
 	if err != nil {
 		return CallAccessMaterial{}, fmt.Errorf("read call E2EE key: %w", err)
 	}
-	current, ok := s.callState.Projection().ActiveCall(roomID)
-	if !ok || current.CallID != call.CallID || current.E2EEKeyRef != call.E2EEKeyRef {
+	current := s.callState.Projection().RoomSnapshot(roomID)
+	if current.Call.CallID != call.CallID || current.Call.E2EEKeyRef != call.E2EEKeyRef {
 		return CallAccessMaterial{}, fmt.Errorf("active voice call changed while resolving access for room %s: %w", roomID, ErrNotFound)
+	}
+	if requiredParticipantID != "" && !callSnapshotHasParticipant(current, requiredParticipantID) {
+		return CallAccessMaterial{}, fmt.Errorf("user left active voice call while resolving access for room %s: %w", roomID, ErrCallParticipationRequired)
 	}
 	return CallAccessMaterial{
 		CallID:  call.CallID,
 		E2EEKey: key,
 	}, nil
+}
+
+func callSnapshotHasParticipant(snapshot CallRoomSnapshot, userID string) bool {
+	for _, participant := range snapshot.Participants {
+		if participant.UserID == userID && participant.CallID == snapshot.Call.CallID {
+			return true
+		}
+	}
+	return false
 }
 
 func (s *CallModel) GetE2EEKey(ctx context.Context, roomID string) (string, error) {
@@ -779,11 +819,15 @@ func (s *CallModel) cleanupUnmatchedLiveKitSnapshot(ctx context.Context, snapsho
 		return err
 	}
 	keyRef := kms.CallKeyRef(snapshot.CallID)
-	for _, userID := range snapshot.UserIDs {
-		if userID == "" {
+	identities := snapshot.ParticipantIdentities
+	if identities == nil {
+		identities = snapshot.UserIDs
+	}
+	for _, identity := range identities {
+		if identity == "" {
 			continue
 		}
-		if err := remover.RemoveCallParticipant(ctx, snapshot.LegacySpaceID, snapshot.RoomID, snapshot.CallID, userID); err != nil {
+		if err := remover.RemoveCallParticipant(ctx, snapshot.LegacySpaceID, snapshot.RoomID, snapshot.CallID, identity); err != nil {
 			return fmt.Errorf("remove participant from unmatched LiveKit call: %w", err)
 		}
 	}

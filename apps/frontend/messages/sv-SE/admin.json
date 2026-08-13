@@ -239,7 +239,22 @@
       "subtitle": "Registreringsbegränsningar och kontoskydd",
       "blocked_usernames": "Blockerade användarnamn",
       "blocked_usernames_description": "En per rad. Användare kan inte registrera sig med dessa namn.",
-      "settings_saved": "Inställningar sparade"
+      "settings_saved": "Inställningar sparade",
+      "oauth_clients": {
+        "title": "OAuth-klienter",
+        "description": "Appar visas här efter att en medlem har godkänt dem. Tillit är endast en administrativ etikett och hoppar aldrig över individuellt samtycke; blockering förhindrar ny åtkomst och återkallar befintliga åtkomsttoken.",
+        "empty": "Inga OAuth-klienter har godkänts",
+        "application": "App",
+        "origins": "Callback-ursprung",
+        "users": "Auktoriserade användare",
+        "last_authorization": "Senaste auktorisering",
+        "policy": "Policy",
+        "policy_for": "Policy för {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Betrodd",
+        "policy_blocked": "Blockerad",
+        "policy_saved": "OAuth-klientens policy har sparats"
+      }
     },
     "system": {
       "title": "System",

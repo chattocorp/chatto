@@ -1,4 +1,4 @@
-# ADR-072: Present Notifications as One Persistent Occurrence List
+# ADR-073: Present Notifications as One Persistent Occurrence List
 
 **Date:** 2026-08-10
 

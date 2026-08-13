@@ -25,11 +25,14 @@ const (
 
 // RuntimeCredential identifies the concrete runtime credential that
 // authenticated a request. Handle is the opaque credential value as presented
-// through the transport identified by Kind.
+// through the transport identified by Kind. OAuthClientID is present only for
+// OAuth access tokens and lets long-lived transports enforce client policy
+// after their initial authentication.
 type RuntimeCredential struct {
-	Kind   RuntimeCredentialKind
-	UserID string
-	Handle string
+	Kind          RuntimeCredentialKind
+	UserID        string
+	Handle        string
+	OAuthClientID string
 }
 
 // ForContext extracts the authenticated user from the request context.

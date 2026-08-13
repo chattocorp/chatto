@@ -1,6 +1,8 @@
 package evtstream
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"strings"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -31,6 +33,7 @@ const (
 	AggregateAuthorization = "authorization"
 	AggregateAuth          = "auth"
 	AggregateInvitation    = "invitation"
+	AggregateOAuthClient   = "oauth_client"
 )
 
 // ConfigSingletonID is the sentinel aggregate ID for server-wide config
@@ -198,6 +201,8 @@ const (
 	EventBearerTokenRevoked                 = "bearer_token_revoked"
 	EventOAuthConsentGranted                = "oauth_consent_granted"
 	EventOAuthConsentDenied                 = "oauth_consent_denied"
+	EventOAuthClientAuthorizationRecorded   = "authorization_recorded"
+	EventOAuthClientPolicyChanged           = "policy_changed"
 
 	// Invite links
 	EventInvitationCreated  = "created"
@@ -439,6 +444,10 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventOAuthConsentGranted
 	case *corev1.Event_OauthConsentDenied:
 		return EventOAuthConsentDenied
+	case *corev1.Event_OauthClientAuthorizationRecorded:
+		return EventOAuthClientAuthorizationRecorded
+	case *corev1.Event_OauthClientPolicyChanged:
+		return EventOAuthClientPolicyChanged
 	case *corev1.Event_InvitationCreated:
 		return EventInvitationCreated
 	case *corev1.Event_InvitationRedeemed:
@@ -572,6 +581,14 @@ func InvitationAggregate(invitationID string) Aggregate {
 	return Aggregate{Type: AggregateInvitation, ID: invitationID}
 }
 
+// OAuthClientAggregate owns the durable authorization and policy history for a
+// public client. Hashing keeps URL-shaped client identifiers out of NATS
+// subject tokens while the event payload retains the exact public identifier.
+func OAuthClientAggregate(clientID string) Aggregate {
+	digest := sha256.Sum256([]byte(clientID))
+	return Aggregate{Type: AggregateOAuthClient, ID: hex.EncodeToString(digest[:])}
+}
+
 // EventSubjectFilter returns the wildcard filter matching every event in the
 // EVT stream. Use sparingly: most invariants should OCC against a narrower
 // aggregate namespace, but cross-aggregate invariants may need the stream-wide
@@ -628,6 +645,9 @@ func AuthSubjectFilter() string { return SubjectRoot + AggregateAuth + ".>" }
 
 // InvitationSubjectFilter matches every server invitation aggregate.
 func InvitationSubjectFilter() string { return SubjectRoot + AggregateInvitation + ".>" }
+
+// OAuthClientSubjectFilter matches every recorded OAuth client aggregate.
+func OAuthClientSubjectFilter() string { return SubjectRoot + AggregateOAuthClient + ".>" }
 
 // AggregateEventTypeFilter returns a cross-aggregate, event-type-narrow
 // filter — every event of the given type across every aggregate instance.

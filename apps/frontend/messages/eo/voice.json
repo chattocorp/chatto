@@ -53,6 +53,13 @@
     "screen_share_failed": "Ne eblis komenci ekrankundividon.",
     "speaker_switch_failed": "Ne eblis ŝanĝi laŭtparolilojn. Ĉi tiu retumilo aŭ aparato eble ne subtenas elektadon de laŭtparoliloj.",
     "device_switch_failed": "Ne eblis ŝanĝi al tiu aparato.",
-    "media_device_failed": "Ne eblis aliri amaskomunikilaron."
+    "media_device_failed": "Ne eblis aliri amaskomunikilaron.",
+    "stream_game": "Fluigi ludon",
+    "stream_game_description": "Elektu la ludfenestron por kundividi kun ĉiuj en la alvoko.",
+    "game_windows": "Ludfenestroj",
+    "no_game_windows": "Neniuj kundivideblaj fenestroj troviĝis. Malfermu ludon en fenestra aŭ senranda reĝimo kaj reprovu.",
+    "game_windows_failed": "Ne eblis ŝargi kundivideblajn fenestrojn.",
+    "untitled_window": "Sentitola fenestro",
+    "game_window_selected": "{name} elektita"
   }
 }

@@ -831,6 +831,110 @@ Result of deleting a user account.
 | `deleted` | `bool` | True when the user was deleted. |
 
 
+<a id="chatto-admin-v1-AdminOAuthClientService"></a>
+
+## AdminOAuthClientService
+
+Manages OAuth clients authorized through this server. Requires server.manage.
+
+<a id="chatto-admin-v1-AdminOAuthClientService-ListOAuthClients"></a>
+
+### ListOAuthClients
+
+Lists clients that completed at least one authorization. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/ListOAuthClients
+```
+
+<a id="chatto-admin-v1-ListOAuthClientsRequest"></a>
+
+#### Input: ListOAuthClientsRequest
+
+Lists OAuth clients with recorded authorizations using offset pagination.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | `chatto.api.v1.PageRequest` | Requested offset and page size. |
+
+
+<a id="chatto-admin-v1-ListOAuthClientsResponse"></a>
+
+#### Result: ListOAuthClientsResponse
+
+One page of OAuth clients in stable first-authorization order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_clients` | repeated [`OAuthClient`](#chatto-admin-v1-OAuthClient) | Clients visible to the caller in this page. |
+| `page` | `chatto.api.v1.PageInfo` | Total count and whether another page is available. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-GetOAuthClient"></a>
+
+### GetOAuthClient
+
+Gets one recorded client or returns NOT_FOUND. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/GetOAuthClient
+```
+
+<a id="chatto-admin-v1-GetOAuthClientRequest"></a>
+
+#### Input: GetOAuthClientRequest
+
+Identifies one OAuth client by its exact stable client ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+
+
+<a id="chatto-admin-v1-GetOAuthClientResponse"></a>
+
+#### Result: GetOAuthClientResponse
+
+Returns one OAuth client with a recorded authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](#chatto-admin-v1-OAuthClient) | The requested client. |
+
+
+<a id="chatto-admin-v1-AdminOAuthClientService-UpdateOAuthClientPolicy"></a>
+
+### UpdateOAuthClientPolicy
+
+Replaces a client's policy and revokes tokens when blocked. Requires server.manage.
+
+```http
+POST /api/connect/chatto.admin.v1.AdminOAuthClientService/UpdateOAuthClientPolicy
+```
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyRequest"></a>
+
+#### Input: UpdateOAuthClientPolicyRequest
+
+Replaces the administrative policy for one OAuth client.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Exact CIMD URL or built-in application URI. |
+| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | New complete policy value. Default removes any trusted or blocked label. |
+
+
+<a id="chatto-admin-v1-UpdateOAuthClientPolicyResponse"></a>
+
+#### Result: UpdateOAuthClientPolicyResponse
+
+Returns the OAuth client with its updated policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `oauth_client` | [`OAuthClient`](#chatto-admin-v1-OAuthClient) | The updated client. |
+
+
 <a id="chatto-admin-v1-AdminPermissionService"></a>
 
 ## AdminPermissionService
@@ -2109,6 +2213,26 @@ admin/member metadata with visibility controlled by the service.
 
 
 
+<a id="chatto-admin-v1-OAuthClient"></a>
+
+### OAuthClient
+
+An OAuth client that completed at least one successful user authorization.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `client_id` | `string` | Stable client identifier: a CIMD URL or built-in application URI. |
+| `client_name` | `string` | Display name from validated client metadata. |
+| `client_origin` | `string` | Privacy-safe canonical origin derived from validated client metadata. |
+| `source` | [`OAuthClientSource`](#chatto-admin-v1-OAuthClientSource) | How the client identity was established. |
+| `policy` | [`OAuthClientPolicy`](#chatto-admin-v1-OAuthClientPolicy) | Current server-administrator policy for the client. |
+| `first_authorization_at` | `google.protobuf.Timestamp` | When this server first completed an authorization for the client. |
+| `last_authorization_at` | `google.protobuf.Timestamp` | When this server most recently completed an authorization for the client. |
+| `redirect_origins` | `repeated string` | Canonical web origins or native callback schemes seen during authorization. |
+| `authorized_user_count` | `uint32` | Number of distinct users who have authorized this client. |
+
+
+
 <a id="chatto-admin-v1-PermissionDecisionUpdate"></a>
 
 ### PermissionDecisionUpdate
@@ -2393,6 +2517,34 @@ Current lifecycle state of an invite link.
 | `INVITE_LINK_STATUS_EXPIRED` | `2` | No value description provided. |
 | `INVITE_LINK_STATUS_EXHAUSTED` | `3` | No value description provided. |
 | `INVITE_LINK_STATUS_REVOKED` | `4` | No value description provided. |
+
+
+<a id="chatto-admin-v1-OAuthClientPolicy"></a>
+
+### OAuthClientPolicy
+
+Administrator policy for a public OAuth client. Trusted is an informational
+blessing and never bypasses individual user consent.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_POLICY_UNSPECIFIED` | `0` | No valid policy was supplied. |
+| `OAUTH_CLIENT_POLICY_DEFAULT` | `1` | The client follows the normal open-client authorization policy. |
+| `OAUTH_CLIENT_POLICY_TRUSTED` | `2` | Administrators have labelled the client as trusted without changing consent. |
+| `OAUTH_CLIENT_POLICY_BLOCKED` | `3` | The client cannot authorize or use its existing OAuth access tokens. |
+
+
+<a id="chatto-admin-v1-OAuthClientSource"></a>
+
+### OAuthClientSource
+
+How a public OAuth client establishes its identity with this server.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `OAUTH_CLIENT_SOURCE_UNSPECIFIED` | `0` | The server does not recognize the source value. |
+| `OAUTH_CLIENT_SOURCE_CIMD` | `1` | The client identifies itself with an HTTPS Client ID Metadata Document. |
+| `OAUTH_CLIENT_SOURCE_BUILT_IN` | `2` | The client uses a registration built into this Chatto release. |
 
 
 <a id="chatto-admin-v1-PermissionDecision"></a>

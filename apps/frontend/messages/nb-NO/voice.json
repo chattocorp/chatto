@@ -53,6 +53,13 @@
     "screen_share_failed": "Kunne ikke starte skjermdeling.",
     "speaker_switch_failed": "Kunne ikke bytte høyttalere. Denne nettleseren eller enheten støtter kanskje ikke høyttalervalg.",
     "device_switch_failed": "Kunne ikke bytte til den enheten.",
-    "media_device_failed": "Kunne ikke få tilgang til en medieenhet."
+    "media_device_failed": "Kunne ikke få tilgang til en medieenhet.",
+    "stream_game": "Strøm et spill",
+    "stream_game_description": "Velg spillvinduet du vil dele med alle i samtalen.",
+    "game_windows": "Spillvinduer",
+    "no_game_windows": "Fant ingen vinduer som kan deles. Åpne et spill i vindus- eller kantløs modus og prøv igjen.",
+    "game_windows_failed": "Kunne ikke laste vinduer som kan deles.",
+    "untitled_window": "Vindu uten tittel",
+    "game_window_selected": "{name} er valgt"
   }
 }

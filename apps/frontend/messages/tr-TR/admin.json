@@ -239,7 +239,22 @@
       "subtitle": "Kayıt kısıtlamaları ve hesap koruması",
       "blocked_usernames": "Engellenen Kullanıcı Adları",
       "blocked_usernames_description": "Her satıra bir tane. Kullanıcılar bu isimlerle kayıt olamazlar.",
-      "settings_saved": "Ayarlar kaydedildi"
+      "settings_saved": "Ayarlar kaydedildi",
+      "oauth_clients": {
+        "title": "OAuth istemcileri",
+        "description": "Uygulamalar bir üye tarafından yetkilendirildikten sonra burada görünür. Güven yalnızca bir yönetici etiketidir ve bireysel onayı asla atlamaz; engelleme yeni erişimi önler ve mevcut erişim belirteçlerini iptal eder.",
+        "empty": "Hiçbir OAuth istemcisi yetkilendirilmedi",
+        "application": "Uygulama",
+        "origins": "Geri çağırma kaynakları",
+        "users": "Yetkili kullanıcılar",
+        "last_authorization": "Son yetkilendirme",
+        "policy": "İlke",
+        "policy_for": "{client} için ilke",
+        "policy_default": "Varsayılan",
+        "policy_trusted": "Güvenilir",
+        "policy_blocked": "Engellendi",
+        "policy_saved": "OAuth istemci ilkesi kaydedildi"
+      }
     },
     "system": {
       "title": "Sistem",

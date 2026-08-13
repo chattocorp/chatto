@@ -239,7 +239,22 @@
       "subtitle": "Registreerumispiirangud ja konto kaitse",
       "blocked_usernames": "Blokeeritud kasutajanimed",
       "blocked_usernames_description": "Üks rea kohta. Kasutajad ei saa nende nimedega registreeruda.",
-      "settings_saved": "Seaded salvestatud"
+      "settings_saved": "Seaded salvestatud",
+      "oauth_clients": {
+        "title": "OAuthi kliendid",
+        "description": "Rakendused ilmuvad siia pärast seda, kui liige on need volitanud. Usaldus on ainult haldusmärgis ega jäta kunagi individuaalset nõusolekut vahele; blokeerimine takistab uut juurdepääsu ja tühistab olemasolevad pääsutõendid.",
+        "empty": "Ühtegi OAuthi klienti pole volitatud",
+        "application": "Rakendus",
+        "origins": "Tagasikutse lähtekohad",
+        "users": "Volitatud kasutajad",
+        "last_authorization": "Viimane autoriseerimine",
+        "policy": "Reegel",
+        "policy_for": "Reegel kliendile {client}",
+        "policy_default": "Vaikimisi",
+        "policy_trusted": "Usaldatud",
+        "policy_blocked": "Blokeeritud",
+        "policy_saved": "OAuthi kliendi reegel salvestatud"
+      }
     },
     "system": {
       "title": "Süsteem",

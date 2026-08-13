@@ -6,6 +6,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   joinCall: vi.fn(),
   getCallToken: vi.fn(),
+  createCallMediaPublisherToken: vi.fn(),
   leaveCall: vi.fn()
 }));
 
@@ -27,11 +28,13 @@ describe('createVoiceCallAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.joinCall.mockReset();
     mocks.getCallToken.mockReset();
+    mocks.createCallMediaPublisherToken.mockReset();
     mocks.leaveCall.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       joinCall: mocks.joinCall,
       getCallToken: mocks.getCallToken,
+      createCallMediaPublisherToken: mocks.createCallMediaPublisherToken,
       leaveCall: mocks.leaveCall
     });
   });
@@ -40,6 +43,11 @@ describe('createVoiceCallAPI', () => {
     mocks.joinCall.mockResolvedValue({ joined: true });
     mocks.leaveCall.mockResolvedValue({ left: true });
     mocks.getCallToken.mockResolvedValue({ token: 'jwt', e2eeKey: 'key', callId: 'call-1' });
+    mocks.createCallMediaPublisherToken.mockResolvedValue({
+      token: 'publisher-jwt',
+      e2eeKey: 'key',
+      callId: 'call-1'
+    });
 
     const api = createVoiceCallAPI({ baseUrl: '/api/connect', bearerToken: null });
 
@@ -49,13 +57,15 @@ describe('createVoiceCallAPI', () => {
       e2eeKey: 'key',
       callId: 'call-1'
     });
+    await expect(api.createGameSharePublisherToken('room-1')).resolves.toEqual({
+      token: 'publisher-jwt',
+      e2eeKey: 'key',
+      callId: 'call-1'
+    });
     await expect(api.leaveCall('room-1')).resolves.toBe(true);
 
     expect(mocks.joinCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
-    expect(mocks.getCallToken).toHaveBeenCalledWith(
-      { roomId: 'room-1' },
-      { headers: undefined }
-    );
+    expect(mocks.getCallToken).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
     expect(mocks.leaveCall).toHaveBeenCalledWith({ roomId: 'room-1' }, { headers: undefined });
   });
 });

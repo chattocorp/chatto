@@ -53,6 +53,13 @@
     "screen_share_failed": "Sdílení obrazovky nelze zahájit.",
     "speaker_switch_failed": "Nelze přepnout reproduktory. Tento prohlížeč nebo zařízení nemusí podporovat výběr reproduktorů.",
     "device_switch_failed": "Na toto zařízení se nepodařilo přepnout.",
-    "media_device_failed": "Nelze získat přístup k mediálnímu zařízení."
+    "media_device_failed": "Nelze získat přístup k mediálnímu zařízení.",
+    "stream_game": "Streamovat hru",
+    "stream_game_description": "Vyberte okno hry, které chcete sdílet se všemi účastníky hovoru.",
+    "game_windows": "Herní okna",
+    "no_game_windows": "Nebyla nalezena žádná okna ke sdílení. Otevřete hru v režimu okna nebo bez okrajů a zkuste to znovu.",
+    "game_windows_failed": "Okna ke sdílení se nepodařilo načíst.",
+    "untitled_window": "Okno bez názvu",
+    "game_window_selected": "Vybráno: {name}"
   }
 }

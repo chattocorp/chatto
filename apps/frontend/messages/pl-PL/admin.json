@@ -239,7 +239,22 @@
       "subtitle": "Ograniczenia rejestracji i ochrona konta",
       "blocked_usernames": "Zablokowane nazwy użytkowników",
       "blocked_usernames_description": "Jeden na linię. Użytkownicy nie mogą rejestrować się pod tymi nazwami.",
-      "settings_saved": "Ustawienia zapisane"
+      "settings_saved": "Ustawienia zapisane",
+      "oauth_clients": {
+        "title": "Klienci OAuth",
+        "description": "Aplikacje pojawiają się tutaj po autoryzowaniu ich przez członka. Zaufanie jest tylko etykietą administracyjną i nigdy nie pomija indywidualnej zgody; blokada uniemożliwia nowy dostęp i unieważnia istniejące tokeny dostępu.",
+        "empty": "Nie autoryzowano żadnych klientów OAuth",
+        "application": "Aplikacja",
+        "origins": "Źródła wywołań zwrotnych",
+        "users": "Autoryzowani użytkownicy",
+        "last_authorization": "Ostatnia autoryzacja",
+        "policy": "Zasada",
+        "policy_for": "Zasada dla {client}",
+        "policy_default": "Domyślna",
+        "policy_trusted": "Zaufany",
+        "policy_blocked": "Zablokowany",
+        "policy_saved": "Zapisano zasadę klienta OAuth"
+      }
     },
     "system": {
       "title": "System",

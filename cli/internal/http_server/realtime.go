@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"net/url"
 	"slices"
 	"strings"
 	"sync"
@@ -47,7 +46,7 @@ var realtimeServerCapabilities = []string{
 	"chatto.realtime.projection.v1",
 }
 
-func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
+func (s *HTTPServer) setupRealtimeAPI() {
 	if s.metrics == nil {
 		s.metrics = newProcessMetrics()
 	}
@@ -62,7 +61,7 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 		WriteBufferPool:   writeBufferPool,
 		EnableCompression: s.config.Webserver.WebSocketCompressionEnabled(),
 		CheckOrigin: func(r *http.Request) bool {
-			return s.checkRealtimeWebSocketOrigin(r, allowedOrigins)
+			return s.checkRealtimeWebSocketOrigin(r)
 		},
 	}
 
@@ -90,27 +89,15 @@ func (s *HTTPServer) setupRealtimeAPI(allowedOrigins []string) {
 	})
 }
 
-func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request, allowedOrigins []string) bool {
+func (s *HTTPServer) checkRealtimeWebSocketOrigin(r *http.Request) bool {
 	origin := r.Header.Get("Origin")
 	if origin == "" {
 		return true
 	}
-	if s.matchOrigin(origin, allowedOrigins) != originNotAllowed {
+	if _, ok := parseBrowserOrigin(origin); ok {
 		return true
 	}
-	host := r.Host
-	if s.trustedProxies.containsRemoteAddr(r.RemoteAddr) {
-		if forwarded := forwardedHost(r.Header.Get("X-Forwarded-Host")); forwarded != "" {
-			host = forwarded
-		}
-	}
-	if parsedOrigin, err := url.Parse(origin); err == nil {
-		if strings.EqualFold(parsedOrigin.Host, host) {
-			return true
-		}
-	}
-	s.logger.Warn("Realtime WebSocket connection rejected: origin mismatch",
-		"origin", origin, "host", host, "allowed", allowedOrigins)
+	s.logger.Warn("Realtime WebSocket connection rejected: invalid origin")
 	return false
 }
 
@@ -183,6 +170,35 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		writeError("authentication_required", "authentication required", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
 		return
+	}
+
+	var oauthClientAccessDenied <-chan struct{}
+	stopOAuthClientAccessWatch := func() {}
+	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.OAuthClientID != "" {
+		oauthClientAccessDenied, stopOAuthClientAccessWatch = s.core.WatchOAuthClientAccessDenied(credential.OAuthClientID)
+	}
+	defer stopOAuthClientAccessWatch()
+	if oauthClientAccessDenied != nil {
+		oauthClientBlockWatcherDone := make(chan struct{})
+		go func() {
+			defer close(oauthClientBlockWatcherDone)
+			select {
+			case <-oauthClientAccessDenied:
+				terminateRealtimeForOAuthClientBlock(cancel, writeFrame, func() {
+					_ = conn.WriteControl(
+						websocket.CloseMessage,
+						websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
+						time.Now().Add(time.Second),
+					)
+					_ = conn.Close()
+				})
+			case <-ctx.Done():
+			}
+		}()
+		defer func() {
+			cancel()
+			<-oauthClientBlockWatcherDone
+		}()
 	}
 
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
@@ -475,6 +491,25 @@ func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*real
 		return nil, err
 	}
 	return &frame, nil
+}
+
+// terminateRealtimeForOAuthClientBlock cancels authorized work before any
+// potentially blocking transport write. The established authentication close
+// code preserves safe behaviour for clients that predate OAuth-client policy.
+func terminateRealtimeForOAuthClientBlock(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "authentication_required",
+			Message:   "the OAuth client has been blocked",
+			Reconnect: false,
+		},
+	}})
+	closeConnection()
 }
 
 func (s *HTTPServer) readRealtimeControlFrames(ctx context.Context, cancel context.CancelFunc, conn *websocket.Conn, writeFrame func(*realtimev1.RealtimeServerFrame) error, hydrateRooms chan<- string) {

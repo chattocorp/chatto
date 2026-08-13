@@ -51,6 +51,9 @@ const (
 	// VoiceCallServiceGetCallTokenProcedure is the fully-qualified name of the VoiceCallService's
 	// GetCallToken RPC.
 	VoiceCallServiceGetCallTokenProcedure = "/chatto.api.v1.VoiceCallService/GetCallToken"
+	// VoiceCallServiceCreateCallMediaPublisherTokenProcedure is the fully-qualified name of the
+	// VoiceCallService's CreateCallMediaPublisherToken RPC.
+	VoiceCallServiceCreateCallMediaPublisherTokenProcedure = "/chatto.api.v1.VoiceCallService/CreateCallMediaPublisherToken"
 	// VoiceCallServiceLeaveCallProcedure is the fully-qualified name of the VoiceCallService's
 	// LeaveCall RPC.
 	VoiceCallServiceLeaveCallProcedure = "/chatto.api.v1.VoiceCallService/LeaveCall"
@@ -94,6 +97,14 @@ type VoiceCallServiceClient interface {
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
 	// or voice and video calls are not configured.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
+	// Issues a short-lived LiveKit token for a native companion publisher owned
+	// by the caller. Companion publishers contribute media to the caller's
+	// logical participant without becoming call participants themselves.
+	//
+	// The caller must already participate in the active call. Returns
+	// FAILED_PRECONDITION when no call is active, the caller has not joined it,
+	// or voice and video calls are not configured.
+	CreateCallMediaPublisherToken(context.Context, *connect.Request[v1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[v1.CreateCallMediaPublisherTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//
 	// Returns left=false when LiveKit is not configured.
@@ -147,6 +158,12 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 			connect.WithSchema(voiceCallServiceMethods.ByName("GetCallToken")),
 			connect.WithClientOptions(opts...),
 		),
+		createCallMediaPublisherToken: connect.NewClient[v1.CreateCallMediaPublisherTokenRequest, v1.CreateCallMediaPublisherTokenResponse](
+			httpClient,
+			baseURL+VoiceCallServiceCreateCallMediaPublisherTokenProcedure,
+			connect.WithSchema(voiceCallServiceMethods.ByName("CreateCallMediaPublisherToken")),
+			connect.WithClientOptions(opts...),
+		),
 		leaveCall: connect.NewClient[v1.LeaveCallRequest, v1.LeaveCallResponse](
 			httpClient,
 			baseURL+VoiceCallServiceLeaveCallProcedure,
@@ -158,13 +175,14 @@ func NewVoiceCallServiceClient(httpClient connect.HTTPClient, baseURL string, op
 
 // voiceCallServiceClient implements VoiceCallServiceClient.
 type voiceCallServiceClient struct {
-	listActiveCalls      *connect.Client[v1.ListActiveCallsRequest, v1.ListActiveCallsResponse]
-	getActiveCall        *connect.Client[v1.GetActiveCallRequest, v1.GetActiveCallResponse]
-	batchGetActiveCalls  *connect.Client[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse]
-	listCallParticipants *connect.Client[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse]
-	joinCall             *connect.Client[v1.JoinCallRequest, v1.JoinCallResponse]
-	getCallToken         *connect.Client[v1.GetCallTokenRequest, v1.GetCallTokenResponse]
-	leaveCall            *connect.Client[v1.LeaveCallRequest, v1.LeaveCallResponse]
+	listActiveCalls               *connect.Client[v1.ListActiveCallsRequest, v1.ListActiveCallsResponse]
+	getActiveCall                 *connect.Client[v1.GetActiveCallRequest, v1.GetActiveCallResponse]
+	batchGetActiveCalls           *connect.Client[v1.BatchGetActiveCallsRequest, v1.BatchGetActiveCallsResponse]
+	listCallParticipants          *connect.Client[v1.ListCallParticipantsRequest, v1.ListCallParticipantsResponse]
+	joinCall                      *connect.Client[v1.JoinCallRequest, v1.JoinCallResponse]
+	getCallToken                  *connect.Client[v1.GetCallTokenRequest, v1.GetCallTokenResponse]
+	createCallMediaPublisherToken *connect.Client[v1.CreateCallMediaPublisherTokenRequest, v1.CreateCallMediaPublisherTokenResponse]
+	leaveCall                     *connect.Client[v1.LeaveCallRequest, v1.LeaveCallResponse]
 }
 
 // ListActiveCalls calls chatto.api.v1.VoiceCallService.ListActiveCalls.
@@ -195,6 +213,11 @@ func (c *voiceCallServiceClient) JoinCall(ctx context.Context, req *connect.Requ
 // GetCallToken calls chatto.api.v1.VoiceCallService.GetCallToken.
 func (c *voiceCallServiceClient) GetCallToken(ctx context.Context, req *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error) {
 	return c.getCallToken.CallUnary(ctx, req)
+}
+
+// CreateCallMediaPublisherToken calls chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken.
+func (c *voiceCallServiceClient) CreateCallMediaPublisherToken(ctx context.Context, req *connect.Request[v1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[v1.CreateCallMediaPublisherTokenResponse], error) {
+	return c.createCallMediaPublisherToken.CallUnary(ctx, req)
 }
 
 // LeaveCall calls chatto.api.v1.VoiceCallService.LeaveCall.
@@ -240,6 +263,14 @@ type VoiceCallServiceHandler interface {
 	// caller is not a room member, and FAILED_PRECONDITION when no call is active
 	// or voice and video calls are not configured.
 	GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error)
+	// Issues a short-lived LiveKit token for a native companion publisher owned
+	// by the caller. Companion publishers contribute media to the caller's
+	// logical participant without becoming call participants themselves.
+	//
+	// The caller must already participate in the active call. Returns
+	// FAILED_PRECONDITION when no call is active, the caller has not joined it,
+	// or voice and video calls are not configured.
+	CreateCallMediaPublisherToken(context.Context, *connect.Request[v1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[v1.CreateCallMediaPublisherTokenResponse], error)
 	// Records the caller's intent to leave a room call.
 	//
 	// Returns left=false when LiveKit is not configured.
@@ -289,6 +320,12 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 		connect.WithSchema(voiceCallServiceMethods.ByName("GetCallToken")),
 		connect.WithHandlerOptions(opts...),
 	)
+	voiceCallServiceCreateCallMediaPublisherTokenHandler := connect.NewUnaryHandler(
+		VoiceCallServiceCreateCallMediaPublisherTokenProcedure,
+		svc.CreateCallMediaPublisherToken,
+		connect.WithSchema(voiceCallServiceMethods.ByName("CreateCallMediaPublisherToken")),
+		connect.WithHandlerOptions(opts...),
+	)
 	voiceCallServiceLeaveCallHandler := connect.NewUnaryHandler(
 		VoiceCallServiceLeaveCallProcedure,
 		svc.LeaveCall,
@@ -309,6 +346,8 @@ func NewVoiceCallServiceHandler(svc VoiceCallServiceHandler, opts ...connect.Han
 			voiceCallServiceJoinCallHandler.ServeHTTP(w, r)
 		case VoiceCallServiceGetCallTokenProcedure:
 			voiceCallServiceGetCallTokenHandler.ServeHTTP(w, r)
+		case VoiceCallServiceCreateCallMediaPublisherTokenProcedure:
+			voiceCallServiceCreateCallMediaPublisherTokenHandler.ServeHTTP(w, r)
 		case VoiceCallServiceLeaveCallProcedure:
 			voiceCallServiceLeaveCallHandler.ServeHTTP(w, r)
 		default:
@@ -342,6 +381,10 @@ func (UnimplementedVoiceCallServiceHandler) JoinCall(context.Context, *connect.R
 
 func (UnimplementedVoiceCallServiceHandler) GetCallToken(context.Context, *connect.Request[v1.GetCallTokenRequest]) (*connect.Response[v1.GetCallTokenResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.GetCallToken is not implemented"))
+}
+
+func (UnimplementedVoiceCallServiceHandler) CreateCallMediaPublisherToken(context.Context, *connect.Request[v1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[v1.CreateCallMediaPublisherTokenResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken is not implemented"))
 }
 
 func (UnimplementedVoiceCallServiceHandler) LeaveCall(context.Context, *connect.Request[v1.LeaveCallRequest]) (*connect.Response[v1.LeaveCallResponse], error) {

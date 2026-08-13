@@ -234,6 +234,47 @@ LiveKit token details for joining a room call.
 | `call_id` | `string` | Active call session ID. |
 
 
+<a id="chatto-api-v1-VoiceCallService-CreateCallMediaPublisherToken"></a>
+
+### CreateCallMediaPublisherToken
+
+Issues a short-lived LiveKit token for a native companion publisher owned
+by the caller. Companion publishers contribute media to the caller's
+logical participant without becoming call participants themselves.
+
+The caller must already participate in the active call. Returns
+FAILED_PRECONDITION when no call is active, the caller has not joined it,
+or voice and video calls are not configured.
+
+```http
+POST /api/connect/chatto.api.v1.VoiceCallService/CreateCallMediaPublisherToken
+```
+
+<a id="chatto-api-v1-CreateCallMediaPublisherTokenRequest"></a>
+
+#### Input: CreateCallMediaPublisherTokenRequest
+
+Request for a native companion publisher credential.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Room whose active call receives the media. |
+| `kind` | [`CallMediaPublisherKind`](/reference/connectrpc-api/types/#chatto-api-v1-CallMediaPublisherKind) | Required. Kind of native media publisher being started. |
+
+
+<a id="chatto-api-v1-CreateCallMediaPublisherTokenResponse"></a>
+
+#### Result: CreateCallMediaPublisherTokenResponse
+
+Credential for one native companion publisher connection.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `token` | `string` | Short-lived LiveKit JWT token. |
+| `e2ee_key` | `string` | Shared E2EE key for this active call. |
+| `call_id` | `string` | Active call session ID. |
+
+
 <a id="chatto-api-v1-VoiceCallService-LeaveCall"></a>
 
 ### LeaveCall

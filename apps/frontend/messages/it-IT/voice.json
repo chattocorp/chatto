@@ -53,6 +53,13 @@
     "screen_share_failed": "Impossibile avviare la condivisione dello schermo.",
     "speaker_switch_failed": "Impossibile cambiare gli altoparlanti. Questo browser o dispositivo potrebbe non supportare la selezione degli altoparlanti.",
     "device_switch_failed": "Impossibile passare a quel dispositivo.",
-    "media_device_failed": "Impossibile accedere a un dispositivo multimediale."
+    "media_device_failed": "Impossibile accedere a un dispositivo multimediale.",
+    "stream_game": "Trasmetti un gioco",
+    "stream_game_description": "Scegli la finestra del gioco da condividere con tutti i partecipanti alla chiamata.",
+    "game_windows": "Finestre di gioco",
+    "no_game_windows": "Nessuna finestra condivisibile trovata. Apri un gioco in modalità finestra o senza bordi e riprova.",
+    "game_windows_failed": "Impossibile caricare le finestre condivisibili.",
+    "untitled_window": "Finestra senza titolo",
+    "game_window_selected": "{name} selezionato"
   }
 }

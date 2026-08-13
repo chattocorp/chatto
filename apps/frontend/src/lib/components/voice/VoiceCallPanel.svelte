@@ -14,6 +14,7 @@ Room sidebar panel for voice/video calls.
 - `livekitUrl` - The LiveKit server WebSocket URL (needed for joining)
 -->
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
@@ -30,12 +31,18 @@ Room sidebar panel for voice/video calls.
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import CallTileActionButton from './CallTileActionButton.svelte';
   import CallTileActionToolbar from './CallTileActionToolbar.svelte';
+  import GameCaptureSourceDialog from './GameCaptureSourceDialog.svelte';
   import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
   import type { Attachment } from 'svelte/attachments';
   import { startDMWith } from '$lib/dm/startDM';
   import { toast } from '$lib/ui/toast';
+  import {
+    isGameCaptureAvailable,
+    listGameCaptureSources,
+    type GameCaptureSource
+  } from '$lib/desktop/gameCapture';
 
   let {
     roomId,
@@ -53,6 +60,15 @@ Room sidebar panel for voice/video calls.
   let hasActiveCall = $derived(activeCallRooms.has(roomId));
   let isStageLayout = $derived(layout === 'stage');
   let deviceMenuAnchor = $state<{ top: number; bottom: number; left: number } | null>(null);
+  let gameCaptureAvailable = $state(false);
+  let gameCaptureDialogVisible = $state(false);
+  let gameCaptureSources = $state.raw<GameCaptureSource[]>([]);
+  let gameCaptureSourcesLoading = $state(false);
+  let gameCaptureSourcesFailed = $state(false);
+
+  onMount(() => {
+    gameCaptureAvailable = isGameCaptureAvailable();
+  });
 
   /** Unified participant shape for rendering (structural data only). */
   type DisplayParticipant = {
@@ -276,6 +292,47 @@ Room sidebar panel for voice/video calls.
       if (!serverScope.isCurrent()) return;
       stores.handleVoiceCallJoinFailed(roomId);
       toast.error(getVoiceCallJoinErrorMessage(err));
+    }
+  }
+
+  async function refreshGameCaptureSources() {
+    gameCaptureSourcesLoading = true;
+    gameCaptureSourcesFailed = false;
+    try {
+      gameCaptureSources = await listGameCaptureSources();
+    } catch {
+      gameCaptureSources = [];
+      gameCaptureSourcesFailed = true;
+    } finally {
+      gameCaptureSourcesLoading = false;
+    }
+  }
+
+  function openGameCaptureDialog() {
+    gameCaptureDialogVisible = true;
+    void refreshGameCaptureSources();
+  }
+
+  async function selectGameCaptureSource(source: GameCaptureSource) {
+    gameCaptureDialogVisible = false;
+    try {
+      await voiceCallState.startGameCapture(source.id, source.title || source.applicationName);
+    } catch {
+      if (!serverScope.isCurrent()) return;
+      toast.error(m('voice.screen_share_failed'));
+    }
+  }
+
+  async function handleGameCaptureControl() {
+    if (!voiceCallState.isGameCaptureEnabled) {
+      openGameCaptureDialog();
+      return;
+    }
+    try {
+      await voiceCallState.stopGameCapture();
+    } catch {
+      if (!serverScope.isCurrent()) return;
+      toast.error(m('voice.screen_share_failed'));
     }
   }
 
@@ -571,7 +628,7 @@ Room sidebar panel for voice/video calls.
 {#snippet callControls()}
   {#if isInThisCall}
     <div class={isStageLayout ? 'mx-auto max-w-2xl' : ''}>
-      <div class="grid grid-cols-5 gap-2">
+      <div class={['grid gap-2', gameCaptureAvailable ? 'grid-cols-6' : 'grid-cols-5']}>
         <VoiceCallControlButton
           class={controlButtonClass}
           label={m('voice.devices')}
@@ -616,6 +673,22 @@ Room sidebar panel for voice/video calls.
           onclick={() => voiceCallState.toggleScreenShare()}
           pending={voiceCallState.isScreenSharePending}
         />
+
+        {#if gameCaptureAvailable}
+          <VoiceCallControlButton
+            class={voiceCallState.isGameCaptureEnabled
+              ? activeControlButtonClass
+              : controlButtonClass}
+            label={voiceCallState.isGameCaptureEnabled
+              ? m('voice.stop_share_screen')
+              : m('voice.stream_game')}
+            testId="call-game-stream-button"
+            icon="icon-[mdi--gamepad-variant-outline]"
+            iconClass="text-lg"
+            onclick={() => void handleGameCaptureControl()}
+            pending={gameCaptureSourcesLoading || voiceCallState.isGameCapturePending}
+          />
+        {/if}
 
         <VoiceCallControlButton
           class={dangerControlButtonClass}
@@ -728,6 +801,17 @@ Room sidebar panel for voice/video calls.
     canSendMessage={canStartDMs}
     onSendMessage={() => startDMWith(activeServerId, popoverParticipant!.avatarUser.id)}
     onClose={closeUserMenu}
+  />
+{/if}
+
+{#if gameCaptureAvailable}
+  <GameCaptureSourceDialog
+    bind:visible={gameCaptureDialogVisible}
+    sources={gameCaptureSources}
+    loading={gameCaptureSourcesLoading}
+    failed={gameCaptureSourcesFailed}
+    onretry={() => void refreshGameCaptureSources()}
+    onselect={selectGameCaptureSource}
   />
 {/if}
 

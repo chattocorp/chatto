@@ -9,6 +9,32 @@ import { RoomSummary } from "./rooms_pb.js";
 import { User } from "./users_pb.js";
 
 /**
+ * Native companion publisher kind.
+ *
+ * @generated from enum chatto.api.v1.CallMediaPublisherKind
+ */
+export enum CallMediaPublisherKind {
+  /**
+   * The publisher kind was not specified.
+   *
+   * @generated from enum value: CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Native game-window video and application audio.
+   *
+   * @generated from enum value: CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE = 1;
+   */
+  GAME_SHARE = 1,
+}
+// Retrieve enum metadata with: proto3.getEnumType(CallMediaPublisherKind)
+proto3.util.setEnumType(CallMediaPublisherKind, "chatto.api.v1.CallMediaPublisherKind", [
+  { no: 0, name: "CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED" },
+  { no: 1, name: "CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE" },
+]);
+
+/**
  * Request for active room call snapshots.
  *
  * @generated from message chatto.api.v1.ListActiveCallsRequest
@@ -619,6 +645,112 @@ export class GetCallTokenResponse extends Message<GetCallTokenResponse> {
 
   static equals(a: GetCallTokenResponse | PlainMessage<GetCallTokenResponse> | undefined, b: GetCallTokenResponse | PlainMessage<GetCallTokenResponse> | undefined): boolean {
     return proto3.util.equals(GetCallTokenResponse, a, b);
+  }
+}
+
+/**
+ * Request for a native companion publisher credential.
+ *
+ * @generated from message chatto.api.v1.CreateCallMediaPublisherTokenRequest
+ */
+export class CreateCallMediaPublisherTokenRequest extends Message<CreateCallMediaPublisherTokenRequest> {
+  /**
+   * Required. Room whose active call receives the media.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Kind of native media publisher being started.
+   *
+   * @generated from field: chatto.api.v1.CallMediaPublisherKind kind = 2;
+   */
+  kind = CallMediaPublisherKind.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<CreateCallMediaPublisherTokenRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreateCallMediaPublisherTokenRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(CallMediaPublisherKind) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallMediaPublisherTokenRequest {
+    return new CreateCallMediaPublisherTokenRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateCallMediaPublisherTokenRequest {
+    return new CreateCallMediaPublisherTokenRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateCallMediaPublisherTokenRequest {
+    return new CreateCallMediaPublisherTokenRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateCallMediaPublisherTokenRequest | PlainMessage<CreateCallMediaPublisherTokenRequest> | undefined, b: CreateCallMediaPublisherTokenRequest | PlainMessage<CreateCallMediaPublisherTokenRequest> | undefined): boolean {
+    return proto3.util.equals(CreateCallMediaPublisherTokenRequest, a, b);
+  }
+}
+
+/**
+ * Credential for one native companion publisher connection.
+ *
+ * @generated from message chatto.api.v1.CreateCallMediaPublisherTokenResponse
+ */
+export class CreateCallMediaPublisherTokenResponse extends Message<CreateCallMediaPublisherTokenResponse> {
+  /**
+   * Short-lived LiveKit JWT token.
+   *
+   * @generated from field: string token = 1;
+   */
+  token = "";
+
+  /**
+   * Shared E2EE key for this active call.
+   *
+   * @generated from field: string e2ee_key = 2;
+   */
+  e2eeKey = "";
+
+  /**
+   * Active call session ID.
+   *
+   * @generated from field: string call_id = 3;
+   */
+  callId = "";
+
+  constructor(data?: PartialMessage<CreateCallMediaPublisherTokenResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.CreateCallMediaPublisherTokenResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "e2ee_key", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateCallMediaPublisherTokenResponse {
+    return new CreateCallMediaPublisherTokenResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): CreateCallMediaPublisherTokenResponse {
+    return new CreateCallMediaPublisherTokenResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): CreateCallMediaPublisherTokenResponse {
+    return new CreateCallMediaPublisherTokenResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: CreateCallMediaPublisherTokenResponse | PlainMessage<CreateCallMediaPublisherTokenResponse> | undefined, b: CreateCallMediaPublisherTokenResponse | PlainMessage<CreateCallMediaPublisherTokenResponse> | undefined): boolean {
+    return proto3.util.equals(CreateCallMediaPublisherTokenResponse, a, b);
   }
 }
 

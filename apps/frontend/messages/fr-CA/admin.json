@@ -239,7 +239,22 @@
       "subtitle": "Restrictions d'inscription et protection du compte",
       "blocked_usernames": "Noms d'utilisateur bloqués",
       "blocked_usernames_description": "Un par ligne. Les utilisateurs ne peuvent pas s'inscrire avec ces noms.",
-      "settings_saved": "Paramètres enregistrés"
+      "settings_saved": "Paramètres enregistrés",
+      "oauth_clients": {
+        "title": "Clients OAuth",
+        "description": "Les applications apparaissent ici après leur autorisation par un membre. La confiance est seulement une étiquette administrative et ne remplace jamais le consentement individuel; le blocage empêche les nouveaux accès et révoque les jetons existants.",
+        "empty": "Aucun client OAuth n’a été autorisé",
+        "application": "Application",
+        "origins": "Origines de rappel",
+        "users": "Utilisateurs autorisés",
+        "last_authorization": "Dernière autorisation",
+        "policy": "Politique",
+        "policy_for": "Politique pour {client}",
+        "policy_default": "Par défaut",
+        "policy_trusted": "Fiable",
+        "policy_blocked": "Bloqué",
+        "policy_saved": "Politique du client OAuth enregistrée"
+      }
     },
     "system": {
       "title": "Système",

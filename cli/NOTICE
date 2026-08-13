@@ -104,6 +104,14 @@ Desktop Components:
 
 - Electron (https://www.electronjs.org/) - MIT License; Copyright OpenJS
   Foundation and Electron contributors
+- LiveKit client SDK for Swift (https://github.com/livekit/client-sdk-swift) -
+  Apache License 2.0; Copyright 2023 LiveKit, Inc.
+- LiveKit UniFFI XCFramework
+  (https://github.com/livekit/livekit-uniffi-xcframework) - Apache License 2.0
+- LiveKit WebRTC XCFramework (https://github.com/livekit/webrtc-xcframework) -
+  MIT License; Copyright 2021 WebRTC SDKs; bundled WebRTC is BSD 3-Clause and
+  includes third-party components under their respective licences
+- Swift Protobuf (https://github.com/apple/swift-protobuf) - Apache License 2.0
 - Chromium (https://www.chromium.org/) - BSD 3-Clause License and other
   licences included in Electron's bundled `LICENSES.chromium.html`
 

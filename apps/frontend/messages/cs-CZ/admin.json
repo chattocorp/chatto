@@ -239,7 +239,22 @@
       "subtitle": "Omezení registrace a ochrana účtu",
       "blocked_usernames": "Blokovaná uživatelská jména",
       "blocked_usernames_description": "Jeden na řádek. Uživatelé se s těmito jmény nemohou registrovat.",
-      "settings_saved": "Nastavení uloženo"
+      "settings_saved": "Nastavení uloženo",
+      "oauth_clients": {
+        "title": "Klienti OAuth",
+        "description": "Aplikace se zde zobrazí poté, co je člen autorizuje. Důvěryhodnost je pouze administrativní označení a nikdy nepřeskočí individuální souhlas; blokování zabrání novému přístupu a zruší stávající přístupové tokeny.",
+        "empty": "Žádní klienti OAuth nebyli autorizováni",
+        "application": "Aplikace",
+        "origins": "Počátky zpětného volání",
+        "users": "Autorizovaní uživatelé",
+        "last_authorization": "Poslední autorizace",
+        "policy": "Zásada",
+        "policy_for": "Zásada pro {client}",
+        "policy_default": "Výchozí",
+        "policy_trusted": "Důvěryhodný",
+        "policy_blocked": "Blokovaný",
+        "policy_saved": "Zásada klienta OAuth byla uložena"
+      }
     },
     "system": {
       "title": "Systém",

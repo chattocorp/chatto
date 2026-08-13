@@ -11,7 +11,7 @@
     "not_chatto_server": "لا يبدو أن هذا هو خادم Chatto.",
     "oauth_unsupported": "هذا الخادم لا يدعم مصادقة OAuth. قد يحتاج إلى تحديث.",
     "connection_timed_out": "انتهت مهلة الاتصال. تحقق من عنوان URL وحاول مرة أخرى.",
-    "connection_failed": "تعذر الاتصال. تحقق من عنوان URL وتأكد من تكوين CORS.",
+    "connection_failed": "تعذر الاتصال. تحقق من عنوان URL وحاول مرة أخرى.",
     "connect_failed": "فشل الاتصال.",
     "edit_url": "هل هذا الخادم غير صحيح؟ عدّل عنوان URL",
     "description_url": "Chatto موزّع — يتصل عميلك مباشرة بكل خادم. أدخل عنوان URL لإضافة خادم آخر.",

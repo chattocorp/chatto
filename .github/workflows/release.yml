@@ -168,7 +168,7 @@ jobs:
           - platform: linux
             os: ubuntu-latest
           - platform: macos
-            os: macos-latest
+            os: macos-15
           - platform: windows
             os: windows-latest
     runs-on: ${{ matrix.os }}
@@ -212,6 +212,9 @@ jobs:
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
+          test -x "$helper"
+          codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
             "apps/desktop/dist/Chatto Desktop.app" \

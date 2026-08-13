@@ -239,7 +239,22 @@
       "subtitle": "Registreringsbegrensninger og kontobeskyttelse",
       "blocked_usernames": "Blokkerte brukernavn",
       "blocked_usernames_description": "En per linje. Brukere kan ikke registrere seg med disse navnene.",
-      "settings_saved": "Innstillinger lagret"
+      "settings_saved": "Innstillinger lagret",
+      "oauth_clients": {
+        "title": "OAuth-klienter",
+        "description": "Apper vises her etter at et medlem har autorisert dem. Tillit er bare en administrativ etikett og hopper aldri over individuelt samtykke; blokkering hindrer ny tilgang og tilbakekaller eksisterende tilgangstokener.",
+        "empty": "Ingen OAuth-klienter er autorisert",
+        "application": "App",
+        "origins": "Tilbakekallingsopprinnelser",
+        "users": "Autoriserte brukere",
+        "last_authorization": "Siste autorisering",
+        "policy": "Retningslinje",
+        "policy_for": "Retningslinje for {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Klarert",
+        "policy_blocked": "Blokkert",
+        "policy_saved": "OAuth-klientens retningslinje er lagret"
+      }
     },
     "system": {
       "title": "System",

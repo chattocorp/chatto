@@ -11,7 +11,7 @@
     "not_chatto_server": "Šķiet, ka tas nav Chatto serveris.",
     "oauth_unsupported": "Šis serveris neatbalsta OAuth autentifikāciju. Iespējams, tas būs jāatjaunina.",
     "connection_timed_out": "Savienojuma noildze. Pārbaudiet URL un mēģiniet vēlreiz.",
-    "connection_failed": "Nevarēja izveidot savienojumu. Pārbaudiet URL un pārliecinieties, vai CORS ir konfigurēts.",
+    "connection_failed": "Nevarēja izveidot savienojumu. Pārbaudiet URL un mēģiniet vēlreiz.",
     "connect_failed": "Neizdevās izveidot savienojumu.",
     "edit_url": "Nepareizs serveris? Rediģēt URL",
     "description_url": "Chatto tiek izplatīts — jūsu klients izveido savienojumu ar katru serveri tieši. Ievadiet URL, lai pievienotu citu.",

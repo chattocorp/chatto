@@ -239,7 +239,22 @@
       "subtitle": "Limigoj de registriĝo kaj protekto de konto",
       "blocked_usernames": "Forbaritaj Uzantnomoj",
       "blocked_usernames_description": "Unu po linio. Uzantoj ne povas registriĝi kun ĉi tiuj nomoj.",
-      "settings_saved": "Agordoj konservitaj"
+      "settings_saved": "Agordoj konservitaj",
+      "oauth_clients": {
+        "title": "OAuth-klientoj",
+        "description": "Aplikaĵoj aperas ĉi tie post kiam membro rajtigas ilin. Fido estas nur administra etikedo kaj neniam preterlasas individuan konsenton; blokado malhelpas novan aliron kaj nuligas ekzistantajn alirĵetonojn.",
+        "empty": "Neniu OAuth-kliento estas rajtigita",
+        "application": "Aplikaĵo",
+        "origins": "Revokaj originoj",
+        "users": "Rajtigitaj uzantoj",
+        "last_authorization": "Lasta rajtigo",
+        "policy": "Politiko",
+        "policy_for": "Politiko por {client}",
+        "policy_default": "Defaŭlta",
+        "policy_trusted": "Fidata",
+        "policy_blocked": "Blokita",
+        "policy_saved": "Politiko de OAuth-kliento konservita"
+      }
     },
     "system": {
       "title": "Sistemo",

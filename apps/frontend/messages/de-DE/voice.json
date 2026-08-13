@@ -53,6 +53,13 @@
     "screen_share_failed": "Die Bildschirmfreigabe konnte nicht gestartet werden.",
     "speaker_switch_failed": "Der Lautsprecher konnte nicht gewechselt werden. Dieser Browser oder dieses Gerät unterstützt die Lautsprecherauswahl möglicherweise nicht.",
     "device_switch_failed": "Zu diesem Gerät konnte nicht gewechselt werden.",
-    "media_device_failed": "Auf ein Mediengerät konnte nicht zugegriffen werden."
+    "media_device_failed": "Auf ein Mediengerät konnte nicht zugegriffen werden.",
+    "stream_game": "Spiel streamen",
+    "stream_game_description": "Wähle das Spielfenster, das du mit allen im Anruf teilen möchtest.",
+    "game_windows": "Spielfenster",
+    "no_game_windows": "Keine teilbaren Fenster gefunden. Öffne ein Spiel im Fenster- oder randlosen Modus und versuche es erneut.",
+    "game_windows_failed": "Die teilbaren Fenster konnten nicht geladen werden.",
+    "untitled_window": "Fenster ohne Titel",
+    "game_window_selected": "{name} ausgewählt"
   }
 }

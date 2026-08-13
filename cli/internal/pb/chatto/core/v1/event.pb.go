@@ -163,6 +163,8 @@ type Event struct {
 	//	*Event_BearerTokenRevoked
 	//	*Event_OauthConsentGranted
 	//	*Event_OauthConsentDenied
+	//	*Event_OauthClientAuthorizationRecorded
+	//	*Event_OauthClientPolicyChanged
 	//	*Event_InvitationCreated
 	//	*Event_InvitationRedeemed
 	//	*Event_InvitationRevoked
@@ -1198,6 +1200,24 @@ func (x *Event) GetOauthConsentDenied() *OAuthConsentDeniedEvent {
 	return nil
 }
 
+func (x *Event) GetOauthClientAuthorizationRecorded() *OAuthClientAuthorizationRecordedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OauthClientAuthorizationRecorded); ok {
+			return x.OauthClientAuthorizationRecorded
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOauthClientPolicyChanged() *OAuthClientPolicyChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OauthClientPolicyChanged); ok {
+			return x.OauthClientPolicyChanged
+		}
+	}
+	return nil
+}
+
 func (x *Event) GetInvitationCreated() *InvitationCreatedEvent {
 	if x != nil {
 		if x, ok := x.Event.(*Event_InvitationCreated); ok {
@@ -1720,6 +1740,14 @@ type Event_OauthConsentDenied struct {
 	OauthConsentDenied *OAuthConsentDeniedEvent `protobuf:"bytes,914,opt,name=oauth_consent_denied,json=oauthConsentDenied,proto3,oneof"`
 }
 
+type Event_OauthClientAuthorizationRecorded struct {
+	OauthClientAuthorizationRecorded *OAuthClientAuthorizationRecordedEvent `protobuf:"bytes,915,opt,name=oauth_client_authorization_recorded,json=oauthClientAuthorizationRecorded,proto3,oneof"`
+}
+
+type Event_OauthClientPolicyChanged struct {
+	OauthClientPolicyChanged *OAuthClientPolicyChangedEvent `protobuf:"bytes,916,opt,name=oauth_client_policy_changed,json=oauthClientPolicyChanged,proto3,oneof"`
+}
+
 type Event_InvitationCreated struct {
 	// ----- Invite links (930-939, durable, evt.invitation.{id}) -----
 	InvitationCreated *InvitationCreatedEvent `protobuf:"bytes,930,opt,name=invitation_created,json=invitationCreated,proto3,oneof"`
@@ -1959,6 +1987,10 @@ func (*Event_OauthConsentGranted) isEvent_Event() {}
 
 func (*Event_OauthConsentDenied) isEvent_Event() {}
 
+func (*Event_OauthClientAuthorizationRecorded) isEvent_Event() {}
+
+func (*Event_OauthClientPolicyChanged) isEvent_Event() {}
+
 func (*Event_InvitationCreated) isEvent_Event() {}
 
 func (*Event_InvitationRedeemed) isEvent_Event() {}
@@ -1973,7 +2005,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a!chatto/core/v1/notification.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\"\xbd\\\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a!chatto/core/v1/notification.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\x1a(chatto/core/v1/oauth_client_events.proto\"\xb8^\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2085,7 +2117,9 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\x13bearer_token_issued\x18\x8f\a \x01(\v2&.chatto.core.v1.BearerTokenIssuedEventH\x00R\x11bearerTokenIssued\x12\\\n" +
 	"\x14bearer_token_revoked\x18\x90\a \x01(\v2'.chatto.core.v1.BearerTokenRevokedEventH\x00R\x12bearerTokenRevoked\x12_\n" +
 	"\x15oauth_consent_granted\x18\x91\a \x01(\v2(.chatto.core.v1.OAuthConsentGrantedEventH\x00R\x13oauthConsentGranted\x12\\\n" +
-	"\x14oauth_consent_denied\x18\x92\a \x01(\v2'.chatto.core.v1.OAuthConsentDeniedEventH\x00R\x12oauthConsentDenied\x12X\n" +
+	"\x14oauth_consent_denied\x18\x92\a \x01(\v2'.chatto.core.v1.OAuthConsentDeniedEventH\x00R\x12oauthConsentDenied\x12\x87\x01\n" +
+	"#oauth_client_authorization_recorded\x18\x93\a \x01(\v25.chatto.core.v1.OAuthClientAuthorizationRecordedEventH\x00R oauthClientAuthorizationRecorded\x12o\n" +
+	"\x1boauth_client_policy_changed\x18\x94\a \x01(\v2-.chatto.core.v1.OAuthClientPolicyChangedEventH\x00R\x18oauthClientPolicyChanged\x12X\n" +
 	"\x12invitation_created\x18\xa2\a \x01(\v2&.chatto.core.v1.InvitationCreatedEventH\x00R\x11invitationCreated\x12[\n" +
 	"\x13invitation_redeemed\x18\xa3\a \x01(\v2'.chatto.core.v1.InvitationRedeemedEventH\x00R\x12invitationRedeemed\x12X\n" +
 	"\x12invitation_revoked\x18\xa4\a \x01(\v2&.chatto.core.v1.InvitationRevokedEventH\x00R\x11invitationRevoked\x12L\n" +
@@ -2218,11 +2252,13 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*BearerTokenRevokedEvent)(nil),                 // 106: chatto.core.v1.BearerTokenRevokedEvent
 	(*OAuthConsentGrantedEvent)(nil),                // 107: chatto.core.v1.OAuthConsentGrantedEvent
 	(*OAuthConsentDeniedEvent)(nil),                 // 108: chatto.core.v1.OAuthConsentDeniedEvent
-	(*InvitationCreatedEvent)(nil),                  // 109: chatto.core.v1.InvitationCreatedEvent
-	(*InvitationRedeemedEvent)(nil),                 // 110: chatto.core.v1.InvitationRedeemedEvent
-	(*InvitationRevokedEvent)(nil),                  // 111: chatto.core.v1.InvitationRevokedEvent
-	(*ReactionAddedEvent)(nil),                      // 112: chatto.core.v1.ReactionAddedEvent
-	(*ReactionRemovedEvent)(nil),                    // 113: chatto.core.v1.ReactionRemovedEvent
+	(*OAuthClientAuthorizationRecordedEvent)(nil),   // 109: chatto.core.v1.OAuthClientAuthorizationRecordedEvent
+	(*OAuthClientPolicyChangedEvent)(nil),           // 110: chatto.core.v1.OAuthClientPolicyChangedEvent
+	(*InvitationCreatedEvent)(nil),                  // 111: chatto.core.v1.InvitationCreatedEvent
+	(*InvitationRedeemedEvent)(nil),                 // 112: chatto.core.v1.InvitationRedeemedEvent
+	(*InvitationRevokedEvent)(nil),                  // 113: chatto.core.v1.InvitationRevokedEvent
+	(*ReactionAddedEvent)(nil),                      // 114: chatto.core.v1.ReactionAddedEvent
+	(*ReactionRemovedEvent)(nil),                    // 115: chatto.core.v1.ReactionRemovedEvent
 }
 var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	1,   // 0: chatto.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
@@ -2333,16 +2369,18 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	106, // 105: chatto.core.v1.Event.bearer_token_revoked:type_name -> chatto.core.v1.BearerTokenRevokedEvent
 	107, // 106: chatto.core.v1.Event.oauth_consent_granted:type_name -> chatto.core.v1.OAuthConsentGrantedEvent
 	108, // 107: chatto.core.v1.Event.oauth_consent_denied:type_name -> chatto.core.v1.OAuthConsentDeniedEvent
-	109, // 108: chatto.core.v1.Event.invitation_created:type_name -> chatto.core.v1.InvitationCreatedEvent
-	110, // 109: chatto.core.v1.Event.invitation_redeemed:type_name -> chatto.core.v1.InvitationRedeemedEvent
-	111, // 110: chatto.core.v1.Event.invitation_revoked:type_name -> chatto.core.v1.InvitationRevokedEvent
-	112, // 111: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
-	113, // 112: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
-	113, // [113:113] is the sub-list for method output_type
-	113, // [113:113] is the sub-list for method input_type
-	113, // [113:113] is the sub-list for extension type_name
-	113, // [113:113] is the sub-list for extension extendee
-	0,   // [0:113] is the sub-list for field type_name
+	109, // 108: chatto.core.v1.Event.oauth_client_authorization_recorded:type_name -> chatto.core.v1.OAuthClientAuthorizationRecordedEvent
+	110, // 109: chatto.core.v1.Event.oauth_client_policy_changed:type_name -> chatto.core.v1.OAuthClientPolicyChangedEvent
+	111, // 110: chatto.core.v1.Event.invitation_created:type_name -> chatto.core.v1.InvitationCreatedEvent
+	112, // 111: chatto.core.v1.Event.invitation_redeemed:type_name -> chatto.core.v1.InvitationRedeemedEvent
+	113, // 112: chatto.core.v1.Event.invitation_revoked:type_name -> chatto.core.v1.InvitationRevokedEvent
+	114, // 113: chatto.core.v1.Event.reaction_added:type_name -> chatto.core.v1.ReactionAddedEvent
+	115, // 114: chatto.core.v1.Event.reaction_removed:type_name -> chatto.core.v1.ReactionRemovedEvent
+	115, // [115:115] is the sub-list for method output_type
+	115, // [115:115] is the sub-list for method input_type
+	115, // [115:115] is the sub-list for extension type_name
+	115, // [115:115] is the sub-list for extension extendee
+	0,   // [0:115] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_event_proto_init() }
@@ -2364,6 +2402,7 @@ func file_chatto_core_v1_event_proto_init() {
 	file_chatto_core_v1_thread_events_proto_init()
 	file_chatto_core_v1_user_events_proto_init()
 	file_chatto_core_v1_invitation_events_proto_init()
+	file_chatto_core_v1_oauth_client_events_proto_init()
 	file_chatto_core_v1_event_proto_msgTypes[0].OneofWrappers = []any{
 		(*Event_RoomCreated)(nil),
 		(*Event_RoomUpdated)(nil),
@@ -2472,6 +2511,8 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_BearerTokenRevoked)(nil),
 		(*Event_OauthConsentGranted)(nil),
 		(*Event_OauthConsentDenied)(nil),
+		(*Event_OauthClientAuthorizationRecorded)(nil),
+		(*Event_OauthClientPolicyChanged)(nil),
 		(*Event_InvitationCreated)(nil),
 		(*Event_InvitationRedeemed)(nil),
 		(*Event_InvitationRevoked)(nil),

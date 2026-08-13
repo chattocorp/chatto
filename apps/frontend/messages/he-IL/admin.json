@@ -239,7 +239,22 @@
       "subtitle": "הגבלות הרשמה והגנה על חשבון",
       "blocked_usernames": "שמות משתמש חסומים",
       "blocked_usernames_description": "אחד בכל שורה. משתמשים לא יכולים להירשם בשמות אלו.",
-      "settings_saved": "ההגדרות נשמרו"
+      "settings_saved": "ההגדרות נשמרו",
+      "oauth_clients": {
+        "title": "לקוחות OAuth",
+        "description": "יישומים מופיעים כאן לאחר שחבר מאשר אותם. אמון הוא תווית ניהולית בלבד ולעולם אינו עוקף הסכמה אישית; חסימה מונעת גישה חדשה ומבטלת אסימוני גישה קיימים.",
+        "empty": "לא אושרו לקוחות OAuth",
+        "application": "יישום",
+        "origins": "מקורות חזרה",
+        "users": "משתמשים מורשים",
+        "last_authorization": "הרשאה אחרונה",
+        "policy": "מדיניות",
+        "policy_for": "מדיניות עבור {client}",
+        "policy_default": "ברירת מחדל",
+        "policy_trusted": "מהימן",
+        "policy_blocked": "חסום",
+        "policy_saved": "מדיניות לקוח OAuth נשמרה"
+      }
     },
     "system": {
       "title": "מערכת",

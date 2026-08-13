@@ -239,7 +239,22 @@
       "subtitle": "قيود التسجيل وحماية الحساب",
       "blocked_usernames": "أسماء المستخدمين المحظورة",
       "blocked_usernames_description": "اسم واحد في كل سطر. لا يمكن للمستخدمين التسجيل بهذه الأسماء.",
-      "settings_saved": "تم حفظ الإعدادات"
+      "settings_saved": "تم حفظ الإعدادات",
+      "oauth_clients": {
+        "title": "عملاء OAuth",
+        "description": "تظهر التطبيقات هنا بعد أن يمنحها أحد الأعضاء الإذن. الثقة مجرد تصنيف إداري ولا تتجاوز موافقة الأفراد؛ ويمنع الحظر الوصول الجديد ويلغي رموز الوصول الحالية.",
+        "empty": "لم يتم تفويض أي عميل OAuth",
+        "application": "التطبيق",
+        "origins": "أصول معاودة الاتصال",
+        "users": "المستخدمون المفوضون",
+        "last_authorization": "آخر تفويض",
+        "policy": "السياسة",
+        "policy_for": "سياسة {client}",
+        "policy_default": "افتراضي",
+        "policy_trusted": "موثوق",
+        "policy_blocked": "محظور",
+        "policy_saved": "تم حفظ سياسة عميل OAuth"
+      }
     },
     "system": {
       "title": "النظام",

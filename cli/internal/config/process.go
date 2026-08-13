@@ -4,11 +4,15 @@ import (
 	"encoding/hex"
 	"fmt"
 	"net"
+	"net/netip"
 	"net/url"
 	"os"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
+
+	"golang.org/x/net/idna"
 )
 
 type GeneralConfig struct {
@@ -45,8 +49,6 @@ func (c *TLSConfig) HTTPPortOrDefault() int {
 type WebserverConfig struct {
 	URL                    string        `toml:"url" env:"CHATTO_WEBSERVER_URL" comment:"Public URL where the webserver is accessible. Used for generating absolute URLs."`
 	Port                   int           `toml:"port" env:"CHATTO_WEBSERVER_PORT" comment:"Port for the webserver to listen on."`
-	AllowedOrigins         []string      `toml:"allowed_origins" env:"CHATTO_WEBSERVER_ALLOWED_ORIGINS" comment:"Origins allowed for cross-server browser API access. Use [\"*\"] to allow bearer-token clients without cookies; use exact origins to allow credentialed CORS/WebSocket access. Exact non-wildcard entries are also trusted for OAuth redirect callbacks. Chatto Desktop uses chatto://desktop."`
-	OAuthRedirectOrigins   []string      `toml:"oauth_redirect_origins" env:"CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS" comment:"Additional origins trusted only for OAuth redirect callbacks. Leave empty unless another web origin must complete OAuth. Use exact HTTPS origins in production; loopback development origins may use HTTP. The official chatto://desktop callback is trusted automatically."`
 	TrustedProxies         []string      `toml:"trusted_proxies,commented" env:"CHATTO_WEBSERVER_TRUSTED_PROXIES" comment:"IP addresses or CIDR ranges of reverse proxies allowed to supply forwarded host and client-IP headers. Default: none."`
 	APICompression         *bool         `toml:"api_compression" env:"CHATTO_WEBSERVER_API_COMPRESSION" comment:"Compress eligible ConnectRPC API responses with gzip. Disable to reduce compressor memory and CPU at the cost of higher network usage. Default: true."`
 	APICompressionMinBytes *int          `toml:"api_compression_min_bytes" env:"CHATTO_WEBSERVER_API_COMPRESSION_MIN_BYTES" comment:"Minimum uncompressed ConnectRPC response size eligible for gzip compression. Default: 1024."`
@@ -259,37 +261,48 @@ func validateAbsoluteHTTPURL(name, raw string) error {
 	if u.Host == "" || u.User != nil {
 		return fmt.Errorf("%s must include a host and must not include user info", name)
 	}
+	hostname, err := idna.Lookup.ToASCII(strings.ToLower(u.Hostname()))
+	if err != nil {
+		return fmt.Errorf("%s host must be a valid IDNA hostname: %w", name, err)
+	}
+	if _, err := netip.ParseAddr(hostname); err != nil && hostnameEndsInNumber(hostname) {
+		return fmt.Errorf("%s must use canonical dotted IPv4 syntax", name)
+	}
+	if port := u.Port(); port != "" {
+		if _, err := strconv.ParseUint(port, 10, 16); err != nil {
+			return fmt.Errorf("%s port must be between 0 and 65535", name)
+		}
+	}
 	return nil
 }
 
-func validateOrigin(name, raw string, allowWildcard bool, requireHTTPSExceptLoopback bool) error {
-	raw = strings.TrimSpace(raw)
-	if allowWildcard && raw == "*" {
-		return nil
-	}
-	if raw == ChattoDesktopOrigin {
-		return nil
-	}
-	u, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("%s contains invalid origin %q: %w", name, raw, err)
-	}
-	if u.Scheme == "" || u.Host == "" || u.User != nil {
-		return fmt.Errorf("%s contains invalid origin %q: must include scheme and host only", name, raw)
-	}
-	if u.Path != "" || u.RawQuery != "" || u.Fragment != "" {
-		return fmt.Errorf("%s contains invalid origin %q: origins must not include path, query, or fragment", name, raw)
-	}
-	if requireHTTPSExceptLoopback && !isLoopbackHost(u.Hostname()) {
-		if u.Scheme != "https" {
-			return fmt.Errorf("%s contains invalid origin %q: non-loopback OAuth redirect origins must use https", name, raw)
+// hostnameEndsInNumber detects hostnames that browsers interpret using their
+// legacy IPv4 parser. Requiring modern dotted IPv4 spelling prevents the
+// browser and server from serializing the same configured origin differently.
+func hostnameEndsInNumber(hostname string) bool {
+	labels := strings.Split(strings.TrimSuffix(hostname, "."), ".")
+	last := labels[len(labels)-1]
+	if strings.HasPrefix(last, "0x") {
+		last = strings.TrimPrefix(last, "0x")
+		if last == "" {
+			return false
 		}
-		return nil
+		for _, character := range last {
+			if !strings.ContainsRune("0123456789abcdef", character) {
+				return false
+			}
+		}
+		return true
 	}
-	if u.Scheme != "http" && u.Scheme != "https" {
-		return fmt.Errorf("%s contains invalid origin %q: origin must use http or https", name, raw)
+	if last == "" {
+		return false
 	}
-	return nil
+	for _, character := range last {
+		if character < '0' || character > '9' {
+			return false
+		}
+	}
+	return true
 }
 
 func isLoopbackHost(host string) bool {

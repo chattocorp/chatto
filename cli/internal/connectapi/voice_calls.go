@@ -186,6 +186,65 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 	}), nil
 }
 
+func (s *voiceCallService) CreateCallMediaPublisherToken(ctx context.Context, req *connect.Request[apiv1.CreateCallMediaPublisherTokenRequest]) (*connect.Response[apiv1.CreateCallMediaPublisherTokenResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	_, kind, err := s.api.core.VoiceCallRoomForMember(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !s.api.config.LiveKit.IsConfigured() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("voice calls are not configured"))
+	}
+
+	publisherKind := ""
+	switch req.Msg.GetKind() {
+	case apiv1.CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE:
+		publisherKind = core.ParticipantPublisherKindGameShare
+	default:
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("unsupported call media publisher kind"))
+	}
+
+	user, err := s.api.core.GetUser(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	access, err := s.api.core.GetVoiceCallPublisherAccessMaterial(ctx, req.Msg.GetRoomId(), caller.UserID)
+	if err != nil {
+		if errors.Is(err, core.ErrCallParticipationRequired) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("join the active voice call before publishing media"))
+		}
+		if errors.Is(err, core.ErrNotFound) {
+			return nil, connect.NewError(connect.CodeFailedPrecondition, fmt.Errorf("no active voice call for room %s", req.Msg.GetRoomId()))
+		}
+		return nil, connectError(err)
+	}
+	publisherIdentity := core.NewCallMediaPublisherID()
+	roomName := core.LiveKitRoomName(s.api.config.LiveKit.ServerID, kind, req.Msg.GetRoomId(), access.CallID)
+	token, err := core.GenerateCallMediaPublisherToken(
+		s.api.config.LiveKit.APIKey,
+		s.api.config.LiveKit.APISecret,
+		roomName,
+		publisherIdentity,
+		caller.UserID,
+		user.GetDisplayName(),
+		access.E2EEKey,
+		access.CallID,
+		publisherKind,
+	)
+	if err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.CreateCallMediaPublisherTokenResponse{
+		Token:   token.Token,
+		E2EeKey: token.E2EEKey,
+		CallId:  token.CallID,
+	}), nil
+}
+
 func (s *voiceCallService) LeaveCall(ctx context.Context, req *connect.Request[apiv1.LeaveCallRequest]) (*connect.Response[apiv1.LeaveCallResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

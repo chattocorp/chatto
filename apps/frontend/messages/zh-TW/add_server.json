@@ -11,7 +11,7 @@
     "not_chatto_server": "這似乎不是 Chatto 伺服器。",
     "oauth_unsupported": "此伺服器不支援 OAuth 驗證，可能需要更新。",
     "connection_timed_out": "連線逾時。請檢查 URL 後再試一次。",
-    "connection_failed": "無法連線。請檢查 URL，並確認已設定 CORS。",
+    "connection_failed": "無法連線。請檢查 URL，然後再試一次。",
     "connect_failed": "連線失敗。",
     "edit_url": "伺服器不對？編輯 URL",
     "description_url": "Chatto 採分散式架構，用戶端會直接連線至各個伺服器。輸入 URL 即可新增另一個伺服器。",

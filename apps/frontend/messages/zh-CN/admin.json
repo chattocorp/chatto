@@ -239,7 +239,22 @@
       "subtitle": "注册限制和账号保护",
       "blocked_usernames": "禁用的用户名",
       "blocked_usernames_description": "每行输入一个。用户无法使用这些名称注册。",
-      "settings_saved": "设置已保存"
+      "settings_saved": "设置已保存",
+      "oauth_clients": {
+        "title": "OAuth 客户端",
+        "description": "成员授权应用后，应用会显示在此处。信任仅是管理标签，不会跳过个人同意；阻止会拒绝新访问并撤销现有访问令牌。",
+        "empty": "尚未授权任何 OAuth 客户端",
+        "application": "应用",
+        "origins": "回调来源",
+        "users": "已授权用户",
+        "last_authorization": "最近授权",
+        "policy": "策略",
+        "policy_for": "{client} 的策略",
+        "policy_default": "默认",
+        "policy_trusted": "受信任",
+        "policy_blocked": "已阻止",
+        "policy_saved": "OAuth 客户端策略已保存"
+      }
     },
     "system": {
       "title": "系统",

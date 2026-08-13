@@ -42,6 +42,7 @@ export interface OAuthFlowState {
 	verifier: string;
 	state: string;
 	remoteUrl: string;
+	clientId: string;
 	serverName: string;
 	serverIconUrl: string | null;
 }

@@ -239,7 +239,22 @@
       "subtitle": "Registrierungsbeschränkungen und Kontoschutz",
       "blocked_usernames": "Blockierte Benutzernamen",
       "blocked_usernames_description": "Eine pro Zeile. Benutzer können sich nicht mit diesen Namen registrieren.",
-      "settings_saved": "Einstellungen gespeichert"
+      "settings_saved": "Einstellungen gespeichert",
+      "oauth_clients": {
+        "title": "OAuth-Clients",
+        "description": "Anwendungen erscheinen hier, nachdem ein Mitglied sie autorisiert hat. Vertrauen ist nur eine administrative Kennzeichnung und überspringt niemals die individuelle Zustimmung; Blockieren verhindert neuen Zugriff und widerruft bestehende Zugriffstoken.",
+        "empty": "Es wurden noch keine OAuth-Clients autorisiert",
+        "application": "Anwendung",
+        "origins": "Callback-Ursprünge",
+        "users": "Autorisierte Benutzer",
+        "last_authorization": "Letzte Autorisierung",
+        "policy": "Richtlinie",
+        "policy_for": "Richtlinie für {client}",
+        "policy_default": "Standard",
+        "policy_trusted": "Vertrauenswürdig",
+        "policy_blocked": "Blockiert",
+        "policy_saved": "OAuth-Client-Richtlinie gespeichert"
+      }
     },
     "system": {
       "title": "System",

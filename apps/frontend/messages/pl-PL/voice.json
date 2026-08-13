@@ -53,6 +53,13 @@
     "screen_share_failed": "Nie można rozpocząć udostępniania ekranu.",
     "speaker_switch_failed": "Nie można przełączyć głośników. Ta przeglądarka lub urządzenie może nie obsługiwać wyboru głośników.",
     "device_switch_failed": "Nie można przełączyć się na to urządzenie.",
-    "media_device_failed": "Nie można uzyskać dostępu do urządzenia multimedialnego."
+    "media_device_failed": "Nie można uzyskać dostępu do urządzenia multimedialnego.",
+    "stream_game": "Transmituj grę",
+    "stream_game_description": "Wybierz okno gry, które chcesz udostępnić wszystkim uczestnikom rozmowy.",
+    "game_windows": "Okna gier",
+    "no_game_windows": "Nie znaleziono okien do udostępnienia. Otwórz grę w trybie okienkowym lub bez ramek i spróbuj ponownie.",
+    "game_windows_failed": "Nie udało się wczytać okien do udostępnienia.",
+    "untitled_window": "Okno bez tytułu",
+    "game_window_selected": "Wybrano: {name}"
   }
 }

@@ -239,7 +239,22 @@
       "subtitle": "Sign-up restrictions and account protection",
       "blocked_usernames": "Blocked Usernames",
       "blocked_usernames_description": "One per line. Users cannot register with these names.",
-      "settings_saved": "Settings saved"
+      "settings_saved": "Settings saved",
+      "oauth_clients": {
+        "title": "OAuth clients",
+        "description": "Applications appear here after a member authorises them. Trust is an administrative label and never skips individual consent; blocking prevents new access and revokes existing access tokens.",
+        "empty": "No OAuth clients have been authorised",
+        "application": "Application",
+        "origins": "Callback origins",
+        "users": "Authorised users",
+        "last_authorization": "Last authorisation",
+        "policy": "Policy",
+        "policy_for": "Policy for {client}",
+        "policy_default": "Default",
+        "policy_trusted": "Trusted",
+        "policy_blocked": "Blocked",
+        "policy_saved": "OAuth client policy saved"
+      }
     },
     "system": {
       "title": "System",

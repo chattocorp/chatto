@@ -256,6 +256,10 @@ export default defineConfig(async ({ command }) => {
         interval: 300
       },
       proxy: {
+        '/oauth/frontend-client-metadata.json': {
+          target: backendTarget,
+          changeOrigin: true
+        },
         '/api': {
           target: backendTarget,
           ws: true,

@@ -34,9 +34,14 @@ Electron's default persistent session stores browser state in the application's
 user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
-The shell owns no Chatto backend, NATS resources, projections, durable domain
-state, or renderer API bridge. It restricts navigation and browser permissions
-at the Electron boundary, while OAuth behavior remains specified by
+The shell owns no Chatto backend, NATS resources, projections, or durable
+domain state. Every macOS build adds a narrow renderer bridge and a nested
+ScreenCaptureKit helper. The bridge lists temporary opaque window sources and
+controls a publish-only native LiveKit companion; media remains in the helper's
+native WebRTC path and only credentials and acknowledged lifecycle control
+cross IPC. macOS CI builds and smoke-tests the helper inside the complete app
+bundle. The shell restricts navigation and browser
+permissions at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 
 The core model inventory is a list of stable machine-readable keys such as `config_model`, `message_model`, and `my_events_model`. Per-process metrics expose these keys via `chatto_model_info`.
@@ -69,6 +74,7 @@ The core model inventory is a list of stable machine-readable keys such as `conf
 | `RoomModel`                      | [`room_model.go`](../../cli/internal/core/room_model.go), [`pinned_messages.go`](../../cli/internal/core/pinned_messages.go)                                    | Eagerly wired room-derived projection readiness and narrow reads for room catalog, membership, layout, timeline, threads, reactions, and pinned messages; owns authorization-fenced pin mutations |
 | `UserModel`                      | [`user_model.go`](../../cli/internal/core/user_model.go)                                                                                                       | Sole core owner of user profile, cold-replayed authentication, and content-key projection reads and readiness for account, identity, credential, profile, custom-status, and encryption operations |
 | `InvitationModel`                | [`invitations.go`](../../cli/internal/core/invitations.go), [`invitation_projection.go`](../../cli/internal/core/invitation_projection.go)                     | Sole core owner of invite-link creation, listing, revocation, validation, compact purpose-separated token derivation, and projection readiness; redemption commits atomically with the admitted account against a whole-EVT OCC guard |
+| `OAuthClientModel`               | [`oauth_clients.go`](../../cli/internal/core/oauth_clients.go), [`oauth_client_projection.go`](../../cli/internal/core/oauth_client_projection.go)             | Sole core owner of successful OAuth-client authorization records, administrative default/trusted/blocked policy, fail-closed projection-backed authorization checks, per-client active-realtime access-denial notifications on every replica, and block-triggered OAuth token cleanup |
 | `UserKeyShreddingModel`          | [`user_key_shredding.go`](../../cli/internal/core/user_key_shredding.go)                                                                                       | Request-before-destruction crypto-shredding, privacy-projection barriers, synchronous idempotent completion, and shared durable recovery across replicas |
 | `RBACModel`                      | [`rbac_model.go`](../../cli/internal/core/rbac_model.go)                                                                                                       | Sole core owner of RBAC projection reads and readiness for role, assignment, and permission authorization and writes |
 | `MentionablesModel`              | [`mentionables_projection.go`](../../cli/internal/core/mentionables_projection.go)                                                                              | Global mention-handle namespace lookup and readiness                                                                                          |

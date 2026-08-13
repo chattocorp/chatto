@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-08
+**Last reviewed:** 2026-08-12
 
 ## Overview
 
@@ -26,15 +26,23 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
   explicit native source choice.
-- macOS, Windows, and Linux bundles are built in CI. Experimental release
-  artifacts are unsigned until platform signing and notarisation are added.
+- Every macOS build embeds a native game-capture provider. Joined
+  call participants can open a Chatto-owned picker of ordinary visible windows;
+  selecting one publishes its video and owning-application audio to the existing
+  LiveKit call. Starting game capture replaces a browser screen share and vice
+  versa, while camera and microphone can remain enabled. Acknowledged lifecycle
+  control keeps the UI in a stopping state until the helper disconnects its
+  LiveKit companion and exits. Non-macOS builds omit this platform provider.
+- macOS, Windows, and Linux bundles are built in CI. Experimental macOS
+  artifacts are ad-hoc signed, while the other platform artifacts remain
+  unsigned until trusted platform signing and macOS notarisation are added.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
-- Servers using an explicit restrictive `webserver.allowed_origins` list must
-  allow `chatto://desktop`. The server always trusts the exact official desktop
-  OAuth callback separately from website redirect-origin configuration.
+- Servers recognize the built-in `chatto://desktop` OAuth client and its exact
+  callback. Desktop API and realtime access use bearer credentials and require
+  no origin configuration.
 - Identity providers that reject embedded user agents are not supported until
   Chatto Desktop gains a system-browser authorization handoff.
 
@@ -71,9 +79,9 @@ network behavior.
 OAuth callbacks, and registered servers reachable on every launch. The
 dedicated scheme cannot collide with a local service and avoids intercepting
 remote server navigation. Chatto servers trust only its exact callback path.
-**Tradeoff:** The exact origin becomes a compatibility boundary and restrictive
-server CORS configurations must allow it explicitly. Desktop clients using
-this origin require the corresponding Chatto 0.5 server behavior.
+**Tradeoff:** The exact origin becomes a compatibility boundary. Desktop
+clients using this identity require the corresponding Chatto 0.5 server
+behavior.
 
 ### 4. Keep the browser OAuth-window flow
 
@@ -104,6 +112,39 @@ the application before release credentials are available.
 **Tradeoff:** Operating systems may warn about or block unsigned artifacts, and
 CI assembly alone does not prove clean-machine WebRTC behavior.
 
+### 7. Expose desktop-only capabilities through narrow optional bridges
+
+**Decision:** The desktop host exposes game capture only when a native provider
+is present, and gives the shared frontend temporary opaque sources plus display
+metadata needed for explicit user choice. It does not expose general process,
+filesystem, or operating-system access to the renderer.
+**Why:** The shared frontend needs to own the visible call interaction without
+weakening Electron's sandbox or taking a dependency on macOS-specific source
+identifiers. The same product-level boundary can be implemented independently
+by future Windows and feasible Linux providers.
+**Tradeoff:** Each desktop-only capability needs a deliberately designed bridge,
+validation on both sides, and platform-specific availability handling.
+
+### 8. Publish native game media through a companion LiveKit connection
+
+**Decision:** Platform helpers own capture, WebRTC encoding, E2EE, and LiveKit
+publication for native game media. The desktop bridge carries only temporary
+source descriptions, a fresh URL/token/key credential, stop commands, and
+lifecycle status; video and audio do not pass through Chromium or Electron IPC.
+The helper uses a separate opaque LiveKit identity whose metadata names the
+owning user. The shared frontend merges its tracks into that user's logical
+participant and suppresses local game-audio playback to avoid feedback.
+**Why:** A second native LiveKit connection cannot reuse the member's identity
+without disconnecting the existing voice client. A separately authorised
+companion connection avoids the prototype's native encode, browser decode,
+canvas capture, and WebRTC re-encode while keeping the product-level source and
+participant model shared across platform providers.
+**Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
+webhook and reconciliation filtering, and frontend participant merging. The
+native helper also becomes responsible for matching the primary call's E2EE
+and publication policy. These are explicit control-plane costs in exchange for
+a materially shorter and more efficient media path.
+
 ## Related
 
 - **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging)
@@ -118,3 +159,5 @@ CI assembly alone does not prove clean-machine WebRTC behavior.
   downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
+- Which bitrate, resolution, simulcast, and congestion policy should follow the
+  initial single-layer 1080p60 H.264 proof of concept.

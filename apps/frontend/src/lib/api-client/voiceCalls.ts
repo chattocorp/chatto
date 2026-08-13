@@ -1,5 +1,6 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { VoiceCallService } from '@chatto/api-types/api/v1/voice_calls_connect';
+import { CallMediaPublisherKind } from '@chatto/api-types/api/v1/voice_calls_pb';
 
 export type VoiceCallAPIConfig = {
   baseUrl: string;
@@ -24,6 +25,19 @@ export function createVoiceCallAPI(config: VoiceCallAPIConfig) {
 
     async getCallToken(roomId: string): Promise<VoiceCallToken | null> {
       const response = await client.getCallToken({ roomId }, { headers: headers() });
+      if (!response.token || !response.e2eeKey || !response.callId) return null;
+      return {
+        token: response.token,
+        e2eeKey: response.e2eeKey,
+        callId: response.callId
+      };
+    },
+
+    async createGameSharePublisherToken(roomId: string): Promise<VoiceCallToken | null> {
+      const response = await client.createCallMediaPublisherToken(
+        { roomId, kind: CallMediaPublisherKind.GAME_SHARE },
+        { headers: headers() }
+      );
       if (!response.token || !response.e2eeKey || !response.callId) return null;
       return {
         token: response.token,

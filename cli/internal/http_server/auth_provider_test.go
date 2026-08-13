@@ -160,7 +160,15 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.config.Webserver.URL = "http://chat.example"
-		s.config.Webserver.OAuthRedirectOrigins = []string{"https://client.example"}
+		s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
+			if clientID != testOAuthClientID {
+				return OAuthClient{}, false, nil
+			}
+			return OAuthClient{
+				ClientID: clientID, ClientName: "Test Client", ClientURI: "https://client.example",
+				RedirectURIs: []string{"https://client.example/servers/callback"},
+			}, true, nil
+		}
 		s.config.Auth.Providers = []config.AuthProviderConfig{{
 			ID:            "oidc-no-email",
 			Type:          config.AuthProviderTypeOpenIDConnect,
@@ -205,14 +213,15 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		t.Fatalf("CountVerifiedAccounts = %d, %v; want 1", got, err)
 	}
 
-	if err := chattoCore.GrantOAuthConsent(t.Context(), user.Id, "https://client.example"); err != nil {
-		t.Fatalf("GrantOAuthConsent: %v", err)
+	if err := chattoCore.GrantOAuthClientConsent(t.Context(), user.Id, testOAuthClientID, "Test Client", "https://client.example", "https://client.example"); err != nil {
+		t.Fatalf("GrantOAuthClientConsent: %v", err)
 	}
 	verifier := "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
 	redirectURI := "https://client.example/servers/callback"
 	state := "multi-server-provider-state"
 	authorizeResp, err := client.Get(ts.URL + "/oauth/authorize?" + url.Values{
 		"response_type":         {"code"},
+		"client_id":             {testOAuthClientID},
 		"redirect_uri":          {redirectURI},
 		"code_challenge":        {core.GenerateCodeChallenge(verifier)},
 		"code_challenge_method": {"S256"},
@@ -243,6 +252,7 @@ func TestOIDCProviderWithoutEmailAutoProvisionLinkAndLogin(t *testing.T) {
 		Code:         callbackURL.Query().Get("code"),
 		CodeVerifier: verifier,
 		RedirectURI:  redirectURI,
+		ClientID:     testOAuthClientID,
 	})
 	if err != nil {
 		t.Fatalf("encode multi-server token exchange: %v", err)

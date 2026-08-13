@@ -239,7 +239,22 @@
       "subtitle": "註冊限制與帳號保護",
       "blocked_usernames": "禁止使用的使用者名稱",
       "blocked_usernames_description": "每行輸入一個。使用者無法使用這些名稱註冊。",
-      "settings_saved": "設定已儲存"
+      "settings_saved": "設定已儲存",
+      "oauth_clients": {
+        "title": "OAuth 用戶端",
+        "description": "成員授權應用程式後，應用程式會顯示在此處。信任僅是管理標籤，不會略過個別同意；封鎖會拒絕新存取並撤銷現有存取權杖。",
+        "empty": "尚未授權任何 OAuth 用戶端",
+        "application": "應用程式",
+        "origins": "回呼來源",
+        "users": "已授權使用者",
+        "last_authorization": "最近授權",
+        "policy": "原則",
+        "policy_for": "{client} 的原則",
+        "policy_default": "預設",
+        "policy_trusted": "受信任",
+        "policy_blocked": "已封鎖",
+        "policy_saved": "OAuth 用戶端原則已儲存"
+      }
     },
     "system": {
       "title": "系統",

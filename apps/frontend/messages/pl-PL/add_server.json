@@ -11,7 +11,7 @@
     "not_chatto_server": "To nie wygląda na serwer Chatto.",
     "oauth_unsupported": "Ten serwer nie obsługuje uwierzytelniania OAuth. Może wymagać aktualizacji.",
     "connection_timed_out": "Przekroczono limit czasu połączenia. Sprawdź URL i spróbuj ponownie.",
-    "connection_failed": "Nie można się połączyć. Sprawdź URL i upewnij się, że CORS jest skonfigurowany.",
+    "connection_failed": "Nie można się połączyć. Sprawdź URL i spróbuj ponownie.",
     "connect_failed": "Nie udało się połączyć.",
     "edit_url": "Zły serwer? Edytuj URL",
     "description_url": "Chatto jest rozproszony - Twój klient łączy się bezpośrednio z każdym serwerem. Wprowadź URL, aby dodać kolejny.",

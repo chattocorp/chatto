@@ -15,7 +15,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
-[ADR-071](../adr/ADR-071-deterministic-notification-occurrences.md).
+[ADR-072](../adr/ADR-072-deterministic-notification-occurrences.md).
 
 ## Event envelopes
 
@@ -166,7 +166,7 @@ and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
 
 | Stream                       | Wrapper          | Scope      | Description                                      |
 | ---------------------------- | ---------------- | ---------- | ------------------------------------------------ |
-| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, and auth workflow audit facts. Notification materialization consumes existing source/lifecycle facts and keeps prepared work in `RUNTIME_STATE`; it adds no notification-only EVT facts. |
+| `EVT`                        | `corev1.Event`   | Server     | Event-sourcing log ([ADR-033](../adr/ADR-033-event-sourced-state-with-projections.md) / [ADR-034](../adr/ADR-034-single-event-stream.md)). Subjects `evt.{aggregateType}.{aggregateId}.{eventType}`; republishes onto `live.evt.>` as the raw committed-event feed. Stores room membership/metadata, groups/layout, server config, users, messages/threads, reactions, assets, RBAC, OAuth client authorization/policy, and auth workflow audit facts. Notification materialization consumes existing source/lifecycle facts and keeps prepared work in `RUNTIME_STATE`; it adds no notification-only EVT facts. |
 | `NOTIFICATIONS_QUEUE`        | `corev1.NotificationAlertJob` | User occurrence | Short-lived work queue on `notifications.alert`. Payloads carry opaque occurrence coordinates, not domain facts or presentation data; the durable worker reloads and revalidates authoritative occurrence state before push delivery. |
 | Live Sync                    | `corev1.LiveEvent` | Transient  | Direct NATS Core pubsub on `live.sync.>` for ephemeral activity and latest-value invalidation signals. `StreamMyEvents` authorizes them; genuinely transient activity becomes public realtime events, while invalidations trigger authoritative projection operations. |
 

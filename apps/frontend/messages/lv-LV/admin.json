@@ -239,7 +239,22 @@
       "subtitle": "Reģistrēšanās ierobežojumi un konta aizsardzība",
       "blocked_usernames": "Bloķētie lietotājvārdi",
       "blocked_usernames_description": "Viens katrā rindā. Lietotāji nevar reģistrēties ar šiem vārdiem.",
-      "settings_saved": "Iestatījumi saglabāti"
+      "settings_saved": "Iestatījumi saglabāti",
+      "oauth_clients": {
+        "title": "OAuth klienti",
+        "description": "Lietotnes šeit parādās pēc tam, kad dalībnieks tās autorizē. Uzticība ir tikai administratīva atzīme un nekad neaizstāj individuālu piekrišanu; bloķēšana novērš jaunu piekļuvi un atsauc esošos piekļuves pilnvarojumus.",
+        "empty": "Nav autorizētu OAuth klientu",
+        "application": "Lietotne",
+        "origins": "Atzvana izcelsmes",
+        "users": "Autorizētie lietotāji",
+        "last_authorization": "Pēdējā autorizācija",
+        "policy": "Politika",
+        "policy_for": "Politika klientam {client}",
+        "policy_default": "Noklusējuma",
+        "policy_trusted": "Uzticams",
+        "policy_blocked": "Bloķēts",
+        "policy_saved": "OAuth klienta politika saglabāta"
+      }
     },
     "system": {
       "title": "Sistēma",

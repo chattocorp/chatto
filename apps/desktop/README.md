@@ -16,9 +16,9 @@ stack.
 
 The official desktop origin is accepted by Chatto's OAuth redirect policy. The
 desktop shell uses Electron's ordinary popup support for the same PKCE and
-`BroadcastChannel` flow as a browser. Servers with an explicit restrictive
-`webserver.allowed_origins` list must include `chatto://desktop` for API
-requests from the desktop app.
+`BroadcastChannel` flow as a browser. Chatto 0.5 servers recognize the built-in
+`chatto://desktop` client identity and exact callback; bearer-authenticated API
+and realtime access requires no server origin configuration.
 
 ## Run it
 
@@ -40,10 +40,12 @@ mise desktop-build
 ```
 
 The build task first produces the frontend, then packages the host-platform
-bundle beneath `apps/desktop/dist/`. CI checks and packages macOS, Windows, and
-Linux bundles. The current release archives are unsigned experimental builds,
-so operating systems may warn about or block them until production signing and
-macOS notarisation are added.
+bundle beneath `apps/desktop/dist/`. macOS builds include the native
+ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. CI
+checks and packages macOS, Windows, and Linux bundles, verifies the nested macOS
+helper, and validates the complete app signature. The current release archives
+use ad-hoc signing, so macOS may warn about or block them until production
+Developer ID signing and notarisation are added.
 
 Electron handles camera, microphone, and notification permission requests only
 for the fixed app origin. Screen sharing presents a native source picker.

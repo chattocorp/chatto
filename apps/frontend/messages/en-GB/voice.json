@@ -53,6 +53,13 @@
     "screen_share_failed": "Could not start screen sharing.",
     "speaker_switch_failed": "Could not switch speakers. This browser or device may not support speaker selection.",
     "device_switch_failed": "Could not switch to that device.",
-    "media_device_failed": "Could not access a media device."
+    "media_device_failed": "Could not access a media device.",
+    "stream_game": "Stream a game",
+    "stream_game_description": "Choose the game window to share with everyone in the call.",
+    "game_windows": "Game windows",
+    "no_game_windows": "No shareable windows found. Open a game in windowed or borderless mode and try again.",
+    "game_windows_failed": "Could not load shareable windows.",
+    "untitled_window": "Untitled window",
+    "game_window_selected": "{name} selected"
   }
 }

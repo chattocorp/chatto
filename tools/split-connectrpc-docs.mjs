@@ -151,6 +151,12 @@ const categories = [
         description: 'Invite-link administration RPCs.'
       },
       {
+        name: 'AdminOAuthClientService',
+        slug: 'admin-oauth-clients',
+        title: 'Admin OAuth Clients',
+        description: 'Recorded OAuth-client authorization and policy administration RPCs.'
+      },
+      {
         name: 'AdminDiagnosticsService',
         slug: 'admin-diagnostics',
         title: 'Admin Diagnostics',

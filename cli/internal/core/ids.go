@@ -38,6 +38,12 @@ func NewCallID() string {
 	return newID("C")
 }
 
+// NewCallMediaPublisherID generates an opaque LiveKit companion-publisher ID
+// with a distinct prefix so it can never collide with a user identity.
+func NewCallMediaPublisherID() string {
+	return newID("CP")
+}
+
 // NewRoomGroupID generates a new room-group ID with "G" prefix.
 func NewRoomGroupID() string {
 	return newID("G")
@@ -126,4 +132,9 @@ func NewCookieSessionID() string {
 // NewAuthCode generates a new OAuth authorization code with "cht_AC" prefix.
 func NewAuthCode() string {
 	return "cht_" + newID("AC")
+}
+
+// NewPendingOAuthAuthorizeToken generates an opaque browser-flow handle.
+func NewPendingOAuthAuthorizeToken() string {
+	return "cht_" + newID("OA")
 }

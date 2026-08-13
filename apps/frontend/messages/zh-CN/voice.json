@@ -53,6 +53,13 @@
     "screen_share_failed": "无法开始共享屏幕。",
     "speaker_switch_failed": "无法切换扬声器。此浏览器或设备可能不支持选择扬声器。",
     "device_switch_failed": "无法切换到该设备。",
-    "media_device_failed": "无法访问媒体设备。"
+    "media_device_failed": "无法访问媒体设备。",
+    "stream_game": "直播游戏",
+    "stream_game_description": "选择要与通话中的所有人共享的游戏窗口。",
+    "game_windows": "游戏窗口",
+    "no_game_windows": "未找到可共享的窗口。请以窗口或无边框模式打开游戏，然后重试。",
+    "game_windows_failed": "无法加载可共享的窗口。",
+    "untitled_window": "无标题窗口",
+    "game_window_selected": "已选择 {name}"
   }
 }

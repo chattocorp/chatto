@@ -23,6 +23,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+// Native companion publisher kind.
+type CallMediaPublisherKind int32
+
+const (
+	// The publisher kind was not specified.
+	CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED CallMediaPublisherKind = 0
+	// Native game-window video and application audio.
+	CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE CallMediaPublisherKind = 1
+)
+
+// Enum value maps for CallMediaPublisherKind.
+var (
+	CallMediaPublisherKind_name = map[int32]string{
+		0: "CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED",
+		1: "CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE",
+	}
+	CallMediaPublisherKind_value = map[string]int32{
+		"CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED": 0,
+		"CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE":  1,
+	}
+)
+
+func (x CallMediaPublisherKind) Enum() *CallMediaPublisherKind {
+	p := new(CallMediaPublisherKind)
+	*p = x
+	return p
+}
+
+func (x CallMediaPublisherKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (CallMediaPublisherKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_chatto_api_v1_voice_calls_proto_enumTypes[0].Descriptor()
+}
+
+func (CallMediaPublisherKind) Type() protoreflect.EnumType {
+	return &file_chatto_api_v1_voice_calls_proto_enumTypes[0]
+}
+
+func (x CallMediaPublisherKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use CallMediaPublisherKind.Descriptor instead.
+func (CallMediaPublisherKind) EnumDescriptor() ([]byte, []int) {
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{0}
+}
+
 // Request for active room call snapshots.
 type ListActiveCallsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -712,6 +761,125 @@ func (x *GetCallTokenResponse) GetCallId() string {
 	return ""
 }
 
+// Request for a native companion publisher credential.
+type CreateCallMediaPublisherTokenRequest struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Required. Room whose active call receives the media.
+	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Required. Kind of native media publisher being started.
+	Kind          CallMediaPublisherKind `protobuf:"varint,2,opt,name=kind,proto3,enum=chatto.api.v1.CallMediaPublisherKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCallMediaPublisherTokenRequest) Reset() {
+	*x = CreateCallMediaPublisherTokenRequest{}
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCallMediaPublisherTokenRequest) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCallMediaPublisherTokenRequest) ProtoMessage() {}
+
+func (x *CreateCallMediaPublisherTokenRequest) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCallMediaPublisherTokenRequest.ProtoReflect.Descriptor instead.
+func (*CreateCallMediaPublisherTokenRequest) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{14}
+}
+
+func (x *CreateCallMediaPublisherTokenRequest) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *CreateCallMediaPublisherTokenRequest) GetKind() CallMediaPublisherKind {
+	if x != nil {
+		return x.Kind
+	}
+	return CallMediaPublisherKind_CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED
+}
+
+// Credential for one native companion publisher connection.
+type CreateCallMediaPublisherTokenResponse struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Short-lived LiveKit JWT token.
+	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
+	// Shared E2EE key for this active call.
+	E2EeKey string `protobuf:"bytes,2,opt,name=e2ee_key,json=e2eeKey,proto3" json:"e2ee_key,omitempty"`
+	// Active call session ID.
+	CallId        string `protobuf:"bytes,3,opt,name=call_id,json=callId,proto3" json:"call_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *CreateCallMediaPublisherTokenResponse) Reset() {
+	*x = CreateCallMediaPublisherTokenResponse{}
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CreateCallMediaPublisherTokenResponse) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CreateCallMediaPublisherTokenResponse) ProtoMessage() {}
+
+func (x *CreateCallMediaPublisherTokenResponse) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CreateCallMediaPublisherTokenResponse.ProtoReflect.Descriptor instead.
+func (*CreateCallMediaPublisherTokenResponse) Descriptor() ([]byte, []int) {
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{15}
+}
+
+func (x *CreateCallMediaPublisherTokenResponse) GetToken() string {
+	if x != nil {
+		return x.Token
+	}
+	return ""
+}
+
+func (x *CreateCallMediaPublisherTokenResponse) GetE2EeKey() string {
+	if x != nil {
+		return x.E2EeKey
+	}
+	return ""
+}
+
+func (x *CreateCallMediaPublisherTokenResponse) GetCallId() string {
+	if x != nil {
+		return x.CallId
+	}
+	return ""
+}
+
 // Request to record leaving a room call.
 type LeaveCallRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
@@ -723,7 +891,7 @@ type LeaveCallRequest struct {
 
 func (x *LeaveCallRequest) Reset() {
 	*x = LeaveCallRequest{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -735,7 +903,7 @@ func (x *LeaveCallRequest) String() string {
 func (*LeaveCallRequest) ProtoMessage() {}
 
 func (x *LeaveCallRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[14]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[16]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -748,7 +916,7 @@ func (x *LeaveCallRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveCallRequest.ProtoReflect.Descriptor instead.
 func (*LeaveCallRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{14}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{16}
 }
 
 func (x *LeaveCallRequest) GetRoomId() string {
@@ -769,7 +937,7 @@ type LeaveCallResponse struct {
 
 func (x *LeaveCallResponse) Reset() {
 	*x = LeaveCallResponse{}
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -781,7 +949,7 @@ func (x *LeaveCallResponse) String() string {
 func (*LeaveCallResponse) ProtoMessage() {}
 
 func (x *LeaveCallResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[15]
+	mi := &file_chatto_api_v1_voice_calls_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -794,7 +962,7 @@ func (x *LeaveCallResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use LeaveCallResponse.ProtoReflect.Descriptor instead.
 func (*LeaveCallResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{15}
+	return file_chatto_api_v1_voice_calls_proto_rawDescGZIP(), []int{17}
 }
 
 func (x *LeaveCallResponse) GetLeft() bool {
@@ -843,18 +1011,30 @@ const file_chatto_api_v1_voice_calls_proto_rawDesc = "" +
 	"\x14GetCallTokenResponse\x12\x14\n" +
 	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
 	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
-	"\acall_id\x18\x03 \x01(\tR\x06callId\"4\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callId\"\x8f\x01\n" +
+	"$CreateCallMediaPublisherTokenRequest\x12 \n" +
+	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\x12E\n" +
+	"\x04kind\x18\x02 \x01(\x0e2%.chatto.api.v1.CallMediaPublisherKindB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\x04kind\"\x8b\x01\n" +
+	"%CreateCallMediaPublisherTokenResponse\x12\x14\n" +
+	"\x05token\x18\x01 \x01(\tR\x05token\x12\x19\n" +
+	"\be2ee_key\x18\x02 \x01(\tR\ae2eeKey\x12\x17\n" +
+	"\acall_id\x18\x03 \x01(\tR\x06callIdJ\x04\b\x04\x10\x05R\x12publisher_identity\"4\n" +
 	"\x10LeaveCallRequest\x12 \n" +
 	"\aroom_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06roomId\"'\n" +
 	"\x11LeaveCallResponse\x12\x12\n" +
-	"\x04left\x18\x01 \x01(\bR\x04left2\xa5\x05\n" +
+	"\x04left\x18\x01 \x01(\bR\x04left*m\n" +
+	"\x16CallMediaPublisherKind\x12)\n" +
+	"%CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED\x10\x00\x12(\n" +
+	"$CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE\x10\x012\xb2\x06\n" +
 	"\x10VoiceCallService\x12`\n" +
 	"\x0fListActiveCalls\x12%.chatto.api.v1.ListActiveCallsRequest\x1a&.chatto.api.v1.ListActiveCallsResponse\x12Z\n" +
 	"\rGetActiveCall\x12#.chatto.api.v1.GetActiveCallRequest\x1a$.chatto.api.v1.GetActiveCallResponse\x12l\n" +
 	"\x13BatchGetActiveCalls\x12).chatto.api.v1.BatchGetActiveCallsRequest\x1a*.chatto.api.v1.BatchGetActiveCallsResponse\x12o\n" +
 	"\x14ListCallParticipants\x12*.chatto.api.v1.ListCallParticipantsRequest\x1a+.chatto.api.v1.ListCallParticipantsResponse\x12K\n" +
 	"\bJoinCall\x12\x1e.chatto.api.v1.JoinCallRequest\x1a\x1f.chatto.api.v1.JoinCallResponse\x12W\n" +
-	"\fGetCallToken\x12\".chatto.api.v1.GetCallTokenRequest\x1a#.chatto.api.v1.GetCallTokenResponse\x12N\n" +
+	"\fGetCallToken\x12\".chatto.api.v1.GetCallTokenRequest\x1a#.chatto.api.v1.GetCallTokenResponse\x12\x8a\x01\n" +
+	"\x1dCreateCallMediaPublisherToken\x123.chatto.api.v1.CreateCallMediaPublisherTokenRequest\x1a4.chatto.api.v1.CreateCallMediaPublisherTokenResponse\x12N\n" +
 	"\tLeaveCall\x12\x1f.chatto.api.v1.LeaveCallRequest\x1a .chatto.api.v1.LeaveCallResponseB\xab\x01\n" +
 	"\x11com.chatto.api.v1B\x0fVoiceCallsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -870,56 +1050,63 @@ func file_chatto_api_v1_voice_calls_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_voice_calls_proto_rawDescData
 }
 
-var file_chatto_api_v1_voice_calls_proto_msgTypes = make([]protoimpl.MessageInfo, 16)
+var file_chatto_api_v1_voice_calls_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
+var file_chatto_api_v1_voice_calls_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
 var file_chatto_api_v1_voice_calls_proto_goTypes = []any{
-	(*ListActiveCallsRequest)(nil),       // 0: chatto.api.v1.ListActiveCallsRequest
-	(*ListActiveCallsResponse)(nil),      // 1: chatto.api.v1.ListActiveCallsResponse
-	(*ActiveCall)(nil),                   // 2: chatto.api.v1.ActiveCall
-	(*GetActiveCallRequest)(nil),         // 3: chatto.api.v1.GetActiveCallRequest
-	(*GetActiveCallResponse)(nil),        // 4: chatto.api.v1.GetActiveCallResponse
-	(*BatchGetActiveCallsRequest)(nil),   // 5: chatto.api.v1.BatchGetActiveCallsRequest
-	(*BatchGetActiveCallsResponse)(nil),  // 6: chatto.api.v1.BatchGetActiveCallsResponse
-	(*ListCallParticipantsRequest)(nil),  // 7: chatto.api.v1.ListCallParticipantsRequest
-	(*ListCallParticipantsResponse)(nil), // 8: chatto.api.v1.ListCallParticipantsResponse
-	(*CallParticipant)(nil),              // 9: chatto.api.v1.CallParticipant
-	(*JoinCallRequest)(nil),              // 10: chatto.api.v1.JoinCallRequest
-	(*JoinCallResponse)(nil),             // 11: chatto.api.v1.JoinCallResponse
-	(*GetCallTokenRequest)(nil),          // 12: chatto.api.v1.GetCallTokenRequest
-	(*GetCallTokenResponse)(nil),         // 13: chatto.api.v1.GetCallTokenResponse
-	(*LeaveCallRequest)(nil),             // 14: chatto.api.v1.LeaveCallRequest
-	(*LeaveCallResponse)(nil),            // 15: chatto.api.v1.LeaveCallResponse
-	(*RoomSummary)(nil),                  // 16: chatto.api.v1.RoomSummary
-	(*User)(nil),                         // 17: chatto.api.v1.User
-	(*timestamppb.Timestamp)(nil),        // 18: google.protobuf.Timestamp
+	(CallMediaPublisherKind)(0),                   // 0: chatto.api.v1.CallMediaPublisherKind
+	(*ListActiveCallsRequest)(nil),                // 1: chatto.api.v1.ListActiveCallsRequest
+	(*ListActiveCallsResponse)(nil),               // 2: chatto.api.v1.ListActiveCallsResponse
+	(*ActiveCall)(nil),                            // 3: chatto.api.v1.ActiveCall
+	(*GetActiveCallRequest)(nil),                  // 4: chatto.api.v1.GetActiveCallRequest
+	(*GetActiveCallResponse)(nil),                 // 5: chatto.api.v1.GetActiveCallResponse
+	(*BatchGetActiveCallsRequest)(nil),            // 6: chatto.api.v1.BatchGetActiveCallsRequest
+	(*BatchGetActiveCallsResponse)(nil),           // 7: chatto.api.v1.BatchGetActiveCallsResponse
+	(*ListCallParticipantsRequest)(nil),           // 8: chatto.api.v1.ListCallParticipantsRequest
+	(*ListCallParticipantsResponse)(nil),          // 9: chatto.api.v1.ListCallParticipantsResponse
+	(*CallParticipant)(nil),                       // 10: chatto.api.v1.CallParticipant
+	(*JoinCallRequest)(nil),                       // 11: chatto.api.v1.JoinCallRequest
+	(*JoinCallResponse)(nil),                      // 12: chatto.api.v1.JoinCallResponse
+	(*GetCallTokenRequest)(nil),                   // 13: chatto.api.v1.GetCallTokenRequest
+	(*GetCallTokenResponse)(nil),                  // 14: chatto.api.v1.GetCallTokenResponse
+	(*CreateCallMediaPublisherTokenRequest)(nil),  // 15: chatto.api.v1.CreateCallMediaPublisherTokenRequest
+	(*CreateCallMediaPublisherTokenResponse)(nil), // 16: chatto.api.v1.CreateCallMediaPublisherTokenResponse
+	(*LeaveCallRequest)(nil),                      // 17: chatto.api.v1.LeaveCallRequest
+	(*LeaveCallResponse)(nil),                     // 18: chatto.api.v1.LeaveCallResponse
+	(*RoomSummary)(nil),                           // 19: chatto.api.v1.RoomSummary
+	(*User)(nil),                                  // 20: chatto.api.v1.User
+	(*timestamppb.Timestamp)(nil),                 // 21: google.protobuf.Timestamp
 }
 var file_chatto_api_v1_voice_calls_proto_depIdxs = []int32{
-	2,  // 0: chatto.api.v1.ListActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
-	16, // 1: chatto.api.v1.ActiveCall.room:type_name -> chatto.api.v1.RoomSummary
-	9,  // 2: chatto.api.v1.ActiveCall.participants:type_name -> chatto.api.v1.CallParticipant
-	2,  // 3: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
-	2,  // 4: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
-	9,  // 5: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
-	17, // 6: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
-	18, // 7: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
-	0,  // 8: chatto.api.v1.VoiceCallService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
-	3,  // 9: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
-	5,  // 10: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
-	7,  // 11: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
-	10, // 12: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
-	12, // 13: chatto.api.v1.VoiceCallService.GetCallToken:input_type -> chatto.api.v1.GetCallTokenRequest
-	14, // 14: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
-	1,  // 15: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
-	4,  // 16: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
-	6,  // 17: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
-	8,  // 18: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
-	11, // 19: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
-	13, // 20: chatto.api.v1.VoiceCallService.GetCallToken:output_type -> chatto.api.v1.GetCallTokenResponse
-	15, // 21: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
-	15, // [15:22] is the sub-list for method output_type
-	8,  // [8:15] is the sub-list for method input_type
-	8,  // [8:8] is the sub-list for extension type_name
-	8,  // [8:8] is the sub-list for extension extendee
-	0,  // [0:8] is the sub-list for field type_name
+	3,  // 0: chatto.api.v1.ListActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
+	19, // 1: chatto.api.v1.ActiveCall.room:type_name -> chatto.api.v1.RoomSummary
+	10, // 2: chatto.api.v1.ActiveCall.participants:type_name -> chatto.api.v1.CallParticipant
+	3,  // 3: chatto.api.v1.GetActiveCallResponse.call:type_name -> chatto.api.v1.ActiveCall
+	3,  // 4: chatto.api.v1.BatchGetActiveCallsResponse.calls:type_name -> chatto.api.v1.ActiveCall
+	10, // 5: chatto.api.v1.ListCallParticipantsResponse.participants:type_name -> chatto.api.v1.CallParticipant
+	20, // 6: chatto.api.v1.CallParticipant.user:type_name -> chatto.api.v1.User
+	21, // 7: chatto.api.v1.CallParticipant.joined_at:type_name -> google.protobuf.Timestamp
+	0,  // 8: chatto.api.v1.CreateCallMediaPublisherTokenRequest.kind:type_name -> chatto.api.v1.CallMediaPublisherKind
+	1,  // 9: chatto.api.v1.VoiceCallService.ListActiveCalls:input_type -> chatto.api.v1.ListActiveCallsRequest
+	4,  // 10: chatto.api.v1.VoiceCallService.GetActiveCall:input_type -> chatto.api.v1.GetActiveCallRequest
+	6,  // 11: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:input_type -> chatto.api.v1.BatchGetActiveCallsRequest
+	8,  // 12: chatto.api.v1.VoiceCallService.ListCallParticipants:input_type -> chatto.api.v1.ListCallParticipantsRequest
+	11, // 13: chatto.api.v1.VoiceCallService.JoinCall:input_type -> chatto.api.v1.JoinCallRequest
+	13, // 14: chatto.api.v1.VoiceCallService.GetCallToken:input_type -> chatto.api.v1.GetCallTokenRequest
+	15, // 15: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:input_type -> chatto.api.v1.CreateCallMediaPublisherTokenRequest
+	17, // 16: chatto.api.v1.VoiceCallService.LeaveCall:input_type -> chatto.api.v1.LeaveCallRequest
+	2,  // 17: chatto.api.v1.VoiceCallService.ListActiveCalls:output_type -> chatto.api.v1.ListActiveCallsResponse
+	5,  // 18: chatto.api.v1.VoiceCallService.GetActiveCall:output_type -> chatto.api.v1.GetActiveCallResponse
+	7,  // 19: chatto.api.v1.VoiceCallService.BatchGetActiveCalls:output_type -> chatto.api.v1.BatchGetActiveCallsResponse
+	9,  // 20: chatto.api.v1.VoiceCallService.ListCallParticipants:output_type -> chatto.api.v1.ListCallParticipantsResponse
+	12, // 21: chatto.api.v1.VoiceCallService.JoinCall:output_type -> chatto.api.v1.JoinCallResponse
+	14, // 22: chatto.api.v1.VoiceCallService.GetCallToken:output_type -> chatto.api.v1.GetCallTokenResponse
+	16, // 23: chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken:output_type -> chatto.api.v1.CreateCallMediaPublisherTokenResponse
+	18, // 24: chatto.api.v1.VoiceCallService.LeaveCall:output_type -> chatto.api.v1.LeaveCallResponse
+	17, // [17:25] is the sub-list for method output_type
+	9,  // [9:17] is the sub-list for method input_type
+	9,  // [9:9] is the sub-list for extension type_name
+	9,  // [9:9] is the sub-list for extension extendee
+	0,  // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_chatto_api_v1_voice_calls_proto_init() }
@@ -934,13 +1121,14 @@ func file_chatto_api_v1_voice_calls_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_voice_calls_proto_rawDesc), len(file_chatto_api_v1_voice_calls_proto_rawDesc)),
-			NumEnums:      0,
-			NumMessages:   16,
+			NumEnums:      1,
+			NumMessages:   18,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
 		GoTypes:           file_chatto_api_v1_voice_calls_proto_goTypes,
 		DependencyIndexes: file_chatto_api_v1_voice_calls_proto_depIdxs,
+		EnumInfos:         file_chatto_api_v1_voice_calls_proto_enumTypes,
 		MessageInfos:      file_chatto_api_v1_voice_calls_proto_msgTypes,
 	}.Build()
 	File_chatto_api_v1_voice_calls_proto = out.File

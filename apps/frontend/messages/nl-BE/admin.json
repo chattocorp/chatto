@@ -239,7 +239,22 @@
       "subtitle": "Aanmeldingsbeperkingen en accountbescherming",
       "blocked_usernames": "Geblokkeerde gebruikersnamen",
       "blocked_usernames_description": "Eén per regel. Gebruikers kunnen zich niet registreren met deze namen.",
-      "settings_saved": "Instellingen opgeslagen"
+      "settings_saved": "Instellingen opgeslagen",
+      "oauth_clients": {
+        "title": "OAuth-clients",
+        "description": "Applicaties verschijnen hier nadat een lid ze heeft geautoriseerd. Vertrouwen is enkel een beheerderslabel en slaat individuele toestemming nooit over; blokkeren voorkomt nieuwe toegang en trekt bestaande toegangstokens in.",
+        "empty": "Er zijn geen OAuth-clients geautoriseerd",
+        "application": "Applicatie",
+        "origins": "Callback-origins",
+        "users": "Geautoriseerde gebruikers",
+        "last_authorization": "Laatste autorisatie",
+        "policy": "Beleid",
+        "policy_for": "Beleid voor {client}",
+        "policy_default": "Standaard",
+        "policy_trusted": "Vertrouwd",
+        "policy_blocked": "Geblokkeerd",
+        "policy_saved": "OAuth-clientbeleid opgeslagen"
+      }
     },
     "system": {
       "title": "Systeem",

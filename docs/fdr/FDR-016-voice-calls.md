@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-13
 
 ## Overview
 
@@ -27,6 +27,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
 - Screen sharing requests browser-tab audio when the browser supports it. In Chrome, the presenter must select a browser tab and enable **Share tab audio** in the browser picker. Chatto excludes whole-system audio so remote call playback is not captured and fed back into the room.
 - Screen-share state is LiveKit track state only. Users who have not joined the call still see who is in the active call, but they do not see whether a participant is sharing a screen.
+- On macOS 15 and newer, Chatto Desktop adds a separate game-stream control for joined participants. It opens a Chatto source picker populated with ordinary visible application windows from the desktop host; the list is not based on a game catalogue. Selecting a window publishes its video and owning-application audio as the member's screen share. Members can use microphone audio alone, camera with microphone audio, or camera and microphone while sharing. Browser screen sharing and native game sharing occupy one mutually exclusive share slot.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
 ## Design Decisions
@@ -91,9 +92,16 @@ Rooms support real-time voice conversations with optional camera video and scree
 **Why:** LiveKit E2EE key generation/distribution is application responsibility. Chatto already authorizes token access by room membership, so the token resolver is the narrow place to distribute the shared call key. Keeping the raw key out of EVT and normal backups avoids turning event-log copies into permanent decrypt material for captured media. Making the end fact the retry source closes the post-commit crash window without coupling recovery to LiveKit reconciliation.
 **Tradeoff:** Always-on E2EE breaks media compatibility with older clients that do not enable E2EE. Key deletion is at least once, so replicas may repeat the same idempotent shredding attempt; an unavailable KMS can briefly retain an ended call's key until retry succeeds. Restoring a backup without `ENCRYPTION_KEYS` cannot recover active call keys; active calls should be considered interrupted across such restores.
 
+### 11. Desktop game capture is a separate, host-provided source choice
+
+**Decision:** Game streaming uses a distinct call control from browser screen sharing. When the desktop host advertises native game capture, Chatto presents the host's temporary, opaque window sources in its own source picker. The product does not ship a game catalogue or infer which window is a game. Selecting a game starts a native, publish-only LiveKit companion connection with its own opaque identity and the same per-call E2EE key. The frontend merges that connection's game video and application audio into the owning member's logical participant and hides the companion as a separate tile. Starting either kind of share replaces the other; camera and microphone publications are unaffected.
+**Why:** Native capture can provide game video and owning-application audio that Chromium's screen-sharing path cannot provide consistently. Direct native publication removes the prototype's H.264 decode, canvas copy, browser capture, and second WebRTC encode. Keeping source choice and logical-participant presentation in the shared frontend preserves Chatto's call interaction and accessibility patterns, while an opaque host control boundary leaves macOS, Windows, and feasible Linux capture implementations independent.
+**Tradeoff:** The control is hidden when the host has no capture provider. The server must mint a separate short-lived publisher credential because reusing the member's LiveKit identity would disconnect their primary call connection. Webhooks and reconciliation exclude companion identities from durable call membership, while stale-room cleanup still removes them. The first macOS target is a single 1080p60 H.264 layer at up to 8 Mbps; actual cadence and quality remain dependent on the source, hardware encoder, network, SFU, and receiving device.
+
 ## Permissions
 
 - `voiceCallToken` query — requires room membership.
+- `CreateCallMediaPublisherToken` — requires room membership and current participation in the active call.
 - `callParticipants` query — requires room membership.
 - `activeCallRoomIds` query — requires server membership.
 - `joinVoiceCall` / `leaveVoiceCall` mutations — require room membership.

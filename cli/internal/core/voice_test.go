@@ -126,6 +126,7 @@ type recordingCallLogger struct {
 type fakeLiveKitRoomService struct {
 	rooms           []string
 	participants    map[string][]string
+	metadata        map[string]string
 	participantErrs map[string]error
 	removed         []livekit.RoomParticipantIdentity
 	removeErr       error
@@ -146,7 +147,7 @@ func (f fakeLiveKitRoomService) ListParticipants(_ context.Context, req *livekit
 	userIDs := f.participants[req.GetRoom()]
 	participants := make([]*livekit.ParticipantInfo, 0, len(userIDs))
 	for _, userID := range userIDs {
-		participants = append(participants, &livekit.ParticipantInfo{Identity: userID})
+		participants = append(participants, &livekit.ParticipantInfo{Identity: userID, Metadata: f.metadata[userID]})
 	}
 	return &livekit.ListParticipantsResponse{Participants: participants}, nil
 }
@@ -517,6 +518,59 @@ func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
 	}
 }
 
+func TestGenerateCallMediaPublisherToken(t *testing.T) {
+	result, err := GenerateCallMediaPublisherToken(
+		"devkey",
+		"secret",
+		"space123_room456@call789",
+		"publisher123",
+		"user789",
+		"Test User",
+		"e2ee-test-key",
+		"call789",
+		ParticipantPublisherKindGameShare,
+	)
+	if err != nil {
+		t.Fatalf("GenerateCallMediaPublisherToken() error = %v", err)
+	}
+	if result.CallID != "call789" || result.E2EEKey != "e2ee-test-key" {
+		t.Fatalf("GenerateCallMediaPublisherToken() = %+v", result)
+	}
+
+	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
+	token, _, err := parser.ParseUnverified(result.Token, jwt.MapClaims{})
+	if err != nil {
+		t.Fatalf("parse JWT: %v", err)
+	}
+	claims := token.Claims.(jwt.MapClaims)
+	if claims["sub"] != "publisher123" {
+		t.Fatalf("Token sub = %v, want publisher123", claims["sub"])
+	}
+	metadata, _ := claims["metadata"].(string)
+	if !strings.Contains(metadata, `"publisherKind":"game_share"`) || !strings.Contains(metadata, `"ownerIdentity":"user789"`) {
+		t.Fatalf("Token metadata = %q", metadata)
+	}
+	if !IsCallMediaPublisher(metadata) {
+		t.Fatal("IsCallMediaPublisher() = false")
+	}
+	video, ok := claims["video"].(map[string]interface{})
+	if !ok {
+		t.Fatal("Token missing video grant")
+	}
+	if video["canSubscribe"] != false || video["canPublishData"] != false {
+		t.Fatalf("Token video grant = %+v, want subscribe/data disabled", video)
+	}
+	sources, _ := video["canPublishSources"].([]interface{})
+	if fmt.Sprint(sources) != "[screen_share microphone]" {
+		t.Fatalf("Token publish sources = %v", sources)
+	}
+	exp, _ := claims["exp"].(float64)
+	nbf, _ := claims["nbf"].(float64)
+	if ttl := time.Duration(exp-nbf) * time.Second; ttl != CallMediaPublisherTokenTTL {
+		t.Fatalf("Token TTL = %s, want %s", ttl, CallMediaPublisherTokenTTL)
+	}
+}
+
 // ============================================================================
 // Call State Projection Tests (require embedded NATS)
 // ============================================================================
@@ -696,6 +750,90 @@ func TestCallModel_GetAccessMaterialRejectsCallGenerationTransition(t *testing.T
 	model.callKeys = &hookedCallKeyStore{keys: map[string]string{}}
 	if _, err := model.GetAccessMaterial(context.Background(), roomID); err == nil {
 		t.Fatal("GetAccessMaterial() without projected key error = nil, want key read error")
+	}
+}
+
+func TestCallModel_GetParticipantAccessMaterialRejectsCallGenerationTransition(t *testing.T) {
+	projection := NewCallStateProjection()
+	roomID := "room-publisher-access-generation"
+	userID := "user1"
+	oldCallID := "call-old"
+	newCallID := "call-new"
+	oldKeyRef := "key-ref-old"
+	newKeyRef := "key-ref-new"
+
+	if err := projection.Apply(newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallStarted{
+			VoiceCallStarted: &corev1.CallStartedEvent{
+				RoomId:     roomID,
+				CallId:     oldCallID,
+				E2EeKeyRef: oldKeyRef,
+			},
+		},
+	}), 1); err != nil {
+		t.Fatalf("Apply old VoiceCallStarted: %v", err)
+	}
+	if err := projection.Apply(newEvent(userID, &corev1.Event{
+		Event: &corev1.Event_VoiceCallParticipantJoined{
+			VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+				RoomId: roomID,
+				CallId: oldCallID,
+			},
+		},
+	}), 2); err != nil {
+		t.Fatalf("Apply old VoiceCallParticipantJoined: %v", err)
+	}
+
+	keyStore := &hookedCallKeyStore{
+		keys: map[string]string{
+			oldKeyRef: "key-old",
+			newKeyRef: "key-new",
+		},
+	}
+	keyStore.beforeGet = func(keyRef string) error {
+		if keyRef != oldKeyRef {
+			return fmt.Errorf("GetCallKey key ref = %q, want captured old ref %q", keyRef, oldKeyRef)
+		}
+		if err := projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallEnded{
+				VoiceCallEnded: &corev1.CallEndedEvent{RoomId: roomID, CallId: oldCallID},
+			},
+		}), 3); err != nil {
+			return err
+		}
+		if err := projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallStarted{
+				VoiceCallStarted: &corev1.CallStartedEvent{
+					RoomId:     roomID,
+					CallId:     newCallID,
+					E2EeKeyRef: newKeyRef,
+				},
+			},
+		}), 4); err != nil {
+			return err
+		}
+		return projection.Apply(newEvent(userID, &corev1.Event{
+			Event: &corev1.Event_VoiceCallParticipantJoined{
+				VoiceCallParticipantJoined: &corev1.CallParticipantJoinedEvent{
+					RoomId: roomID,
+					CallId: newCallID,
+				},
+			},
+		}), 5)
+	}
+
+	model := &CallModel{
+		callState: detachedTestProjectionHandle(projection),
+		callKeys:  keyStore,
+	}
+	access, err := model.GetParticipantAccessMaterial(context.Background(), roomID, userID)
+	if !errors.Is(err, ErrNotFound) {
+		t.Fatalf("GetParticipantAccessMaterial() = %#v, %v; want call transition error", access, err)
+	}
+
+	keyStore.beforeGet = nil
+	if _, err := model.GetParticipantAccessMaterial(context.Background(), roomID, "not-participating"); !errors.Is(err, ErrCallParticipationRequired) {
+		t.Fatalf("GetParticipantAccessMaterial() non-participant error = %v, want ErrCallParticipationRequired", err)
 	}
 }
 
@@ -1769,6 +1907,32 @@ func TestLiveKitRoomClientListCallParticipantsTreatsRoomNotFoundAsEmpty(t *testi
 	}
 	if snapshots[1].RoomID != "room2" || snapshots[1].CallID != "C2" || len(snapshots[1].UserIDs) != 1 || snapshots[1].UserIDs[0] != "user2" {
 		t.Fatalf("Second snapshot = %#v, want room2 C2 user2 snapshot", snapshots[1])
+	}
+}
+
+func TestLiveKitRoomClientExcludesCompanionPublishersFromCallMembership(t *testing.T) {
+	room := LiveKitRoomName("", KindChannel, "room1", "C1")
+	client := &liveKitRoomClient{
+		service: &fakeLiveKitRoomService{
+			rooms:        []string{room},
+			participants: map[string][]string{room: {"user1", "publisher1"}},
+			metadata: map[string]string{
+				"publisher1": `{"publisherKind":"game_share","ownerIdentity":"user1"}`,
+			},
+		},
+		apiKey:    "key",
+		apiSecret: "secret",
+	}
+
+	snapshots, err := client.ListCallParticipants(testContext(t))
+	if err != nil {
+		t.Fatalf("ListCallParticipants() error = %v", err)
+	}
+	if len(snapshots) != 1 || !slices.Equal(snapshots[0].UserIDs, []string{"user1"}) {
+		t.Fatalf("UserIDs = %#v, want only user1", snapshots)
+	}
+	if !slices.Equal(snapshots[0].ParticipantIdentities, []string{"publisher1", "user1"}) {
+		t.Fatalf("ParticipantIdentities = %#v, want publisher and user", snapshots[0].ParticipantIdentities)
 	}
 }
 

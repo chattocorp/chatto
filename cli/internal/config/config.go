@@ -231,16 +231,6 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, fmt.Sprintf("nats.client.url is invalid: %v", err))
 		}
 	}
-	for _, origin := range c.Webserver.AllowedOrigins {
-		if err := validateOrigin("webserver.allowed_origins", origin, true, false); err != nil {
-			errs = append(errs, err.Error())
-		}
-	}
-	for _, origin := range c.Webserver.OAuthRedirectOrigins {
-		if err := validateOrigin("webserver.oauth_redirect_origins", origin, true, true); err != nil {
-			errs = append(errs, err.Error())
-		}
-	}
 	for _, proxy := range c.Webserver.TrustedProxies {
 		if net.ParseIP(proxy) == nil {
 			if _, _, err := net.ParseCIDR(proxy); err != nil {

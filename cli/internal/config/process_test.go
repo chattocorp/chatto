@@ -324,7 +324,7 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	}
 }
 
-func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
+func TestReadConfig_TrustedProxiesFromTOMLAndEnv(t *testing.T) {
 	tmpDir := t.TempDir()
 	originalDir, err := os.Getwd()
 	if err != nil {
@@ -339,7 +339,6 @@ func TestReadConfig_OAuthRedirectOriginsFromTOMLAndEnv(t *testing.T) {
 [webserver]
 port = 5000
 cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-oauth_redirect_origins = ["https://client.example"]
 trusted_proxies = ["127.0.0.1", "10.0.0.0/8"]
 
 [core]
@@ -356,21 +355,14 @@ signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddee
 	if err != nil {
 		t.Fatalf("ReadConfig() failed: %v", err)
 	}
-	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "https://client.example"; got != want {
-		t.Fatalf("expected TOML oauth_redirect_origins %q, got %q", want, got)
-	}
 	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "127.0.0.1,10.0.0.0/8"; got != want {
 		t.Fatalf("expected TOML trusted_proxies %q, got %q", want, got)
 	}
 
-	t.Setenv("CHATTO_WEBSERVER_OAUTH_REDIRECT_ORIGINS", "*")
 	t.Setenv("CHATTO_WEBSERVER_TRUSTED_PROXIES", "192.0.2.10,2001:db8::/32")
 	cfg, err = ReadConfig("")
 	if err != nil {
 		t.Fatalf("ReadConfig() with env override failed: %v", err)
-	}
-	if got, want := strings.Join(cfg.Webserver.OAuthRedirectOrigins, ","), "*"; got != want {
-		t.Fatalf("expected env oauth_redirect_origins %q, got %q", want, got)
 	}
 	if got, want := strings.Join(cfg.Webserver.TrustedProxies, ","), "192.0.2.10,2001:db8::/32"; got != want {
 		t.Fatalf("expected env trusted_proxies %q, got %q", want, got)
@@ -968,11 +960,9 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 		wantError string
 	}{
 		{
-			name: "valid webserver URL and origins",
+			name: "valid webserver URL and trusted proxies",
 			modify: func(c *ChattoConfig) {
 				c.Webserver.URL = "https://chat.example"
-				c.Webserver.AllowedOrigins = []string{"https://client.example", "http://localhost:5173", ChattoDesktopOrigin, "*"}
-				c.Webserver.OAuthRedirectOrigins = []string{"https://client.example", "http://localhost:5173", ChattoDesktopOrigin, "*"}
 				c.Webserver.TrustedProxies = []string{"127.0.0.1", "10.0.0.0/8", "2001:db8::/32"}
 			},
 		},
@@ -991,18 +981,25 @@ func TestChattoConfig_Validate_URLsAndOrigins(t *testing.T) {
 			wantError: "webserver.url must use http or https",
 		},
 		{
-			name: "allowed origin rejects paths",
+			name: "webserver URL rejects legacy IPv4 spelling",
 			modify: func(c *ChattoConfig) {
-				c.Webserver.AllowedOrigins = []string{"https://client.example/path"}
+				c.Webserver.URL = "http://127.1:5173"
 			},
-			wantError: "webserver.allowed_origins contains invalid origin",
+			wantError: "webserver.url must use canonical dotted IPv4 syntax",
 		},
 		{
-			name: "OAuth origin requires https outside loopback",
+			name: "webserver URL rejects out of range port",
 			modify: func(c *ChattoConfig) {
-				c.Webserver.OAuthRedirectOrigins = []string{"http://client.example"}
+				c.Webserver.URL = "https://chat.example:65536"
 			},
-			wantError: "non-loopback OAuth redirect origins must use https",
+			wantError: "webserver.url port must be between 0 and 65535",
+		},
+		{
+			name: "webserver URL rejects invalid IDNA hostname",
+			modify: func(c *ChattoConfig) {
+				c.Webserver.URL = "https://\u200d.example"
+			},
+			wantError: "webserver.url host must be a valid IDNA hostname",
 		},
 	}
 

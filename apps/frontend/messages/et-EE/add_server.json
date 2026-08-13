@@ -11,7 +11,7 @@
     "not_chatto_server": "See ei näi olevat Chatto server.",
     "oauth_unsupported": "See server ei toeta OAuthi autentimist. Võimalik, et seda tuleb värskendada.",
     "connection_timed_out": "Ühendus aegus. Kontrollige URL-i ja proovige uuesti.",
-    "connection_failed": "Ühendust ei õnnestunud luua. Kontrollige URL-i ja veenduge, et CORS on konfigureeritud.",
+    "connection_failed": "Ühendust ei õnnestunud luua. Kontrollige URL-i ja proovige uuesti.",
     "connect_failed": "Ühenduse loomine ebaõnnestus.",
     "edit_url": "Vale server? Muuda URL-i",
     "description_url": "Chatto on levitatud – teie klient loob ühenduse otse iga serveriga. Teise lisamiseks sisestage URL.",

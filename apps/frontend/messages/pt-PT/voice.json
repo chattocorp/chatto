@@ -53,6 +53,13 @@
     "screen_share_failed": "Não foi possível iniciar a partilha de ecrã.",
     "speaker_switch_failed": "Não foi possível trocar os altifalantes. Este navegador ou dispositivo pode não suportar a seleção de colunas.",
     "device_switch_failed": "Não foi possível mudar para este dispositivo.",
-    "media_device_failed": "Não foi possível aceder a um dispositivo de multimédia."
+    "media_device_failed": "Não foi possível aceder a um dispositivo de multimédia.",
+    "stream_game": "Transmitir um jogo",
+    "stream_game_description": "Escolhe a janela do jogo que queres partilhar com todos na chamada.",
+    "game_windows": "Janelas de jogos",
+    "no_game_windows": "Não foram encontradas janelas partilháveis. Abre um jogo no modo de janela ou sem margens e tenta novamente.",
+    "game_windows_failed": "Não foi possível carregar as janelas partilháveis.",
+    "untitled_window": "Janela sem título",
+    "game_window_selected": "{name} selecionado"
   }
 }

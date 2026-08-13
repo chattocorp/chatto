@@ -2,7 +2,6 @@ package http_server
 
 import (
 	"net/http"
-	"strings"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,7 +24,7 @@ type authlingClientConfiguration struct {
 func (s *HTTPServer) setupClientConfigurationRoutes() {
 	document := clientConfiguration{Version: 1}
 	if s.config.Frontend.AuthlingIssuer != "" {
-		baseURL := strings.TrimRight(s.config.Webserver.URL, "/")
+		baseURL := configuredWebserverOrigin(s.config.Webserver.URL)
 		document.Authling = &authlingClientConfiguration{
 			Issuer:   s.config.Frontend.AuthlingIssuer,
 			ClientID: baseURL + frontendCIMDPath,

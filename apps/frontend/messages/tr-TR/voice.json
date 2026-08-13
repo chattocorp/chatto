@@ -53,6 +53,13 @@
     "screen_share_failed": "Ekran paylaşımı başlatılamadı.",
     "speaker_switch_failed": "Hoparlörler değiştirilemedi. Bu tarayıcı veya cihaz hoparlör seçimini desteklemiyor olabilir.",
     "device_switch_failed": "Bu cihaza geçiş yapılamadı.",
-    "media_device_failed": "Bir medya cihazına erişilemedi."
+    "media_device_failed": "Bir medya cihazına erişilemedi.",
+    "stream_game": "Oyun yayınla",
+    "stream_game_description": "Aramadaki herkesle paylaşmak istediğiniz oyun penceresini seçin.",
+    "game_windows": "Oyun pencereleri",
+    "no_game_windows": "Paylaşılabilir pencere bulunamadı. Bir oyunu pencereli veya kenarlıksız modda açıp tekrar deneyin.",
+    "game_windows_failed": "Paylaşılabilir pencereler yüklenemedi.",
+    "untitled_window": "Başlıksız pencere",
+    "game_window_selected": "{name} seçildi"
   }
 }

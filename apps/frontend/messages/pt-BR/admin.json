@@ -239,7 +239,22 @@
       "subtitle": "Restrições de inscrição e proteção de conta",
       "blocked_usernames": "Nomes de usuário bloqueados",
       "blocked_usernames_description": "Um por linha. Os usuários não podem se registrar com esses nomes.",
-      "settings_saved": "Configurações salvas"
+      "settings_saved": "Configurações salvas",
+      "oauth_clients": {
+        "title": "Clientes OAuth",
+        "description": "Os aplicativos aparecem aqui depois que um membro os autoriza. A confiança é apenas um rótulo administrativo e nunca ignora o consentimento individual; o bloqueio impede novos acessos e revoga os tokens existentes.",
+        "empty": "Nenhum cliente OAuth foi autorizado",
+        "application": "Aplicativo",
+        "origins": "Origens de retorno",
+        "users": "Usuários autorizados",
+        "last_authorization": "Última autorização",
+        "policy": "Política",
+        "policy_for": "Política para {client}",
+        "policy_default": "Padrão",
+        "policy_trusted": "Confiável",
+        "policy_blocked": "Bloqueado",
+        "policy_saved": "Política do cliente OAuth salva"
+      }
     },
     "system": {
       "title": "Sistema",

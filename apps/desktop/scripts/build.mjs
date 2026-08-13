@@ -1,10 +1,10 @@
-import { execFileSync } from "node:child_process";
 import { mkdir, readdir, rename, rm } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { packager } from "@electron/packager";
 import packageJson from "../package.json" with { type: "json" };
 import { pruneElectronLocales } from "./locales.mjs";
+import { embedMacOSCaptureHelper } from "./macos-capture-helper.mjs";
 import { macOSVersions, releaseBuildVersion } from "./version.mjs";
 
 const desktopRoot = path.resolve(
@@ -15,6 +15,13 @@ const repositoryRoot = path.resolve(desktopRoot, "../..");
 const distRoot = path.join(desktopRoot, "dist");
 const packagerOut = path.join(distRoot, ".packager");
 const platform = process.platform;
+const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
+const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
+const embedCaptureHelper = platform === "darwin";
+const macOSSignIdentity =
+  platform === "darwin"
+    ? (process.env.CHATTO_MACOS_SIGN_IDENTITY ?? "-")
+    : undefined;
 const macVersions =
   platform === "darwin" ? macOSVersions(packageJson.version) : undefined;
 const supportedLocales = (
@@ -53,12 +60,36 @@ const [bundleRoot] = await packager({
     path.join(repositoryRoot, "LICENSES"),
   ],
   usageDescription: {
+    AudioCapture:
+      "Chatto captures game audio only while you choose to stream it.",
     Camera: "Chatto uses the camera when you choose to share video in a call.",
     Microphone:
       "Chatto uses the microphone when you join a voice or video call.",
   },
+  download: electronChecksum
+    ? { checksums: { [electronArchiveName]: electronChecksum } }
+    : undefined,
+  afterPrune: embedCaptureHelper
+    ? [
+        async ({ buildPath }) => {
+          const appBundle = path.resolve(buildPath, "../../..");
+          await embedMacOSCaptureHelper(appBundle, macVersions);
+        },
+      ]
+    : undefined,
+  osxSign:
+    platform === "darwin"
+      ? {
+          identity: macOSSignIdentity,
+          identityValidation: macOSSignIdentity !== "-",
+          optionsForFile: () => ({
+            hardenedRuntime: macOSSignIdentity !== "-",
+          }),
+        }
+      : undefined,
   ignore: [
     /^\/dist(?:\/|$)/,
+    /^\/native(?:\/|$)/,
     /^\/node_modules(?:\/|$)/,
     /^\/scripts(?:\/|$)/,
     /\.test\.mjs$/,
@@ -79,7 +110,6 @@ console.log(
 );
 
 if (platform === "darwin") {
-  execFileSync("codesign", ["--force", "--deep", "--sign", "-", appBundle]);
   await rename(
     appBundle,
     path.join(distRoot, `${packageJson.productName}.app`),

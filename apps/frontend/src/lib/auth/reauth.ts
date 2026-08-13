@@ -30,6 +30,8 @@ const POPUP_WIDTH = 520;
 const POPUP_HEIGHT = 600;
 const POPUP_POLL_INTERVAL_MS = 250;
 const POPUP_TIMEOUT_MS = 5 * 60 * 1000;
+const DESKTOP_CLIENT_ID = 'chatto://desktop';
+const FRONTEND_CIMD_PATH = '/oauth/frontend-client-metadata.json';
 
 class OAuthPopupError extends Error {}
 
@@ -57,6 +59,7 @@ async function runServerOAuthFlow(
   const verifier = generateCodeVerifier();
   const state = generateState();
   const redirectUri = `${window.location.origin}/servers/callback?mode=popup`;
+  const clientId = oauthClientIdForLocation(window.location);
 
   // Open synchronously from the user's click before hashing the PKCE verifier;
   // otherwise browsers may treat the secondary window as an unsolicited popup.
@@ -89,6 +92,7 @@ async function runServerOAuthFlow(
       verifier,
       state,
       remoteUrl: serverUrl,
+      clientId,
       serverName: serverInfo.name,
       serverIconUrl: serverInfo.iconUrl ?? null
     };
@@ -96,6 +100,7 @@ async function runServerOAuthFlow(
     const challenge = await generateCodeChallenge(verifier);
     const params = new URLSearchParams({
       response_type: 'code',
+      client_id: clientId,
       redirect_uri: redirectUri,
       code_challenge: challenge,
       code_challenge_method: 'S256',
@@ -226,6 +231,7 @@ export async function completeServerOAuthFlow(
     serverName: string;
     serverIconUrl: string | null;
     verifier: string;
+    clientId: string;
   },
   code: string,
   redirectUri: string
@@ -237,7 +243,8 @@ export async function completeServerOAuthFlow(
       grant_type: 'authorization_code',
       code,
       code_verifier: flow.verifier,
-      redirect_uri: redirectUri
+      redirect_uri: redirectUri,
+      client_id: flow.clientId
     }),
     signal: AbortSignal.timeout(10000)
   });
@@ -300,6 +307,15 @@ export async function completeServerOAuthFlow(
   // required projection stream on the first route transition.
   await serverRegistry.getStore(id).serverInfo.init();
   return id;
+}
+
+export function oauthClientIdForLocation(
+  location: Pick<Location, 'origin' | 'protocol' | 'host'>
+): string {
+  if (location.protocol === 'chatto:' && location.host === 'desktop') {
+    return DESKTOP_CLIENT_ID;
+  }
+  return `${location.origin}${FRONTEND_CIMD_PATH}`;
 }
 
 export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {

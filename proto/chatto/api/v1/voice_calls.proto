@@ -51,6 +51,15 @@ service VoiceCallService {
   // or voice and video calls are not configured.
   rpc GetCallToken(GetCallTokenRequest) returns (GetCallTokenResponse);
 
+  // Issues a short-lived LiveKit token for a native companion publisher owned
+  // by the caller. Companion publishers contribute media to the caller's
+  // logical participant without becoming call participants themselves.
+  //
+  // The caller must already participate in the active call. Returns
+  // FAILED_PRECONDITION when no call is active, the caller has not joined it,
+  // or voice and video calls are not configured.
+  rpc CreateCallMediaPublisherToken(CreateCallMediaPublisherTokenRequest) returns (CreateCallMediaPublisherTokenResponse);
+
   // Records the caller's intent to leave a room call.
   //
   // Returns left=false when LiveKit is not configured.
@@ -152,6 +161,35 @@ message GetCallTokenRequest {
 // LiveKit token details for joining a room call.
 message GetCallTokenResponse {
   // LiveKit JWT token.
+  string token = 1;
+  // Shared E2EE key for this active call.
+  string e2ee_key = 2;
+  // Active call session ID.
+  string call_id = 3;
+}
+
+// Native companion publisher kind.
+enum CallMediaPublisherKind {
+  // The publisher kind was not specified.
+  CALL_MEDIA_PUBLISHER_KIND_UNSPECIFIED = 0;
+  // Native game-window video and application audio.
+  CALL_MEDIA_PUBLISHER_KIND_GAME_SHARE = 1;
+}
+
+// Request for a native companion publisher credential.
+message CreateCallMediaPublisherTokenRequest {
+  // Required. Room whose active call receives the media.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required. Kind of native media publisher being started.
+  CallMediaPublisherKind kind = 2 [(buf.validate.field).enum = {defined_only: true not_in: [0]}];
+}
+
+// Credential for one native companion publisher connection.
+message CreateCallMediaPublisherTokenResponse {
+  reserved 4;
+  reserved "publisher_identity";
+
+  // Short-lived LiveKit JWT token.
   string token = 1;
   // Shared E2EE key for this active call.
   string e2ee_key = 2;

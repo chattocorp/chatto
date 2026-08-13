@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/charmbracelet/log"
@@ -58,7 +59,37 @@ func (s *HTTPServer) presentedCredentialFromRequest(c *gin.Context) (presentedRu
 		}
 	}
 
+	if !s.requestIsSameOrigin(c.Request) {
+		return presentedRuntimeCredential{}, false, nil
+	}
 	return s.cookiePresentedCredential(c)
+}
+
+// requestIsSameOrigin treats requests without an Origin header as same-origin
+// or non-browser traffic. Browser requests with an Origin may use ambient
+// cookie authentication only when it exactly matches Chatto's public origin.
+func (s *HTTPServer) requestIsSameOrigin(r *http.Request) bool {
+	origin := strings.TrimSpace(r.Header.Get("Origin"))
+	if origin == "" {
+		return true
+	}
+	presented, ok := parseBrowserOrigin(origin)
+	if !ok {
+		return false
+	}
+	base, err := url.Parse(s.requestBaseURL(r))
+	if err != nil || base.Scheme == "" || base.Host == "" {
+		return false
+	}
+	return canonicalOrigin(presented) == canonicalOrigin(base)
+}
+
+func parseBrowserOrigin(raw string) (*url.URL, bool) {
+	origin, err := url.Parse(strings.TrimSpace(raw))
+	if err != nil || origin.Scheme == "" || origin.Host == "" || origin.User != nil || origin.Opaque != "" || origin.Path != "" || origin.RawQuery != "" || origin.Fragment != "" {
+		return nil, false
+	}
+	return origin, true
 }
 
 func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string) (presentedRuntimeCredential, bool, error) {
@@ -77,9 +108,17 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 	return presentedRuntimeCredential{
 		user: user,
 		auth: authctx.RuntimeCredential{
-			Kind:   authctx.RuntimeCredentialKindBearerToken,
-			UserID: credential.UserID,
-			Handle: token,
+			Kind:          authctx.RuntimeCredentialKindBearerToken,
+			UserID:        credential.UserID,
+			Handle:        token,
+			OAuthClientID: oauthClientIDForRuntimeCredential(credential),
 		},
 	}, true, nil
+}
+
+func oauthClientIDForRuntimeCredential(credential core.ValidatedRuntimeCredential) string {
+	if credential.Kind != core.AuthTokenKindOAuthAccessToken {
+		return ""
+	}
+	return credential.ClientID
 }

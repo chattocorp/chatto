@@ -239,7 +239,22 @@
       "subtitle": "サインアップ制限とアカウント保護",
       "blocked_usernames": "ブロックされたユーザー名",
       "blocked_usernames_description": "1 行に 1 つ。ユーザーはこれらの名前で登録することはできません。",
-      "settings_saved": "設定を保存しました"
+      "settings_saved": "設定を保存しました",
+      "oauth_clients": {
+        "title": "OAuth クライアント",
+        "description": "メンバーが承認したアプリケーションがここに表示されます。信頼は管理上のラベルであり、個別の同意を省略するものではありません。ブロックすると新しいアクセスを防ぎ、既存のアクセストークンを取り消します。",
+        "empty": "承認された OAuth クライアントはありません",
+        "application": "アプリケーション",
+        "origins": "コールバックオリジン",
+        "users": "承認済みユーザー",
+        "last_authorization": "最終認可",
+        "policy": "ポリシー",
+        "policy_for": "{client} のポリシー",
+        "policy_default": "デフォルト",
+        "policy_trusted": "信頼済み",
+        "policy_blocked": "ブロック済み",
+        "policy_saved": "OAuth クライアントのポリシーを保存しました"
+      }
     },
     "system": {
       "title": "システム",

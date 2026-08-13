@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallsRequest, ListActiveCallsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
+import { BatchGetActiveCallsRequest, BatchGetActiveCallsResponse, CreateCallMediaPublisherTokenRequest, CreateCallMediaPublisherTokenResponse, GetActiveCallRequest, GetActiveCallResponse, GetCallTokenRequest, GetCallTokenResponse, JoinCallRequest, JoinCallResponse, LeaveCallRequest, LeaveCallResponse, ListActiveCallsRequest, ListActiveCallsResponse, ListCallParticipantsRequest, ListCallParticipantsResponse } from "./voice_calls_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -102,6 +102,23 @@ export const VoiceCallService = {
       name: "GetCallToken",
       I: GetCallTokenRequest,
       O: GetCallTokenResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Issues a short-lived LiveKit token for a native companion publisher owned
+     * by the caller. Companion publishers contribute media to the caller's
+     * logical participant without becoming call participants themselves.
+     *
+     * The caller must already participate in the active call. Returns
+     * FAILED_PRECONDITION when no call is active, the caller has not joined it,
+     * or voice and video calls are not configured.
+     *
+     * @generated from rpc chatto.api.v1.VoiceCallService.CreateCallMediaPublisherToken
+     */
+    createCallMediaPublisherToken: {
+      name: "CreateCallMediaPublisherToken",
+      I: CreateCallMediaPublisherTokenRequest,
+      O: CreateCallMediaPublisherTokenResponse,
       kind: MethodKind.Unary,
     },
     /**

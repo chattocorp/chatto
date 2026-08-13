@@ -11,7 +11,7 @@
     "not_chatto_server": "Questo non sembra essere un server Chatto.",
     "oauth_unsupported": "Questo server non supporta l'autenticazione OAuth. Potrebbe essere necessario aggiornarlo.",
     "connection_timed_out": "Connessione scaduta. Controlla l'URL e riprova.",
-    "connection_failed": "Impossibile connettersi. Controlla l'URL e assicurati che CORS sia configurato.",
+    "connection_failed": "Impossibile connettersi. Controlla l'URL e riprova.",
     "connect_failed": "Impossibile connettersi.",
     "edit_url": "Server sbagliato? Modifica URL",
     "description_url": "Chatto è distribuito: il tuo client si connette direttamente a ciascun server. Inserisci un URL per aggiungerne un altro.",

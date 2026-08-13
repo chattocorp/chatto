@@ -823,6 +823,9 @@ type OAuthConsentGrantedEvent struct {
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
 	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	ClientId       string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientName     string                 `protobuf:"bytes,5,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientUri      string                 `protobuf:"bytes,6,opt,name=client_uri,json=clientUri,proto3" json:"client_uri,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -878,11 +881,35 @@ func (x *OAuthConsentGrantedEvent) GetRequest() *AuditRequestMetadata {
 	return nil
 }
 
+func (x *OAuthConsentGrantedEvent) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *OAuthConsentGrantedEvent) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *OAuthConsentGrantedEvent) GetClientUri() string {
+	if x != nil {
+		return x.ClientUri
+	}
+	return ""
+}
+
 type OAuthConsentDeniedEvent struct {
 	state          protoimpl.MessageState `protogen:"open.v1"`
 	UserId         string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	RedirectOrigin string                 `protobuf:"bytes,2,opt,name=redirect_origin,json=redirectOrigin,proto3" json:"redirect_origin,omitempty"`
 	Request        *AuditRequestMetadata  `protobuf:"bytes,3,opt,name=request,proto3" json:"request,omitempty"`
+	ClientId       string                 `protobuf:"bytes,4,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	ClientName     string                 `protobuf:"bytes,5,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientUri      string                 `protobuf:"bytes,6,opt,name=client_uri,json=clientUri,proto3" json:"client_uri,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -936,6 +963,27 @@ func (x *OAuthConsentDeniedEvent) GetRequest() *AuditRequestMetadata {
 		return x.Request
 	}
 	return nil
+}
+
+func (x *OAuthConsentDeniedEvent) GetClientId() string {
+	if x != nil {
+		return x.ClientId
+	}
+	return ""
+}
+
+func (x *OAuthConsentDeniedEvent) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *OAuthConsentDeniedEvent) GetClientUri() string {
+	if x != nil {
+		return x.ClientUri
+	}
+	return ""
 }
 
 var File_chatto_core_v1_auth_events_proto protoreflect.FileDescriptor
@@ -1005,15 +1053,25 @@ const file_chatto_core_v1_auth_events_proto_rawDesc = "" +
 	"\x17BearerTokenRevokedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x16\n" +
 	"\x06reason\x18\x02 \x01(\tR\x06reason\x12>\n" +
-	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\x9c\x01\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\xf9\x01\n" +
 	"\x18OAuthConsentGrantedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12>\n" +
-	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\"\x9b\x01\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\x12\x1b\n" +
+	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x1f\n" +
+	"\vclient_name\x18\x05 \x01(\tR\n" +
+	"clientName\x12\x1d\n" +
+	"\n" +
+	"client_uri\x18\x06 \x01(\tR\tclientUri\"\xf8\x01\n" +
 	"\x17OAuthConsentDeniedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12'\n" +
 	"\x0fredirect_origin\x18\x02 \x01(\tR\x0eredirectOrigin\x12>\n" +
-	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequestB\xb2\x01\n" +
+	"\arequest\x18\x03 \x01(\v2$.chatto.core.v1.AuditRequestMetadataR\arequest\x12\x1b\n" +
+	"\tclient_id\x18\x04 \x01(\tR\bclientId\x12\x1f\n" +
+	"\vclient_name\x18\x05 \x01(\tR\n" +
+	"clientName\x12\x1d\n" +
+	"\n" +
+	"client_uri\x18\x06 \x01(\tR\tclientUriB\xb2\x01\n" +
 	"\x12com.chatto.core.v1B\x0fAuthEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

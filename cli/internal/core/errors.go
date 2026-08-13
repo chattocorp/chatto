@@ -48,6 +48,10 @@ var (
 	// they are not a member of.
 	ErrNotRoomMember = errors.New("not a member of this room")
 
+	// ErrCallParticipationRequired is returned when an operation requires the
+	// user to be a participant in the active call generation.
+	ErrCallParticipationRequired = errors.New("active call participation required")
+
 	// ErrRoleNotFound is returned when attempting to access a role that doesn't exist.
 	ErrRoleNotFound = errors.New("role not found")
 
