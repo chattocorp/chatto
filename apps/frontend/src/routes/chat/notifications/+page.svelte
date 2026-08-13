@@ -637,7 +637,10 @@
               >
                 <button
                   type="button"
-                  class="flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait"
+                  class={[
+                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
+                    !item.group.unread && 'opacity-60'
+                  ]}
                   disabled={mutationPending}
                   onclick={() => openGroup(item)}
                 >
@@ -666,26 +669,6 @@
                     <bdi class="block truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
                     </bdi>
-                    {#if item.group.threadRootMessageExcerpt && !isReaction}
-                      <span
-                        class="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted"
-                        data-testid="notification-thread-root-excerpt"
-                      >
-                        <span
-                          class={[
-                            'iconify icon-[uil--comment-alt-message] shrink-0',
-                            item.group.unread &&
-                            item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                              ? 'text-attention'
-                              : 'text-muted'
-                          ]}
-                          aria-hidden="true"
-                        ></span>
-                        <bdi class="truncate" dir="auto">
-                          {item.group.threadRootMessageExcerpt}
-                        </bdi>
-                      </span>
-                    {/if}
                     <span class="block truncate text-sm text-muted">
                       {#if showServerHostname}{item.serverHostname}<span
                           class="mx-1.5"

@@ -681,6 +681,7 @@ test.describe('Navigation from Notifications', () => {
       'replied in a thread you follow.'
     );
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(notification).not.toContainText(rootMessage);
     await notificationsPage.clickNotification(notification);
 
     // Verify navigated to the thread URL. Highlight intent is delivered via
@@ -711,6 +712,7 @@ test.describe('Navigation from Notifications', () => {
     await notificationsPage.goto();
     const notification = notificationsPage.getNotificationBySummary('mentioned you.');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(notification.locator(':scope > button').first()).not.toHaveClass(/opacity-60/);
     await notificationsPage.clickNotification(notification);
     await page.waitForURL(routes.patterns.anyRoomWithQuery);
 
@@ -719,6 +721,7 @@ test.describe('Navigation from Notifications', () => {
     const readNotification = notificationsPage.getNotificationBySummary('mentioned you.');
     await expect(readNotification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(readNotification.getByLabel('Unread')).not.toBeVisible();
+    await expect(readNotification.locator(':scope > button').first()).toHaveClass(/opacity-60/);
   });
 });
 

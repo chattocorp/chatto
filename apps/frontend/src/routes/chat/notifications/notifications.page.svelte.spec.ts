@@ -196,8 +196,13 @@ describe('notifications page', () => {
 
     expect(mocks.store.notifications.fetchPage).toHaveBeenCalledTimes(1);
     const readRow = q(container, '[data-notification-state="read"]') as HTMLElement;
+    const unreadRow = q(container, '[data-notification-state="unread"]') as HTMLElement;
+    const readTarget = q(readRow, ':scope > button') as HTMLButtonElement;
+    const unreadTarget = q(unreadRow, ':scope > button') as HTMLButtonElement;
     expect(readRow.classList.contains('bg-attention/5')).toBe(false);
     expect(q(readRow, '.bg-attention')).toBeNull();
+    expect(readTarget.classList.contains('opacity-60')).toBe(true);
+    expect(unreadTarget.classList.contains('opacity-60')).toBe(false);
   });
 
   it('renders a full-sentence summary and omits the single-occurrence counter', async () => {
@@ -314,7 +319,7 @@ describe('notifications page', () => {
     expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
   });
 
-  it('distinguishes thread groups with their current root-message excerpts', async () => {
+  it('omits message previews from thread notification rows', async () => {
     const now = Date.now();
     const firstOccurrence = {
       ...mocks.occurrence,
@@ -335,18 +340,13 @@ describe('notifications page', () => {
     );
 
     const { container } = render(NotificationsPage);
-    const excerpts = await vi.waitFor(() => {
-      const elements = container.querySelectorAll(
-        '[data-testid="notification-thread-root-excerpt"]'
-      );
-      expect(elements).toHaveLength(2);
-      return [...elements].map((element) => element.textContent?.trim());
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
     });
 
-    expect(excerpts).toEqual([
-      'Where should we deploy the preview environment?',
-      'Can somebody review the migration plan?'
-    ]);
+    expect(container.textContent).not.toContain('Where should we deploy the preview environment?');
+    expect(container.textContent).not.toContain('Can somebody review the migration plan?');
+    expect(q(container, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
   });
 
   it('preserves a healthy server result when another server fails', async () => {

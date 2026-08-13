@@ -84,10 +84,10 @@ strongest attention level among its unread members.
 
 The bundled client presents unread and read rows in one chronological view,
 groups them into Today, Yesterday, This Week, and month sections using the
-account's preferred time zone, and renders full-sentence descriptions. Thread
-activity includes the current root excerpt. Reaction rows show the reaction
-emoji and consolidate activity for the same target. The list does not show a
-redundant `1` counter.
+account's preferred time zone, and renders concise full-sentence descriptions
+without message previews. Read content is visually muted while its actions keep
+their normal contrast. Reaction rows show the reaction emoji and consolidate
+activity for the same target. The list does not show a redundant `1` counter.
 
 The bell, server indicator, and room indicators use exact unread occurrence
 counts and exact Important subsets. They remain present for Ambient-only
