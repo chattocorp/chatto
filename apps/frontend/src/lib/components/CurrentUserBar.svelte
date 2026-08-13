@@ -26,6 +26,7 @@ to the user settings page for the active server.
   import Dialog from '$lib/ui/Dialog.svelte';
   import UserAvatar from './UserAvatar.svelte';
   import UserCustomStatusBadge from './UserCustomStatusBadge.svelte';
+  import ScreenShareControlButton from './voice/ScreenShareControlButton.svelte';
   import VoiceCallControlButton from './voice/VoiceCallControlButton.svelte';
 
   let customStatusEditorModule: Promise<typeof import('./UserCustomStatusEditor.svelte')> | null =
@@ -237,17 +238,12 @@ to the user settings page for the active server.
           onclick={() => voiceCallState.toggleCamera()}
           pending={voiceCallState.isCameraPending}
         />
-        <VoiceCallControlButton
+        <ScreenShareControlButton
+          {voiceCallState}
           class={voiceCallState.isScreenShareEnabled
             ? compactCallActiveButtonClass
             : compactCallButtonClass}
-          label={voiceCallState.isScreenShareEnabled
-            ? m('voice.stop_share_screen')
-            : m('voice.share_screen')}
           testId="current-user-call-screen-share"
-          icon="icon-[uil--desktop]"
-          onclick={() => voiceCallState.toggleScreenShare()}
-          pending={voiceCallState.isScreenSharePending}
         />
         <VoiceCallControlButton
           class={compactCallDangerButtonClass}

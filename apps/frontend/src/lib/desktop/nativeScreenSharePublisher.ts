@@ -1,7 +1,7 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 // SPDX-License-Identifier: Apache-2.0
 
-import type { GameCapturePublisherRequest } from './gameCapture';
+import type { NativeScreenSharePublisherRequest } from './nativeScreenShare';
 
 const publisherMessageType = 'chatto:game-capture:publisher';
 const publisherStartTimeoutMs = 20_000;
@@ -12,8 +12,8 @@ type PublisherMessage =
   | { kind: 'error'; message?: string }
   | { kind: 'ended' };
 
-/** Control handle for a native helper that publishes game media to LiveKit. */
-export class GameCapturePublisherSession {
+/** Control handle for a native helper that publishes screen-share media to LiveKit. */
+export class NativeScreenSharePublisherSession {
   onEnded: ((error?: Error) => void) | null = null;
 
   readonly #port: MessagePort;
@@ -28,21 +28,23 @@ export class GameCapturePublisherSession {
     port.onmessage = (event: MessageEvent<PublisherMessage>) => {
       const message = event.data;
       if (message.kind === 'error') {
-        this.finish(new Error(message.message || 'Native game publishing stopped unexpectedly.'));
+        this.finish(new Error(message.message || 'Native screen sharing stopped unexpectedly.'));
       } else if (message.kind === 'ended') {
         this.finish();
       }
     };
     port.onmessageerror = () =>
-      this.finish(new Error('The desktop game-publisher control channel failed.'));
+      this.finish(new Error('The desktop screen-share control channel failed.'));
     port.start();
   }
 
   /** Start the native publisher and resolve only after LiveKit accepted its tracks. */
-  static async start(request: GameCapturePublisherRequest): Promise<GameCapturePublisherSession> {
+  static async start(
+    request: NativeScreenSharePublisherRequest
+  ): Promise<NativeScreenSharePublisherSession> {
     const port = await requestPublisherPort(request);
     await waitForPublisherStarted(port);
-    return new GameCapturePublisherSession(port);
+    return new NativeScreenSharePublisherSession(port);
   }
 
   /** Ask Desktop to stop publishing and wait for the helper to exit. */
@@ -56,7 +58,7 @@ export class GameCapturePublisherSession {
     });
     this.#port.postMessage({ kind: 'stop' });
     this.#stopTimeout = window.setTimeout(() => {
-      this.finish(new Error('The native game publisher did not stop in time.'));
+      this.finish(new Error('The native screen-share publisher did not stop in time.'));
     }, publisherStopTimeoutMs);
     return this.#stopPromise;
   }
@@ -77,15 +79,17 @@ export class GameCapturePublisherSession {
   }
 }
 
-function requestPublisherPort(request: GameCapturePublisherRequest): Promise<MessagePort> {
-  const bridge = window.chattoDesktop?.gameCapture;
-  if (!bridge) return Promise.reject(new Error('Native game capture is unavailable.'));
+function requestPublisherPort(request: NativeScreenSharePublisherRequest): Promise<MessagePort> {
+  const bridge = window.chattoDesktop?.screenShare;
+  if (typeof bridge?.startPublisher !== 'function') {
+    return Promise.reject(new Error('Native screen sharing is unavailable.'));
+  }
 
   return new Promise((resolve, reject) => {
     let requestId = '';
     const timeout = window.setTimeout(() => {
       cleanup();
-      reject(new Error('Native game publishing did not start in time.'));
+      reject(new Error('Native screen sharing did not start in time.'));
     }, publisherStartTimeoutMs);
     const receivePort = (event: MessageEvent) => {
       if (
@@ -118,7 +122,7 @@ function waitForPublisherStarted(port: MessagePort): Promise<void> {
     const timeout = window.setTimeout(() => {
       cleanup();
       port.close();
-      reject(new Error('Native game publishing did not connect to LiveKit in time.'));
+      reject(new Error('Native screen sharing did not connect to LiveKit in time.'));
     }, publisherStartTimeoutMs);
     port.onmessage = (event: MessageEvent<PublisherMessage>) => {
       const message = event.data;
@@ -128,11 +132,11 @@ function waitForPublisherStarted(port: MessagePort): Promise<void> {
       } else if (message.kind === 'error') {
         cleanup();
         port.close();
-        reject(new Error(message.message || 'Native game publishing could not start.'));
+        reject(new Error(message.message || 'Native screen sharing could not start.'));
       } else if (message.kind === 'ended') {
         cleanup();
         port.close();
-        reject(new Error('Native game publishing stopped before it started.'));
+        reject(new Error('Native screen sharing stopped before it started.'));
       }
     };
     port.start();

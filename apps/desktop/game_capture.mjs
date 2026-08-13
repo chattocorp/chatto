@@ -1,11 +1,20 @@
 // SPDX-FileCopyrightText: 2026 ChattoCorp GmbH
 // SPDX-License-Identifier: Apache-2.0
 
+import { randomUUID } from "node:crypto";
+
 export const gameCaptureListSourcesChannel = "chatto:game-capture:list-sources";
+export const gameCaptureCancelListSourcesChannel =
+  "chatto:game-capture:cancel-list-sources";
 export const gameCaptureStartChannel = "chatto:game-capture:start";
 export const gameCapturePublisherChannel = "chatto:game-capture:publisher";
 
 const minimumMacOSGameCaptureMajorVersion = 15;
+const sourcePreviewManifestMaximumBytes = 1024 * 1024;
+const sourcePreviewMaximumBytes = 512 * 1024;
+const sourcePreviewFrameMaximumBytes = 16 * 1024 * 1024;
+const sourcePreviewMaximumCount = 64;
+const sourceOfferLifetimeMilliseconds = 2 * 60 * 1000;
 
 /** Whether the host macOS version can launch the bundled capture helper. */
 export function supportsMacOSGameCapture(systemVersion) {
@@ -20,58 +29,190 @@ export function supportsMacOSGameCapture(systemVersion) {
 }
 
 /**
- * Convert the macOS helper response into the platform-neutral source contract
- * exposed to the bundled frontend. Source IDs are temporary and opaque to the
- * renderer; only the desktop host interprets them.
+ * Parse the trusted macOS helper response. The temporary native IDs in this
+ * result must be replaced with renderer-facing offers before crossing IPC.
  */
 export function parseMacOSGameCaptureSources(output) {
-  const response = JSON.parse(output);
-  if (response?.protocolVersion !== 1 || !Array.isArray(response.windows)) {
+  if (!Buffer.isBuffer(output) || output.length < 4) {
     throw new Error("The capture helper returned an unsupported source list.");
+  }
+  if (output.length > sourcePreviewFrameMaximumBytes) {
+    throw new Error("The capture helper returned too much preview data.");
+  }
+
+  const manifestLength = output.readUInt32BE(0);
+  if (
+    manifestLength === 0 ||
+    manifestLength > sourcePreviewManifestMaximumBytes ||
+    4 + manifestLength > output.length
+  ) {
+    throw new Error("The capture helper returned an invalid source manifest.");
+  }
+  let response;
+  try {
+    response = JSON.parse(output.subarray(4, 4 + manifestLength).toString());
+  } catch {
+    throw new Error("The capture helper returned an invalid source manifest.");
+  }
+  if (
+    response?.protocolVersion !== 1 ||
+    !Array.isArray(response.sources) ||
+    response.sources.length > sourcePreviewMaximumCount
+  ) {
+    throw new Error("The capture helper returned an unsupported source list.");
+  }
+
+  let previewOffset = 4 + manifestLength;
+  const sources = response.sources.map((source) => {
+    validateMacOSCaptureSource(source);
+    const previewEnd = previewOffset + source.previewByteLength;
+    if (previewEnd > output.length) {
+      throw new Error("The capture helper returned truncated preview data.");
+    }
+    const preview = Uint8Array.from(output.subarray(previewOffset, previewEnd));
+    previewOffset = previewEnd;
+
+    if (source.kind === "display") {
+      return {
+        id: `display:${source.nativeID}`,
+        kind: "display",
+        displayIndex: source.displayIndex,
+        isMainDisplay: source.isMainDisplay,
+        width: source.width,
+        height: source.height,
+        preview,
+      };
+    }
+    return {
+      id: `window:${source.nativeID}`,
+      kind: "window",
+      applicationName: source.applicationName,
+      bundleIdentifier: source.bundleIdentifier,
+      title: source.title,
+      width: source.width,
+      height: source.height,
+      preview,
+    };
+  });
+
+  if (previewOffset !== output.length) {
+    throw new Error("The capture helper returned unexpected preview data.");
   }
 
   return {
     protocolVersion: 1,
-    sources: response.windows.map((window) => {
-      if (
-        !Number.isSafeInteger(window.windowID) ||
-        window.windowID <= 0 ||
-        typeof window.applicationName !== "string" ||
-        typeof window.bundleIdentifier !== "string" ||
-        window.bundleIdentifier.length === 0 ||
-        typeof window.title !== "string" ||
-        !Number.isSafeInteger(window.width) ||
-        window.width <= 0 ||
-        !Number.isSafeInteger(window.height) ||
-        window.height <= 0
-      ) {
-        throw new Error(
-          "The capture helper returned an invalid window source.",
-        );
-      }
-
-      return {
-        id: `window:${window.windowID}`,
-        kind: "window",
-        applicationName: window.applicationName,
-        bundleIdentifier: window.bundleIdentifier,
-        title: window.title,
-        width: window.width,
-        height: window.height,
-      };
-    }),
+    sources,
   };
+}
+
+function validateMacOSCaptureSource(source) {
+  if (
+    !source ||
+    !["display", "window"].includes(source.kind) ||
+    !Number.isSafeInteger(source.nativeID) ||
+    source.nativeID <= 0 ||
+    !Number.isSafeInteger(source.width) ||
+    source.width <= 0 ||
+    source.width > 16384 ||
+    !Number.isSafeInteger(source.height) ||
+    source.height <= 0 ||
+    source.height > 16384 ||
+    !Number.isSafeInteger(source.previewByteLength) ||
+    source.previewByteLength < 0 ||
+    source.previewByteLength > sourcePreviewMaximumBytes
+  ) {
+    throw new Error("The capture helper returned an invalid capture source.");
+  }
+  if (
+    source.kind === "display" &&
+    (!Number.isSafeInteger(source.displayIndex) ||
+      source.displayIndex <= 0 ||
+      typeof source.isMainDisplay !== "boolean")
+  ) {
+    throw new Error("The capture helper returned an invalid display source.");
+  }
+  if (
+    source.kind === "window" &&
+    (typeof source.applicationName !== "string" ||
+      source.applicationName.length > 4096 ||
+      typeof source.bundleIdentifier !== "string" ||
+      source.bundleIdentifier.length === 0 ||
+      source.bundleIdentifier.length > 512 ||
+      typeof source.title !== "string" ||
+      source.title.length > 4096)
+  ) {
+    throw new Error("The capture helper returned an invalid window source.");
+  }
 }
 
 /** Resolve an opaque renderer source ID at the platform boundary. */
 export function parseMacOSGameCaptureSourceId(sourceId) {
-  const match = /^window:([1-9][0-9]*)$/.exec(sourceId);
-  if (!match) throw new Error("The selected game-capture source is invalid.");
-  const windowId = Number(match[1]);
-  if (!Number.isSafeInteger(windowId) || windowId > 0xffff_ffff) {
-    throw new Error("The selected game-capture source is invalid.");
+  const match = /^(window|display):([1-9][0-9]*)$/.exec(sourceId);
+  if (!match)
+    throw new Error("The selected native screen-share source is invalid.");
+  const nativeId = Number(match[2]);
+  if (!Number.isSafeInteger(nativeId) || nativeId > 0xffff_ffff) {
+    throw new Error("The selected native screen-share source is invalid.");
   }
-  return windowId;
+  return { kind: match[1], nativeId };
+}
+
+/**
+ * Issue short-lived, single-use source offers to the renderer. Native window
+ * and display identifiers never cross IPC, and every new enumeration
+ * invalidates the previous set.
+ */
+export class MacOSGameCaptureSourceOffers {
+  #createToken;
+  #now;
+  #offers = new Map();
+
+  constructor({ createToken = randomUUID, now = Date.now } = {}) {
+    this.#createToken = createToken;
+    this.#now = now;
+  }
+
+  replace(response) {
+    this.#offers.clear();
+    return {
+      protocolVersion: response.protocolVersion,
+      sources: response.sources.map((source) => {
+        const nativeSource = parseMacOSGameCaptureSourceId(source.id);
+        let id;
+        do {
+          id = this.#createToken();
+        } while (this.#offers.has(id));
+        if (typeof id !== "string" || id.length === 0 || id.length > 128) {
+          throw new Error("The desktop host could not offer a capture source.");
+        }
+        this.#offers.set(id, {
+          source: nativeSource,
+          expectedBundleIdentifier:
+            source.kind === "window" ? source.bundleIdentifier : undefined,
+          expiresAt: this.#now() + sourceOfferLifetimeMilliseconds,
+        });
+        return { ...source, id };
+      }),
+    };
+  }
+
+  consume(id) {
+    const offer = this.#offers.get(id);
+    this.#offers.delete(id);
+    if (!offer || offer.expiresAt <= this.#now()) {
+      throw new Error(
+        "The selected native screen-share source has expired. Choose it again.",
+      );
+    }
+    return {
+      ...offer.source,
+      expectedBundleIdentifier: offer.expectedBundleIdentifier,
+    };
+  }
+
+  clear() {
+    this.#offers.clear();
+  }
 }
 
 /** Validate a renderer request without ever logging or returning credentials. */

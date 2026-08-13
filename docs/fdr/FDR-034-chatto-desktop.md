@@ -29,15 +29,17 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Electron's bundled Chromium WebRTC implementation. Camera and microphone
   requests use operating-system permission prompts; screen sharing requires an
   explicit native source choice.
-- Every macOS build embeds a native game-capture provider. Joined
-  call participants can open a Chatto-owned picker of ordinary visible windows;
-  selecting one publishes its video and owning-application audio to the existing
-  LiveKit call. The native publisher supplies several video qualities and stops
-  encoding qualities that no receiver consumes. Starting game capture replaces
-  a browser screen share and vice versa, while camera and microphone can remain
-  enabled. Acknowledged lifecycle control keeps the UI in a stopping state until
-  the helper disconnects its LiveKit companion and exits. Non-macOS builds omit
-  this platform provider.
+- Every macOS build embeds a native screen-capture provider. The shared
+  screen-share control opens a Chatto-owned picker of ordinary visible windows
+  and complete displays, with static in-memory previews. Window capture
+  publishes video and owning-application audio to the existing LiveKit call;
+  display capture is video-only to prevent remote call playback from being
+  captured and echoed. The native publisher supplies several video qualities
+  and stops encoding qualities that no receiver consumes. Native and browser
+  sharing replace one another, while camera and microphone can remain enabled.
+  Acknowledged lifecycle control keeps the UI in a stopping state until the
+  helper disconnects its LiveKit companion and exits. Hosts without this
+  capability keep the browser's ordinary source chooser.
 - macOS, Windows, and Linux bundles are built in CI. Experimental macOS
   artifacts are ad-hoc signed, while the other platform artifacts remain
   unsigned until trusted platform signing and macOS notarisation are added.
@@ -121,26 +123,40 @@ CI assembly alone does not prove clean-machine WebRTC behavior.
 
 ### 7. Expose desktop-only capabilities through narrow optional bridges
 
-**Decision:** The desktop host exposes game capture only when a native provider
-is present, and gives the shared frontend temporary opaque sources plus display
-metadata needed for explicit user choice. It does not expose general process,
-filesystem, or operating-system access to the renderer.
+**Decision:** The desktop host exposes a `screenShare` capability only when a
+native provider is present, and gives the shared frontend temporary opaque
+window/display sources, static preview bytes, and metadata needed for explicit
+user choice. A focused frontend adapter feature-detects and validates this
+capability; the same control uses the browser implementation when it is absent.
+Source enumeration requires user activation, is serialized and cancellable,
+and produces short-lived, single-use random offers rather than native source
+coordinates. Window offers are bound to the enumerated application, and the
+host excludes its own windows so remote call playback cannot be republished as
+application audio.
+The host does not expose general process, filesystem, or operating-system
+access to the renderer. This follows ADR-072.
 **Why:** The shared frontend needs to own the visible call interaction without
 weakening Electron's sandbox or taking a dependency on macOS-specific source
 identifiers. The same product-level boundary can be implemented independently
 by future Windows and feasible Linux providers.
 **Tradeoff:** Each desktop-only capability needs a deliberately designed bridge,
-validation on both sides, and platform-specific availability handling.
+validation on both sides, bounded data transfer, and platform-specific
+availability handling. Preview images are point-in-time hints rather than live
+streams, and may be stale when selected.
 
-### 8. Publish native game media through a companion LiveKit connection
+### 8. Publish native screen-share media through a companion LiveKit connection
 
 **Decision:** Platform helpers own capture, WebRTC encoding, E2EE, and LiveKit
-publication for native game media. The desktop bridge carries only temporary
-source descriptions, a fresh URL/token/key credential, stop commands, and
-lifecycle status; video and audio do not pass through Chromium or Electron IPC.
+publication for native screen-share media. The desktop bridge carries only
+temporary source descriptions and previews, a fresh URL/token/key credential,
+stop commands, and lifecycle status; captured video and audio do not pass
+through Chromium or Electron IPC.
 The helper uses a separate opaque LiveKit identity whose metadata names the
 owning user. The shared frontend merges its tracks into that user's logical
-participant and suppresses local game-audio playback to avoid feedback.
+participant and suppresses all local companion audio playback to avoid
+feedback. Window capture can publish isolated owning-application audio. Display
+capture remains video-only because its system audio would include Chatto's own
+remote call playback before the frontend could suppress it.
 **Why:** A second native LiveKit connection cannot reuse the member's identity
 without disconnecting the existing voice client. A separately authorised
 companion connection avoids the prototype's native encode, browser decode,
@@ -158,7 +174,7 @@ media path that can adapt to each receiver.
 
 ## Related
 
-- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging)
+- **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities)
 - **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
@@ -170,5 +186,5 @@ media path that can adapt to each receiver.
   downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
-- Which higher game-stream quality profiles should be offered once representative
+- Which higher native screen-share quality profiles should be offered once representative
   game footage and supported Mac hardware have been benchmarked.

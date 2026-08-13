@@ -18,7 +18,7 @@ import { toast } from '$lib/ui/toast';
 import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
-import { GameCapturePublisherSession } from '$lib/desktop/gameCapturePublisher';
+import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -195,9 +195,9 @@ export class VoiceCallState {
   isScreenShareEnabled = $state(false);
   // True while LiveKit is applying local screen-share enable/disable changes.
   isScreenSharePending = $state(false);
-  isGameCaptureEnabled = $state(false);
-  isGameCapturePending = $state(false);
-  gameCaptureSourceName = $state<string | null>(null);
+  isNativeScreenShareEnabled = $state(false);
+  isNativeScreenSharePending = $state(false);
+  nativeScreenShareSourceName = $state<string | null>(null);
 
   // Participants (including local)
   participants = $state<CallParticipantInfo[]>([]);
@@ -236,8 +236,8 @@ export class VoiceCallState {
   private microphoneToggleInFlight: Promise<void> | null = null;
   private cameraToggleInFlight: Promise<void> | null = null;
   private screenShareToggleInFlight: Promise<void> | null = null;
-  private gameCaptureToggleInFlight: Promise<void> | null = null;
-  private gameCaptureSession: GameCapturePublisherSession | null = null;
+  private nativeScreenShareToggleInFlight: Promise<void> | null = null;
+  private nativeScreenShareSession: NativeScreenSharePublisherSession | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
   private suppressDisconnectToast = false;
@@ -649,9 +649,13 @@ export class VoiceCallState {
    * Toggle video-only screen/window/tab sharing.
    */
   async toggleScreenShare(): Promise<void> {
-    if (this.gameCaptureToggleInFlight) await this.gameCaptureToggleInFlight;
-    if (this.gameCaptureSession) {
-      await this.stopGameCapture();
+    if (this.nativeScreenShareToggleInFlight) {
+      await this.nativeScreenShareToggleInFlight;
+      return;
+    }
+    if (this.nativeScreenShareSession) {
+      await this.stopNativeScreenShare();
+      return;
     }
     if (this.screenShareToggleInFlight) return this.screenShareToggleInFlight;
 
@@ -671,32 +675,32 @@ export class VoiceCallState {
     }
   }
 
-  /** Publish a host-provided game capture as this participant's screen share. */
-  async startGameCapture(sourceId: string, sourceName: string): Promise<void> {
-    if (this.gameCaptureToggleInFlight) return this.gameCaptureToggleInFlight;
+  /** Publish a host-provided native capture as this participant's screen share. */
+  async startNativeScreenShare(sourceId: string, sourceName: string): Promise<void> {
+    if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
     if (this.screenShareToggleInFlight) await this.screenShareToggleInFlight;
     const room = this.room;
     if (!room) return;
 
-    const startPromise = this.performStartGameCapture(room, sourceId, sourceName);
-    this.gameCaptureToggleInFlight = startPromise;
-    this.isGameCapturePending = true;
+    const startPromise = this.performStartNativeScreenShare(room, sourceId, sourceName);
+    this.nativeScreenShareToggleInFlight = startPromise;
+    this.isNativeScreenSharePending = true;
     try {
       await startPromise;
     } finally {
-      if (this.gameCaptureToggleInFlight === startPromise) {
-        this.gameCaptureToggleInFlight = null;
-        this.isGameCapturePending = false;
+      if (this.nativeScreenShareToggleInFlight === startPromise) {
+        this.nativeScreenShareToggleInFlight = null;
+        this.isNativeScreenSharePending = false;
       }
     }
   }
 
-  private async performStartGameCapture(
+  private async performStartNativeScreenShare(
     room: Room,
     sourceId: string,
     sourceName: string
   ): Promise<void> {
-    if (this.gameCaptureSession) await this.performStopGameCapture(room);
+    if (this.nativeScreenShareSession) await this.performStopNativeScreenShare(room);
     const replacingBrowserScreenShare = this.isScreenShareEnabled;
 
     const livekitUrl = this.liveKitURL;
@@ -704,9 +708,9 @@ export class VoiceCallState {
     if (!livekitUrl || !roomId) return;
     const credential = await this.#api.createGameSharePublisherToken(roomId);
     if (!credential || credential.callId !== this.activeCallId) {
-      throw new Error('The server could not create a game-share publisher credential.');
+      throw new Error('The server could not create a native screen-share publisher credential.');
     }
-    const session = await GameCapturePublisherSession.start({
+    const session = await NativeScreenSharePublisherSession.start({
       sourceId,
       livekitUrl,
       token: credential.token,
@@ -742,8 +746,7 @@ export class VoiceCallState {
       if (browserScreenShareStillPublished) {
         await session.stop().catch(() => undefined);
         throw (
-          replacementError ??
-          new Error('The existing browser screen share could not be replaced.')
+          replacementError ?? new Error('The existing browser screen share could not be replaced.')
         );
       }
 
@@ -751,12 +754,12 @@ export class VoiceCallState {
       // a late rejection can still mean that the browser share was replaced.
       // Keep the working native publisher in that case instead of losing both.
       if (provisionalSessionEnded) {
-        this.isGameCaptureEnabled = false;
-        this.gameCaptureSourceName = null;
+        this.isNativeScreenShareEnabled = false;
+        this.nativeScreenShareSourceName = null;
         this.updateParticipants();
         throw (
           provisionalSessionError ??
-          new Error('The native game-share publisher stopped during handoff.')
+          new Error('The native screen-share publisher stopped during handoff.')
         );
       }
     }
@@ -764,66 +767,66 @@ export class VoiceCallState {
     if (provisionalSessionEnded) {
       throw (
         provisionalSessionError ??
-        new Error('The native game-share publisher stopped before it became active.')
+        new Error('The native screen-share publisher stopped before it became active.')
       );
     }
-    this.gameCaptureSession = session;
-    session.onEnded = (error) => void this.handleGameCaptureEnded(session, error);
-    if (this.room !== room || this.gameCaptureSession !== session) {
+    this.nativeScreenShareSession = session;
+    session.onEnded = (error) => void this.handleNativeScreenShareEnded(session, error);
+    if (this.room !== room || this.nativeScreenShareSession !== session) {
       session.stop();
       return;
     }
 
-    this.isGameCaptureEnabled = true;
-    this.gameCaptureSourceName = sourceName;
+    this.isNativeScreenShareEnabled = true;
+    this.nativeScreenShareSourceName = sourceName;
     this.isScreenShareEnabled = true;
     this.updateParticipants();
   }
 
-  /** Stop the active native game capture companion publisher. */
-  async stopGameCapture(): Promise<void> {
-    if (this.gameCaptureToggleInFlight) return this.gameCaptureToggleInFlight;
+  /** Stop the active native screen-share companion publisher. */
+  async stopNativeScreenShare(): Promise<void> {
+    if (this.nativeScreenShareToggleInFlight) return this.nativeScreenShareToggleInFlight;
     const room = this.room;
-    if (!room || !this.gameCaptureSession) return;
+    if (!room || !this.nativeScreenShareSession) return;
 
-    const stopPromise = this.performStopGameCapture(room);
-    this.gameCaptureToggleInFlight = stopPromise;
-    this.isGameCapturePending = true;
+    const stopPromise = this.performStopNativeScreenShare(room);
+    this.nativeScreenShareToggleInFlight = stopPromise;
+    this.isNativeScreenSharePending = true;
     try {
       await stopPromise;
     } finally {
-      if (this.gameCaptureToggleInFlight === stopPromise) {
-        this.gameCaptureToggleInFlight = null;
-        this.isGameCapturePending = false;
+      if (this.nativeScreenShareToggleInFlight === stopPromise) {
+        this.nativeScreenShareToggleInFlight = null;
+        this.isNativeScreenSharePending = false;
       }
     }
   }
 
-  private async performStopGameCapture(room: Room): Promise<void> {
-    const session = this.gameCaptureSession;
+  private async performStopNativeScreenShare(room: Room): Promise<void> {
+    const session = this.nativeScreenShareSession;
     if (!session) return;
     session.onEnded = null;
     try {
       await session.stop();
     } finally {
-      if (this.gameCaptureSession === session) this.gameCaptureSession = null;
+      if (this.nativeScreenShareSession === session) this.nativeScreenShareSession = null;
       if (this.room === room) {
-        this.isGameCaptureEnabled = false;
-        this.gameCaptureSourceName = null;
+        this.isNativeScreenShareEnabled = false;
+        this.nativeScreenShareSourceName = null;
         this.isScreenShareEnabled = false;
         this.updateParticipants();
       }
     }
   }
 
-  private async handleGameCaptureEnded(
-    session: GameCapturePublisherSession,
+  private async handleNativeScreenShareEnded(
+    session: NativeScreenSharePublisherSession,
     error?: Error
   ): Promise<void> {
-    if (this.gameCaptureSession !== session) return;
-    this.gameCaptureSession = null;
-    this.isGameCaptureEnabled = false;
-    this.gameCaptureSourceName = null;
+    if (this.nativeScreenShareSession !== session) return;
+    this.nativeScreenShareSession = null;
+    this.isNativeScreenShareEnabled = false;
+    this.nativeScreenShareSourceName = null;
     this.isScreenShareEnabled = false;
     this.updateParticipants();
     if (error) toast.error(m('voice.screen_share_failed'));
@@ -1064,7 +1067,8 @@ export class VoiceCallState {
     ];
     this.isCameraEnabled = isParticipantCameraEnabled(this.room.localParticipant);
     this.isScreenShareEnabled =
-      isParticipantScreenShareEnabled(this.room.localParticipant) || this.isGameCaptureEnabled;
+      isParticipantScreenShareEnabled(this.room.localParticipant) ||
+      this.isNativeScreenShareEnabled;
     this.applyAllParticipantAudioVolumes();
 
     this.participants = allParticipants.map((p) => {
@@ -1086,7 +1090,8 @@ export class VoiceCallState {
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],
         isCameraEnabled: isParticipantCameraEnabled(p),
         videoTrack: getParticipantCameraTrack(p),
-        isScreenShareEnabled: screenShareTrack !== null || (isLocal && this.isGameCaptureEnabled),
+        isScreenShareEnabled:
+          screenShareTrack !== null || (isLocal && this.isNativeScreenShareEnabled),
         screenShareTrack,
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
@@ -1254,9 +1259,10 @@ export class VoiceCallState {
     this.microphoneToggleInFlight = null;
     this.cameraToggleInFlight = null;
     this.screenShareToggleInFlight = null;
-    this.gameCaptureToggleInFlight = null;
-    if (this.gameCaptureSession) void this.gameCaptureSession.stop().catch(() => undefined);
-    this.gameCaptureSession = null;
+    this.nativeScreenShareToggleInFlight = null;
+    if (this.nativeScreenShareSession)
+      void this.nativeScreenShareSession.stop().catch(() => undefined);
+    this.nativeScreenShareSession = null;
     this.suppressDisconnectToast = false;
     this.connected = false;
     this.connecting = false;
@@ -1267,9 +1273,9 @@ export class VoiceCallState {
     this.isCameraPending = false;
     this.isScreenShareEnabled = false;
     this.isScreenSharePending = false;
-    this.isGameCaptureEnabled = false;
-    this.isGameCapturePending = false;
-    this.gameCaptureSourceName = null;
+    this.isNativeScreenShareEnabled = false;
+    this.isNativeScreenSharePending = false;
+    this.nativeScreenShareSourceName = null;
     this.participants = [];
     this.locallyMutedParticipantIds = {};
     this.audioDevices = [];

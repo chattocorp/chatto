@@ -78,8 +78,9 @@ replace part of their original design.
 | [ADR-064](ADR-064-separate-server-catalog-and-sessions.md) | Separate the Frontend Server Catalogue from Device Sessions | Accepted | 2026-08-02 |
 | [ADR-065](ADR-065-runtime-json-client-internationalization.md) | Runtime JSON Client Internationalization | Accepted | 2026-08-05 |
 | [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md) | Durable Asset Processing as a Runtime Unit | Accepted | 2026-08-08 |
-| [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Accepted | 2026-08-08 |
+| [ADR-067](ADR-067-electron-desktop-client.md) | Package Chatto Desktop with Electron | Partially superseded | 2026-08-08 |
 | [ADR-068](ADR-068-selectable-event-mutation-consistency-boundaries.md) | Select Event Mutation Consistency Boundaries Explicitly | Accepted | 2026-08-10 |
 | [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md) | Manage Durable Consumer Lifecycles Explicitly | Accepted | 2026-08-11 |
 | [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
 | [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) | Identify Open OAuth Clients through CIMD | Accepted | 2026-08-11 |
+| [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md) | Optional Host Capabilities in the Shared Frontend | Accepted | 2026-08-13 |

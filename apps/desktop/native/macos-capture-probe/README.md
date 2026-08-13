@@ -1,6 +1,6 @@
-# macOS game capture probe
+# macOS native screen-capture helper
 
-This standalone diagnostic implements the first part of the
+This helper grew out of the first standalone diagnostic for the
 [macOS native-capture spike](https://github.com/chattocorp/chatto/issues/2022),
 which follows the broader
 [game-grade screen-sharing discovery](https://github.com/chattocorp/chatto/issues/1051):
@@ -11,6 +11,8 @@ Its diagnostic capture command uses ScreenCaptureKit directly and can retain a
 `.mov` for visual inspection. The packaged proof of concept additionally uses
 LiveKit's Swift SDK to publish the selected window and its application audio
 directly from the helper; Electron IPC is control-only and carries no media.
+The shipping integration supports application windows and complete displays
+through one native screen-share capability.
 
 ## Requirements
 
@@ -35,6 +37,12 @@ ID, application name, title, bundle identifier, and dimensions. The
 filter removes menu-bar items, wallpapers, and other macOS implementation
 windows; it does not attempt to recognise games. Window IDs are valid only
 while that window exists, so run `list` again rather than persisting them.
+
+The private `list-previews` command used by Chatto Desktop returns a bounded
+binary frame containing a versioned JSON manifest followed by static JPEG
+previews. Electron validates and converts that frame to temporary structured
+clone data for the shared frontend. Preview images stay in memory and are
+released when the chooser closes.
 
 Window titles can contain sensitive information. They are printed only in
 response to the explicit diagnostic `list` command; Chatto must not write a
@@ -149,8 +157,8 @@ To make the packaged parent launch the helper and list capture sources:
 ```
 
 This private switch exists only for packaging and macOS privacy-attribution
-diagnostics. The normal macOS app exposes the source list through its
-narrow game-capture bridge.
+diagnostics. The normal macOS app exposes the source list through its narrow
+native screen-share capability.
 
 To exercise the packaged proof of concept, first open the game or other window
 to capture, then launch a new Chatto Desktop instance through Launch Services:
@@ -168,30 +176,35 @@ The recording is stored in a private `chatto-capture-poc-*` directory beneath
 the current user's temporary directory and is not uploaded or retained by the
 repository.
 
-The macOS bundle exposes a complete real-time game-streaming path
+The macOS bundle exposes a complete real-time native screen-sharing path
 through the normal Chatto call interface. Launch the app without a private
-switch, join a call, and use the gamepad control in the call toolbar. The shared
-frontend opens its own picker containing the helper's ordinary visible windows.
-Choosing a window requests a fresh companion-publisher credential from Chatto,
-passes it to the helper over stdin, and starts a direct LiveKit publication.
+switch, join a call, and use the screen-share control in the call toolbar. The
+shared frontend opens its own picker with static previews, grouped into
+**Applications** and **Entire Screen**. Choosing a source requests a fresh
+companion-publisher credential from Chatto, passes it to the helper over stdin,
+and starts a direct LiveKit publication. The desktop host exposes only
+short-lived, single-use random source offers to the renderer, verifies the
+selected window still belongs to the enumerated application, and excludes
+Chatto Desktop's own windows from the application list.
 The initial profile captures up to a 1920-pixel maximum edge at 60 fps and
 publishes three aspect-ratio-preserving H.264 resolution classes: 1920-edge at
 60 fps and up to 8 Mbps, 1280-edge at 60 fps and up to 4 Mbps, and 640-edge at
 30 fps and up to 1 Mbps. Exact widths and heights retain the source window's
 aspect ratio. LiveKit selects a suitable layer for each receiver, while
-dynacast pauses layers that no receiver is consuming. The publication also
-includes 128 kbps stereo application audio and uses the active call's shared
-E2EE key. Only `started`, `error`, and `ended` lifecycle messages cross the
-desktop bridge. The active gamepad control stops the helper. Starting browser
-screen sharing also stops game capture; camera and microphone remain
-independent. Non-macOS builds omit this platform provider and therefore do not
-show this control.
+dynacast pauses layers that no receiver is consuming. Window publication also
+includes 128 kbps stereo owning-application audio. Display publication is
+video-only because system audio would include Chatto's remote call playback and
+echo it back into the room. Both paths use the active call's shared E2EE key.
+Only `started`, `error`, and `ended` lifecycle messages cross the desktop
+bridge. The active screen-share control stops the helper; camera and microphone
+remain independent. Non-macOS builds omit this platform provider, so the same
+control continues through LiveKit and the browser's native source chooser.
 
 The helper uses a separate opaque LiveKit identity because reusing the joined
 member's identity would disconnect the frontend connection. Token metadata
 links the companion to its owning participant. The frontend presents the
-companion's video and audio under that logical participant and suppresses the
-owner's local game-audio playback. Server webhooks and reconciliation exclude
+companion's video and audio under that logical participant and never attaches
+the owner's local companion audio. Server webhooks and reconciliation exclude
 companions from durable call membership, while stale-room cleanup still removes
 their connections.
 

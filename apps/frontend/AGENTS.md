@@ -33,6 +33,11 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
+- When a host can improve a browser operation, expose a narrow optional
+  capability through a focused `$lib/desktop` adapter and feature-detect that
+  capability at the point of use. Keep the browser implementation as the
+  default path; do not branch shared behavior on user agents, URL schemes,
+  platforms, or a general Desktop flag. Follow ADR-072.
 
 ## Svelte 5 Rules
 
