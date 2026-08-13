@@ -548,6 +548,30 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
   });
 
+  it('retries a coalesced pre-grant page after room access is restored', async () => {
+    const beforeGrant = deferred<NotificationOccurrencePage>();
+    const afterGrant = occurrencePage(page([mention('restored')]));
+    const api = makeAPI();
+    api.listNotificationOccurrences
+      .mockReturnValueOnce(beforeGrant.promise)
+      .mockResolvedValueOnce(afterGrant);
+    const store = new NotificationStore(api);
+    store.clearRoom('r1');
+
+    const firstPage = store.fetchPage();
+    store.restoreRoom('r1');
+    const joinedPage = store.fetchPage();
+    beforeGrant.resolve(occurrencePage(page([])));
+
+    await expect(firstPage).resolves.toMatchObject({
+      occurrences: [{ id: 'restored' }]
+    });
+    await expect(joinedPage).resolves.toMatchObject({
+      occurrences: [{ id: 'restored' }]
+    });
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2);
+  });
+
   it('queues room reads started while a mutation is pending', async () => {
     const mutation = deferred<NotificationOccurrenceItem>();
     const api = makeAPI();

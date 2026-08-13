@@ -320,6 +320,7 @@ export class NotificationStore {
   /** Re-open a room only after an explicit positive membership projection. */
   restoreRoom(roomId: string): void {
     if (!this.revokedRoomIds.delete(roomId)) return;
+    this.#authoritativeGeneration++;
     this.invalidateViews();
   }
 
