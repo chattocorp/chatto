@@ -331,6 +331,44 @@ describe('notifications page', () => {
     });
   });
 
+  it('does not start Dismiss All while an exact dismissal is in flight', async () => {
+    let resolveMutation: (() => void) | undefined;
+    mocks.store.notifications.deleteOccurrences.mockImplementation(
+      () => new Promise<void>((resolve) => (resolveMutation = resolve))
+    );
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page([
+        mocks.occurrence as NotificationOccurrenceItem,
+        {
+          ...mocks.occurrence,
+          id: 'mention-2',
+          sourceEventId: 'source-2',
+          eventId: 'event-2',
+          createdAt: new Date(Date.now() - 1_000).toISOString()
+        }
+      ])
+    );
+
+    const { container } = render(NotificationsPage);
+    const deleteButton = await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+      return q(container, 'button[aria-label="Delete"]') as HTMLButtonElement;
+    });
+    deleteButton.click();
+
+    const dismissAll = await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      const button = q(container, 'button[aria-label="Dismiss all"]') as HTMLButtonElement;
+      expect(button.disabled).toBe(true);
+      return button;
+    });
+    dismissAll.click();
+    expect(mocks.store.notifications.deleteAllOccurrences).not.toHaveBeenCalled();
+
+    resolveMutation?.();
+    await vi.waitFor(() => expect(dismissAll.disabled).toBe(false));
+  });
+
   it('groups rows by date in the viewer timezone', async () => {
     const now = new Date();
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1_000);

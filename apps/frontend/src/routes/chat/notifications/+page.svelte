@@ -57,6 +57,7 @@
   let loadGeneration = 0;
   let pagination = $state.raw<PaginationSource[]>([]);
   const pendingMutationKeys = new SvelteSet<string>();
+  const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
   const hasMore = $derived(pagination.some((source) => source.hasMore));
   const showServerHostname = $derived(
     serverRegistry.servers.filter(
@@ -440,7 +441,7 @@
   }
 
   async function dismissAll() {
-    if (dismissingAll || groups.length === 0) return;
+    if (dismissingAll || hasPendingMutation || groups.length === 0) return;
     dismissingAll = true;
     const originalGroups = groups;
     const originalPagination = pagination;
@@ -492,7 +493,7 @@
         <Button
           variant="danger-secondary"
           size="sm"
-          disabled={dismissingAll}
+          disabled={dismissingAll || hasPendingMutation}
           label={m('chat.notifications.clear_all')}
           onclick={dismissAll}
         >
