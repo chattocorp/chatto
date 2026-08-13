@@ -1,4 +1,13 @@
-FROM golang:1.26
+FROM node:22-trixie-slim AS node
+
+FROM golang:1.26.2-trixie
+
+# Chatto and Authling both build browser assets before starting their Go
+# development servers. Reuse the official Node distribution on the matching
+# Debian base instead of installing a second, distribution-owned toolchain.
+COPY --from=node /usr/local/ /usr/local/
+
+RUN corepack enable pnpm && corepack install --global pnpm@10.26.0
 
 RUN apt-get update && apt-get install -y --no-install-recommends xz-utils ffmpeg && rm -rf /var/lib/apt/lists/*
 
@@ -16,9 +25,4 @@ RUN set -eux; \
     mv /tmp/watchexec-*/watchexec /usr/local/bin/watchexec; \
     rm -rf /tmp/watchexec*
 
-WORKDIR /app
-
-# Bake in the cli/ tree so the image can run standalone in Kubernetes or other
-# containerized development environments. When used under Compose this is
-# overlaid by the bind-mount and adds no runtime cost.
-COPY cli ./cli
+WORKDIR /workspace

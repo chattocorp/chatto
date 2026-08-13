@@ -581,6 +581,8 @@ goreleaser check
 actionlint .github/workflows/*.yml
 
 docker/nats-wrapper_test.sh
+bash -n docker/compose-dev-entrypoint.sh
+docker compose config --quiet
 
 docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
 docker buildx build --check -f docker/Dockerfile.frontend.dev .

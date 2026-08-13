@@ -37,15 +37,46 @@ services:
   storybook:
     build:
       context: .
-      dockerfile: apps/frontend/Dockerfile.storybook
+      dockerfile: docker/Dockerfile.dev
+    command: ["docker/compose-dev-entrypoint.sh", "storybook"]
+    init: true
+    volumes:
+      - type: bind
+        source: .
+        target: /workspace
+      - storybook_node_modules:/workspace/node_modules
+      - storybook_frontend_node_modules:/workspace/apps/frontend/node_modules
+      - storybook_api_types_node_modules:/workspace/packages/api-types/node_modules
+      - storybook_lingua_node_modules:/workspace/packages/lingua/node_modules
+      - storybook_pnpm_store:/pnpm-store
     labels:
       dev.orbstack.http-port: "8080"
+    develop:
+      watch:
+        - action: rebuild
+          path: docker/Dockerfile.dev
+        - action: restart
+          path: docker/compose-dev-entrypoint.sh
+        - action: restart
+          path: package.json
+        - action: restart
+          path: pnpm-lock.yaml
+        - action: restart
+          path: pnpm-workspace.yaml
+        - action: restart
+          path: .npmrc
+        - action: restart
+          path: apps/frontend/package.json
+        - action: restart
+          path: packages/api-types/package.json
+        - action: restart
+          path: packages/lingua/package.json
 
   authling:
     build:
       context: .
-      dockerfile: authling/Dockerfile
-    command: ["run"]
+      dockerfile: docker/Dockerfile.dev
+    command: ["docker/compose-dev-entrypoint.sh", "authling"]
     init: true
     depends_on:
       mailpit:
@@ -64,21 +95,45 @@ services:
       AUTHLING_SMTP_TLS: opportunistic
       AUTHLING_SMTP_FROM: authling@authling.local
     volumes:
+      - type: bind
+        source: .
+        target: /workspace
       - authling_data:/data
+      - authling_node_modules:/workspace/authling/node_modules
+      - authling_web_node_modules:/workspace/authling/web/node_modules
+      - authling_pnpm_store:/pnpm-store
+      - compose_go_mod_cache:/go/pkg/mod
+      - compose_go_build_cache:/root/.cache/go-build
     labels:
       dev.orbstack.http-port: "8080"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "--header=Host: authling.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:8080/"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--header", "Host: authling.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:8080/"]
       interval: 2s
       timeout: 2s
       retries: 30
       start_period: 10s
+    develop:
+      watch:
+        - action: rebuild
+          path: docker/Dockerfile.dev
+        - action: restart
+          path: docker/compose-dev-entrypoint.sh
+        - action: restart
+          path: authling/package.json
+        - action: restart
+          path: authling/pnpm-lock.yaml
+        - action: restart
+          path: authling/pnpm-workspace.yaml
+        - action: restart
+          path: authling/.npmrc
+        - action: restart
+          path: authling/web/package.json
 
   chatto:
     build:
       context: .
-      dockerfile: docker/Dockerfile.compose
-    command: ["run"]
+      dockerfile: docker/Dockerfile.dev
+    command: ["docker/compose-dev-entrypoint.sh", "chatto"]
     init: true
     depends_on:
       authling:
@@ -88,10 +143,12 @@ services:
       mailpit:
         condition: service_started
     environment:
+      CHATTO_DEVELOPMENT_VERSION: 0.5.0-dev
+      CHATTO_BACKEND_URL: http://127.0.0.1:4001
       CHATTO_LOG_LEVEL: debug
       CHATTO_LOG_FORMAT: text
       CHATTO_WEBSERVER_URL: https://chatto.${COMPOSE_PROJECT_NAME}.orb.local
-      CHATTO_WEBSERVER_PORT: "4000"
+      CHATTO_WEBSERVER_PORT: "4001"
       CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET: 871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3
       CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET: a3955a342ba4cb4ffb457a1177295779fbbb73f8e22cd4f68ecb9fb584afcf66
       CHATTO_FRONTEND_AUTHLING_ISSUER: https://authling.${COMPOSE_PROJECT_NAME}.orb.local
@@ -140,17 +197,63 @@ services:
       CHATTO_BOOTSTRAP_USERS_1_EMAIL: bob@example.com
       CHATTO_BOOTSTRAP_USERS_1_PASSWORD: foobar123
       CHATTO_BOOTSTRAP_SERVER_NAME: Chatto + Authling
+      VITE_PORT: "4000"
     volumes:
+      - type: bind
+        source: .
+        target: /workspace
       - chatto_data:/data
+      - chatto_node_modules:/workspace/node_modules
+      - chatto_frontend_node_modules:/workspace/apps/frontend/node_modules
+      - chatto_api_types_node_modules:/workspace/packages/api-types/node_modules
+      - chatto_lingua_node_modules:/workspace/packages/lingua/node_modules
+      - chatto_pnpm_store:/pnpm-store
+      - compose_go_mod_cache:/go/pkg/mod
+      - compose_go_build_cache:/root/.cache/go-build
     labels:
       dev.orbstack.http-port: "4000"
     healthcheck:
-      test: ["CMD", "wget", "--quiet", "--spider", "--header=Host: chatto.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:4000/readyz"]
+      test: ["CMD", "curl", "--fail", "--silent", "--show-error", "--header", "Host: chatto.${COMPOSE_PROJECT_NAME}.orb.local", "http://127.0.0.1:4001/readyz"]
       interval: 2s
       timeout: 2s
       retries: 60
       start_period: 20s
+    develop:
+      watch:
+        - action: rebuild
+          path: docker/Dockerfile.dev
+        - action: restart
+          path: docker/compose-dev-entrypoint.sh
+        - action: restart
+          path: package.json
+        - action: restart
+          path: pnpm-lock.yaml
+        - action: restart
+          path: pnpm-workspace.yaml
+        - action: restart
+          path: .npmrc
+        - action: restart
+          path: apps/frontend/package.json
+        - action: restart
+          path: packages/api-types/package.json
+        - action: restart
+          path: packages/lingua/package.json
 
 volumes:
+  authling_node_modules:
+  authling_pnpm_store:
   authling_data:
+  authling_web_node_modules:
+  chatto_api_types_node_modules:
   chatto_data:
+  chatto_frontend_node_modules:
+  chatto_lingua_node_modules:
+  chatto_node_modules:
+  chatto_pnpm_store:
+  compose_go_build_cache:
+  compose_go_mod_cache:
+  storybook_api_types_node_modules:
+  storybook_frontend_node_modules:
+  storybook_lingua_node_modules:
+  storybook_node_modules:
+  storybook_pnpm_store:
