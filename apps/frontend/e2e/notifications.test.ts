@@ -258,7 +258,7 @@ test.describe('Thread Reply Notifications (Cascading Indicators)', () => {
 // Cross-server consolidated DM notifications will be re-tested when that view
 // is reintroduced.
 
-test.describe('Notification Bell & Page', () => {
+test.describe('Notification Bell & Centre', () => {
   test('bell icon shows indicator when there are notifications', async ({
     page,
     chatPage,
@@ -281,7 +281,7 @@ test.describe('Notification Bell & Page', () => {
     await notificationsPage.expectBellIndicatorVisible();
   });
 
-  test('clicking bell navigates to notifications page', async ({
+  test('clicking bell opens the notification centre', async ({
     page,
     chatPage,
     notificationsPage
@@ -293,7 +293,7 @@ test.describe('Notification Bell & Page', () => {
     await expect(notificationsPage.pageHeader).toBeVisible();
   });
 
-  test('notifications page shows empty state when no notifications', async ({
+  test('notification centre shows empty state when no notifications', async ({
     page,
     chatPage,
     notificationsPage
@@ -332,7 +332,7 @@ test.describe('Notification Bell & Page', () => {
   });
 });
 
-test.describe('Notification Page Display', () => {
+test.describe('Notification Centre Display', () => {
   test('mention notification shows summary, location, and time', async ({
     page,
     chatPage,
@@ -349,7 +349,7 @@ test.describe('Notification Page Display', () => {
     // User B: Mention User A
     await postMentionFromServerUser(browser!, serverURL, userA.login, 'notification display test');
 
-    // User A: Navigate to notifications page
+    // User A: Open the notification centre
     await notificationsPage.goto();
 
     // Verify notification appears with correct content
@@ -390,7 +390,7 @@ test.describe('Notification Page Display', () => {
       'Reply to trigger notification'
     );
 
-    // User A: Navigate to notifications page
+    // User A: Open the notification centre
     await notificationsPage.goto();
 
     // Verify notification appears with correct content
@@ -754,7 +754,7 @@ test.describe('Cross-Tab Sync', () => {
       await notificationsPage.expectBellIndicatorVisible();
       await notificationsPage1b.expectBellIndicatorVisible();
 
-      // Navigate to notifications page in second tab - should see the notification
+      // Open the notification centre in the second tab - should see the notification
       await notificationsPage1b.goto();
       await notificationsPage1b.expectNotificationWithSummary('mentioned you.');
     });
@@ -825,7 +825,7 @@ test.describe('Cross-Tab Sync', () => {
         'room entry read sync test'
       );
 
-      // User A (tab 2): Go to notifications page and verify notification exists
+      // User A (tab 2): Open the notification centre and verify notification exists
       await notificationsPage1b.gotoDirectly();
       const notification1b = notificationsPage1b.getNotificationBySummary('mentioned you.');
       await expect(notification1b).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -955,22 +955,22 @@ test.describe('Cross-Tab Sync', () => {
 });
 
 test.describe('Real-time Notification Updates', () => {
-  test('notification appears in real-time while on notifications page', async ({
+  test('notification appears in real-time while the notification centre is open', async ({
     page,
     chatPage,
     notificationsPage,
     browser,
     serverURL
   }) => {
-    // User A: Create account and go to notifications page
+    // User A: Create account and open the notification centre
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    // Navigate to notifications page (empty)
+    // Open the notification centre (empty)
     await notificationsPage.goto();
     await notificationsPage.expectEmptyState();
 
-    // User B: Mention User A while A is on notifications page
+    // User B: Mention User A while A has the notification centre open
     await postMentionFromServerUser(browser!, serverURL, userA.login, 'real-time test');
 
     // User A: Notification should appear without refresh

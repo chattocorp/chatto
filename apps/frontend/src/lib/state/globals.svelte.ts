@@ -231,6 +231,46 @@ class QuickSwitcherState {
 export const quickSwitcher = new QuickSwitcherState();
 
 // ---------------------------------------------------------------------------
+// NotificationCenter — app-header notification overlay visibility
+// ---------------------------------------------------------------------------
+
+/**
+ * Controls the single notification centre mounted beside the app-header bell.
+ * Other navigation surfaces can open it without introducing a second page UI.
+ */
+class NotificationCenterState {
+  visible = $state(false);
+  #trigger: HTMLElement | null = null;
+
+  get anchor(): { top: number; bottom: number; left: number } | null {
+    if (!this.visible || !this.#trigger) return null;
+    const rect = this.#trigger.getBoundingClientRect();
+    return { top: rect.top, bottom: rect.bottom, left: rect.left };
+  }
+
+  open() {
+    this.visible = true;
+  }
+
+  close() {
+    this.visible = false;
+  }
+
+  toggle() {
+    this.visible = !this.visible;
+  }
+
+  registerTrigger(node: HTMLElement) {
+    this.#trigger = node;
+    return () => {
+      if (this.#trigger === node) this.#trigger = null;
+    };
+  }
+}
+
+export const notificationCenter = new NotificationCenterState();
+
+// ---------------------------------------------------------------------------
 // FullscreenVideo — video overlay state
 // ---------------------------------------------------------------------------
 

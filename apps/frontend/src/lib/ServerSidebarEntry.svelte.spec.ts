@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
+import { notificationCenter } from '$lib/state/globals.svelte';
 
 const { mocks } = vi.hoisted(() => {
   return {
@@ -198,6 +199,7 @@ describe('ServerSidebarEntry', () => {
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
 
   beforeEach(() => {
+    notificationCenter.close();
     consoleErrorSpy?.mockRestore();
     consoleWarnSpy?.mockRestore();
     consoleErrorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
@@ -645,5 +647,24 @@ describe('ServerSidebarEntry', () => {
     const badge = q(container, '[data-testid="server-notification-badge"]');
     await expect.element(badge).toHaveClass('bg-text');
     await expect.element(badge).not.toHaveClass('bg-attention');
+  });
+
+  it('opens the notification centre when the server badge has no cached jump target', async () => {
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 1;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    (q(container, '[data-testid="server-notification-badge"]')?.closest(
+      'button'
+    ) as HTMLButtonElement).click();
+
+    expect(notificationCenter.visible).toBe(true);
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

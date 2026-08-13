@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
 
-import { quickSwitcher } from '$lib/state/globals.svelte';
+import { notificationCenter, quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -298,6 +298,7 @@ beforeAll(() => {
 
 beforeEach(() => {
   quickSwitcher.close();
+  notificationCenter.close();
   flushSync();
   installQueryMocks();
   mocks.goto.mockReset();
@@ -323,6 +324,7 @@ beforeEach(() => {
 
 afterEach(() => {
   quickSwitcher.close();
+  notificationCenter.close();
   flushSync();
   currentRender?.unmount();
   currentRender = undefined;
@@ -345,6 +347,21 @@ describe('QuickSwitcher', () => {
     expect(input(container)).toBe(document.activeElement);
     expect(mocks.listRooms).not.toHaveBeenCalled();
     expect(mocks.listRoomMembers).not.toHaveBeenCalled();
+  });
+
+  it('opens notifications as an overlay instead of navigating', async () => {
+    const { container } = await renderOpenSwitcher();
+    const notifications = resultButtons(container).find((button) =>
+      button.textContent?.includes('Notifications')
+    );
+    expect(notifications).toBeTruthy();
+
+    notifications!.click();
+    flushSync();
+
+    expect(notificationCenter.visible).toBe(true);
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(dialog(container).hasAttribute('open')).toBe(false);
   });
 
   it('fuzzy-filters rooms and shows no results for misses', async () => {

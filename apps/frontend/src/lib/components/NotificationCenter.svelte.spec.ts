@@ -88,7 +88,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-import NotificationsPage from './+page.svelte';
+import NotificationsPage from './NotificationCenter.svelte';
 
 function page(
   occurrences: NotificationOccurrenceItem[] = [mocks.occurrence as NotificationOccurrenceItem],
@@ -109,7 +109,7 @@ function page(
   };
 }
 
-describe('notifications page', () => {
+describe('NotificationCenter', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     toast.clear();
@@ -136,7 +136,8 @@ describe('notifications page', () => {
   });
 
   it('queues an unread occurrence to be marked read after its target is displayed', async () => {
-    const { container } = render(NotificationsPage);
+    const onclose = vi.fn();
+    const { container } = render(NotificationsPage, { props: { onclose } });
     const item = await vi.waitFor(() => {
       const element = q(container, '[data-testid="notification-group"] > button');
       expect(element).not.toBeNull();
@@ -154,6 +155,7 @@ describe('notifications page', () => {
         'mention-1'
       );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
+      expect(onclose).toHaveBeenCalledOnce();
     });
     expect(mocks.store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
   });

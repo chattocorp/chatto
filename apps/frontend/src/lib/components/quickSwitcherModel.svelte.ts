@@ -15,7 +15,7 @@ import { m } from '$lib/i18n/messages';
 import { buildMessageLinkPath } from '$lib/messageLinks';
 import { serverIdToSegment } from '$lib/navigation';
 import { buildDirectMessagePresentation } from '$lib/render/users';
-import { quickSwitcher } from '$lib/state/globals.svelte';
+import { notificationCenter, quickSwitcher } from '$lib/state/globals.svelte';
 import { recentQuickSwitcher } from '$lib/state/recentQuickSwitcher.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { isNavigationVisibleRoom } from '$lib/state/server/rooms.svelte';
@@ -222,6 +222,11 @@ export class QuickSwitcherModel {
   async select(item: QuickSwitcherItem): Promise<void> {
     quickSwitcher.close();
 
+    if (item.kind === 'destination' && item.id === 'notifications') {
+      notificationCenter.open();
+      return;
+    }
+
     if (item.kind === 'user') {
       try {
         const roomId = await this.#startDMFromUser(item);
@@ -379,7 +384,6 @@ export class QuickSwitcherModel {
       detail: '',
       serverId: '',
       serverName: '',
-      href: resolve('/chat/notifications'),
       icon: 'icon-[uil--bell]',
       score: 0
     });

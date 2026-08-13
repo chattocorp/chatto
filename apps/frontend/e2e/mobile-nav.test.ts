@@ -227,29 +227,27 @@ test.describe('Mobile Navigation', () => {
     await expect(roomList).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   });
 
-  test('subtitle is hidden on mobile, visible on desktop', async ({ page, chatPage }) => {
+  test('notifications use an anchored overlay on desktop and a bottom sheet on mobile', async ({
+    page,
+    chatPage,
+    notificationsPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
 
-    // Navigate to a page with a subtitle (notifications page)
-    await page.goto(routes.notifications);
-    await page.waitForURL(routes.notifications);
-
-    // Ensure desktop viewport first
     await page.setViewportSize({ width: 1280, height: 720 });
+    await notificationsPage.goto();
 
-    // Subtitle should be visible on desktop
-    const subtitle = page.locator("text=Here's what's new");
-    await expect(subtitle).toBeVisible();
+    await expect(notificationsPage.centre).toHaveAttribute('popover', 'manual');
+    await expect(page.locator('dialog.bottom-sheet')).not.toBeVisible();
+    await notificationsPage.centre.getByRole('button', { name: 'Close' }).click();
+    await expect(notificationsPage.centre).not.toBeVisible();
 
-    // Resize to mobile
     await page.setViewportSize({ width: 375, height: 667 });
+    await notificationsPage.goto();
 
-    // Subtitle should be hidden on mobile
-    await expect(subtitle).not.toBeVisible();
-
-    // Title should still be visible
-    await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
+    await expect(page.locator('dialog.bottom-sheet')).toBeVisible();
+    await expect(notificationsPage.pageHeader).toBeVisible();
   });
 
   test('room header omits redundant server name on mobile', async ({ page, chatPage }) => {

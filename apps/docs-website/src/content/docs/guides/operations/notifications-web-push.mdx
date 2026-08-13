@@ -25,10 +25,14 @@ Notifications are stored for the user, survive browser restarts, sync across tab
 
 ## Notification Centre
 
-The notification centre shows one chronological list:
+Open the notification centre from the bell in the app header. It stays over
+your current conversation as a compact anchored panel on desktop and a bottom
+sheet on mobile. The Quick Switcher opens the same surface.
 
-- Unread and read notifications use the normal treatment until you mark or delete them.
-- Read notifications stay in the same chronological list without unread emphasis. The trash action permanently dismisses a notification without requiring you to open it.
+The centre shows one chronological list:
+
+- Unread notifications use orange emphasis for important activity and a neutral indicator for non-interruptive activity such as reactions.
+- Read notifications stay in the same chronological list with muted styling and no unread indicator.
 - Delete permanently removes a notification from the list.
 
 Related activity is grouped by DM, room, thread, or reacted-to message. Opening a group goes to its newest unread event, or its newest event when everything in the group is read. Reading a room or thread marks covered notifications read. All notifications expire 90 days after their source activity.

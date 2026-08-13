@@ -21,11 +21,14 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Behavior
 
-- The notification page is one chronological list containing both Unread and
-  Read activity. Unread reactions are Ambient and use a neutral indicator;
-  every other current cause is Important and uses Chatto's notification
-  orange. Read rows use neither unread treatment and their content is visually
-  muted while remaining fully interactive.
+- The notification centre opens from the app-header bell without replacing the
+  current conversation: it is a compact, bell-anchored overlay on desktop and
+  a bottom sheet on mobile. The Quick Switcher can open the same surface.
+- The centre is one chronological list containing both Unread and Read
+  activity. Unread reactions are Ambient and use a neutral indicator; every
+  other current cause is Important and uses Chatto's notification orange. Read
+  rows use neither unread treatment and their content is visually muted while
+  remaining fully interactive.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews. Reaction
