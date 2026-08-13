@@ -12,7 +12,7 @@ and dismissal behavior so consumers cannot drift into separate visual systems.
 Consumers own only the palette's inset sections and their content.
 -->
 <script lang="ts">
-  import type { Snippet } from 'svelte';
+  import { onDestroy, type Snippet } from 'svelte';
   import { sidebarNav } from '$lib/state/globals.svelte';
   import BottomSheet from './BottomSheet.svelte';
   import FloatingPopover from './FloatingPopover.svelte';
@@ -40,16 +40,26 @@ Consumers own only the palette's inset sections and their content.
   } = $props();
 
   let dialogEl: HTMLDialogElement | undefined;
+  let lifecycleVisible = false;
+
+  // A responsive desktop/mobile presentation change must not end the logical
+  // palette session. Drive consumer lifecycle from visibility, not from the
+  // currently mounted surface branch.
+  $effect(() => {
+    if (visible === lifecycleVisible) return;
+    lifecycleVisible = visible;
+    if (visible) onopen?.();
+    else onclosed?.();
+  });
+
+  onDestroy(() => {
+    if (lifecycleVisible) onclosed?.();
+  });
 
   function syncModal(node: HTMLDialogElement) {
     dialogEl = node;
     if (visible && !node.open) node.showModal();
     else if (!visible && node.open) node.close();
-  }
-
-  function mountPalette() {
-    onopen?.();
-    return () => onclosed?.();
   }
 </script>
 
@@ -65,7 +75,7 @@ Consumers own only the palette's inset sections and their content.
 />
 
 {#snippet surface()}
-  <div {@attach mountPalette} {id} class="flex w-140 max-w-[90vw] flex-col gap-1 menu">
+  <div {id} class="flex w-140 max-w-[90vw] flex-col gap-1 menu">
     {@render children()}
   </div>
 {/snippet}

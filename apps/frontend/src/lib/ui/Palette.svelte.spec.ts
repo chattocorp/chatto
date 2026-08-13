@@ -99,4 +99,43 @@ describe('Palette', () => {
       'gap-1'
     );
   });
+
+  it('keeps one logical session while switching responsive presentations', async () => {
+    const onopen = vi.fn();
+    const onclosed = vi.fn();
+    const rendered = render(Palette, {
+      props: {
+        id: 'palette-test',
+        visible: true,
+        ariaLabel: 'Test palette',
+        onclose: vi.fn(),
+        onopen,
+        onclosed,
+        children
+      }
+    });
+
+    expect(onopen).toHaveBeenCalledOnce();
+    expect(onclosed).not.toHaveBeenCalled();
+
+    sidebarNav.setMobile(true);
+    flushSync();
+
+    expect(rendered.container.querySelector('dialog.bottom-sheet')).toHaveAttribute('open');
+    expect(onopen).toHaveBeenCalledOnce();
+    expect(onclosed).not.toHaveBeenCalled();
+
+    await rendered.rerender({
+      id: 'palette-test',
+      visible: false,
+      ariaLabel: 'Test palette',
+      onclose: vi.fn(),
+      onopen,
+      onclosed,
+      children
+    });
+
+    expect(onopen).toHaveBeenCalledOnce();
+    expect(onclosed).toHaveBeenCalledOnce();
+  });
 });
