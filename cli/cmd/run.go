@@ -450,7 +450,17 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		return errors.New("push provider did not accept the test notification")
 	}
 
-	chattoCore.SetNotificationAlertHandler(func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
+	chattoCore.SetNotificationAlertHandler(notificationAlertHandler(chattoCore, cfg, sender, logger))
+}
+
+type notificationPushSender interface {
+	SendToMany(context.Context, []*corev1.PushSubscription, *push.Payload) []*push.SendResult
+}
+
+// notificationAlertHandler keeps the production provider seam independently
+// testable while ChattoCore owns durable queueing and terminal occurrence state.
+func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, sender notificationPushSender, logger *log.Logger) func(context.Context, *corev1.NotificationOccurrence) error {
+	return func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
 		if occurrence.GetTarget() == nil {
 			return core.ErrNotificationAlertSuppressed
 		}
@@ -521,8 +531,7 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 			return core.ErrNotificationAlertSuppressed
 		}
 		return sendErr
-	})
-
+	}
 }
 
 func filterOwnedPushSubscriptions(

@@ -1753,6 +1753,60 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	}
 }
 
+func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "notification-access-loss-actor", "Notification Access Loss Actor", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, actor.Id, core.KindChannel, "", "notification-access-loss-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.SetRoomUniversal(env.ctx, actor.Id, core.KindChannel, room.Id, true); err != nil {
+		t.Fatalf("SetRoomUniversal: %v", err)
+	}
+	posted, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, actor.Id, "access loss target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermRoomJoin); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+	input := core.CreateNotificationOccurrenceInput{
+		RecipientID:          env.viewer.Id,
+		SourceEventID:        "notification-access-loss-source",
+		SourceCreated:        posted.GetCreatedAt().AsTime(),
+		SourceStreamSequence: sequence,
+		ActorID:              actor.Id,
+		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	}
+	occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, input)
+	if err != nil || !created {
+		t.Fatalf("Create stale occurrence = (%+v, %v, %v), want created", occurrence, created, err)
+	}
+
+	deleted, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
+		NotificationId: occurrence.GetId(),
+	}))
+	if err != nil || deleted.Msg.GetDeleted() {
+		t.Fatalf("DeleteNotificationOccurrence after access loss = (%+v, %v), want deleted=false", deleted, err)
+	}
+	if recreated, created, err := env.core.NotificationOccurrences().Create(env.ctx, input); err != nil || created || recreated != nil {
+		t.Fatalf("Create after visibility tombstone = (%+v, %v, %v), want nil, false, nil", recreated, created, err)
+	}
+}
+
 func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

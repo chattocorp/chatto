@@ -464,6 +464,55 @@ test.describe('Notification Page Display', () => {
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(2, TIMEOUTS.COMPLEX_OPERATION);
   });
+
+  test('consolidates reactions to one message while preserving actors and emoji', async ({
+    page,
+    chatPage,
+    roomPage,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const messageText = `Grouped reaction notification ${Date.now()}`;
+    await roomPage.sendMessage(messageText);
+    await page.goto(routes.settings);
+
+    const firstActor = await withServerUser(
+      browser!,
+      serverURL,
+      async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
+        await actorChat.enterRoom('general');
+        const message = actorRoom.getMessage(messageText);
+        await message.react('👍');
+        await message.expectReaction('👍', 1);
+        return user;
+      }
+    );
+    const secondActor = await withServerUser(
+      browser!,
+      serverURL,
+      async ({ user, chatPage: actorChat, roomPage: actorRoom }) => {
+        await actorChat.enterRoom('general');
+        const message = actorRoom.getMessage(messageText);
+        await message.react('❤️');
+        await message.expectReaction('❤️', 1);
+        return user;
+      }
+    );
+
+    await notificationsPage.goto();
+    await notificationsPage.expectNotificationCount(1, TIMEOUTS.COMPLEX_OPERATION);
+    const notification = notificationsPage.getNotificationBySummary('reacted to your message.');
+    await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+    await expect(notification).toContainText('thumbsup');
+    await expect(notification).toContainText('heart');
+    await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
+    await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
+    await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
+  });
 });
 
 test.describe('Notification dismissal', () => {

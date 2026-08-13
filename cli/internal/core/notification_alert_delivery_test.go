@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -222,5 +223,105 @@ func TestNotificationAlertQueueRechecksCurrentPolicyBeforeProvider(t *testing.T)
 	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
 	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("downgraded alert state = (%v, %v), want silenced", stored, err)
+	}
+}
+
+func TestNotificationAlertDeliveryRetriesTransientProviderFailure(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "retry-alert-alice", "Retry Alert Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "retry-alert-bob", "Retry Alert Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "retry provider", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, notificationOccurrenceID(alice.Id, posted.GetId()))
+	if err != nil {
+		t.Fatalf("Get occurrence: %v", err)
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	providerErr := errors.New("provider temporarily unavailable")
+	attempts := 0
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		attempts++
+		if attempts == 1 {
+			return providerErr
+		}
+		return nil
+	})
+	delivery := events.DurableDelivery{Data: data, PublishedAt: time.Now().UTC()}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, delivery); !errors.Is(err, providerErr) {
+		t.Fatalf("first processDelivery error = %v, want provider error", err)
+	}
+	pending, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || pending.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+		t.Fatalf("occurrence after transient failure = (%+v, %v), want pending", pending, err)
+	}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, delivery); err != nil {
+		t.Fatalf("retry processDelivery: %v", err)
+	}
+	delivered, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || delivered.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		t.Fatalf("occurrence after retry = (%+v, %v), want delivered", delivered, err)
+	}
+}
+
+func TestNotificationAlertDeliveryPersistsTransportSuppression(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "suppressed-alert-alice", "Suppressed Alert Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "suppressed-alert-bob", "Suppressed Alert Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, _, err := chattoCore.FindOrCreateDM(ctx, alice.Id, []string{bob.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindDM, room.Id, bob.Id, "suppressed provider", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, notificationOccurrenceID(alice.Id, posted.GetId()))
+	if err != nil {
+		t.Fatalf("Get occurrence: %v", err)
+	}
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		return ErrNotificationAlertSuppressed
+	})
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("processDelivery: %v", err)
+	}
+	silenced, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || silenced.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+		t.Fatalf("occurrence after suppression = (%+v, %v), want silenced", silenced, err)
 	}
 }

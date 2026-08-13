@@ -473,9 +473,15 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}); err != nil {
 		t.Fatal("Failed to create notification queue consumer:", err)
 	}
-	if _, err := srcJS.Publish(ctx, "notifications.alert", []byte("pending-alert")); err != nil {
+	notificationAck, err := srcJS.Publish(ctx, "notifications.alert", []byte("pending-alert"))
+	if err != nil {
 		t.Fatal("Failed to publish pending notification alert:", err)
 	}
+	sourceAlert, err := notificationQueue.GetMsg(ctx, notificationAck.Sequence)
+	if err != nil {
+		t.Fatal("Failed to inspect pending notification alert:", err)
+	}
+	sourceAlertPublishedAt := sourceAlert.Time
 
 	// NATS-backed projection snapshots use a dedicated Object Store and an
 	// encrypted OCC pointer in RUNTIME_STATE. Save a real snapshot so the test
@@ -687,6 +693,13 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	}
 	if string(alert.Data()) != "pending-alert" {
 		t.Fatalf("Restored notification alert = %q, want pending-alert", alert.Data())
+	}
+	metadata, err := alert.Metadata()
+	if err != nil {
+		t.Fatal("Failed to inspect restored notification alert metadata:", err)
+	}
+	if !metadata.Timestamp.Equal(sourceAlertPublishedAt) {
+		t.Fatalf("Restored notification published at = %v, want original %v", metadata.Timestamp, sourceAlertPublishedAt)
 	}
 
 	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")

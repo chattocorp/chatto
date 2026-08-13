@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -345,6 +346,172 @@ func TestNotificationOccurrenceIndexConvergesAcrossReplicas(t *testing.T) {
 	got, exists, err := second.index.occurrenceByID(ctx, "U-replica-recipient", created.GetId())
 	if err != nil || !exists || got.occurrence.GetId() != created.GetId() {
 		t.Fatalf("second index occurrence = (%v, %v, %v)", got.occurrence, exists, err)
+	}
+}
+
+func TestNotificationOccurrenceConcurrentReadAndAlertCompletionConvergeAcrossModels(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	primary := chattoCore.NotificationOccurrences()
+	second := NewNotificationOccurrenceModel(chattoCore, chattoCore.storage.runtimeStateKV, testCoreLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- second.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("second notification model did not stop")
+		}
+	})
+	if err := second.WaitReady(ctx); err != nil {
+		t.Fatalf("second WaitReady: %v", err)
+	}
+
+	for iteration := range 24 {
+		sourceID := fmt.Sprintf("E-concurrent-read-alert-%d", iteration)
+		occurrence, _, err := primary.Create(ctx, CreateNotificationOccurrenceInput{
+			RecipientID:   "U-concurrent-read-alert",
+			SourceEventID: sourceID,
+			SourceCreated: time.Now().UTC(),
+			Target:        &corev1.NotificationTarget{RoomId: "R-concurrent-read-alert", EventId: sourceID},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+			}},
+			SkipReadLookup: true,
+		})
+		if err != nil {
+			t.Fatalf("Create %d: %v", iteration, err)
+		}
+		entry, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationOccurrenceKey(occurrence.GetRecipientId(), occurrence.GetSourceEventId()))
+		if err != nil {
+			t.Fatalf("Get KV entry %d: %v", iteration, err)
+		}
+		if err := second.WaitForSourceRevision(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), entry.Revision()); err != nil {
+			t.Fatalf("second revision %d: %v", iteration, err)
+		}
+
+		start := make(chan struct{})
+		errs := make(chan error, 2)
+		go func() {
+			<-start
+			_, err := primary.MarkRead(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+			errs <- err
+		}()
+		go func() {
+			<-start
+			errs <- second.completeAlertDelivery(ctx, &corev1.NotificationAlertJob{
+				RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+			}, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED)
+		}()
+		close(start)
+		for range 2 {
+			if err := <-errs; err != nil {
+				t.Fatalf("concurrent mutation %d: %v", iteration, err)
+			}
+		}
+
+		current, err := primary.Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+		if err != nil {
+			t.Fatalf("Get final occurrence %d: %v", iteration, err)
+		}
+		if current.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ ||
+			current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+			t.Fatalf("final occurrence %d = %+v, want Read and terminal alert state", iteration, current)
+		}
+	}
+}
+
+func TestNotificationOccurrenceConcurrentDeletionReasonsPreserveTombstone(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	primary := chattoCore.NotificationOccurrences()
+	second := NewNotificationOccurrenceModel(chattoCore, chattoCore.storage.runtimeStateKV, testCoreLogger())
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- second.Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("second notification model did not stop")
+		}
+	})
+	if err := second.WaitReady(ctx); err != nil {
+		t.Fatalf("second WaitReady: %v", err)
+	}
+
+	input := CreateNotificationOccurrenceInput{
+		RecipientID:   "U-concurrent-delete",
+		SourceEventID: "E-concurrent-delete",
+		SourceCreated: time.Now().UTC(),
+		Target:        &corev1.NotificationTarget{RoomId: "R-concurrent-delete", EventId: "E-concurrent-delete"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	}
+	occurrence, _, err := primary.Create(ctx, input)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	key := notificationOccurrenceKey(occurrence.GetRecipientId(), occurrence.GetSourceEventId())
+	entry, err := chattoCore.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("Get KV entry: %v", err)
+	}
+	if err := second.WaitForSourceRevision(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), entry.Revision()); err != nil {
+		t.Fatalf("second revision: %v", err)
+	}
+
+	start := make(chan struct{})
+	type result struct {
+		deleted bool
+		err     error
+	}
+	results := make(chan result, 2)
+	go func() {
+		<-start
+		deleted, err := primary.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED)
+		results <- result{deleted: deleted, err: err}
+	}()
+	go func() {
+		<-start
+		deleted, err := second.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		results <- result{deleted: deleted, err: err}
+	}()
+	close(start)
+	deletedCount := 0
+	for range 2 {
+		result := <-results
+		if result.err != nil {
+			t.Fatalf("concurrent delete: %v", result.err)
+		}
+		if result.deleted {
+			deletedCount++
+		}
+	}
+	if deletedCount != 1 {
+		t.Fatalf("successful concurrent deletes = %d, want exactly one", deletedCount)
+	}
+	raw, err := chattoCore.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("Get tombstone: %v", err)
+	}
+	var tombstone corev1.NotificationOccurrence
+	if err := proto.Unmarshal(raw.Value(), &tombstone); err != nil {
+		t.Fatalf("Unmarshal tombstone: %v", err)
+	}
+	if reason := tombstone.GetRemovalReason(); reason != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED &&
+		reason != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST {
+		t.Fatalf("tombstone reason = %v, want one winning deletion reason", reason)
+	}
+	if recreated, created, err := primary.Create(ctx, input); err != nil || created || recreated != nil {
+		t.Fatalf("Create after concurrent tombstone = (%+v, %v, %v), want nil, false, nil", recreated, created, err)
 	}
 }
 

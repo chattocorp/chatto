@@ -397,6 +397,67 @@ describe('notifications page', () => {
     resolveRemote?.();
   });
 
+  it('restores only the failed remote server after optimistic Dismiss All', async () => {
+    const remoteStore = {
+      ...mocks.store,
+      notifications: {
+        ...mocks.store.notifications,
+        fetchPage: vi
+          .fn()
+          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
+        deleteAllOccurrences: vi.fn().mockRejectedValue(new Error('remote offline'))
+      }
+    };
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', remoteStore);
+
+    const { container } = render(NotificationsPage);
+    const dismissAll = await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+      return q(container, 'button[aria-label="Dismiss all"]') as HTMLButtonElement;
+    });
+    dismissAll.click();
+
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    });
+    expect(container.textContent).toContain('remote.example.test');
+    expect(container.textContent).not.toContain('chat.example.test');
+    expect(mocks.store.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
+    expect(remoteStore.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
+  });
+
+  it('restores only the failed origin server after optimistic Dismiss All', async () => {
+    mocks.store.notifications.deleteAllOccurrences.mockRejectedValue(new Error('origin offline'));
+    const remoteStore = {
+      ...mocks.store,
+      notifications: {
+        ...mocks.store.notifications,
+        fetchPage: vi
+          .fn()
+          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
+        deleteAllOccurrences: vi.fn().mockResolvedValue(undefined)
+      }
+    };
+    mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
+    mocks.stores.set('remote', remoteStore);
+
+    const { container } = render(NotificationsPage);
+    const dismissAll = await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+      return q(container, 'button[aria-label="Dismiss all"]') as HTMLButtonElement;
+    });
+    dismissAll.click();
+
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+    });
+    expect(container.textContent).toContain('chat.example.test');
+    expect(container.textContent).not.toContain('remote.example.test');
+  });
+
   it('loads the next page from each server independently', async () => {
     let intersectionCallback: IntersectionObserverCallback | undefined;
     vi.stubGlobal(
@@ -437,5 +498,72 @@ describe('notifications page', () => {
       expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(1);
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
     });
+  });
+
+  it('consolidates one direct-message group across loaded pages and dismisses every member', async () => {
+    let intersectionCallback: IntersectionObserverCallback | undefined;
+    let resolveSecondPage: (() => void) | undefined;
+    vi.stubGlobal(
+      'IntersectionObserver',
+      class {
+        constructor(callback: IntersectionObserverCallback) {
+          intersectionCallback = callback;
+        }
+        observe() {}
+        unobserve() {}
+        disconnect() {}
+        takeRecords() {
+          return [];
+        }
+        root = null;
+        rootMargin = '';
+        thresholds = [];
+      }
+    );
+    mocks.store.notifications.fetchPage.mockImplementation(async (offset = 0) => {
+      const occurrence = {
+        ...mocks.occurrence,
+        id: `dm-${offset}`,
+        sourceEventId: `dm-source-${offset}`,
+        eventId: `dm-event-${offset}`,
+        threadRootId: null,
+        reasons: [NotificationReason.DIRECT_MESSAGE],
+        reasonMatches: [{ reason: NotificationReason.DIRECT_MESSAGE, intensity: 3 }],
+        createdAt: new Date(Date.UTC(2026, 7, 11, 12, 0, offset)).toISOString()
+      };
+      if (offset === 1) {
+        await new Promise<void>((resolve) => {
+          resolveSecondPage = resolve;
+        });
+      }
+      return page([occurrence], offset === 0);
+    });
+
+    const { container } = render(NotificationsPage);
+    await vi.waitFor(() => {
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+    });
+    intersectionCallback?.(
+      [{ isIntersecting: true } as IntersectionObserverEntry],
+      {} as IntersectionObserver
+    );
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(1);
+      expect(container.textContent).toContain('Loading');
+    });
+    resolveSecondPage?.();
+    await vi.waitFor(() => {
+      expect(container.textContent).not.toContain('Loading');
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+    });
+
+    (q(container, 'button[aria-label="Delete"]') as HTMLButtonElement).click();
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledWith(
+        expect.arrayContaining(['dm-0', 'dm-1']),
+        2
+      );
+    });
+    expect(mocks.store.notifications.deleteOccurrences.mock.calls[0]?.[0]).toHaveLength(2);
   });
 });

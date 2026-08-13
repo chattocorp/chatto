@@ -637,9 +637,67 @@ func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T
 	}
 }
 
+func TestNotificationMaterializerPurgesAllUserNotificationStateOnAccountDeletion(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const (
+		userID = "U-notification-account-deleted"
+		roomID = "R-notification-account-deleted"
+	)
+
+	if _, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:          userID,
+		SourceEventID:        "E-notification-account-deleted-source",
+		SourceCreated:        time.Now().UTC(),
+		ActorID:              "U-notification-account-deleted-actor",
+		SourceStreamSequence: 10,
+		Target:               &corev1.NotificationTarget{RoomId: roomID, EventId: "E-notification-account-deleted-target"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	}); err != nil {
+		t.Fatalf("Create occurrence: %v", err)
+	}
+	readKey := notificationReadBoundaryKey(userID, roomID, "")
+	if _, err := chattoCore.storage.runtimeStateKV.Put(ctx, readKey, encodeNotificationReadBoundary(notificationReadBoundary{targetSequence: 10, observedSequence: 10})); err != nil {
+		t.Fatalf("put read boundary: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.recordVisibilityBoundary(ctx, userID, roomID, 10); err != nil {
+		t.Fatalf("record visibility boundary: %v", err)
+	}
+
+	err := chattoCore.notificationMaterializer.materializeEvent(ctx, &corev1.Event{
+		Id:        "E-notification-account-deleted",
+		ActorId:   SystemActorID,
+		CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_UserAccountDeleted{UserAccountDeleted: &corev1.UserAccountDeletedEvent{
+			UserId: userID,
+		}},
+	}, 20, true)
+	if err != nil {
+		t.Fatalf("materialize account deletion: %v", err)
+	}
+
+	occurrences, err := chattoCore.NotificationOccurrences().List(ctx, userID)
+	if err != nil {
+		t.Fatalf("List occurrences: %v", err)
+	}
+	if len(occurrences) != 0 {
+		t.Fatalf("occurrences after account deletion = %d, want none", len(occurrences))
+	}
+	for _, key := range []string{readKey, notificationVisibilityBoundaryKey(userID, roomID)} {
+		if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+			t.Fatalf("notification state key %q remains after account deletion: %v", key, err)
+		}
+	}
+}
+
 func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t *testing.T) {
 	for _, testCase := range []struct {
 		name       string
+		prepare    func(context.Context, *ChattoCore, string, string, string) error
 		revoke     func(context.Context, *ChattoCore, string, string, string) error
 		wantFilter string
 	}{
@@ -657,6 +715,39 @@ func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t
 				return chattoCore.DenyUserRoomPermission(ctx, SystemActorID, roomID, recipientID, PermRoomJoin)
 			},
 			wantFilter: evtstream.RBACEventTypeFilter(evtstream.EventRBACPermissionDenied),
+		},
+		{
+			name: "room moved into denied group",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, actorID, roomID, _ string) error {
+				group, err := chattoCore.CreateRoomGroup(ctx, actorID, "Denied notification rooms", "")
+				if err != nil {
+					return err
+				}
+				if err := chattoCore.DenyGroupPermission(ctx, SystemActorID, group.GetId(), RoleEveryone, PermRoomJoin); err != nil {
+					return err
+				}
+				return chattoCore.MoveRoomToGroup(ctx, actorID, roomID, group.GetId())
+			},
+			wantFilter: evtstream.RoomEventTypeFilter(evtstream.EventRoomAddedToGroup),
+		},
+		{
+			name: "room join role revoked",
+			prepare: func(ctx context.Context, chattoCore *ChattoCore, _, roomID, recipientID string) error {
+				if _, err := chattoCore.CreateServerRole(ctx, SystemActorID, "notification-access", "Notification access", ""); err != nil {
+					return err
+				}
+				if err := chattoCore.AssignServerRole(ctx, SystemActorID, recipientID, "notification-access"); err != nil {
+					return err
+				}
+				if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, roomID, RoleEveryone, PermRoomJoin); err != nil {
+					return err
+				}
+				return chattoCore.GrantRoomPermission(ctx, SystemActorID, roomID, "notification-access", PermRoomJoin)
+			},
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, _, _, recipientID string) error {
+				return chattoCore.RevokeServerRole(ctx, SystemActorID, recipientID, "notification-access")
+			},
+			wantFilter: evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleRevoked),
 		},
 	} {
 		t.Run(testCase.name, func(t *testing.T) {
@@ -677,6 +768,11 @@ func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t
 			if _, err := chattoCore.SetRoomUniversal(ctx, author.Id, KindChannel, room.Id, true); err != nil {
 				t.Fatalf("SetRoomUniversal true: %v", err)
 			}
+			if testCase.prepare != nil {
+				if err := testCase.prepare(ctx, chattoCore, author.Id, room.Id, recipient.Id); err != nil {
+					t.Fatalf("prepare implicit membership: %v", err)
+				}
+			}
 
 			message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@implicit-recipient hello", nil, "", "", nil, false)
 			if err != nil {
@@ -689,6 +785,7 @@ func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t
 			if err != nil || len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.Id {
 				t.Fatalf("occurrences before visibility loss = (%+v, %v), want source %s", occurrences, err, message.Id)
 			}
+			occurrence := occurrences[0]
 
 			if err := testCase.revoke(ctx, chattoCore, author.Id, room.Id, recipient.Id); err != nil {
 				t.Fatalf("revoke implicit membership: %v", err)
@@ -703,12 +800,107 @@ func TestNotificationMaterializerRemovesOccurrencesAfterImplicitMembershipLoss(t
 			if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id); err != nil || len(occurrences) != 0 {
 				t.Fatalf("occurrences after visibility loss = (%+v, %v), want empty", occurrences, err)
 			}
+			tombstoneEntry, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationOccurrenceKey(recipient.Id, occurrence.GetSourceEventId()))
+			if err != nil {
+				t.Fatalf("get visibility tombstone: %v", err)
+			}
+			var tombstone corev1.NotificationOccurrence
+			if err := proto.Unmarshal(tombstoneEntry.Value(), &tombstone); err != nil {
+				t.Fatalf("unmarshal visibility tombstone: %v", err)
+			}
+			if tombstone.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST {
+				t.Fatalf("tombstone reason = %v, want visibility lost", tombstone.GetRemovalReason())
+			}
 			visibilityEntry, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationVisibilityBoundaryKey(recipient.Id, room.Id))
 			if err != nil {
 				t.Fatalf("get visibility boundary: %v", err)
 			}
 			if len(visibilityEntry.Value()) != 8 || binary.BigEndian.Uint64(visibilityEntry.Value()) < boundary.Seq {
 				t.Fatalf("visibility boundary = %v, want sequence at least %d", visibilityEntry.Value(), boundary.Seq)
+			}
+		})
+	}
+}
+
+func TestNotificationMaterializerRemovesOccurrencesForExplicitLifecycleEvents(t *testing.T) {
+	for _, testCase := range []struct {
+		name   string
+		revoke func(context.Context, *ChattoCore, string, string, string) error
+	}{
+		{
+			name: "member removed",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, actorID, roomID, recipientID string) error {
+				removed, err := chattoCore.RemoveMember(ctx, actorID, KindChannel, roomID, recipientID)
+				if err == nil && !removed {
+					return errors.New("member was not removed")
+				}
+				return err
+			},
+		},
+		{
+			name: "member banned",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, actorID, roomID, recipientID string) error {
+				_, err := chattoCore.BanMember(ctx, actorID, KindChannel, roomID, recipientID, "notification visibility test", nil)
+				return err
+			},
+		},
+		{
+			name: "room deleted",
+			revoke: func(ctx context.Context, chattoCore *ChattoCore, actorID, roomID, _ string) error {
+				return chattoCore.DeleteRoom(ctx, actorID, KindChannel, roomID)
+			},
+		},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			chattoCore, _ := setupTestCore(t)
+			ctx := testContext(t)
+			author, err := chattoCore.CreateUser(ctx, SystemActorID, "lifecycle-author", "Lifecycle Author", "password")
+			if err != nil {
+				t.Fatalf("CreateUser author: %v", err)
+			}
+			recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "lifecycle-recipient", "Lifecycle Recipient", "password")
+			if err != nil {
+				t.Fatalf("CreateUser recipient: %v", err)
+			}
+			room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "notification-lifecycle-room", "")
+			if err != nil {
+				t.Fatalf("CreateRoom: %v", err)
+			}
+			if _, err := chattoCore.JoinRoom(ctx, recipient.Id, KindChannel, recipient.Id, room.Id); err != nil {
+				t.Fatalf("JoinRoom recipient: %v", err)
+			}
+			message, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@lifecycle-recipient hello", nil, "", "", nil, false)
+			if err != nil {
+				t.Fatalf("PostMessage: %v", err)
+			}
+			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+				t.Fatalf("WaitCurrent before lifecycle event: %v", err)
+			}
+			occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id)
+			if err != nil || len(occurrences) != 1 || occurrences[0].GetSourceEventId() != message.GetId() {
+				t.Fatalf("occurrences before lifecycle event = (%+v, %v), want source %s", occurrences, err, message.GetId())
+			}
+			occurrence := occurrences[0]
+
+			if err := testCase.revoke(ctx, chattoCore, author.Id, room.Id, recipient.Id); err != nil {
+				t.Fatalf("apply lifecycle event: %v", err)
+			}
+			if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+				t.Fatalf("WaitCurrent after lifecycle event: %v", err)
+			}
+			if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id); err != nil || len(occurrences) != 0 {
+				t.Fatalf("occurrences after lifecycle event = (%+v, %v), want empty", occurrences, err)
+			}
+			raw, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationOccurrenceKey(recipient.Id, occurrence.GetSourceEventId()))
+			if err != nil {
+				t.Fatalf("get lifecycle tombstone: %v", err)
+			}
+			var tombstone corev1.NotificationOccurrence
+			if err := proto.Unmarshal(raw.Value(), &tombstone); err != nil {
+				t.Fatalf("unmarshal lifecycle tombstone: %v", err)
+			}
+			if tombstone.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST {
+				t.Fatalf("lifecycle tombstone reason = %v, want visibility lost", tombstone.GetRemovalReason())
 			}
 		})
 	}
