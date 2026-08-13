@@ -765,6 +765,43 @@ describe('RoomList', () => {
     expect(icon?.classList.contains('text-muted')).toBe(false);
   });
 
+  it('uses the established globe icon for universal joined rooms', async () => {
+    const universal = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    ) as unknown as { isUniversal: boolean };
+    universal.isUniversal = true;
+
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    const icon = q(row, '[class~="icon-[uil--globe]"]');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Universal');
+    expect(icon?.getAttribute('title')).toBeTruthy();
+  });
+
+  it('renders room groups as sections and keeps notification rooms visible while collapsed', async () => {
+    setRoomNotificationCount('channel-1', 1);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'community',
+        name: 'Community',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1', 'joinable-channel']
+      }
+    ];
+    localStorage.setItem('chatto:i:origin:collapsible:set:community', '1');
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-section"] button'))
+      .toHaveAttribute('aria-expanded', 'false');
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
+  });
+
   it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {
     mocks.store.navigation.roomGroups = [
       {

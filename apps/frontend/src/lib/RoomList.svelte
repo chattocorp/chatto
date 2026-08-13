@@ -19,6 +19,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
@@ -342,12 +343,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="flex-1 truncate">{presentation.label}</span>
     {:else}
       {#if isJoined}
-        <span
-          class={[
-            'sidebar-icon',
-            showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
-          ]}>#</span
-        >
+        {#if room.isUniversal}
+          <span
+            class={[
+              'iconify sidebar-icon icon-[uil--globe]',
+              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
+            ]}
+            role="img"
+            aria-label={m('room.directory.universal')}
+            title={m('room.directory.universal_title')}
+          ></span>
+        {:else}
+          <span
+            class={[
+              'sidebar-icon',
+              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
+            ]}>#</span
+          >
+        {/if}
       {:else if room.viewerCanJoinRoom}
         <span class="sidebar-icon text-muted">+</span>
       {:else}
@@ -417,41 +430,43 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {m('room_list.empty_suffix')}
   </EmptyState>
 {:else}
-  <nav class="room-list sidebar-nav p-2 md:w-full">
+  <nav class="room-list md:w-full">
     {#if navigation.roomGroups.length > 0}
-      <!-- Room-set layout -->
       {#each visibleSets as set, i (set.id)}
-        <CollapsibleGroup
+        <RoomGroupSection
           label={set.name}
           items={getSetItems(set)}
           item={sidebarLink}
           persistKey={serverStorageKey(activeServerId, `collapsible:set:${set.id}`)}
           keepVisibleWhenCollapsed={isGroupItemHighlighted}
-          class={i === 0 ? 'mt-4 first:mt-0' : 'mt-4'}
           contextMenuTrigger={groupMenuTrigger(set)}
+          separated={i > 0}
         />
       {/each}
     {:else if sortedRooms.length > 0}
       <!-- No layout configured yet — alphabetical fallback. -->
-      <CollapsibleGroup
-        label={m('common.rooms')}
-        items={sortedRooms}
-        item={navigationRoomLink}
-        persistKey={serverStorageKey(activeServerId, 'collapsible:rooms')}
-        keepVisibleWhenCollapsed={isHighlighted}
-        class="mt-4 first:mt-0"
-      />
+      <div class="p-2">
+        <CollapsibleGroup
+          label={m('common.rooms')}
+          items={sortedRooms}
+          item={navigationRoomLink}
+          persistKey={serverStorageKey(activeServerId, 'collapsible:rooms')}
+          keepVisibleWhenCollapsed={isHighlighted}
+        />
+      </div>
     {/if}
 
     {#if dmRooms.length > 0}
-      <CollapsibleGroup
-        label={m('room_list.direct_messages')}
-        items={dmRooms}
-        item={navigationRoomLink}
-        persistKey={serverStorageKey(activeServerId, 'collapsible:dms')}
-        keepVisibleWhenCollapsed={isHighlighted}
-        class="mt-4"
-      />
+      <div class="px-2 pb-2">
+        <CollapsibleGroup
+          label={m('room_list.direct_messages')}
+          items={dmRooms}
+          item={navigationRoomLink}
+          persistKey={serverStorageKey(activeServerId, 'collapsible:dms')}
+          keepVisibleWhenCollapsed={isHighlighted}
+          class={visibleSets.length > 0 || sortedRooms.length > 0 ? 'mt-4' : ''}
+        />
+      </div>
     {/if}
   </nav>
 {/if}
