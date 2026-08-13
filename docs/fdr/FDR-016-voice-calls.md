@@ -1,7 +1,7 @@
 # FDR-016: Voice Calls
 
 **Status:** Active
-**Last reviewed:** 2026-08-12
+**Last reviewed:** 2026-08-13
 
 ## Overview
 
@@ -27,7 +27,7 @@ Rooms support real-time voice conversations with optional camera video and scree
 - New clients always enable LiveKit E2EE before connecting. Chatto distributes a KMS-backed per-call shared key with the LiveKit join token; the raw key is never written to EVT and is shredded when the call ends.
 - Screen sharing requests browser-tab audio when the browser supports it. In Chrome, the presenter must select a browser tab and enable **Share tab audio** in the browser picker. Chatto excludes whole-system audio so remote call playback is not captured and fed back into the room.
 - Screen-share state is LiveKit track state only. Users who have not joined the call still see who is in the active call, but they do not see whether a participant is sharing a screen.
-- Opt-in macOS game-capture discovery builds add a separate game-stream control for joined participants. It opens a Chatto source picker populated with ordinary visible application windows from the desktop host; the list is not based on a game catalogue. Selecting a window publishes its video and owning-application audio as the member's screen share. Members can use microphone audio alone, camera with microphone audio, or camera and microphone while sharing. Browser screen sharing and native game sharing occupy one mutually exclusive share slot.
+- On macOS 15 and newer, Chatto Desktop adds a separate game-stream control for joined participants. It opens a Chatto source picker populated with ordinary visible application windows from the desktop host; the list is not based on a game catalogue. Selecting a window publishes its video and owning-application audio as the member's screen share. Members can use microphone audio alone, camera with microphone audio, or camera and microphone while sharing. Browser screen sharing and native game sharing occupy one mutually exclusive share slot.
 - When LiveKit is not configured on the server, all voice UI is hidden — no button, no panel, no indicator.
 
 ## Design Decisions
