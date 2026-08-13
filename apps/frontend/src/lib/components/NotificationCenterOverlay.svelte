@@ -19,8 +19,11 @@
     ariaLabel={m('ui.notifications')}
     onclose={() => notificationCenter.close()}
   >
-    <div id="notification-center" class="h-[min(78dvh,44rem)] overflow-hidden">
-      <NotificationCenter onclose={() => notificationCenter.close()} />
+    <div id="notification-center" class="overflow-hidden">
+      <NotificationCenter
+        class="min-h-40 max-h-[min(78dvh,44rem)]"
+        onclose={() => notificationCenter.close()}
+      />
     </div>
   </BottomSheet>
 {:else if notificationCenter.anchor}
@@ -30,7 +33,7 @@
     role="dialog"
     ariaLabel={m('ui.notifications')}
     onclose={() => notificationCenter.close()}
-    class="flex w-[min(32rem,calc(100vw-1rem))] overflow-hidden rounded-lg border border-border bg-surface shadow-xl"
+    class="menu flex w-140 max-w-[90vw] flex-col gap-1"
   >
     <NotificationCenter
       class="min-h-40 max-h-[min(42rem,calc(100dvh-5rem))]"

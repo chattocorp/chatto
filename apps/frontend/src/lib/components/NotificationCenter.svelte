@@ -3,7 +3,6 @@
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { EmptyState } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -571,59 +570,67 @@
   }
 </script>
 
-<div class={['flex min-h-0 w-full flex-col overflow-hidden text-sm', className]}>
-  <div class="flex min-h-12 shrink-0 items-center gap-2 border-b border-border px-3 py-2">
-    <h2 class="min-w-0 flex-1 truncate font-semibold text-text-top">
-      {m('chat.notifications.title')}
-    </h2>
-    {#if groups.length > 0 || dismissingAll}
-      <Button
-        variant="danger-secondary"
-        size="sm"
-        disabled={dismissingAll || hasPendingMutation}
-        label={m('chat.notifications.clear_all')}
-        onclick={dismissAll}
+<div class={['flex min-h-0 w-full flex-col gap-1 overflow-hidden text-sm', className]}>
+  <div class="menu-section shrink-0">
+    <div class="flex min-h-10 items-center gap-2 px-2">
+      <span class="iconify sidebar-icon icon-[uil--bell] text-muted" aria-hidden="true"></span>
+      <h2 class="min-w-0 flex-1 truncate font-semibold text-text-top">
+        {m('chat.notifications.title')}
+      </h2>
+      {#if groups.length > 0 || dismissingAll}
+        <button
+          type="button"
+          class="inline-flex min-h-10 cursor-pointer items-center gap-1.5 rounded border border-text/10 bg-surface px-2 font-medium text-text transition-[background-color,border-color,color,scale] duration-150 hover:border-danger/30 hover:bg-danger/10 hover:text-danger active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
+          disabled={dismissingAll || hasPendingMutation}
+          aria-label={m('chat.notifications.clear_all')}
+          onclick={dismissAll}
+        >
+          <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+          <span>{m('chat.notifications.clear_all')}</span>
+        </button>
+      {/if}
+      <button
+        type="button"
+        class="icon-action shrink-0 border border-text/10 bg-surface"
+        aria-label={m('ui.close')}
+        title={m('ui.close')}
+        onclick={onclose}
       >
-        <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-        <span>{m('chat.notifications.clear_all')}</span>
-      </Button>
-    {/if}
-    <button
-      type="button"
-      class="icon-action"
-      aria-label={m('ui.close')}
-      title={m('ui.close')}
-      onclick={onclose}
-    >
-      <span class="iconify icon-[uil--times] text-lg" aria-hidden="true"></span>
-    </button>
+        <span class="iconify icon-[uil--times] text-lg" aria-hidden="true"></span>
+      </button>
+    </div>
   </div>
 
-  <div class="flex min-h-0 flex-1 flex-col overflow-y-auto bg-background">
+  <div class="menu-section flex min-h-0 flex-1 flex-col overflow-y-auto">
     {#if loading && groups.length === 0}
-      <div class="p-6 text-muted">{m('common.loading')}</div>
+      <div class="px-3 py-8 text-center text-muted">{m('common.loading')}</div>
     {:else if pageError && groups.length === 0}
-      <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
+      <div class="flex flex-col items-center gap-3 px-3 py-8 text-center text-muted">
+        <span
+          class="iconify icon-[uil--exclamation-triangle] text-xl"
+          aria-hidden="true"
+        ></span>
+        <span>{m('common.error.network')}</span>
         <Button variant="secondary" label={m('common.retry')} onclick={loadNotifications}
           >{m('common.retry')}</Button
         >
-      </EmptyState>
+      </div>
     {:else if visibleGroups.length === 0}
-      <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
-        {m('chat.notifications.empty_body')}
-      </EmptyState>
+      <div class="flex flex-col items-center gap-1 px-3 py-8 text-center text-muted">
+        <span class="iconify icon-[uil--bell-slash] mb-1 text-xl" aria-hidden="true"></span>
+        <span class="font-medium text-text">{m('chat.notifications.empty_title')}</span>
+        <span>{m('chat.notifications.empty_body')}</span>
+      </div>
     {:else}
-      <div class="selectable-list pb-2">
+      <div class="sidebar-nav">
         {#each dateSections as section (section.key)}
           <section aria-labelledby={`notification-date-${section.key}`}>
             <h2
               id={`notification-date-${section.key}`}
-              class="mt-2 flex items-center gap-3 px-3 py-2"
+              class="px-2 pt-2 pb-0.5 text-xs font-medium text-muted uppercase"
               data-testid="notification-date-heading"
             >
-              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
-              <span class="font-medium text-muted">{section.label}</span>
-              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
+              {section.label}
             </h2>
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
@@ -634,7 +641,7 @@
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
               <div
                 class={[
-                  'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+                  'group flex w-full cursor-pointer items-center rounded-md transition-colors duration-100 hover:bg-surface focus-within:bg-surface',
                   item.group.unread &&
                     item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
                     'bg-attention/5'
@@ -650,7 +657,7 @@
                 <button
                   type="button"
                   class={[
-                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
+                    'flex min-w-0 flex-1 cursor-pointer items-start gap-2 rounded-md px-2 py-2 text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
                     !item.group.unread && 'opacity-60'
                   ]}
                   disabled={mutationPending}
@@ -658,30 +665,22 @@
                 >
                   {#if actors.length > 1}
                     <span
-                      class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
+                      class="flex shrink-0 -space-x-1.5 rtl:space-x-reverse"
                       data-testid="notification-actor-stack"
                     >
                       {#each actors as groupedActor (groupedActor.id)}
-                        <UserAvatar user={groupedActor} size="sm" class="ring-2 ring-background" />
+                        <UserAvatar user={groupedActor} size="xs" class="ring-1 ring-background" />
                       {/each}
                     </span>
-                  {:else if actor}<UserAvatar user={actor} size="sm" />{/if}
-                  {#if item.group.unread}
-                    <span
-                      class={[
-                        'size-2 shrink-0 rounded-full',
-                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                          ? 'bg-attention'
-                          : 'bg-text'
-                      ]}
-                      aria-label={m('chat.notifications.unread')}
-                    ></span>
-                  {/if}
+                  {:else if actor}<UserAvatar user={actor} size="xs" />{:else}<span
+                      class="iconify sidebar-icon icon-[uil--bell] text-muted"
+                      aria-hidden="true"
+                    ></span>{/if}
                   <span class="min-w-0 flex-1">
                     <bdi class="block truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
                     </bdi>
-                    <span class="block truncate text-sm text-muted">
+                    <span class="block truncate text-muted">
                       {#if showServerHostname}{item.serverHostname}<span
                           class="mx-1.5"
                           aria-hidden="true">·</span
@@ -694,18 +693,27 @@
                     </span>
                   </span>
                 </button>
-                <div class="flex shrink-0 items-center gap-2">
-                  <Button
-                    variant="danger-secondary"
-                    size="sm"
-                    disabled={mutationPending}
-                    label={m('common.delete')}
-                    title={m('common.delete')}
-                    onclick={() => dismiss(item)}
-                  >
-                    <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
-                  </Button>
-                </div>
+                {#if item.group.unread}
+                  <span
+                    class={[
+                      'size-2 shrink-0 rounded-full',
+                      item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                        ? 'bg-attention'
+                        : 'bg-text'
+                    ]}
+                    aria-label={m('chat.notifications.unread')}
+                  ></span>
+                {/if}
+                <button
+                  type="button"
+                  class="me-1 inline-flex h-10 w-10 shrink-0 cursor-pointer items-center justify-center rounded border border-text/10 bg-surface text-muted transition-[background-color,border-color,color,scale] duration-150 hover:border-danger/30 hover:bg-danger/10 hover:text-danger active:scale-[0.97] focus-visible:outline-2 focus-visible:outline-danger disabled:cursor-not-allowed disabled:opacity-50"
+                  disabled={mutationPending}
+                  aria-label={m('common.delete')}
+                  title={m('common.delete')}
+                  onclick={() => dismiss(item)}
+                >
+                  <span class="iconify icon-[uil--trash-alt] text-base" aria-hidden="true"></span>
+                </button>
               </div>
             {/each}
           </section>

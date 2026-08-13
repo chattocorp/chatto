@@ -174,7 +174,9 @@ describe('NotificationCenter', () => {
     expect(row.classList.contains('bg-attention/5')).toBe(true);
     expect(q(row, '.bg-attention')).not.toBeNull();
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
-    expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
+    expect(deleteButton.classList.contains('border')).toBe(true);
+    expect(deleteButton.classList.contains('bg-surface')).toBe(true);
+    expect(deleteButton.classList.contains('hover:text-danger')).toBe(true);
     expect(row.querySelectorAll('button')).toHaveLength(2);
     expect(row.textContent).not.toContain('Move to inbox');
     expect(row.textContent).not.toContain('Mark done');
@@ -656,7 +658,8 @@ describe('NotificationCenter', () => {
       '[data-testid="notification-date-heading"]'
     ) as HTMLElement;
     expect(firstHeading.classList.contains('sticky')).toBe(false);
-    expect(firstHeading.querySelectorAll('.h-px.bg-border')).toHaveLength(2);
+    expect(firstHeading.classList.contains('uppercase')).toBe(true);
+    expect(firstHeading.classList.contains('text-xs')).toBe(true);
   });
 
   it('dismisses all notifications optimistically with one request per server', async () => {
