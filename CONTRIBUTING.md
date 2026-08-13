@@ -32,6 +32,11 @@ workspace-specific `*.orb.local` domains. The checkout directory is the
 Compose project name; for a worktree named `<workspace>`, Chatto is available
 at `https://chatto.<workspace>.orb.local`. The other origins follow the names
 listed in the [Complete Local Stack](README.md#complete-local-stack) section.
+Use Conductor's **Compose (watch)** run mode, Paseo's `compose-watch` script, or
+`docker compose up --build --watch` when dependency-manifest and development-
+image changes should restart or rebuild the affected services automatically.
+Ordinary Chatto, Authling, and Storybook source changes live-reload in either
+mode through the bind-mounted checkout.
 
 The repository-level Conductor settings are shared in
 `.conductor/settings.toml`, and the repository-level Paseo settings are shared

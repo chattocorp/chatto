@@ -195,7 +195,32 @@ const testConfig = process.env.VITEST ? await createTestConfig() : undefined;
 
 async function createServePlugins() {
   const { default: devtoolsJson } = await import('vite-plugin-devtools-json');
-  return [devtoolsJson()];
+  return [proxyClientConfiguration(), devtoolsJson()];
+}
+
+function proxyClientConfiguration(): Plugin {
+  return {
+    name: 'chatto-client-configuration-proxy',
+    enforce: 'pre',
+    configureServer(server) {
+      if (!process.env.CHATTO_BACKEND_URL) return;
+
+      server.middlewares.use('/client-config.json', async (_request, response, next) => {
+        try {
+          const backendResponse = await fetch(new URL('/client-config.json', backendTarget));
+          response.statusCode = backendResponse.status;
+          response.setHeader(
+            'Content-Type',
+            backendResponse.headers.get('content-type') ?? 'application/json'
+          );
+          response.setHeader('Cache-Control', 'no-store');
+          response.end(Buffer.from(await backendResponse.arrayBuffer()));
+        } catch (error) {
+          next(error as Error);
+        }
+      });
+    }
+  };
 }
 
 export default defineConfig(async ({ command }) => {
