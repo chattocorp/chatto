@@ -8,26 +8,20 @@ import {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room, RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
-import {
-  ListNotificationOccurrencesResponse,
-  NotificationOccurrence,
-  NotificationRoomUnreadCount,
-  NotificationTarget
-} from '@chatto/api-types/api/v1/notifications_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
 import { NavigationStore } from './rooms.svelte';
 
 function navigationFor(
   projection: ServerProjectionStore,
-  sync = new RealtimeProjectionSyncState()
+  sync = new RealtimeProjectionSyncState(),
+  notificationCounts = { roomUnreadCounts: {}, roomImportantUnreadCounts: {} }
 ): { navigation: NavigationStore; sync: RealtimeProjectionSyncState } {
   sync.markCaughtUp(undefined);
-  return { navigation: new NavigationStore(projection, sync), sync };
+  return { navigation: new NavigationStore(projection, sync, notificationCounts), sync };
 }
 
 function projectedRoom(
@@ -80,27 +74,12 @@ describe('NavigationStore', () => {
         hasMessageHistory: true
       })
     );
-    projection.notificationOccurrences = new ListNotificationOccurrencesResponse({
-      occurrences: Array.from(
-        { length: 3 },
-        (_, index) =>
-          new NotificationOccurrence({
-            id: `N${index}`,
-            unread: true,
-            target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
-          })
-      ),
-      roomUnreadCounts: [
-        new NotificationRoomUnreadCount({
-          roomId: 'dm',
-          unreadCount: 3,
-          importantUnreadCount: 2
-        })
-      ]
-    });
     projection.rooms.set('managed', projectedRoom('managed'));
 
-    const { navigation } = navigationFor(projection);
+    const { navigation } = navigationFor(projection, undefined, {
+      roomUnreadCounts: { dm: 3 },
+      roomImportantUnreadCounts: { dm: 2 }
+    });
 
     expect(navigation.currentUserId).toBe('U1');
     expect(navigation.isInitialLoading).toBe(false);
@@ -147,6 +126,20 @@ describe('NavigationStore', () => {
     expect(navigation.rooms.map((room) => room.id)).toEqual(['newer']);
   });
 
+  it('treats a missing Important count as zero after the last Important occurrence is read', () => {
+    const projection = new ServerProjectionStore();
+    projection.rooms.set('ambient', projectedRoom('ambient'));
+    const { navigation } = navigationFor(projection, undefined, {
+      roomUnreadCounts: { ambient: 1 },
+      roomImportantUnreadCounts: {}
+    });
+
+    expect(navigation.rooms[0]).toMatchObject({
+      viewerNotificationCount: 1,
+      viewerImportantNotificationCount: 0
+    });
+  });
+
   it('becomes empty immediately when the canonical projection resets', () => {
     const projection = new ServerProjectionStore();
     projection.viewer = new GetViewerResponse();
@@ -169,7 +162,10 @@ describe('NavigationStore', () => {
       user: new ViewerUser({ profile: new User({ id: 'U1' }) })
     });
     projection.rooms.set('R1', projectedRoom('R1'));
-    const navigation = new NavigationStore(projection, sync);
+    const navigation = new NavigationStore(projection, sync, {
+      roomUnreadCounts: {},
+      roomImportantUnreadCounts: {}
+    });
 
     expect(navigation.isInitialLoading).toBe(true);
     expect(navigation.currentUserId).toBeNull();

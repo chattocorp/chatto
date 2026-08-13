@@ -131,13 +131,24 @@ export class NotificationStore {
   #deletionSequence = 0;
   #deleteAllGeneration = 0;
   #pendingDeletionById = new SvelteMap<string, number>();
+  #readSequence = 0;
+  #pendingReadById = new SvelteMap<string, number>();
+  #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
+  #pendingMutationCount = 0;
+  #mutationIdleWaiters = new Set<() => void>();
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
   importantUnreadNotificationCount = $state(0);
+  roomUnreadCounts = $state.raw<Record<string, number>>({});
+  roomImportantUnreadCounts = $state.raw<Record<string, number>>({});
   nextExpiryAt = $state<string | null>(null);
   /** Advances only for realtime invalidations, including changes made in another session. */
   viewInvalidationVersion = $state(0);
+  resetVersion = $state(0);
+  readonly revokedRoomIds = new SvelteSet<string>();
+  /** Users whose copied profile data must not be rendered from stale notification pages. */
+  readonly scrubbedUserIds = new SvelteSet<string>();
   loading = $state(false);
   hasLoaded = $state(false);
   error = $state<string | null>(null);
@@ -160,16 +171,37 @@ export class NotificationStore {
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
-    this.occurrences = page.occurrences;
-    this.notifications = page.occurrences
+    this.#pendingReadById.clear();
+    this.#pendingReadRequestById.clear();
+    const occurrences = page.occurrences
+      .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
+      .map((occurrence) => this.#privacySafeOccurrence(occurrence));
+    const revokedUnreadCount = [...this.revokedRoomIds].reduce(
+      (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),
+      0
+    );
+    const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
+      (total, roomId) => total + (page.roomImportantUnreadCounts[roomId] ?? 0),
+      0
+    );
+    this.occurrences = occurrences;
+    this.notifications = occurrences
       .filter((occurrence) => occurrence.unread)
       .map(occurrenceAsNotificationItem)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 50);
-    this.unreadNotificationCount = page.unreadCount;
+    this.unreadNotificationCount = Math.max(0, page.unreadCount - revokedUnreadCount);
     this.importantUnreadNotificationCount = Math.max(
       0,
-      Math.min(page.importantUnreadCount, page.unreadCount)
+      Math.min(
+        page.importantUnreadCount - revokedImportantUnreadCount,
+        this.unreadNotificationCount
+      )
+    );
+    this.roomUnreadCounts = omitRecordKeys(page.roomUnreadCounts, this.revokedRoomIds);
+    this.roomImportantUnreadCounts = omitRecordKeys(
+      page.roomImportantUnreadCounts,
+      this.revokedRoomIds
     );
     this.nextExpiryAt = page.nextExpiryAt ?? null;
     this.loading = false;
@@ -186,10 +218,14 @@ export class NotificationStore {
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();
+    this.#pendingReadById.clear();
+    this.#pendingReadRequestById.clear();
     this.notifications = [];
     this.occurrences = [];
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
+    this.roomUnreadCounts = {};
+    this.roomImportantUnreadCounts = {};
     this.nextExpiryAt = null;
     this.loading = true;
     // The empty reset boundary is already authoritative. Keep this true so
@@ -197,10 +233,13 @@ export class NotificationStore {
     // a later snapshot frame never arrives.
     this.hasLoaded = true;
     this.error = null;
+    this.resetVersion++;
+    this.invalidateViews();
   }
 
   /** Remove copied profile data for an account deleted from the projection. */
   scrubUser(userId: string): void {
+    this.scrubbedUserIds.add(userId);
     let changed = false;
     const notifications = this.notifications.map((notification) => {
       if (notification.actor?.id !== userId) return notification;
@@ -219,21 +258,39 @@ export class NotificationStore {
     if (occurrences.some((occurrence, index) => occurrence !== this.occurrences[index])) {
       this.occurrences = occurrences;
     }
+    this.invalidateViews();
   }
 
   /** Drop notification payloads for a room at an authorization boundary. */
   clearRoom(roomId: string): void {
     this.#authoritativeGeneration++;
-    this.#pendingDeletionById.clear();
-    const removedUnreadOccurrences = this.occurrences.filter(
-      (occurrence) => occurrence.unread && occurrence.room?.id === roomId
-    ).length;
-    const removedImportantUnreadOccurrences = this.occurrences.filter(
-      (occurrence) =>
-        occurrence.unread &&
-        occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
-        occurrence.room?.id === roomId
-    ).length;
+    const roomOccurrenceIds = new SvelteSet(
+      this.occurrences
+        .filter((occurrence) => occurrence.room?.id === roomId)
+        .map((occurrence) => occurrence.id)
+    );
+    for (const notification of this.notifications) {
+      if (notificationTarget(notification).roomId === roomId)
+        roomOccurrenceIds.add(notification.id);
+    }
+    for (const id of roomOccurrenceIds) {
+      this.#pendingDeletionById.delete(id);
+      this.#pendingReadById.delete(id);
+      this.#pendingReadRequestById.delete(id);
+    }
+    this.revokedRoomIds.add(roomId);
+    const removedUnreadOccurrences =
+      this.roomUnreadCounts[roomId] ??
+      this.occurrences.filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
+        .length;
+    const removedImportantUnreadOccurrences =
+      this.roomImportantUnreadCounts[roomId] ??
+      this.occurrences.filter(
+        (occurrence) =>
+          occurrence.unread &&
+          occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
+          occurrence.room?.id === roomId
+      ).length;
     this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
 
     const notifications = this.notifications.filter(
@@ -253,6 +310,16 @@ export class NotificationStore {
         this.importantUnreadNotificationCount - removedImportantUnreadOccurrences
       );
     }
+    this.roomUnreadCounts = withoutRecordKey(this.roomUnreadCounts, roomId);
+    this.roomImportantUnreadCounts = withoutRecordKey(this.roomImportantUnreadCounts, roomId);
+    this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
+    this.invalidateViews();
+  }
+
+  /** Re-open a room only after an explicit positive membership projection. */
+  restoreRoom(roomId: string): void {
+    if (!this.revokedRoomIds.delete(roomId)) return;
+    this.invalidateViews();
   }
 
   /**
@@ -357,13 +424,14 @@ export class NotificationStore {
    * must not erase already-loaded notifications on others.
    */
   async fetch() {
+    if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
     const generation = ++this.#fetchGeneration;
     this.loading = true;
     this.error = null;
 
     try {
       const page = await this.#api.listNotificationOccurrences(50);
-      if (generation !== this.#fetchGeneration) return;
+      if (generation !== this.#fetchGeneration || this.#pendingMutationCount > 0) return;
 
       this.replaceOccurrenceProjection(page);
     } catch (e) {
@@ -378,19 +446,57 @@ export class NotificationStore {
   }
 
   async fetchPage(offset = 0): Promise<NotificationOccurrencePage> {
+    if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
+    const authoritativeGeneration = this.#authoritativeGeneration;
     const page = await this.#api.listNotificationOccurrences(50, offset);
-    if (offset === 0) this.replaceOccurrenceProjection(page);
-    return page;
+    if (
+      authoritativeGeneration !== this.#authoritativeGeneration ||
+      this.#pendingMutationCount > 0
+    ) {
+      throw new Error('Notification projection changed while loading');
+    }
+    const revokedUnreadCount = [...this.revokedRoomIds].reduce(
+      (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),
+      0
+    );
+    const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
+      (total, roomId) => total + (page.roomImportantUnreadCounts[roomId] ?? 0),
+      0
+    );
+    const safePage = {
+      ...page,
+      consumedCount: page.consumedCount ?? page.occurrences.length,
+      occurrences: page.occurrences
+        .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
+        .map((occurrence) => this.#privacySafeOccurrence(occurrence)),
+      unreadCount: Math.max(0, page.unreadCount - revokedUnreadCount),
+      importantUnreadCount: Math.max(
+        0,
+        Math.min(
+          page.importantUnreadCount - revokedImportantUnreadCount,
+          page.unreadCount - revokedUnreadCount
+        )
+      ),
+      roomUnreadCounts: omitRecordKeys(page.roomUnreadCounts, this.revokedRoomIds),
+      roomImportantUnreadCounts: omitRecordKeys(page.roomImportantUnreadCounts, this.revokedRoomIds)
+    };
+    if (offset === 0) this.replaceOccurrenceProjection(safePage);
+    else {
+      this.occurrences = mergeNotificationOccurrences(this.occurrences, safePage.occurrences);
+    }
+    return safePage;
   }
 
   async markOccurrenceRead(notificationId: string): Promise<void> {
-    await this.#api.markNotificationRead(notificationId);
+    if (!(await this.markRead(notificationId))) {
+      throw new Error('Failed to mark notification read');
+    }
   }
 
   /** Delete exact occurrences optimistically, restoring them on failure. */
   async deleteOccurrences(
     notificationIds: string[],
-    knownCounts?: { unread: number; importantUnread: number }
+    knownCounts?: { unread: number; importantUnread: number; roomId?: string | null }
   ): Promise<void> {
     const uniqueIds = [...new SvelteSet(notificationIds)];
     const removedIds = new SvelteSet(uniqueIds);
@@ -400,10 +506,16 @@ export class NotificationStore {
     const removedNotifications = this.notifications.filter((notification) =>
       removedIds.has(notification.id)
     );
-    const authoritativeGeneration = this.#authoritativeGeneration;
     const deleteAllGeneration = this.#deleteAllGeneration;
     const mutation = ++this.#deletionSequence;
-    for (const id of uniqueIds) this.#pendingDeletionById.set(id, mutation);
+    const overlappingReadRequests = uniqueIds.flatMap((id) => {
+      const request = this.#pendingReadRequestById.get(id);
+      return request ? [request] : [];
+    });
+    this.#beginMutation();
+    for (const id of uniqueIds) {
+      this.#pendingDeletionById.set(id, mutation);
+    }
     // Supersede stale list work without starting a second list request. The
     // worker's realtime replacement performs authoritative reconciliation.
     this.#fetchGeneration++;
@@ -418,52 +530,77 @@ export class NotificationStore {
       knownCounts?.importantUnread ??
       removedOccurrences.filter(
         (occurrence) =>
-          occurrence.unread &&
-          occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
+          occurrence.unread && occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
       ).length;
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removedUnreadCount);
     this.importantUnreadNotificationCount = Math.max(
       0,
       this.importantUnreadNotificationCount - removedImportantUnreadCount
     );
+    const roomAdjustments = notificationRoomAdjustments(removedOccurrences, knownCounts);
+    this.#adjustRoomCounts(roomAdjustments, -1);
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
 
     try {
       await this.#api.batchDeleteNotificationOccurrences(uniqueIds);
+      // Keep the deletion marker in place until older reads settle. A failed
+      // read must never restore an occurrence after its delete committed.
+      if (overlappingReadRequests.length > 0) {
+        await Promise.allSettled(overlappingReadRequests);
+      }
     } catch (error) {
       const rollbackIds = new SvelteSet(
         uniqueIds.filter((id) => this.#pendingDeletionById.get(id) === mutation)
       );
-      if (
-        this.#authoritativeGeneration === authoritativeGeneration &&
-        this.#deleteAllGeneration === deleteAllGeneration &&
-        rollbackIds.size > 0
-      ) {
+      if (this.#deleteAllGeneration === deleteAllGeneration && rollbackIds.size > 0) {
+        if (overlappingReadRequests.length > 0) {
+          await Promise.allSettled(overlappingReadRequests);
+          await this.#reconcileAfterOverlappingMutation();
+          throw error;
+        }
+        const visibleRollbackIds = new SvelteSet(
+          [...rollbackIds].filter((id) => {
+            const occurrence = removedOccurrences.find((candidate) => candidate.id === id);
+            const roomId = occurrence?.room?.id;
+            return !roomId || !this.revokedRoomIds.has(roomId);
+          })
+        );
         this.occurrences = mergeNotificationOccurrences(
           this.occurrences,
-          removedOccurrences.filter((occurrence) => rollbackIds.has(occurrence.id))
+          removedOccurrences
+            .filter((occurrence) => visibleRollbackIds.has(occurrence.id))
+            .map((occurrence) => this.#privacySafeOccurrence(occurrence))
         );
         this.notifications = mergeNotificationItems(
           this.notifications,
-          removedNotifications.filter((notification) => rollbackIds.has(notification.id))
+          removedNotifications
+            .filter((notification) => visibleRollbackIds.has(notification.id))
+            .map((notification) => this.#privacySafeNotification(notification))
         );
         const rollbackUnreadCount =
-          knownCounts !== undefined && rollbackIds.size === removedIds.size
+          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
             ? knownCounts.unread
             : removedOccurrences.filter(
-                (occurrence) => rollbackIds.has(occurrence.id) && occurrence.unread
+                (occurrence) => visibleRollbackIds.has(occurrence.id) && occurrence.unread
               ).length;
         const rollbackImportantUnreadCount =
-          knownCounts !== undefined && rollbackIds.size === removedIds.size
+          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
             ? knownCounts.importantUnread
             : removedOccurrences.filter(
                 (occurrence) =>
-                  rollbackIds.has(occurrence.id) &&
+                  visibleRollbackIds.has(occurrence.id) &&
                   occurrence.unread &&
                   occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
               ).length;
         this.unreadNotificationCount += rollbackUnreadCount;
         this.importantUnreadNotificationCount += rollbackImportantUnreadCount;
+        const rollbackRoomAdjustments =
+          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
+            ? notificationRoomAdjustments([], knownCounts)
+            : notificationRoomAdjustments(
+                removedOccurrences.filter((occurrence) => visibleRollbackIds.has(occurrence.id))
+              );
+        this.#adjustRoomCounts(rollbackRoomAdjustments, 1);
         this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
       }
       throw error;
@@ -473,6 +610,7 @@ export class NotificationStore {
           this.#pendingDeletionById.delete(id);
         }
       }
+      this.#endMutation();
     }
   }
 
@@ -482,8 +620,12 @@ export class NotificationStore {
     const originalNotifications = this.notifications;
     const originalCount = this.unreadNotificationCount;
     const originalImportantCount = this.importantUnreadNotificationCount;
+    const originalRoomUnreadCounts = this.roomUnreadCounts;
+    const originalRoomImportantUnreadCounts = this.roomImportantUnreadCounts;
     const originalNextExpiryAt = this.nextExpiryAt;
+    const overlappingReadRequests = [...this.#pendingReadRequestById.values()];
     this.#fetchGeneration++;
+    this.#beginMutation();
     this.#deleteAllGeneration++;
     this.#pendingDeletionById.clear();
     this.loading = false;
@@ -492,19 +634,53 @@ export class NotificationStore {
     this.notifications = [];
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
+    this.roomUnreadCounts = {};
+    this.roomImportantUnreadCounts = {};
     this.nextExpiryAt = null;
 
     try {
       await this.#api.deleteAllNotificationOccurrences();
     } catch (error) {
       if (this.#fetchGeneration === mutationGeneration) {
-        this.occurrences = originalOccurrences;
-        this.notifications = originalNotifications;
-        this.unreadNotificationCount = originalCount;
-        this.importantUnreadNotificationCount = originalImportantCount;
-        this.nextExpiryAt = originalNextExpiryAt;
+        if (overlappingReadRequests.length > 0) {
+          await Promise.allSettled(overlappingReadRequests);
+          await this.#reconcileAfterOverlappingMutation();
+          throw error;
+        }
+        const revokedUnreadCount = [...this.revokedRoomIds].reduce(
+          (total, roomId) => total + (originalRoomUnreadCounts[roomId] ?? 0),
+          0
+        );
+        const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
+          (total, roomId) => total + (originalRoomImportantUnreadCounts[roomId] ?? 0),
+          0
+        );
+        this.occurrences = originalOccurrences
+          .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
+          .map((occurrence) => this.#privacySafeOccurrence(occurrence));
+        this.notifications = originalNotifications
+          .filter((notification) => {
+            const roomId = notificationTarget(notification).roomId;
+            return !roomId || !this.revokedRoomIds.has(roomId);
+          })
+          .map((notification) => this.#privacySafeNotification(notification));
+        this.unreadNotificationCount = Math.max(0, originalCount - revokedUnreadCount);
+        this.importantUnreadNotificationCount = Math.max(
+          0,
+          originalImportantCount - revokedImportantUnreadCount
+        );
+        this.roomUnreadCounts = omitRecordKeys(originalRoomUnreadCounts, this.revokedRoomIds);
+        this.roomImportantUnreadCounts = omitRecordKeys(
+          originalRoomImportantUnreadCounts,
+          this.revokedRoomIds
+        );
+        this.nextExpiryAt = this.revokedRoomIds.size
+          ? earliestNotificationOccurrenceExpiry(this.occurrences)
+          : originalNextExpiryAt;
       }
       throw error;
+    } finally {
+      this.#endMutation();
     }
   }
 
@@ -532,24 +708,51 @@ export class NotificationStore {
     options: RoomNotificationResolveOptions = {}
   ): Promise<RoomNotificationLookup> {
     try {
+      if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
+      const authoritativeGeneration = this.#authoritativeGeneration;
+      if (this.revokedRoomIds.has(roomId)) {
+        return { ok: true, totalCount: 0, notification: null };
+      }
       let offset = 0;
       let totalCount = 0;
-      let notification: NotificationItem | null = null;
+      let matchedOccurrence: NotificationOccurrenceItem | null = null;
       let hasMore = false;
       do {
         const page = await this.#api.listNotificationOccurrences(50, offset);
+        if (
+          authoritativeGeneration !== this.#authoritativeGeneration ||
+          this.#pendingMutationCount > 0
+        ) {
+          return { ok: false, totalCount: null, notification: null };
+        }
+        if (this.revokedRoomIds.has(roomId)) {
+          return { ok: true, totalCount: 0, notification: null };
+        }
         const matches = page.occurrences
           .filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
-          .map(occurrenceAsNotificationItem)
-          .filter((item) => (options.isDM ? isDMNotification(item) : !isDMNotification(item)));
+          .filter((occurrence) => {
+            const item = occurrenceAsNotificationItem(occurrence);
+            return options.isDM ? isDMNotification(item) : !isDMNotification(item);
+          });
         totalCount += matches.length;
-        if (!notification && matches.length > 0) notification = matches[0]!;
+        if (!matchedOccurrence && matches.length > 0) matchedOccurrence = matches[0]!;
         hasMore = page.hasMore;
         if (!hasMore || page.occurrences.length === 0) break;
         offset += page.occurrences.length;
       } while (hasMore);
-      if (notification) {
-        this.#upsertNotification(notification);
+      if (this.revokedRoomIds.has(roomId)) {
+        return { ok: true, totalCount: 0, notification: null };
+      }
+      const notification = matchedOccurrence
+        ? this.#privacySafeNotification(
+            occurrenceAsNotificationItem(this.#privacySafeOccurrence(matchedOccurrence))
+          )
+        : null;
+      if (matchedOccurrence && notification) {
+        this.occurrences = mergeNotificationOccurrences(this.occurrences, [
+          this.#privacySafeOccurrence(matchedOccurrence)
+        ]);
+        this.#upsertNotification(this.#privacySafeNotification(notification));
       }
 
       return {
@@ -578,39 +781,138 @@ export class NotificationStore {
   /** Mark one occurrence read optimistically, then reconcile authoritative state. */
   async markRead(notificationId: string): Promise<boolean> {
     const removed = this.notifications.find((n) => n.id === notificationId);
-    if (!removed) return false;
+    const occurrence = this.occurrences.find((candidate) => candidate.id === notificationId);
+    if (!removed && !occurrence) {
+      this.#fetchGeneration++;
+      this.#beginMutation();
+      try {
+        await this.#api.markNotificationRead(notificationId);
+        return true;
+      } finally {
+        this.#endMutation();
+      }
+    }
+    if (occurrence && !occurrence.unread) return true;
 
     // Supersede any in-flight list read without scheduling its generic retry;
     // this mutation performs one authoritative refresh after the write.
     this.#fetchGeneration++;
+    this.#beginMutation();
     this.loading = false;
-    const originalOccurrences = this.occurrences;
-    const originalCount = this.unreadNotificationCount;
-    const originalImportantCount = this.importantUnreadNotificationCount;
-    const occurrence = this.occurrences.find((candidate) => candidate.id === notificationId);
+    const deleteAllGeneration = this.#deleteAllGeneration;
+    const mutation = ++this.#readSequence;
+    this.#pendingReadById.set(notificationId, mutation);
+    const unreadDelta = occurrence?.unread || removed ? 1 : 0;
+    const importantDelta =
+      occurrence?.attentionLevel === NotificationAttentionLevel.IMPORTANT ? 1 : 0;
+    const roomAdjustments = occurrence
+      ? notificationRoomAdjustments([occurrence])
+      : new SvelteMap<string, { unread: number; importantUnread: number }>();
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.occurrences = this.occurrences.map((occurrence) =>
       occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
     );
-    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
-    if (occurrence?.attentionLevel === NotificationAttentionLevel.IMPORTANT) {
-      this.importantUnreadNotificationCount = Math.max(
-        0,
-        this.importantUnreadNotificationCount - 1
-      );
-    }
+    this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - unreadDelta);
+    this.importantUnreadNotificationCount = Math.max(
+      0,
+      this.importantUnreadNotificationCount - importantDelta
+    );
+    this.#adjustRoomCounts(roomAdjustments, -1);
 
+    let request: Promise<NotificationOccurrenceItem> | undefined;
     try {
-      await this.#api.markNotificationRead(notificationId);
+      request = this.#api.markNotificationRead(notificationId);
+      this.#pendingReadRequestById.set(notificationId, request);
+      await request;
       return true;
     } catch (e) {
       console.error('Failed to mark notification read:', e);
-      this.occurrences = originalOccurrences;
-      this.#restoreNotification(removed);
-      this.unreadNotificationCount = originalCount;
-      this.importantUnreadNotificationCount = originalImportantCount;
+      if (
+        this.#pendingReadById.get(notificationId) === mutation &&
+        !this.#pendingDeletionById.has(notificationId) &&
+        this.#deleteAllGeneration === deleteAllGeneration
+      ) {
+        if (occurrence && !this.revokedRoomIds.has(occurrence.room?.id ?? '')) {
+          this.occurrences = mergeNotificationOccurrences(this.occurrences, [
+            this.#privacySafeOccurrence(occurrence)
+          ]);
+          if (removed) this.#restoreNotification(this.#privacySafeNotification(removed));
+          this.unreadNotificationCount += unreadDelta;
+          this.importantUnreadNotificationCount += importantDelta;
+          this.#adjustRoomCounts(roomAdjustments, 1);
+        } else if (!occurrence && removed) {
+          const roomId = notificationTarget(removed).roomId;
+          if (!roomId || !this.revokedRoomIds.has(roomId)) {
+            this.#restoreNotification(this.#privacySafeNotification(removed));
+            this.unreadNotificationCount += unreadDelta;
+          }
+        }
+      }
       return false;
+    } finally {
+      if (this.#pendingReadById.get(notificationId) === mutation) {
+        this.#pendingReadById.delete(notificationId);
+      }
+      if (request && this.#pendingReadRequestById.get(notificationId) === request) {
+        this.#pendingReadRequestById.delete(notificationId);
+      }
+      this.#endMutation();
     }
+  }
+
+  #beginMutation(): void {
+    this.#pendingMutationCount++;
+    this.#authoritativeGeneration++;
+  }
+
+  #endMutation(): void {
+    this.#pendingMutationCount = Math.max(0, this.#pendingMutationCount - 1);
+    if (this.#pendingMutationCount !== 0) return;
+    for (const resolve of this.#mutationIdleWaiters) resolve();
+    this.#mutationIdleWaiters.clear();
+  }
+
+  async #waitForPendingMutations(): Promise<void> {
+    if (this.#pendingMutationCount === 0) return;
+    await new Promise<void>((resolve) => this.#mutationIdleWaiters.add(resolve));
+  }
+
+  #adjustRoomCounts(
+    adjustments: Map<string, { unread: number; importantUnread: number }>,
+    direction: 1 | -1
+  ): void {
+    let unread = this.roomUnreadCounts;
+    let important = this.roomImportantUnreadCounts;
+    for (const [roomId, counts] of adjustments) {
+      unread = withAdjustedRecordValue(unread, roomId, direction * counts.unread);
+      important = withAdjustedRecordValue(important, roomId, direction * counts.importantUnread);
+    }
+    this.roomUnreadCounts = unread;
+    this.roomImportantUnreadCounts = important;
+  }
+
+  async #reconcileAfterOverlappingMutation(): Promise<void> {
+    const authoritativeGeneration = this.#authoritativeGeneration;
+    const page = await this.#api.listNotificationOccurrences(50, 0);
+    if (authoritativeGeneration !== this.#authoritativeGeneration) return;
+    this.replaceOccurrenceProjection(page);
+    this.invalidateViews();
+  }
+
+  #privacySafeOccurrence(occurrence: NotificationOccurrenceItem): NotificationOccurrenceItem {
+    return occurrence.actor && this.scrubbedUserIds.has(occurrence.actor.id)
+      ? { ...occurrence, actor: null }
+      : occurrence;
+  }
+
+  #privacySafeNotification(notification: NotificationItem): NotificationItem {
+    return notification.actor && this.scrubbedUserIds.has(notification.actor.id)
+      ? {
+          ...notification,
+          actor: null,
+          summary: redactedNotificationSummary(notification.kind)
+        }
+      : notification;
   }
 
   /**
@@ -716,6 +1018,58 @@ function earliestNotificationOccurrenceExpiry(
       .filter((expiry): expiry is string => Boolean(expiry))
       .sort()[0] ?? null
   );
+}
+
+function withoutRecordKey(source: Record<string, number>, key: string): Record<string, number> {
+  if (!(key in source)) return source;
+  const next = { ...source };
+  delete next[key];
+  return next;
+}
+
+function omitRecordKeys(
+  source: Record<string, number>,
+  keys: ReadonlySet<string>
+): Record<string, number> {
+  let next = source;
+  for (const key of keys) next = withoutRecordKey(next, key);
+  return next === source ? { ...source } : next;
+}
+
+function withAdjustedRecordValue(
+  source: Record<string, number>,
+  key: string,
+  delta: number
+): Record<string, number> {
+  const value = Math.max(0, (source[key] ?? 0) + delta);
+  if (value === 0) return withoutRecordKey(source, key);
+  return { ...source, [key]: value };
+}
+
+function notificationRoomAdjustments(
+  occurrences: NotificationOccurrenceItem[],
+  knownCounts?: { unread: number; importantUnread: number; roomId?: string | null }
+): Map<string, { unread: number; importantUnread: number }> {
+  if (knownCounts?.roomId) {
+    return new SvelteMap([
+      [
+        knownCounts.roomId,
+        { unread: knownCounts.unread, importantUnread: knownCounts.importantUnread }
+      ]
+    ]);
+  }
+  const result = new SvelteMap<string, { unread: number; importantUnread: number }>();
+  for (const occurrence of occurrences) {
+    const roomId = occurrence.room?.id;
+    if (!roomId || !occurrence.unread) continue;
+    const current = result.get(roomId) ?? { unread: 0, importantUnread: 0 };
+    current.unread++;
+    if (occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT) {
+      current.importantUnread++;
+    }
+    result.set(roomId, current);
+  }
+  return result;
 }
 
 function mergeNotificationOccurrences(

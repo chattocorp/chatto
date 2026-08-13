@@ -1,6 +1,7 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
+  import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
@@ -85,6 +86,39 @@
       .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
       .join(':')
   );
+  const notificationPrivacyBoundaries = $derived(
+    serverRegistry.servers
+      .map((instance) => {
+        const notifications = serverRegistry.getStore(instance.id).notifications;
+        const rooms = [...notifications.revokedRoomIds].sort().join(',');
+        const users = [...notifications.scrubbedUserIds].sort().join(',');
+        return `${rooms}|${users}`;
+      })
+      .join(':')
+  );
+  const notificationResetVersions = $derived(
+    serverRegistry.servers
+      .map((instance) => serverRegistry.getStore(instance.id).notifications.resetVersion)
+      .join(':')
+  );
+  $effect(() => {
+    void notificationResetVersions;
+    // A compacted projection reset invalidates every hydrated page row.
+    groups = [];
+    pagination = [];
+  });
+  $effect(() => {
+    void notificationPrivacyBoundaries;
+    // Authorization loss and account deletion are privacy boundaries. Scrub
+    // local paginated payloads immediately instead of waiting for a reload.
+    groups = untrack(() =>
+      groups.flatMap((item) => {
+        const occurrences = visibleOccurrencesForServer(item.serverId, item.group.occurrences);
+        if (occurrences.length === 0) return [];
+        return groupNotificationOccurrences(occurrences).map((group) => ({ ...item, group }));
+      })
+    );
+  });
   $effect(() => {
     void notificationViewInvalidations;
     // Initial projection hydration and one logical mutation can emit several
@@ -139,7 +173,9 @@
             return {
               serverId: instance.id,
               page,
-              groups: groupNotificationOccurrences(page.occurrences).map((group): ServerGroup => ({
+              groups: groupNotificationOccurrences(
+                visibleOccurrencesForServer(instance.id, page.occurrences)
+              ).map((group): ServerGroup => ({
                 serverId: instance.id,
                 serverHostname: hostname,
                 timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
@@ -168,13 +204,14 @@
       return [
         {
           serverId: result.value.serverId,
-          offset: result.value.page.occurrences.length,
+          offset: result.value.page.consumedCount ?? result.value.page.occurrences.length,
           hasMore: result.value.page.hasMore
         }
       ];
     });
     pageError = results.some((result) => result.status === 'rejected');
     loading = false;
+    if (groups.length === 0 && hasMore && !pageError) void loadMore();
   }
 
   async function loadMore() {
@@ -197,7 +234,9 @@
         return {
           serverId: source.serverId,
           page,
-          groups: groupNotificationOccurrences(page.occurrences).map((group): ServerGroup => ({
+          groups: groupNotificationOccurrences(
+            visibleOccurrencesForServer(source.serverId, page.occurrences)
+          ).map((group): ServerGroup => ({
             serverId: source.serverId,
             serverHostname: hostname,
             timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
@@ -222,12 +261,16 @@
       if (!result || result.status !== 'fulfilled') return source;
       return {
         ...source,
-        offset: source.offset + result.value.page.occurrences.length,
-        hasMore: result.value.page.hasMore && result.value.page.occurrences.length > 0
+        offset:
+          source.offset + (result.value.page.consumedCount ?? result.value.page.occurrences.length),
+        hasMore:
+          result.value.page.hasMore &&
+          (result.value.page.consumedCount ?? result.value.page.occurrences.length) > 0
       };
     });
     pageError = results.some((result) => result.status === 'rejected');
     loadingMore = false;
+    if (groups.length === 0 && hasMore && !pageError) void loadMore();
   }
 
   const loadMoreWhenVisible = useLoadMoreWhenVisible({
@@ -242,6 +285,22 @@
 
   function rowKey(item: ServerGroup): string {
     return `${item.serverId}:${item.group.id}`;
+  }
+
+  function visibleOccurrencesForServer(
+    serverId: string,
+    occurrences: NotificationOccurrenceItem[]
+  ): NotificationOccurrenceItem[] {
+    const notifications = serverRegistry.getStore(serverId).notifications;
+    return occurrences
+      .filter(
+        (occurrence) => !occurrence.room || !notifications.revokedRoomIds.has(occurrence.room.id)
+      )
+      .map((occurrence) =>
+        occurrence.actor && notifications.scrubbedUserIds.has(occurrence.actor.id)
+          ? { ...occurrence, actor: null }
+          : occurrence
+      );
   }
 
   function compareGroups(a: ServerGroup, b: ServerGroup): number {
@@ -435,7 +494,8 @@
             (occurrence) =>
               occurrence.unread &&
               occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
-          ).length
+          ).length,
+          roomId: item.group.openTarget?.room?.id ?? null
         }
       );
     } catch (error) {

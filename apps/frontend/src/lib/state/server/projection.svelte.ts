@@ -6,7 +6,6 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
-import type { ListNotificationOccurrencesResponse } from '@chatto/api-types/api/v1/notifications_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type {
@@ -22,7 +21,6 @@ export class ServerProjectionStore {
   users = new SvelteMap<string, DirectoryMember>();
   rooms = new SvelteMap<string, RealtimeProjectionRoom>();
   roomGroups = $state.raw<RoomGroup[]>([]);
-  notificationOccurrences = $state.raw<ListNotificationOccurrencesResponse | null>(null);
   activeCalls = $state.raw<ActiveCall[]>([]);
   /** Complete current followed-thread viewer state, keyed by room and root ID. */
   threadViewerStates = new SvelteMap<string, ThreadViewerState>();
@@ -131,8 +129,9 @@ export class ServerProjectionStore {
           );
           break;
         case 'notificationsReplace': {
-          const replacement = operation.operation.value;
-          this.notificationOccurrences = replacement.occurrences ?? null;
+          // Notification state is owned by NotificationStore. Keeping another
+          // hydrated payload mirror here would make authorization scrubbing
+          // and optimistic count updates race across two owners.
           break;
         }
         case 'roomViewerStateReplace': {
@@ -250,7 +249,6 @@ export class ServerProjectionStore {
     this.users.clear();
     this.rooms.clear();
     this.roomGroups = [];
-    this.notificationOccurrences = null;
     this.activeCalls = [];
     this.threadViewerStates.clear();
     this.timelines.clear();
@@ -283,17 +281,6 @@ export class ServerProjectionStore {
       const next = page.clone();
       if (next.includes) delete next.includes.users[userId];
       this.timelines.set(roomId, next);
-    }
-
-    if (this.notificationOccurrences) {
-      let changed = false;
-      const next = this.notificationOccurrences.clone();
-      for (const occurrence of next.occurrences) {
-        if (occurrence.actor?.id !== userId) continue;
-        occurrence.actor = undefined;
-        changed = true;
-      }
-      if (changed) this.notificationOccurrences = next;
     }
 
     let callsChanged = false;

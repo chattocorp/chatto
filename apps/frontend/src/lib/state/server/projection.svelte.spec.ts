@@ -20,15 +20,9 @@ import {
   RoomTimelineEvent,
   RoomTimelinePage
 } from '@chatto/api-types/api/v1/room_timeline_pb';
-import { Room, RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
+import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { User } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
-import {
-  ListNotificationOccurrencesResponse,
-  NotificationOccurrence,
-  NotificationRoomUnreadCount,
-  NotificationTarget
-} from '@chatto/api-types/api/v1/notifications_pb';
 import {
   RealtimeProjectionEvent,
   RealtimeProjectionActiveCallsReplace,
@@ -45,7 +39,6 @@ import {
   RealtimeProjectionRoomTimelineEventRemove,
   RealtimeProjectionRoomTimelineEventUpsert,
   RealtimeProjectionRoomTimelineReplace,
-  RealtimeProjectionNotificationsReplace,
   RealtimeProjectionServerState,
   RealtimeProjectionUserRemove
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -71,33 +64,6 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
     id,
     createdAt: Timestamp.fromDate(new Date(at)),
     event: { case: 'messagePosted', value: new RoomMessagePosted() }
-  });
-}
-
-function notificationOccurrences(
-  roomId: string,
-  count: number
-): ListNotificationOccurrencesResponse {
-  return new ListNotificationOccurrencesResponse({
-    occurrences: Array.from(
-      { length: count },
-      (_, index) =>
-        new NotificationOccurrence({
-          id: `N${index}`,
-          unread: true,
-          actor: new User({ id: 'U1', displayName: 'Ada' }),
-          target: new NotificationTarget({ room: new RoomSummary({ id: roomId }) })
-        })
-    ),
-    unreadCount: count,
-    importantUnreadCount: count,
-    roomUnreadCounts: [
-      new NotificationRoomUnreadCount({
-        roomId,
-        unreadCount: count,
-        importantUnreadCount: count
-      })
-    ]
   });
 }
 
@@ -237,12 +203,6 @@ describe('ServerProjectionStore', () => {
           })
         }),
         operation({
-          case: 'notificationsReplace',
-          value: new RealtimeProjectionNotificationsReplace({
-            occurrences: notificationOccurrences('R1', 3)
-          })
-        }),
-        operation({
           case: 'activeCallsReplace',
           value: new RealtimeProjectionActiveCallsReplace({
             calls: [
@@ -279,7 +239,6 @@ describe('ServerProjectionStore', () => {
     expect(store.roomGroups).toEqual([group]);
     expect(store.rooms.get('R1')?.room?.viewerState?.isMember).toBe(false);
     expect(store.rooms.get('R1')?.memberUserIds).toEqual(['U1']);
-    expect(store.notificationOccurrences?.unreadCount).toBe(3);
 
     store.apply(
       event(
@@ -296,7 +255,6 @@ describe('ServerProjectionStore', () => {
     expect(store.users.has('U1')).toBe(false);
     expect(store.rooms.get('R1')?.memberUserIds).toEqual([]);
     expect(store.timelines.get('R1')?.includes?.users.U1).toBeUndefined();
-    expect(store.notificationOccurrences?.occurrences[0]?.actor).toBeUndefined();
     expect(store.activeCalls[0]?.participants).toEqual([]);
     expect(store.roomGroups).toEqual([]);
   });
@@ -457,7 +415,7 @@ describe('ServerProjectionStore', () => {
     expect(store.timelines.size).toBe(0);
   });
 
-  it('bounds retained room timelines and replaces current notification groups', () => {
+  it('bounds retained room timelines', () => {
     const store = new ServerProjectionStore();
     store.apply(
       event(
@@ -479,13 +437,7 @@ describe('ServerProjectionStore', () => {
               eventCursor: `cursor-${index}`
             })
           })
-        ),
-        operation({
-          case: 'notificationsReplace',
-          value: new RealtimeProjectionNotificationsReplace({
-            occurrences: notificationOccurrences('R1', 2)
-          })
-        })
+        )
       )
     );
 
@@ -493,7 +445,6 @@ describe('ServerProjectionStore', () => {
     expect(store.timelines.get('R1')?.events[0]?.id).toBe('M5');
     expect(store.timelines.get('R1')?.startCursor).toBe('cursor-5');
     expect(store.timelines.get('R1')?.endCursor).toBe('cursor-54');
-    expect(store.notificationOccurrences?.unreadCount).toBe(2);
 
     store.apply(
       event(
@@ -505,7 +456,6 @@ describe('ServerProjectionStore', () => {
         })
       )
     );
-    expect(store.notificationOccurrences?.unreadCount).toBe(2);
   });
 
   it('retains root-message room activity order across viewer-state replacements', () => {

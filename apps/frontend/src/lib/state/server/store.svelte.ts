@@ -173,7 +173,7 @@ export class ServerStateStore {
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
-    this.navigation = new NavigationStore(this.projection, this.realtimeSync);
+    this.navigation = new NavigationStore(this.projection, this.realtimeSync, this.notifications);
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
@@ -322,6 +322,7 @@ export class ServerStateStore {
 
   /** Reacquire only mounted stores that were previously scrubbed for access loss. */
   private restoreRoomAccess(roomId: string): void {
+    this.notifications.restoreRoom(roomId);
     this.#roomMessages[roomId]?.restoreAfterAccessGrant();
     this.#roomFiles[roomId]?.restoreAfterAccessGrant();
     this.#roomPins[roomId]?.restoreAfterAccessGrant();

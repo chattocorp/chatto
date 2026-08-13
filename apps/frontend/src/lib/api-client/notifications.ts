@@ -127,6 +127,8 @@ export type NotificationGroupItem = {
 
 export type NotificationOccurrencePage = {
   occurrences: NotificationOccurrenceItem[];
+  /** Raw server rows consumed, which can exceed renderable rows after privacy filtering. */
+  consumedCount?: number;
   unreadCount: number;
   importantUnreadCount: number;
   roomUnreadCounts: Record<string, number>;
@@ -230,6 +232,7 @@ export function mapNotificationOccurrencePage(
 ): NotificationOccurrencePage {
   return {
     occurrences: response.occurrences.map(notificationOccurrence),
+    consumedCount: response.occurrences.length,
     unreadCount: Number(response.unreadCount),
     // An absent optional field identifies an older Notifications 2.0 server.
     // Preserve its all-orange behavior instead of understating importance.

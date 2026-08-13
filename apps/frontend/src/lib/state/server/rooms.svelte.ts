@@ -10,6 +10,11 @@ type ProjectionReadiness = {
   hasUsableProjection: boolean;
 };
 
+type NotificationCountState = {
+  roomUnreadCounts: Record<string, number>;
+  roomImportantUnreadCounts: Record<string, number>;
+};
+
 export type RoomsListItem = {
   id: string;
   name: string;
@@ -79,8 +84,8 @@ export function avatarUserFromDirectoryMember(
  * Read-only navigation view over the canonical realtime server projection.
  *
  * The view owns no server-derived room, membership, group, profile, ordering,
- * or notification state. Getters translate the current protobuf projection at
- * the presentation boundary.
+ * or notification state. Getters translate the current protobuf projection
+ * and the owning notification store at the presentation boundary.
  */
 export class NavigationStore {
   readonly #rooms = $derived.by((): RoomsListItem[] => {
@@ -92,16 +97,9 @@ export class NavigationStore {
         const member = this.projection.users.get(userId);
         return member ? [avatarUserFromDirectoryMember(mapDirectoryMember(member))] : [];
       });
-      const viewerNotificationCount = Number(
-        this.projection.notificationOccurrences?.roomUnreadCounts.find(
-          (count) => count.roomId === room.id
-        )?.unreadCount ?? 0
-      );
-      const viewerImportantNotificationCount = Number(
-        this.projection.notificationOccurrences?.roomUnreadCounts.find(
-          (count) => count.roomId === room.id
-        )?.importantUnreadCount ?? viewerNotificationCount
-      );
+      const viewerNotificationCount = this.notificationCounts.roomUnreadCounts[room.id] ?? 0;
+      const viewerImportantNotificationCount =
+        this.notificationCounts.roomImportantUnreadCounts[room.id] ?? 0;
       return [
         {
           id: room.id,
@@ -145,7 +143,8 @@ export class NavigationStore {
 
   constructor(
     private readonly projection: ServerProjectionStore,
-    private readonly readiness: ProjectionReadiness
+    private readonly readiness: ProjectionReadiness,
+    private readonly notificationCounts: NotificationCountState
   ) {}
 
   get rooms(): RoomsListItem[] {
