@@ -689,6 +689,31 @@ func TestMessageServiceCreateMessageUploadsAttachments(t *testing.T) {
 	}
 }
 
+func TestMessageServiceCreateMessageRejectsAnotherMembersAttachmentAsset(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-asset-owner")
+	assetID := env.uploadAttachmentAsset(t, room.Id, "owned.txt", "text/plain", []byte("victim asset"))
+	if _, err := env.messages.CreateMessage(withCaller(env.ctx, env.viewer), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id, Body: "victim", AttachmentAssetIds: []string{assetID},
+	})); err != nil {
+		t.Fatalf("victim CreateMessage: %v", err)
+	}
+
+	attacker, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-alias-attacker", "Asset Alias Attacker", "password")
+	if err != nil {
+		t.Fatalf("CreateUser attacker: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, attacker.Id, core.KindChannel, attacker.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom attacker: %v", err)
+	}
+	_, err = env.messages.CreateMessage(withCaller(env.ctx, attacker), connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id, Body: "alias", AttachmentAssetIds: []string{assetID},
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("attacker CreateMessage code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	}
+}
+
 func TestMessageServiceCreateMessageAttachmentPreflightDoesNotCreateAssets(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("message-post-upload-preflight")

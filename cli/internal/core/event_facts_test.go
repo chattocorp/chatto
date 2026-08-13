@@ -158,6 +158,20 @@ func TestEventFactsAssetLifecycle(t *testing.T) {
 			callState:   false,
 		},
 		{
+			name: "attached",
+			event: &corev1.Event{Event: &corev1.Event_AssetAttached{
+				AssetAttached: &corev1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},
+			}},
+			assetID:     "A1",
+			lifecycle:   true,
+			liveAsset:   false,
+			liveRoomEVT: false,
+			reactions:   false,
+			threads:     false,
+			directory:   false,
+			callState:   false,
+		},
+		{
 			name: "processing started",
 			event: &corev1.Event{Event: &corev1.Event_AssetProcessingStarted{
 				AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{AssetId: "A1"},

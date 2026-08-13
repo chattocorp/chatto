@@ -28,6 +28,7 @@ const (
 	assetCleanupHeartbeat    = 30 * time.Second
 	assetCleanupAckTimeout   = 5 * time.Second
 	assetCommitCheckTimeout  = 5 * time.Second
+	maxAssetMutationAttempts = 5
 )
 
 // derivativeContext records that an upload is a derivative of another asset.
@@ -63,7 +64,7 @@ func (s *AssetModel) RecordUploadedAsset(ctx context.Context, actorID, roomID st
 
 // RecordUploadedPendingAttachmentAsset writes the AssetCreatedEvent for an
 // attachment produced by the public chunked upload flow. The pending expiry is
-// a cleanup hint until a MessageBody claims the asset ID.
+// a cleanup hint until a message attaches the asset.
 func (s *AssetModel) RecordUploadedPendingAttachmentAsset(ctx context.Context, actorID, roomID string, attachment *corev1.Attachment, sha256 string, pendingExpiresAt time.Time, needsVideoProcessing bool) error {
 	if actorID == "" {
 		return fmt.Errorf("asset creation missing actor id")
@@ -535,10 +536,161 @@ func (s *AssetModel) RecordAssetDeleted(ctx context.Context, actorID string, roo
 			AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
 		},
 	})
-	if err := s.appendAssetEventEventually(ctx, assetID, event); err != nil {
-		return fmt.Errorf("publish asset deletion event: %w", err)
+	for attempt := 1; attempt <= maxAssetMutationAttempts; attempt++ {
+		agg := evtstream.AssetAggregate(assetID)
+		filter := agg.AllEventsFilter()
+		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("read asset deletion OCC tail: %w", err)
+		}
+		if !tail.IsZero() {
+			if err := s.waitForAssets(ctx, tail); err != nil {
+				return err
+			}
+		}
+		if s.AssetDeleted(assetID) {
+			return nil
+		}
+		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		if err == nil {
+			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
+				return errors.Join(errAssetEventCommitted, err)
+			}
+			return nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return fmt.Errorf("publish asset deletion event: %w", err)
+		}
 	}
-	return nil
+	return fmt.Errorf("publish asset deletion event after %d attempts: %w", maxAssetMutationAttempts, events.ErrConflict)
+}
+
+func (s *AssetModel) validateAssetAttachment(assetID, actorID, roomID, messageEventID string, now time.Time) error {
+	state := s.AssetState(assetID)
+	if state.Deleted || state.Creation == nil || state.Creation.GetAsset() == nil {
+		return ErrAssetNotAttachable
+	}
+	if state.Creation.GetRoomId() != roomID {
+		return ErrAssetNotAttachable
+	}
+	if state.Creation.GetUserId() != actorID {
+		return ErrAssetNotAttachable
+	}
+	if expiresAt := state.Creation.GetPendingExpiresAt(); expiresAt != nil && !expiresAt.AsTime().After(now) {
+		return ErrAssetNotAttachable
+	}
+	owner, attached := s.assetMessageAttachment(assetID)
+	if !attached {
+		return nil
+	}
+	if messageEventID != "" && owner.roomID == roomID && owner.messageEventID == messageEventID && owner.authorID == actorID {
+		return nil
+	}
+	return ErrAssetNotAttachable
+}
+
+func (s *AssetModel) assetMessageAttachment(assetID string) (assetMessageRef, bool) {
+	if s == nil || s.assets.Projection() == nil {
+		return assetMessageRef{}, false
+	}
+	return s.assets.Projection().assetMessageAttachment(assetID)
+}
+
+// MessageOwnsAsset waits for the complete asset aggregate and verifies the
+// durable attachment before a message path touches derivatives or backing storage.
+func (s *AssetModel) MessageOwnsAsset(ctx context.Context, roomID, messageEventID, assetID string) (bool, error) {
+	filter := evtstream.AssetAggregate(assetID).AllEventsFilter()
+	tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
+	if err != nil {
+		return false, err
+	}
+	if !tail.IsZero() {
+		if err := s.waitForAssets(ctx, tail); err != nil {
+			return false, err
+		}
+	}
+	owner, ok := s.assetMessageAttachment(assetID)
+	return ok && owner.roomID == roomID && owner.messageEventID == messageEventID, nil
+}
+
+// RecordMessageAssetDeleted appends a tombstone only while the durable asset
+// attachment still names the supplied room and message.
+func (s *AssetModel) RecordMessageAssetDeleted(ctx context.Context, actorID, roomID, messageEventID, assetID string) (bool, error) {
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_AssetDeleted{
+		AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+	}})
+	for attempt := 1; attempt <= maxAssetMutationAttempts; attempt++ {
+		agg := evtstream.AssetAggregate(assetID)
+		filter := agg.AllEventsFilter()
+		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return false, err
+		}
+		if !tail.IsZero() {
+			if err := s.waitForAssets(ctx, tail); err != nil {
+				return false, err
+			}
+		}
+		owner, ok := s.assetMessageAttachment(assetID)
+		if !ok || owner.roomID != roomID || owner.messageEventID != messageEventID {
+			return false, nil
+		}
+		if s.AssetDeleted(assetID) {
+			return true, nil
+		}
+		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		if err == nil {
+			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
+				return true, errors.Join(errAssetEventCommitted, err)
+			}
+			return true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+	}
+	return false, fmt.Errorf("delete message asset after %d attempts: %w", maxAssetMutationAttempts, events.ErrConflict)
+}
+
+// RecordExpiredPendingAssetDeleted atomically rechecks that an expired upload
+// remains unattached before tombstoning it.
+func (s *AssetModel) RecordExpiredPendingAssetDeleted(ctx context.Context, roomID, assetID string, now time.Time) (bool, error) {
+	event := newEvent(SystemActorID, &corev1.Event{Event: &corev1.Event_AssetDeleted{
+		AssetDeleted: &corev1.AssetDeletedEvent{AssetId: assetID},
+	}})
+	for attempt := 1; attempt <= maxAssetMutationAttempts; attempt++ {
+		agg := evtstream.AssetAggregate(assetID)
+		filter := agg.AllEventsFilter()
+		tail, err := s.EventPublisher.LastSubjectPosition(ctx, filter)
+		if err != nil {
+			return false, err
+		}
+		if !tail.IsZero() {
+			if err := s.waitForAssets(ctx, tail); err != nil {
+				return false, err
+			}
+		}
+		state := s.AssetState(assetID)
+		expiresAt := (*timestamppb.Timestamp)(nil)
+		if state.Creation != nil {
+			expiresAt = state.Creation.GetPendingExpiresAt()
+		}
+		_, attached := s.assetMessageAttachment(assetID)
+		if state.Deleted || state.Creation == nil || state.Creation.GetRoomId() != roomID || attached || expiresAt == nil || expiresAt.AsTime().After(now) {
+			return false, nil
+		}
+		seq, err := s.EventPublisher.AppendAtFilter(ctx, agg.SubjectFor(event), event, filter, tail.Seq)
+		if err == nil {
+			if err := s.waitForAssets(ctx, events.SubjectPosition(agg.SubjectFor(event), seq)); err != nil {
+				return true, errors.Join(errAssetEventCommitted, err)
+			}
+			return true, nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return false, err
+		}
+	}
+	return false, fmt.Errorf("delete expired pending asset after %d attempts: %w", maxAssetMutationAttempts, events.ErrConflict)
 }
 
 func (s *AssetModel) appendAssetEventEventually(ctx context.Context, assetID string, event *corev1.Event) error {

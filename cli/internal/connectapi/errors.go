@@ -118,6 +118,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoomGroupHasRooms) ||
 		errors.Is(err, core.ErrRoomGroupOrderMismatch) ||
 		errors.Is(err, core.ErrRoomMoveSourceChanged) ||
+		errors.Is(err, core.ErrAssetNotAttachable) ||
 		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}

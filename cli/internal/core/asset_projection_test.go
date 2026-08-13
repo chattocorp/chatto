@@ -129,6 +129,54 @@ func TestAssetProjectionOwnsMessageAssetReferences(t *testing.T) {
 	}
 }
 
+func TestAssetProjectionUsesFirstDurableAssetAttachment(t *testing.T) {
+	projection := NewAssetProjection()
+	attached := &corev1.Event{
+		Id: "E-attached",
+		Event: &corev1.Event_AssetAttached{AssetAttached: &corev1.AssetAttachedEvent{
+			AssetId: "A-video", RoomId: "R1", MessageEventId: "M1", UserId: "U1",
+		}},
+	}
+	if err := projection.Apply(attached, 1); err != nil {
+		t.Fatalf("Apply asset attachment: %v", err)
+	}
+	if err := projection.Apply(&corev1.Event{
+		Id: "E-alias",
+		Event: &corev1.Event_AssetAttached{AssetAttached: &corev1.AssetAttachedEvent{
+			AssetId: "A-video", RoomId: "R1", MessageEventId: "M2", UserId: "U2",
+		}},
+	}, 2); err != nil {
+		t.Fatalf("Apply duplicate asset attachment: %v", err)
+	}
+
+	owner, ok := projection.assetMessageAttachment("A-video")
+	if !ok || owner.roomID != "R1" || owner.messageEventID != "M1" || owner.authorID != "U1" {
+		t.Fatalf("asset attachment = %+v, %v; want first attachment", owner, ok)
+	}
+}
+
+func TestAssetProjectionLegacyOwnershipRejectsDifferentUploader(t *testing.T) {
+	projection := NewAssetProjection()
+	created := testCoreAssetCreatedEvent("R1", "A-video", "video/mp4")
+	created.GetAssetCreated().UserId = "U1"
+	if err := projection.Apply(created, 1); err != nil {
+		t.Fatalf("Apply asset creation: %v", err)
+	}
+	if err := projection.Apply(bodyEventWithAssets("E-alias", "M-alias", "R1", "U2", "", []string{"A-video"}, 2), 2); err != nil {
+		t.Fatalf("Apply attacker alias: %v", err)
+	}
+	if _, _, ok := projection.AssetMessageOwner("A-video"); ok {
+		t.Fatal("different uploader became legacy asset owner")
+	}
+	if err := projection.Apply(bodyEventWithAssets("E-owner", "M-owner", "R1", "U1", "", []string{"A-video"}, 3), 3); err != nil {
+		t.Fatalf("Apply uploader message: %v", err)
+	}
+	roomID, messageID, ok := projection.AssetMessageOwner("A-video")
+	if !ok || roomID != "R1" || messageID != "M-owner" {
+		t.Fatalf("legacy owner = %q, %q, %v; want uploader message", roomID, messageID, ok)
+	}
+}
+
 func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
 	projection := NewAssetProjection()
 	bodyEvent := bodyEventWithAssets("E-envelope", "M1", "R1", "U1", "", []string{"A-video"}, 1)
@@ -141,7 +189,7 @@ func TestAssetProjectionRejectsMismatchedMessageBodyEnvelope(t *testing.T) {
 		t.Fatalf("Apply mismatched message body: %v", err)
 	}
 	if roomID, messageID, ok := projection.AssetMessageOwner("A-video"); ok {
-		t.Fatalf("AssetMessageOwner = %q, %q, true; want unclaimed", roomID, messageID)
+		t.Fatalf("AssetMessageOwner = %q, %q, true; want unattached", roomID, messageID)
 	}
 	if projection.IsPublicLinkPreviewAsset(previewAssetID) {
 		t.Fatal("mismatched message body classified link-preview asset as public")

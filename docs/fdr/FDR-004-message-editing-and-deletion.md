@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-13
 
 ## Overview
 
@@ -13,6 +13,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Deletions remove the message body and all attachments and initially replace the rendered message with a "[Message deleted]" placeholder.
+- Attachment bytes are deleted only when the durable asset owner is the exact message being changed; a duplicate reference left by an older vulnerable server is removed without damaging the owning message.
 - A deleted-message placeholder disappears after one hour when the message has no current attachments or link preview, reactions, or replies in its thread.
 - Being a reply, a message inside a thread, or a channel echo does not by itself keep a deleted-message placeholder visible.
 - Deleting an already-deleted message is a no-op.
@@ -60,7 +61,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ### 6. Delete physically removes the body payload, not just hides it
 
-**Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, removes attachments from storage, and securely deletes body payload events where the storage backend supports it. Only the placeholder rendering remains.
+**Decision:** Message body content is stored in private body payload events separate from public post/edit facts. Delete appends the public retraction fact, securely deletes body payload events where the storage backend supports it, and removes attachment storage only after verifying that the asset is durably attached to that exact message. Only the placeholder rendering remains.
 **Why:** GDPR. Soft-delete leaves user-generated content in the database, which is the wrong default for an open-source chat app where users expect "delete" to mean delete. Separating public message facts from body payloads preserves the conversation audit trail while allowing body material to be removed. See ADR-007.
 **Tradeoff:** No undo. Moderators can't restore a deleted message. Older embedded-body EVT histories remain readable for compatibility but cannot be physically shredded at body granularity.
 
