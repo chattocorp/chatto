@@ -17,6 +17,8 @@ import (
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/evtstream"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -1362,6 +1364,95 @@ func TestRealtimeWebSocketMaterializesRetainedRoomAfterViewerGainsAccess(t *test
 	t.Fatal("retained room did not materialize after the viewer gained access")
 }
 
+func TestRealtimeWebSocketReplacesActiveCallsWhenViewerGainsRoomAccess(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.example.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+	}
+	env.httpServer.connectAPI = connectapi.New(env.core, env.httpServer.config, env.httpServer.version)
+
+	alice, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-alice", "Alice", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser Alice: %v", err)
+	}
+	bob, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-bob", "Bob", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser Bob: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, alice.Id, core.KindChannel, "", "rt-call-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, alice.Id, core.KindChannel, alice.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom Alice: %v", err)
+	}
+	if err := env.core.HandleCallParticipantJoined(env.ctx, room.Id, alice.Id); err != nil {
+		t.Fatalf("HandleCallParticipantJoined Alice: %v", err)
+	}
+
+	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, bob.Id, nil)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot Bob: %v", err)
+	}
+	if len(snapshot.ActiveCalls) != 0 {
+		t.Fatalf("pre-membership active calls = %+v, want none", snapshot.ActiveCalls)
+	}
+
+	bobToken, err := env.core.CreateAuthToken(env.ctx, bob.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken Bob: %v", err)
+	}
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, bobToken)
+	sendRealtimeClientFrame(t, conn, &realtimev1.RealtimeClientFrame{Frame: &realtimev1.RealtimeClientFrame_HydrateRoom{
+		HydrateRoom: &realtimev1.RealtimeHydrateRoom{RoomId: room.Id},
+	}})
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetError().GetCode() != "room_unavailable" || frame.GetError().GetFatal() {
+		t.Fatalf("pre-membership hydration frame = %+v, want non-fatal room_unavailable", frame)
+	}
+
+	if _, err := env.core.AddMember(env.ctx, alice.Id, core.KindChannel, room.Id, bob.Id); err != nil {
+		t.Fatalf("AddMember Bob: %v", err)
+	}
+	projection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		var hasRoom, hasCalls bool
+		for _, operation := range projection.GetOperations() {
+			upsert := operation.GetRoomUpsert()
+			hasRoom = hasRoom || upsert.GetRoom().GetRoom().GetId() == room.Id
+			hasCalls = hasCalls || operation.GetActiveCallsReplace() != nil
+		}
+		return hasRoom && hasCalls
+	})
+	if projection == nil {
+		t.Fatal("timed out waiting for room access and active-call replacement")
+	}
+
+	var gotRoom, gotTimeline, gotNotifications bool
+	var calls []*apiv1.ActiveCall
+	for _, operation := range projection.GetOperations() {
+		if upsert := operation.GetRoomUpsert(); upsert.GetRoom().GetRoom().GetId() == room.Id {
+			gotRoom = upsert.GetRoom().GetViewerState().GetIsMember() && slices.Contains(upsert.GetMemberUserIds(), bob.Id)
+		}
+		if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+			gotTimeline = true
+		}
+		if replacement := operation.GetActiveCallsReplace(); replacement != nil {
+			calls = replacement.GetCalls()
+		}
+		gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
+	}
+	if !gotRoom || !gotTimeline || !gotNotifications {
+		t.Fatalf("room access projection room=%t timeline=%t notifications=%t; operations=%+v", gotRoom, gotTimeline, gotNotifications, projection.GetOperations())
+	}
+	if len(calls) != 1 || calls[0].GetRoom().GetId() != room.Id || len(calls[0].GetParticipants()) != 1 || calls[0].GetParticipants()[0].GetUser().GetId() != alice.Id {
+		t.Fatalf("post-membership active calls = %+v, want Alice in room %q", calls, room.Id)
+	}
+}
+
 func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetainedTimelines(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-universal-owner", "RT Universal Owner", "password123")
@@ -1450,8 +1541,8 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 		if !gotRoom || gotTimeline != wantTimeline || gotMessage != wantMessage {
 			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetOperations())
 		}
-		if !wantMember && (!gotCalls || !gotNotifications) {
-			t.Fatalf("%s: revocation omitted active-call/notification replacements; operations=%+v", name, projection.GetOperations())
+		if !gotCalls || !gotNotifications {
+			t.Fatalf("%s: access transition omitted active-call/notification replacements; operations=%+v", name, projection.GetOperations())
 		}
 	}
 
@@ -1599,25 +1690,22 @@ func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {
 	if _, err := env.core.UnarchiveRoom(env.ctx, viewer.Id, core.KindChannel, room.Id); err != nil {
 		t.Fatalf("UnarchiveRoom: %v", err)
 	}
-	deadline = time.Now().Add(5 * time.Second)
-	for time.Now().Before(deadline) {
-		frame, ok := readRealtimeServerFrame(t, conn, time.Until(deadline))
-		if !ok {
-			break
-		}
-		for _, operation := range frame.GetProjectionEvent().GetOperations() {
-			timeline := operation.GetRoomTimelineReplace()
-			if timeline.GetRoomId() != room.Id {
-				continue
-			}
-			for _, event := range timeline.GetPage().GetEvents() {
-				if event.GetId() == message.Id {
-					return
+	projection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		var gotMessage, gotCalls, gotNotifications bool
+		for _, operation := range projection.GetOperations() {
+			if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
+				for _, event := range timeline.GetPage().GetEvents() {
+					gotMessage = gotMessage || event.GetId() == message.Id
 				}
 			}
+			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
+			gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
 		}
+		return gotMessage && gotCalls && gotNotifications
+	})
+	if projection == nil {
+		t.Fatal("unarchive did not restore retained timeline and viewer-sensitive resources")
 	}
-	t.Fatal("unarchive did not restore the retained room timeline")
 }
 
 func TestRealtimeWebSocketAdvancesPastRetainedUnarchiveForNonMember(t *testing.T) {

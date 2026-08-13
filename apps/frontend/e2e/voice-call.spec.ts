@@ -460,6 +460,48 @@ test.describe('Voice calls', () => {
     });
   });
 
+  test('active call becomes visible when the viewer joins its room', async ({
+    page,
+    chatPage,
+    browser,
+    serverURL
+  }) => {
+    const alice = await createAndLoginTestUser(page);
+    await chatPage.goto();
+    const roomName = `call-visibility-${Date.now()}`;
+    await chatPage.createRoom(roomName);
+    const { roomId } = await getIdsFromUrlViaConnect(page);
+
+    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
+      const room = chatPage2.roomList.getByRole('link', { name: `# ${roomName}` });
+      const callIcon = room.getByTestId('room-call-icon');
+      await expect(callIcon).not.toBeVisible();
+
+      await expect(joinCallViaConnect(page, roomId)).resolves.toBe(true);
+      await expect(listActiveCallRoomIdsViaConnect(page2)).resolves.toEqual([]);
+
+      await joinRoomViaConnect(page2, roomId);
+
+      await expect(room).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callIcon).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(callIcon.getByTestId('active-call-pulse-icon')).toBeVisible();
+
+      await chatPage2.enterRoom(roomName);
+      const callTab = page2
+        .locator('[data-testid="room-sidebar-toggle"]:visible')
+        .getByLabel('Show call');
+      await expect(callTab.getByTestId('active-call-pulse-icon')).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
+      await callTab.click();
+
+      const observerPanel = page2.getByTestId('call-observer-panel');
+      await expect(observerPanel).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(observerPanel.getByTitle(alice.displayName)).toBeVisible();
+      await expect(page2.getByTestId('call-join-button')).toHaveText('Join call');
+    });
+  });
+
   test('active-call icon and participant avatar appear for a DM participant', async ({
     page,
     chatPage,
