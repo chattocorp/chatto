@@ -1974,11 +1974,23 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	if err != nil || len(inbox.Msg.GetOccurrences()) != defaultNotificationLimit {
 		t.Fatalf("ListNotificationOccurrences = %+v, %v, want one bounded page", inbox, err)
 	}
-	if inbox.Msg.GetPage().GetTotalCount() != int64(defaultNotificationLimit+5) || !inbox.Msg.GetPage().GetHasMore() || inbox.Msg.GetUnreadCount() != int32(defaultNotificationLimit+5) || inbox.Msg.GetNextExpiryAt() == nil {
+	if inbox.Msg.GetPage().GetTotalCount() != int64(defaultNotificationLimit+5) ||
+		!inbox.Msg.GetPage().GetHasMore() ||
+		inbox.Msg.GetUnreadCount() != int32(defaultNotificationLimit+5) ||
+		inbox.Msg.GetImportantUnreadCount() != int32(defaultNotificationLimit+5) ||
+		inbox.Msg.GetNextExpiryAt() == nil {
 		t.Fatalf("bounded occurrence metadata = %+v", inbox.Msg)
 	}
+	if counts := inbox.Msg.GetRoomUnreadCounts(); len(counts) != 1 ||
+		counts[0].GetRoomId() != dm.Id ||
+		counts[0].GetUnreadCount() != int32(defaultNotificationLimit+5) ||
+		counts[0].GetImportantUnreadCount() != int32(defaultNotificationLimit+5) {
+		t.Fatalf("bounded room occurrence metadata = %+v", counts)
+	}
 	projection, err := env.api.BuildRealtimeProjectionNotifications(env.ctx, env.viewer.Id)
-	if err != nil || projection.Occurrences.GetNextExpiryAt() == nil {
+	if err != nil ||
+		projection.Occurrences.GetNextExpiryAt() == nil ||
+		projection.Occurrences.GetImportantUnreadCount() != int32(defaultNotificationLimit+5) {
 		t.Fatalf("realtime expiry boundary = %+v, %v", projection, err)
 	}
 

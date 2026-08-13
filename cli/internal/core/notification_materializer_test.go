@@ -500,6 +500,12 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 			}},
 		}},
 	)
+	if got := work[0].GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("prepared attention = %v, want IMPORTANT", got)
+	}
+	// A future source-time preference may deliberately differ from the fixed
+	// reason mapping. The asynchronous materializer must preserve that decision.
+	work[0].AttentionLevel = corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
 	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
 		t.Fatalf("StoreWork: %v", err)
 	}
@@ -513,7 +519,7 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 	deadline := time.Now().Add(5 * time.Second)
 	for {
 		occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id)
-		if err == nil && len(occurrences) == 1 && occurrences[0].GetSourceEventId() == source.Id && occurrences[0].GetSourceStreamSequence() != 0 {
+		if err == nil && len(occurrences) == 1 && occurrences[0].GetSourceEventId() == source.Id && occurrences[0].GetSourceStreamSequence() != 0 && occurrences[0].GetAttentionLevel() == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {
 			break
 		}
 		if time.Now().After(deadline) {

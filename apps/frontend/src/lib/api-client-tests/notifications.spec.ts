@@ -72,7 +72,7 @@ describe('notification occurrence presentation mapping', () => {
     });
   });
 
-  it('keeps a direct mention ahead of ambient followed-thread activity', () => {
+  it('keeps a direct mention ahead of badge-only followed-thread activity', () => {
     const occurrence = notificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-mention',

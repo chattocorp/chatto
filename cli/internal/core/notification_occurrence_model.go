@@ -34,6 +34,7 @@ type CreateNotificationOccurrenceInput struct {
 	Target               *corev1.NotificationTarget
 	Reasons              []*corev1.NotificationReasonMatch
 	ReactionEmoji        string
+	AttentionLevel       corev1.NotificationAttentionLevel
 	SourceStreamSequence uint64
 	EvaluatedAt          time.Time
 	InitialState         corev1.NotificationInboxState
@@ -118,6 +119,11 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		strongest == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 		return nil, false, nil
 	}
+	attentionLevel := input.AttentionLevel
+	if attentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT &&
+		attentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		attentionLevel = notificationAttentionLevelForReasons(reasons)
+	}
 
 	now := m.now().UTC()
 	expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
@@ -150,7 +156,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		ReactionEmoji:        input.ReactionEmoji,
 		SourceStreamSequence: input.SourceStreamSequence,
 		StrongestIntensity:   strongest,
-		AttentionLevel:       notificationAttentionLevelForReasons(reasons),
+		AttentionLevel:       attentionLevel,
 		InboxState:           state,
 		EvaluatedAt:          timestamppb.New(evaluatedAt),
 		ExpiresAt:            timestamppb.New(expiresAt),

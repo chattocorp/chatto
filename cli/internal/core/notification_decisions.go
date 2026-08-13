@@ -164,13 +164,15 @@ func newNotificationOccurrenceWork(
 	}
 	work := make([]*corev1.NotificationOccurrence, 0, len(decisions))
 	for _, decision := range decisions {
+		reasons := cloneNotificationReasons(decision.reasons)
 		work = append(work, &corev1.NotificationOccurrence{
 			RecipientId:     decision.recipientID,
 			SourceEventId:   source.GetId(),
 			SourceCreatedAt: source.GetCreatedAt(),
 			ActorId:         source.GetActorId(),
 			Target:          proto.Clone(target).(*corev1.NotificationTarget),
-			Reasons:         cloneNotificationReasons(decision.reasons),
+			Reasons:         reasons,
+			AttentionLevel:  notificationAttentionLevelForReasons(reasons),
 			EvaluatedAt:     source.GetCreatedAt(),
 		})
 	}

@@ -876,6 +876,7 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 		Target:               occurrence.GetTarget(),
 		Reasons:              occurrence.GetReasons(),
 		ReactionEmoji:        occurrence.GetReactionEmoji(),
+		AttentionLevel:       occurrence.GetAttentionLevel(),
 		SourceStreamSequence: streamSequence,
 		EvaluatedAt:          occurrence.GetEvaluatedAt().AsTime(),
 	})

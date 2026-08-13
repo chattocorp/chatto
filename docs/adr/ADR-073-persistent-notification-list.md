@@ -72,7 +72,7 @@ The bundled client derives temporary groups from occurrences:
 - reactions group by reacted-to room/thread/message target and consolidate
   actors and emoji;
 - followed-thread activity may group by room and thread root;
-- ambient followed-room activity may group by room; and
+- followed-room activity may group by room; and
 - mentions and replies remain separate per exact jump target.
 
 A temporary group opens its newest unread occurrence, or its newest occurrence
