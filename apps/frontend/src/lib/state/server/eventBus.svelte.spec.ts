@@ -881,6 +881,33 @@ describe('eventBusManager realtime transport', () => {
     expect(sockets).toHaveLength(1);
     expect(sockets[0].closeCalls).toHaveLength(1);
   });
+
+  it('installs a registered projection reducer before opening its transport', async () => {
+    const connection = new FakeServerConnection();
+    const sync = new RealtimeProjectionSyncState();
+    const projectionHandler = vi.fn();
+
+    eventBusManager.synchronizeAuthenticatedServers(
+      [
+        {
+          serverId: TEST_SERVER,
+          connection: connection as unknown as ServerConnection,
+          projectionSupported: true,
+          sync,
+          projectionHandler
+        }
+      ],
+      TEST_SERVER
+    );
+
+    const socket = sockets[0];
+    socket.open();
+    await socket.receive(helloFrame());
+    await socket.receive(projectionFrame('initial-projection'));
+
+    expect(projectionHandler).toHaveBeenCalledOnce();
+  });
+
   it('keeps only the active server live and closes an inactive catch-up at caught_up', async () => {
     const active = new FakeServerConnection();
     const inactive = new FakeServerConnection();

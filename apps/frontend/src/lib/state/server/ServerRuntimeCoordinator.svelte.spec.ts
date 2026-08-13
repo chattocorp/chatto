@@ -9,6 +9,7 @@ type StoreMock = {
   isAuthenticated: boolean;
   serverInfo: { supportsRealtimeProjection: boolean };
   realtimeSync: { serverId: string };
+  realtimeProjectionHandler?: () => void;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -22,6 +23,10 @@ const mocks = vi.hoisted(() => ({
 
 vi.mock('$lib/state/activeServer.svelte', () => ({
   getActiveServer: () => mocks.activeServerId
+}));
+
+vi.mock('$app/state', () => ({
+  page: { route: { id: '/login' } }
 }));
 
 vi.mock('./registry.svelte', () => ({
@@ -69,6 +74,7 @@ function store(serverId: string, overrides: Partial<StoreMock> = {}): StoreMock 
     isAuthenticated: false,
     serverInfo: { supportsRealtimeProjection: true },
     realtimeSync: { serverId: `${serverId}-sync` },
+    realtimeProjectionHandler: vi.fn(),
     ...overrides
   };
 }
@@ -96,7 +102,7 @@ describe('ServerRuntimeCoordinator', () => {
     });
   });
 
-  it('installs the origin viewer before the initial transport reconciliation', () => {
+  it('installs the origin viewer before the initial transport reconciliation', async () => {
     const { unmount } = render(ServerRuntimeCoordinator, { props: { user: originUser } });
     const origin = mocks.stores.get('origin')!;
 
@@ -105,29 +111,33 @@ describe('ServerRuntimeCoordinator', () => {
       presenceStatus: PresenceStatus.ONLINE
     });
     expect(origin.currentUser.loading).toBe(false);
-    expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
-      [
-        expect.objectContaining({ serverId: 'origin' }),
-        expect.objectContaining({ serverId: 'remote' })
-      ],
-      null
-    ]);
+    await vi.waitFor(() =>
+      expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
+        [
+          expect.objectContaining({ serverId: 'origin' }),
+          expect.objectContaining({ serverId: 'remote' })
+        ],
+        null
+      ])
+    );
 
     unmount();
     expect(origin.currentUser.user).toBeUndefined();
   });
 
-  it('hydrates a restored remote-only session without an active chat route', () => {
+  it('hydrates a restored remote-only session without an active chat route', async () => {
     mocks.originServerId = null;
     mocks.servers = [{ id: 'remote' }];
     mocks.stores.delete('origin');
 
     render(ServerRuntimeCoordinator, { props: { user: null } });
 
-    expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
-      [expect.objectContaining({ serverId: 'remote', projectionSupported: true })],
-      null
-    ]);
+    await vi.waitFor(() =>
+      expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
+        [expect.objectContaining({ serverId: 'remote', projectionSupported: true })],
+        null
+      ])
+    );
   });
 
   it('reconciles late session restoration and compatibility discovery', async () => {

@@ -65,6 +65,9 @@ before its first reconciliation, and reacts to restored sessions and late
 compatibility discovery. Consequently, a cold welcome-screen load hydrates
 inactive registered servers without selecting one or mounting chat-only
 presence, profile-cache, prompt, or notice coordination.
+Each registration carries its server store's stable projection reducer; the
+event-bus manager installs that reducer before opening a transport, so an
+initial reset or viewer snapshot cannot arrive before its canonical owner.
 
 The frontend keeps an authenticated server's realtime stream connected
 independently of the local presence mode. "Look offline" stops presence

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { onDestroy, untrack } from 'svelte';
+  import { page } from '$app/state';
   import type { CurrentUser } from '$lib/auth/loadAuth';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { eventBusManager } from './eventBus.svelte';
@@ -43,24 +44,22 @@
               serverId: server.id,
               connection: serverConnectionManager.getClient(server.id),
               projectionSupported: store.serverInfo.supportsRealtimeProjection,
-              sync: store.realtimeSync
+              sync: store.realtimeSync,
+              projectionHandler: store.realtimeProjectionHandler
             }
           ]
         : [];
     });
   }
 
-  // Run synchronously so route and notification consumers can attach to an
-  // existing bus during their own initialization.
-  eventBusManager.synchronizeAuthenticatedServers(
-    realtimeRegistrations(),
-    getActiveServer() || null
-  );
-
   // Late session restoration and discovery metadata must both retrigger
   // ownership, including while the app remains on the welcome/login route.
+  // The registration carries each store's canonical reducer, allowing the bus
+  // to install it before a newly opened socket can deliver its first snapshot.
   const registrations = $derived.by(realtimeRegistrations);
-  const activeServerId = $derived(getActiveServer());
+  const activeServerId = $derived(
+    page.route.id?.startsWith('/chat') ? getActiveServer() : ''
+  );
 
   $effect(() => {
     const nextRegistrations = registrations;

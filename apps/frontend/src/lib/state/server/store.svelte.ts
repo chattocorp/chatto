@@ -108,6 +108,9 @@ export class ServerStateStore {
   readonly projection = new ServerProjectionStore();
   /** Readiness and opaque resume position for this retained projection. */
   readonly realtimeSync = new RealtimeProjectionSyncState();
+  /** Stable canonical reducer installed before a projection transport starts. */
+  readonly realtimeProjectionHandler: ProjectionHandler = (event) =>
+    this.ingestProjectionEvent(event);
 
   /** Per-server viewer permissions (loaded by ServerSidebarEntry). */
   permissions = $state<ServerPermissions>(EMPTY_PERMISSIONS);
@@ -192,10 +195,9 @@ export class ServerStateStore {
       $effect(() => {
         const bus = eventBusManager.getBus(this.serverId);
         if (!bus) return;
-        const projectionHandler: ProjectionHandler = (event) => this.ingestProjectionEvent(event);
-        bus.projectionHandlers.add(projectionHandler);
+        bus.projectionHandlers.add(this.realtimeProjectionHandler);
         return () => {
-          bus.projectionHandlers.delete(projectionHandler);
+          bus.projectionHandlers.delete(this.realtimeProjectionHandler);
         };
       });
     });
