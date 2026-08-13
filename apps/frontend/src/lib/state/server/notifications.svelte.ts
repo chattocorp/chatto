@@ -136,6 +136,7 @@ export class NotificationStore {
   #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
   #pendingMutationCount = 0;
   #mutationIdleWaiters = new SvelteSet<() => void>();
+  #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
@@ -446,6 +447,18 @@ export class NotificationStore {
   }
 
   async fetchPage(offset = 0): Promise<NotificationOccurrencePage> {
+    if (offset !== 0) return await this.#fetchPage(offset);
+    if (this.#firstPageRequest) return await this.#firstPageRequest;
+    const request = this.#fetchPage(0);
+    this.#firstPageRequest = request;
+    try {
+      return await request;
+    } finally {
+      if (this.#firstPageRequest === request) this.#firstPageRequest = undefined;
+    }
+  }
+
+  async #fetchPage(offset: number): Promise<NotificationOccurrencePage> {
     if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
     const authoritativeGeneration = this.#authoritativeGeneration;
     const page = await this.#api.listNotificationOccurrences(50, offset);
@@ -454,7 +467,7 @@ export class NotificationStore {
       this.#pendingMutationCount > 0
     ) {
       if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
-      return this.fetchPage(offset);
+      return await this.#fetchPage(offset);
     }
     const revokedUnreadCount = [...this.revokedRoomIds].reduce(
       (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),

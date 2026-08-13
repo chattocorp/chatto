@@ -529,6 +529,25 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).toHaveBeenCalled();
   });
 
+  it('coalesces page refreshes released after the same pending mutation', async () => {
+    const mutation = deferred<NotificationOccurrenceItem>();
+    const api = makeAPI();
+    api.markNotificationRead.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const marking = store.markRead('n1');
+    const firstPage = store.fetchPage();
+    const secondPage = store.fetchPage();
+    expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
+
+    mutation.resolve(store.occurrences[0]!);
+    await expect(marking).resolves.toBe(true);
+    await Promise.all([firstPage, secondPage]);
+
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
+  });
+
   it('queues room reads started while a mutation is pending', async () => {
     const mutation = deferred<NotificationOccurrenceItem>();
     const api = makeAPI();
