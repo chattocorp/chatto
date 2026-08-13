@@ -21,12 +21,15 @@ service PushNotificationService {
   }
 
   // Sends a test notification to the caller's registered browser subscriptions.
+  // Calls are rate-limited per account. Delivery failures return a generic
+  // unavailable error without exposing the push provider's response body.
   rpc SendTestNotification(SendTestPushNotificationRequest) returns (SendTestPushNotificationResponse);
 }
 
 // Request to store a PushSubscription returned by the browser Push API.
 message SubscribePushRequest {
-  // Push service endpoint URL.
+  // Absolute HTTPS push service endpoint URL. The server rejects redirects and
+  // destinations that resolve to private or other special-use addresses.
   string endpoint = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 4096

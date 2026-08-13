@@ -2,14 +2,13 @@
 package push
 
 import (
-	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
-	"net/http"
 	"net/url"
 	"strings"
 	"sync"
@@ -20,23 +19,23 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/pushendpoint"
 )
 
 // Sender sends Web Push notifications.
 type Sender struct {
-	config       config.PushConfig
-	logger       *log.Logger
-	httpClient   webpush.HTTPClient
-	requestSlots chan struct{}
+	config           config.PushConfig
+	logger           *log.Logger
+	httpClient       webpush.HTTPClient
+	validateEndpoint func(string) error
+	requestSlots     chan struct{}
 }
 
 const (
-	pushRecordSize                       uint32 = 2048
-	maxPushProviderResponseBodyBytes            = 2048
-	truncatedPushProviderResponseBodyMsg        = "…"
-	declarativeWebPushValue                     = 8030
-	pushRequestTimeout                          = 10 * time.Second
-	maxConcurrentPushRequests                   = 16
+	pushRecordSize            uint32 = 2048
+	declarativeWebPushValue          = 8030
+	pushRequestTimeout               = 10 * time.Second
+	maxConcurrentPushRequests        = 16
 )
 
 // NewSender creates a new push notification sender.
@@ -46,10 +45,11 @@ func NewSender(cfg config.PushConfig, logger *log.Logger) *Sender {
 		return nil
 	}
 	return &Sender{
-		config:       cfg,
-		logger:       logger,
-		httpClient:   &http.Client{Timeout: pushRequestTimeout},
-		requestSlots: make(chan struct{}, maxConcurrentPushRequests),
+		config:           cfg,
+		logger:           logger,
+		httpClient:       pushendpoint.NewHTTPClient(pushRequestTimeout),
+		validateEndpoint: pushendpoint.Validate,
+		requestSlots:     make(chan struct{}, maxConcurrentPushRequests),
 	}
 }
 
@@ -63,6 +63,9 @@ type Payload struct {
 	NotificationID string `json:"notificationId,omitempty"`
 	URL            string `json:"url,omitempty"`
 	AppBadge       string `json:"-"`
+	// Action is empty for regular user-visible notifications. Control pushes set
+	// it to a command such as "dismiss" and do not display a new notification.
+	Action string `json:"action,omitempty"`
 }
 
 type declarativeNotification struct {
@@ -90,6 +93,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Tag            string                   `json:"tag,omitempty"`
 		NotificationID string                   `json:"notificationId,omitempty"`
 		URL            string                   `json:"url,omitempty"`
+		Action         string                   `json:"action,omitempty"`
 		WebPush        int                      `json:"web_push,omitempty"`
 		Mutable        bool                     `json:"mutable,omitempty"`
 		AppBadge       string                   `json:"app_badge,omitempty"`
@@ -104,6 +108,7 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 		Tag:            p.Tag,
 		NotificationID: p.NotificationID,
 		URL:            p.URL,
+		Action:         p.Action,
 		AppBadge:       p.AppBadge,
 	}
 	if p.declarativeNotificationEligible() {
@@ -127,7 +132,20 @@ func (p Payload) MarshalJSON() ([]byte, error) {
 }
 
 func (p Payload) declarativeNotificationEligible() bool {
-	return p.Title != "" && p.URL != ""
+	return p.Action == "" && p.Title != "" && p.URL != ""
+}
+
+func (p Payload) isUserVisibleNotification() bool {
+	return p.Action == ""
+}
+
+// deliveryUrgency keeps visible notifications prompt on sleeping mobile
+// devices without using high-priority delivery for silent control pushes.
+func (p Payload) deliveryUrgency() webpush.Urgency {
+	if p.isUserVisibleNotification() {
+		return webpush.UrgencyHigh
+	}
+	return webpush.UrgencyNormal
 }
 
 // PayloadContext provides optional context for building push payloads.
@@ -174,6 +192,10 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 	if ctx == nil {
 		ctx = context.Background()
 	}
+	if err := s.validateEndpoint(sub.Endpoint); err != nil {
+		result.Error = errors.New("push delivery failed: invalid endpoint")
+		return result
+	}
 	requestCtx, cancel := context.WithTimeout(ctx, pushRequestTimeout)
 	defer cancel()
 
@@ -207,12 +229,19 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             86400, // 24 hours
-		Urgency:         webpush.UrgencyHigh,
+		Urgency:         payload.deliveryUrgency(),
 		RecordSize:      pushRecordSize,
 		HTTPClient:      s.httpClient,
 	})
 	if err != nil {
-		result.Error = err
+		switch {
+		case errors.Is(err, context.Canceled):
+			result.Error = context.Canceled
+		case errors.Is(err, context.DeadlineExceeded):
+			result.Error = context.DeadlineExceeded
+		default:
+			result.Error = errors.New("push delivery request failed")
+		}
 		return result
 	}
 	defer resp.Body.Close()
@@ -220,17 +249,16 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 	// Check response status
 	switch resp.StatusCode {
 	case 200, 201, 202:
-		// Drain body to allow connection reuse
-		_, _ = io.Copy(io.Discard, resp.Body)
+		drainPushProviderResponseBody(resp.Body)
 		result.Success = true
 	case 404, 410:
 		// 404 Not Found or 410 Gone - subscription is no longer valid
-		body, readErr := readPushProviderResponseBody(resp.Body)
+		drainPushProviderResponseBody(resp.Body)
 		result.Gone = true
-		result.Error = pushServiceStatusError("subscription expired or invalid", resp.StatusCode, body, readErr)
+		result.Error = pushServiceStatusError("subscription expired or invalid", resp.StatusCode)
 	default:
-		body, readErr := readPushProviderResponseBody(resp.Body)
-		result.Error = pushServiceStatusError("push service returned status", resp.StatusCode, body, readErr)
+		drainPushProviderResponseBody(resp.Body)
+		result.Error = pushServiceStatusError("push service returned status", resp.StatusCode)
 	}
 
 	return result
@@ -240,36 +268,15 @@ func normalizeVAPIDSubject(subject string) string {
 	return strings.TrimPrefix(subject, "mailto:")
 }
 
-func readPushProviderResponseBody(body io.Reader) (string, error) {
-	var buf bytes.Buffer
-	_, err := io.Copy(&buf, io.LimitReader(body, maxPushProviderResponseBodyBytes+1))
-	_, _ = io.Copy(io.Discard, body)
-	if err != nil {
-		return "", err
-	}
-
-	responseBody := buf.Bytes()
-	truncated := false
-	if len(responseBody) > maxPushProviderResponseBodyBytes {
-		responseBody = responseBody[:maxPushProviderResponseBodyBytes]
-		truncated = true
-	}
-
-	text := strings.TrimSpace(strings.ToValidUTF8(string(responseBody), ""))
-	if truncated {
-		text += truncatedPushProviderResponseBodyMsg
-	}
-	return text, nil
+func drainPushProviderResponseBody(body io.Reader) {
+	// Provider bodies are never trusted or surfaced. A small bounded drain keeps
+	// normal connections reusable without letting an endpoint stream arbitrary
+	// data until the request timeout.
+	_, _ = io.Copy(io.Discard, io.LimitReader(body, 4096))
 }
 
-func pushServiceStatusError(prefix string, statusCode int, body string, readErr error) error {
-	if readErr != nil {
-		return fmt.Errorf("%s %d (failed to read response body: %w)", prefix, statusCode, readErr)
-	}
-	if body == "" {
-		return fmt.Errorf("%s %d", prefix, statusCode)
-	}
-	return fmt.Errorf("%s %d: %s", prefix, statusCode, body)
+func pushServiceStatusError(prefix string, statusCode int) error {
+	return fmt.Errorf("%s %d", prefix, statusCode)
 }
 
 // EndpointLogID returns a stable, opaque identifier for a push endpoint.
@@ -281,6 +288,9 @@ func EndpointLogID(endpoint string) string {
 // SendToMany sends a push notification to multiple subscriptions.
 // Returns results for each subscription.
 func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *Payload) []*SendResult {
+	if len(subscriptions) > pushendpoint.MaxSubscriptionsPerUser {
+		subscriptions = subscriptions[:pushendpoint.MaxSubscriptionsPerUser]
+	}
 	results := make([]*SendResult, len(subscriptions))
 	if len(subscriptions) == 0 {
 		return results

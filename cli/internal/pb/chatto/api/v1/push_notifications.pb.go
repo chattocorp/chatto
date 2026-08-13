@@ -26,7 +26,8 @@ const (
 // Request to store a PushSubscription returned by the browser Push API.
 type SubscribePushRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Push service endpoint URL.
+	// Absolute HTTPS push service endpoint URL. The server rejects redirects and
+	// destinations that resolve to private or other special-use addresses.
 	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// Client P-256 ECDH public key from PushSubscription.keys.p256dh.
 	P256Dh string `protobuf:"bytes,2,opt,name=p256dh,proto3" json:"p256dh,omitempty"`

@@ -100,11 +100,13 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-Each browser or installed PWA creates its own subscription. Chatto attempts every current device for each push. Once any device accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+Each browser or installed PWA creates its own subscription. A user can have up to 16 subscribed devices, and Chatto attempts every current device for each push. Once any device accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
 When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
 
 Chatto sends regular notifications in a declarative-compatible Web Push format, with browser-managed display and app-badge updates where supported. User-visible pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly. Its service worker preserves notification display and click compatibility for browsers that do not handle the declarative payload directly. Read and delete actions synchronize inside Chatto; they do not attempt to retract an OS notification that a browser already displayed. Operators do not need to change VAPID keys or push configuration for this behavior.
+
+For security, Chatto connects directly only to absolute HTTPS push endpoints with public network addresses. It does not follow endpoint redirects or route push delivery through `HTTP_PROXY` or `HTTPS_PROXY`. Standard browser-created subscriptions already meet these requirements; private-network, redirecting, and proxy-only custom push endpoints are unsupported.
 
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 

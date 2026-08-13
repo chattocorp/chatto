@@ -16,6 +16,7 @@ import (
 
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/pushendpoint"
 )
 
 // ============================================================================
@@ -23,8 +24,24 @@ import (
 // ============================================================================
 
 const (
-	pushEndpointOwnerKeyPrefix  = "push_endpoint_owner."
-	pushEndpointOwnerMaxRetries = 8
+	pushEndpointOwnerKeyPrefix            = "push_endpoint_owner."
+	pushTestNotificationThrottleKeyPrefix = "push_test_notification_throttle."
+	pushEndpointOwnerMaxRetries           = 8
+	pushTestNotificationThrottleTTL       = 10 * time.Second
+
+	// MaxPushSubscriptionsPerUser is the maximum number of active browser
+	// subscriptions that one account can fan push delivery out to.
+	MaxPushSubscriptionsPerUser = pushendpoint.MaxSubscriptionsPerUser
+)
+
+var (
+	// ErrPushSubscriptionLimitReached is returned when a new endpoint would
+	// exceed the account's active Web Push subscription limit.
+	ErrPushSubscriptionLimitReached = errors.New("push subscription limit reached")
+
+	// ErrPushTestNotificationRateLimited is returned when an account requests
+	// another test notification inside the shared throttle window.
+	ErrPushTestNotificationRateLimited = errors.New("push test notification rate limited")
 )
 
 type pushEndpointOwner struct {
@@ -72,6 +89,9 @@ func (c *ChattoCore) SavePushSubscription(
 	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent); err != nil {
 		return nil, err
 	}
+	if err := c.checkPushSubscriptionCapacity(ctx, userID, endpoint); err != nil {
+		return nil, err
+	}
 
 	subscription := &corev1.PushSubscription{
 		Endpoint:  endpoint,
@@ -100,6 +120,36 @@ func (c *ChattoCore) SavePushSubscription(
 		"endpoint_hash", hashEndpoint(endpoint))
 
 	return subscription, nil
+}
+
+func (c *ChattoCore) checkPushSubscriptionCapacity(ctx context.Context, userID, endpoint string) error {
+	subscriptions, err := c.GetUserPushSubscriptions(ctx, userID)
+	if err != nil {
+		return fmt.Errorf("failed to check push subscription capacity: %w", err)
+	}
+	for _, subscription := range subscriptions {
+		if subscription.Endpoint == endpoint {
+			return nil
+		}
+	}
+	if len(subscriptions) >= MaxPushSubscriptionsPerUser {
+		return ErrPushSubscriptionLimitReached
+	}
+	return nil
+}
+
+// AdmitPushTestNotification reserves the per-account test-notification window
+// in shared runtime state so concurrent replicas enforce one limit.
+func (c *ChattoCore) AdmitPushTestNotification(ctx context.Context, userID string) error {
+	key := pushTestNotificationThrottleKeyPrefix + userID
+	_, err := c.storage.runtimeStateKV.Create(ctx, key, []byte{1}, jetstream.KeyTTL(pushTestNotificationThrottleTTL))
+	if jetstreamutil.IsSequenceConflict(err) {
+		return ErrPushTestNotificationRateLimited
+	}
+	if err != nil {
+		return fmt.Errorf("failed to reserve push test notification window: %w", err)
+	}
+	return nil
 }
 
 func isPushRuntimeStateKeyAbsent(err error) bool {
@@ -252,6 +302,9 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
 	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
 		return err
+	}
+	if err := pushendpoint.Validate(endpoint); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidArgument, err)
 	}
 	if err := validateStringMaxLength("push p256dh key", p256dh, MaxPushKeyLength); err != nil {
 		return err

@@ -21,6 +21,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/pushendpoint"
 )
 
 type contextBlockingHTTPClient struct {
@@ -622,6 +623,20 @@ func TestSendResult(t *testing.T) {
 }
 
 func TestSend(t *testing.T) {
+	t.Run("rejects an unsafe endpoint before using the HTTP client", func(t *testing.T) {
+		client := &concurrencyTrackingHTTPClient{}
+		sender := newTestSender(t, client)
+		sender.validateEndpoint = pushendpoint.Validate
+		result := sender.Send(context.Background(), newTestPushSubscription(t, "http://127.0.0.1/internal"), &Payload{Title: "Test"})
+
+		if result.Error == nil {
+			t.Fatal("expected unsafe endpoint error")
+		}
+		if client.calls.Load() != 0 {
+			t.Fatalf("HTTP client calls = %d, want 0", client.calls.Load())
+		}
+	})
+
 	t.Run("cancels an in-flight provider request with the caller context", func(t *testing.T) {
 		client := &contextBlockingHTTPClient{started: make(chan struct{})}
 		sender := newTestSender(t, client)
@@ -656,7 +671,7 @@ func TestSend(t *testing.T) {
 		var urgency string
 		var readErr error
 
-		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			var body []byte
 			body, readErr = io.ReadAll(r.Body)
 			if readErr != nil {
@@ -703,7 +718,29 @@ func TestSend(t *testing.T) {
 		}
 	})
 
-	t.Run("includes provider response body for non-gone failures", func(t *testing.T) {
+	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
+		var urgency string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			urgency = r.Header.Get("Urgency")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Action: "dismiss",
+			Tag:    "notification-1",
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if urgency != "normal" {
+			t.Fatalf("Urgency = %q, want normal", urgency)
+		}
+	})
+
+	t.Run("does not disclose provider response body for non-gone failures", func(t *testing.T) {
 		tests := []struct {
 			name       string
 			statusCode int
@@ -715,7 +752,7 @@ func TestSend(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(tt.statusCode)
 					_, _ = w.Write([]byte(tt.body))
 				}))
@@ -732,8 +769,8 @@ func TestSend(t *testing.T) {
 				if result.Gone {
 					t.Fatal("expected non-gone failure")
 				}
-				if !strings.Contains(result.Error.Error(), tt.body) {
-					t.Fatalf("error %q does not contain provider body %q", result.Error, tt.body)
+				if strings.Contains(result.Error.Error(), tt.body) {
+					t.Fatalf("error %q disclosed provider body %q", result.Error, tt.body)
 				}
 				if !strings.Contains(result.Error.Error(), strconv.Itoa(tt.statusCode)) {
 					t.Fatalf("error %q does not contain status %d", result.Error, tt.statusCode)
@@ -753,7 +790,7 @@ func TestSend(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 					w.WriteHeader(tt.statusCode)
 					_, _ = w.Write([]byte("subscription is gone"))
 				}))
@@ -789,16 +826,16 @@ func TestSendToMany(t *testing.T) {
 		Body:  "Test body",
 	})
 
-	if len(results) != len(subscriptions) {
-		t.Fatalf("results = %d, want %d", len(results), len(subscriptions))
+	if len(results) != pushendpoint.MaxSubscriptionsPerUser {
+		t.Fatalf("results = %d, want capped fan-out of %d", len(results), pushendpoint.MaxSubscriptionsPerUser)
 	}
 	for i, result := range results {
 		if result == nil || !result.Success || result.Error != nil {
 			t.Fatalf("result[%d] = %+v, want success", i, result)
 		}
 	}
-	if got := int(client.calls.Load()); got != len(subscriptions) {
-		t.Fatalf("provider calls = %d, want %d", got, len(subscriptions))
+	if got := int(client.calls.Load()); got != pushendpoint.MaxSubscriptionsPerUser {
+		t.Fatalf("provider calls = %d, want %d", got, pushendpoint.MaxSubscriptionsPerUser)
 	}
 	if got := int(client.maximum.Load()); got > maxConcurrentPushRequests {
 		t.Fatalf("maximum concurrent requests = %d, want at most %d", got, maxConcurrentPushRequests)
@@ -825,6 +862,9 @@ func newTestSender(t *testing.T, client webpush.HTTPClient) *Sender {
 		t.Fatal("expected configured sender")
 	}
 	sender.httpClient = client
+	// Individual sender tests use private TLS fixtures. Production endpoint
+	// validation and dial-time destination enforcement are covered separately.
+	sender.validateEndpoint = func(string) error { return nil }
 	return sender
 }
 

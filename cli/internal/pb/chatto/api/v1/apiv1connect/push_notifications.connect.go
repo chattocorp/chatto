@@ -56,6 +56,8 @@ type PushNotificationServiceClient interface {
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
+	// Calls are rate-limited per account. Delivery failures return a generic
+	// unavailable error without exposing the push provider's response body.
 	SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error)
 }
 
@@ -127,6 +129,8 @@ type PushNotificationServiceHandler interface {
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
+	// Calls are rate-limited per account. Delivery failures return a generic
+	// unavailable error without exposing the push provider's response body.
 	SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error)
 }
 
