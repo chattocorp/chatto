@@ -712,25 +712,61 @@ export class VoiceCallState {
       token: credential.token,
       e2eeKey: credential.e2eeKey
     });
+    let provisionalSessionEnded = false;
+    let provisionalSessionError: Error | undefined;
+    session.onEnded = (error) => {
+      provisionalSessionEnded = true;
+      provisionalSessionError = error;
+    };
     if (this.room !== room) {
       await session.stop().catch(() => undefined);
       return;
     }
 
     if (replacingBrowserScreenShare) {
+      let replacementError: unknown;
       try {
         await room.localParticipant.setScreenShareEnabled(false);
       } catch (error) {
-        await session.stop().catch(() => undefined);
-        throw error;
+        replacementError = error;
       }
       if (this.room !== room) {
         await session.stop().catch(() => undefined);
         return;
       }
-      this.isScreenShareEnabled = false;
+
+      const browserScreenShareStillPublished = hasParticipantScreenSharePublication(
+        room.localParticipant
+      );
+      this.isScreenShareEnabled = browserScreenShareStillPublished;
+      if (browserScreenShareStillPublished) {
+        await session.stop().catch(() => undefined);
+        throw (
+          replacementError ??
+          new Error('The existing browser screen share could not be replaced.')
+        );
+      }
+
+      // LiveKit removes local tracks before its final negotiation completes, so
+      // a late rejection can still mean that the browser share was replaced.
+      // Keep the working native publisher in that case instead of losing both.
+      if (provisionalSessionEnded) {
+        this.isGameCaptureEnabled = false;
+        this.gameCaptureSourceName = null;
+        this.updateParticipants();
+        throw (
+          provisionalSessionError ??
+          new Error('The native game-share publisher stopped during handoff.')
+        );
+      }
     }
 
+    if (provisionalSessionEnded) {
+      throw (
+        provisionalSessionError ??
+        new Error('The native game-share publisher stopped before it became active.')
+      );
+    }
     this.gameCaptureSession = session;
     session.onEnded = (error) => void this.handleGameCaptureEnded(session, error);
     if (this.room !== room || this.gameCaptureSession !== session) {
@@ -1348,6 +1384,13 @@ function isParticipantScreenShareEnabled(participant: Participant): boolean {
     }
   }
   return false;
+}
+
+function hasParticipantScreenSharePublication(participant: Participant): boolean {
+  const { Track } = getLoadedLiveKit();
+  return participant
+    .getTrackPublications()
+    .some((publication) => publication.track?.source === Track.Source.ScreenShare);
 }
 
 function getParticipantScreenShareTrack(participant: Participant): Track | null {

@@ -55,6 +55,7 @@ let cameraGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let cameraFailure: Error | null = null;
 let screenShareGate: { promise: Promise<void>; resolve: () => void } | null = null;
 let screenShareFailure: Error | null = null;
+let screenShareFailureAfterUpdate: Error | null = null;
 let switchActiveDeviceFailure: Error | null = null;
 let roomEventHandlers = new Map<string, (...args: unknown[]) => void>();
 let localTrackPublications: Array<{
@@ -131,6 +132,12 @@ vi.mock('livekit-client', () => {
             isMuted: false,
             track: { source: 'screen_share' }
           });
+        }
+        if (screenShareFailureAfterUpdate) {
+          roomEventHandlers
+            .get('MediaDevicesError')
+            ?.(screenShareFailureAfterUpdate, 'videoinput');
+          throw screenShareFailureAfterUpdate;
         }
       }),
       publishTrack: vi.fn(async (track: MediaStreamTrack, options: { source: string }) => {
@@ -279,6 +286,7 @@ describe('VoiceCallState', () => {
     cameraFailure = null;
     screenShareGate = null;
     screenShareFailure = null;
+    screenShareFailureAfterUpdate = null;
     switchActiveDeviceFailure = null;
     roomEventHandlers = new Map();
     localTrackPublications = [];
@@ -719,6 +727,51 @@ describe('VoiceCallState', () => {
     ).toHaveLength(1);
     expect(state.isScreenShareEnabled).toBe(true);
     expect(state.isGameCaptureEnabled).toBe(false);
+  });
+
+  it('does not activate a native publisher that ends while browser unpublish is pending', async () => {
+    const session = {
+      stop: vi.fn(async () => undefined),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleScreenShare();
+    screenShareGate = deferredVoid();
+
+    const starting = state.startGameCapture('window:42', 'Moonring');
+    await flushPromises();
+    expect(session.onEnded).not.toBeNull();
+    session.onEnded?.(new Error('native publisher ended'));
+    screenShareGate.resolve();
+
+    await expect(starting).rejects.toThrow('native publisher ended');
+    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(state.gameCaptureSourceName).toBeNull();
+  });
+
+  it('keeps native capture when browser unpublish removes its track before rejecting', async () => {
+    const session = {
+      stop: vi.fn(async () => undefined),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.toggleScreenShare();
+    screenShareFailureAfterUpdate = new Error('late browser unpublish failure');
+
+    await state.startGameCapture('window:42', 'Moonring');
+
+    expect(session.stop).not.toHaveBeenCalled();
+    expect(
+      localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
+    ).toHaveLength(0);
+    expect(state.isGameCaptureEnabled).toBe(true);
+    expect(state.isScreenShareEnabled).toBe(true);
+    expect(state.gameCaptureSourceName).toBe('Moonring');
   });
 
   it('keeps microphone pending until LiveKit applies the toggle', async () => {
