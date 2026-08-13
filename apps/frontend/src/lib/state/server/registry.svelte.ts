@@ -5,6 +5,7 @@ import { eventBusManager } from './eventBus.svelte';
 import { Codecs, globalSlot } from '$lib/storage/slot';
 import { getPublicServerInfo } from '$lib/api-client/server';
 import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
+import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
 	ServerCatalog,
 	type ServerCatalogChange,
@@ -256,8 +257,16 @@ class ServerRegistry {
 	 *
 	 * No-ops if the origin is already registered (e.g., from localStorage).
 	 */
-	probeOrigin(knownServer = false): void {
+	probeOrigin(
+		knownServer = false,
+		location?: Pick<Location, 'origin' | 'protocol'> | URL
+	): void {
 		if (typeof window === 'undefined') return;
+		const currentLocation = location ?? window.location;
+		if (!isBackendCapableOrigin(currentLocation)) {
+			this.originProbed = true;
+			return;
+		}
 		if (this.originServer) {
 			this.originProbed = true;
 			if (!knownServer) {
@@ -266,7 +275,7 @@ class ServerRegistry {
 			return; // Already registered
 		}
 
-		const origin = window.location.origin;
+		const origin = currentLocation.origin;
 
 		if (knownServer) {
 			// Synchronous registration — we already know it's a Chatto server

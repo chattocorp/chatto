@@ -344,6 +344,9 @@ leave a dev stack running in a detached or yielded terminal session.
   the layer where the bug could occur.
 - Svelte runtime errors, hydration issues, missing context, and `$effect` loops
   require mounting a component or browser verification.
+- Native macOS Desktop helper behavior should have focused Swift tests wired
+  into a macOS CI step. Desktop JavaScript checks and production helper builds
+  do not compile Swift test targets.
 - Backend refactors that touch subjects, streams, projections, authorization, or
   live delivery usually need targeted Go tests plus relevant e2e coverage.
 - E2E tests run locally without Docker/Tilt/OrbStack; Playwright starts its own

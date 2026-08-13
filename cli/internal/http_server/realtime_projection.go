@@ -713,6 +713,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendRoomTimelineIfMember(roomID); err != nil {
 			return nil, false, err
 		}
+		if err := appendViewerSensitiveResources(); err != nil {
+			return nil, false, err
+		}
 		if err := appendSourceTimeline(roomID); err != nil {
 			return nil, false, err
 		}
@@ -737,9 +740,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			// A universal-membership revocation must remove already-decrypted
 			// timeline state in the same ordered projection event as metadata.
 			appendRoomTimelineClear(roomID)
-			if err := appendViewerSensitiveResources(); err != nil {
-				return nil, false, err
-			}
+		}
+		if err := appendViewerSensitiveResources(); err != nil {
+			return nil, false, err
 		}
 	case *corev1.Event_RoomSlowModeChanged:
 		if err := appendRoom(payload.RoomSlowModeChanged.GetRoomId()); err != nil {
@@ -752,6 +755,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 		if evt.GetActorId() == viewerID {
 			if err := appendRoomTimeline(roomID); err != nil {
+				return nil, false, err
+			}
+			if err := appendViewerSensitiveResources(); err != nil {
 				return nil, false, err
 			}
 		}

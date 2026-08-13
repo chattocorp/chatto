@@ -48,23 +48,17 @@ enum LiveKitGamePublisher {
 
     try AudioManager.shared.setManualRenderingMode(true)
 
-    let videoOptions = VideoPublishOptions(
-      screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: frameRate),
-      simulcast: false,
-      preferredCodec: .h264,
-      degradationPreference: .maintainFramerate,
-      streamName: "game-capture"
-    )
+    let videoOptions = makeVideoPublishOptions(frameRate: frameRate)
     let audioOptions = AudioPublishOptions(
       encoding: .presetMusicHighQualityStereo,
       dtx: false,
       red: false,
       streamName: "game-capture"
     )
-    let roomOptions = RoomOptions(
-      defaultVideoPublishOptions: videoOptions,
-      defaultAudioPublishOptions: audioOptions,
-      encryptionOptions: .sharedKey(credential.e2eeKey)
+    let roomOptions = makeRoomOptions(
+      videoOptions: videoOptions,
+      audioOptions: audioOptions,
+      e2eeKey: credential.e2eeKey
     )
     let room = Room(delegate: lifetime)
     try await room.connect(
@@ -113,6 +107,46 @@ enum LiveKitGamePublisher {
     case .roomDisconnected:
       throw PublisherError.liveKitDisconnected
     }
+  }
+
+  /// Build the gaming-oriented screen-share encodings. The full-resolution
+  /// layer preserves the original 1920-pixel, 60 fps ceiling, while explicit
+  /// lower layers let LiveKit serve thumbnails and constrained subscribers
+  /// without sending them the full stream.
+  static func makeVideoPublishOptions(frameRate: Int) -> VideoPublishOptions {
+    let lowerLayers = [
+      VideoParameters(
+        dimensions: .h360_169,
+        encoding: VideoEncoding(maxBitrate: 1_000_000, maxFps: min(frameRate, 30))
+      ),
+      VideoParameters(
+        dimensions: .h720_169,
+        encoding: VideoEncoding(maxBitrate: 4_000_000, maxFps: min(frameRate, 60))
+      ),
+    ]
+    return VideoPublishOptions(
+      screenShareEncoding: VideoEncoding(maxBitrate: 8_000_000, maxFps: frameRate),
+      simulcast: true,
+      screenShareSimulcastLayers: lowerLayers,
+      preferredCodec: .h264,
+      degradationPreference: .maintainFramerate,
+      streamName: "game-capture"
+    )
+  }
+
+  /// Dynacast belongs to the native companion connection. Enabling it on the
+  /// frontend's separate LiveKit room cannot pause this publisher's layers.
+  static func makeRoomOptions(
+    videoOptions: VideoPublishOptions,
+    audioOptions: AudioPublishOptions,
+    e2eeKey: String
+  ) -> RoomOptions {
+    RoomOptions(
+      defaultVideoPublishOptions: videoOptions,
+      defaultAudioPublishOptions: audioOptions,
+      dynacast: true,
+      encryptionOptions: .sharedKey(e2eeKey)
+    )
   }
 
   private static func readCredential() throws -> PublisherCredential {

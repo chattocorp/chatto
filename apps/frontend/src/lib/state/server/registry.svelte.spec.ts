@@ -90,6 +90,19 @@ describe('ServerRegistry', () => {
 		});
 	});
 
+	describe('probeOrigin', () => {
+		it('settles a custom application origin without registering it', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.originProbed = false;
+
+			registry.probeOrigin(false, new URL('chatto://desktop'));
+
+			expect(registry.originProbed).toBe(true);
+			expect(registry.servers).toHaveLength(0);
+		});
+	});
+
 	it('distinguishes public registry changes from a local sign-out reset', async () => {
 		const registry = await createRegistry();
 		registry.removeAll();

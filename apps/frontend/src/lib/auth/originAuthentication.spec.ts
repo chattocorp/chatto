@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
   authenticateOriginMock,
@@ -46,8 +46,15 @@ async function loadModule() {
 describe('completeOriginAuthentication', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.stubGlobal('window', {
+      location: { pathname: '/login', search: '', hash: '' }
+    });
     invalidateAllMock.mockResolvedValue(undefined);
     resumeReturnNavigationMock.mockResolvedValue(true);
+  });
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
   });
 
   it('installs only origin authentication and refreshes route data', async () => {
@@ -70,5 +77,17 @@ describe('completeOriginAuthentication', () => {
 
     expect(invalidateAllMock).toHaveBeenCalledOnce();
     expect(resumeReturnNavigationMock).toHaveBeenCalledOnce();
+  });
+
+  it('reports when authenticated route invalidation already navigated', async () => {
+    hasPendingReturnNavigationMock.mockReturnValue(false);
+    invalidateAllMock.mockImplementation(async () => {
+      window.location.pathname = '/chat';
+    });
+    const { completeOriginAuthentication } = await loadModule();
+
+    await expect(completeOriginAuthentication('origin-token', user)).resolves.toBe(true);
+
+    expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
   });
 });

@@ -5,14 +5,19 @@ import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavi
 /**
  * Install a newly authenticated origin session and refresh route data.
  *
- * Returns whether a stored authentication return path took ownership of the
- * next navigation. Remote-server authentication is deliberately untouched.
+ * Returns whether route invalidation or a stored authentication return path
+ * already took ownership of navigation. Remote-server authentication is
+ * deliberately untouched.
  */
 export async function completeOriginAuthentication(
   token: string,
   user: AuthenticatedUserSummary | null
 ): Promise<boolean> {
   const shouldResumeReturnNavigation = hasPendingReturnNavigation();
+  const routeBeforeInvalidation =
+    typeof window === 'undefined'
+      ? null
+      : window.location.pathname + window.location.search + window.location.hash;
   const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
     import('$lib/state/server/registry.svelte'),
     import('./loadAuth')
@@ -22,7 +27,17 @@ export async function completeOriginAuthentication(
   clearCachedUser();
   await invalidateAll();
 
-  if (!shouldResumeReturnNavigation) return false;
-  await resumeReturnNavigation();
-  return true;
+  if (shouldResumeReturnNavigation) {
+    await resumeReturnNavigation();
+    return true;
+  }
+
+  // Auth routes redirect during invalidation once their parent data contains a
+  // viewer. Do not let the submitting component's fallback navigation race a
+  // redirect that has already moved into the authenticated application.
+  return (
+    routeBeforeInvalidation !== null &&
+    window.location.pathname + window.location.search + window.location.hash !==
+      routeBeforeInvalidation
+  );
 }

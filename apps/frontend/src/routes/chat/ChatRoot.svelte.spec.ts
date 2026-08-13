@@ -206,7 +206,9 @@ describe('ChatRoot', () => {
     vi.clearAllMocks();
   });
 
-  it('installs the origin viewer before the initial multi-server realtime reconciliation', () => {
+  it('uses the origin viewer and bus installed by the application-root coordinator', () => {
+    mocks.originCurrentUser.user = originUser;
+    mocks.originCurrentUser.loading = false;
     const presenceCache = {
       update: mocks.presenceCacheUpdate
     } as unknown as PresenceCache;
@@ -226,19 +228,10 @@ describe('ChatRoot', () => {
       }
     });
 
-    expect(mocks.originCurrentUser.user).toMatchObject({
-      id: 'origin-user',
-      presenceStatus: PresenceStatus.ONLINE
-    });
+    expect(mocks.originCurrentUser.user).toBe(originUser);
     expect(mocks.originCurrentUser.loading).toBe(false);
-    expect(mocks.lifecycle.slice(0, 3)).toEqual(['synchronize', 'projection', 'session']);
-    expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
-      [
-        expect.objectContaining({ serverId: 'origin' }),
-        expect.objectContaining({ serverId: 'remote' })
-      ],
-      'remote'
-    ]);
+    expect(mocks.lifecycle.slice(0, 2)).toEqual(['projection', 'session']);
+    expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.presenceCacheUpdate).toHaveBeenCalledWith(
       { serverId: 'origin', userId: 'origin-user' },
       PresenceStatus.ONLINE
@@ -268,7 +261,7 @@ describe('ChatRoot', () => {
 
     unmount();
 
-    expect(mocks.originCurrentUser.user).toBeUndefined();
+    expect(mocks.originCurrentUser.user).toBe(originUser);
     expect(mocks.stopPresenceTracking).toHaveBeenCalledOnce();
     expect(mocks.stopSessionChannel).toHaveBeenCalledOnce();
   });
@@ -295,13 +288,10 @@ describe('ChatRoot', () => {
 
     expect(mocks.originCurrentUser.user).toBeUndefined();
     expect(mocks.originCurrentUser.loading).toBe(true);
-    expect(mocks.lifecycle[0]).toBe('synchronize');
+    expect(mocks.lifecycle).not.toContain('synchronize');
     expect(mocks.lifecycle).not.toContain('projection');
     expect(mocks.lifecycle).not.toContain('session');
-    expect(mocks.synchronizeAuthenticatedServers.mock.calls[0]).toEqual([
-      [expect.objectContaining({ serverId: 'remote' })],
-      'remote'
-    ]);
+    expect(mocks.synchronizeAuthenticatedServers).not.toHaveBeenCalled();
     expect(mocks.resumeReturnNavigation).not.toHaveBeenCalled();
     expect(mocks.presenceCacheUpdate).not.toHaveBeenCalled();
     expect(mocks.initSessionChannel).not.toHaveBeenCalled();

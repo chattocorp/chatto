@@ -487,6 +487,16 @@ depends = ["setup-frontend"]
 dir = "apps/desktop"
 run = "pnpm check"
 
+[tasks.test-desktop-macos-capture]
+description = "Test the native macOS game-capture helper"
+dir = "apps/desktop/native/macos-capture-probe"
+run = '''
+if [ -z "${DEVELOPER_DIR:-}" ] && [ "$(xcode-select -p)" = "/Library/Developer/CommandLineTools" ] && [ -d "/Applications/Xcode.app/Contents/Developer" ]; then
+  export DEVELOPER_DIR="/Applications/Xcode.app/Contents/Developer"
+fi
+xcrun swift test
+'''
+
 [tasks.test-e2e]
 description = "Run E2E tests"
 depends = ["setup-frontend", "build-e2e-server"]
