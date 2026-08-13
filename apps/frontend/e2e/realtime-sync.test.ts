@@ -99,8 +99,8 @@ test.describe('Real-time synchronization', () => {
     await chatPage.goto();
 
     // User is auto-joined to general and announcements
-    await expect(chatPage.roomList.getByText('# general')).toBeVisible();
-    await expect(chatPage.roomList.getByText('# announcements')).toBeVisible();
+    await expect(chatPage.getRoomLink('general')).toBeVisible();
+    await expect(chatPage.getRoomLink('announcements')).toBeVisible();
 
     // Create a room (user is auto-joined as creator)
     const testRoomName = `testing-${Date.now()}`;

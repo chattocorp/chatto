@@ -320,8 +320,8 @@ test.describe('Unread indicators', () => {
     await waitForRoomReady(page, 'announcements');
 
     // Both rooms should have no unread indicator since we've viewed them
-    const generalLink = chatPage.roomList.locator('a', { hasText: '# general' });
-    const announcementsLink = chatPage.roomList.locator('a', { hasText: '# announcements' });
+    const generalLink = chatPage.getRoomLink('general');
+    const announcementsLink = chatPage.getRoomLink('announcements');
 
     await expect(generalLink).not.toHaveClass(/sidebar-item-attention/);
     await expect(announcementsLink).not.toHaveClass(/sidebar-item-attention/);
