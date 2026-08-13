@@ -4181,6 +4181,19 @@ Payload for a message-posted timeline event.
 
 
 
+<a id="chatto-api-v1-RoomTimelineCallEvent"></a>
+
+### RoomTimelineCallEvent
+
+Payload for voice-call lifecycle timeline events.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room containing the call. |
+| `call_id` | `string` | Stable identifier for this call session. |
+
+
+
 <a id="chatto-api-v1-RoomTimelineEvent"></a>
 
 ### RoomTimelineEvent
@@ -4202,6 +4215,8 @@ Clients should inspect the event oneof to choose the renderer for the event.
 | `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
 | `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
 | `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
+| `event.call_started` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | A voice call started in the room. |
+| `event.call_ended` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | The voice call ended in the room. |
 
 
 

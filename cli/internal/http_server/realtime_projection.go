@@ -632,9 +632,19 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}
 		}
 	case *corev1.Event_VoiceCallStarted,
-		*corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft,
 		*corev1.Event_VoiceCallEnded:
+		calls, err := s.connectAPI.BuildRealtimeProjectionActiveCalls(ctx, viewerID)
+		if err != nil {
+			return nil, false, err
+		}
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ActiveCallsReplace{
+			ActiveCallsReplace: &realtimev1.RealtimeProjectionActiveCallsReplace{Calls: calls},
+		}})
+		if err := appendSourceTimeline(core.RoomIDOfEvent(evt)); err != nil {
+			return nil, false, err
+		}
+	case *corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft:
 		calls, err := s.connectAPI.BuildRealtimeProjectionActiveCalls(ctx, viewerID)
 		if err != nil {
 			return nil, false, err

@@ -385,7 +385,8 @@ Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,
 `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. JetStream
 republishes them to `live.evt.>` for realtime delivery. They drive active-call
-state and indicators but remain hidden from normal room history timelines.
+state and indicators. Call-started and call-ended facts are also visible room
+timeline entries; participant join/leave facts remain hidden from room history.
 
 LiveKit room names include the active Chatto call ID suffix. Participant and
 room-finished observations therefore apply only to the matching call session.

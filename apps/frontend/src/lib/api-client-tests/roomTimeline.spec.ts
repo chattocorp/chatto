@@ -4,6 +4,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import {
   RoomTimelineEvent,
   RoomTimelinePage,
+  RoomTimelineCallEvent,
   RoomTimelineRoomEvent,
   RoomMessagePosted
 } from '@chatto/api-types/api/v1/room_timeline_pb';
@@ -316,6 +317,24 @@ describe('roomTimelinePageToEventConnectionPage', () => {
             case: 'userJoinedRoom',
             value: new RoomTimelineRoomEvent({ roomId: 'room-1' })
           }
+        }),
+        new RoomTimelineEvent({
+          id: 'call-started-1',
+          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:02Z')),
+          actorId: 'u1',
+          event: {
+            case: 'callStarted',
+            value: new RoomTimelineCallEvent({ roomId: 'room-1', callId: 'call-1' })
+          }
+        }),
+        new RoomTimelineEvent({
+          id: 'call-ended-1',
+          createdAt: Timestamp.fromDate(new Date('2026-06-01T12:00:03Z')),
+          actorId: 'u1',
+          event: {
+            case: 'callEnded',
+            value: new RoomTimelineCallEvent({ roomId: 'room-1', callId: 'call-1' })
+          }
         })
       ]
     });
@@ -324,7 +343,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
 
     expect(mapped.startCursor).toBe('tl:opaque-start');
     expect(mapped.hasOlder).toBe(true);
-    expect(mapped.events).toHaveLength(2);
+    expect(mapped.events).toHaveLength(4);
     expect(mapped.events[0]).toMatchObject({
       id: 'm1',
       createdAt: '2026-06-01T12:00:00.000Z',
@@ -374,6 +393,14 @@ describe('roomTimelinePageToEventConnectionPage', () => {
     expect(mapped.events[1]).toMatchObject({
       id: 'join1',
       event: { kind: 'userJoinedRoom', roomId: 'room-1' }
+    });
+    expect(mapped.events[2]).toMatchObject({
+      id: 'call-started-1',
+      event: { kind: 'callStarted', roomId: 'room-1', callId: 'call-1' }
+    });
+    expect(mapped.events[3]).toMatchObject({
+      id: 'call-ended-1',
+      event: { kind: 'callEnded', roomId: 'room-1', callId: 'call-1' }
     });
   });
 });

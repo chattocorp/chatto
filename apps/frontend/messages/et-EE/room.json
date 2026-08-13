@@ -128,6 +128,8 @@
       },
       "archived": "arhiveeris ruumi",
       "unarchived": "eemaldas ruumi arhiivist",
+      "call_started": "alustas selles ruumis kõnet",
+      "call_ended": "Aktiivne kõne on lõppenud",
       "and": "ja",
       "other_people_count": {
         "one": "muud",

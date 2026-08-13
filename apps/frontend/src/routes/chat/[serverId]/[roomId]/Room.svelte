@@ -28,7 +28,7 @@
     DEFAULT_ROOM_PERMISSIONS
   } from '$lib/state/room';
   import { onRoomMessageMutated } from '$lib/state/room/messageMutationEvents';
-  import { getAppUiState } from '$lib/state/appUi.svelte';
+  import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
   import { threadPaneWidth } from '$lib/state/threadPaneWidth.svelte';
@@ -440,6 +440,10 @@
     appUi.toggleDesktopRoomSidebarPanel(panel);
   }
 
+  function openRoomCall(): void {
+    appUi.requestRoomSidebarPanel(activeServerId, roomId, 'call', getRoomSidebarPresentation());
+  }
+
   function closeDesktopRoomSidebarPanel(): void {
     appUi.closeDesktopRoomSidebarPanel();
   }
@@ -663,6 +667,7 @@
           unreadMarkerEventId={unread.unreadMarkerEventId}
           onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
           onOpenThread={openThread}
+          onOpenCall={openRoomCall}
           pendingHighlightId={navigation.pendingMainHighlightId}
           onHighlightComplete={() => navigation.clearMainHighlight()}
           typingUserIds={typingIndicator.userIds}

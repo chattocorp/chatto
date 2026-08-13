@@ -8,6 +8,8 @@ import type { UserAvatarUserView } from './users';
  * These names intentionally match the generated RoomTimelineEvent oneof cases.
  */
 export const TimelineEventKind = {
+  CallEnded: 'callEnded',
+  CallStarted: 'callStarted',
   MessagePosted: 'messagePosted',
   RoomArchived: 'roomArchived',
   RoomCreated: 'roomCreated',
@@ -45,6 +47,8 @@ export type MessagePostedPayload = {
 
 export type TimelineEventPayload =
   | MessagePostedPayload
+  | { kind: typeof TimelineEventKind.CallEnded; roomId: string; callId: string }
+  | { kind: typeof TimelineEventKind.CallStarted; roomId: string; callId: string }
   | { kind: typeof TimelineEventKind.RoomArchived; roomId: string }
   | { kind: typeof TimelineEventKind.RoomCreated; roomId: string }
   | { kind: typeof TimelineEventKind.RoomDeleted; roomId: string }
@@ -66,7 +70,8 @@ export function timelineEventKind(
 ): TimelineEventKind | null {
   if (!event) return null;
   const kind = (event as { kind?: unknown }).kind;
-  return typeof kind === 'string' && Object.values(TimelineEventKind).includes(kind as TimelineEventKind)
+  return typeof kind === 'string' &&
+    Object.values(TimelineEventKind).includes(kind as TimelineEventKind)
     ? (kind as TimelineEventKind)
     : null;
 }

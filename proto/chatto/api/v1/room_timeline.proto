@@ -24,6 +24,14 @@ message RoomTimelineRoomEvent {
   string room_id = 1;
 }
 
+// Payload for voice-call lifecycle timeline events.
+message RoomTimelineCallEvent {
+  // Room containing the call.
+  string room_id = 1;
+  // Stable identifier for this call session.
+  string call_id = 2;
+}
+
 // Payload for a message-posted timeline event.
 message RoomMessagePosted {
   // Renderable message created by this timeline event.
@@ -59,6 +67,10 @@ message RoomTimelineEvent {
     RoomTimelineRoomEvent user_joined_room = 30;
     // A user left the room.
     RoomTimelineRoomEvent user_left_room = 31;
+    // A voice call started in the room.
+    RoomTimelineCallEvent call_started = 40;
+    // The voice call ended in the room.
+    RoomTimelineCallEvent call_ended = 41;
   }
 }
 

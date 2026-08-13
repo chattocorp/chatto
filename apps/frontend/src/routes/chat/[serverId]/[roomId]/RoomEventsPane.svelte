@@ -12,6 +12,7 @@
     unreadMarkerEventId = null,
     onUnreadMarkerCleared,
     onOpenThread,
+    onOpenCall,
     pendingHighlightId = null,
     onHighlightComplete,
     typingUserIds = [],
@@ -22,6 +23,7 @@
     unreadMarkerEventId?: string | null;
     onUnreadMarkerCleared?: () => void;
     onOpenThread?: OpenThreadHandler;
+    onOpenCall?: () => void;
     pendingHighlightId?: string | null;
     onHighlightComplete?: () => void;
     typingUserIds?: string[];
@@ -84,6 +86,7 @@
   onLoadMore={() => store.loadMore()}
   {updateCounter}
   {onOpenThread}
+  {onOpenCall}
   enableLastEditableFinder={true}
   isLoading={store.isInitialLoading}
   unreadAfterEventId={unreadMarkerEventId}

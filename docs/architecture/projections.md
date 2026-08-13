@@ -161,7 +161,7 @@ consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
 semantic token `v1`; Assets uses `v2`, user profile uses `v3`, and Room Timeline
-uses `v5`.
+uses `v6`.
 
 Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
 writer appends a later body payload and retains that payload's sequence for
@@ -173,7 +173,9 @@ Room Timeline `v4` adds the current attachment-bearing-message index. `v5`
 rebuilds a room-and-author latest-original-post index from retained timeline
 entries so Slow Mode remains equivalent after restore. Echo rows are excluded;
 edits and retractions do not erase the original successful-post timestamp.
-Its current schema also stores active pinned-message associations by room.
+`v6` retains call-started and call-ended facts as visible room timeline entries;
+older snapshots omitted those rows and therefore cold-replay under the new
+contract. Its current schema also stores active pinned-message associations by room.
 Those associations reference canonical timeline messages instead of copying
 message content; retraction removes the association during projection.
 
@@ -246,7 +248,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | ---------- | -------- | ------------- | ------------- | ----------- |
 | Room Directory, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours |
 | Threads, Mentionables | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates pre-request snapshot contracts |
-| Room Timeline | `v5` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores active pin associations and rebuilds Slow Mode's latest-original-post index; earlier schema fingerprints remain isolated |
+| Room Timeline | `v6` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores call lifecycle rows and active pin associations, and rebuilds Slow Mode's latest-original-post index; earlier contracts remain isolated |
 | Assets | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates `v2` snapshots |
 
@@ -256,7 +258,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | ------------------ | -------------------- | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------- |
 | Room directory     | Room Directory       | `evt.room.>`                                               | `RoomCatalogProjection`, `RoomMembershipProjection`, `RoomBanProjection`; room metadata including Slow Mode, room/member queries, room authorization, and Universal-room effective membership |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
-| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Visible room timeline, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, active canonical pinned-message associations, the latest pin-fact marker per room, and latest original post by room and author |
+| Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Visible room timeline including call start/end facts, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, active canonical pinned-message associations, the latest pin-fact marker per room, and latest original post by room and author |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Per-thread existence, reply logs, summaries, participants, reply counts, and follow state  |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |

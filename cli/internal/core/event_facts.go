@@ -79,6 +79,11 @@ func roomIDOfEvent(event *corev1.Event) string {
 	return ""
 }
 
+// RoomIDOfEvent returns the room aggregate ID carried by a durable event.
+func RoomIDOfEvent(event *corev1.Event) string {
+	return roomIDOfEvent(event)
+}
+
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""
@@ -141,11 +146,12 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //     RoomMemberAddedEvent / RoomMemberRemovedEvent — moderation audit facts,
 //     not displayed as chat timeline items.
 //
-//   - Voice call lifecycle and participant events — projected into call state
-//     and delivered live, but not displayed as chat timeline items.
+//   - Voice call participant events — projected into call state and delivered
+//     live, but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), and memberships (user_joined / user_left).
+// unarchived/deleted), memberships (user_joined / user_left), and voice call
+// lifecycle (started / ended).
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -159,7 +165,9 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_UserJoinedRoom,
-		*corev1.Event_UserLeftRoom:
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_VoiceCallStarted,
+		*corev1.Event_VoiceCallEnded:
 		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted,
 		*corev1.Event_MessagePinned, *corev1.Event_MessageUnpinned,
@@ -172,8 +180,8 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
 		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,
-		*corev1.Event_VoiceCallStarted, *corev1.Event_VoiceCallParticipantJoined,
-		*corev1.Event_VoiceCallParticipantLeft, *corev1.Event_VoiceCallEnded:
+		*corev1.Event_VoiceCallParticipantJoined,
+		*corev1.Event_VoiceCallParticipantLeft:
 		return false
 	}
 	return false

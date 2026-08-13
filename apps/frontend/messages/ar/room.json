@@ -140,6 +140,8 @@
       },
       "archived": "أرشف الغرفة",
       "unarchived": "بإخراج الغرفة من الأرشيف",
+      "call_started": "بدأ مكالمة في هذه الغرفة",
+      "call_ended": "انتهت المكالمة النشطة",
       "and": "و",
       "other_people_count": {
         "zero": "آخرون",
