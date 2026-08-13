@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-12
+**Last reviewed:** 2026-08-13
 
 ## Overview
 
@@ -29,10 +29,12 @@ system-browser authentication, and clean-machine media behavior are hardened.
 - Every macOS build embeds a native game-capture provider. Joined
   call participants can open a Chatto-owned picker of ordinary visible windows;
   selecting one publishes its video and owning-application audio to the existing
-  LiveKit call. Starting game capture replaces a browser screen share and vice
-  versa, while camera and microphone can remain enabled. Acknowledged lifecycle
-  control keeps the UI in a stopping state until the helper disconnects its
-  LiveKit companion and exits. Non-macOS builds omit this platform provider.
+  LiveKit call. The native publisher supplies several video qualities and stops
+  encoding qualities that no receiver consumes. Starting game capture replaces
+  a browser screen share and vice versa, while camera and microphone can remain
+  enabled. Acknowledged lifecycle control keeps the UI in a stopping state until
+  the helper disconnects its LiveKit companion and exits. Non-macOS builds omit
+  this platform provider.
 - macOS, Windows, and Linux bundles are built in CI. Experimental macOS
   artifacts are ad-hoc signed, while the other platform artifacts remain
   unsigned until trusted platform signing and macOS notarisation are added.
@@ -142,8 +144,11 @@ participant model shared across platform providers.
 **Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
 webhook and reconciliation filtering, and frontend participant merging. The
 native helper also becomes responsible for matching the primary call's E2EE
-and publication policy. These are explicit control-plane costs in exchange for
-a materially shorter and more efficient media path.
+and publication policy. Its 1080p60 H.264 publication includes lower 720p60 and
+360p30 simulcast layers, and dynacast pauses layers that no subscriber requests.
+Simultaneously active qualities increase native encoding and upload cost. These
+are explicit control-plane costs in exchange for a materially shorter and more
+efficient media path that can adapt to each receiver.
 
 ## Related
 
@@ -159,5 +164,5 @@ a materially shorter and more efficient media path.
   downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
   currently generates on every supported platform.
-- Which bitrate, resolution, simulcast, and congestion policy should follow the
-  initial single-layer 1080p60 H.264 proof of concept.
+- Which higher game-stream quality profiles should be offered once representative
+  game footage and supported Mac hardware have been benchmarked.

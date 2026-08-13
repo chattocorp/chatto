@@ -39,7 +39,11 @@ domain state. Every macOS build adds a narrow renderer bridge and a nested
 ScreenCaptureKit helper. The bridge lists temporary opaque window sources and
 controls a publish-only native LiveKit companion; media remains in the helper's
 native WebRTC path and only credentials and acknowledged lifecycle control
-cross IPC. macOS CI builds and smoke-tests the helper inside the complete app
+cross IPC. The companion publishes an H.264 simulcast ladder and enables
+dynacast so LiveKit can select receiver-appropriate qualities and pause unused
+layers.
+
+macOS CI builds and smoke-tests the helper inside the complete app
 bundle. The shell restricts navigation and browser
 permissions at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).

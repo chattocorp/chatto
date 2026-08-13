@@ -21,6 +21,13 @@ let package = Package(
     .executableTarget(
       name: "ChattoMacOSCaptureProbe",
       dependencies: [.product(name: "LiveKit", package: "client-sdk-swift")]
-    )
+    ),
+    .testTarget(
+      name: "ChattoMacOSCaptureProbeTests",
+      dependencies: [
+        "ChattoMacOSCaptureProbe",
+        .product(name: "LiveKit", package: "client-sdk-swift"),
+      ]
+    ),
   ]
 )
