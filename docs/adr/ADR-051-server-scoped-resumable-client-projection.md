@@ -28,9 +28,9 @@ later changes:
 1. A fresh client receives `reset`, the current public server profile,
    authenticated server runtime state, viewer resource, every public directory
    user, lightweight state for every room visible to the viewer, the complete
-   visible room-group layout, the current finite pending-notification page and
-   complete room notification counts, and every active call visible to the
-   viewer. DM participant references remain eager because they define the
+   visible room-group layout, the current finite notification occurrence page
+   and exact unread and room notification counts, and every active call visible
+   to the viewer. DM participant references remain eager because they define the
    conversation label; channel membership and timeline windows are lazy.
 
 “Every room” includes joined DMs with no message yet. The public directory's
@@ -161,7 +161,7 @@ the direct-echo deletion path.
 Notification occurrences and room/thread read markers include latest-value state
 outside EVT. Every subscription therefore re-emits the viewer resource, every
 visible room's viewer state, the complete followed-thread viewer-state set,
-the finite notification Inbox groups with complete unread and per-room group
+the finite notification occurrence page with exact unread and per-room occurrence
 counts, and directory presence before `caught_up`.
 Missing followed-thread entries clear retained follow/unread flags. Transient
 signals buffered during the handoff converge concurrent changes. Thread follow

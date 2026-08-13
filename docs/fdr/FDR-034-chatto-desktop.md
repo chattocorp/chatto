@@ -45,6 +45,10 @@ system-browser authentication, and clean-machine media behavior are hardened.
   unsigned until trusted platform signing and macOS notarisation are added.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
+- Each release rebuilds and embeds the official frontend from the Desktop tag's
+  commit. The frontend build identity combines the Desktop version with that
+  commit's abbreviated SHA so the bundled source revision remains explicit
+  even while Chatto and Chatto Desktop release independently.
 - The application requires a network connection. It does not provide an
   offline Chatto experience.
 - Servers recognize the built-in `chatto://desktop` OAuth client and its exact
@@ -104,8 +108,10 @@ must tightly constrain popup and navigation behavior.
 ### 5. Release the desktop shell independently
 
 **Decision:** Chatto Desktop uses an independent pre-1.0 release stream,
-changelog, tag namespace, and artifacts while continuing to bundle a specific
-official frontend revision.
+changelog, tag namespace, and artifacts while continuing to bundle the official
+frontend revision at its release tag. Release builds identify that frontend as
+`{desktop-version}+{commit-sha}` and verify the generated identity before
+packaging.
 **Why:** Desktop packaging, platform fixes, and runtime upgrades have a cadence
 different from Chatto server releases.
 **Tradeoff:** Compatibility diagnostics must distinguish the desktop shell

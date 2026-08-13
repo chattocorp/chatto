@@ -76,6 +76,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     upgrade guidance.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Remote clients connect without allowlists" size="large">
+    Browser frontends publish a verifiable CIMD identity and exact callback, while Chatto
+    Desktop uses its built-in identity. Servers accept bearer-authenticated cross-origin API
+    and realtime traffic without CORS or OAuth redirect-origin configuration. Server managers
+    can review successfully authorized clients, label them trusted, or block their access.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Faster, leaner restarts">
     Encrypted projection snapshots and faster cold replay shorten restart catch-up on
     servers with substantial history, while more compact timeline state reduces memory use.
@@ -112,7 +119,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 - Notifications 2.0 replaces the previous notification service and stored records. Existing
   pending notifications and notification-level preferences are not migrated, so every account
   starts with an empty notification list and the new per-cause defaults. Integrations must
-  regenerate their clients and move to the new group, occurrence, and policy methods on
+  regenerate their clients and move to the new occurrence and policy methods on
   `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
   Upgrade all replicas and bundled clients together.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
@@ -172,7 +179,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   each room while you navigate.
 - Installed-app badges show exact direct-message counts without presenting unrelated channel
   notifications as phantom DMs.
-- App badges stay synchronized with the authoritative unread notification groups across
+- App badges stay synchronized with the authoritative unread notification occurrences across
   regular pushes, visible windows, and supported Safari versions.
 
 ### Administration and interface polish

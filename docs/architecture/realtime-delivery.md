@@ -375,7 +375,7 @@ canonical-reply deletion from direct echo removal.
 
 Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
 finite `NotificationsReplace`. This keeps the retained canonical room row,
-pending-notification state, and both sidebar indicators in step, so a later
+notification occurrence state, and both sidebar indicators in step, so a later
 mutation cannot restore stale unread or mention state. Root-message activity
 operations advance the affected room even when its timeline is not retained;
 later viewer-state replacements therefore cannot undo DM sorting.
