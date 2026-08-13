@@ -144,11 +144,12 @@ participant model shared across platform providers.
 **Tradeoff:** Chatto needs an auxiliary publisher-token RPC, companion-aware
 webhook and reconciliation filtering, and frontend participant merging. The
 native helper also becomes responsible for matching the primary call's E2EE
-and publication policy. Its 1080p60 H.264 publication includes lower 720p60 and
-360p30 simulcast layers, and dynacast pauses layers that no subscriber requests.
-Simultaneously active qualities increase native encoding and upload cost. These
-are explicit control-plane costs in exchange for a materially shorter and more
-efficient media path that can adapt to each receiver.
+and publication policy. Its aspect-ratio-preserving H.264 publication includes
+1920-, 1280-, and 640-pixel maximum-edge quality classes at 60, 60, and 30 fps,
+and dynacast pauses layers that no subscriber requests. Simultaneously active
+qualities increase native encoding and upload cost. These are explicit
+control-plane costs in exchange for a materially shorter and more efficient
+media path that can adapt to each receiver.
 
 ## Related
 

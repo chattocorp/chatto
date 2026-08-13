@@ -186,6 +186,10 @@ jobs:
       - name: Check and test desktop shell
         run: mise test-desktop
 
+      - name: Test macOS game-capture helper
+        if: runner.os == 'macOS'
+        run: mise test-desktop-macos-capture
+
       - name: Build desktop bundle
         run: mise desktop-build
 

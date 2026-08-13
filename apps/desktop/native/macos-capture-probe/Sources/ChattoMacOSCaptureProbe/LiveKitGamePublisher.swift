@@ -110,9 +110,9 @@ enum LiveKitGamePublisher {
   }
 
   /// Build the gaming-oriented screen-share encodings. The full-resolution
-  /// layer preserves the original 1080p60 ceiling, while explicit lower layers
-  /// let LiveKit serve thumbnails and constrained subscribers without sending
-  /// them the full stream.
+  /// layer preserves the original 1920-pixel, 60 fps ceiling, while explicit
+  /// lower layers let LiveKit serve thumbnails and constrained subscribers
+  /// without sending them the full stream.
   static func makeVideoPublishOptions(frameRate: Int) -> VideoPublishOptions {
     let lowerLayers = [
       VideoParameters(

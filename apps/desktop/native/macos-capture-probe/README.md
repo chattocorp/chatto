@@ -174,14 +174,16 @@ switch, join a call, and use the gamepad control in the call toolbar. The shared
 frontend opens its own picker containing the helper's ordinary visible windows.
 Choosing a window requests a fresh companion-publisher credential from Chatto,
 passes it to the helper over stdin, and starts a direct LiveKit publication.
-The initial profile captures up to 1920×1080 at 60 fps and publishes H.264
-simulcast layers for 1080p60 at up to 8 Mbps, 720p60 at up to 4 Mbps, and
-360p30 at up to 1 Mbps. LiveKit selects a suitable layer for each receiver,
-while dynacast pauses layers that no receiver is consuming. The publication
-also includes 128 kbps stereo application audio and uses the active call's
-shared E2EE key. Only `started`, `error`, and `ended` lifecycle messages cross
-the desktop bridge. The active gamepad control stops the helper. Starting
-browser screen sharing also stops game capture; camera and microphone remain
+The initial profile captures up to a 1920-pixel maximum edge at 60 fps and
+publishes three aspect-ratio-preserving H.264 resolution classes: 1920-edge at
+60 fps and up to 8 Mbps, 1280-edge at 60 fps and up to 4 Mbps, and 640-edge at
+30 fps and up to 1 Mbps. Exact widths and heights retain the source window's
+aspect ratio. LiveKit selects a suitable layer for each receiver, while
+dynacast pauses layers that no receiver is consuming. The publication also
+includes 128 kbps stereo application audio and uses the active call's shared
+E2EE key. Only `started`, `error`, and `ended` lifecycle messages cross the
+desktop bridge. The active gamepad control stops the helper. Starting browser
+screen sharing also stops game capture; camera and microphone remain
 independent. Non-macOS builds omit this platform provider and therefore do not
 show this control.
 
