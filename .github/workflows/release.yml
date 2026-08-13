@@ -288,6 +288,7 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
         run: |
           gh release upload "$GITHUB_REF_NAME" .context/desktop-release/* --clobber
           gh release edit "$GITHUB_REF_NAME" --draft=false
