@@ -283,6 +283,30 @@ func TestSkipReason(t *testing.T) {
 	}
 }
 
+func TestOrderBackupStreamsPreservesNotificationCausality(t *testing.T) {
+	names := []string{
+		"NOTIFICATIONS_QUEUE",
+		"KV_INSTANCE",
+		"KV_RUNTIME_STATE",
+		"EVT",
+		"OBJ_SERVER_ASSETS",
+	}
+
+	orderBackupStreams(names)
+
+	positions := make(map[string]int, len(names))
+	for i, name := range names {
+		positions[name] = i
+	}
+	if !(positions["EVT"] < positions["KV_RUNTIME_STATE"] &&
+		positions["KV_RUNTIME_STATE"] < positions["NOTIFICATIONS_QUEUE"]) {
+		t.Fatalf("notification backup order = %v, want EVT before runtime state before queue", names)
+	}
+	if positions["KV_INSTANCE"] > positions["OBJ_SERVER_ASSETS"] {
+		t.Fatalf("unconstrained stream order changed: %v", names)
+	}
+}
+
 func TestClassifyStream(t *testing.T) {
 	tests := []struct {
 		name     string

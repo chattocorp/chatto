@@ -49,11 +49,15 @@ The consumer names are versioned persisted resource contracts. Required effect
 consumers have no inactivity cleanup and survive worker shutdown or
 scale-to-zero; normal backups include both durable streams and their consumer
 state. Backing up the Alert queue preserves already accepted pending work at an
-arbitrary backup boundary. Its two-minute stream retention and publication-time
-validation prevent an old restore from producing stale alerts, while omission
-would create an unavoidable recent-alert loss window. Chatto currently has no
-retired durable effect consumers. A future removal or incompatible contract
-change follows ADR-069's explicit drain, rollout, and deletion lifecycle.
+arbitrary backup boundary. Backups snapshot `EVT` before `RUNTIME_STATE`, then
+snapshot `NOTIFICATIONS_QUEUE` after both. This causal order guarantees that a
+queued alert either has its occurrence in the runtime-state snapshot or has a
+source fact beyond the restored materializer cursor and will be recreated by
+replay. Its two-minute stream retention and publication-time validation prevent
+an old restore from producing stale alerts, while omission would create an
+unavoidable recent-alert loss window. Chatto currently has no retired durable
+effect consumers. A future removal or incompatible contract change follows
+ADR-069's explicit drain, rollout, and deletion lifecycle.
 If a required consumer disappears while its worker is running, the stale worker
 returns an error. Main-app lifecycle replacement or the embedded runtime-unit
 supervisor then recreates the declared consumer through its application-owned
