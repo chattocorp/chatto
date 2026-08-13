@@ -399,7 +399,7 @@ describe('NotificationStore', () => {
     store.clearRoom('r1');
     response.resolve(occurrencePage(page([mention('stale')])));
 
-    await expect(lookup).resolves.toEqual({ ok: false, totalCount: null, notification: null });
+    await expect(lookup).resolves.toEqual({ ok: true, totalCount: 0, notification: null });
     expect(store.occurrences).toEqual([]);
     expect(store.notifications).toEqual([]);
   });
@@ -447,7 +447,7 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).toHaveBeenCalledWith(50, 50);
   });
 
-  it('rejects an in-flight page response invalidated by a projection reset', async () => {
+  it('retries an in-flight page response invalidated by a projection reset', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
     api.listNotificationOccurrences.mockReturnValueOnce(response.promise);
@@ -457,13 +457,13 @@ describe('NotificationStore', () => {
     store.resetProjectionState();
     response.resolve(occurrencePage(page([mention('stale')])));
 
-    await expect(fetch).rejects.toThrow('projection changed');
+    await expect(fetch).resolves.toMatchObject({ occurrences: [] });
     expect(store.occurrences).toEqual([]);
     expect(store.notifications).toEqual([]);
     expect(store.resetVersion).toBe(1);
   });
 
-  it('rejects an in-flight room lookup invalidated by a projection reset', async () => {
+  it('retries an in-flight room lookup invalidated by a projection reset', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
     api.listNotificationOccurrences.mockReturnValueOnce(response.promise);
@@ -473,12 +473,12 @@ describe('NotificationStore', () => {
     store.resetProjectionState();
     response.resolve(occurrencePage(page([mention('stale')])));
 
-    await expect(fetch).resolves.toEqual({ ok: false, totalCount: null, notification: null });
+    await expect(fetch).resolves.toEqual({ ok: true, totalCount: 0, notification: null });
     expect(store.occurrences).toEqual([]);
     expect(store.notifications).toEqual([]);
   });
 
-  it('rejects an in-flight page response invalidated by an optimistic read', async () => {
+  it('retries an in-flight page response invalidated by an optimistic read', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
     api.listNotificationOccurrences.mockReturnValueOnce(response.promise);
@@ -489,12 +489,12 @@ describe('NotificationStore', () => {
     await store.markRead('n1');
     response.resolve(occurrencePage(page([mention('stale')])));
 
-    await expect(fetch).rejects.toThrow('projection changed');
+    await expect(fetch).resolves.toMatchObject({ occurrences: [] });
     expect(store.occurrences.map(({ id }) => id)).toEqual(['n1']);
     expect(store.occurrences[0]?.unread).toBe(false);
   });
 
-  it('rejects an in-flight room lookup invalidated by an optimistic delete', async () => {
+  it('retries an in-flight room lookup invalidated by an optimistic delete', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
     api.listNotificationOccurrences.mockReturnValueOnce(response.promise);
@@ -505,7 +505,7 @@ describe('NotificationStore', () => {
     await store.deleteOccurrences(['n1']);
     response.resolve(occurrencePage(page([mention('stale')])));
 
-    await expect(fetch).resolves.toEqual({ ok: false, totalCount: null, notification: null });
+    await expect(fetch).resolves.toEqual({ ok: true, totalCount: 0, notification: null });
     expect(store.occurrences).toEqual([]);
     expect(store.notifications).toEqual([]);
   });
@@ -852,7 +852,7 @@ describe('NotificationStore', () => {
     expect(store.roomUnreadCounts).toEqual({ r1: 1 });
   });
 
-  it('does not issue a replacement list request while deleting occurrences', async () => {
+  it('discards a list request invalidated by deleting occurrences', async () => {
     const list = deferred<NotificationOccurrencePage>();
     const mutation = deferred<number>();
     const api = makeAPI();

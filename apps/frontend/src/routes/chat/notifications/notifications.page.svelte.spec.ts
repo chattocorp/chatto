@@ -455,6 +455,67 @@ describe('notifications page', () => {
     }
   });
 
+  it('retries a mounted refresh invalidated by a mutation that starts in flight', async () => {
+    const originalStore = mocks.store.notifications;
+    let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
+    let resolveMutation: ((value: NotificationOccurrenceItem) => void) | undefined;
+    const api = {
+      listNotificationOccurrences: vi
+        .fn()
+        .mockResolvedValueOnce(page())
+        .mockImplementationOnce(
+          () =>
+            new Promise<ReturnType<typeof page>>((resolve) => {
+              resolveRefresh = resolve;
+            })
+        )
+        .mockResolvedValue(page([])),
+      markNotificationRead: vi.fn().mockImplementation(
+        () =>
+          new Promise<NotificationOccurrenceItem>((resolve) => {
+            resolveMutation = resolve;
+          })
+      ),
+      batchDeleteNotificationOccurrences: vi.fn(),
+      deleteAllNotificationOccurrences: vi.fn(),
+      getNotificationPolicy: vi.fn(),
+      setNotificationPolicyPreference: vi.fn()
+    };
+    const notificationStore = new NotificationStore(api as never);
+    (mocks.store as { notifications: unknown }).notifications = notificationStore;
+    const rendered = render(NotificationsPage);
+    try {
+      await vi.waitFor(() => {
+        expect(
+          rendered.container.querySelectorAll('[data-testid="notification-group"]')
+        ).toHaveLength(1);
+      });
+
+      notificationStore.invalidateViews();
+      await vi.waitFor(() => expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2));
+      const marking = notificationStore.markRead('mention-1');
+      resolveRefresh?.(page());
+      await new Promise((resolve) => setTimeout(resolve, 20));
+
+      expect(rendered.container.textContent).not.toContain('Network error');
+      expect(
+        rendered.container.querySelectorAll('[data-testid="notification-group"]')
+      ).toHaveLength(1);
+
+      resolveMutation?.(mocks.occurrence as NotificationOccurrenceItem);
+      await expect(marking).resolves.toBe(true);
+      await vi.waitFor(() => expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(3));
+      await vi.waitFor(() => {
+        expect(
+          rendered.container.querySelectorAll('[data-testid="notification-group"]')
+        ).toHaveLength(0);
+      });
+    } finally {
+      rendered.unmount();
+      (mocks.store as { notifications: unknown }).notifications = originalStore;
+    }
+  });
+
   it('removes a dismissed row immediately and restores it when the request fails', async () => {
     let rejectMutation: ((reason?: unknown) => void) | undefined;
     mocks.store.notifications.deleteOccurrences.mockImplementation(

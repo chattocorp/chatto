@@ -135,7 +135,7 @@ export class NotificationStore {
   #pendingReadById = new SvelteMap<string, number>();
   #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
   #pendingMutationCount = 0;
-  #mutationIdleWaiters = new Set<() => void>();
+  #mutationIdleWaiters = new SvelteSet<() => void>();
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
@@ -453,7 +453,8 @@ export class NotificationStore {
       authoritativeGeneration !== this.#authoritativeGeneration ||
       this.#pendingMutationCount > 0
     ) {
-      throw new Error('Notification projection changed while loading');
+      if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
+      return this.fetchPage(offset);
     }
     const revokedUnreadCount = [...this.revokedRoomIds].reduce(
       (total, roomId) => total + (page.roomUnreadCounts[roomId] ?? 0),
@@ -723,7 +724,8 @@ export class NotificationStore {
           authoritativeGeneration !== this.#authoritativeGeneration ||
           this.#pendingMutationCount > 0
         ) {
-          return { ok: false, totalCount: null, notification: null };
+          if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
+          return await this.fetchRoomNotification(roomId, options);
         }
         if (this.revokedRoomIds.has(roomId)) {
           return { ok: true, totalCount: 0, notification: null };
