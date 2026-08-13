@@ -458,35 +458,6 @@ func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID str
 	return deleted, nil
 }
 
-// DeleteAll replaces every occurrence current at the authoritative
-// mutation boundary with an anti-recreation tombstone. Activity materialized
-// after the boundary remains visible.
-func (m *NotificationOccurrenceModel) DeleteAll(ctx context.Context, userID string) (int, error) {
-	occurrences, err := m.List(ctx, userID)
-	if err != nil {
-		return 0, err
-	}
-	deleted := 0
-	var lastDeleted *corev1.NotificationOccurrence
-	for _, occurrence := range occurrences {
-		ok, err := m.delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED, false)
-		if err != nil {
-			if lastDeleted != nil {
-				m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
-			}
-			return deleted, err
-		}
-		if ok {
-			deleted++
-			lastDeleted = occurrence
-		}
-	}
-	if lastDeleted != nil {
-		m.core.publishNotificationOccurrenceChanged(ctx, lastDeleted, false, true)
-	}
-	return deleted, nil
-}
-
 func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (int, error) {
 	if _, err := m.recordNotificationReadBoundary(ctx, userID, roomID, threadRootEventID, targetEventID); err != nil {
 		return 0, err

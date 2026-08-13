@@ -33,8 +33,9 @@ Delete is independent of reading. `DeleteNotificationOccurrence` deletes one
 exact occurrence. `BatchDeleteNotificationOccurrences` idempotently deletes an
 explicit bounded set of occurrence IDs, which lets a client dismiss one of its
 temporary presentation groups without a mutable server group boundary.
-`DeleteAllNotificationOccurrences` deletes everything current at the server's
-authoritative mutation boundary. Muting an origin remains future work.
+`DeleteAllNotificationOccurrences` deletes every visible occurrence current at
+the server's authoritative mutation boundary. Muting an origin remains future
+work.
 
 The persisted core enum retains the numeric development-era `DONE` and
 `CLAIMED` values because `RUNTIME_STATE` protobufs are storage contracts.

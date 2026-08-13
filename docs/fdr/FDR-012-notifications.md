@@ -33,9 +33,10 @@ targets, unread counts, read state, or deletion semantics.
   covered according to the reacted-to message and reaction horizon.
 - Notifications cannot be marked Unread. There is no Done state or Inbox/Done
   split.
-- Trash deletes the exact occurrence IDs represented by the current row.
-  Dismiss All deletes everything current at the server boundary. Both are
-  optimistic; a failed server restores only that server's rows.
+- Trash deletes the exact visible occurrence IDs represented by the current
+  row. Dismiss All deletes every visible occurrence current at the server
+  boundary. Both are optimistic; a failed server restores only that server's
+  rows.
 - Every occurrence and deletion tombstone expires exactly 90 days after source
   activity. Mutations never extend the lifetime.
 - The combined multi-server list preserves healthy results when another server

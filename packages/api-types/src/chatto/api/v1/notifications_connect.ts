@@ -65,9 +65,9 @@ export const NotificationService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Permanently deletes every occurrence current at the server's authoritative
-     * mutation boundary. Callers must not retry this mutation automatically
-     * because later activity may arrive after that boundary.
+     * Permanently deletes every visible occurrence current at the server's
+     * authoritative mutation boundary. Callers must not retry this mutation
+     * automatically because later activity may arrive after that boundary.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences
      */

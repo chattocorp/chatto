@@ -112,56 +112,6 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 }
 
-func TestNotificationOccurrenceDeleteAll(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	model := chattoCore.NotificationOccurrences()
-	now := time.Now().UTC().Truncate(time.Millisecond)
-	model.now = func() time.Time { return now }
-	inputs := []CreateNotificationOccurrenceInput{
-		{
-			RecipientID:   "U-delete-all-recipient",
-			SourceEventID: "E-delete-all-source-1",
-			SourceCreated: now,
-			Target:        &corev1.NotificationTarget{RoomId: "R-delete-all-1", EventId: "E-delete-all-source-1"},
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-			}},
-			SkipReadLookup: true,
-		},
-		{
-			RecipientID:   "U-delete-all-recipient",
-			SourceEventID: "E-delete-all-source-2",
-			SourceCreated: now.Add(time.Minute),
-			Target:        &corev1.NotificationTarget{RoomId: "R-delete-all-2", EventId: "E-delete-all-source-2"},
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
-				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-			}},
-			SkipReadLookup: true,
-		},
-	}
-	for _, input := range inputs {
-		if occurrence, created, err := model.Create(ctx, input); err != nil || !created || occurrence == nil {
-			t.Fatalf("Create(%q) = (%v, %v, %v), want occurrence, true, nil", input.SourceEventID, occurrence, created, err)
-		}
-	}
-
-	deleted, err := model.DeleteAll(ctx, inputs[0].RecipientID)
-	if err != nil || deleted != 2 {
-		t.Fatalf("DeleteAll = (%d, %v), want two", deleted, err)
-	}
-	if occurrences, err := model.List(ctx, inputs[0].RecipientID); err != nil || len(occurrences) != 0 {
-		t.Fatalf("List after DeleteAll = (%v, %v), want empty", occurrences, err)
-	}
-	for _, input := range inputs {
-		if occurrence, created, err := model.Create(ctx, input); err != nil || created || occurrence != nil {
-			t.Fatalf("Create tombstoned %q = (%v, %v, %v), want nil, false, nil", input.SourceEventID, occurrence, created, err)
-		}
-	}
-}
-
 func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

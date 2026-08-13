@@ -1679,6 +1679,27 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 		}
 		return occurrence
 	}
+	createVisible := func(body string) *corev1.NotificationOccurrence {
+		t.Helper()
+		message, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, body, nil, "", "", nil, false)
+		if err != nil {
+			t.Fatalf("PostMessage visible occurrence: %v", err)
+		}
+		if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+			t.Fatalf("WaitCurrent visible occurrence: %v", err)
+		}
+		occurrences, err := env.core.NotificationOccurrences().List(env.ctx, env.viewer.Id)
+		if err != nil {
+			t.Fatalf("List visible occurrences: %v", err)
+		}
+		for _, occurrence := range occurrences {
+			if occurrence.GetSourceEventId() == message.GetId() {
+				return occurrence
+			}
+		}
+		t.Fatalf("visible occurrence for source %s was not materialized", message.GetId())
+		return nil
+	}
 
 	createStale("stale-list-" + posted.Id)
 	inbox, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
@@ -1692,6 +1713,43 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	}))
 	if connect.CodeOf(err) != connect.CodeNotFound {
 		t.Fatalf("MarkNotificationRead retracted target code = %v, want not found", connect.CodeOf(err))
+	}
+
+	staleDelete := createStale("stale-delete-" + posted.Id)
+	deleted, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
+		NotificationId: staleDelete.GetId(),
+	}))
+	if err != nil || deleted.Msg.GetDeleted() {
+		t.Fatalf("DeleteNotificationOccurrence retracted target = (%+v, %v), want deleted=false", deleted, err)
+	}
+	if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, staleDelete.GetId()); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("stale single-delete occurrence Get error = %v, want visibility tombstone", err)
+	}
+
+	staleBatch := createStale("stale-batch-" + posted.Id)
+	visibleBatch := createVisible("visible batch target")
+	batch, err := env.notifications.BatchDeleteNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchDeleteNotificationOccurrencesRequest{
+		NotificationIds: []string{staleBatch.GetId(), visibleBatch.GetId()},
+	}))
+	if err != nil || batch.Msg.GetDeletedCount() != 1 {
+		t.Fatalf("BatchDeleteNotificationOccurrences mixed visibility = (%+v, %v), want one visible deletion", batch, err)
+	}
+	for _, occurrence := range []*corev1.NotificationOccurrence{staleBatch, visibleBatch} {
+		if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, occurrence.GetId()); !errors.Is(err, core.ErrNotFound) {
+			t.Fatalf("batch-deleted occurrence %s Get error = %v, want not found", occurrence.GetId(), err)
+		}
+	}
+
+	staleAll := createStale("stale-all-" + posted.Id)
+	visibleAll := createVisible("visible delete-all target")
+	all, err := env.notifications.DeleteAllNotificationOccurrences(ctx, connect.NewRequest(&apiv1.DeleteAllNotificationOccurrencesRequest{}))
+	if err != nil || all.Msg.GetDeletedCount() != 1 {
+		t.Fatalf("DeleteAllNotificationOccurrences mixed visibility = (%+v, %v), want one visible deletion", all, err)
+	}
+	for _, occurrence := range []*corev1.NotificationOccurrence{staleAll, visibleAll} {
+		if _, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, occurrence.GetId()); !errors.Is(err, core.ErrNotFound) {
+			t.Fatalf("delete-all occurrence %s Get error = %v, want not found", occurrence.GetId(), err)
+		}
 	}
 }
 

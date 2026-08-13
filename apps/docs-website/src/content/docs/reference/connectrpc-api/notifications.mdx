@@ -159,9 +159,9 @@ Result of deleting exact notification occurrences.
 
 ### DeleteAllNotificationOccurrences
 
-Permanently deletes every occurrence current at the server's authoritative
-mutation boundary. Callers must not retry this mutation automatically
-because later activity may arrive after that boundary.
+Permanently deletes every visible occurrence current at the server's
+authoritative mutation boundary. Callers must not retry this mutation
+automatically because later activity may arrive after that boundary.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences
@@ -171,18 +171,18 @@ POST /api/connect/chatto.api.v1.NotificationService/DeleteAllNotificationOccurre
 
 #### Input: DeleteAllNotificationOccurrencesRequest
 
-Request permanent deletion of every current notification occurrence.
+Request permanent deletion of every currently visible notification occurrence.
 
 
 <a id="chatto-api-v1-DeleteAllNotificationOccurrencesResponse"></a>
 
 #### Result: DeleteAllNotificationOccurrencesResponse
 
-Result of deleting every current notification occurrence.
+Result of deleting every currently visible notification occurrence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `deleted_count` | `int32` | Number of current occurrences replaced by deletion tombstones. |
+| `deleted_count` | `int32` | Number of visible occurrences replaced by deletion tombstones. |
 
 
 <a id="chatto-api-v1-NotificationService-GetNotificationPolicy"></a>

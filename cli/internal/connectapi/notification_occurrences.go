@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"sort"
 
 	"connectrpc.com/connect"
@@ -122,6 +123,38 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 	return len(visible) == 1, err
 }
 
+func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) (int, error) {
+	visible, err := s.visibleNotificationOccurrences(ctx, userID, occurrences)
+	if err != nil {
+		return 0, err
+	}
+	ids := make([]string, 0, len(visible))
+	for _, occurrence := range visible {
+		ids = append(ids, occurrence.GetId())
+	}
+	return s.api.core.NotificationOccurrences().DeleteMany(ctx, userID, ids)
+}
+
+func (s *notificationService) notificationOccurrencesByID(ctx context.Context, userID string, occurrenceIDs []string) ([]*corev1.NotificationOccurrence, error) {
+	occurrences := make([]*corev1.NotificationOccurrence, 0, len(occurrenceIDs))
+	seen := make(map[string]struct{}, len(occurrenceIDs))
+	for _, occurrenceID := range occurrenceIDs {
+		if _, duplicate := seen[occurrenceID]; duplicate {
+			continue
+		}
+		seen[occurrenceID] = struct{}{}
+		occurrence, err := s.api.core.NotificationOccurrences().Get(ctx, userID, occurrenceID)
+		if errors.Is(err, core.ErrNotFound) {
+			continue
+		}
+		if err != nil {
+			return nil, err
+		}
+		occurrences = append(occurrences, occurrence)
+	}
+	return occurrences, nil
+}
+
 func (s *notificationService) MarkNotificationRead(ctx context.Context, req *connect.Request[apiv1.MarkNotificationReadRequest]) (*connect.Response[apiv1.MarkNotificationReadResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {
@@ -161,16 +194,18 @@ func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, 
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	deleted, err := s.api.core.NotificationOccurrences().Delete(
-		ctx,
-		caller.UserID,
-		req.Msg.GetNotificationId(),
-		corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED,
-	)
+	existing, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
+	if errors.Is(err, core.ErrNotFound) {
+		return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{}), nil
+	}
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted}), nil
+	deleted, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, []*corev1.NotificationOccurrence{existing})
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.DeleteNotificationOccurrenceResponse{Deleted: deleted == 1}), nil
 }
 
 func (s *notificationService) BatchDeleteNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[apiv1.BatchDeleteNotificationOccurrencesResponse], error) {
@@ -181,7 +216,11 @@ func (s *notificationService) BatchDeleteNotificationOccurrences(ctx context.Con
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	count, err := s.api.core.NotificationOccurrences().DeleteMany(ctx, caller.UserID, req.Msg.GetNotificationIds())
+	occurrences, err := s.notificationOccurrencesByID(ctx, caller.UserID, req.Msg.GetNotificationIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	count, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
 		return nil, connectError(err)
 	}
@@ -196,7 +235,11 @@ func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Conte
 	if err := s.waitForCurrentOccurrences(ctx); err != nil {
 		return nil, err
 	}
-	count, err := s.api.core.NotificationOccurrences().DeleteAll(ctx, caller.UserID)
+	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	count, err := s.deleteVisibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
 		return nil, connectError(err)
 	}

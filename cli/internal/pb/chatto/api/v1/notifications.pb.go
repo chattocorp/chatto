@@ -895,7 +895,7 @@ func (x *BatchDeleteNotificationOccurrencesResponse) GetDeletedCount() int32 {
 	return 0
 }
 
-// Request permanent deletion of every current notification occurrence.
+// Request permanent deletion of every currently visible notification occurrence.
 type DeleteAllNotificationOccurrencesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -932,10 +932,10 @@ func (*DeleteAllNotificationOccurrencesRequest) Descriptor() ([]byte, []int) {
 	return file_chatto_api_v1_notifications_proto_rawDescGZIP(), []int{12}
 }
 
-// Result of deleting every current notification occurrence.
+// Result of deleting every currently visible notification occurrence.
 type DeleteAllNotificationOccurrencesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Number of current occurrences replaced by deletion tombstones.
+	// Number of visible occurrences replaced by deletion tombstones.
 	DeletedCount  int32 `protobuf:"varint,1,opt,name=deleted_count,json=deletedCount,proto3" json:"deleted_count,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

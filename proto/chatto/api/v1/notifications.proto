@@ -169,12 +169,12 @@ message BatchDeleteNotificationOccurrencesResponse {
   int32 deleted_count = 1;
 }
 
-// Request permanent deletion of every current notification occurrence.
+// Request permanent deletion of every currently visible notification occurrence.
 message DeleteAllNotificationOccurrencesRequest {}
 
-// Result of deleting every current notification occurrence.
+// Result of deleting every currently visible notification occurrence.
 message DeleteAllNotificationOccurrencesResponse {
-  // Number of current occurrences replaced by deletion tombstones.
+  // Number of visible occurrences replaced by deletion tombstones.
   int32 deleted_count = 1;
 }
 
@@ -245,9 +245,9 @@ service NotificationService {
   rpc BatchDeleteNotificationOccurrences(BatchDeleteNotificationOccurrencesRequest) returns (BatchDeleteNotificationOccurrencesResponse) {
     option idempotency_level = IDEMPOTENT;
   }
-  // Permanently deletes every occurrence current at the server's authoritative
-  // mutation boundary. Callers must not retry this mutation automatically
-  // because later activity may arrive after that boundary.
+  // Permanently deletes every visible occurrence current at the server's
+  // authoritative mutation boundary. Callers must not retry this mutation
+  // automatically because later activity may arrive after that boundary.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
   // Gets every supported cause and its effective inherited delivery intensity.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);

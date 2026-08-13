@@ -69,9 +69,9 @@ type NotificationServiceClient interface {
 	// Permanently deletes an exact set of occurrences. Repeating the call is
 	// safe because later activity receives different occurrence IDs.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
-	// Permanently deletes every occurrence current at the server's authoritative
-	// mutation boundary. Callers must not retry this mutation automatically
-	// because later activity may arrive after that boundary.
+	// Permanently deletes every visible occurrence current at the server's
+	// authoritative mutation boundary. Callers must not retry this mutation
+	// automatically because later activity may arrive after that boundary.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
@@ -202,9 +202,9 @@ type NotificationServiceHandler interface {
 	// Permanently deletes an exact set of occurrences. Repeating the call is
 	// safe because later activity receives different occurrence IDs.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
-	// Permanently deletes every occurrence current at the server's authoritative
-	// mutation boundary. Callers must not retry this mutation automatically
-	// because later activity may arrive after that boundary.
+	// Permanently deletes every visible occurrence current at the server's
+	// authoritative mutation boundary. Callers must not retry this mutation
+	// automatically because later activity may arrive after that boundary.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)

@@ -800,7 +800,7 @@ export class BatchDeleteNotificationOccurrencesResponse extends Message<BatchDel
 }
 
 /**
- * Request permanent deletion of every current notification occurrence.
+ * Request permanent deletion of every currently visible notification occurrence.
  *
  * @generated from message chatto.api.v1.DeleteAllNotificationOccurrencesRequest
  */
@@ -833,13 +833,13 @@ export class DeleteAllNotificationOccurrencesRequest extends Message<DeleteAllNo
 }
 
 /**
- * Result of deleting every current notification occurrence.
+ * Result of deleting every currently visible notification occurrence.
  *
  * @generated from message chatto.api.v1.DeleteAllNotificationOccurrencesResponse
  */
 export class DeleteAllNotificationOccurrencesResponse extends Message<DeleteAllNotificationOccurrencesResponse> {
   /**
-   * Number of current occurrences replaced by deletion tombstones.
+   * Number of visible occurrences replaced by deletion tombstones.
    *
    * @generated from field: int32 deleted_count = 1;
    */
