@@ -511,6 +511,7 @@ func TestConnectErrorMapping(t *testing.T) {
 		{"invalid argument", core.ErrInvalidArgument, connect.CodeInvalidArgument},
 		{"limit exceeded", core.ErrLimitExceeded, connect.CodeResourceExhausted},
 		{"reaction limit exceeded", core.ErrReactionLimitExceeded, connect.CodeResourceExhausted},
+		{"push subscription limit reached", core.ErrPushSubscriptionLimitReached, connect.CodeResourceExhausted},
 		{"slow mode active", &core.SlowModeActiveError{}, connect.CodeResourceExhausted},
 		{"string length", &core.StringLengthError{Field: "field", Max: 10}, connect.CodeInvalidArgument},
 		{"room archived", core.ErrRoomArchived, connect.CodeFailedPrecondition},

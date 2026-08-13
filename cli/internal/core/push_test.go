@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"strings"
 	"sync"
 	"testing"
@@ -185,10 +187,11 @@ func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 	userID := "push-user-limits"
 
 	t.Run("accepts values at max length", func(t *testing.T) {
+		endpointPrefix := "https://push.example.com/"
 		_, err := core.SavePushSubscription(
 			ctx,
 			userID,
-			strings.Repeat("e", MaxPushEndpointLength),
+			endpointPrefix+strings.Repeat("e", MaxPushEndpointLength-len(endpointPrefix)),
 			strings.Repeat("p", MaxPushKeyLength),
 			strings.Repeat("a", MaxPushAuthLength),
 			strings.Repeat("u", MaxPushUserAgentLength),
@@ -247,6 +250,57 @@ func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 			_, err := core.SavePushSubscription(ctx, userID, tt.endpoint, tt.p256dh, tt.auth, tt.userAgent)
 			assertStringLengthError(t, err, tt.field, tt.max)
 		})
+	}
+}
+
+func TestSavePushSubscription_RejectsInvalidEndpointURLs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+
+	for _, endpoint := range []string{
+		"http://push.example.com/send",
+		"https://user:password@push.example.com/send",
+		"https://push.example.com/send#fragment",
+		"/relative/push-endpoint",
+	} {
+		t.Run(endpoint, func(t *testing.T) {
+			_, err := core.SavePushSubscription(ctx, "push-user-invalid-endpoint", endpoint, "key", "auth", "browser")
+			if !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("SavePushSubscription error = %v, want ErrInvalidArgument", err)
+			}
+		})
+	}
+}
+
+func TestSavePushSubscription_LimitsActiveEndpointsPerUser(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-endpoint-limit"
+
+	for i := range MaxPushSubscriptionsPerUser {
+		endpoint := fmt.Sprintf("https://push.example.com/device-%d", i)
+		if _, err := core.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+			t.Fatalf("SavePushSubscription endpoint %d: %v", i, err)
+		}
+	}
+	if _, err := core.SavePushSubscription(ctx, userID, "https://push.example.com/over-limit", "key", "auth", "browser"); !errors.Is(err, ErrPushSubscriptionLimitReached) {
+		t.Fatalf("over-limit SavePushSubscription error = %v, want ErrPushSubscriptionLimitReached", err)
+	}
+	if _, err := core.SavePushSubscription(ctx, userID, "https://push.example.com/device-0", "new-key", "new-auth", "browser"); err != nil {
+		t.Fatalf("refreshing existing endpoint at limit: %v", err)
+	}
+}
+
+func TestAdmitPushTestNotificationRateLimitsAcrossCalls(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-test-rate-limit-user"
+
+	if err := core.AdmitPushTestNotification(ctx, userID); err != nil {
+		t.Fatalf("first AdmitPushTestNotification: %v", err)
+	}
+	if err := core.AdmitPushTestNotification(ctx, userID); !errors.Is(err, ErrPushTestNotificationRateLimited) {
+		t.Fatalf("second AdmitPushTestNotification error = %v, want ErrPushTestNotificationRateLimited", err)
 	}
 }
 

@@ -2577,7 +2577,7 @@ Request to store a PushSubscription returned by the browser Push API.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL. |
+| `endpoint` | `string` | Absolute HTTPS push service endpoint URL. The server rejects redirects and destinations that resolve to private or other special-use addresses. |
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
@@ -2633,6 +2633,8 @@ Response from removing a browser push subscription.
 ### SendTestNotification
 
 Sends a test notification to the caller's registered browser subscriptions.
+Calls are rate-limited per account. Delivery failures return a generic
+unavailable error without exposing the push provider's response body.
 
 ```http
 POST /api/connect/chatto.api.v1.PushNotificationService/SendTestNotification

@@ -100,6 +100,7 @@ func connectError(err error) error {
 	}
 	if errors.Is(err, core.ErrLimitExceeded) ||
 		errors.Is(err, core.ErrReactionLimitExceeded) ||
+		errors.Is(err, core.ErrPushSubscriptionLimitReached) ||
 		errors.Is(err, core.ErrSlowModeActive) {
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	}

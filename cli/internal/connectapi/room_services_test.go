@@ -2,6 +2,7 @@ package connectapi
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -1683,6 +1684,13 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		VAPIDPrivateKey: "private-key",
 		VAPIDSubject:    "mailto:admin@example.com",
 	}
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+		Endpoint: "http://127.0.0.1/internal",
+		P256Dh:   "p256dh-key",
+		Auth:     "auth-secret",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unsafe endpoint Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint:  "https://push.example.test/sub",
 		P256Dh:    "p256dh-key",
@@ -1703,17 +1711,25 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 
-	testPushCalled := false
+	testPushCalls := 0
 	env.core.OnPushTestRequested = func(_ context.Context, userID string) error {
-		testPushCalled = userID == env.viewer.Id
+		if userID == env.viewer.Id {
+			testPushCalls++
+		}
 		return nil
 	}
 	testResp, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
 	if err != nil {
 		t.Fatalf("SendTestNotification: %v", err)
 	}
-	if !testResp.Msg.GetSent() || !testPushCalled {
-		t.Fatalf("SendTestNotification sent = %v, callback called = %v", testResp.Msg.GetSent(), testPushCalled)
+	if !testResp.Msg.GetSent() || testPushCalls != 1 {
+		t.Fatalf("SendTestNotification sent = %v, callback calls = %d", testResp.Msg.GetSent(), testPushCalls)
+	}
+	if _, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{})); connect.CodeOf(err) != connect.CodeResourceExhausted {
+		t.Fatalf("repeated SendTestNotification code = %v, want resource_exhausted", connect.CodeOf(err))
+	}
+	if testPushCalls != 1 {
+		t.Fatalf("rate-limited SendTestNotification callback calls = %d, want 1", testPushCalls)
 	}
 	unsubResp, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{
 		Endpoint: "https://push.example.test/sub",
@@ -1736,6 +1752,28 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		Endpoint: "https://push.example.test/sub",
 	})); err != nil {
 		t.Fatalf("idempotent Unsubscribe: %v", err)
+	}
+}
+
+func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	env.api.config.Push = config.PushConfig{
+		Enabled:         true,
+		VAPIDPublicKey:  "public-key",
+		VAPIDPrivateKey: "private-key",
+		VAPIDSubject:    "mailto:admin@example.com",
+	}
+	env.core.OnPushTestRequested = func(context.Context, string) error {
+		return errors.New("private response marker")
+	}
+
+	_, err := env.push.SendTestNotification(ctx, connect.NewRequest(&apiv1.SendTestPushNotificationRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnavailable {
+		t.Fatalf("SendTestNotification code = %v, want unavailable", connect.CodeOf(err))
+	}
+	if strings.Contains(err.Error(), "private response marker") {
+		t.Fatalf("SendTestNotification disclosed delivery error: %v", err)
 	}
 }
 
