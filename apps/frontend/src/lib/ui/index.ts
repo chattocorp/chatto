@@ -23,6 +23,7 @@ export { default as MarkdownHtml } from './MarkdownHtml.svelte';
 export { default as MotdContent } from './MotdContent.svelte';
 export { default as NotificationBadge } from './NotificationBadge.svelte';
 export { default as PageTitle } from './PageTitle.svelte';
+export { default as Palette } from './Palette.svelte';
 export { default as PaneHeader } from './PaneHeader.svelte';
 export { default as PaneContent } from './PaneContent.svelte';
 export { default as Pill } from './Pill.svelte';

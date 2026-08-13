@@ -35,7 +35,7 @@ function remoteBaseURL(server: ServerInfo): string {
 async function openSwitcher(page: Page): Promise<Locator> {
   const isMac = process.platform === 'darwin';
   const key = isMac ? 'Meta+k' : 'Control+k';
-  const dialog = page.locator('dialog.quick-switcher');
+  const dialog = page.locator('dialog.palette-dialog');
 
   await expect(async () => {
     await page.keyboard.press(key);

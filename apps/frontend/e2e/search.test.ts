@@ -50,7 +50,7 @@ async function expectNoSearchResult(page: Page, query: string, body: string): Pr
 }
 
 async function openQuickSwitcher(page: Page): Promise<Locator> {
-  const dialog = page.locator('dialog.quick-switcher');
+  const dialog = page.locator('dialog.palette-dialog');
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+k' : 'Control+k');
   await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
   return dialog;

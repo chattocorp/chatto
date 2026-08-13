@@ -238,7 +238,7 @@ test.describe('Mobile Navigation', () => {
     await page.setViewportSize({ width: 1280, height: 720 });
     await notificationsPage.goto();
 
-    await expect(notificationsPage.centre).toHaveAttribute('popover', 'manual');
+    await expect(notificationsPage.desktopPopover).toHaveAttribute('popover', 'manual');
     await expect(page.locator('dialog.bottom-sheet')).not.toBeVisible();
     await notificationsPage.centre.getByRole('button', { name: 'Close' }).click();
     await expect(notificationsPage.centre).not.toBeVisible();

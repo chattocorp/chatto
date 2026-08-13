@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
 
-import { notificationCenter, quickSwitcher } from '$lib/state/globals.svelte';
+import { notificationCenter, quickSwitcher, sidebarNav } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -73,10 +73,13 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto
+  goto: mocks.goto,
+  pushState: vi.fn()
 }));
 
 vi.mock('$app/paths', () => ({
+  assets: '',
+  base: '',
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(
       (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
@@ -262,7 +265,7 @@ function input(container: HTMLElement): HTMLInputElement {
 }
 
 function dialog(container: HTMLElement): HTMLDialogElement {
-  const el = q(container, 'dialog.quick-switcher') as HTMLDialogElement | null;
+  const el = q(container, 'dialog.palette-dialog') as HTMLDialogElement | null;
   if (!el) throw new Error('QuickSwitcher dialog not found');
   return el;
 }
@@ -299,6 +302,7 @@ beforeAll(() => {
 beforeEach(() => {
   quickSwitcher.close();
   notificationCenter.close();
+  sidebarNav.setMobile(false);
   flushSync();
   installQueryMocks();
   mocks.goto.mockReset();

@@ -28,6 +28,11 @@ export class NotificationsPage {
     return this.page.locator('#notification-center');
   }
 
+  /** The anchored desktop presentation containing the shared palette surface. */
+  get desktopPopover(): Locator {
+    return this.page.locator('[popover="manual"]').filter({ has: this.centre });
+  }
+
   /** The centre header. */
   get pageHeader(): Locator {
     return this.centre.getByRole('heading', { name: 'Notifications' });

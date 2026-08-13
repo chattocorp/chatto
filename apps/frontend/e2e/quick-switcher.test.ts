@@ -16,7 +16,7 @@ import { TIMEOUTS } from './constants';
 async function openSwitcher(page: import('@playwright/test').Page) {
   const isMac = process.platform === 'darwin';
   const key = isMac ? 'Meta+k' : 'Control+k';
-  const dialog = page.locator('dialog.quick-switcher');
+  const dialog = page.locator('dialog.palette-dialog');
 
   await expect(async () => {
     await page.keyboard.press(key);
@@ -54,9 +54,25 @@ test.describe('Quick Switcher (Cmd-K)', () => {
 
     await page.getByRole('button', { name: 'Open quick switcher' }).click();
 
-    const dialog = page.locator('dialog.quick-switcher');
+    const dialog = page.locator('dialog.palette-dialog');
     await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await expect(switcherInput(dialog)).toBeFocused();
+  });
+
+  test('uses the shared bottom-sheet palette on mobile', async ({ page, chatPage }) => {
+    await page.setViewportSize({ width: 375, height: 667 });
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+
+    await page.getByRole('button', { name: 'Open quick switcher' }).click();
+
+    const sheet = page.locator('dialog.bottom-sheet');
+    await expect(sheet).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(sheet.locator('#quick-finder-palette')).toBeVisible();
+    await expect(
+      sheet.getByPlaceholder('Go somewhere, or type ? to search messages...')
+    ).toBeFocused();
+    await expect(page.locator('dialog.palette-dialog')).not.toBeVisible();
   });
 
   test('closes when clicking outside the dialog', async ({ page, chatPage }) => {
