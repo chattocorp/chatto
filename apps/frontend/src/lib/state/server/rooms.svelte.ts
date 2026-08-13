@@ -20,6 +20,7 @@ export type RoomsListItem = {
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
   viewerNotificationCount: number;
+  viewerImportantNotificationCount: number;
   hasMessageHistory?: boolean | null;
   members: UserAvatarUserView[];
 };
@@ -96,6 +97,11 @@ export class NavigationStore {
           (count) => count.roomId === room.id
         )?.unreadCount ?? 0
       );
+      const viewerImportantNotificationCount = Number(
+        this.projection.notificationOccurrences?.roomUnreadCounts.find(
+          (count) => count.roomId === room.id
+        )?.importantUnreadCount ?? viewerNotificationCount
+      );
       return [
         {
           id: room.id,
@@ -107,6 +113,7 @@ export class NavigationStore {
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
           viewerNotificationCount,
+          viewerImportantNotificationCount,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,
           members
         }

@@ -43,6 +43,7 @@ const { mocks } = vi.hoisted(() => {
           fetch: vi.fn().mockResolvedValue(undefined),
           setUnreadNotificationCount: vi.fn(),
           unreadNotificationCount: 0,
+          importantUnreadNotificationCount: 0,
           getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
           markRead: vi.fn(),
@@ -226,6 +227,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.setUnreadNotificationCount.mockClear();
     mocks.store.notifications.unreadNotificationCount = 0;
+    mocks.store.notifications.importantUnreadNotificationCount = 0;
     mocks.store.notifications.getNonDMNotification.mockReturnValue(null);
     mocks.store.notifications.getDMNotification.mockReturnValue(null);
     mocks.store.notifications.markRead.mockClear();
@@ -559,6 +561,7 @@ describe('ServerSidebarEntry', () => {
     };
     mocks.store.serverIndicator.mockReturnValue('notification');
     mocks.store.notifications.unreadNotificationCount = 1;
+    mocks.store.notifications.importantUnreadNotificationCount = 1;
     mocks.store.notifications.getNonDMNotification.mockReturnValue(notification);
     mocks.store.notifications.getCleanPath.mockReturnValue(
       '/chat/remote.example.com/room-1/thread-1'
@@ -573,6 +576,7 @@ describe('ServerSidebarEntry', () => {
 
     const badge = q(container, '[data-testid="server-notification-badge"]');
     await expect.element(badge).toBeInTheDocument();
+    await expect.element(badge).toHaveClass('bg-attention');
     (badge?.closest('button') as HTMLButtonElement).click();
 
     await vi.waitFor(() => {
@@ -589,5 +593,22 @@ describe('ServerSidebarEntry', () => {
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
       expect(mocks.goto).toHaveBeenCalledWith('/chat/remote.example.com/room-1/thread-1');
     });
+  });
+
+  it('uses a neutral server badge when only ambient notifications are unread', async () => {
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 2;
+    mocks.store.notifications.importantUnreadNotificationCount = 0;
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    const badge = q(container, '[data-testid="server-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-text');
+    await expect.element(badge).not.toHaveClass('bg-attention');
   });
 });

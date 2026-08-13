@@ -90,7 +90,14 @@ function notificationOccurrences(
         })
     ),
     unreadCount: count,
-    roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId, unreadCount: count })]
+    importantUnreadCount: count,
+    roomUnreadCounts: [
+      new NotificationRoomUnreadCount({
+        roomId,
+        unreadCount: count,
+        importantUnreadCount: count
+      })
+    ]
   });
 }
 

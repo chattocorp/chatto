@@ -6,6 +6,7 @@ import {
 } from './notifications.svelte';
 import {
   NotificationItemKind,
+  NotificationAttentionLevel,
   NotificationDeliveryIntensity,
   NotificationReason,
   type NotificationAPI,
@@ -54,6 +55,7 @@ function occurrencePage(source: FlatNotificationPage): NotificationOccurrencePag
           intensity: NotificationDeliveryIntensity.ALERT
         }
       ],
+      attentionLevel: NotificationAttentionLevel.IMPORTANT,
       unread: true,
       reactionEmoji: null,
       threadRootMessageExcerpt: null
@@ -63,7 +65,9 @@ function occurrencePage(source: FlatNotificationPage): NotificationOccurrencePag
   return {
     occurrences,
     unreadCount: source.totalCount,
+    importantUnreadCount: source.totalCount,
     roomUnreadCounts: {},
+    roomImportantUnreadCounts: {},
     totalCount: source.totalCount,
     hasMore: source.hasMore
   };
@@ -132,6 +136,7 @@ describe('NotificationStore', () => {
 
     expect(store.notifications).toEqual([]);
     expect(store.unreadNotificationCount).toBe(0);
+    expect(store.importantUnreadNotificationCount).toBe(0);
     expect(store.hasLoaded).toBe(true);
     expect(store.loading).toBe(true);
   });
@@ -160,6 +165,7 @@ describe('NotificationStore', () => {
     expect(store.notifications.map(({ id }) => id)).toEqual(['n2']);
     expect(store.occurrences.map(({ id }) => id)).toEqual(['n2']);
     expect(store.unreadNotificationCount).toBe(1);
+    expect(store.importantUnreadNotificationCount).toBe(1);
   });
 
   it('populates notifications on success', async () => {
@@ -177,12 +183,14 @@ describe('NotificationStore', () => {
     const response = occurrencePage(page([mention('n1')]));
     response.occurrences[0]!.unread = false;
     response.unreadCount = 0;
+    response.importantUnreadCount = 0;
 
     store.replaceOccurrenceProjection(response);
 
     expect(store.occurrences).toHaveLength(1);
     expect(store.notifications).toEqual([]);
     expect(store.unreadNotificationCount).toBe(0);
+    expect(store.importantUnreadNotificationCount).toBe(0);
   });
 
   it('discards an older full-list response that arrives after a newer response', async () => {
@@ -382,10 +390,12 @@ describe('NotificationStore', () => {
     const api = makeAPI();
     const store = new NotificationStore(api);
     store.unreadNotificationCount = 5;
+    store.importantUnreadNotificationCount = 4;
 
-    await store.deleteOccurrences(['older-1', 'older-2'], 2);
+    await store.deleteOccurrences(['older-1', 'older-2'], { unread: 2, importantUnread: 2 });
 
     expect(store.unreadNotificationCount).toBe(3);
+    expect(store.importantUnreadNotificationCount).toBe(2);
   });
 
   it('does not issue a replacement list request while deleting occurrences', async () => {
@@ -419,10 +429,28 @@ describe('NotificationStore', () => {
     expect(store.occurrences).toEqual([]);
     expect(store.notifications).toEqual([]);
     expect(store.unreadNotificationCount).toBe(0);
+    expect(store.importantUnreadNotificationCount).toBe(0);
 
     mutation.resolve(2);
     await deletion;
     expect(api.deleteAllNotificationOccurrences).toHaveBeenCalledTimes(1);
+  });
+
+  it('updates ambient and important unread totals independently', async () => {
+    const api = makeAPI();
+    const store = new NotificationStore(api);
+    const response = occurrencePage(page([mention('ambient'), mention('important')], 2));
+    response.occurrences[0]!.attentionLevel = NotificationAttentionLevel.AMBIENT;
+    response.importantUnreadCount = 1;
+    store.replaceOccurrenceProjection(response);
+
+    await store.deleteOccurrences(['ambient']);
+    expect(store.unreadNotificationCount).toBe(1);
+    expect(store.importantUnreadNotificationCount).toBe(1);
+
+    await store.markRead('important');
+    expect(store.unreadNotificationCount).toBe(0);
+    expect(store.importantUnreadNotificationCount).toBe(0);
   });
 
   it('normalizes the room, thread, and event used by push payloads', () => {

@@ -127,6 +127,15 @@ enum NotificationDeliveryIntensity {
   NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
 }
 
+// NotificationAttentionLevel records how strongly an unread occurrence should
+// be emphasized in notification lists and navigation indicators. It is
+// independent from interruptive delivery policy.
+enum NotificationAttentionLevel {
+  NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED = 0;
+  NOTIFICATION_ATTENTION_LEVEL_AMBIENT = 1;
+  NOTIFICATION_ATTENTION_LEVEL_IMPORTANT = 2;
+}
+
 // NotificationInboxState is the persisted attention state. DONE is retained
 // only for compatibility with Notifications 2.0 development records written
 // before the single-list model; visible DONE records are treated as read.
@@ -204,6 +213,9 @@ message NotificationOccurrence {
   // cleanup and read-boundary reconciliation; never exposed through the public
   // API.
   uint64 source_stream_sequence = 18;
+  // Source-time visual importance. Older records without this field derive a
+  // conservative value from their retained reasons.
+  NotificationAttentionLevel attention_level = 19;
 }
 
 // NotificationAlertJob is the content-free handoff from occurrence

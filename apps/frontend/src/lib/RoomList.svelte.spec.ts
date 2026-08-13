@@ -189,6 +189,7 @@ function setRooms() {
       viewerCanJoinRoom: true,
       viewerCanManageRoom: true,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
@@ -200,6 +201,7 @@ function setRooms() {
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
@@ -211,6 +213,7 @@ function setRooms() {
       viewerCanJoinRoom: false,
       viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: []
     },
     {
@@ -222,6 +225,7 @@ function setRooms() {
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
     },
     {
@@ -233,19 +237,22 @@ function setRooms() {
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
       viewerNotificationCount: 0,
+      viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
     }
   ] as never;
 }
 
-function setRoomNotificationCount(roomId: string, count: number) {
+function setRoomNotificationCount(roomId: string, count: number, importantCount = count) {
   const rooms = mocks.store.navigation.rooms as Array<{
     id: string;
     viewerNotificationCount: number;
+    viewerImportantNotificationCount: number;
   }>;
   const room = rooms.find((item) => item.id === roomId);
   if (!room) throw new Error(`Missing mocked room ${roomId}`);
   room.viewerNotificationCount = count;
+  room.viewerImportantNotificationCount = importantCount;
 }
 
 function setRoomUnread(roomId: string, hasUnread: boolean) {
@@ -921,6 +928,16 @@ describe('RoomList', () => {
       );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/channel-1/thread-1');
     });
+  });
+
+  it('uses a neutral room badge when only ambient notifications are unread', async () => {
+    setRoomNotificationCount('channel-1', 2, 0);
+
+    const { container } = render(RoomList);
+
+    const badge = q(container, '[data-testid="room-notification-badge"]');
+    await expect.element(badge).toHaveClass('bg-text');
+    await expect.element(badge).not.toHaveClass('bg-attention');
   });
 
   it('resolves a stale DM badge through the room-scoped notification query', async () => {

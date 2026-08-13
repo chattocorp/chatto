@@ -60,6 +60,9 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	if got := created.GetStrongestIntensity(); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
 		t.Fatalf("strongest intensity = %v, want ALERT", got)
 	}
+	if got := created.GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("attention level = %v, want IMPORTANT", got)
+	}
 	if got := len(created.GetReasons()); got != 2 {
 		t.Fatalf("reasons = %d, want two deduplicated reasons", got)
 	}
@@ -110,6 +113,49 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 	if recreated, wasCreated, err := model.Create(ctx, input); err != nil || wasCreated || recreated != nil {
 		t.Fatalf("Create after tombstone = (%v, %v, %v), want nil, false, nil", recreated, wasCreated, err)
+	}
+}
+
+func TestNotificationOccurrenceAttentionLevel(t *testing.T) {
+	reaction := &corev1.NotificationReasonMatch{Reason: corev1.NotificationReason_NOTIFICATION_REASON_REACTION}
+	mention := &corev1.NotificationReasonMatch{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION}
+
+	tests := []struct {
+		name       string
+		occurrence *corev1.NotificationOccurrence
+		want       corev1.NotificationAttentionLevel
+	}{
+		{
+			name:       "reaction is ambient",
+			occurrence: &corev1.NotificationOccurrence{Reasons: []*corev1.NotificationReasonMatch{reaction}},
+			want:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT,
+		},
+		{
+			name:       "non-reaction is important",
+			occurrence: &corev1.NotificationOccurrence{Reasons: []*corev1.NotificationReasonMatch{mention}},
+			want:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		},
+		{
+			name:       "strongest reason wins",
+			occurrence: &corev1.NotificationOccurrence{Reasons: []*corev1.NotificationReasonMatch{reaction, mention}},
+			want:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		},
+		{
+			name: "stored source-time value wins",
+			occurrence: &corev1.NotificationOccurrence{
+				Reasons:        []*corev1.NotificationReasonMatch{mention},
+				AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT,
+			},
+			want: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := NotificationOccurrenceAttentionLevel(tt.occurrence); got != tt.want {
+				t.Fatalf("NotificationOccurrenceAttentionLevel() = %v, want %v", got, tt.want)
+			}
+		})
 	}
 }
 

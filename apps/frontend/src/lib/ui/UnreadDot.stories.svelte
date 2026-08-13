@@ -16,6 +16,10 @@
       <span class="text-sm">warning</span>
     </div>
     <div class="flex items-center gap-2">
+      <UnreadDot color="ambient" />
+      <span class="text-sm">ambient</span>
+    </div>
+    <div class="flex items-center gap-2">
       <UnreadDot color="action" />
       <span class="text-sm">action</span>
     </div>

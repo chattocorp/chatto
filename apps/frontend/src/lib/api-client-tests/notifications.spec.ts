@@ -1,15 +1,48 @@
 import { describe, expect, it } from 'vitest';
-import { NotificationOccurrence } from '@chatto/api-types/api/v1/notifications_pb';
+import {
+  ListNotificationOccurrencesResponse,
+  NotificationOccurrence,
+  NotificationRoomUnreadCount
+} from '@chatto/api-types/api/v1/notifications_pb';
 
 import {
   notificationOccurrence,
+  mapNotificationOccurrencePage,
   occurrenceAsNotificationItem,
+  NotificationAttentionLevel,
   NotificationDeliveryIntensity,
   NotificationItemKind,
   NotificationReason
 } from '$lib/api-client/notifications';
 
 describe('notification occurrence presentation mapping', () => {
+  it('distinguishes absent attention counts from current zero counts', () => {
+    const legacy = mapNotificationOccurrencePage(
+      new ListNotificationOccurrencesResponse({
+        unreadCount: 3,
+        roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId: 'room-1', unreadCount: 2 })]
+      })
+    );
+    const current = mapNotificationOccurrencePage(
+      new ListNotificationOccurrencesResponse({
+        unreadCount: 3,
+        importantUnreadCount: 0,
+        roomUnreadCounts: [
+          new NotificationRoomUnreadCount({
+            roomId: 'room-1',
+            unreadCount: 2,
+            importantUnreadCount: 0
+          })
+        ]
+      })
+    );
+
+    expect(legacy.importantUnreadCount).toBe(3);
+    expect(legacy.roomImportantUnreadCounts).toEqual({ 'room-1': 2 });
+    expect(current.importantUnreadCount).toBe(0);
+    expect(current.roomImportantUnreadCounts).toEqual({ 'room-1': 0 });
+  });
+
   it('keeps followed-thread targets as reply notifications', () => {
     const occurrence = notificationOccurrence(
       new NotificationOccurrence({
@@ -68,6 +101,7 @@ describe('notification occurrence presentation mapping', () => {
       NotificationReason.DIRECT_MENTION,
       NotificationReason.FOLLOWED_THREAD
     ]);
+    expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.Mention,
       mentionEventId: 'reply-2',
@@ -125,5 +159,6 @@ describe('notification occurrence presentation mapping', () => {
       roomMsgEventId: 'message-1',
       roomMsgThreadRootId: 'thread-root-1'
     });
+    expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
   });
 });

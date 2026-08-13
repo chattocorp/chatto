@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   createNotificationAPI,
   groupNotificationOccurrences,
+  NotificationAttentionLevel,
   NotificationReason,
   type NotificationOccurrenceItem
 } from './notifications';
@@ -33,6 +34,10 @@ function occurrence(
     parentEventId: null,
     reasons: [reason],
     reasonMatches: [],
+    attentionLevel:
+      reason === NotificationReason.REACTION
+        ? NotificationAttentionLevel.AMBIENT
+        : NotificationAttentionLevel.IMPORTANT,
     unread: true,
     reactionEmoji: null,
     threadRootMessageExcerpt: null,
@@ -68,7 +73,21 @@ describe('groupNotificationOccurrences', () => {
     ]);
 
     expect(groups).toHaveLength(1);
+    expect(groups[0]?.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
     expect(groups[0]?.occurrences.map(({ reactionEmoji }) => reactionEmoji)).toEqual(['👍', '❤️']);
+  });
+
+  it('uses the strongest unread attention level in a presentation group', () => {
+    const groups = groupNotificationOccurrences([
+      occurrence('dm-ambient', NotificationReason.DIRECT_MESSAGE, {
+        attentionLevel: NotificationAttentionLevel.AMBIENT
+      }),
+      occurrence('dm-important', NotificationReason.DIRECT_MESSAGE, {
+        attentionLevel: NotificationAttentionLevel.IMPORTANT
+      })
+    ]);
+
+    expect(groups[0]?.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
   });
 
   it('keeps replies exact even when followed-thread policy also matched', () => {

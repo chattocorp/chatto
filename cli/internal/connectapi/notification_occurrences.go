@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -56,28 +57,49 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	if err != nil {
 		return nil, connectError(err)
 	}
-	unreadCount, nextExpiryAt, roomCounts := notificationSummary(occurrences)
+	summary := notificationSummary(occurrences)
 	return connect.NewResponse(&apiv1.ListNotificationOccurrencesResponse{
-		Occurrences:      hydrated,
-		Page:             apiPageInfo(total, end < total),
-		UnreadCount:      unreadCount,
-		NextExpiryAt:     nextExpiryAt,
-		RoomUnreadCounts: roomCounts,
+		Occurrences:          hydrated,
+		Page:                 apiPageInfo(total, end < total),
+		UnreadCount:          summary.unreadCount,
+		NextExpiryAt:         summary.nextExpiryAt,
+		RoomUnreadCounts:     summary.roomCounts,
+		ImportantUnreadCount: proto.Int32(summary.importantUnreadCount),
 	}), nil
 }
 
-func notificationSummary(occurrences []*corev1.NotificationOccurrence) (int32, *timestamppb.Timestamp, []*apiv1.NotificationRoomUnreadCount) {
-	unreadCount := int32(0)
-	roomCounts := make(map[string]int32)
-	var nextExpiryAt *timestamppb.Timestamp
+type notificationOccurrenceSummary struct {
+	unreadCount          int32
+	importantUnreadCount int32
+	nextExpiryAt         *timestamppb.Timestamp
+	roomCounts           []*apiv1.NotificationRoomUnreadCount
+}
+
+type notificationRoomSummary struct {
+	unreadCount          int32
+	importantUnreadCount int32
+}
+
+func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificationOccurrenceSummary {
+	summary := notificationOccurrenceSummary{}
+	roomCounts := make(map[string]notificationRoomSummary)
 	for _, occurrence := range occurrences {
-		if nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(nextExpiryAt.AsTime()) {
-			nextExpiryAt = occurrence.GetExpiresAt()
+		if summary.nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(summary.nextExpiryAt.AsTime()) {
+			summary.nextExpiryAt = occurrence.GetExpiresAt()
 		}
 		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
-			unreadCount++
+			summary.unreadCount++
+			important := core.NotificationOccurrenceAttentionLevel(occurrence) == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+			if important {
+				summary.importantUnreadCount++
+			}
 			if roomID := occurrence.GetTarget().GetRoomId(); roomID != "" {
-				roomCounts[roomID]++
+				room := roomCounts[roomID]
+				room.unreadCount++
+				if important {
+					room.importantUnreadCount++
+				}
+				roomCounts[roomID] = room
 			}
 		}
 	}
@@ -86,14 +108,16 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) (int32, *
 		roomIDs = append(roomIDs, roomID)
 	}
 	sort.Strings(roomIDs)
-	result := make([]*apiv1.NotificationRoomUnreadCount, 0, len(roomIDs))
+	summary.roomCounts = make([]*apiv1.NotificationRoomUnreadCount, 0, len(roomIDs))
 	for _, roomID := range roomIDs {
-		result = append(result, &apiv1.NotificationRoomUnreadCount{
-			RoomId:      roomID,
-			UnreadCount: roomCounts[roomID],
+		room := roomCounts[roomID]
+		summary.roomCounts = append(summary.roomCounts, &apiv1.NotificationRoomUnreadCount{
+			RoomId:               roomID,
+			UnreadCount:          room.unreadCount,
+			ImportantUnreadCount: proto.Int32(room.importantUnreadCount),
 		})
 	}
-	return unreadCount, nextExpiryAt, result
+	return summary
 }
 
 func (s *notificationService) visibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {

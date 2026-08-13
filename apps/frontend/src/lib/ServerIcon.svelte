@@ -13,6 +13,7 @@
     selected = false,
     indicator = null,
     notificationCount = 0,
+    importantNotificationCount = 0,
     onclick,
     onIndicatorClick,
     contextMenuTrigger,
@@ -30,6 +31,8 @@
     indicator?: ServerIndicator;
     /** Number to render for notification indicators. */
     notificationCount?: number;
+    /** Number of unread notifications that should use notification orange. */
+    importantNotificationCount?: number;
     /** Optional click behavior for the server link. */
     onclick?: (event: MouseEvent) => void;
     /** Click handler for the indicator dot. Receives the indicator kind. */
@@ -92,13 +95,18 @@
         {#if indicator === 'notification' && notificationCount > 0}
           <NotificationBadge
             count={notificationCount}
+            color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
             overlay
             testid="server-notification-badge"
           />
           <span class="sr-only">{notificationCount} notifications</span>
         {:else}
           <UnreadDot
-            color={indicator === 'notification' ? 'warning' : 'muted'}
+            color={indicator === 'notification'
+              ? importantNotificationCount > 0
+                ? 'warning'
+                : 'ambient'
+              : 'muted'}
             overlay
             testid={indicator === 'unread' ? 'server-unread-dot' : undefined}
           />
@@ -108,6 +116,7 @@
       {#if indicator === 'notification' && notificationCount > 0}
         <NotificationBadge
           count={notificationCount}
+          color={importantNotificationCount > 0 ? 'warning' : 'ambient'}
           overlay
           class="absolute top-0 right-0 z-10"
           testid="server-notification-badge"
@@ -115,7 +124,11 @@
         <span class="sr-only">{notificationCount} notifications</span>
       {:else}
         <UnreadDot
-          color={indicator === 'notification' ? 'warning' : 'muted'}
+          color={indicator === 'notification'
+            ? importantNotificationCount > 0
+              ? 'warning'
+              : 'ambient'
+            : 'muted'}
           overlay
           class="absolute top-0 right-0 z-10"
           testid={indicator === 'unread' ? 'server-unread-dot' : undefined}

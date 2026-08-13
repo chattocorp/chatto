@@ -48,11 +48,13 @@ test.describe('Mention Notifications', () => {
     // User A: Verify mention indicator appears on general room
     await expect(mentionBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(mentionBadge).toHaveText('1');
+    await expect(mentionBadge).toHaveClass(/bg-attention/);
 
     // User A: Verify mention cascades to server icon
     const notificationBadge = serverNotificationBadge(page);
     await expect(notificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(notificationBadge).toHaveText('1');
+    await expect(notificationBadge).toHaveClass(/bg-attention/);
   });
 
   test('notification badge appears on server icon with logo image', async ({
@@ -507,11 +509,16 @@ test.describe('Notification Page Display', () => {
     await notificationsPage.expectNotificationCount(1, TIMEOUTS.COMPLEX_OPERATION);
     const notification = notificationsPage.getNotificationBySummary('reacted to your message.');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    await expect(notification).toContainText('thumbsup');
-    await expect(notification).toContainText('heart');
+    await expect(notification).toHaveAttribute('data-notification-attention', 'ambient');
+    await expect(notification).not.toHaveClass(/bg-attention\/5/);
+    await expect(notification.locator('.bg-text')).toBeVisible();
+    await expect(notification).toContainText('👍');
+    await expect(notification).toContainText('❤️');
     await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
     await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
     await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();
+    await expect(serverNotificationBadge(page)).toHaveClass(/bg-text/);
+    await expect(notificationsPage.bellIndicator).toHaveClass(/bg-text/);
   });
 });
 

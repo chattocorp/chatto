@@ -22,6 +22,7 @@
 <Story name="Counts" asChild>
   <div class="flex items-center gap-4">
     <NotificationBadge count={1} />
+    <NotificationBadge count={4} color="ambient" />
     <NotificationBadge count={12} />
     <NotificationBadge count={120} />
   </div>

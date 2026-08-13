@@ -150,6 +150,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		ReactionEmoji:        input.ReactionEmoji,
 		SourceStreamSequence: input.SourceStreamSequence,
 		StrongestIntensity:   strongest,
+		AttentionLevel:       notificationAttentionLevelForReasons(reasons),
 		InboxState:           state,
 		EvaluatedAt:          timestamppb.New(evaluatedAt),
 		ExpiresAt:            timestamppb.New(expiresAt),
@@ -193,6 +194,36 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 	)
 	m.core.publishNotificationOccurrenceChanged(ctx, occurrence, true, false)
 	return proto.Clone(occurrence).(*corev1.NotificationOccurrence), true, nil
+}
+
+// NotificationOccurrenceAttentionLevel returns the stored source-time visual
+// importance, deriving it from retained reasons for records written before the
+// additive attention field existed. Unknown future causes fail toward visible
+// importance instead of silently suppressing their orange indicator.
+func NotificationOccurrenceAttentionLevel(occurrence *corev1.NotificationOccurrence) corev1.NotificationAttentionLevel {
+	if occurrence == nil {
+		return corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED
+	}
+	level := occurrence.GetAttentionLevel()
+	if level == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT ||
+		level == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		return level
+	}
+	return notificationAttentionLevelForReasons(occurrence.GetReasons())
+}
+
+func notificationAttentionLevelForReasons(reasons []*corev1.NotificationReasonMatch) corev1.NotificationAttentionLevel {
+	level := corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED
+	for _, match := range reasons {
+		if match == nil || match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_UNSPECIFIED {
+			continue
+		}
+		if match.GetReason() != corev1.NotificationReason_NOTIFICATION_REASON_REACTION {
+			return corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+		}
+		level = corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
+	}
+	return level
 }
 
 // finalizeOccurrence closes the cross-replica race between a read action and

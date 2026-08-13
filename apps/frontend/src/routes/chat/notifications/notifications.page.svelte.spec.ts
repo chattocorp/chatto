@@ -3,7 +3,11 @@ import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationReason, type NotificationOccurrenceItem } from '$lib/api-client/notifications';
+import {
+  NotificationAttentionLevel,
+  NotificationReason,
+  type NotificationOccurrenceItem
+} from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getToasts, toast } from '$lib/ui/toast';
 
@@ -24,6 +28,7 @@ const { mocks } = vi.hoisted(() => ({
       parentEventId: null,
       reasons: [2],
       reasonMatches: [{ reason: 2, intensity: 3 }],
+      attentionLevel: 2,
       unread: true
     },
     store: {
@@ -88,7 +93,12 @@ function page(
   return {
     occurrences,
     unreadCount: occurrences.filter((candidate) => candidate.unread).length,
+    importantUnreadCount: occurrences.filter(
+      (candidate) =>
+        candidate.unread && candidate.attentionLevel === NotificationAttentionLevel.IMPORTANT
+    ).length,
     roomUnreadCounts: {},
+    roomImportantUnreadCounts: {},
     totalCount: occurrences.length,
     hasMore,
     nextExpiryAt: null
@@ -232,10 +242,11 @@ describe('notifications page', () => {
       threadRootId: null,
       reasons: [NotificationReason.REACTION],
       reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
+      attentionLevel: NotificationAttentionLevel.AMBIENT,
       reactionEmoji: emoji
     });
     mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([reaction('reaction-alice', alice, '👍'), reaction('reaction-bob', bob, '❤️')])
+      page([reaction('reaction-alice', alice, 'thumbsup'), reaction('reaction-bob', bob, 'heart')])
     );
 
     const { container } = render(NotificationsPage);
@@ -246,6 +257,9 @@ describe('notifications page', () => {
     });
 
     expect(row.textContent).toContain('👍 ❤️');
+    expect(row.dataset.notificationAttention).toBe('ambient');
+    expect(row.classList.contains('bg-attention/5')).toBe(false);
+    expect(q(row, '.bg-text')).not.toBeNull();
     expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
   });
 
@@ -599,7 +613,7 @@ describe('notifications page', () => {
     await vi.waitFor(() => {
       expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledWith(
         expect.arrayContaining(['dm-0', 'dm-1']),
-        2
+        { unread: 2, importantUnread: 2 }
       );
     });
     expect(mocks.store.notifications.deleteOccurrences.mock.calls[0]?.[0]).toHaveLength(2);

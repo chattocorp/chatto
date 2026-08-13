@@ -47,6 +47,17 @@ enum NotificationDeliveryIntensity {
   NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
 }
 
+// Visual importance of an unread notification. This is independent from
+// whether the notification is eligible for sound or push delivery.
+enum NotificationAttentionLevel {
+  // No attention level was provided.
+  NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED = 0;
+  // Ambient activity appears with a neutral unread indicator.
+  NOTIFICATION_ATTENTION_LEVEL_AMBIENT = 1;
+  // Important activity appears with Chatto's notification orange.
+  NOTIFICATION_ATTENTION_LEVEL_IMPORTANT = 2;
+}
+
 // One cause that matched an occurrence and its evaluated delivery intensity.
 message NotificationReasonMatch {
   // Cause that matched the viewer.
@@ -93,6 +104,8 @@ message NotificationOccurrence {
   // message. Absent outside threads and when no root text is available. The
   // server truncates the excerpt to at most 180 Unicode code points.
   optional string thread_root_message_excerpt = 11;
+  // Source-time visual importance of this occurrence.
+  NotificationAttentionLevel attention_level = 12;
 }
 
 // Request for one page of notification occurrences.
@@ -115,6 +128,10 @@ message ListNotificationOccurrencesResponse {
   // Complete unread-occurrence counts by target room. This is independent of
   // the bounded page so room indicators remain authoritative.
   repeated NotificationRoomUnreadCount room_unread_counts = 5;
+  // Exact unread occurrences with Important attention. Absent servers predate
+  // attention tiers, so clients should conservatively treat all unread
+  // occurrences as Important.
+  optional int32 important_unread_count = 6;
 }
 
 // Unread notification occurrences currently targeting one room.
@@ -123,6 +140,9 @@ message NotificationRoomUnreadCount {
   string room_id = 1;
   // Number of unread occurrences targeting this room.
   int32 unread_count = 2;
+  // Unread occurrences in this room with Important attention. Absence has the
+  // same compatibility meaning as the response-level field.
+  optional int32 important_unread_count = 3;
 }
 
 // Request to mark one notification occurrence read.

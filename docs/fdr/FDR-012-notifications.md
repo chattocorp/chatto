@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-12
+**Last reviewed:** 2026-08-13
 
 > **Implementation status:** Implemented for the upcoming 0.5.0 release by
 > [#1556](https://github.com/chattocorp/chatto/issues/1556), with a clean
@@ -22,7 +22,9 @@ targets, unread counts, read state, or deletion semantics.
 ## Behavior
 
 - The notification page is one chronological list containing both Unread and
-  Read activity. Unread rows use Chatto's notification orange.
+  Read activity. Unread reactions are Ambient and use a neutral indicator;
+  every other current cause is Important and uses Chatto's notification
+  orange. Read rows use neither unread treatment.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use full localized sentences. Thread activity includes a current root
@@ -49,6 +51,8 @@ individual newest-first occurrences. Totals are exact and independent of list
 pagination or presentation grouping:
 
 - each unread occurrence contributes one to the bell/server/app badge;
+- each unread Important occurrence contributes one to the exact Important
+  count that selects orange rather than the neutral Ambient treatment;
 - each unread occurrence contributes one to its room's notification count;
 - two unread DMs consolidated into one row still display a badge count of two.
 
@@ -63,7 +67,14 @@ The bundled frontend derives temporary groups as follows:
 A presentation group opens its newest unread occurrence, or newest occurrence
 when all are Read. It contains the exact member IDs used by the idempotent batch
 delete API. Groups are not persisted or transmitted and may evolve per client.
-The bundled list does not display a redundant count of one.
+The bundled list does not display a redundant count of one. A group uses the
+strongest attention level among its unread occurrences.
+
+Bell, server, and room indicators remain visible for any unread occurrence.
+They use notification orange when at least one contributing occurrence is
+Important and a neutral treatment when every contributing occurrence is
+Ambient. Attention levels are fixed by cause in this iteration and are not
+user-configurable.
 
 ## Notification policy
 
@@ -91,6 +102,8 @@ One source event produces at most one occurrence per recipient, even when it
 matches several causes. The occurrence records all matches and uses the
 strongest source-time intensity. A user's own activity does not notify them.
 Policy changes affect future activity and never rewrite existing history.
+Delivery intensity controls interruption only; it does not determine whether
+an occurrence is visually Ambient or Important.
 
 ## Durable derivation and push delivery
 

@@ -218,7 +218,9 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
           totalCount: 0,
           hasMore: false,
           unreadCount: 0,
-          roomUnreadCounts: {}
+          importantUnreadCount: 0,
+          roomUnreadCounts: {},
+          roomImportantUnreadCounts: {}
         })
       ),
       markNotificationRead: vi.fn(),
@@ -671,7 +673,9 @@ describe('ServerStateStore live server updates', () => {
       totalCount: 0,
       hasMore: false,
       unreadCount: 1,
+      importantUnreadCount: 1,
       roomUnreadCounts: {},
+      roomImportantUnreadCounts: {},
       nextExpiryAt: null
     });
     store.activeCallRooms.replaceProjection([

@@ -156,6 +156,9 @@ func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
 	if occurrences[0].GetTarget().GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id {
 		t.Fatalf("reaction occurrence = %+v, want message %q and actor %q", occurrences[0], message.Id, reactor.Id)
 	}
+	if got := occurrences[0].GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {
+		t.Fatalf("reaction attention = %v, want AMBIENT", got)
+	}
 
 	removed, err := chattoCore.ReactionModel().removeReaction(ctx, KindChannel, room.Id, message.Id, "thumbsup", reactor.Id)
 	if err != nil || !removed {

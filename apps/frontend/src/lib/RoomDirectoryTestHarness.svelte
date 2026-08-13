@@ -42,6 +42,7 @@ a fixture navigation view so component tests do not need a realtime transport.
             viewerIsMember: listed?.viewerIsMember ?? false,
             viewerCanManageRoom: listed?.viewerCanManageRoom ?? false,
             viewerNotificationCount: 0,
+            viewerImportantNotificationCount: 0,
             hasMessageHistory: null,
             members: []
           };

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 
+	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -440,18 +441,19 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 	total := len(occurrences)
 	page := occurrences[:min(total, defaultNotificationLimit)]
 	assembler := newNotificationAssembler(a)
-	unreadCount, nextExpiryAt, roomCounts := notificationSummary(occurrences)
+	summary := notificationSummary(occurrences)
 	hydratedOccurrences, err := assembler.occurrences(ctx, page)
 	if err != nil {
 		return nil, err
 	}
 	return &RealtimeProjectionNotifications{
 		Occurrences: &apiv1.ListNotificationOccurrencesResponse{
-			Occurrences:      hydratedOccurrences,
-			Page:             apiPageInfo(total, total > len(page)),
-			UnreadCount:      unreadCount,
-			NextExpiryAt:     nextExpiryAt,
-			RoomUnreadCounts: roomCounts,
+			Occurrences:          hydratedOccurrences,
+			Page:                 apiPageInfo(total, total > len(page)),
+			UnreadCount:          summary.unreadCount,
+			NextExpiryAt:         summary.nextExpiryAt,
+			RoomUnreadCounts:     summary.roomCounts,
+			ImportantUnreadCount: proto.Int32(summary.importantUnreadCount),
 		},
 	}, nil
 }

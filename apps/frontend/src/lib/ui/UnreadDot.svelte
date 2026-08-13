@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Color = 'warning' | 'action' | 'neutral' | 'muted';
+  type Color = 'warning' | 'ambient' | 'action' | 'neutral' | 'muted';
 
   let {
     color = 'warning',
@@ -15,6 +15,7 @@
 
   const colorClasses = {
     warning: 'bg-attention',
+    ambient: 'bg-text',
     action: 'bg-action',
     neutral: 'bg-neutral-action',
     muted: 'bg-muted'

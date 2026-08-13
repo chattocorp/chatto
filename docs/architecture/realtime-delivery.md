@@ -82,8 +82,8 @@ idempotent operations:
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events only
   for rooms named as retained by the subscribing client;
-- the newest finite Notifications 2.0 occurrences, exact unread-occurrence
-  count, and complete per-room unread-occurrence counts;
+- the newest finite Notifications 2.0 occurrences, exact total and Important
+  unread-occurrence counts, and complete per-room counterparts;
 - every active call visible to the viewer; and
 - a complete latest-value presence map for the projected user directory.
 
@@ -386,17 +386,18 @@ reloaded during reset.
 
 Typing, presence transitions, mention/new-DM attention hints, and session
 termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
-Notification occurrence create/update/delete signals instead assemble an authoritative
-`notifications_replace` containing groups and counts; a live replacement may carry transition metadata for
+Notification occurrence create/update/delete signals instead assemble an
+authoritative `notifications_replace` containing occurrences plus exact total
+and Important counts. A live replacement may carry transition metadata for
 one-shot presentation effects, while replay and finite reconciliation omit it.
 The internal signal also carries its source identity and `RUNTIME_STATE`
 revision. Before emitting the replacement at that live cursor, the serving
 replica waits until its process-wide notification index has observed that
 revision, preventing a cross-replica signal from advancing the cursor with a
-stale replacement. Group replacements contain at most 20 occurrence previews
-per group plus aggregate totals and the next list expiry boundary;
-clients refresh at that boundary, and exact group members use a separately
-paginated ConnectRPC read.
+stale replacement. Replacements contain at most 50 exact occurrences plus
+complete aggregate totals and the next list expiry boundary. Clients refresh
+at that boundary and use the separately paginated ConnectRPC read for older
+occurrences.
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the

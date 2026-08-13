@@ -16,10 +16,18 @@
   const motd = $derived(serverRegistry.tryGetStore(getActiveServer())?.serverInfo.motd);
   const originStore = $derived(serverRegistry.tryGetStore(serverRegistry.originServer?.id ?? ''));
 
-  // Aggregate notification count across all servers.
+  // Aggregate exact notification counts across all servers.
   const totalNotificationCount = $derived(
     serverRegistry.servers.reduce(
-      (sum, instance) => sum + serverRegistry.getStore(instance.id).notifications.count,
+      (sum, instance) =>
+        sum + serverRegistry.getStore(instance.id).notifications.unreadNotificationCount,
+      0
+    )
+  );
+  const totalImportantNotificationCount = $derived(
+    serverRegistry.servers.reduce(
+      (sum, instance) =>
+        sum + serverRegistry.getStore(instance.id).notifications.importantUnreadNotificationCount,
       0
     )
   );
@@ -61,7 +69,11 @@
       >
         <span class="iconify icon-[uil--bell] text-lg"></span>
         {#if totalNotificationCount > 0}
-          <UnreadDot class="absolute end-2 top-2" testid="notifications-unread-dot" />
+          <UnreadDot
+            color={totalImportantNotificationCount > 0 ? 'warning' : 'ambient'}
+            class="absolute end-2 top-2"
+            testid="notifications-unread-dot"
+          />
         {/if}
       </a>
     {/if}

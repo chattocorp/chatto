@@ -90,7 +90,13 @@ describe('NavigationStore', () => {
             target: new NotificationTarget({ room: new RoomSummary({ id: 'dm' }) })
           })
       ),
-      roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId: 'dm', unreadCount: 3 })]
+      roomUnreadCounts: [
+        new NotificationRoomUnreadCount({
+          roomId: 'dm',
+          unreadCount: 3,
+          importantUnreadCount: 2
+        })
+      ]
     });
     projection.rooms.set('managed', projectedRoom('managed'));
 
@@ -103,6 +109,7 @@ describe('NavigationStore', () => {
         id: 'dm',
         type: RoomKind.DM,
         viewerNotificationCount: 3,
+        viewerImportantNotificationCount: 2,
         hasMessageHistory: true,
         members: [{ id: 'U2', displayName: 'Ada' }]
       },

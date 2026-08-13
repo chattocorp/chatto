@@ -158,6 +158,12 @@ selects the strongest intensity. `Off` creates no visible occurrence; `Badge`
 and `Alert` create the same durable occurrence, while only `Alert` is eligible
 for interruptive delivery.
 
+Visual attention is a separate source-time property. Reaction-only activity is
+Ambient; every other current cause is Important, and the strongest matching
+cause wins. This classification is deliberately fixed for now. Persisting the
+resolved level lets a future preference affect new activity without
+reclassifying retained history or coupling visual emphasis to push policy.
+
 ### Occurrence contents
 
 An occurrence retains the stable facts needed to explain, reconcile, and open
@@ -168,6 +174,7 @@ it:
 - exact destination: room, optional thread root, and target event;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
+- resolved Ambient or Important visual attention level;
 - attention state, alert-delivery state, lifecycle timestamps, and absolute expiry
   time.
 
@@ -303,6 +310,9 @@ changing the immutable `chatto.core.v1.Notification` storage message. Existing
 legacy notification records are neither migrated nor read. The cutover starts
 with an empty 2.0 list; old rows remain inert until their retention removes
 them. This is an intentional pre-1.0 product reset, not a dual-store period.
+The later visual-attention field is additive within the v2 record. A current
+reader derives it from retained reasons when an earlier v2 row omits it, which
+keeps rolling upgrades deterministic without rewriting runtime history.
 
 The public `chatto.api.v1` notification and coarse-preference RPCs are removed
 at the same release boundary and replaced by an exact occurrence list,

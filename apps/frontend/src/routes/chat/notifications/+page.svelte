@@ -8,6 +8,7 @@
   import { m } from '$lib/i18n/messages';
   import {
     groupNotificationOccurrences,
+    NotificationAttentionLevel,
     NotificationReason,
     type NotificationActor,
     type NotificationGroupItem,
@@ -27,6 +28,7 @@
   } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { useLoadMoreWhenVisible } from '$lib/hooks/useLoadMoreWhenVisible.svelte';
+  import { getEmojiByName } from '$lib/emoji';
 
   type ServerGroup = {
     serverId: string;
@@ -346,7 +348,12 @@
     }
     if (reasons.includes(NotificationReason.REACTION)) {
       const emojis = [
-        ...new Set(group.occurrences.map((item) => item.reactionEmoji).filter(Boolean))
+        ...new Set(
+          group.occurrences
+            .map((item) => item.reactionEmoji)
+            .filter((emoji): emoji is string => Boolean(emoji))
+            .map((emoji) => getEmojiByName(emoji) ?? emoji)
+        )
       ];
       const prefix = emojis.join(' ');
       const summary = m('chat.notifications.summary.reaction', { actor });
@@ -422,7 +429,14 @@
     try {
       await store.deleteOccurrences(
         item.group.occurrences.map((occurrence) => occurrence.id),
-        item.group.occurrences.filter((occurrence) => occurrence.unread).length
+        {
+          unread: item.group.occurrences.filter((occurrence) => occurrence.unread).length,
+          importantUnread: item.group.occurrences.filter(
+            (occurrence) =>
+              occurrence.unread &&
+              occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
+          ).length
+        }
       );
     } catch (error) {
       if (removed && !groups.some((candidate) => rowKey(candidate) === rowKey(removed))) {
@@ -536,10 +550,17 @@
               <div
                 class={[
                   'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
-                  item.group.unread && 'bg-attention/5'
+                  item.group.unread &&
+                    item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
+                    'bg-attention/5'
                 ]}
                 data-testid="notification-group"
                 data-notification-state={item.group.unread ? 'unread' : 'read'}
+                data-notification-attention={item.group.unread
+                  ? item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                    ? 'important'
+                    : 'ambient'
+                  : 'none'}
               >
                 <button
                   type="button"
@@ -559,7 +580,12 @@
                   {:else if actor}<UserAvatar user={actor} size="md" />{/if}
                   {#if item.group.unread}
                     <span
-                      class="size-2 shrink-0 rounded-full bg-attention"
+                      class={[
+                        'size-2 shrink-0 rounded-full',
+                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                          ? 'bg-attention'
+                          : 'bg-text'
+                      ]}
                       aria-label={m('chat.notifications.unread')}
                     ></span>
                   {/if}
@@ -573,7 +599,13 @@
                         data-testid="notification-thread-root-excerpt"
                       >
                         <span
-                          class="iconify icon-[uil--comment-alt-message] shrink-0 text-attention"
+                          class={[
+                            'iconify icon-[uil--comment-alt-message] shrink-0',
+                            item.group.unread &&
+                            item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                              ? 'text-attention'
+                              : 'text-muted'
+                          ]}
                           aria-hidden="true"
                         ></span>
                         <bdi class="truncate" dir="auto">

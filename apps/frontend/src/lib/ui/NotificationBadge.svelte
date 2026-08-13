@@ -1,5 +1,5 @@
 <script lang="ts">
-  type Color = 'warning' | 'action' | 'muted';
+  type Color = 'warning' | 'ambient' | 'action' | 'muted';
 
   let {
     count,
@@ -17,6 +17,7 @@
 
   const colorClasses = {
     warning: 'bg-attention text-on-attention',
+    ambient: 'bg-text text-background',
     action: 'bg-action text-on-action',
     muted: 'bg-muted text-background'
   } as const;

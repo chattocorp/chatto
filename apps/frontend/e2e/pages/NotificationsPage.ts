@@ -16,7 +16,7 @@ export class NotificationsPage {
     return this.page.locator('a[title="Notifications"]');
   }
 
-  /** The orange indicator dot on the bell icon (visible when there are notifications) */
+  /** The ambient or important indicator dot shown when notifications are unread. */
   get bellIndicator(): Locator {
     return this.bellButton.getByTestId('notifications-unread-dot');
   }

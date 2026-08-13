@@ -20,6 +20,7 @@ function room(id: string, member = false): RoomsListItem {
     viewerCanJoinRoom: true,
     viewerCanManageRoom: false,
     viewerNotificationCount: 0,
+    viewerImportantNotificationCount: 0,
     members: []
   };
 }

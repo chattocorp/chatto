@@ -3,6 +3,7 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   NotificationItemKind,
+  NotificationAttentionLevel,
   NotificationDeliveryIntensity,
   occurrenceAsNotificationItem,
   type DirectMessageNotificationItem,
@@ -133,6 +134,7 @@ export class NotificationStore {
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
+  importantUnreadNotificationCount = $state(0);
   nextExpiryAt = $state<string | null>(null);
   /** Advances only for realtime invalidations, including changes made in another session. */
   viewInvalidationVersion = $state(0);
@@ -148,8 +150,9 @@ export class NotificationStore {
     return this.notifications.length;
   }
 
-  setUnreadNotificationCount(count: number): void {
+  setUnreadNotificationCount(count: number, importantCount = count): void {
     this.unreadNotificationCount = Math.max(0, count);
+    this.importantUnreadNotificationCount = Math.max(0, Math.min(importantCount, count));
   }
 
   /** Replace notification state from the realtime projection. */
@@ -164,6 +167,10 @@ export class NotificationStore {
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
       .slice(0, 50);
     this.unreadNotificationCount = page.unreadCount;
+    this.importantUnreadNotificationCount = Math.max(
+      0,
+      Math.min(page.importantUnreadCount, page.unreadCount)
+    );
     this.nextExpiryAt = page.nextExpiryAt ?? null;
     this.loading = false;
     this.hasLoaded = true;
@@ -182,6 +189,7 @@ export class NotificationStore {
     this.notifications = [];
     this.occurrences = [];
     this.unreadNotificationCount = 0;
+    this.importantUnreadNotificationCount = 0;
     this.nextExpiryAt = null;
     this.loading = true;
     // The empty reset boundary is already authoritative. Keep this true so
@@ -220,6 +228,12 @@ export class NotificationStore {
     const removedUnreadOccurrences = this.occurrences.filter(
       (occurrence) => occurrence.unread && occurrence.room?.id === roomId
     ).length;
+    const removedImportantUnreadOccurrences = this.occurrences.filter(
+      (occurrence) =>
+        occurrence.unread &&
+        occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
+        occurrence.room?.id === roomId
+    ).length;
     this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
 
     const notifications = this.notifications.filter(
@@ -231,6 +245,12 @@ export class NotificationStore {
       this.unreadNotificationCount = Math.max(
         0,
         this.unreadNotificationCount - removedUnreadOccurrences
+      );
+    }
+    if (removedImportantUnreadOccurrences > 0) {
+      this.importantUnreadNotificationCount = Math.max(
+        0,
+        this.importantUnreadNotificationCount - removedImportantUnreadOccurrences
       );
     }
   }
@@ -368,7 +388,10 @@ export class NotificationStore {
   }
 
   /** Delete exact occurrences optimistically, restoring them on failure. */
-  async deleteOccurrences(notificationIds: string[], knownUnreadCount?: number): Promise<void> {
+  async deleteOccurrences(
+    notificationIds: string[],
+    knownCounts?: { unread: number; importantUnread: number }
+  ): Promise<void> {
     const uniqueIds = [...new SvelteSet(notificationIds)];
     const removedIds = new SvelteSet(uniqueIds);
     const removedOccurrences = this.occurrences.filter((occurrence) =>
@@ -390,8 +413,19 @@ export class NotificationStore {
       (notification) => !removedIds.has(notification.id)
     );
     const removedUnreadCount =
-      knownUnreadCount ?? removedOccurrences.filter((occurrence) => occurrence.unread).length;
+      knownCounts?.unread ?? removedOccurrences.filter((occurrence) => occurrence.unread).length;
+    const removedImportantUnreadCount =
+      knownCounts?.importantUnread ??
+      removedOccurrences.filter(
+        (occurrence) =>
+          occurrence.unread &&
+          occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
+      ).length;
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removedUnreadCount);
+    this.importantUnreadNotificationCount = Math.max(
+      0,
+      this.importantUnreadNotificationCount - removedImportantUnreadCount
+    );
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
 
     try {
@@ -414,12 +448,22 @@ export class NotificationStore {
           removedNotifications.filter((notification) => rollbackIds.has(notification.id))
         );
         const rollbackUnreadCount =
-          knownUnreadCount !== undefined && rollbackIds.size === removedIds.size
-            ? knownUnreadCount
+          knownCounts !== undefined && rollbackIds.size === removedIds.size
+            ? knownCounts.unread
             : removedOccurrences.filter(
                 (occurrence) => rollbackIds.has(occurrence.id) && occurrence.unread
               ).length;
+        const rollbackImportantUnreadCount =
+          knownCounts !== undefined && rollbackIds.size === removedIds.size
+            ? knownCounts.importantUnread
+            : removedOccurrences.filter(
+                (occurrence) =>
+                  rollbackIds.has(occurrence.id) &&
+                  occurrence.unread &&
+                  occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
+              ).length;
         this.unreadNotificationCount += rollbackUnreadCount;
+        this.importantUnreadNotificationCount += rollbackImportantUnreadCount;
         this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
       }
       throw error;
@@ -437,6 +481,7 @@ export class NotificationStore {
     const originalOccurrences = this.occurrences;
     const originalNotifications = this.notifications;
     const originalCount = this.unreadNotificationCount;
+    const originalImportantCount = this.importantUnreadNotificationCount;
     const originalNextExpiryAt = this.nextExpiryAt;
     this.#fetchGeneration++;
     this.#deleteAllGeneration++;
@@ -446,6 +491,7 @@ export class NotificationStore {
     this.occurrences = [];
     this.notifications = [];
     this.unreadNotificationCount = 0;
+    this.importantUnreadNotificationCount = 0;
     this.nextExpiryAt = null;
 
     try {
@@ -455,6 +501,7 @@ export class NotificationStore {
         this.occurrences = originalOccurrences;
         this.notifications = originalNotifications;
         this.unreadNotificationCount = originalCount;
+        this.importantUnreadNotificationCount = originalImportantCount;
         this.nextExpiryAt = originalNextExpiryAt;
       }
       throw error;
@@ -539,11 +586,19 @@ export class NotificationStore {
     this.loading = false;
     const originalOccurrences = this.occurrences;
     const originalCount = this.unreadNotificationCount;
+    const originalImportantCount = this.importantUnreadNotificationCount;
+    const occurrence = this.occurrences.find((candidate) => candidate.id === notificationId);
     this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.occurrences = this.occurrences.map((occurrence) =>
       occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
     );
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - 1);
+    if (occurrence?.attentionLevel === NotificationAttentionLevel.IMPORTANT) {
+      this.importantUnreadNotificationCount = Math.max(
+        0,
+        this.importantUnreadNotificationCount - 1
+      );
+    }
 
     try {
       await this.#api.markNotificationRead(notificationId);
@@ -553,6 +608,7 @@ export class NotificationStore {
       this.occurrences = originalOccurrences;
       this.#restoreNotification(removed);
       this.unreadNotificationCount = originalCount;
+      this.importantUnreadNotificationCount = originalImportantCount;
       return false;
     }
   }

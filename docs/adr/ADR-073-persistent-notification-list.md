@@ -19,11 +19,13 @@ occurrence-exact.
 
 ### Attention and deletion
 
-Each visible notification occurrence is either **Unread** or **Read**. Unread
-occurrences use Chatto's semantic notification orange and contribute one to
-the exact unread count. Read occurrences remain in the same chronological list
-until deletion or the 90-day expiry. There is no Done view and no Mark Unread
-operation.
+Each visible notification occurrence is either **Unread** or **Read**. Every
+Unread occurrence contributes one to the exact unread count. Its independent
+source-time attention level is **Ambient** for reactions and **Important** for
+every other current cause. Ambient unread activity uses a neutral treatment;
+Important unread activity uses Chatto's semantic notification orange. Read
+occurrences remain in the same chronological list until deletion or the
+90-day expiry. There is no Done view and no Mark Unread operation.
 
 Opening an unread occurrence navigates to its exact room, thread, and event;
 the existing target-display handshake marks it read only after successful
@@ -47,7 +49,9 @@ Current code writes neither state; retained Done rows are treated as Read.
 plus totals independent of pagination:
 
 - total unread occurrence count;
-- unread occurrence count per target room; and
+- total unread Important occurrence count;
+- unread occurrence count per target room;
+- unread Important occurrence count per target room; and
 - the earliest expiry in the complete retained list.
 
 Each occurrence carries its exact target and cause data, including reaction
@@ -75,7 +79,8 @@ A temporary group opens its newest unread occurrence, or its newest occurrence
 when every member is read. It contains the exact occurrence IDs used for an
 optimistic batch delete. It is never persisted, transmitted, counted, or
 mutated as a server resource. A client may revise these presentation rules
-without a protocol or storage migration.
+without a protocol or storage migration. Its unread presentation uses the
+strongest attention level among its unread members.
 
 The bundled client presents unread and read rows in one chronological view,
 groups them into Today, Yesterday, This Week, and month sections using the
@@ -84,19 +89,23 @@ activity includes the current root excerpt. Reaction rows show the reaction
 emoji and consolidate activity for the same target. The list does not show a
 redundant `1` counter.
 
-The bell, server indicator, room indicators, installed-app badge, and push app
-badge use exact unread occurrence counts. Presentation consolidation never
-changes attention counts: two unread DMs in one displayed row still count as
-two.
+The bell, server indicator, and room indicators use exact unread occurrence
+counts and exact Important subsets. They remain present for Ambient-only
+activity but turn notification orange whenever at least one Important item is
+unread. Installed-app and push app badges continue to count every unread
+occurrence. Presentation consolidation never changes these counts: two unread
+DMs in one displayed row still count as two.
 
 ### Read state and policy remain separate
 
 Room/thread read cursors describe content consumption. Notification policy
 decides whether new activity creates an occurrence and whether it is eligible
-to interrupt. Notification attention describes whether that occurrence is
-new. Disabling a cause does not mark content read, reading a notification does
-not necessarily advance a room cursor, and changing policy does not erase
-existing history.
+to interrupt. Notification read state describes whether that occurrence is
+new, while its visual attention level describes how strongly unread activity
+is emphasized. Disabling a cause does not mark content read, reading a
+notification does not necessarily advance a room cursor, and changing policy
+does not erase existing history. Visual attention is not configurable in this
+iteration and is not inferred from delivery intensity.
 
 ### Reconciliation and visibility
 

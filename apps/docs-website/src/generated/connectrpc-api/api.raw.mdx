@@ -2197,6 +2197,7 @@ One page of exact notification occurrences.
 | `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
 | `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
+| `important_unread_count` | `optional int32` | Exact unread occurrences with Important attention. Absent servers predate attention tiers, so clients should conservatively treat all unread occurrences as Important. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
@@ -4163,6 +4164,7 @@ One exact Notifications 2.0 source occurrence.
 | `reaction_emoji` | `string` | Exact emoji for a reaction occurrence. Empty for every other cause. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 | `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from the target thread's root message. Absent outside threads and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
+| `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 
 
@@ -4204,6 +4206,7 @@ Unread notification occurrences currently targeting one room.
 | --- | --- | --- |
 | `room_id` | `string` | Target room ID. |
 | `unread_count` | `int32` | Number of unread occurrences targeting this room. |
+| `important_unread_count` | `optional int32` | Unread occurrences in this room with Important attention. Absence has the same compatibility meaning as the response-level field. |
 
 
 
@@ -4547,6 +4550,20 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-NotificationAttentionLevel"></a>
+
+### NotificationAttentionLevel
+
+Visual importance of an unread notification. This is independent from
+whether the notification is eligible for sound or push delivery.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED` | `0` | No attention level was provided. |
+| `NOTIFICATION_ATTENTION_LEVEL_AMBIENT` | `1` | Ambient activity appears with a neutral unread indicator. |
+| `NOTIFICATION_ATTENTION_LEVEL_IMPORTANT` | `2` | Important activity appears with Chatto's notification orange. |
 
 
 <a id="chatto-api-v1-NotificationDeliveryIntensity"></a>

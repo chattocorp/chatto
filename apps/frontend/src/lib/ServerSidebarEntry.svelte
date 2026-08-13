@@ -186,6 +186,7 @@
   selected={isActiveServer}
   indicator={stores.serverIndicator()}
   notificationCount={notificationStore.unreadNotificationCount}
+  importantNotificationCount={notificationStore.importantUnreadNotificationCount}
   onclick={handleServerClick}
   onIndicatorClick={handleServerIndicatorClick}
   contextMenuTrigger={serverContextMenuTrigger}

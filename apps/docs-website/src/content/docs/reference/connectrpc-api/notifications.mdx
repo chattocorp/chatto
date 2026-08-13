@@ -55,6 +55,7 @@ One page of exact notification occurrences.
 | `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
 | `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
+| `important_unread_count` | `optional int32` | Exact unread occurrences with Important attention. Absent servers predate attention tiers, so clients should conservatively treat all unread occurrences as Important. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>

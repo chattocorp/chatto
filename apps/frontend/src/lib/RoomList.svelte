@@ -373,6 +373,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       >
         <NotificationBadge
           count={room.viewerNotificationCount}
+          color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
           testid={isDM ? 'dm-notification-badge' : 'room-notification-badge'}
         />
       </button>

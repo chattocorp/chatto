@@ -150,6 +150,41 @@ proto3.util.setEnumType(NotificationDeliveryIntensity, "chatto.api.v1.Notificati
 ]);
 
 /**
+ * Visual importance of an unread notification. This is independent from
+ * whether the notification is eligible for sound or push delivery.
+ *
+ * @generated from enum chatto.api.v1.NotificationAttentionLevel
+ */
+export enum NotificationAttentionLevel {
+  /**
+   * No attention level was provided.
+   *
+   * @generated from enum value: NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Ambient activity appears with a neutral unread indicator.
+   *
+   * @generated from enum value: NOTIFICATION_ATTENTION_LEVEL_AMBIENT = 1;
+   */
+  AMBIENT = 1,
+
+  /**
+   * Important activity appears with Chatto's notification orange.
+   *
+   * @generated from enum value: NOTIFICATION_ATTENTION_LEVEL_IMPORTANT = 2;
+   */
+  IMPORTANT = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(NotificationAttentionLevel)
+proto3.util.setEnumType(NotificationAttentionLevel, "chatto.api.v1.NotificationAttentionLevel", [
+  { no: 0, name: "NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_ATTENTION_LEVEL_AMBIENT" },
+  { no: 2, name: "NOTIFICATION_ATTENTION_LEVEL_IMPORTANT" },
+]);
+
+/**
  * One cause that matched an occurrence and its evaluated delivery intensity.
  *
  * @generated from message chatto.api.v1.NotificationReasonMatch
@@ -348,6 +383,13 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
    */
   threadRootMessageExcerpt?: string;
 
+  /**
+   * Source-time visual importance of this occurrence.
+   *
+   * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 12;
+   */
+  attentionLevel = NotificationAttentionLevel.UNSPECIFIED;
+
   constructor(data?: PartialMessage<NotificationOccurrence>) {
     super();
     proto3.util.initPartial(data, this);
@@ -367,6 +409,7 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 9, name: "reaction_emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "expires_at", kind: "message", T: Timestamp },
     { no: 11, name: "thread_root_message_excerpt", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 12, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrence {
@@ -470,6 +513,15 @@ export class ListNotificationOccurrencesResponse extends Message<ListNotificatio
    */
   roomUnreadCounts: NotificationRoomUnreadCount[] = [];
 
+  /**
+   * Exact unread occurrences with Important attention. Absent servers predate
+   * attention tiers, so clients should conservatively treat all unread
+   * occurrences as Important.
+   *
+   * @generated from field: optional int32 important_unread_count = 6;
+   */
+  importantUnreadCount?: number;
+
   constructor(data?: PartialMessage<ListNotificationOccurrencesResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -483,6 +535,7 @@ export class ListNotificationOccurrencesResponse extends Message<ListNotificatio
     { no: 3, name: "unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 4, name: "next_expiry_at", kind: "message", T: Timestamp },
     { no: 5, name: "room_unread_counts", kind: "message", T: NotificationRoomUnreadCount, repeated: true },
+    { no: 6, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationOccurrencesResponse {
@@ -522,6 +575,14 @@ export class NotificationRoomUnreadCount extends Message<NotificationRoomUnreadC
    */
   unreadCount = 0;
 
+  /**
+   * Unread occurrences in this room with Important attention. Absence has the
+   * same compatibility meaning as the response-level field.
+   *
+   * @generated from field: optional int32 important_unread_count = 3;
+   */
+  importantUnreadCount?: number;
+
   constructor(data?: PartialMessage<NotificationRoomUnreadCount>) {
     super();
     proto3.util.initPartial(data, this);
@@ -532,6 +593,7 @@ export class NotificationRoomUnreadCount extends Message<NotificationRoomUnreadC
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
+    { no: 3, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationRoomUnreadCount {

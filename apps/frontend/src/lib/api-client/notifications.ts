@@ -6,6 +6,7 @@ import type {
   NotificationOccurrence as APINotificationOccurrence
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
+  NotificationAttentionLevel,
   NotificationDeliveryIntensity,
   NotificationReason
 } from '@chatto/api-types/api/v1/notifications_pb';
@@ -104,6 +105,7 @@ export type NotificationOccurrenceItem = {
     reason: NotificationReason;
     intensity: NotificationDeliveryIntensity;
   }>;
+  attentionLevel: NotificationAttentionLevel;
   unread: boolean;
   reactionEmoji?: string | null;
   threadRootMessageExcerpt?: string | null;
@@ -116,6 +118,7 @@ export type NotificationGroupItem = {
   openTarget: NotificationOccurrenceItem | null;
   threadRootMessageExcerpt?: string | null;
   unread: boolean;
+  attentionLevel: NotificationAttentionLevel;
   occurrenceCount: number;
   latestAt: string;
   reasons: NotificationReason[];
@@ -125,13 +128,15 @@ export type NotificationGroupItem = {
 export type NotificationOccurrencePage = {
   occurrences: NotificationOccurrenceItem[];
   unreadCount: number;
+  importantUnreadCount: number;
   roomUnreadCounts: Record<string, number>;
+  roomImportantUnreadCounts: Record<string, number>;
   totalCount: number;
   hasMore: boolean;
   nextExpiryAt?: string | null;
 };
 
-export { NotificationDeliveryIntensity, NotificationReason };
+export { NotificationAttentionLevel, NotificationDeliveryIntensity, NotificationReason };
 export type NotificationPolicyItem = {
   reason: NotificationReason;
   serverIntensity: NotificationDeliveryIntensity;
@@ -226,8 +231,17 @@ export function mapNotificationOccurrencePage(
   return {
     occurrences: response.occurrences.map(notificationOccurrence),
     unreadCount: Number(response.unreadCount),
+    // An absent optional field identifies an older Notifications 2.0 server.
+    // Preserve its all-orange behavior instead of understating importance.
+    importantUnreadCount: Number(response.importantUnreadCount ?? response.unreadCount),
     roomUnreadCounts: Object.fromEntries(
       response.roomUnreadCounts.map((count) => [count.roomId, Number(count.unreadCount)])
+    ),
+    roomImportantUnreadCounts: Object.fromEntries(
+      response.roomUnreadCounts.map((count) => [
+        count.roomId,
+        Number(count.importantUnreadCount ?? count.unreadCount)
+      ])
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
@@ -255,6 +269,7 @@ export function notificationOccurrence(
     parentEventId: item.target?.parentEventId ?? null,
     reasons,
     reasonMatches,
+    attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),
     unread: item.unread,
     reactionEmoji: item.reactionEmoji || null,
     threadRootMessageExcerpt: item.threadRootMessageExcerpt ?? null,
@@ -279,6 +294,12 @@ export function groupNotificationOccurrences(
       const openTarget =
         occurrences.find((occurrence) => occurrence.unread) ?? occurrences[0] ?? null;
       const reasons = [...new Set(occurrences.flatMap((occurrence) => occurrence.reasons))].sort();
+      const attentionLevel = occurrences
+        .filter((occurrence) => occurrence.unread)
+        .reduce(
+          (strongest, occurrence) => Math.max(strongest, occurrence.attentionLevel),
+          NotificationAttentionLevel.UNSPECIFIED
+        ) as NotificationAttentionLevel;
       const expiries = occurrences.flatMap((occurrence) =>
         occurrence.expiresAt ? [occurrence.expiresAt] : []
       );
@@ -288,6 +309,7 @@ export function groupNotificationOccurrences(
         openTarget,
         threadRootMessageExcerpt: openTarget?.threadRootMessageExcerpt ?? null,
         unread: occurrences.some((occurrence) => occurrence.unread),
+        attentionLevel,
         occurrenceCount: occurrences.length,
         latestAt: occurrences[0]?.createdAt ?? new Date(0).toISOString(),
         reasons,
@@ -295,6 +317,22 @@ export function groupNotificationOccurrences(
       };
     })
     .sort((a, b) => b.latestAt.localeCompare(a.latestAt));
+}
+
+/** Resolve additive attention metadata, conservatively supporting older servers. */
+export function effectiveNotificationAttentionLevel(
+  stored: NotificationAttentionLevel,
+  reasons: NotificationReason[]
+): NotificationAttentionLevel {
+  if (
+    stored === NotificationAttentionLevel.AMBIENT ||
+    stored === NotificationAttentionLevel.IMPORTANT
+  ) {
+    return stored;
+  }
+  return reasons.length > 0 && reasons.every((reason) => reason === NotificationReason.REACTION)
+    ? NotificationAttentionLevel.AMBIENT
+    : NotificationAttentionLevel.IMPORTANT;
 }
 
 function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {

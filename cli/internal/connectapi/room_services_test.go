@@ -1496,15 +1496,15 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ListNotificationOccurrences: %v", err)
 	}
-	if len(list.Msg.GetOccurrences()) != 1 || list.Msg.GetUnreadCount() != 1 {
+	if len(list.Msg.GetOccurrences()) != 1 || list.Msg.GetUnreadCount() != 1 || list.Msg.GetImportantUnreadCount() != 1 {
 		t.Fatalf("occurrences = %+v, unread = %d, want one unread occurrence", list.Msg.GetOccurrences(), list.Msg.GetUnreadCount())
 	}
-	if counts := list.Msg.GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadCount() != 1 {
+	if counts := list.Msg.GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != dm.Id || counts[0].GetUnreadCount() != 1 || counts[0].GetImportantUnreadCount() != 1 {
 		t.Fatalf("room unread-occurrence counts = %+v, want one group for %s", counts, dm.Id)
 	}
 	occurrence := list.Msg.GetOccurrences()[0]
 	if occurrence.GetTarget().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetEventId() != posted.Id ||
-		!occurrence.GetUnread() {
+		!occurrence.GetUnread() || occurrence.GetAttentionLevel() != apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
 	}
 
