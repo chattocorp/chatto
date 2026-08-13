@@ -82,6 +82,9 @@ describe('SystemEvent', () => {
     });
 
     expect(container.textContent).toContain('Alice started a call in this room');
+    expect(container.querySelector('button')?.parentElement?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Alice started a call in this room · Join call'
+    );
     await page.getByRole('button', { name: 'Join call' }).click();
     expect(onOpenCall).toHaveBeenCalledOnce();
   });

@@ -102,9 +102,10 @@
       {/if}
       {action}
       {#if isActiveCallStart}
+        <span aria-hidden="true" class="mx-1">·</span>
         <button
           type="button"
-          class="ms-1 cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
+          class="cursor-pointer underline decoration-dotted underline-offset-2 hover:text-text"
           onclick={onOpenCall}
         >
           {m('voice.join_call')}
