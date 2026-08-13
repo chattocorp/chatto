@@ -14,7 +14,8 @@
       "activity": "Nova aktiveco",
       "summary": {
         "direct_message": "{actor} sendis al vi rektan mesaĝon.",
-        "reaction": "{actor} reagis al via mesaĝo.",
+        "reaction": "{actor} reagis per «{emoji}» al via mesaĝo en {channel}.",
+        "reaction_group": "{actor} kaj aliaj reagis per «{emoji}» al via mesaĝo en {channel}.",
         "reply": "{actor} respondis al via mesaĝo.",
         "mention": "{actor} menciis vin.",
         "followed_thread": "{actor} respondis en fadeno, kiun vi sekvas.",

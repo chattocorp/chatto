@@ -14,7 +14,8 @@
       "activity": "新しいアクティビティ",
       "summary": {
         "direct_message": "{actor}さんからダイレクトメッセージが届きました。",
-        "reaction": "{actor}さんがあなたのメッセージにリアクションしました。",
+        "reaction": "{actor}さんが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
+        "reaction_group": "{actor}さんと他のユーザーが{channel}であなたのメッセージに「{emoji}」でリアクションしました。",
         "reply": "{actor}さんがあなたのメッセージに返信しました。",
         "mention": "{actor}さんがあなたをメンションしました。",
         "followed_thread": "{actor}さんがフォロー中のスレッドに返信しました。",

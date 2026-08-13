@@ -14,7 +14,8 @@
       "activity": "Nieuwe activiteit",
       "summary": {
         "direct_message": "{actor} heeft je een direct bericht gestuurd.",
-        "reaction": "{actor} heeft op je bericht gereageerd.",
+        "reaction": "{actor} heeft met ‘{emoji}’ op je bericht in {channel} gereageerd.",
+        "reaction_group": "{actor} en anderen hebben met ‘{emoji}’ op je bericht in {channel} gereageerd.",
         "reply": "{actor} heeft op je bericht geantwoord.",
         "mention": "{actor} heeft je genoemd.",
         "followed_thread": "{actor} heeft geantwoord in een gesprek dat je volgt.",

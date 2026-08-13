@@ -250,7 +250,8 @@ describe('notifications page', () => {
       reasons: [NotificationReason.REACTION],
       reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
       attentionLevel: NotificationAttentionLevel.AMBIENT,
-      reactionEmoji: emoji
+      reactionEmoji: emoji,
+      threadRootMessageExcerpt: 'This preview should not be rendered'
     });
     mocks.store.notifications.fetchPage.mockResolvedValue(
       page([reaction('reaction-alice', alice, 'thumbsup'), reaction('reaction-bob', bob, 'heart')])
@@ -263,11 +264,54 @@ describe('notifications page', () => {
       return rows[0] as HTMLElement;
     });
 
-    expect(row.textContent).toContain('👍 ❤️');
+    expect(row.textContent).toContain(
+      "Alice and others reacted with '👍 ❤️' to your message in #general."
+    );
+    expect(row.textContent?.match(/#general/g)).toHaveLength(1);
+    expect(row.textContent).not.toContain('This preview should not be rendered');
+    expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
     expect(row.dataset.notificationAttention).toBe('ambient');
     expect(row.classList.contains('bg-attention/5')).toBe(false);
     expect(q(row, '.bg-text')).not.toBeNull();
     expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
+  });
+
+  it('renders a single reaction as a sentence without a message preview', async () => {
+    const bob = {
+      id: 'bob',
+      login: 'bob',
+      displayName: 'Bob',
+      deleted: false,
+      avatarUrl: null,
+      presenceStatus: 1,
+      customStatus: null
+    };
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page([
+        {
+          ...mocks.occurrence,
+          id: 'reaction-bob',
+          actor: bob,
+          reasons: [NotificationReason.REACTION],
+          reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
+          attentionLevel: NotificationAttentionLevel.AMBIENT,
+          reactionEmoji: 'heart',
+          threadRootMessageExcerpt: 'Do not show this message preview'
+        }
+      ])
+    );
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+
+    expect(row.textContent).toContain("Bob reacted with '❤️' to your message in #general.");
+    expect(row.textContent?.match(/#general/g)).toHaveLength(1);
+    expect(row.textContent).not.toContain('Do not show this message preview');
+    expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
   });
 
   it('distinguishes thread groups with their current root-message excerpts', async () => {
@@ -606,6 +650,11 @@ describe('notifications page', () => {
     expect(headings).toContain('Today');
     expect(headings).toContain('Yesterday');
     expect(headings.some((heading) => heading?.match(/\w+ \d{4}/))).toBe(true);
+    const firstHeading = container.querySelector(
+      '[data-testid="notification-date-heading"]'
+    ) as HTMLElement;
+    expect(firstHeading.classList.contains('sticky')).toBe(false);
+    expect(firstHeading.querySelectorAll('.h-px.bg-border')).toHaveLength(2);
   });
 
   it('dismisses all notifications optimistically with one request per server', async () => {

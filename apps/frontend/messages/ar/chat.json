@@ -14,7 +14,8 @@
       "activity": "نشاط جديد",
       "summary": {
         "direct_message": "أرسل إليك {actor} رسالة مباشرة.",
-        "reaction": "تفاعل {actor} مع رسالتك.",
+        "reaction": "تفاعل {actor} باستخدام «{emoji}» مع رسالتك في {channel}.",
+        "reaction_group": "تفاعل {actor} وآخرون باستخدام «{emoji}» مع رسالتك في {channel}.",
         "reply": "ردّ {actor} على رسالتك.",
         "mention": "أشار إليك {actor}.",
         "followed_thread": "ردّ {actor} في سلسلة تتابعها.",

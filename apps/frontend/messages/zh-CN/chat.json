@@ -14,7 +14,8 @@
       "activity": "新动态",
       "summary": {
         "direct_message": "{actor} 给你发了一条私信。",
-        "reaction": "{actor} 对你的消息作出了回应。",
+        "reaction": "{actor} 在 {channel} 中用“{emoji}”回应了你的消息。",
+        "reaction_group": "{actor} 和其他用户在 {channel} 中用“{emoji}”回应了你的消息。",
         "reply": "{actor} 回复了你的消息。",
         "mention": "{actor} 提到了你。",
         "followed_thread": "{actor} 回复了你关注的主题。",

@@ -14,7 +14,8 @@
       "activity": "Nová aktivita",
       "summary": {
         "direct_message": "Od uživatele {actor} máte novou přímou zprávu.",
-        "reaction": "Uživatel {actor} reagoval na vaši zprávu.",
+        "reaction": "Uživatel {actor} reagoval pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
+        "reaction_group": "Uživatel {actor} a další reagovali pomocí „{emoji}“ na vaši zprávu v kanálu {channel}.",
         "reply": "Uživatel {actor} odpověděl na vaši zprávu.",
         "mention": "Uživatel {actor} vás zmínil.",
         "followed_thread": "Uživatel {actor} odpověděl ve vlákně, které sledujete.",

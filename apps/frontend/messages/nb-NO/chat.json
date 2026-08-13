@@ -14,7 +14,8 @@
       "activity": "Ny aktivitet",
       "summary": {
         "direct_message": "{actor} har sendt deg en direktemelding.",
-        "reaction": "{actor} reagerte på meldingen din.",
+        "reaction": "{actor} reagerte med «{emoji}» på meldingen din i {channel}.",
+        "reaction_group": "{actor} og andre reagerte med «{emoji}» på meldingen din i {channel}.",
         "reply": "{actor} svarte på meldingen din.",
         "mention": "{actor} nevnte deg.",
         "followed_thread": "{actor} svarte i en tråd du følger.",

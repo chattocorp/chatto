@@ -14,7 +14,8 @@
       "activity": "Yeni etkinlik",
       "summary": {
         "direct_message": "{actor} sana doğrudan mesaj gönderdi.",
-        "reaction": "{actor} mesajına tepki verdi.",
+        "reaction": "{actor}, {channel} kanalındaki mesajına ‘{emoji}’ ile tepki verdi.",
+        "reaction_group": "{actor} ve diğerleri, {channel} kanalındaki mesajına ‘{emoji}’ ile tepki verdi.",
         "reply": "{actor} mesajına yanıt verdi.",
         "mention": "{actor} senden bahsetti.",
         "followed_thread": "{actor} takip ettiğin bir konuya yanıt verdi.",

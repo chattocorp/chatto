@@ -14,7 +14,8 @@
       "activity": "Uus tegevus",
       "summary": {
         "direct_message": "{actor} saatis sulle otsesõnumi.",
-        "reaction": "{actor} reageeris sinu sõnumile.",
+        "reaction": "{actor} reageeris emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
+        "reaction_group": "{actor} ja teised reageerisid emotikoniga „{emoji}” sinu sõnumile kanalis {channel}.",
         "reply": "{actor} vastas sinu sõnumile.",
         "mention": "{actor} mainis sind.",
         "followed_thread": "{actor} vastas lõimes, mida jälgid.",

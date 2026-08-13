@@ -14,7 +14,8 @@
       "activity": "Actividad nueva",
       "summary": {
         "direct_message": "{actor} te ha enviado un mensaje directo.",
-        "reaction": "{actor} ha reaccionado a tu mensaje.",
+        "reaction": "{actor} ha reaccionado con «{emoji}» a tu mensaje en {channel}.",
+        "reaction_group": "{actor} y otras personas han reaccionado con «{emoji}» a tu mensaje en {channel}.",
         "reply": "{actor} ha respondido a tu mensaje.",
         "mention": "{actor} te ha mencionado.",
         "followed_thread": "{actor} ha respondido en un hilo que sigues.",

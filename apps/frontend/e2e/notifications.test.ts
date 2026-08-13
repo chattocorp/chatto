@@ -507,13 +507,15 @@ test.describe('Notification Page Display', () => {
 
     await notificationsPage.goto();
     await notificationsPage.expectNotificationCount(1, TIMEOUTS.COMPLEX_OPERATION);
-    const notification = notificationsPage.getNotificationBySummary('reacted to your message.');
+    const notification = notificationsPage.getNotificationBySummary('reacted with');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(notification).toHaveAttribute('data-notification-attention', 'ambient');
     await expect(notification).not.toHaveClass(/bg-attention\/5/);
     await expect(notification.locator('.bg-text')).toBeVisible();
     await expect(notification).toContainText('👍');
     await expect(notification).toContainText('❤️');
+    await expect(notification).toContainText('to your message in #general.');
+    await expect(notification).not.toContainText(messageText);
     await expect(notification.getByTestId('notification-actor-stack')).toBeVisible();
     await expect(notification.getByRole('img', { name: firstActor.login })).toBeVisible();
     await expect(notification.getByRole('img', { name: secondActor.login })).toBeVisible();

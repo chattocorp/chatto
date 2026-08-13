@@ -14,7 +14,8 @@
       "activity": "Jauna aktivitāte",
       "summary": {
         "direct_message": "{actor} nosūtīja jums tiešu ziņu.",
-        "reaction": "{actor} reaģēja uz jūsu ziņu.",
+        "reaction": "{actor} reaģēja ar “{emoji}” uz jūsu ziņu kanālā {channel}.",
+        "reaction_group": "{actor} un citi reaģēja ar “{emoji}” uz jūsu ziņu kanālā {channel}.",
         "reply": "{actor} atbildēja uz jūsu ziņu.",
         "mention": "{actor} pieminēja jūs.",
         "followed_thread": "{actor} atbildēja pavedienā, kuram sekojat.",

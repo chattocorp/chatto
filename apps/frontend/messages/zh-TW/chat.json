@@ -14,7 +14,8 @@
       "activity": "新動態",
       "summary": {
         "direct_message": "{actor} 傳送了一則私人訊息給你。",
-        "reaction": "{actor} 對你的訊息做出了回應。",
+        "reaction": "{actor} 在 {channel} 中以「{emoji}」回應了你的訊息。",
+        "reaction_group": "{actor} 和其他使用者在 {channel} 中以「{emoji}」回應了你的訊息。",
         "reply": "{actor} 回覆了你的訊息。",
         "mention": "{actor} 提及了你。",
         "followed_thread": "{actor} 回覆了你追蹤的討論串。",

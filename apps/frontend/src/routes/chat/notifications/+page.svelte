@@ -414,9 +414,18 @@
             .map((emoji) => getEmojiByName(emoji) ?? emoji)
         )
       ];
-      const prefix = emojis.join(' ');
-      const summary = m('chat.notifications.summary.reaction', { actor });
-      return prefix ? `${prefix} ${summary}` : summary;
+      const emoji = emojis.join(' ');
+      const channel = occurrence.room?.name;
+      if (emoji && channel) {
+        const values = { actor, emoji, channel: `#${channel}` };
+        const actorIds = new Set(
+          group.occurrences.flatMap((item) => (item.actor ? [item.actor.id] : []))
+        );
+        return actorIds.size > 1
+          ? m('chat.notifications.summary.reaction_group', values)
+          : m('chat.notifications.summary.reaction', values);
+      }
+      return m('chat.notifications.summary.activity', { actor });
     }
     if (reasons.includes(NotificationReason.REPLY)) {
       return m('chat.notifications.summary.reply', { actor });
@@ -597,13 +606,17 @@
           <section aria-labelledby={`notification-date-${section.key}`}>
             <h2
               id={`notification-date-${section.key}`}
-              class="sticky top-0 z-10 border-y border-border bg-background/95 px-4 py-2 text-xs font-semibold tracking-wide text-muted uppercase backdrop-blur"
+              class="mt-4 flex items-center gap-4 px-4 py-3"
               data-testid="notification-date-heading"
             >
-              {section.label}
+              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
+              <span class="text-xs font-medium text-muted">{section.label}</span>
+              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
             </h2>
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
+              {@const isReaction =
+                occurrence?.reasons.includes(NotificationReason.REACTION) ?? false}
               {@const actor = occurrence?.actor ?? null}
               {@const actors = notificationActors(item.group)}
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
@@ -653,7 +666,7 @@
                     <bdi class="block truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
                     </bdi>
-                    {#if item.group.threadRootMessageExcerpt}
+                    {#if item.group.threadRootMessageExcerpt && !isReaction}
                       <span
                         class="mt-0.5 flex min-w-0 items-center gap-1.5 text-sm text-muted"
                         data-testid="notification-thread-root-excerpt"
@@ -678,7 +691,7 @@
                           class="mx-1.5"
                           aria-hidden="true">·</span
                         >{/if}
-                      {#if occurrence?.room?.name}
+                      {#if occurrence?.room?.name && !isReaction}
                         <bdi dir="auto">#{occurrence.room.name}</bdi><span
                           class="mx-1.5"
                           aria-hidden="true">·</span
