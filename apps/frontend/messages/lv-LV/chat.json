@@ -38,6 +38,7 @@
       "account_data_error": "Nevarēja sinhronizēt serveru sarakstu",
       "version": "Versija {version}",
       "version_unknown": "Versija nav zināma",
+      "unreachable": "Serveris nav sasniedzams",
       "compatibility_server_too_old": "Šis serveris ir jājaunina uz Chatto 0.5 vai jaunāku versiju, lai šī lietotne varētu izveidot savienojumu.",
       "compatibility_unknown": "Šī lietotne nevar noteikt saderību no servera versijas."
     },

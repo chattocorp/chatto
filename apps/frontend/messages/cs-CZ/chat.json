@@ -38,6 +38,7 @@
       "account_data_error": "Nelze synchronizovat seznam serverů",
       "version": "Verze {version}",
       "version_unknown": "Verze neznámá",
+      "unreachable": "Server je nedostupný",
       "compatibility_server_too_old": "Aby se tato aplikace mohla připojit, musí být tento server upgradován na Chatto 0.5 nebo novější.",
       "compatibility_unknown": "Tato aplikace nemůže určit kompatibilitu z verze serveru."
     },

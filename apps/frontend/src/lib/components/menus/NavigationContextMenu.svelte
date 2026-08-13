@@ -12,6 +12,7 @@ presentation-only.
     kind,
     isRoomMember = true,
     canJoin = false,
+    showMarkRead = true,
     canMarkRead,
     canConfigure = false,
     canLeave = true,
@@ -23,6 +24,7 @@ presentation-only.
     kind: 'server' | 'room';
     isRoomMember?: boolean;
     canJoin?: boolean;
+    showMarkRead?: boolean;
     canMarkRead: boolean;
     canConfigure?: boolean;
     canLeave?: boolean;
@@ -46,7 +48,7 @@ presentation-only.
         <span class="iconify sidebar-icon icon-[uil--sign-in-alt]" aria-hidden="true"></span>
         {m('room.join.action')}
       </button>
-    {:else}
+    {:else if showMarkRead}
       <button
         type="button"
         class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
@@ -67,7 +69,9 @@ presentation-only.
     {/if}
 
     {#if isRoomMember && canLeave}
-      <div role="separator" class="mx-2 my-1 border-t border-text/10"></div>
+      {#if showMarkRead || (canConfigure && onConfigure)}
+        <div role="separator" class="mx-2 my-1 border-t border-text/10"></div>
+      {/if}
       <button
         type="button"
         class="sidebar-item text-danger hover:text-danger"

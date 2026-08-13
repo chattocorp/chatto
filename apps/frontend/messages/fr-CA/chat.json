@@ -38,6 +38,7 @@
       "account_data_error": "Impossible de synchroniser la liste des serveurs",
       "version": "Version {version}",
       "version_unknown": "Version inconnue",
+      "unreachable": "Serveur inaccessible",
       "compatibility_server_too_old": "Ce serveur doit être mis à niveau vers Chatto 0.5 ou une version plus récente avant que cette application puisse se connecter.",
       "compatibility_unknown": "Cette application ne peut pas déterminer la compatibilité à partir de la version du serveur."
     },

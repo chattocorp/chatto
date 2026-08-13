@@ -38,6 +38,7 @@
       "account_data_error": "Serverite loendit ei saanud sünkroonida",
       "version": "Versioon {version}",
       "version_unknown": "Versioon teadmata",
+      "unreachable": "Server pole kättesaadav",
       "compatibility_server_too_old": "See server peab olema üle viidud versioonile Chatto 0.5 või uuemale, enne kui see rakendus saab ühenduse luua.",
       "compatibility_unknown": "See rakendus ei saa serveri versiooni järgi ühilduvust kindlaks teha."
     },

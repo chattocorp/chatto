@@ -11,6 +11,7 @@ Key files:
 - [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
 - [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
 - [`apps/frontend/src/lib/state/server/realtimeSync.svelte.ts`](../../apps/frontend/src/lib/state/server/realtimeSync.svelte.ts)
+- [`apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte`](../../apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte)
 - [`apps/frontend/src/lib/presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts)
 
 Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md) and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
@@ -56,6 +57,14 @@ same `/api/realtime` stream with that projection's cursor and closes as soon as
 run about once a minute with jitter and a 30-second client timeout. Switching
 servers closes the previous persistent socket without discarding its state and
 promotes the selected server to the sole persistent connection.
+
+The application-root `ServerRuntimeCoordinator` owns authenticated-server
+transport reconciliation before notification synchronization and routed
+content. It remains mounted on public and login routes, seeds the origin viewer
+before its first reconciliation, and reacts to restored sessions and late
+compatibility discovery. Consequently, a cold welcome-screen load hydrates
+inactive registered servers without selecting one or mounting chat-only
+presence, profile-cache, prompt, or notice coordination.
 
 The frontend keeps an authenticated server's realtime stream connected
 independently of the local presence mode. "Look offline" stops presence

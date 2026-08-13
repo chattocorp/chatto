@@ -85,6 +85,10 @@ vi.mock('$lib/state/server/useServerRegistry.svelte', () => ({
   useServerRegistry: vi.fn()
 }));
 
+vi.mock('$lib/state/server/ServerRuntimeCoordinator.svelte', async () => ({
+  default: (await import('./chat/ChatRootTestStub.svelte')).default
+}));
+
 vi.mock('$lib/state/server/registry.svelte', () => ({
   generateServerId: vi.fn(() => 'server-id'),
   serverRegistry: {
@@ -285,8 +289,9 @@ describe('root layout notification synchronization', () => {
   });
 
   it('mounts badge synchronization for a signed-out page', async () => {
-    renderLayout();
+    const { container } = renderLayout();
 
     await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
+    expect(container.querySelector('[data-testid="chat-root-component-stub"]')).not.toBeNull();
   });
 });

@@ -38,6 +38,7 @@
       "account_data_error": "サーバー一覧を同期できませんでした",
       "version": "バージョン {version}",
       "version_unknown": "バージョン不明",
+      "unreachable": "サーバーに接続できません",
       "compatibility_server_too_old": "このアプリが接続するには、サーバーを Chatto 0.5 以降にアップグレードする必要があります。",
       "compatibility_unknown": "このアプリはサーバーのバージョンから互換性を判断できません。"
     },

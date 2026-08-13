@@ -38,6 +38,7 @@
       "account_data_error": "无法同步服务器列表",
       "version": "版本 {version}",
       "version_unknown": "版本未知",
+      "unreachable": "无法访问服务器",
       "compatibility_server_too_old": "此应用需要服务器升级到 Chatto 0.5 或更高版本后才能连接。",
       "compatibility_unknown": "此应用无法根据服务器版本确定兼容性。"
     },

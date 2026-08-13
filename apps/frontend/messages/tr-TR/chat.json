@@ -38,6 +38,7 @@
       "account_data_error": "Sunucu listesi senkronize edilemedi",
       "version": "Sürüm {version}",
       "version_unknown": "Sürüm bilinmiyor",
+      "unreachable": "Sunucuya ulaşılamıyor",
       "compatibility_server_too_old": "Bu uygulamanın bağlanabilmesi için bu sunucunun Chatto 0,5 veya daha yeni bir sürüme yükseltilmesi gerekir.",
       "compatibility_unknown": "Bu uygulama, sunucu sürümünden uyumluluğu belirleyemez."
     },

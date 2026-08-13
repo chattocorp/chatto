@@ -38,6 +38,7 @@
       "account_data_error": "לא ניתן לסנכרן את רשימת השרתים",
       "version": "גרסה {version}",
       "version_unknown": "גרסה לא ידועה",
+      "unreachable": "לא ניתן להגיע לשרת",
       "compatibility_server_too_old": "יש לשדרג את השרת הזה ל-Chatto 0.5 או חדש לפני שהאפליקציה הזו תוכל להתחבר.",
       "compatibility_unknown": "אפליקציה זו אינה יכולה לקבוע תאימות מגרסת השרת."
     },

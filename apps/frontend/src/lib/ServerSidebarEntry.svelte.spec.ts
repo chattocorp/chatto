@@ -279,6 +279,12 @@ describe('ServerSidebarEntry', () => {
       new MouseEvent('contextmenu', { bubbles: true, cancelable: true, clientX: 24, clientY: 36 })
     );
     await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+    expect(q(document.body, '[data-testid="server-name"]')?.textContent?.trim()).toBe(
+      'Loaded Remote'
+    );
+    expect(q(document.body, '[data-testid="server-hostname"]')?.textContent?.trim()).toBe(
+      'remote.example.com'
+    );
 
     const markRead = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Mark as read'
@@ -413,6 +419,35 @@ describe('ServerSidebarEntry', () => {
       )
     );
     expect(document.body.textContent).toContain('Version custom-build');
+  });
+
+  it('shows an unreachable status instead of an unknown version and hides read actions', async () => {
+    mocks.store.projection.viewer = null;
+    mocks.store.serverInfo.version = '';
+    mocks.store.serverInfo.compatibility = {
+      status: 'unreachable',
+      reason: 'unreachable'
+    };
+    mocks.showConnectionLostIcon = true;
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote — Server unreachable');
+    icon.dispatchEvent(
+      new MouseEvent('contextmenu', {
+        bubbles: true,
+        cancelable: true,
+        clientX: 24,
+        clientY: 36
+      })
+    );
+
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Server unreachable'));
+    expect(document.body.textContent).not.toContain('Version unknown');
+    expect(document.body.textContent).not.toContain('Mark as read');
+    expect(q(document.body, '[role="separator"]')).toBeNull();
   });
 
   it('renders an unauthenticated server without loading private sidebar state', async () => {

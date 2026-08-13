@@ -38,6 +38,7 @@
       "account_data_error": "Serverlijst kon niet worden gesynchroniseerd",
       "version": "Versie {version}",
       "version_unknown": "Versie onbekend",
+      "unreachable": "Server onbereikbaar",
       "compatibility_server_too_old": "Deze server moet worden bijgewerkt naar Chatto 0.5 of nieuwer voordat deze app verbinding kan maken.",
       "compatibility_unknown": "Deze app kan de compatibiliteit niet bepalen aan de hand van de serverversie."
     },

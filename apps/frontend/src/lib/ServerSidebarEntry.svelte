@@ -36,6 +36,14 @@
   // svelte-ignore state_referenced_locally - serverId is stable per component lifetime (keyed by server.id)
   const serverConnection = serverConnectionManager.getClient(serverId);
   const registeredServer = $derived(serverRegistry.getServer(serverId));
+  const serverHost = $derived.by(() => {
+    if (!registeredServer) return null;
+    try {
+      return new URL(registeredServer.url).host;
+    } catch {
+      return registeredServer.url;
+    }
+  });
 
   // After the URL collapse (ADR-027), the active context is the deployment-wide
   // server named in the current URL segment.
@@ -63,12 +71,19 @@
         return m('chat.server_gutter.compatibility_server_too_old');
       case 'server-version-unknown':
         return m('chat.server_gutter.compatibility_unknown');
+      case 'unreachable':
+        return m('chat.server_gutter.unreachable');
       default:
         return null;
     }
   });
-  const compatibilityWarning = $derived(
-    compatibility.status === 'unsupported' || compatibility.status === 'unknown'
+  const compatibilityWarning = $derived(compatibility.status !== 'supported');
+  const serverUnavailable = $derived(compatibility.status === 'unreachable');
+  const serverActionsAvailable = $derived(
+    stores.isAuthenticated &&
+      privateDataLoaded &&
+      compatibility.status === 'supported' &&
+      !serverConnection.showConnectionLostIcon
   );
   const iconDimmed = $derived(
     needsSignIn || !loaded || serverConnection.showConnectionLostIcon || needsReauth
@@ -203,12 +218,31 @@
       role="presentation"
       data-testid="server-compatibility-section"
     >
-      <div class="text-muted">
-        {stores.serverInfo.version
-          ? m('chat.server_gutter.version', { version: stores.serverInfo.version })
-          : m('chat.server_gutter.version_unknown')}
+      <div class="truncate font-medium text-text" data-testid="server-name">
+        {iconServer.name}
       </div>
-      {#if compatibilityMessage}
+      {#if serverHost}
+        <div
+          class="mt-0.5 truncate text-muted"
+          title={registeredServer?.url}
+          data-testid="server-hostname"
+        >
+          {serverHost}
+        </div>
+      {/if}
+      <div class="mt-1 flex items-center gap-1.5 text-muted">
+        {#if serverUnavailable}
+          <span class="iconify icon-[uil--wifi-slash] shrink-0 text-warning" aria-hidden="true"></span>
+          <span class="text-warning">{m('chat.server_gutter.unreachable')}</span>
+        {:else}
+          <span>
+            {stores.serverInfo.version
+              ? m('chat.server_gutter.version', { version: stores.serverInfo.version })
+              : m('chat.server_gutter.version_unknown')}
+          </span>
+        {/if}
+      </div>
+      {#if compatibilityMessage && !serverUnavailable}
         <div
           class={[
             'mt-1 flex items-start gap-1.5 whitespace-normal',
@@ -226,6 +260,7 @@
     </div>
     <NavigationContextMenu
       kind="server"
+      showMarkRead={serverActionsAvailable}
       canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}

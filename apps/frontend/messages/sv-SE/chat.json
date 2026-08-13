@@ -38,6 +38,7 @@
       "account_data_error": "Det gick inte att synkronisera serverlistan",
       "version": "Version {version}",
       "version_unknown": "Okänd version",
+      "unreachable": "Servern kan inte nås",
       "compatibility_server_too_old": "Den här servern måste uppgraderas till Chatto 0.5 eller senare innan appen kan ansluta.",
       "compatibility_unknown": "Den här appen kan inte avgöra kompatibiliteten utifrån serverversionen."
     },

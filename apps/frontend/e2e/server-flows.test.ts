@@ -388,6 +388,18 @@ test.describe('Add Server - Remote Auth Flow', () => {
     await expect(page.getByText(liveMessage, { exact: true })).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
+
+    // A full reload on the signed-out landing route matches Chatto Desktop's
+    // cold-start lifecycle: no server is URL-active, but restored remote
+    // sessions must still receive their initial serialized catch-up.
+    await page.goto(routes.login);
+    const remoteIcon = page
+      .locator(`[data-testid="server-icon"][href*="${remoteHostname}"]`)
+      .first();
+    await expect(remoteIcon).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(remoteIcon).not.toHaveAttribute('title', /connection unavailable|needs sign-in/, {
+      timeout: TIMEOUTS.REALTIME_EVENT
+    });
     expect(pageErrors).toEqual([]);
   });
 

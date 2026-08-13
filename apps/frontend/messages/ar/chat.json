@@ -38,6 +38,7 @@
       "account_data_error": "تعذر مزامنة قائمة الخادم",
       "version": "الإصدار {version}",
       "version_unknown": "الإصدار غير معروف",
+      "unreachable": "تعذر الوصول إلى الخادم",
       "compatibility_server_too_old": "يجب ترقية هذا الخادم إلى Chatto 0.5 أو أحدث قبل أن يتمكن هذا التطبيق من الاتصال.",
       "compatibility_unknown": "لا يمكن لهذا التطبيق تحديد التوافق من إصدار الخادم."
     },
