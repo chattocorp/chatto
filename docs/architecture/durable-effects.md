@@ -6,7 +6,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md), and
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md),
 [ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md), and
-[ADR-072](../adr/ADR-072-deterministic-notification-occurrences.md).
+[ADR-073](../adr/ADR-073-deterministic-notification-occurrences.md).
 
 Some durable facts require work in a different storage system or external
 service. The table records the current execution and recovery contract. A

@@ -1,9 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { page } from 'vitest/browser';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEvent from './SystemEvent.svelte';
@@ -24,7 +22,9 @@ function systemEvent(
   kind:
     | typeof TimelineEventKind.UserJoinedRoom
     | typeof TimelineEventKind.UserLeftRoom
-    | typeof TimelineEventKind.RoomArchived,
+    | typeof TimelineEventKind.RoomArchived
+    | typeof TimelineEventKind.CallStarted
+    | typeof TimelineEventKind.CallEnded,
   actorName = 'Alice'
 ): TimelineEventView {
   return {
@@ -40,7 +40,11 @@ function systemEvent(
     },
     event: {
       kind,
-      roomId: 'room-1'
+      roomId: 'room-1',
+      callId:
+        kind === TimelineEventKind.CallStarted || kind === TimelineEventKind.CallEnded
+          ? 'call-1'
+          : undefined
     }
   } as unknown as TimelineEventView;
 }
@@ -65,6 +69,46 @@ describe('SystemEvent', () => {
     });
 
     expect(container.textContent).toContain('Alice left the room');
+  });
+
+  it('renders an actionable call-start event while its call is active', async () => {
+    const onOpenCall = vi.fn();
+    const { container } = render(SystemEvent, {
+      props: {
+        event: systemEvent(TimelineEventKind.CallStarted, 'Alice'),
+        activeCallId: 'call-1',
+        onOpenCall
+      }
+    });
+
+    expect(container.textContent).toContain('Alice started a call in this room');
+    expect(container.querySelector('button')?.parentElement?.textContent?.replace(/\s+/g, ' ').trim()).toBe(
+      'Alice started a call in this room · Join call'
+    );
+    await page.getByRole('button', { name: 'Join call' }).click();
+    expect(onOpenCall).toHaveBeenCalledOnce();
+  });
+
+  it('removes the obsolete call action after the call ends', () => {
+    const { container } = render(SystemEvent, {
+      props: {
+        event: systemEvent(TimelineEventKind.CallStarted, 'Alice'),
+        activeCallId: null,
+        onOpenCall: vi.fn()
+      }
+    });
+
+    expect(container.textContent).toContain('Alice started a call in this room');
+    expect(container.querySelector('button')).toBeNull();
+  });
+
+  it('renders call-end copy without relying on the event actor', () => {
+    const event = systemEvent(TimelineEventKind.CallEnded);
+    event.actor = null;
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('The active call has ended');
   });
 
   it.each([TimelineEventKind.UserJoinedRoom, TimelineEventKind.UserLeftRoom])(

@@ -1,8 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  TimelineEventKind,
-  type TimelineEventView
-} from '$lib/render/timelineEvents';
+import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { isRootRoomEvent, isThreadEvent } from './filters';
 
 function event(payload: TimelineEventView['event'], id = 'event-1'): TimelineEventView {
@@ -49,6 +46,15 @@ describe('room message event filters', () => {
       )
     ).toBe(true);
   });
+
+  it.each([TimelineEventKind.CallStarted, TimelineEventKind.CallEnded])(
+    'keeps %s in the room timeline',
+    (kind) => {
+      expect(isRootRoomEvent(event({ kind, roomId: 'room-1', callId: 'call-1' } as never))).toBe(
+        true
+      );
+    }
+  );
 
   it('uses local event kind for room lifecycle events', () => {
     expect(

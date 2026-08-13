@@ -20,6 +20,15 @@ The first person to select **Start call** and join creates the call and a fresh 
 
 Screen sharing can include audio from a browser tab when the browser supports it. In Chrome, select a browser tab and enable **Share tab audio** in the browser picker. Chatto does not request whole-system audio because that could capture remote call playback and feed it back into the room.
 
+Chatto Desktop uses the same screen-share button but provides its own chooser
+on macOS 15 and newer. It shows previews of application windows and complete
+displays. Application-window sharing includes that application's audio;
+complete-display sharing is video-only so call audio cannot be captured and
+echoed back to other participants. The first use asks for macOS **Screen &
+System Audio Recording** permission and may require Chatto Desktop to be
+restarted after access is granted. In ordinary web browsers, the button keeps
+using the browser's window/tab/screen chooser.
+
 Chatto records call start/join/leave/end facts durably and reconciles active participants against LiveKit webhooks, so call indicators recover after server restarts. These call facts update the active call UI without appearing as room timeline messages. LiveKit media is end-to-end encrypted by current Chatto clients; older clients that do not support this call encryption cannot decode encrypted media.
 
 ## Requirements

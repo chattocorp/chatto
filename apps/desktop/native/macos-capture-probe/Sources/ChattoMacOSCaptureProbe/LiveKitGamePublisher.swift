@@ -25,9 +25,11 @@ private struct PublisherStatus: Encodable {
 enum LiveKitGamePublisher {
   /// Connect a dedicated, publish-only companion participant directly to
   /// LiveKit. Only credentials and lifecycle status cross Desktop IPC; native
-  /// video frames and application audio remain in the Swift/WebRTC pipeline.
+  /// video frames and any isolated window audio remain in the Swift/WebRTC
+  /// pipeline.
   static func run(
-    windowID: CGWindowID,
+    source: CaptureOptions.Source,
+    expectedWindowBundleIdentifier: String?,
     frameRate: Int,
     maximumWidth: Int,
     maximumHeight: Int
@@ -37,13 +39,41 @@ enum LiveKitGamePublisher {
     LiveKitSDK.disableLogging()
     let lifetime = PublisherLifetime()
     let credential = try readCredential()
-    let sources = try await MacOSScreenCapturer.sources(for: .window)
-    guard
-      let source = sources.compactMap({ $0 as? MacOSWindow }).first(where: {
-        $0.windowID == windowID
-      })
-    else {
-      throw PublisherError.sourceNotFound
+    let captureSource: MacOSScreenCaptureSource
+    let capturesAudio: Bool
+    let showsCursor: Bool
+    switch source {
+    case .window(let windowID):
+      let sources = try await MacOSScreenCapturer.sources(for: .window)
+      guard
+        let window = sources.compactMap({ $0 as? MacOSWindow }).first(where: {
+          $0.windowID == windowID
+        }),
+        let owningBundleIdentifier = window.owningApplication?.bundleIdentifier,
+        owningBundleIdentifier == expectedWindowBundleIdentifier,
+        owningBundleIdentifier != chattoDesktopApplicationBundleIdentifier
+      else { throw PublisherError.sourceNotFound }
+      captureSource = window
+      capturesAudio = Self.capturesAudio(
+        for: source,
+        windowBundleIdentifier: owningBundleIdentifier
+      )
+      showsCursor = Self.showsCursor(for: source)
+    case .display(let displayID):
+      let sources = try await MacOSScreenCapturer.sources(for: .display)
+      guard
+        let display = sources.compactMap({ $0 as? MacOSDisplay }).first(where: {
+          $0.displayID == displayID
+        })
+      else { throw PublisherError.sourceNotFound }
+      captureSource = display
+      // Display audio includes Chatto's remote call playback. Until the native
+      // path can exclude the parent Electron app upstream, publishing it would
+      // echo other participants back into the room.
+      capturesAudio = Self.capturesAudio(for: source)
+      showsCursor = Self.showsCursor(for: source)
+    case .application:
+      throw PublisherError.unsupportedSource
     }
 
     try AudioManager.shared.setManualRenderingMode(true)
@@ -67,22 +97,24 @@ enum LiveKitGamePublisher {
       roomOptions: roomOptions
     )
 
-    let audioTrack = LocalAudioTrack.createTrack(
-      name: "game-audio",
-      options: .noProcessing,
-      reportStatistics: true
-    )
-    _ = try await room.localParticipant.publish(audioTrack: audioTrack, options: audioOptions)
+    if capturesAudio {
+      let audioTrack = LocalAudioTrack.createTrack(
+        name: "game-audio",
+        options: .noProcessing,
+        reportStatistics: true
+      )
+      _ = try await room.localParticipant.publish(audioTrack: audioTrack, options: audioOptions)
+    }
 
     let captureOptions = ScreenShareCaptureOptions(
       dimensions: Dimensions(width: Int32(maximumWidth), height: Int32(maximumHeight)),
       fps: frameRate,
-      showCursor: false,
-      appAudio: true
+      showCursor: showsCursor,
+      appAudio: capturesAudio
     )
     let videoTrack = LocalVideoTrack.createMacOSScreenShareTrack(
       name: "game",
-      source: source,
+      source: captureSource,
       options: captureOptions,
       reportStatistics: true
     )
@@ -132,6 +164,23 @@ enum LiveKitGamePublisher {
       degradationPreference: .maintainFramerate,
       streamName: "game-capture"
     )
+  }
+
+  /// Window capture isolates its owning application's audio. Display capture
+  /// is video-only because it would otherwise include remote call playback.
+  static func capturesAudio(
+    for source: CaptureOptions.Source,
+    windowBundleIdentifier: String? = nil
+  ) -> Bool {
+    if case .window = source {
+      return windowBundleIdentifier != chattoDesktopApplicationBundleIdentifier
+    }
+    return false
+  }
+
+  static func showsCursor(for source: CaptureOptions.Source) -> Bool {
+    if case .display = source { return true }
+    return false
   }
 
   /// Dynacast belongs to the native companion connection. Enabling it on the
@@ -219,6 +268,7 @@ private enum PublisherError: LocalizedError {
   case invalidCredential
   case liveKitDisconnected
   case sourceNotFound
+  case unsupportedSource
 
   var errorDescription: String? {
     switch self {
@@ -227,7 +277,9 @@ private enum PublisherError: LocalizedError {
     case .liveKitDisconnected:
       "The native publisher disconnected from LiveKit unexpectedly."
     case .sourceNotFound:
-      "The selected window is no longer available. Choose it again."
+      "The selected share source is no longer available. Choose it again."
+    case .unsupportedSource:
+      "The selected capture source is not supported for publishing."
     }
   }
 }

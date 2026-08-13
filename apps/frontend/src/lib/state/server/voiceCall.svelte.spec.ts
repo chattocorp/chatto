@@ -13,8 +13,8 @@ const { gameCaptureMocks, soundMocks, toastMocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/desktop/gameCapturePublisher', () => ({
-  GameCapturePublisherSession: { start: gameCaptureMocks.start }
+vi.mock('$lib/desktop/nativeScreenSharePublisher', () => ({
+  NativeScreenSharePublisherSession: { start: gameCaptureMocks.start }
 }));
 
 vi.mock('$lib/audio/callSounds', () => ({
@@ -134,9 +134,7 @@ vi.mock('livekit-client', () => {
           });
         }
         if (screenShareFailureAfterUpdate) {
-          roomEventHandlers
-            .get('MediaDevicesError')
-            ?.(screenShareFailureAfterUpdate, 'videoinput');
+          roomEventHandlers.get('MediaDevicesError')?.(screenShareFailureAfterUpdate, 'videoinput');
           throw screenShareFailureAfterUpdate;
         }
       }),
@@ -585,7 +583,7 @@ describe('VoiceCallState', () => {
     expect(state.participants[0].screenShareTrack).toBeNull();
   });
 
-  it('publishes camera and one native game share under the local participant', async () => {
+  it('publishes camera and one native screen share under the local participant', async () => {
     const session = {
       stop: vi.fn(),
       onEnded: null as ((error?: Error) => void) | null
@@ -595,7 +593,7 @@ describe('VoiceCallState', () => {
     await state.join('wss://livekit.example.test', 'R1');
 
     await state.toggleCamera();
-    await state.startGameCapture('window:42', 'Moonring');
+    await state.startNativeScreenShare('window:42', 'Moonring');
 
     expect(gameCaptureMocks.start).toHaveBeenCalledWith({
       sourceId: 'window:42',
@@ -604,8 +602,8 @@ describe('VoiceCallState', () => {
       e2eeKey: 'shared-e2ee-key'
     });
     expect(state.isCameraEnabled).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(true);
-    expect(state.gameCaptureSourceName).toBe('Moonring');
+    expect(state.isNativeScreenShareEnabled).toBe(true);
+    expect(state.nativeScreenShareSourceName).toBe('Moonring');
     expect(state.participants[0]).toMatchObject({
       isCameraEnabled: true,
       isScreenShareEnabled: true
@@ -615,11 +613,12 @@ describe('VoiceCallState', () => {
 
     expect(session.stop).toHaveBeenCalledOnce();
     expect(state.isCameraEnabled).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(false);
-    expect(state.isScreenShareEnabled).toBe(true);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
+    expect(state.isScreenShareEnabled).toBe(false);
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).not.toHaveBeenCalled();
   });
 
-  it('keeps game sharing active until the native publisher acknowledges stop', async () => {
+  it('keeps native screen sharing active until the publisher acknowledges stop', async () => {
     const stopGate = deferredVoid();
     const session = {
       stop: vi.fn(() => stopGate.promise),
@@ -628,24 +627,46 @@ describe('VoiceCallState', () => {
     gameCaptureMocks.start.mockResolvedValue(session);
     const state = new VoiceCallState(createVoiceCallClient());
     await state.join('wss://livekit.example.test', 'R1');
-    await state.startGameCapture('window:42', 'Moonring');
+    await state.startNativeScreenShare('window:42', 'Moonring');
 
-    const stopping = state.stopGameCapture();
+    const stopping = state.stopNativeScreenShare();
     await flushPromises();
 
     expect(session.stop).toHaveBeenCalledOnce();
-    expect(state.isGameCapturePending).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(true);
+    expect(state.isNativeScreenSharePending).toBe(true);
+    expect(state.isNativeScreenShareEnabled).toBe(true);
 
     stopGate.resolve();
     await stopping;
 
-    expect(state.isGameCapturePending).toBe(false);
-    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isNativeScreenSharePending).toBe(false);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
     expect(state.isScreenShareEnabled).toBe(false);
   });
 
-  it('replaces an existing browser screen share when game capture starts', async () => {
+  it('coalesces repeated unified-control stops without starting a browser share', async () => {
+    const stopGate = deferredVoid();
+    const session = {
+      stop: vi.fn(() => stopGate.promise),
+      onEnded: null as ((error?: Error) => void) | null
+    };
+    gameCaptureMocks.start.mockResolvedValue(session);
+    const state = new VoiceCallState(createVoiceCallClient());
+    await state.join('wss://livekit.example.test', 'R1');
+    await state.startNativeScreenShare('window:42', 'Moonring');
+
+    const firstStop = state.toggleScreenShare();
+    const repeatedStop = state.toggleScreenShare();
+    await flushPromises();
+    stopGate.resolve();
+    await Promise.all([firstStop, repeatedStop]);
+
+    expect(session.stop).toHaveBeenCalledOnce();
+    expect(lastRoom?.localParticipant.setScreenShareEnabled).not.toHaveBeenCalled();
+    expect(state.isScreenShareEnabled).toBe(false);
+  });
+
+  it('replaces an existing browser screen share when native capture starts', async () => {
     const session = {
       stop: vi.fn(),
       onEnded: null as ((error?: Error) => void) | null
@@ -655,13 +676,13 @@ describe('VoiceCallState', () => {
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
-    await state.startGameCapture('window:42', 'Moonring');
+    await state.startNativeScreenShare('window:42', 'Moonring');
 
     expect(lastRoom?.localParticipant.setScreenShareEnabled).toHaveBeenLastCalledWith(false);
     expect(
       localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
     ).toHaveLength(0);
-    expect(state.isGameCaptureEnabled).toBe(true);
+    expect(state.isNativeScreenShareEnabled).toBe(true);
   });
 
   it('preserves an existing browser screen share when publisher credentials fail', async () => {
@@ -675,7 +696,7 @@ describe('VoiceCallState', () => {
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
-    await expect(state.startGameCapture('window:42', 'Moonring')).rejects.toThrow(
+    await expect(state.startNativeScreenShare('window:42', 'Moonring')).rejects.toThrow(
       'credential request failed'
     );
 
@@ -685,7 +706,7 @@ describe('VoiceCallState', () => {
       localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
     ).toHaveLength(1);
     expect(state.isScreenShareEnabled).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
   });
 
   it('preserves an existing browser screen share when native publisher startup fails', async () => {
@@ -694,7 +715,7 @@ describe('VoiceCallState', () => {
     await state.join('wss://livekit.example.test', 'R1');
     await state.toggleScreenShare();
 
-    await expect(state.startGameCapture('window:42', 'Moonring')).rejects.toThrow(
+    await expect(state.startNativeScreenShare('window:42', 'Moonring')).rejects.toThrow(
       'helper startup failed'
     );
 
@@ -703,7 +724,7 @@ describe('VoiceCallState', () => {
       localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
     ).toHaveLength(1);
     expect(state.isScreenShareEnabled).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
   });
 
   it('stops a started native publisher when browser share replacement fails', async () => {
@@ -717,7 +738,7 @@ describe('VoiceCallState', () => {
     await state.toggleScreenShare();
     screenShareFailure = new Error('browser unpublish failed');
 
-    await expect(state.startGameCapture('window:42', 'Moonring')).rejects.toThrow(
+    await expect(state.startNativeScreenShare('window:42', 'Moonring')).rejects.toThrow(
       'browser unpublish failed'
     );
 
@@ -726,7 +747,7 @@ describe('VoiceCallState', () => {
       localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
     ).toHaveLength(1);
     expect(state.isScreenShareEnabled).toBe(true);
-    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
   });
 
   it('does not activate a native publisher that ends while browser unpublish is pending', async () => {
@@ -740,16 +761,16 @@ describe('VoiceCallState', () => {
     await state.toggleScreenShare();
     screenShareGate = deferredVoid();
 
-    const starting = state.startGameCapture('window:42', 'Moonring');
+    const starting = state.startNativeScreenShare('window:42', 'Moonring');
     await flushPromises();
     expect(session.onEnded).not.toBeNull();
     session.onEnded?.(new Error('native publisher ended'));
     screenShareGate.resolve();
 
     await expect(starting).rejects.toThrow('native publisher ended');
-    expect(state.isGameCaptureEnabled).toBe(false);
+    expect(state.isNativeScreenShareEnabled).toBe(false);
     expect(state.isScreenShareEnabled).toBe(false);
-    expect(state.gameCaptureSourceName).toBeNull();
+    expect(state.nativeScreenShareSourceName).toBeNull();
   });
 
   it('keeps native capture when browser unpublish removes its track before rejecting', async () => {
@@ -763,15 +784,15 @@ describe('VoiceCallState', () => {
     await state.toggleScreenShare();
     screenShareFailureAfterUpdate = new Error('late browser unpublish failure');
 
-    await state.startGameCapture('window:42', 'Moonring');
+    await state.startNativeScreenShare('window:42', 'Moonring');
 
     expect(session.stop).not.toHaveBeenCalled();
     expect(
       localTrackPublications.filter((publication) => publication.track.source === 'screen_share')
     ).toHaveLength(0);
-    expect(state.isGameCaptureEnabled).toBe(true);
+    expect(state.isNativeScreenShareEnabled).toBe(true);
     expect(state.isScreenShareEnabled).toBe(true);
-    expect(state.gameCaptureSourceName).toBe('Moonring');
+    expect(state.nativeScreenShareSourceName).toBe('Moonring');
   });
 
   it('keeps microphone pending until LiveKit applies the toggle', async () => {
@@ -1116,7 +1137,7 @@ describe('VoiceCallState', () => {
     expect(state.locallyMutedParticipantIds).toEqual({});
   });
 
-  it('merges a companion game publisher into its owning participant', async () => {
+  it('merges a companion screen-share publisher into its owning participant', async () => {
     const gameVideoTrack = { source: 'screen_share' };
     const ownerSetVolume = vi.fn();
     const companionSetVolume = vi.fn();
@@ -1161,7 +1182,7 @@ describe('VoiceCallState', () => {
     expect(companionSetVolume).toHaveBeenCalledWith(0, 'microphone');
   });
 
-  it('does not attach game audio published by the local companion', async () => {
+  it('does not attach native screen-share audio published by the local companion', async () => {
     const companion = {
       identity: 'publisher-1',
       name: 'Local User',
@@ -1182,5 +1203,6 @@ describe('VoiceCallState', () => {
 
     expect(gameAudio.attach).not.toHaveBeenCalled();
     expect(companion.setVolume).toHaveBeenCalledWith(0, 'microphone');
+    expect(companion.setVolume).toHaveBeenCalledWith(0, 'screen_share_audio');
   });
 });

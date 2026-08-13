@@ -128,6 +128,8 @@
       },
       "archived": "arhivēja telpu",
       "unarchived": "atarhivēta telpa",
+      "call_started": "uzsāka zvanu šajā telpā",
+      "call_ended": "Aktīvais zvans ir beidzies",
       "and": "un",
       "other_people_count": {
         "one": "cits",

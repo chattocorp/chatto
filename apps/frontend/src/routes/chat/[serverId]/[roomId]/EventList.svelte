@@ -49,6 +49,7 @@
     updateCounter = 0,
     // Threading - only root messages can open threads
     onOpenThread,
+    onOpenCall,
     // Filtering - whether to filter out thread replies (false for thread pane)
     filterThreadReplies = true,
     // Up-arrow-to-edit
@@ -90,6 +91,7 @@
     updateCounter?: number;
     // Threading
     onOpenThread?: OpenThreadHandler;
+    onOpenCall?: () => void;
     // Filtering
     filterThreadReplies?: boolean;
     // Up-arrow-to-edit
@@ -793,6 +795,8 @@
                   {permalinkThreadRootEventId}
                   {messageStore}
                   onOpenThread={getOpenThreadHandler(eventData)}
+                  activeCallId={stores.activeCallRooms.getCallId(roomId)}
+                  {onOpenCall}
                 />
               {/if}
             {/if}

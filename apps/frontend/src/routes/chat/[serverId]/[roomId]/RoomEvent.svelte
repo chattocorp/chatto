@@ -12,7 +12,9 @@
     roomId,
     permalinkThreadRootEventId = null,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    activeCallId = null,
+    onOpenCall
   }: {
     event: TimelineEventView;
     compact?: boolean;
@@ -20,6 +22,8 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    activeCallId?: string | null;
+    onOpenCall?: () => void;
   } = $props();
 
   // Join/leave events are confusing in DM 1:1 conversations. Post-PR(b) we
@@ -42,5 +46,5 @@
     {onOpenThread}
   />
 {:else}
-  <SystemEvent {event} />
+  <SystemEvent {event} {activeCallId} {onOpenCall} />
 {/if}

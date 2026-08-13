@@ -128,6 +128,8 @@
       },
       "archived": "arquivou a sala",
       "unarchived": "desarquivou a sala",
+      "call_started": "iniciou uma chamada nesta sala",
+      "call_ended": "A chamada ativa terminou",
       "and": "e",
       "other_people_count": {
         "one": "outro",

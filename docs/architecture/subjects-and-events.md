@@ -15,7 +15,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
-[ADR-072](../adr/ADR-072-deterministic-notification-occurrences.md).
+[ADR-073](../adr/ADR-073-deterministic-notification-occurrences.md).
 
 ## Event envelopes
 
@@ -381,7 +381,8 @@ Voice call lifecycle and participant transitions are durable room EVT facts:
 `evt.room.{roomId}.call_started`, `evt.room.{roomId}.call_joined`,
 `evt.room.{roomId}.call_left`, and `evt.room.{roomId}.call_ended`. JetStream
 republishes them to `live.evt.>` for realtime delivery. They drive active-call
-state and indicators but remain hidden from normal room history timelines.
+state and indicators. Call-started and call-ended facts are also visible room
+timeline entries; participant join/leave facts remain hidden from room history.
 
 LiveKit room names include the active Chatto call ID suffix. Participant and
 room-finished observations therefore apply only to the matching call session.

@@ -4,6 +4,8 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 const gameCaptureListSourcesChannel = "chatto:game-capture:list-sources";
+const gameCaptureCancelListSourcesChannel =
+  "chatto:game-capture:cancel-list-sources";
 const gameCaptureStartChannel = "chatto:game-capture:start";
 const gameCapturePublisherChannel = "chatto:game-capture:publisher";
 
@@ -20,11 +22,26 @@ ipcRenderer.on(gameCapturePublisherChannel, (event, message) => {
 contextBridge.exposeInMainWorld(
   "chattoDesktop",
   Object.freeze({
-    gameCapture: Object.freeze({
-      listSources: () => ipcRenderer.invoke(gameCaptureListSourcesChannel),
+    screenShare: Object.freeze({
+      listSources: () => {
+        if (!navigator.userActivation?.isActive) {
+          return Promise.reject(
+            new Error("Native screen sharing requires a user gesture."),
+          );
+        }
+        return ipcRenderer.invoke(gameCaptureListSourcesChannel);
+      },
+      cancelSourceList: () =>
+        ipcRenderer.send(gameCaptureCancelListSourcesChannel),
       startPublisher: (request) => {
         const requestId = crypto.randomUUID();
-        ipcRenderer.send(gameCaptureStartChannel, { requestId, ...request });
+        ipcRenderer.send(gameCaptureStartChannel, {
+          sourceId: request?.sourceId,
+          livekitUrl: request?.livekitUrl,
+          token: request?.token,
+          e2eeKey: request?.e2eeKey,
+          requestId,
+        });
         return requestId;
       },
     }),

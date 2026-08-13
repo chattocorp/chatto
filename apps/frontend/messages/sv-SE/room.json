@@ -128,6 +128,8 @@
       },
       "archived": "arkiverade rummet",
       "unarchived": "har tagit bort rummet från arkivet",
+      "call_started": "startade ett samtal i det här rummet",
+      "call_ended": "Det aktiva samtalet har avslutats",
       "and": "och",
       "other_people_count": {
         "one": "annan",

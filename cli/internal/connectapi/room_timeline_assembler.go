@@ -195,6 +195,10 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserJoinedRoom{UserJoinedRoom: roomEvent(payload.UserJoinedRoom.GetRoomId())}
 	case *corev1.Event_UserLeftRoom:
 		apiEvent.Event = &apiv1.RoomTimelineEvent_UserLeftRoom{UserLeftRoom: roomEvent(payload.UserLeftRoom.GetRoomId())}
+	case *corev1.Event_VoiceCallStarted:
+		apiEvent.Event = &apiv1.RoomTimelineEvent_CallStarted{CallStarted: callEvent(payload.VoiceCallStarted.GetRoomId(), payload.VoiceCallStarted.GetCallId())}
+	case *corev1.Event_VoiceCallEnded:
+		apiEvent.Event = &apiv1.RoomTimelineEvent_CallEnded{CallEnded: callEvent(payload.VoiceCallEnded.GetRoomId(), payload.VoiceCallEnded.GetCallId())}
 	default:
 		return nil, fmt.Errorf("unsupported room timeline event %T", payload)
 	}
@@ -386,6 +390,10 @@ func (h *timelineHydrator) addUserIDs(userIDs []string) {
 
 func roomEvent(roomID string) *apiv1.RoomTimelineRoomEvent {
 	return &apiv1.RoomTimelineRoomEvent{RoomId: roomID}
+}
+
+func callEvent(roomID, callID string) *apiv1.RoomTimelineCallEvent {
+	return &apiv1.RoomTimelineCallEvent{RoomId: roomID, CallId: callID}
 }
 
 func assetURLView(assetURL core.StableAssetURL) *apiv1.MessageAssetUrl {

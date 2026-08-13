@@ -128,6 +128,8 @@
       },
       "archived": "hat den Raum archiviert",
       "unarchived": "hat die Archivierung des Raums aufgehoben",
+      "call_started": "hat einen Anruf in diesem Raum gestartet",
+      "call_ended": "Der aktive Anruf wurde beendet",
       "and": "und",
       "other_people_count": {
         "one": "weitere Person",

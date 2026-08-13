@@ -4,6 +4,10 @@
 
 **Status:** Accepted
 
+**Partially superseded by:** [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md),
+which permits narrow optional preload capabilities while retaining the renderer
+sandbox and context isolation.
+
 ## Context
 
 ADR-063 selected Deno Desktop and CEF for Chatto's experimental desktop client.

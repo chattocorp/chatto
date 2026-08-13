@@ -128,6 +128,8 @@
       },
       "archived": "místnost archivoval",
       "unarchived": "zrušil archivaci místnosti",
+      "call_started": "zahájil hovor v této místnosti",
+      "call_ended": "Aktivní hovor skončil",
       "and": "a",
       "other_people_count": {
         "one": "jiné",

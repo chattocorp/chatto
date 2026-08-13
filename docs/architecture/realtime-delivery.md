@@ -420,10 +420,14 @@ Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the
 compacted prefix, after every durable call transition, and when room access
-changes the set visible to the viewer. Transient frames have no durable cursor;
-finite notification-list and presence state are reconciled explicitly on every
-subscription. The process-wide PresenceHub retains current presence and fans
-out later transitions.
+changes the set visible to the viewer. Call-started and call-ended facts pair
+that replacement with a timeline-event upsert for clients retaining the room,
+so the call state and lifecycle row advance under one projection cursor.
+
+Transient frames have no durable cursor. Finite notification-list and
+presence state are reconciled explicitly on every subscription. The
+process-wide PresenceHub retains current presence and fans out later
+transitions.
 
 A `user_remove` operation purges copied profile fields from room membership,
 timeline includes, notification actors, active-call participants, retained

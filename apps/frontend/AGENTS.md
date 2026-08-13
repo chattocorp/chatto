@@ -29,10 +29,20 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   into reusable render components.
 - Use Svelte `createContext` for context APIs, and prefer context over mutable
   singletons for URL-derived state.
+- Reusable leaf render components, especially timeline rows, must not acquire
+  app-shell UI context solely to navigate or open sidebars. Accept callback
+  props from the owning route or room component so app-shell responsibilities
+  stay with the owner and the leaf remains independently mountable in tests and
+  stories.
 - Prefer SvelteKit and Vite's automatic route and dynamic-import chunking.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
+- When a host can improve a browser operation, expose a narrow optional
+  capability through a focused `$lib/desktop` adapter and feature-detect that
+  capability at the point of use. Keep the browser implementation as the
+  default path; do not branch shared behavior on user agents, URL schemes,
+  platforms, or a general Desktop flag. Follow ADR-072.
 
 ## Svelte 5 Rules
 

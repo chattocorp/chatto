@@ -110,5 +110,5 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-072 (deterministic notification occurrences), ADR-073 (persistent notification list)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-073 (deterministic notification occurrences), ADR-074 (persistent notification list)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications)

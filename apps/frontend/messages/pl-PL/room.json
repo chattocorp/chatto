@@ -132,6 +132,8 @@
       },
       "archived": "zarchiwizował pokój",
       "unarchived": "cofnął archiwizację pokoju",
+      "call_started": "rozpoczął rozmowę w tym pokoju",
+      "call_ended": "Aktywna rozmowa zakończyła się",
       "and": "i",
       "other_people_count": {
         "one": "inna osoba",

@@ -128,6 +128,8 @@
       },
       "archived": "archiviato la stanza",
       "unarchived": "ha annullato l'archiviazione della stanza",
+      "call_started": "ha avviato una chiamata in questa stanza",
+      "call_ended": "La chiamata attiva è terminata",
       "and": "e",
       "other_people_count": {
         "one": "altro",

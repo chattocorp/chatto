@@ -15,6 +15,10 @@ private let defaultDuration = 15.0
 private let defaultFrameRate = 60
 private let defaultMaximumWidth = 1920
 private let defaultMaximumHeight = 1080
+private let maximumPreviewSourceCount = 48
+private let previewMaximumWidth = 480
+private let previewMaximumHeight = 270
+let chattoDesktopApplicationBundleIdentifier = "run.chatto.desktop"
 
 private enum ProbeError: LocalizedError {
   case invalidArguments(String)
@@ -41,12 +45,14 @@ struct CaptureOptions {
   let maximumWidth: Int
   let maximumHeight: Int
   let outputURL: URL?
+  let expectedWindowBundleIdentifier: String?
 }
 
 private enum Command {
   case help
   case list
   case listJSON
+  case listPreviews
   case capture(CaptureOptions)
   case publish(CaptureOptions)
 
@@ -66,17 +72,45 @@ private enum Command {
         throw ProbeError.invalidArguments("The list-json command takes no options.\n\n\(usage)")
       }
       return .listJSON
+    case "list-previews":
+      guard arguments.count == 1 else {
+        throw ProbeError.invalidArguments("The list-previews command takes no options.\n\n\(usage)")
+      }
+      return .listPreviews
     case "capture":
-      return .capture(try parseCapture(arguments.dropFirst()))
+      let options = try parseCapture(arguments.dropFirst())
+      guard options.expectedWindowBundleIdentifier == nil else {
+        throw ProbeError.invalidArguments(
+          "--expected-window-bundle is available only to the publish command."
+        )
+      }
+      return .capture(options)
     case "publish":
       let options = try parseCapture(arguments.dropFirst())
       guard options.outputURL == nil else {
         throw ProbeError.invalidArguments("The publish command does not accept --output.")
       }
-      guard case .window = options.source else {
-        throw ProbeError.invalidArguments("The publish command currently requires --window.")
+      switch options.source {
+      case .window:
+        guard
+          let bundleIdentifier = options.expectedWindowBundleIdentifier,
+          bundleIdentifier != chattoDesktopApplicationBundleIdentifier
+        else {
+          throw ProbeError.invalidArguments(
+            "Window publishing requires --expected-window-bundle for a non-Chatto application."
+          )
+        }
+        return .publish(options)
+      case .display:
+        guard options.expectedWindowBundleIdentifier == nil else {
+          throw ProbeError.invalidArguments(
+            "--expected-window-bundle can only be used with --window."
+          )
+        }
+        return .publish(options)
+      case .application:
+        throw ProbeError.invalidArguments("The publish command requires --window or --display.")
       }
-      return .publish(options)
     case "help", "--help", "-h":
       return .help
     default:
@@ -94,6 +128,7 @@ private enum Command {
     var maximumWidth = defaultMaximumWidth
     var maximumHeight = defaultMaximumHeight
     var outputURL: URL?
+    var expectedWindowBundleIdentifier: String?
 
     var index = arguments.startIndex
     while index < arguments.endIndex {
@@ -133,6 +168,13 @@ private enum Command {
             fileURLWithPath: value,
             relativeTo: URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
           ).standardizedFileURL
+      case "--expected-window-bundle":
+        guard !value.isEmpty, value.utf8.count <= 512 else {
+          throw ProbeError.invalidArguments(
+            "--expected-window-bundle must contain at most 512 bytes."
+          )
+        }
+        expectedWindowBundleIdentifier = value
       default:
         throw ProbeError.invalidArguments("Unknown option: \(option)")
       }
@@ -172,7 +214,8 @@ private enum Command {
       frameRate: frameRate,
       maximumWidth: maximumWidth,
       maximumHeight: maximumHeight,
-      outputURL: outputURL
+      outputURL: outputURL,
+      expectedWindowBundleIdentifier: expectedWindowBundleIdentifier
     )
   }
 
@@ -198,10 +241,12 @@ private let usage = """
   Usage:
     chatto-macos-capture-probe list
     chatto-macos-capture-probe list-json
+    chatto-macos-capture-probe list-previews
     chatto-macos-capture-probe capture --display <id> [capture options]
     chatto-macos-capture-probe capture --window <id> [capture options]
     chatto-macos-capture-probe capture --application <bundle-id> [--on-display <id>] [capture options]
-    chatto-macos-capture-probe publish --window <id> [capture options]
+    chatto-macos-capture-probe publish --window <id> --expected-window-bundle <bundle-id> [capture options]
+    chatto-macos-capture-probe publish --display <id> [capture options]
 
   Capture options:
     --duration <seconds>   Capture duration (default: 15)
@@ -598,6 +643,8 @@ private struct CaptureProbe {
         list(content)
       case .listJSON:
         try listJSON(content)
+      case .listPreviews:
+        try await listPreviews(content)
       case .capture(let options):
         try await capture(content, options: options)
       case .publish(let options):
@@ -634,12 +681,111 @@ private struct CaptureProbe {
     FileHandle.standardOutput.write(Data("\n".utf8))
   }
 
+  private static func listPreviews(_ content: SCShareableContent) async throws {
+    let displays = Array(
+      content.displays.sorted { $0.displayID < $1.displayID }.prefix(maximumPreviewSourceCount)
+    )
+    let windows = shareableNativeWindows(content)
+    let windowLimit = max(0, maximumPreviewSourceCount - displays.count)
+    var records: [SourcePreviewRecord] = []
+    var previews: [Data] = []
+
+    for (index, display) in displays.enumerated() {
+      let filter = SCContentFilter(
+        display: display,
+        excludingApplications: [],
+        exceptingWindows: []
+      )
+      let preview = await capturePreview(
+        filter: filter,
+        width: display.width,
+        height: display.height
+      )
+      records.append(
+        SourcePreviewRecord(
+          kind: .display,
+          nativeID: display.displayID,
+          applicationName: nil,
+          bundleIdentifier: nil,
+          title: "",
+          width: display.width,
+          height: display.height,
+          displayIndex: index + 1,
+          isMainDisplay: display.displayID == CGMainDisplayID(),
+          previewByteLength: preview.count
+        )
+      )
+      previews.append(preview)
+    }
+
+    for window in windows.prefix(windowLimit) {
+      let scale = displayScale(for: window, displays: displays)
+      let pixelWidth = max(1, Int((window.frame.width * scale).rounded()))
+      let pixelHeight = max(1, Int((window.frame.height * scale).rounded()))
+      let preview = await capturePreview(
+        filter: SCContentFilter(desktopIndependentWindow: window),
+        width: pixelWidth,
+        height: pixelHeight
+      )
+      records.append(
+        SourcePreviewRecord(
+          kind: .window,
+          nativeID: window.windowID,
+          applicationName: window.owningApplication?.applicationName ?? "Unknown application",
+          bundleIdentifier: window.owningApplication?.bundleIdentifier ?? "unknown",
+          title: window.title?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+          width: pixelWidth,
+          height: pixelHeight,
+          displayIndex: nil,
+          isMainDisplay: nil,
+          previewByteLength: preview.count
+        )
+      )
+      previews.append(preview)
+    }
+
+    let frame = try SourcePreviewProtocol.encode(
+      manifest: SourcePreviewManifest(sources: records),
+      previews: previews
+    )
+    FileHandle.standardOutput.write(frame)
+  }
+
+  private static func capturePreview(
+    filter: SCContentFilter,
+    width: Int,
+    height: Int
+  ) async -> Data {
+    let size = scaleToFit(
+      width: width,
+      height: height,
+      maximumWidth: previewMaximumWidth,
+      maximumHeight: previewMaximumHeight
+    )
+    let configuration = SCStreamConfiguration()
+    configuration.width = size.width
+    configuration.height = size.height
+    configuration.scalesToFit = true
+    configuration.showsCursor = false
+
+    do {
+      let image = try await SCScreenshotManager.captureImage(
+        contentFilter: filter,
+        configuration: configuration
+      )
+      return NSBitmapImageRep(cgImage: image).representation(
+        using: .jpeg,
+        properties: [.compressionFactor: 0.7]
+      ) ?? Data()
+    } catch {
+      // A protected or transient window should not make the whole chooser
+      // unavailable. The renderer presents a neutral fallback for empty data.
+      return Data()
+    }
+  }
+
   private static func shareableWindows(_ content: SCShareableContent) -> [WindowSource] {
-    content.windows
-      .filter { window in
-        window.isOnScreen && window.windowLayer == 0 && window.owningApplication != nil
-          && window.frame.width >= 320 && window.frame.height >= 180
-      }
+    shareableNativeWindows(content)
       .map { window in
         WindowSource(
           windowID: window.windowID,
@@ -650,14 +796,26 @@ private struct CaptureProbe {
           height: Int(window.frame.height)
         )
       }
+  }
+
+  private static func shareableNativeWindows(_ content: SCShareableContent) -> [SCWindow] {
+    content.windows
+      .filter { window in
+        window.isOnScreen && window.windowLayer == 0 && window.owningApplication != nil
+          && window.frame.width >= 320 && window.frame.height >= 180
+          && window.owningApplication?.bundleIdentifier
+            != chattoDesktopApplicationBundleIdentifier
+      }
       .sorted { lhs, rhs in
-        let applicationOrder = lhs.applicationName.localizedCaseInsensitiveCompare(
-          rhs.applicationName
-        )
+        let applicationOrder = (lhs.owningApplication?.applicationName ?? "")
+          .localizedCaseInsensitiveCompare(
+            rhs.owningApplication?.applicationName ?? ""
+          )
         if applicationOrder != .orderedSame {
           return applicationOrder == .orderedAscending
         }
-        return lhs.title.localizedCaseInsensitiveCompare(rhs.title) == .orderedAscending
+        return (lhs.title ?? "").localizedCaseInsensitiveCompare(rhs.title ?? "")
+          == .orderedAscending
       }
   }
 
@@ -740,11 +898,9 @@ private struct CaptureProbe {
   }
 
   private static func publish(options: CaptureOptions) async throws {
-    guard case .window(let windowID) = options.source else {
-      throw ProbeError.invalidArguments("The publish command currently requires --window.")
-    }
     try await LiveKitGamePublisher.run(
-      windowID: windowID,
+      source: options.source,
+      expectedWindowBundleIdentifier: options.expectedWindowBundleIdentifier,
       frameRate: options.frameRate,
       maximumWidth: options.maximumWidth,
       maximumHeight: options.maximumHeight

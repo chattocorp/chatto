@@ -610,7 +610,9 @@ export class MessagesStore {
       kind === TimelineEventKind.RoomUpdated ||
       kind === TimelineEventKind.RoomArchived ||
       kind === TimelineEventKind.RoomUnarchived ||
-      kind === TimelineEventKind.RoomCreated
+      kind === TimelineEventKind.RoomCreated ||
+      kind === TimelineEventKind.CallStarted ||
+      kind === TimelineEventKind.CallEnded
     ) {
       this.onSystemEvent(spaceEvent);
     }

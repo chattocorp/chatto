@@ -1,6 +1,6 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/preload.cjs`](../../apps/desktop/preload.cjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/desktop/native/macos-capture-probe`](../../apps/desktop/native/macos-capture-probe), [`apps/frontend/src/lib/desktop/nativeScreenShare.ts`](../../apps/frontend/src/lib/desktop/nativeScreenShare.ts), [`apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte`](../../apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
@@ -35,13 +35,25 @@ user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
 The shell owns no Chatto backend, NATS resources, projections, or durable
-domain state. Every macOS build adds a narrow renderer bridge and a nested
-ScreenCaptureKit helper. The bridge lists temporary opaque window sources and
-controls a publish-only native LiveKit companion; media remains in the helper's
-native WebRTC path and only credentials and acknowledged lifecycle control
-cross IPC. The companion publishes an H.264 simulcast ladder and enables
-dynacast so LiveKit can select receiver-appropriate qualities and pause unused
-layers.
+domain state. Every macOS build adds a narrow optional `screenShare` renderer
+capability and a nested ScreenCaptureKit helper. The bridge lists bounded,
+temporary opaque window/display sources with static JPEG previews and controls
+a publish-only native LiveKit companion. Preview bytes cross Electron as
+structured-clone data and remain in memory; captured media stays in the
+helper's native WebRTC path, so only credentials and acknowledged lifecycle
+control cross IPC during publication. Window capture includes isolated
+owning-application audio. Display capture is video-only because system audio
+would include remote call playback. The companion publishes an H.264 simulcast
+ladder and enables dynacast so LiveKit can select receiver-appropriate
+qualities and pause unused layers.
+
+The shared frontend feature-detects the capability through its focused desktop
+adapter. One screen-share control opens Chatto's source chooser when the
+capability exists and otherwise invokes the complete browser/LiveKit path,
+including the browser's own chooser. This is the host-capability pattern from
+[ADR-072](../adr/ADR-072-optional-host-capabilities-in-the-shared-frontend.md);
+the frontend does not branch on Electron, macOS, the app origin, or user-agent
+identity.
 
 macOS CI builds and smoke-tests the helper inside the complete app
 bundle. The shell restricts navigation and browser

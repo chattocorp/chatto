@@ -1,11 +1,11 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { GameCapturePublisherSession } from './gameCapturePublisher';
+import { NativeScreenSharePublisherSession } from './nativeScreenSharePublisher';
 
 afterEach(() => {
   delete window.chattoDesktop;
 });
 
-describe('GameCapturePublisherSession', () => {
+describe('NativeScreenSharePublisherSession', () => {
   it('waits for the native publisher to acknowledge stop', async () => {
     const hostChannel = new MessageChannel();
     const stopped = vi.fn();
@@ -17,7 +17,7 @@ describe('GameCapturePublisherSession', () => {
     hostChannel.port1.start();
 
     window.chattoDesktop = {
-      gameCapture: {
+      screenShare: {
         listSources: async () => ({ protocolVersion: 1, sources: [] }),
         startPublisher: () => {
           queueMicrotask(() => {
@@ -38,7 +38,7 @@ describe('GameCapturePublisherSession', () => {
       }
     };
 
-    const session = await GameCapturePublisherSession.start({
+    const session = await NativeScreenSharePublisherSession.start({
       sourceId: 'window:42',
       livekitUrl: 'wss://livekit.example.test',
       token: 'publisher-token',

@@ -418,6 +418,68 @@ func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	}
 }
 
+func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	env.httpServer.config.LiveKit = config.LiveKitConfig{
+		Enabled:   true,
+		URL:       "ws://livekit.example.test",
+		APIKey:    "test-key",
+		APISecret: "test-secret",
+	}
+	env.httpServer.connectAPI = connectapi.New(env.core, env.httpServer.config, env.httpServer.version)
+
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-call-timeline", "RT Call Timeline", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, user.Id, core.KindChannel, "", "rt-call-timeline-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, user.Id, core.KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, token, room.Id)
+
+	if err := env.core.HandleCallParticipantJoined(env.ctx, room.Id, user.Id); err != nil {
+		t.Fatalf("HandleCallParticipantJoined: %v", err)
+	}
+	started := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		var hasActiveCalls, hasStarted bool
+		for _, operation := range projection.GetOperations() {
+			hasActiveCalls = hasActiveCalls || operation.GetActiveCallsReplace() != nil
+			upsert := operation.GetRoomTimelineEventUpsert()
+			hasStarted = hasStarted || (upsert.GetRoomId() == room.Id && upsert.GetEvent().GetCallStarted().GetCallId() != "")
+		}
+		return hasActiveCalls && hasStarted
+	})
+	if started == nil {
+		t.Fatal("timed out waiting for active-call replacement and call-started timeline upsert")
+	}
+
+	if err := env.core.HandleCallParticipantLeft(env.ctx, room.Id, user.Id); err != nil {
+		t.Fatalf("HandleCallParticipantLeft: %v", err)
+	}
+	ended := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		var hasActiveCalls, hasEnded bool
+		for _, operation := range projection.GetOperations() {
+			hasActiveCalls = hasActiveCalls || operation.GetActiveCallsReplace() != nil
+			upsert := operation.GetRoomTimelineEventUpsert()
+			hasEnded = hasEnded || (upsert.GetRoomId() == room.Id && upsert.GetEvent().GetCallEnded().GetCallId() != "")
+		}
+		return hasActiveCalls && hasEnded
+	})
+	if ended == nil {
+		t.Fatal("timed out waiting for active-call replacement and call-ended timeline upsert")
+	}
+}
+
 func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperation(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-pin-projection", "RT Pin Projection", "password123")

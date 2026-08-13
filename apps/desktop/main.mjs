@@ -20,12 +20,13 @@ import {
   createFrontendProtocolHandler,
 } from "./frontend_protocol.mjs";
 import {
+  gameCaptureCancelListSourcesChannel,
   gameCaptureListSourcesChannel,
   gameCapturePublisherChannel,
   gameCaptureStartChannel,
+  MacOSGameCaptureSourceOffers,
   parseGameCapturePublisherRequest,
   parseGameCapturePublisherStatus,
-  parseMacOSGameCaptureSourceId,
   parseMacOSGameCaptureSources,
   supportsMacOSGameCapture,
 } from "./game_capture.mjs";
@@ -38,6 +39,8 @@ const frontendRoot = app.isPackaged
 
 let mainWindow;
 let activeGameCaptureSession;
+let activeGameCaptureSourceList;
+const gameCaptureSourceOffers = new MacOSGameCaptureSourceOffers();
 const macOSCaptureProbeListFlag = "--chatto-macos-capture-probe-list";
 const macOSCapturePocFlag = "--chatto-macos-capture-poc";
 
@@ -113,7 +116,10 @@ async function start() {
   app.on("window-all-closed", () => {
     if (process.platform !== "darwin") app.quit();
   });
-  app.on("before-quit", stopActiveGameCaptureSession);
+  app.on("before-quit", () => {
+    cancelActiveGameCaptureSourceList();
+    stopActiveGameCaptureSession();
+  });
 }
 
 async function runMacOSCapturePoc() {
@@ -288,6 +294,115 @@ function runMacOSCaptureHelper(arguments_) {
   });
 }
 
+function runMacOSCaptureHelperBinary(arguments_) {
+  cancelActiveGameCaptureSourceList();
+  const executable = macOSCaptureHelperExecutable();
+  return new Promise((resolve, reject) => {
+    const child = spawn(executable, arguments_, {
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    const chunks = [];
+    let stdoutLength = 0;
+    let stderr = "";
+    let stdoutTooLarge = false;
+    let stderrTooLarge = false;
+    let settled = false;
+    let timedOut = false;
+    let forceStopTimer;
+    const sourceList = { child, cancel };
+    activeGameCaptureSourceList = sourceList;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      cancel();
+    }, 30_000);
+    timeout.unref();
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", (chunk) => {
+      if (stdoutTooLarge) return;
+      if (stdoutLength + chunk.length > 16 * 1024 * 1024) {
+        stdoutTooLarge = true;
+        cancel();
+        return;
+      }
+      stdoutLength += chunk.length;
+      chunks.push(chunk);
+    });
+    child.stderr.on("data", (chunk) => {
+      if (stderrTooLarge) return;
+      if (stderr.length + chunk.length > 2 * 1024 * 1024) {
+        stderrTooLarge = true;
+        cancel();
+        return;
+      }
+      stderr += chunk;
+    });
+    child.once("error", (error) => finish(() => reject(error)));
+    child.once("exit", (code, signal) => {
+      finish(() => {
+        if (timedOut) {
+          reject(
+            new Error(
+              "The macOS capture helper timed out while listing sources.",
+            ),
+          );
+          return;
+        }
+        if (stdoutTooLarge) {
+          reject(new Error("The macOS capture helper returned too much data."));
+          return;
+        }
+        if (stderrTooLarge) {
+          reject(
+            new Error(
+              "The macOS capture helper produced too much diagnostic output.",
+            ),
+          );
+          return;
+        }
+        if (code === 0) {
+          resolve(Buffer.concat(chunks, stdoutLength));
+          return;
+        }
+        reject(
+          new Error(
+            stderr.trim() ||
+              (signal
+                ? `The macOS capture helper exited after signal ${signal}.`
+                : `The macOS capture helper exited with status ${code}.`),
+          ),
+        );
+      });
+    });
+
+    function cancel() {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGTERM");
+        forceStopTimer ??= setTimeout(() => {
+          if (child.exitCode === null && child.signalCode === null)
+            child.kill("SIGKILL");
+        }, 1_000);
+        forceStopTimer.unref();
+      }
+    }
+
+    function finish(callback) {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeout);
+      clearTimeout(forceStopTimer);
+      if (activeGameCaptureSourceList === sourceList)
+        activeGameCaptureSourceList = undefined;
+      callback();
+    }
+  });
+}
+
+function cancelActiveGameCaptureSourceList() {
+  activeGameCaptureSourceList?.cancel();
+  activeGameCaptureSourceList = undefined;
+  gameCaptureSourceOffers.clear();
+}
+
 function macOSCaptureHelperExecutable() {
   return path.resolve(
     process.resourcesPath,
@@ -335,6 +450,7 @@ function createMainWindow() {
   protectNavigation(window);
   window.on("closed", () => {
     if (mainWindow === window) {
+      cancelActiveGameCaptureSourceList();
       stopActiveGameCaptureSession();
       mainWindow = undefined;
     }
@@ -361,12 +477,25 @@ function configureGameCaptureIPC() {
       !hasAppOrigin(event.senderFrame.url)
     ) {
       throw new Error(
-        "Game capture sources are available only to the Chatto renderer.",
+        "Native screen-share sources are available only to the Chatto renderer.",
       );
     }
 
-    const output = await runMacOSCaptureHelper(["list-json"]);
-    return parseMacOSGameCaptureSources(output);
+    const output = await runMacOSCaptureHelperBinary(["list-previews"]);
+    return gameCaptureSourceOffers.replace(
+      parseMacOSGameCaptureSources(output),
+    );
+  });
+
+  ipcMain.on(gameCaptureCancelListSourcesChannel, (event) => {
+    if (
+      !mainWindow ||
+      event.sender !== mainWindow.webContents ||
+      !hasAppOrigin(event.senderFrame.url)
+    ) {
+      return;
+    }
+    cancelActiveGameCaptureSourceList();
   });
 
   ipcMain.on(gameCaptureStartChannel, (event, request) => {
@@ -391,29 +520,38 @@ function configureGameCaptureIPC() {
 
     try {
       const publisherRequest = parseGameCapturePublisherRequest(request);
-      const windowId = parseMacOSGameCaptureSourceId(publisherRequest.sourceId);
-      startGameCaptureSession(windowId, publisherRequest, port1);
+      const source = gameCaptureSourceOffers.consume(publisherRequest.sourceId);
+      startGameCaptureSession(source, publisherRequest, port1);
     } catch (error) {
       port1.postMessage({
         kind: "error",
         message:
           error instanceof Error
             ? error.message
-            : "Game capture could not start.",
+            : "Native screen sharing could not start.",
       });
       port1.close();
     }
   });
 }
 
-function startGameCaptureSession(windowId, publisherRequest, port) {
+function startGameCaptureSession(source, publisherRequest, port) {
   stopActiveGameCaptureSession();
+  const sourceArguments = [
+    source.kind === "window" ? "--window" : "--display",
+    String(source.nativeId),
+  ];
+  if (source.kind === "window") {
+    sourceArguments.push(
+      "--expected-window-bundle",
+      source.expectedBundleIdentifier,
+    );
+  }
   const child = spawn(
     macOSCaptureHelperExecutable(),
     [
       "publish",
-      "--window",
-      String(windowId),
+      ...sourceArguments,
       "--fps",
       "60",
       "--max-width",
@@ -452,7 +590,7 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
     } catch {
       port.postMessage({
         kind: "error",
-        message: "The native game publisher returned invalid status.",
+        message: "The native screen-share publisher returned invalid status.",
       });
       stop();
     }
@@ -465,7 +603,7 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
   child.once("error", () => {
     port.postMessage({
       kind: "error",
-      message: "The native game capture helper could not start.",
+      message: "The native screen-share helper could not start.",
     });
   });
   child.once("exit", (code, signal) => {
@@ -477,7 +615,7 @@ function startGameCaptureSession(windowId, publisherRequest, port) {
         kind: "error",
         message:
           stderr.trim() ||
-          "The native game capture helper stopped unexpectedly.",
+          "The native screen-share helper stopped unexpectedly.",
       });
     }
     port.postMessage({ kind: "ended" });

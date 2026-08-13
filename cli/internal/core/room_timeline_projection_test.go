@@ -260,18 +260,20 @@ func TestRoomTimeline_AppendsVisibleEventKinds(t *testing.T) {
 		postedEvent(postedOpts{envelopeID: "ENV-M2", eventID: "M2", roomID: "R1", actorID: "U2", body: "hi", at: 6}),
 		retractedEvent("ENV-RETRACT-M2", "ENV-M2", "R1", "MOD", "spam", 7),
 		leftEvent("ENV-LEFT-U2", "R1", "U2", 8),
+		callStartedTimelineEvent("ENV-CALL-STARTED", "R1", "U1", "CALL1", 9),
+		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 10),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 6 {
-		t.Errorf("RoomEventCount = %d, want 6 visible room entries", got)
+	if got := p.RoomEventCount("R1"); got != 8 {
+		t.Errorf("RoomEventCount = %d, want 8 visible room entries", got)
 	}
 
 	// Newest-first ordering.
 	got := p.RoomEvents("R1", 50, 0)
-	if len(got) != 6 {
-		t.Fatalf("RoomEvents len = %d, want 6", len(got))
+	if len(got) != 8 {
+		t.Fatalf("RoomEvents len = %d, want 8", len(got))
 	}
-	wantOrder := []string{"ENV-LEFT-U2", "ENV-M2", "ENV-JOIN-U2", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
+	wantOrder := []string{"ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-LEFT-U2", "ENV-M2", "ENV-JOIN-U2", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
 	for i, e := range got {
 		if e.Event.GetId() != wantOrder[i] {
 			t.Errorf("entry[%d] envelope id = %q, want %q", i, e.Event.GetId(), wantOrder[i])
@@ -362,17 +364,19 @@ func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.
 
 	events := p.RoomEvents("R1", 20, 0)
 	if got := timelineEventIDs(events); !slices.Equal(got, []string{
+		"ENV-CALL-ENDED",
+		"ENV-CALL-STARTED",
 		"ENV-ECHO",
 		"ENV-ROOT",
 		"ENV-CREATE",
 	}) {
 		t.Fatalf("RoomEvents retained IDs = %v", got)
 	}
-	if got := p.RoomEventCount("R1"); got != 3 {
-		t.Fatalf("RoomEventCount = %d, want 3 visible entries", got)
+	if got := p.RoomEventCount("R1"); got != 5 {
+		t.Fatalf("RoomEventCount = %d, want 5 visible entries", got)
 	}
 
-	for _, eventID := range []string{"ENV-CREATE", "ENV-ROOT", "ENV-REPLY", "ENV-ECHO"} {
+	for _, eventID := range []string{"ENV-CREATE", "ENV-ROOT", "ENV-REPLY", "ENV-ECHO", "ENV-CALL-STARTED", "ENV-CALL-ENDED"} {
 		if _, ok := p.Get(eventID); !ok {
 			t.Fatalf("Get(%s) ok=false, want true", eventID)
 		}
@@ -382,10 +386,8 @@ func TestRoomTimeline_RetainsOnlyVisibleEntriesAndMessagePostLookups(t *testing.
 		"ENV-EDIT-ROOT",
 		"ENV-RETRACT-ROOT",
 		"ENV-REACT",
-		"ENV-CALL-STARTED",
 		"ENV-CALL-JOINED",
 		"ENV-CALL-LEFT",
-		"ENV-CALL-ENDED",
 		"ENV-DECLARED-A1",
 	} {
 		if _, ok := p.Get(eventID); ok {
@@ -840,15 +842,15 @@ func TestRoomTimeline_CallLifecycleVisibility(t *testing.T) {
 		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 5),
 	})
 
-	if got := p.RoomEventCount("R1"); got != 1 {
-		t.Fatalf("RoomEventCount = %d, want 1 visible entry", got)
+	if got := p.RoomEventCount("R1"); got != 3 {
+		t.Fatalf("RoomEventCount = %d, want 3 visible entries", got)
 	}
-	if got := p.VisibleRoomEventCount("R1"); got != 1 {
-		t.Fatalf("VisibleRoomEventCount = %d, want 1", got)
+	if got := p.VisibleRoomEventCount("R1"); got != 3 {
+		t.Fatalf("VisibleRoomEventCount = %d, want 3", got)
 	}
 	visible := p.VisibleRoomTimeline("R1", 10, 0, nil)
-	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-M1"}) {
-		t.Fatalf("derived visible timeline = %v, want message only", got)
+	if got := timelineEventIDs(visible); !slices.Equal(got, []string{"ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-M1"}) {
+		t.Fatalf("derived visible timeline = %v, want call lifecycle and message", got)
 	}
 }
 

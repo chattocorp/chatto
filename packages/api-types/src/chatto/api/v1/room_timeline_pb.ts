@@ -96,6 +96,55 @@ export class RoomTimelineRoomEvent extends Message<RoomTimelineRoomEvent> {
 }
 
 /**
+ * Payload for voice-call lifecycle timeline events.
+ *
+ * @generated from message chatto.api.v1.RoomTimelineCallEvent
+ */
+export class RoomTimelineCallEvent extends Message<RoomTimelineCallEvent> {
+  /**
+   * Room containing the call.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Stable identifier for this call session.
+   *
+   * @generated from field: string call_id = 2;
+   */
+  callId = "";
+
+  constructor(data?: PartialMessage<RoomTimelineCallEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomTimelineCallEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "call_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineCallEvent {
+    return new RoomTimelineCallEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineCallEvent {
+    return new RoomTimelineCallEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineCallEvent {
+    return new RoomTimelineCallEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomTimelineCallEvent | PlainMessage<RoomTimelineCallEvent> | undefined, b: RoomTimelineCallEvent | PlainMessage<RoomTimelineCallEvent> | undefined): boolean {
+    return proto3.util.equals(RoomTimelineCallEvent, a, b);
+  }
+}
+
+/**
  * Payload for a message-posted timeline event.
  *
  * @generated from message chatto.api.v1.RoomMessagePosted
@@ -234,6 +283,22 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
      */
     value: RoomTimelineRoomEvent;
     case: "userLeftRoom";
+  } | {
+    /**
+     * A voice call started in the room.
+     *
+     * @generated from field: chatto.api.v1.RoomTimelineCallEvent call_started = 40;
+     */
+    value: RoomTimelineCallEvent;
+    case: "callStarted";
+  } | {
+    /**
+     * The voice call ended in the room.
+     *
+     * @generated from field: chatto.api.v1.RoomTimelineCallEvent call_ended = 41;
+     */
+    value: RoomTimelineCallEvent;
+    case: "callEnded";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RoomTimelineEvent>) {
@@ -255,6 +320,8 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     { no: 24, name: "room_unarchived", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 30, name: "user_joined_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 31, name: "user_left_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
+    { no: 40, name: "call_started", kind: "message", T: RoomTimelineCallEvent, oneof: "event" },
+    { no: 41, name: "call_ended", kind: "message", T: RoomTimelineCallEvent, oneof: "event" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineEvent {

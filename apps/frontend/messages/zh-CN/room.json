@@ -128,6 +128,8 @@
       },
       "archived": "归档了聊天室",
       "unarchived": "取消归档了聊天室",
+      "call_started": "在此聊天室发起了通话",
+      "call_ended": "当前通话已结束",
       "and": "和",
       "other_people_count": {
         "one": "其他人",
