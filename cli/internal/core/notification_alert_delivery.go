@@ -32,12 +32,16 @@ const (
 // notificationAlertDelivery owns the application queue and durable consumer
 // that turn persisted occurrences into optional provider side effects.
 type notificationAlertDelivery struct {
-	core     *ChattoCore
-	consumer jetstream.Consumer
+	core                       *ChattoCore
+	consumer                   jetstream.Consumer
+	waitForMaterializerCurrent func(context.Context) error
 }
 
 func newNotificationAlertDelivery(core *ChattoCore) *notificationAlertDelivery {
-	return &notificationAlertDelivery{core: core}
+	return &notificationAlertDelivery{
+		core:                       core,
+		waitForMaterializerCurrent: core.notificationMaterializer.WaitCurrent,
+	}
 }
 
 // SetNotificationAlertHandler enables alert work and configures its provider
@@ -113,6 +117,12 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 	}
 	if job.GetRecipientId() == "" || job.GetSourceEventId() == "" || job.GetNotificationId() == "" {
 		return events.TerminateDelivery("invalid notification alert coordinate", errors.New("required coordinate is empty"))
+	}
+	// The queue and occurrence store are backed up independently. Fence the
+	// causal materializer before treating a temporarily absent restored
+	// occurrence as terminal or attempting to complete expired work.
+	if err := d.waitForMaterializerCurrent(ctx); err != nil {
+		return fmt.Errorf("fence notification materializer before alert delivery: %w", err)
 	}
 	if time.Since(delivery.PublishedAt) > notificationAlertDeliveryTTL {
 		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)

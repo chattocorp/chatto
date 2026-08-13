@@ -81,6 +81,91 @@ func TestNotificationAlertQueueDeliversMaterializedOccurrence(t *testing.T) {
 	}
 }
 
+func TestNotificationAlertDeliveryFencesMaterializerBeforeOccurrenceLookup(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "restored-alert-author", "Restored Alert Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "restored-alert-recipient", "Restored Alert Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "restored-alert-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, recipient.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "restored alert target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent before test: %v", err)
+	}
+	if occurrences, err := chattoCore.NotificationOccurrences().List(ctx, recipient.Id); err != nil || len(occurrences) != 0 {
+		t.Fatalf("occurrences before restored job = (%+v, %v), want none", occurrences, err)
+	}
+	sequence, err := chattoCore.GetEventSequence(ctx, KindChannel, room.Id, posted.Id)
+	if err != nil {
+		t.Fatalf("GetEventSequence: %v", err)
+	}
+	input := CreateNotificationOccurrenceInput{
+		RecipientID:          recipient.Id,
+		SourceEventID:        posted.Id,
+		SourceCreated:        posted.GetCreatedAt().AsTime(),
+		SourceStreamSequence: sequence,
+		ActorID:              author.Id,
+		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId:    recipient.Id,
+		SourceEventId:  posted.Id,
+		NotificationId: notificationOccurrenceID(recipient.Id, posted.Id),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	fenced := false
+	chattoCore.notificationAlertDelivery.waitForMaterializerCurrent = func(context.Context) error {
+		fenced = true
+		occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, input)
+		if err != nil || !created || occurrence == nil {
+			t.Fatalf("materialize restored occurrence = (%+v, %v, %v), want created", occurrence, created, err)
+		}
+		return nil
+	}
+	providerCalls := 0
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		providerCalls++
+		return nil
+	})
+
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: time.Now().UTC(),
+	}); err != nil {
+		t.Fatalf("process restored delivery: %v", err)
+	}
+	if !fenced || providerCalls != 1 {
+		t.Fatalf("restored delivery = (fenced %v, provider calls %d), want true, 1", fenced, providerCalls)
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, recipient.Id, job.GetNotificationId())
+	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		t.Fatalf("restored alert state = (%+v, %v), want delivered", stored, err)
+	}
+}
+
 func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

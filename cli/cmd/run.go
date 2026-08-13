@@ -488,8 +488,11 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		// Revalidate after hydration so a concurrent delete or visibility purge
 		// cannot overtake a slow alert preparation.
 		eligible, err := chattoCore.NotificationAlertEligible(ctx, occurrence)
-		if err != nil || !eligible {
+		if err != nil {
 			return err
+		}
+		if !eligible {
+			return core.ErrNotificationAlertSuppressed
 		}
 		subscriptions, err = filterOwnedPushSubscriptions(ctx, chattoCore, occurrence.GetRecipientId(), subscriptions)
 		if err != nil {

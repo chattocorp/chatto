@@ -1,4 +1,4 @@
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
@@ -124,6 +124,12 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
 export class NotificationStore {
   #api: NotificationAPI;
   #fetchGeneration = 0;
+  // Authoritative replacements suppress rollback of older optimistic state.
+  #authoritativeGeneration = 0;
+  // Exact deletions are independent; delete-all supersedes all of them.
+  #deletionSequence = 0;
+  #deleteAllGeneration = 0;
+  #pendingDeletionById = new SvelteMap<string, number>();
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
@@ -149,6 +155,8 @@ export class NotificationStore {
   /** Replace notification state from the realtime projection. */
   replaceOccurrenceProjection(page: NotificationOccurrencePage): void {
     this.#fetchGeneration++;
+    this.#authoritativeGeneration++;
+    this.#pendingDeletionById.clear();
     this.occurrences = page.occurrences;
     this.notifications = page.occurrences
       .filter((occurrence) => occurrence.unread)
@@ -169,6 +177,8 @@ export class NotificationStore {
   /** Invalidate projection-owned state while a compacted reset hydrates. */
   resetProjectionState(): void {
     this.#fetchGeneration++;
+    this.#authoritativeGeneration++;
+    this.#pendingDeletionById.clear();
     this.notifications = [];
     this.occurrences = [];
     this.unreadNotificationCount = 0;
@@ -205,6 +215,8 @@ export class NotificationStore {
 
   /** Drop notification payloads for a room at an authorization boundary. */
   clearRoom(roomId: string): void {
+    this.#authoritativeGeneration++;
+    this.#pendingDeletionById.clear();
     const removedUnreadOccurrences = this.occurrences.filter(
       (occurrence) => occurrence.unread && occurrence.room?.id === roomId
     ).length;
@@ -357,36 +369,66 @@ export class NotificationStore {
 
   /** Delete exact occurrences optimistically, restoring them on failure. */
   async deleteOccurrences(notificationIds: string[], knownUnreadCount?: number): Promise<void> {
-    const originalOccurrences = this.occurrences;
-    const originalNotifications = this.notifications;
-    const originalCount = this.unreadNotificationCount;
-    const originalNextExpiryAt = this.nextExpiryAt;
-    const removedIds = new SvelteSet(notificationIds);
-    const removed = this.occurrences.filter((occurrence) => removedIds.has(occurrence.id));
+    const uniqueIds = [...new SvelteSet(notificationIds)];
+    const removedIds = new SvelteSet(uniqueIds);
+    const removedOccurrences = this.occurrences.filter((occurrence) =>
+      removedIds.has(occurrence.id)
+    );
+    const removedNotifications = this.notifications.filter((notification) =>
+      removedIds.has(notification.id)
+    );
+    const authoritativeGeneration = this.#authoritativeGeneration;
+    const deleteAllGeneration = this.#deleteAllGeneration;
+    const mutation = ++this.#deletionSequence;
+    for (const id of uniqueIds) this.#pendingDeletionById.set(id, mutation);
     // Supersede stale list work without starting a second list request. The
     // worker's realtime replacement performs authoritative reconciliation.
     this.#fetchGeneration++;
     this.loading = false;
-    const mutationGeneration = this.#fetchGeneration;
     this.occurrences = this.occurrences.filter((occurrence) => !removedIds.has(occurrence.id));
     this.notifications = this.notifications.filter(
       (notification) => !removedIds.has(notification.id)
     );
     const removedUnreadCount =
-      knownUnreadCount ?? removed.filter((occurrence) => occurrence.unread).length;
+      knownUnreadCount ?? removedOccurrences.filter((occurrence) => occurrence.unread).length;
     this.unreadNotificationCount = Math.max(0, this.unreadNotificationCount - removedUnreadCount);
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
 
     try {
-      await this.#api.batchDeleteNotificationOccurrences(notificationIds);
+      await this.#api.batchDeleteNotificationOccurrences(uniqueIds);
     } catch (error) {
-      if (this.#fetchGeneration === mutationGeneration) {
-        this.occurrences = originalOccurrences;
-        this.notifications = originalNotifications;
-        this.unreadNotificationCount = originalCount;
-        this.nextExpiryAt = originalNextExpiryAt;
+      const rollbackIds = new SvelteSet(
+        uniqueIds.filter((id) => this.#pendingDeletionById.get(id) === mutation)
+      );
+      if (
+        this.#authoritativeGeneration === authoritativeGeneration &&
+        this.#deleteAllGeneration === deleteAllGeneration &&
+        rollbackIds.size > 0
+      ) {
+        this.occurrences = mergeNotificationOccurrences(
+          this.occurrences,
+          removedOccurrences.filter((occurrence) => rollbackIds.has(occurrence.id))
+        );
+        this.notifications = mergeNotificationItems(
+          this.notifications,
+          removedNotifications.filter((notification) => rollbackIds.has(notification.id))
+        );
+        const rollbackUnreadCount =
+          knownUnreadCount !== undefined && rollbackIds.size === removedIds.size
+            ? knownUnreadCount
+            : removedOccurrences.filter(
+                (occurrence) => rollbackIds.has(occurrence.id) && occurrence.unread
+              ).length;
+        this.unreadNotificationCount += rollbackUnreadCount;
+        this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
       }
       throw error;
+    } finally {
+      for (const id of uniqueIds) {
+        if (this.#pendingDeletionById.get(id) === mutation) {
+          this.#pendingDeletionById.delete(id);
+        }
+      }
     }
   }
 
@@ -397,6 +439,8 @@ export class NotificationStore {
     const originalCount = this.unreadNotificationCount;
     const originalNextExpiryAt = this.nextExpiryAt;
     this.#fetchGeneration++;
+    this.#deleteAllGeneration++;
+    this.#pendingDeletionById.clear();
     this.loading = false;
     const mutationGeneration = this.#fetchGeneration;
     this.occurrences = [];
@@ -616,4 +660,22 @@ function earliestNotificationOccurrenceExpiry(
       .filter((expiry): expiry is string => Boolean(expiry))
       .sort()[0] ?? null
   );
+}
+
+function mergeNotificationOccurrences(
+  current: NotificationOccurrenceItem[],
+  restored: NotificationOccurrenceItem[]
+): NotificationOccurrenceItem[] {
+  const byId = new SvelteMap(current.map((occurrence) => [occurrence.id, occurrence]));
+  for (const occurrence of restored) byId.set(occurrence.id, occurrence);
+  return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+function mergeNotificationItems(
+  current: NotificationItem[],
+  restored: NotificationItem[]
+): NotificationItem[] {
+  const byId = new SvelteMap(current.map((notification) => [notification.id, notification]));
+  for (const notification of restored) byId.set(notification.id, notification);
+  return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
 }

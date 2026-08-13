@@ -104,7 +104,11 @@ func notificationPushFixture(t *testing.T, messageCount int) (*core.ChattoCore, 
 
 func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing.T) {
 	chattoCore, ctx, alice, _, occurrence := notificationPushFixture(t, 2)
-	endpoints := []string{"https://push.example.test/gone", "https://push.example.test/accepted"}
+	endpoints := []string{
+		"https://push.example.test/gone",
+		"https://push.example.test/accepted",
+		"https://push.example.test/failed",
+	}
 	for _, endpoint := range endpoints {
 		if _, err := chattoCore.SavePushSubscription(ctx, alice.Id, endpoint, "key", "auth", "browser"); err != nil {
 			t.Fatalf("SavePushSubscription %s: %v", endpoint, err)
@@ -115,8 +119,10 @@ func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing
 		for _, subscription := range subscriptions {
 			if subscription.GetEndpoint() == endpoints[0] {
 				results = append(results, &push.SendResult{Endpoint: subscription.GetEndpoint(), Gone: true})
-			} else {
+			} else if subscription.GetEndpoint() == endpoints[1] {
 				results = append(results, &push.SendResult{Endpoint: subscription.GetEndpoint(), Success: true})
+			} else {
+				results = append(results, &push.SendResult{Endpoint: subscription.GetEndpoint(), Error: errors.New("provider unavailable")})
 			}
 		}
 		return results
@@ -135,8 +141,13 @@ func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions: %v", err)
 	}
-	if len(remaining) != 1 || remaining[0].GetEndpoint() != endpoints[1] {
-		t.Fatalf("remaining subscriptions = %+v, want accepted endpoint only", remaining)
+	if len(remaining) != 2 {
+		t.Fatalf("remaining subscriptions = %+v, want accepted and transiently failed endpoints", remaining)
+	}
+	for _, subscription := range remaining {
+		if subscription.GetEndpoint() == endpoints[0] {
+			t.Fatalf("gone subscription remains: %+v", remaining)
+		}
 	}
 }
 
@@ -171,11 +182,35 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 			t.Fatal("read occurrence contacted provider")
 			return nil
 		}}
-		if err := notificationAlertHandler(chattoCore, config.ChattoConfig{}, sender, log.New(io.Discard))(ctx, occurrence); err != nil {
-			t.Fatalf("read handler: %v", err)
+		err := notificationAlertHandler(chattoCore, config.ChattoConfig{}, sender, log.New(io.Discard))(ctx, occurrence)
+		if !errors.Is(err, core.ErrNotificationAlertSuppressed) {
+			t.Fatalf("read handler = %v, want suppressed", err)
 		}
 		if sender.calls != 0 {
 			t.Fatalf("read handler provider calls = %d, want zero", sender.calls)
+		}
+	})
+
+	t.Run("policy downgraded before final delivery", func(t *testing.T) {
+		chattoCore, ctx, alice, _, occurrence := notificationPushFixture(t, 1)
+		if _, err := chattoCore.SavePushSubscription(ctx, alice.Id, "https://push.example.test/policy", "key", "auth", "browser"); err != nil {
+			t.Fatalf("SavePushSubscription: %v", err)
+		}
+		if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(
+			ctx,
+			alice.Id,
+			corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
+			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		); err != nil {
+			t.Fatalf("SetServerNotificationIntensity: %v", err)
+		}
+		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
+			t.Fatal("policy-downgraded occurrence contacted provider")
+			return nil
+		}}
+		err := notificationAlertHandler(chattoCore, config.ChattoConfig{}, sender, log.New(io.Discard))(ctx, occurrence)
+		if !errors.Is(err, core.ErrNotificationAlertSuppressed) || sender.calls != 0 {
+			t.Fatalf("policy-downgraded handler = (%v, %d calls), want suppressed without provider", err, sender.calls)
 		}
 	})
 }

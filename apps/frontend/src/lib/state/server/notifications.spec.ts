@@ -312,6 +312,72 @@ describe('NotificationStore', () => {
     expect(store.unreadNotificationCount).toBe(1);
   });
 
+  it('restores both distinct optimistic deletions when concurrent requests fail', async () => {
+    const firstMutation = deferred<number>();
+    const secondMutation = deferred<number>();
+    const api = makeAPI();
+    api.batchDeleteNotificationOccurrences
+      .mockReturnValueOnce(firstMutation.promise)
+      .mockReturnValueOnce(secondMutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1'), mention('n2')], 2)));
+
+    const firstDeletion = store.deleteOccurrences(['n1']);
+    const secondDeletion = store.deleteOccurrences(['n2']);
+    expect(store.occurrences).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+
+    secondMutation.reject(new Error('second offline'));
+    await expect(secondDeletion).rejects.toThrow('second offline');
+    expect(store.occurrences.map(({ id }) => id)).toEqual(['n2']);
+    expect(store.unreadNotificationCount).toBe(1);
+
+    firstMutation.reject(new Error('first offline'));
+    await expect(firstDeletion).rejects.toThrow('first offline');
+    expect(store.occurrences.map(({ id }) => id).sort()).toEqual(['n1', 'n2']);
+    expect(store.notifications.map(({ id }) => id).sort()).toEqual(['n1', 'n2']);
+    expect(store.unreadNotificationCount).toBe(2);
+  });
+
+  it('restores only the failed one of two concurrent optimistic deletions', async () => {
+    const firstMutation = deferred<number>();
+    const secondMutation = deferred<number>();
+    const api = makeAPI();
+    api.batchDeleteNotificationOccurrences
+      .mockReturnValueOnce(firstMutation.promise)
+      .mockReturnValueOnce(secondMutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1'), mention('n2')], 2)));
+
+    const firstDeletion = store.deleteOccurrences(['n1']);
+    const secondDeletion = store.deleteOccurrences(['n2']);
+    firstMutation.resolve(1);
+    await firstDeletion;
+    secondMutation.reject(new Error('offline'));
+    await expect(secondDeletion).rejects.toThrow('offline');
+
+    expect(store.occurrences.map(({ id }) => id)).toEqual(['n2']);
+    expect(store.notifications.map(({ id }) => id)).toEqual(['n2']);
+    expect(store.unreadNotificationCount).toBe(1);
+  });
+
+  it('does not roll a failed deletion back over a newer authoritative projection', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI();
+    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const deletion = store.deleteOccurrences(['n1']);
+    store.replaceOccurrenceProjection(occurrencePage(page([], 0)));
+    mutation.reject(new Error('offline'));
+    await expect(deletion).rejects.toThrow('offline');
+
+    expect(store.occurrences).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
   it('optimistically decrements exact unread totals for occurrences outside the cached page', async () => {
     const api = makeAPI();
     const store = new NotificationStore(api);
