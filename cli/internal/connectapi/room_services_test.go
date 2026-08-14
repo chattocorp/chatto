@@ -1507,6 +1507,23 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		!occurrence.GetUnread() || occurrence.GetAttentionLevel() != apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
 	}
+	got, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{
+		NotificationId: occurrence.GetId(),
+	}))
+	if err != nil || got.Msg.GetNotification().GetId() != occurrence.GetId() {
+		t.Fatalf("GetNotificationOccurrence = (%+v, %v), want %s", got, err, occurrence.GetId())
+	}
+	if _, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{
+		NotificationId: "missing-notification",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetNotificationOccurrence missing code = %v, want not found", connect.CodeOf(err))
+	}
+	batchGet, err := env.notifications.BatchGetNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchGetNotificationOccurrencesRequest{
+		NotificationIds: []string{"missing-notification", occurrence.GetId(), occurrence.GetId()},
+	}))
+	if err != nil || len(batchGet.Msg.GetNotifications()) != 1 || batchGet.Msg.GetNotifications()[0].GetId() != occurrence.GetId() {
+		t.Fatalf("BatchGetNotificationOccurrences = (%+v, %v), want one de-duplicated occurrence", batchGet, err)
+	}
 
 	if _, err := env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
 		NotificationId: occurrence.GetId(),
@@ -1664,6 +1681,25 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	inbox, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
 	if err != nil || len(inbox.Msg.GetOccurrences()) != 0 {
 		t.Fatalf("ListNotificationOccurrences with retracted target = (%+v, %v), want empty", inbox, err)
+	}
+	staleGet := createStale("stale-get-" + posted.Id)
+	if _, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{
+		NotificationId: staleGet.GetId(),
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("GetNotificationOccurrence retracted target code = %v, want not found", connect.CodeOf(err))
+	}
+	staleBatchGet := createStale("stale-batch-get-" + posted.Id)
+	visibleBatchGet := createVisible("visible batch-get target")
+	batchGet, err := env.notifications.BatchGetNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchGetNotificationOccurrencesRequest{
+		NotificationIds: []string{staleBatchGet.GetId(), visibleBatchGet.GetId(), visibleBatchGet.GetId(), "missing-notification"},
+	}))
+	if err != nil || len(batchGet.Msg.GetNotifications()) != 1 || batchGet.Msg.GetNotifications()[0].GetId() != visibleBatchGet.GetId() {
+		t.Fatalf("BatchGetNotificationOccurrences mixed visibility = (%+v, %v), want one visible occurrence", batchGet, err)
+	}
+	if deleted, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
+		NotificationId: visibleBatchGet.GetId(),
+	})); err != nil || !deleted.Msg.GetDeleted() {
+		t.Fatalf("DeleteNotificationOccurrence batch-get cleanup = (%+v, %v), want deleted", deleted, err)
 	}
 
 	staleUpdate := createStale("stale-update-" + posted.Id)

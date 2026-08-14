@@ -29,6 +29,7 @@ type Sender struct {
 	httpClient       webpush.HTTPClient
 	validateEndpoint func(string) error
 	requestSlots     chan struct{}
+	now              func() time.Time
 }
 
 const (
@@ -50,6 +51,7 @@ func NewSender(cfg config.PushConfig, logger *log.Logger) *Sender {
 		httpClient:       pushendpoint.NewHTTPClient(pushRequestTimeout),
 		validateEndpoint: pushendpoint.Validate,
 		requestSlots:     make(chan struct{}, maxConcurrentPushRequests),
+		now:              time.Now,
 	}
 }
 
@@ -67,6 +69,10 @@ type Payload struct {
 	// set this to their remaining immutable delivery lifetime; other push types
 	// retain the normal 24-hour default.
 	TTLSeconds int `json:"-"`
+	// DeliveryDeadline is the immutable absolute provider-retention boundary for
+	// time-sensitive alerts. Sender calculates the remaining TTL only after it
+	// acquires a request slot so local contention cannot extend that boundary.
+	DeliveryDeadline time.Time `json:"-"`
 	// Action is empty for regular user-visible notifications. Control pushes set
 	// it to a command such as "dismiss" and do not display a new notification.
 	Action string `json:"action,omitempty"`
@@ -152,11 +158,20 @@ func (p Payload) deliveryUrgency() webpush.Urgency {
 	return webpush.UrgencyNormal
 }
 
-func (p Payload) deliveryTTL() int {
-	if p.TTLSeconds > 0 {
-		return p.TTLSeconds
+func (p Payload) deliveryTTL(now time.Time) (int, bool) {
+	if !p.DeliveryDeadline.IsZero() {
+		remaining := p.DeliveryDeadline.Sub(now)
+		if remaining <= 0 {
+			return 0, false
+		}
+		// Truncation is intentional: the provider must never retain the payload
+		// beyond the absolute deadline. Zero means immediate delivery only.
+		return int(remaining / time.Second), true
 	}
-	return 24 * 60 * 60
+	if p.TTLSeconds > 0 {
+		return p.TTLSeconds, true
+	}
+	return 24 * 60 * 60, true
 }
 
 // PayloadContext provides optional context for building push payloads.
@@ -217,6 +232,11 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		result.Error = requestCtx.Err()
 		return result
 	}
+	ttl, deliverable := payload.deliveryTTL(s.now())
+	if !deliverable {
+		result.Error = context.DeadlineExceeded
+		return result
+	}
 
 	// Marshal payload to JSON
 	payloadJSON, err := json.Marshal(payload)
@@ -239,7 +259,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		Subscriber:      normalizeVAPIDSubject(s.config.VAPIDSubject),
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
-		TTL:             payload.deliveryTTL(),
+		TTL:             ttl,
 		Urgency:         payload.deliveryUrgency(),
 		RecordSize:      pushRecordSize,
 		HTTPClient:      s.httpClient,

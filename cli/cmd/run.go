@@ -510,10 +510,10 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		}
 		alertDeadline := core.NotificationAlertDeadline(occurrence)
 		remaining := time.Until(alertDeadline)
-		payload.TTLSeconds = int(remaining / time.Second)
-		if payload.TTLSeconds <= 0 {
+		if remaining <= 0 {
 			return core.ErrNotificationAlertSuppressed
 		}
+		payload.DeliveryDeadline = alertDeadline
 		sendCtx, cancel := context.WithDeadline(ctx, alertDeadline)
 		defer cancel()
 		results := sender.SendToMany(sendCtx, subscriptions, payload)

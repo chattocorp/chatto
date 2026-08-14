@@ -20,6 +20,72 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 Reads, marks read, and deletes notifications for the authenticated viewer.
 
+<a id="chatto-api-v1-NotificationService-GetNotificationOccurrence"></a>
+
+### GetNotificationOccurrence
+
+Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
+deleted, expired, or no longer visible to the authenticated viewer.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
+```
+
+<a id="chatto-api-v1-GetNotificationOccurrenceRequest"></a>
+
+#### Input: GetNotificationOccurrenceRequest
+
+Request one exact notification occurrence by stable ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_id` | `string` | Required stable occurrence ID. |
+
+
+<a id="chatto-api-v1-GetNotificationOccurrenceResponse"></a>
+
+#### Result: GetNotificationOccurrenceResponse
+
+One exact notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
+
+
+<a id="chatto-api-v1-NotificationService-BatchGetNotificationOccurrences"></a>
+
+### BatchGetNotificationOccurrences
+
+Gets an explicit bounded set of visible occurrences. Missing or
+inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotificationOccurrences
+```
+
+<a id="chatto-api-v1-BatchGetNotificationOccurrencesRequest"></a>
+
+#### Input: BatchGetNotificationOccurrencesRequest
+
+Request an explicit bounded set of notification occurrences.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notification_ids` | `repeated string` | Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are omitted. Repeated IDs are de-duplicated in first-seen request order. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationOccurrencesResponse"></a>
+
+#### Result: BatchGetNotificationOccurrencesResponse
+
+Exact visible notification occurrences requested by stable ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `notifications` | repeated [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
+
+
 <a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
 
 ### ListNotificationOccurrences

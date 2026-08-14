@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -14,6 +14,30 @@ import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
+    /**
+     * Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
+     * deleted, expired, or no longer visible to the authenticated viewer.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
+     */
+    getNotificationOccurrence: {
+      name: "GetNotificationOccurrence",
+      I: GetNotificationOccurrenceRequest,
+      O: GetNotificationOccurrenceResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets an explicit bounded set of visible occurrences. Missing or
+     * inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+     *
+     * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotificationOccurrences
+     */
+    batchGetNotificationOccurrences: {
+      name: "BatchGetNotificationOccurrences",
+      I: BatchGetNotificationOccurrencesRequest,
+      O: BatchGetNotificationOccurrencesResponse,
+      kind: MethodKind.Unary,
+    },
     /**
      * Lists exact Notifications 2.0 occurrences. Clients may derive temporary
      * presentation groups without changing occurrence identity or counts.

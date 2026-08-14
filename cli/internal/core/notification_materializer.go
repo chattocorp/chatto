@@ -376,10 +376,45 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 			return fmt.Errorf("wait for room projections: %w", err)
 		}
 	}
+	// Lifecycle handlers select cleanup candidates from the process-wide
+	// occurrence index. Fence that watcher after the worker's domain
+	// projections have reached this event so a replica cannot acknowledge the
+	// cleanup while still missing an occurrence written by another replica for
+	// an earlier delivery.
+	if notificationLifecycleUsesOccurrenceIndex(&event) {
+		if err := m.fenceLocalOccurrenceIndex(ctx, delivery.StreamSequence); err != nil {
+			return fmt.Errorf("fence notification occurrence index before lifecycle cleanup: %w", err)
+		}
+	}
 	if err := m.materializeEvent(ctx, &event, delivery.StreamSequence, true); err != nil {
 		return err
 	}
 	return nil
+}
+
+func notificationLifecycleUsesOccurrenceIndex(event *corev1.Event) bool {
+	if event == nil {
+		return false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_ReactionRemoved,
+		*corev1.Event_MessageRetracted,
+		*corev1.Event_UserLeftRoom,
+		*corev1.Event_RoomMemberRemoved,
+		*corev1.Event_RoomMemberBanned,
+		*corev1.Event_RoomUniversalChanged,
+		*corev1.Event_RoomDeleted,
+		*corev1.Event_RoomAddedToGroup,
+		*corev1.Event_RbacRoleDeleted,
+		*corev1.Event_RbacRoleAssigned,
+		*corev1.Event_RbacRoleRevoked,
+		*corev1.Event_RbacPermissionGranted,
+		*corev1.Event_RbacPermissionDenied,
+		*corev1.Event_RbacPermissionCleared:
+		return true
+	default:
+		return false
+	}
 }
 
 // fenceLocalOccurrenceIndex appends a marker to the same KV stream as
@@ -388,13 +423,17 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 // applied every earlier occurrence mutation without adding a write to every
 // worker delivery.
 func (m *NotificationMaterializer) fenceLocalOccurrenceIndex(ctx context.Context, streamSequence uint64) error {
+	return m.fenceOccurrenceIndex(ctx, streamSequence, m.core.notificationOccurrences)
+}
+
+func (m *NotificationMaterializer) fenceOccurrenceIndex(ctx context.Context, streamSequence uint64, occurrences *NotificationOccurrenceModel) error {
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, streamSequence)
 	revision, err := m.core.storage.runtimeStateKV.Put(ctx, notificationReadFenceKey, value)
 	if err != nil {
 		return fmt.Errorf("write notification read fence: %w", err)
 	}
-	if err := m.core.notificationOccurrences.index.waitForObservedRevision(ctx, revision); err != nil {
+	if err := occurrences.index.waitForObservedRevision(ctx, revision); err != nil {
 		return fmt.Errorf("wait for local notification index through read fence: %w", err)
 	}
 	return nil

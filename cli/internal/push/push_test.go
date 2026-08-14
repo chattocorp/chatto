@@ -740,6 +740,46 @@ func TestSend(t *testing.T) {
 		}
 	})
 
+	t.Run("calculates an absolute alert deadline after request slot admission", func(t *testing.T) {
+		var ttl string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ttl = r.Header.Get("TTL")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		for range cap(sender.requestSlots) {
+			sender.requestSlots <- struct{}{}
+		}
+		started := make(chan struct{})
+		sender.validateEndpoint = func(string) error {
+			close(started)
+			return nil
+		}
+		base := time.Now().UTC()
+		current := base
+		sender.now = func() time.Time { return current }
+		subscription := newTestPushSubscription(t, server.URL)
+		result := make(chan *SendResult, 1)
+		go func() {
+			result <- sender.Send(context.Background(), subscription, &Payload{
+				Title:            "Test",
+				DeliveryDeadline: base.Add(1500 * time.Millisecond),
+			})
+		}()
+		<-started
+		current = base.Add(1100 * time.Millisecond)
+		<-sender.requestSlots
+		got := <-result
+		if got.Error != nil {
+			t.Fatalf("Send error: %v", got.Error)
+		}
+		if ttl != "0" {
+			t.Fatalf("TTL after request-slot contention = %q, want 0", ttl)
+		}
+	})
+
 	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
 		var urgency string
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

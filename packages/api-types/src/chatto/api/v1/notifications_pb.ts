@@ -538,6 +538,171 @@ export class ListNotificationOccurrencesResponse extends Message<ListNotificatio
 }
 
 /**
+ * Request one exact notification occurrence by stable ID.
+ *
+ * @generated from message chatto.api.v1.GetNotificationOccurrenceRequest
+ */
+export class GetNotificationOccurrenceRequest extends Message<GetNotificationOccurrenceRequest> {
+  /**
+   * Required stable occurrence ID.
+   *
+   * @generated from field: string notification_id = 1;
+   */
+  notificationId = "";
+
+  constructor(data?: PartialMessage<GetNotificationOccurrenceRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceRequest {
+    return new GetNotificationOccurrenceRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationOccurrenceRequest | PlainMessage<GetNotificationOccurrenceRequest> | undefined, b: GetNotificationOccurrenceRequest | PlainMessage<GetNotificationOccurrenceRequest> | undefined): boolean {
+    return proto3.util.equals(GetNotificationOccurrenceRequest, a, b);
+  }
+}
+
+/**
+ * One exact notification occurrence.
+ *
+ * @generated from message chatto.api.v1.GetNotificationOccurrenceResponse
+ */
+export class GetNotificationOccurrenceResponse extends Message<GetNotificationOccurrenceResponse> {
+  /**
+   * Visible occurrence. Absence is reported as NOT_FOUND.
+   *
+   * @generated from field: chatto.api.v1.NotificationOccurrence notification = 1;
+   */
+  notification?: NotificationOccurrence;
+
+  constructor(data?: PartialMessage<GetNotificationOccurrenceResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification", kind: "message", T: NotificationOccurrence },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetNotificationOccurrenceResponse {
+    return new GetNotificationOccurrenceResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetNotificationOccurrenceResponse | PlainMessage<GetNotificationOccurrenceResponse> | undefined, b: GetNotificationOccurrenceResponse | PlainMessage<GetNotificationOccurrenceResponse> | undefined): boolean {
+    return proto3.util.equals(GetNotificationOccurrenceResponse, a, b);
+  }
+}
+
+/**
+ * Request an explicit bounded set of notification occurrences.
+ *
+ * @generated from message chatto.api.v1.BatchGetNotificationOccurrencesRequest
+ */
+export class BatchGetNotificationOccurrencesRequest extends Message<BatchGetNotificationOccurrencesRequest> {
+  /**
+   * Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are
+   * omitted. Repeated IDs are de-duplicated in first-seen request order.
+   *
+   * @generated from field: repeated string notification_ids = 1;
+   */
+  notificationIds: string[] = [];
+
+  constructor(data?: PartialMessage<BatchGetNotificationOccurrencesRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetNotificationOccurrencesRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notification_ids", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationOccurrencesRequest {
+    return new BatchGetNotificationOccurrencesRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetNotificationOccurrencesRequest {
+    return new BatchGetNotificationOccurrencesRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetNotificationOccurrencesRequest {
+    return new BatchGetNotificationOccurrencesRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetNotificationOccurrencesRequest | PlainMessage<BatchGetNotificationOccurrencesRequest> | undefined, b: BatchGetNotificationOccurrencesRequest | PlainMessage<BatchGetNotificationOccurrencesRequest> | undefined): boolean {
+    return proto3.util.equals(BatchGetNotificationOccurrencesRequest, a, b);
+  }
+}
+
+/**
+ * Exact visible notification occurrences requested by stable ID.
+ *
+ * @generated from message chatto.api.v1.BatchGetNotificationOccurrencesResponse
+ */
+export class BatchGetNotificationOccurrencesResponse extends Message<BatchGetNotificationOccurrencesResponse> {
+  /**
+   * Found occurrences in first-seen request order.
+   *
+   * @generated from field: repeated chatto.api.v1.NotificationOccurrence notifications = 1;
+   */
+  notifications: NotificationOccurrence[] = [];
+
+  constructor(data?: PartialMessage<BatchGetNotificationOccurrencesResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.BatchGetNotificationOccurrencesResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "notifications", kind: "message", T: NotificationOccurrence, repeated: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationOccurrencesResponse {
+    return new BatchGetNotificationOccurrencesResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): BatchGetNotificationOccurrencesResponse {
+    return new BatchGetNotificationOccurrencesResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): BatchGetNotificationOccurrencesResponse {
+    return new BatchGetNotificationOccurrencesResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: BatchGetNotificationOccurrencesResponse | PlainMessage<BatchGetNotificationOccurrencesResponse> | undefined, b: BatchGetNotificationOccurrencesResponse | PlainMessage<BatchGetNotificationOccurrencesResponse> | undefined): boolean {
+    return proto3.util.equals(BatchGetNotificationOccurrencesResponse, a, b);
+  }
+}
+
+/**
  * Unread notification occurrences currently targeting one room.
  *
  * @generated from message chatto.api.v1.NotificationRoomUnreadCount

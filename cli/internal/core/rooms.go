@@ -534,28 +534,64 @@ func (c *ChattoCore) UpdateRoom(ctx context.Context, actorID string, kind RoomKi
 // ADR-034 Approach A. Historical room events are retained in EVT; the
 // legacy KV room record is no longer touched here.
 func (c *ChattoCore) DeleteRoom(ctx context.Context, actorID string, kind RoomKind, room_id string) error {
-	room, err := c.GetRoom(ctx, kind, room_id)
-	if err != nil {
-		return err
-	}
-
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomDeleted{
-			RoomDeleted: &corev1.RoomDeletedEvent{
-				RoomId: room_id,
+	agg := evtstream.RoomAggregate(room_id)
+	filter := agg.AllEventsFilter()
+	var room *corev1.Room
+	var deletedSubject string
+	var seq uint64
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return fmt.Errorf("read authorization fence before room deletion: %w", err)
+		}
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return fmt.Errorf("read room deletion OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return fmt.Errorf("wait for room before deletion: %w", err)
+			}
+		}
+		room, err = c.GetRoom(ctx, kind, room_id)
+		if err != nil {
+			return err
+		}
+		event := newEvent(actorID, &corev1.Event{
+			Event: &corev1.Event_RoomDeleted{
+				RoomDeleted: &corev1.RoomDeletedEvent{RoomId: room_id},
 			},
-		},
-	})
-	deletedSubject := evtstream.RoomAggregate(room_id).SubjectFor(event)
-	seq, err := c.EventPublisher.AppendEventually(ctx, deletedSubject, event)
-	if err != nil {
-		return fmt.Errorf("publish RoomDeletedEvent: %w", err)
+		})
+		deletedSubject = agg.SubjectFor(event)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: deletedSubject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
+		}}, authorizationSeq)
+		if errors.Is(err, events.ErrConflict) {
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+			}
+			continue
+		}
+		if err != nil {
+			return fmt.Errorf("publish RoomDeletedEvent: %w", err)
+		}
+		if len(seqs) == 0 {
+			return errors.New("room deletion committed no event")
+		}
+		seq = seqs[0]
+		break
+	}
+	if seq == 0 {
+		return fmt.Errorf("publish room deletion retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 	}
 
 	// Cascade (ADR-034 Approach A): a channel room that lives in a
 	// group emits a per-group event so the group projection drops the
 	// room from its room_ids. DMs don't belong to groups.
 	var groupRemovedSeq uint64
+	var err error
 	if kind == KindChannel && room.GetGroupId() != "" {
 		removed := newEvent(actorID, &corev1.Event{
 			Event: &corev1.Event_RoomRemovedFromGroup{

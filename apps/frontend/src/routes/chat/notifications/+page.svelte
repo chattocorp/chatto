@@ -533,7 +533,6 @@
     if (pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
-    const removed = groups.find((candidate) => rowKey(candidate) === rowKey(item));
     groups = groups.filter((candidate) => rowKey(candidate) !== rowKey(item));
     pagination = pagination.map((source) =>
       source.serverId === item.serverId
@@ -554,14 +553,6 @@
         }
       );
     } catch (error) {
-      if (removed && !groups.some((candidate) => rowKey(candidate) === rowKey(removed))) {
-        groups = [...groups, removed].sort(compareGroups);
-        pagination = pagination.map((source) =>
-          source.serverId === item.serverId
-            ? { ...source, offset: source.offset + item.group.occurrences.length }
-            : source
-        );
-      }
       console.error('Failed to update notification:', error);
       toast.error(m('common.error.network'));
     } finally {
@@ -572,8 +563,6 @@
   async function dismissAll() {
     if (dismissingAll || hasPendingMutation || groups.length === 0) return;
     dismissingAll = true;
-    const originalGroups = groups;
-    const originalPagination = pagination;
     groups = [];
     pagination = pagination.map((source) => ({ ...source, offset: 0, hasMore: false }));
 
@@ -590,20 +579,6 @@
       results.flatMap((result, index) => (result.status === 'rejected' ? [serverIds[index]!] : []))
     );
     if (failedServerIds.size > 0) {
-      groups = [
-        ...groups,
-        ...originalGroups.filter(
-          (item) =>
-            failedServerIds.has(item.serverId) &&
-            !groups.some((current) => rowKey(current) === rowKey(item))
-        )
-      ].sort(compareGroups);
-      pagination = pagination.map((source) => {
-        if (!failedServerIds.has(source.serverId)) return source;
-        return (
-          originalPagination.find((candidate) => candidate.serverId === source.serverId) ?? source
-        );
-      });
       pageError = true;
       toast.error(m('common.error.network'));
     }

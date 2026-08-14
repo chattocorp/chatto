@@ -99,15 +99,30 @@ func (m *NotificationOccurrenceModel) WaitForSourceRevision(ctx context.Context,
 // provider-delivery state transition does not erase otherwise-current in-app
 // activity.
 func (m *NotificationOccurrenceModel) CurrentCreationSignal(ctx context.Context, recipientID, sourceEventID, notificationID string, revision uint64) (bool, error) {
-	entry, exists, err := m.index.occurrenceBySource(ctx, recipientID, sourceEventID)
-	if err != nil || !exists {
+	key := notificationOccurrenceKey(recipientID, sourceEventID)
+	authoritative, err := m.kv.Get(ctx, key)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return false, nil
+	}
+	if err != nil {
 		return false, err
 	}
-	occurrence := entry.occurrence
-	current := entry.revision >= revision && occurrence.GetId() == notificationID &&
+	var occurrence corev1.NotificationOccurrence
+	if err := proto.Unmarshal(authoritative.Value(), &occurrence); err != nil {
+		return false, fmt.Errorf("decode authoritative notification creation state: %w", err)
+	}
+	current := authoritative.Revision() >= revision && occurrence.GetId() == notificationID &&
 		occurrence.GetRemovalReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED &&
 		occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
-	return current, nil
+	if !current {
+		return false, nil
+	}
+	// The direct KV read is authoritative; waiting through that exact revision
+	// makes the subsequent realtime replacement use the same or newer state.
+	if err := m.index.waitForRevision(ctx, key, authoritative.Revision()); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func notificationOccurrenceKey(recipientID, sourceEventID string) string {

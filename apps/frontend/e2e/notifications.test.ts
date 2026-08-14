@@ -511,7 +511,6 @@ test.describe('Notification Page Display', () => {
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     await expect(notification).toHaveAttribute('data-notification-attention', 'ambient');
     await expect(notification).not.toHaveClass(/bg-attention\/5/);
-    await expect(notification.locator('.bg-text')).toBeVisible();
     await expect(notification).toContainText('👍');
     await expect(notification).toContainText('❤️');
     await expect(notification).toContainText('to your message in #general.');

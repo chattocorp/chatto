@@ -555,7 +555,7 @@ describe('notifications page', () => {
     }
   });
 
-  it('removes a dismissed row immediately and restores it when the request fails', async () => {
+  it('keeps a dismissed row absent when the request outcome is ambiguous', async () => {
     let rejectMutation: ((reason?: unknown) => void) | undefined;
     mocks.store.notifications.deleteOccurrences.mockImplementation(
       () =>
@@ -577,7 +577,7 @@ describe('notifications page', () => {
     rejectMutation?.(new Error('offline'));
     await vi.waitFor(() => {
       expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
-      expect(container.querySelector('[data-testid="notification-group"]')).not.toBeNull();
+      expect(container.querySelector('[data-testid="notification-group"]')).toBeNull();
     });
   });
 
@@ -692,7 +692,7 @@ describe('notifications page', () => {
     resolveRemote?.();
   });
 
-  it('restores only the failed remote server after optimistic Dismiss All', async () => {
+  it('keeps every server absent after an ambiguous optimistic Dismiss All', async () => {
     const remoteStore = {
       ...mocks.store,
       notifications: {
@@ -714,16 +714,16 @@ describe('notifications page', () => {
     dismissAll.click();
 
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
+      expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
     });
-    expect(container.textContent).toContain('remote.example.test');
+    expect(container.textContent).not.toContain('remote.example.test');
     expect(container.textContent).not.toContain('chat.example.test');
     expect(mocks.store.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
     expect(remoteStore.notifications.deleteAllOccurrences).toHaveBeenCalledTimes(1);
   });
 
-  it('restores only the failed origin server after optimistic Dismiss All', async () => {
+  it('does not restore the origin after an ambiguous optimistic Dismiss All', async () => {
     mocks.store.notifications.deleteAllOccurrences.mockRejectedValue(new Error('origin offline'));
     const remoteStore = {
       ...mocks.store,
@@ -746,10 +746,10 @@ describe('notifications page', () => {
     dismissAll.click();
 
     await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-      expect(container.querySelector('[role="alert"]')).not.toBeNull();
+      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
+      expect(getToasts().at(-1)?.message).toBe('Network error. Please try again.');
     });
-    expect(container.textContent).toContain('chat.example.test');
+    expect(container.textContent).not.toContain('chat.example.test');
     expect(container.textContent).not.toContain('remote.example.test');
   });
 

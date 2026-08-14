@@ -643,6 +643,64 @@ func TestNotificationMaterializerWaitCurrentFencesRelevantEventTail(t *testing.T
 	}
 }
 
+func TestNotificationLifecycleCleanupWaitsForLaggingOccurrenceIndex(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	const (
+		recipientID = "U-lagging-lifecycle-index"
+		roomID      = "R-lagging-lifecycle-index"
+		eventID     = "E-lagging-lifecycle-target"
+	)
+	if _, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   recipientID,
+		SourceEventID: "E-lagging-lifecycle-source",
+		SourceCreated: time.Now().UTC(),
+		Target:        &corev1.NotificationTarget{RoomId: roomID, EventId: eventID},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	}); err != nil || !created {
+		t.Fatalf("Create occurrence = (%v, %v), want true, nil", created, err)
+	}
+
+	lagging := NewNotificationOccurrenceModel(chattoCore, chattoCore.storage.runtimeStateKV, testCoreLogger())
+
+	fenced := make(chan error, 1)
+	go func() { fenced <- chattoCore.notificationMaterializer.fenceOccurrenceIndex(ctx, 42, lagging) }()
+	select {
+	case err := <-fenced:
+		t.Fatalf("lifecycle fence returned before lagging index started: %v", err)
+	case <-time.After(50 * time.Millisecond):
+	}
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- lagging.Run(runCtx) }()
+	defer func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("lagging notification index did not stop")
+		}
+	}()
+	select {
+	case err := <-fenced:
+		if err != nil {
+			t.Fatalf("lifecycle fence after index catch-up: %v", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("lifecycle fence did not finish after lagging index caught up")
+	}
+	removed, err := lagging.RemoveTarget(ctx, roomID, eventID, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED)
+	if err != nil || removed != 1 {
+		t.Fatalf("RemoveTarget after lifecycle fence = (%d, %v), want 1, nil", removed, err)
+	}
+	if !notificationLifecycleUsesOccurrenceIndex(&corev1.Event{Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{}}}) {
+		t.Fatal("message retraction was not classified as index-backed lifecycle cleanup")
+	}
+}
+
 func TestNotificationMaterializerPurgesAllUserNotificationStateOnAccountDeletion(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -140,8 +140,8 @@ func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing
 	if sender.calls != 1 || len(sender.payload) != 1 || sender.payload[0].AppBadge != "2" {
 		t.Fatalf("sender calls/payload = (%d, %+v), want one call with app badge 2", sender.calls, sender.payload)
 	}
-	if ttl := sender.payload[0].TTLSeconds; ttl <= 0 || ttl > int((2*time.Minute)/time.Second) {
-		t.Fatalf("notification provider TTL = %d, want remaining immutable alert lifetime", ttl)
+	if deadline := sender.payload[0].DeliveryDeadline; deadline.IsZero() || deadline.After(time.Now().Add(2*time.Minute)) {
+		t.Fatalf("notification provider deadline = %v, want remaining immutable alert lifetime", deadline)
 	}
 	wantDeadline := core.NotificationAlertDeadline(occurrence)
 	if parentDeadline, ok := ctx.Deadline(); ok && parentDeadline.Before(wantDeadline) {

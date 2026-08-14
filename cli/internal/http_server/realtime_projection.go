@@ -274,10 +274,6 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			); err != nil {
 				return nil, false, err
 			}
-			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
-			if err != nil {
-				return nil, false, err
-			}
 			action := realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED
 			silent := true
 			if change.GetCreated() {
@@ -293,6 +289,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				}
 			} else if change.GetDeleted() {
 				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED
+			}
+			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
+			if err != nil {
+				return nil, false, err
 			}
 			replacement := realtimeProjectionNotifications(notifications)
 			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{

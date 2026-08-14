@@ -39,6 +39,56 @@ func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) err
 	return nil
 }
 
+func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.GetNotificationOccurrenceRequest]) (*connect.Response[apiv1.GetNotificationOccurrenceResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
+	}
+	occurrence, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, occurrence)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	if !visible {
+		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		return nil, connectError(core.ErrNotFound)
+	}
+	hydrated, err := s.hydratedOccurrence(ctx, occurrence)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.GetNotificationOccurrenceResponse{Notification: hydrated}), nil
+}
+
+func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[apiv1.BatchGetNotificationOccurrencesResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.waitForCurrentOccurrences(ctx); err != nil {
+		return nil, err
+	}
+	occurrences, err := s.notificationOccurrencesByID(ctx, caller.UserID, req.Msg.GetNotificationIds())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	visible, err := s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	hydrated, err := newNotificationAssembler(s.api).occurrences(ctx, visible)
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.BatchGetNotificationOccurrencesResponse{Notifications: hydrated}), nil
+}
+
 func (s *notificationService) ListNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.ListNotificationOccurrencesRequest]) (*connect.Response[apiv1.ListNotificationOccurrencesResponse], error) {
 	caller, err := requireCaller(ctx)
 	if err != nil {

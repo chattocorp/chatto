@@ -134,6 +134,37 @@ message ListNotificationOccurrencesResponse {
   optional int32 important_unread_count = 6;
 }
 
+// Request one exact notification occurrence by stable ID.
+message GetNotificationOccurrenceRequest {
+  // Required stable occurrence ID.
+  string notification_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// One exact notification occurrence.
+message GetNotificationOccurrenceResponse {
+  // Visible occurrence. Absence is reported as NOT_FOUND.
+  NotificationOccurrence notification = 1;
+}
+
+// Request an explicit bounded set of notification occurrences.
+message BatchGetNotificationOccurrencesRequest {
+  // Stable occurrence IDs. Unknown, deleted, and currently invisible IDs are
+  // omitted. Repeated IDs are de-duplicated in first-seen request order.
+  repeated string notification_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {
+      string: {min_len: 1}
+    }
+  }];
+}
+
+// Exact visible notification occurrences requested by stable ID.
+message BatchGetNotificationOccurrencesResponse {
+  // Found occurrences in first-seen request order.
+  repeated NotificationOccurrence notifications = 1;
+}
+
 // Unread notification occurrences currently targeting one room.
 message NotificationRoomUnreadCount {
   // Target room ID.
@@ -248,6 +279,12 @@ message SetNotificationPolicyPreferenceResponse {
 
 // Reads, marks read, and deletes notifications for the authenticated viewer.
 service NotificationService {
+  // Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
+  // deleted, expired, or no longer visible to the authenticated viewer.
+  rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
+  // Gets an explicit bounded set of visible occurrences. Missing or
+  // inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+  rpc BatchGetNotificationOccurrences(BatchGetNotificationOccurrencesRequest) returns (BatchGetNotificationOccurrencesResponse);
   // Lists exact Notifications 2.0 occurrences. Clients may derive temporary
   // presentation groups without changing occurrence identity or counts.
   rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);

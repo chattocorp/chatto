@@ -54,6 +54,12 @@ plus totals independent of pagination:
 - unread Important occurrence count per target room; and
 - the earliest expiry in the complete retained list.
 
+`GetNotificationOccurrence` reads one stable ID and returns `NOT_FOUND` when it
+is absent or invisible. `BatchGetNotificationOccurrences` reads at most 100
+stable IDs, preserves first-seen request order, de-duplicates repeats, and omits
+missing or inaccessible rows. Integrations can therefore hydrate IDs received
+through listing or realtime without scanning pages.
+
 Each occurrence carries its exact target and cause data, including reaction
 emoji. The API does not hydrate or return message excerpts; clients render
 concise descriptions from target, actor, room, cause, and reaction metadata.

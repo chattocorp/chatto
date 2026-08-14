@@ -143,6 +143,75 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentMembershipLoss(t *testi
 	}
 }
 
+func TestSetRoomNotificationPolicyConflictsWithConcurrentRoomDeletion(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-delete-fence-user", "Policy Delete Fence User", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, user.Id, KindChannel, "", "policy-delete-fence-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(ctx, user.Id,
+		corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+	); err != nil {
+		t.Fatalf("SetServerNotificationIntensity: %v", err)
+	}
+	delayedConfig := evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		NewConfigProjection(),
+		testCoreLogger(),
+	)
+	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
+
+	result := make(chan error, 1)
+	go func() {
+		_, err := chattoCore.NotificationPolicy().SetRoomNotificationIntensity(ctx, user.Id, room.Id,
+			corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+		)
+		result <- err
+	}()
+	select {
+	case early := <-result:
+		t.Fatalf("SetRoomNotificationIntensity returned before delayed config projection started: %v", early)
+	case <-time.After(50 * time.Millisecond):
+	}
+	if err := chattoCore.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
+		t.Fatalf("DeleteRoom: %v", err)
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- delayedConfig.Projector().Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("delayed config projector did not stop")
+		}
+	})
+	select {
+	case err := <-result:
+		if !errors.Is(err, ErrNotFound) {
+			t.Fatalf("SetRoomNotificationIntensity after concurrent deletion error = %v, want ErrNotFound", err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("SetRoomNotificationIntensity did not finish after config projection caught up")
+	}
+	if got := chattoCore.configModel.notificationRoomIntensity(user.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REACTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+		t.Fatalf("room preference after rejected write = %v, want unspecified", got)
+	}
+}
+
 func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

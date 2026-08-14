@@ -203,8 +203,11 @@ Alert eligible for queueing. A durable redelivery finalizes an interrupted row, 
 reconciles an already-finalized row or turns a Read occurrence back to Unread.
 
 User read/delete mutations, read reconciliation, retraction, reaction removal, and
-visibility changes all use KV OCC. Causal cleanup and read reconciliation scan
-authoritative KV state rather than a potentially lagging replica-local index.
+visibility changes all use KV OCC. Lifecycle cleanup fences the replica-local
+index through a same-stream marker before using it to select bounded candidates;
+each selected rewrite then checks authoritative KV state with OCC. Full-user
+purge and covered-read reconciliation retain authoritative scans where the
+operation itself must prove exhaustive state.
 Retraction, lost visibility, explicit
 deletion, and other conditions that must prevent rediscovery replace the
 visible record with a minimal tombstone. The tombstone keeps recipient, source
@@ -240,9 +243,10 @@ absolute expiry has passed, so a delayed or missing KV expiry notification
 cannot leave an occurrence visible in a long-running process.
 
 Realtime messages remain convergence accelerators. A transition signal carries
-the source identity and written KV revision internally; the serving replica
-waits until its local notification index has observed that revision before it
-assembles the authoritative replacement. Initial connection, reconnect, and
+the source identity and written KV revision internally. For a creation signal,
+the serving replica first reads the source occurrence directly from authoritative
+KV, rejects a newer Read or deletion state, and waits its local index through
+that authoritative revision before assembling the replacement. Initial connection, reconnect, and
 authorization changes publish the same finite replacement. Missing a transient
 signal cannot permanently corrupt counts, and a cursor cannot advance with a
 replacement assembled from stale local notification state.
@@ -264,7 +268,9 @@ consumer state. This preserves accepted delivery work across restore instead
 of silently turning a backup boundary into alert loss. Each Alert occurrence
 persists an immutable source-time-plus-two-minutes deadline and copies it into
 the queue job. Worker eligibility and provider TTL use that deadline rather
-than queue publication time, so republish and restore cannot renew the window.
+than queue publication time. The push sender derives the remaining provider TTL
+only after acquiring its bounded request slot, so local contention, republish,
+and restore cannot renew or overrun the window.
 An index-backed reconciler terminally silences expired Pending rows whose queue
 work was absent or evicted; it does not recreate interruptive work.
 
@@ -303,6 +309,9 @@ Delivery completes once any current device accepts the push; it retries only
 when no device accepted and at least one current endpoint failed transiently.
 This occurrence-level success rule avoids repeatedly alerting successful
 devices because another endpoint is persistently broken.
+A room deletion commits atomically with the existing generic authorization
+fence, so a concurrent room-scoped policy write retries against the deleted
+room instead of persisting an unreachable override.
 A crash after provider acceptance but before terminal delivery state is persisted can still cause
 a duplicate alert, consistent with the at-least-once contract.
 

@@ -411,6 +411,54 @@ func TestNotificationOccurrenceIndexConvergesAcrossReplicas(t *testing.T) {
 	}
 }
 
+func TestCurrentCreationSignalRejectsNewerAuthoritativeStateWithStaleReplicaIndex(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	primary := chattoCore.NotificationOccurrences()
+	occurrence, _, err := primary.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-stale-creation-signal",
+		SourceEventID: "E-stale-creation-signal",
+		SourceCreated: time.Now().UTC(),
+		Target:        &corev1.NotificationTarget{RoomId: "R-stale-creation-signal", EventId: "E-stale-creation-signal"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	key := notificationOccurrenceKey(occurrence.GetRecipientId(), occurrence.GetSourceEventId())
+	createdEntry, err := chattoCore.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("Get created occurrence: %v", err)
+	}
+
+	lagging := NewNotificationOccurrenceModel(chattoCore, chattoCore.storage.runtimeStateKV, testCoreLogger())
+	stale := newNotificationOccurrenceIndexSnapshot()
+	stale.entriesByUser[occurrence.GetRecipientId()] = map[string]notificationOccurrenceIndexEntry{
+		key: {key: key, revision: createdEntry.Revision(), occurrence: proto.Clone(occurrence).(*corev1.NotificationOccurrence)},
+	}
+	stale.keyRevisions[key] = createdEntry.Revision()
+	stale.observedRevision = createdEntry.Revision()
+	lagging.index.installSnapshot(stale)
+
+	if _, err := primary.MarkRead(ctx, occurrence.GetRecipientId(), occurrence.GetId()); err != nil {
+		t.Fatalf("MarkRead: %v", err)
+	}
+	current, err := lagging.CurrentCreationSignal(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), occurrence.GetId(), createdEntry.Revision())
+	if err != nil || current {
+		t.Fatalf("CurrentCreationSignal after authoritative read = (%v, %v), want false, nil", current, err)
+	}
+	if deleted, err := primary.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED); err != nil || !deleted {
+		t.Fatalf("Delete = (%v, %v), want true, nil", deleted, err)
+	}
+	current, err = lagging.CurrentCreationSignal(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), occurrence.GetId(), createdEntry.Revision())
+	if err != nil || current {
+		t.Fatalf("CurrentCreationSignal after authoritative delete = (%v, %v), want false, nil", current, err)
+	}
+}
+
 func TestNotificationOccurrenceIndexStagesReplacementBeforeAtomicInstall(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

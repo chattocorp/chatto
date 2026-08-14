@@ -49,9 +49,11 @@ targets, unread counts, read state, or deletion semantics.
 
 ## Exact occurrences and frontend consolidation
 
-`ListNotificationOccurrences` and the realtime notification replacement expose
-individual newest-first occurrences. Totals are exact and independent of list
-pagination or presentation grouping:
+`GetNotificationOccurrence`, bounded `BatchGetNotificationOccurrences`,
+`ListNotificationOccurrences`, and the realtime notification replacement expose
+exact occurrences. Singular absence is `NOT_FOUND`; batch reads preserve
+first-seen request order while omitting missing or inaccessible IDs. List totals
+are exact and independent of pagination or presentation grouping:
 
 - each unread occurrence contributes one to the bell/server/app badge;
 - each unread Important occurrence contributes one to the exact Important
@@ -121,7 +123,9 @@ occurrence creation and lifecycle cleanup in source order. It handles
 retraction, reaction removal, explicit and implicit visibility loss, room
 deletion, and account deletion. The Notification Visibility projection retains
 the event-time room/group/RBAC boundary needed to prevent a quick regain from
-preserving pre-loss notification content.
+preserving pre-loss notification content. Before index-backed lifecycle cleanup,
+the worker writes a same-stream marker and waits the local occurrence watcher
+through it; candidate selection cannot acknowledge from a stale replica index.
 
 An eligible Alert is published as an opaque occurrence coordinate to the
 file-backed `NOTIFICATIONS_QUEUE`. The
@@ -136,7 +140,8 @@ accepted work across restore; excluding it would silently drop valid alerts at
 an arbitrary backup boundary. Every Alert occurrence and queue job carries an
 immutable deadline derived from source time. The worker, provider TTL, and an
 expired-Pending reconciler all enforce that deadline, so redelivery, republish,
-queue eviction, or restore cannot restart the two-minute window. Delivery is at
+queue eviction, restore, or time spent waiting for a provider request slot cannot
+restart or overrun the two-minute window. Delivery is at
 least once, so a crash after provider acceptance can still duplicate a push.
 
 ## Visibility and consistency
@@ -149,6 +154,12 @@ content. The complete retained occurrence set is validated before exact totals
 are returned, including rows outside the requested page. A `RUNTIME_STATE` read
 fence then makes replica-local occurrence-index lag fail or wait instead of
 exposing stale state.
+
+Creation-triggered realtime replacement reads the source occurrence directly
+from authoritative KV and fences the local index through that latest revision.
+A newer Read or deletion therefore wins over a delayed creation signal. Room
+deletion advances the existing generic authorization fence atomically, making a
+concurrent room-policy write retry and reject the now-missing room.
 
 Occurrences retain references and cause provenance, not copied room names,
 profiles, or message bodies. Public assembly hydrates current visible data.
