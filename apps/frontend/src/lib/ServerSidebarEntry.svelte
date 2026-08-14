@@ -19,7 +19,6 @@
   import { markNavigationServerAsRead } from '$lib/navigation/readActions';
   import { beginOriginReauthentication, startRemoteReauthentication } from '$lib/auth/reauth';
   import { toast } from '$lib/ui/toast';
-  import { notificationCenter } from '$lib/state/globals.svelte';
 
   let { serverId, currentUserId: _currentUserId }: { serverId: string; currentUserId?: string } =
     $props();
@@ -157,7 +156,7 @@
     const notification =
       notificationStore.getNonDMNotification() ?? notificationStore.getDMNotification();
     if (!notification) {
-      notificationCenter.open();
+      await goto(resolve('/chat/notifications'));
       return;
     }
 

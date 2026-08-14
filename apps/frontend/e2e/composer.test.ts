@@ -305,7 +305,7 @@ async function navigateViaSidebar(
 async function navigateViaQuickSwitcher(page: import('@playwright/test').Page, targetRoom: string) {
   const isMac = process.platform === 'darwin';
   await page.keyboard.press(isMac ? 'Meta+k' : 'Control+k');
-  const dialog = page.locator('dialog.palette-dialog');
+  const dialog = page.locator('dialog.quick-switcher');
   await expect(dialog).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
 
   // Filter to the target room and pick it via Enter. The <dialog>'s close()

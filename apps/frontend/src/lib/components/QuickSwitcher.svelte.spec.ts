@@ -5,7 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { q } from '$lib/test-utils';
 
-import { notificationCenter, quickSwitcher, sidebarNav } from '$lib/state/globals.svelte';
+import { quickSwitcher } from '$lib/state/globals.svelte';
 
 const mocks = vi.hoisted(() => ({
   goto: vi.fn(),
@@ -73,13 +73,10 @@ const mocks = vi.hoisted(() => ({
 }));
 
 vi.mock('$app/navigation', () => ({
-  goto: mocks.goto,
-  pushState: vi.fn()
+  goto: mocks.goto
 }));
 
 vi.mock('$app/paths', () => ({
-  assets: '',
-  base: '',
   resolve: (path: string, params?: Record<string, string>) =>
     Object.entries(params ?? {}).reduce(
       (resolved, [key, value]) => resolved.replace(`[${key}]`, value),
@@ -265,7 +262,7 @@ function input(container: HTMLElement): HTMLInputElement {
 }
 
 function dialog(container: HTMLElement): HTMLDialogElement {
-  const el = q(container, 'dialog.palette-dialog') as HTMLDialogElement | null;
+  const el = q(container, 'dialog.quick-switcher') as HTMLDialogElement | null;
   if (!el) throw new Error('QuickSwitcher dialog not found');
   return el;
 }
@@ -301,8 +298,6 @@ beforeAll(() => {
 
 beforeEach(() => {
   quickSwitcher.close();
-  notificationCenter.close();
-  sidebarNav.setMobile(false);
   flushSync();
   installQueryMocks();
   mocks.goto.mockReset();
@@ -328,7 +323,6 @@ beforeEach(() => {
 
 afterEach(() => {
   quickSwitcher.close();
-  notificationCenter.close();
   flushSync();
   currentRender?.unmount();
   currentRender = undefined;
@@ -351,21 +345,6 @@ describe('QuickSwitcher', () => {
     expect(input(container)).toBe(document.activeElement);
     expect(mocks.listRooms).not.toHaveBeenCalled();
     expect(mocks.listRoomMembers).not.toHaveBeenCalled();
-  });
-
-  it('opens notifications as an overlay instead of navigating', async () => {
-    const { container } = await renderOpenSwitcher();
-    const notifications = resultButtons(container).find((button) =>
-      button.textContent?.includes('Notifications')
-    );
-    expect(notifications).toBeTruthy();
-
-    notifications!.click();
-    flushSync();
-
-    expect(notificationCenter.visible).toBe(true);
-    expect(mocks.goto).not.toHaveBeenCalled();
-    expect(dialog(container).hasAttribute('open')).toBe(false);
   });
 
   it('fuzzy-filters rooms and shows no results for misses', async () => {

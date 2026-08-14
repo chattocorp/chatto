@@ -5,7 +5,6 @@ import { q } from '$lib/test-utils';
 
 import { NotificationItemKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
-import { notificationCenter } from '$lib/state/globals.svelte';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -262,7 +261,6 @@ function setRoomUnread(roomId: string, hasUnread: boolean) {
 }
 
 beforeEach(() => {
-  notificationCenter.close();
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeCallRoomIds = new Set();
@@ -1039,25 +1037,6 @@ describe('RoomList', () => {
       });
       expect(mocks.goto).not.toHaveBeenCalled();
       expect(mocks.store.notifications.markRead).not.toHaveBeenCalled();
-    });
-  });
-
-  it('opens the notification centre when a counted room notification cannot be resolved', async () => {
-    setRoomNotificationCount('channel-1', 1);
-    mocks.store.notifications.resolveRoomNotification.mockResolvedValue({
-      ok: true,
-      totalCount: 1,
-      notification: null
-    });
-
-    const { container } = render(RoomList);
-    (q(container, '[data-testid="room-notification-badge"]')?.closest(
-      'button'
-    ) as HTMLButtonElement).click();
-
-    await vi.waitFor(() => {
-      expect(notificationCenter.visible).toBe(true);
-      expect(mocks.goto).not.toHaveBeenCalled();
     });
   });
 });

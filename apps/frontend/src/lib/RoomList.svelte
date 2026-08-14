@@ -30,7 +30,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState, getRoomSidebarPresentation } from '$lib/state/appUi.svelte';
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
-  import { notificationCenter } from '$lib/state/globals.svelte';
   import {
     isNavigationVisibleRoom,
     type RoomsListItem,
@@ -244,7 +243,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
     if (!notification) {
       if (!lookup.ok || lookup.totalCount !== 0) {
-        notificationCenter.open();
+        await goto(resolve('/chat/notifications'));
       }
       return;
     }

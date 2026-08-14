@@ -3,17 +3,17 @@ import { TIMEOUTS } from '../constants';
 import * as routes from '../routes';
 
 /**
- * Page object for the notification centre and bell icon.
- * Handles the anchored desktop overlay, mobile sheet, persistent list, and dismissal.
+ * Page object for the notifications page and bell icon.
+ * Handles the notification bell, persistent notification list, and dismissal.
  */
 export class NotificationsPage {
   constructor(readonly page: Page) {}
 
   // --- Bell Icon ---
 
-  /** The notification bell button in the header. */
+  /** The notification bell link in the header */
   get bellButton(): Locator {
-    return this.page.locator('button[title="Notifications"]');
+    return this.page.locator('a[title="Notifications"]');
   }
 
   /** The ambient or important indicator dot shown when notifications are unread. */
@@ -21,62 +21,55 @@ export class NotificationsPage {
     return this.bellButton.getByTestId('notifications-unread-dot');
   }
 
-  // --- Notification Centre ---
+  // --- Notifications Page ---
 
-  /** The currently open desktop popover or mobile sheet content. */
-  get centre(): Locator {
-    return this.page.locator('#notification-center');
-  }
-
-  /** The anchored desktop presentation containing the shared palette surface. */
-  get desktopPopover(): Locator {
-    return this.page.locator('[popover="manual"]').filter({ has: this.centre });
-  }
-
-  /** The centre header. */
+  /** The page header */
   get pageHeader(): Locator {
-    return this.centre.getByRole('heading', { name: 'Notifications' });
+    return this.page.getByRole('heading', { name: 'Notifications' });
   }
 
   /** The empty state message */
   get emptyState(): Locator {
-    return this.centre.getByText("You're all caught up!");
+    return this.page.getByText("You're all caught up!");
   }
 
   /** Get all notification items on the page */
   get notificationItems(): Locator {
-    return this.centre.locator('[data-testid="notification-group"]');
+    return this.page.locator('[data-testid="notification-group"]');
   }
 
   /** Notification groups that still need attention. */
   get unreadItems(): Locator {
-    return this.centre.locator(
+    return this.page.locator(
       '[data-testid="notification-group"][data-notification-state="unread"]'
     );
   }
 
   /** Notification groups that have already been read. */
   get readItems(): Locator {
-    return this.centre.locator(
-      '[data-testid="notification-group"][data-notification-state="read"]'
-    );
+    return this.page.locator('[data-testid="notification-group"][data-notification-state="read"]');
   }
 
   /**
-   * Open the notification centre without navigating away.
+   * Navigate to the notifications page by clicking the bell.
    */
   async goto(): Promise<void> {
     await expect(this.bellButton).toBeVisible();
-    await this.bellButton.click();
+    await expect(async () => {
+      await Promise.all([
+        this.page.waitForURL(routes.notifications, { timeout: TIMEOUTS.UI_STANDARD }),
+        this.bellButton.click()
+      ]);
+    }).toPass({ timeout: TIMEOUTS.REALTIME_EVENT, intervals: [100, 250, 500, 1000] });
     await expect(this.pageHeader).toBeVisible();
   }
 
   /**
-   * Verify the legacy direct URL bridges into the notification centre.
+   * Navigate directly to notifications page via URL.
    */
   async gotoDirectly(): Promise<void> {
     await this.page.goto(routes.notifications);
-    await expect(this.pageHeader).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
+    await expect(this.pageHeader).toBeVisible();
   }
 
   /**
@@ -122,7 +115,7 @@ export class NotificationsPage {
     await expect(this.notificationItems.first()).toBeVisible({
       timeout: TIMEOUTS.REALTIME_EVENT
     });
-    await this.centre.getByRole('button', { name: 'Dismiss all' }).click();
+    await this.page.getByRole('button', { name: 'Dismiss all' }).click();
     await expect(this.notificationItems).toHaveCount(0);
   }
 

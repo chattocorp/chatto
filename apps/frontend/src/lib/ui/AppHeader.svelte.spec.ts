@@ -10,10 +10,7 @@ const { mocks } = vi.hoisted(() => ({
     getStore: vi.fn(),
     pushState: vi.fn(),
     toggleSidebar: vi.fn(),
-    openQuickSwitcher: vi.fn(),
-    toggleNotificationCenter: vi.fn(),
-    registerNotificationTrigger: vi.fn(),
-    closeNotificationCenter: vi.fn()
+    openQuickSwitcher: vi.fn()
   }
 }));
 
@@ -46,14 +43,7 @@ vi.mock('$lib/state/server/serverConnection.svelte', () => ({
 vi.mock('$lib/state/globals.svelte', () => ({
   sidebarNav: {
     isOpen: false,
-    isMobile: false,
     toggle: mocks.toggleSidebar
-  },
-  notificationCenter: {
-    visible: false,
-    toggle: mocks.toggleNotificationCenter,
-    registerTrigger: mocks.registerNotificationTrigger,
-    close: mocks.closeNotificationCenter
   },
   quickSwitcher: {
     open: mocks.openQuickSwitcher
@@ -62,6 +52,7 @@ vi.mock('$lib/state/globals.svelte', () => ({
 vi.mock('$lib/accountData/AccountDataSyncButton.svelte', async () => ({
   default: (await import('$lib/accountData/AccountDataSyncButtonMock.svelte')).default
 }));
+
 describe('AppHeader', () => {
   beforeEach(() => {
     mocks.servers = [];
@@ -69,39 +60,21 @@ describe('AppHeader', () => {
     mocks.activeStore = undefined;
     mocks.getStore.mockReset();
     mocks.pushState.mockReset();
-    mocks.toggleNotificationCenter.mockReset();
-    mocks.registerNotificationTrigger.mockReset();
-    mocks.closeNotificationCenter.mockReset();
   });
 
   it('hides notifications when no servers are registered', () => {
     const { container } = render(AppHeader);
 
-    expect(container.querySelector('button[aria-controls="notification-center"]')).toBeNull();
+    expect(container.querySelector('a[href="/chat/notifications"]')).toBeNull();
   });
 
   it('shows notifications when a server is registered', () => {
     mocks.servers = [{ id: 'remote' }];
-    mocks.getStore.mockReturnValue({
-      notifications: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
-    });
+    mocks.getStore.mockReturnValue({ notifications: { count: 0 } });
 
     const { container } = render(AppHeader);
 
-    expect(container.querySelector('button[aria-controls="notification-center"]')).not.toBeNull();
-  });
-
-  it('opens the notification centre from the bell', () => {
-    mocks.servers = [{ id: 'remote' }];
-    mocks.getStore.mockReturnValue({
-      notifications: { unreadNotificationCount: 0, importantUnreadNotificationCount: 0 }
-    });
-    const { container } = render(AppHeader);
-
-    (container.querySelector('button[aria-controls="notification-center"]') as HTMLButtonElement)
-      .click();
-
-    expect(mocks.toggleNotificationCenter).toHaveBeenCalledOnce();
+    expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
   });
 
   it('hosts the account-data sync control', () => {

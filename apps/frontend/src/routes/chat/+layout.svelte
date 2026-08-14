@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { fullscreenVideo, notificationCenter } from '$lib/state/globals.svelte';
+  import { fullscreenVideo } from '$lib/state/globals.svelte';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import ChatRoot from './ChatRoot.svelte';
@@ -8,18 +8,10 @@
   let fullscreenVideoOverlayModule: Promise<
     typeof import('$lib/components/chat/FullscreenVideoOverlay.svelte')
   > | null = null;
-  let notificationCenterOverlayModule: Promise<
-    typeof import('$lib/components/NotificationCenterOverlay.svelte')
-  > | null = null;
 
   function loadFullscreenVideoOverlay() {
     fullscreenVideoOverlayModule ??= import('$lib/components/chat/FullscreenVideoOverlay.svelte');
     return fullscreenVideoOverlayModule;
-  }
-
-  function loadNotificationCenterOverlay() {
-    notificationCenterOverlayModule ??= import('$lib/components/NotificationCenterOverlay.svelte');
-    return notificationCenterOverlayModule;
   }
 
   const profileCache = createUserProfileCache();
@@ -33,12 +25,6 @@
     {@render children?.()}
   </ChatRoot>
 {/key}
-
-{#if notificationCenter.visible}
-  {#await loadNotificationCenterOverlay() then { default: NotificationCenterOverlay }}
-    <NotificationCenterOverlay />
-  {/await}
-{/if}
 
 {#if fullscreenVideo.isOpen}
   {#await loadFullscreenVideoOverlay() then { default: FullscreenVideoOverlay }}

@@ -1,10 +1,11 @@
 <script lang="ts">
   import { pushState } from '$app/navigation';
+  import { resolve } from '$app/paths';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { getActiveServer } from '$lib/state/activeServer.svelte';
   import { version } from '$app/environment';
-  import { notificationCenter, sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
+  import { sidebarNav, quickSwitcher } from '$lib/state/globals.svelte';
   import AccountDataSyncButton from '$lib/accountData/AccountDataSyncButton.svelte';
   import { m } from '$lib/i18n/messages';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
@@ -41,14 +42,6 @@
   function showAboutChatto() {
     pushState('', { modal: { type: 'aboutChatto' } });
   }
-
-  function toggleNotificationCenter() {
-    notificationCenter.toggle();
-  }
-
-  function registerNotificationTrigger(node: HTMLButtonElement) {
-    return notificationCenter.registerTrigger(node);
-  }
 </script>
 
 <header class="app-header flex items-center justify-between gap-2 p-2 text-muted md:text-sm">
@@ -68,16 +61,11 @@
 
     {#if hasInstances}
       <!-- Notification bell - 44px tap target for mobile accessibility -->
-      <button
-        {@attach registerNotificationTrigger}
-        type="button"
+      <a
+        href={resolve('/chat/notifications')}
         aria-label={m('ui.notifications')}
         title={m('ui.notifications')}
-        aria-expanded={notificationCenter.visible}
-        aria-haspopup="dialog"
-        aria-controls="notification-center"
         class="relative app-header-icon"
-        onclick={toggleNotificationCenter}
       >
         <span class="iconify icon-[uil--bell] text-lg"></span>
         {#if totalNotificationCount > 0}
@@ -87,8 +75,7 @@
             testid="notifications-unread-dot"
           />
         {/if}
-      </button>
-
+      </a>
     {/if}
 
     <!-- Quick switcher trigger -->

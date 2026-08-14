@@ -88,7 +88,7 @@ vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
-import NotificationsPage from './NotificationCenter.svelte';
+import NotificationsPage from './+page.svelte';
 
 function page(
   occurrences: NotificationOccurrenceItem[] = [mocks.occurrence as NotificationOccurrenceItem],
@@ -109,7 +109,7 @@ function page(
   };
 }
 
-describe('NotificationCenter', () => {
+describe('notifications page', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     toast.clear();
@@ -136,8 +136,7 @@ describe('NotificationCenter', () => {
   });
 
   it('queues an unread occurrence to be marked read after its target is displayed', async () => {
-    const onclose = vi.fn();
-    const { container } = render(NotificationsPage, { props: { onclose } });
+    const { container } = render(NotificationsPage);
     const item = await vi.waitFor(() => {
       const element = q(container, '[data-testid="notification-group"] > button');
       expect(element).not.toBeNull();
@@ -155,7 +154,6 @@ describe('NotificationCenter', () => {
         'mention-1'
       );
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/room-1/thread-1');
-      expect(onclose).toHaveBeenCalledOnce();
     });
     expect(mocks.store.notifications.markOccurrenceRead).not.toHaveBeenCalled();
   });
@@ -174,9 +172,7 @@ describe('NotificationCenter', () => {
     expect(row.classList.contains('bg-attention/5')).toBe(true);
     expect(q(row, '.bg-attention')).not.toBeNull();
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
-    expect(deleteButton.classList.contains('border')).toBe(true);
-    expect(deleteButton.classList.contains('bg-surface')).toBe(true);
-    expect(deleteButton.classList.contains('hover:text-danger')).toBe(true);
+    expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
     expect(row.querySelectorAll('button')).toHaveLength(2);
     expect(row.textContent).not.toContain('Move to inbox');
     expect(row.textContent).not.toContain('Mark done');
@@ -658,8 +654,7 @@ describe('NotificationCenter', () => {
       '[data-testid="notification-date-heading"]'
     ) as HTMLElement;
     expect(firstHeading.classList.contains('sticky')).toBe(false);
-    expect(firstHeading.classList.contains('uppercase')).toBe(true);
-    expect(firstHeading.classList.contains('text-xs')).toBe(true);
+    expect(firstHeading.querySelectorAll('.h-px.bg-border')).toHaveLength(2);
   });
 
   it('dismisses all notifications optimistically with one request per server', async () => {
