@@ -177,6 +177,7 @@ describe('notifications page', () => {
     const unreadDot = q(row, '[data-testid="notification-unread-dot"]') as HTMLElement;
     expect(unreadDot.classList.contains('bg-attention')).toBe(true);
     expect(unreadDot.classList.contains('absolute')).toBe(true);
+    expect(unreadDot.classList.contains('-start-3')).toBe(true);
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
     expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
     expect(row.querySelectorAll('button')).toHaveLength(2);
@@ -205,15 +206,15 @@ describe('notifications page', () => {
     const unreadRow = q(container, '[data-notification-state="unread"]') as HTMLElement;
     const readTarget = q(readRow, ':scope > button') as HTMLButtonElement;
     const unreadTarget = q(unreadRow, ':scope > button') as HTMLButtonElement;
-    const readLine = q(readRow, '[data-testid="notification-line"]') as HTMLElement;
-    const unreadLine = q(unreadRow, '[data-testid="notification-line"]') as HTMLElement;
+    const readContent = q(readRow, '[data-testid="notification-content"]') as HTMLElement;
+    const unreadContent = q(unreadRow, '[data-testid="notification-content"]') as HTMLElement;
     expect(readRow.classList.contains('bg-attention/5')).toBe(false);
     expect(q(readRow, '[data-testid="notification-unread-dot"]')).toBeNull();
     expect(q(unreadRow, '[data-testid="notification-unread-dot"]')).not.toBeNull();
     expect(readTarget.classList.contains('opacity-60')).toBe(true);
     expect(unreadTarget.classList.contains('opacity-60')).toBe(false);
-    expect(readLine.classList.contains('whitespace-nowrap')).toBe(true);
-    expect(unreadLine.classList.contains('whitespace-nowrap')).toBe(true);
+    expect(readContent.querySelectorAll(':scope > *')).toHaveLength(2);
+    expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
   });
 
   it('renders the retained occurrence projection immediately while refreshing', async () => {

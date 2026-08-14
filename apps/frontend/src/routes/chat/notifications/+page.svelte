@@ -680,7 +680,7 @@
                 <button
                   type="button"
                   class={[
-                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start text-sm focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
+                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
                     !item.group.unread && 'opacity-60'
                   ]}
                   disabled={mutationPending}
@@ -702,34 +702,28 @@
                         color={item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
                           ? 'warning'
                           : 'ambient'}
-                        class="absolute -end-1 top-1/2 -translate-y-1/2 ring-2 ring-background"
+                        class="absolute -start-3 top-1/2 -translate-y-1/2"
                         testid="notification-unread-dot"
                       />
                       <span class="sr-only">{m('chat.notifications.unread')}</span>
                     {/if}
                   </span>
-                  <span
-                    class="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden whitespace-nowrap"
-                    data-testid="notification-line"
-                  >
-                    <bdi class="min-w-0 truncate font-medium" dir="auto">
+                  <span class="min-w-0 flex-1" data-testid="notification-content">
+                    <bdi class="block truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
                     </bdi>
-                    {#if showServerHostname || (occurrence?.room?.name && !isReaction)}
-                      <span class="min-w-0 truncate text-muted">
-                        {#if showServerHostname}{item.serverHostname}{/if}
-                        {#if showServerHostname && occurrence?.room?.name && !isReaction}<span
-                            class="mx-1.5"
-                            aria-hidden="true">·</span
-                          >{/if}
-                        {#if occurrence?.room?.name && !isReaction}
-                          <bdi dir="auto">#{occurrence.room.name}</bdi>
-                        {/if}
-                      </span>
-                    {/if}
-                    <span class="shrink-0 text-muted"
-                      >{formatTime(item.group.latestAt, item.timeFormatSettings)}</span
-                    >
+                    <span class="block truncate text-sm text-muted">
+                      {#if showServerHostname}{item.serverHostname}<span
+                          class="mx-1.5"
+                          aria-hidden="true">·</span
+                        >{/if}
+                      {#if occurrence?.room?.name && !isReaction}
+                        <bdi dir="auto">#{occurrence.room.name}</bdi><span
+                          class="mx-1.5"
+                          aria-hidden="true">·</span
+                        >
+                      {/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
+                    </span>
                   </span>
                 </button>
                 <div class="flex shrink-0 items-center gap-2">
