@@ -136,7 +136,7 @@ function renderLayout() {
     version: 'test',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: true,
-    passwordLoginEnabled: true,
+    directLoginEnabled: true,
     accountCreationPolicy: 'open',
     welcomeMessage: null,
     description: null,

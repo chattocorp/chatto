@@ -120,8 +120,8 @@ fallback is restricted to the configured server origin.
 
 The discovery response includes the server software version as public
 pre-authentication state, along with configured provider metadata and the
-independently configured direct-registration and password-login capabilities.
-The password-login capability uses scalar presence so a new client treats an
+independently configured direct-registration and direct-login capabilities.
+The direct-login capability uses scalar presence so a new client treats an
 older server that omits it as enabled. The bundled client refreshes discovery
 per server and owns an internal feature-to-minimum-server-version table for compatibility gates.
 The 0.5 client requires the 0.5 server baseline before opening realtime

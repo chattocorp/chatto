@@ -31,12 +31,12 @@ func (s *serverDiscoveryService) GetServer(ctx context.Context, _ *connect.Reque
 	if err != nil {
 		return nil, err
 	}
-	passwordLoginEnabled := s.api.config.Auth.PasswordLoginOrDefault()
+	directLoginEnabled := s.api.config.Auth.DirectLoginOrDefault()
 	response := &discoveryv1.GetServerResponse{
 		Profile: profile,
 		Login: &apiv1.ServerLogin{
 			DirectRegistrationEnabled: s.api.config.Auth.DirectRegistrationOrDefault(),
-			PasswordLoginEnabled:      &passwordLoginEnabled,
+			DirectLoginEnabled:        &directLoginEnabled,
 			Providers:                 apiAuthProviders(s.api.config.Auth.PublicProviders()),
 			AuthorizeUrl:              "/oauth/authorize",
 			AccountCreationPolicy:     apiAccountCreationPolicy(s.api.config.Auth.AccountCreationPolicyOrDefault()),

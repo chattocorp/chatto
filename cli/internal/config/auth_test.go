@@ -23,13 +23,13 @@ func TestAuthConfig_AccountCreationPolicy(t *testing.T) {
 	}
 }
 
-func TestAuthConfig_PasswordLogin(t *testing.T) {
-	if !(&AuthConfig{}).PasswordLoginOrDefault() {
+func TestAuthConfig_DirectLogin(t *testing.T) {
+	if !(&AuthConfig{}).DirectLoginOrDefault() {
 		t.Fatal("unset password login = false, want true")
 	}
 
 	disabled := false
-	if (&AuthConfig{PasswordLogin: &disabled}).PasswordLoginOrDefault() {
+	if (&AuthConfig{DirectLogin: &disabled}).DirectLoginOrDefault() {
 		t.Fatal("disabled password login = true, want false")
 	}
 }
@@ -136,7 +136,7 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_DELIVERED_CODES", "6")
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS", "3")
 	t.Setenv("CHATTO_AUTH_ACCOUNT_CREATION_POLICY", AccountCreationPolicyInviteOnly)
-	t.Setenv("CHATTO_AUTH_PASSWORD_LOGIN", "false")
+	t.Setenv("CHATTO_AUTH_DIRECT_LOGIN", "false")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
@@ -157,8 +157,8 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyInviteOnly {
 		t.Errorf("CHATTO_AUTH_ACCOUNT_CREATION_POLICY = %q, want invite_only", got)
 	}
-	if cfg.Auth.PasswordLoginOrDefault() {
-		t.Error("CHATTO_AUTH_PASSWORD_LOGIN = true, want false")
+	if cfg.Auth.DirectLoginOrDefault() {
+		t.Error("CHATTO_AUTH_DIRECT_LOGIN = true, want false")
 	}
 }
 

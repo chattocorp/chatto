@@ -72,7 +72,7 @@ var initCmd = &cobra.Command{
 
 		// Build configuration
 		directRegistration := true
-		passwordLogin := true
+		directLogin := true
 		unlimited := -1
 		cfg := config.ChattoConfig{
 			General: config.GeneralConfig{
@@ -81,7 +81,7 @@ var initCmd = &cobra.Command{
 			},
 			Auth: config.AuthConfig{
 				DirectRegistration: &directRegistration,
-				PasswordLogin:      &passwordLogin,
+				DirectLogin:        &directLogin,
 				EmailOTP: config.EmailOTPConfig{
 					ThrottlingEnabled: &directRegistration,
 					TTL:               config.Duration(15 * time.Minute),

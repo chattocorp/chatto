@@ -705,7 +705,7 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 func TestAuthRoutes_Login_DisabledReturns403BeforeCredentialValidation(t *testing.T) {
 	disabled := false
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
-		server.config.Auth.PasswordLogin = &disabled
+		server.config.Auth.DirectLogin = &disabled
 	})
 	ctx := testContext(t)
 	if _, err := chattoCore.CreateUser(ctx, "system", "disabledlogin", "Disabled Login", "password123"); err != nil {

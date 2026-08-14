@@ -26,7 +26,7 @@ Configure and test at least one external provider before disabling password logi
 
 ```toml
 [auth]
-password_login = false
+direct_login = false
 direct_registration = false
 ```
 
@@ -34,14 +34,14 @@ direct_registration = false
 <TabItem label="Environment">
 
 ```bash
-CHATTO_AUTH_PASSWORD_LOGIN=false
+CHATTO_AUTH_DIRECT_LOGIN=false
 CHATTO_AUTH_DIRECT_REGISTRATION=false
 ```
 
 </TabItem>
 </Tabs>
 
-With `password_login = false`, Chatto rejects `/auth/login` and advertises the disabled capability through public server discovery. The bundled login page then shows only configured external providers. Existing sessions stay valid, and registration remains independently controlled by `direct_registration`.
+With `direct_login = false`, Chatto rejects `/auth/login` and advertises the disabled capability through public server discovery. The bundled login page then shows only configured external providers. Existing sessions stay valid, and registration remains independently controlled by `direct_registration`.
 
 <Aside type="caution">
   Disabling password login without a working external provider can lock signed-out users out. Keep an operator recovery path and apply the same authentication configuration to every replica.

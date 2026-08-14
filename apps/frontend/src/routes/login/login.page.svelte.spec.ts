@@ -110,7 +110,7 @@ describe('frontend Authling sign-in', () => {
             version: '0.5.0',
             authorizeUrl: '/oauth/authorize',
             directRegistrationEnabled: false,
-            passwordLoginEnabled: false,
+            directLoginEnabled: false,
             accountCreationPolicy: 'open',
             welcomeMessage: null,
             description: null,

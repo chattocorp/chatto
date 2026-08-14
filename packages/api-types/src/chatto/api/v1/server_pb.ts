@@ -158,11 +158,11 @@ export class ServerLogin extends Message<ServerLogin> {
 
   /**
    * Whether users can sign in directly with a username or email address and password.
-   * Absent on older servers, where clients should treat password login as enabled.
+   * Absent on older servers, where clients should treat direct login as enabled.
    *
-   * @generated from field: optional bool password_login_enabled = 5;
+   * @generated from field: optional bool direct_login_enabled = 5;
    */
-  passwordLoginEnabled?: boolean;
+  directLoginEnabled?: boolean;
 
   constructor(data?: PartialMessage<ServerLogin>) {
     super();
@@ -176,7 +176,7 @@ export class ServerLogin extends Message<ServerLogin> {
     { no: 2, name: "providers", kind: "message", T: ProviderMetadata, repeated: true },
     { no: 3, name: "authorize_url", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "account_creation_policy", kind: "enum", T: proto3.getEnumType(AccountCreationPolicy) },
-    { no: 5, name: "password_login_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
+    { no: 5, name: "direct_login_enabled", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ServerLogin {

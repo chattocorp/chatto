@@ -46,7 +46,7 @@
     authProviders.filter((provider) => provider.id !== authlingProviderId)
   );
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
-  const passwordLoginEnabled = $derived(data.serverInfo?.passwordLoginEnabled ?? true);
+  const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
   const pageError = $derived(
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
@@ -316,7 +316,7 @@
 
     {@render authlingSignIn()}
 
-    {#if authlingAvailable && (visibleAuthProviders.length > 0 || passwordLoginEnabled)}
+    {#if authlingAvailable && (visibleAuthProviders.length > 0 || directLoginEnabled)}
       <Divider label={m('common.or')} />
     {/if}
 
@@ -339,17 +339,17 @@
           </Button>
         {/each}
 
-        {#if passwordLoginEnabled}
+        {#if directLoginEnabled}
           <Divider label={m('common.or')} />
         {/if}
       </div>
     {/if}
 
-    {#if !passwordLoginEnabled && displayedError}
+    {#if !directLoginEnabled && displayedError}
       <Hint tone="danger">{displayedError}</Hint>
     {/if}
 
-    {#if passwordLoginEnabled}
+    {#if directLoginEnabled}
       <Form onsubmit={handleSubmit}>
         <TextInput
           id="identifier"

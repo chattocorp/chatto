@@ -177,10 +177,10 @@ type ServerLogin struct {
 	// Admission policy for direct registration and provider auto-provisioning.
 	AccountCreationPolicy AccountCreationPolicy `protobuf:"varint,4,opt,name=account_creation_policy,json=accountCreationPolicy,proto3,enum=chatto.api.v1.AccountCreationPolicy" json:"account_creation_policy,omitempty"`
 	// Whether users can sign in directly with a username or email address and password.
-	// Absent on older servers, where clients should treat password login as enabled.
-	PasswordLoginEnabled *bool `protobuf:"varint,5,opt,name=password_login_enabled,json=passwordLoginEnabled,proto3,oneof" json:"password_login_enabled,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// Absent on older servers, where clients should treat direct login as enabled.
+	DirectLoginEnabled *bool `protobuf:"varint,5,opt,name=direct_login_enabled,json=directLoginEnabled,proto3,oneof" json:"direct_login_enabled,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ServerLogin) Reset() {
@@ -241,9 +241,9 @@ func (x *ServerLogin) GetAccountCreationPolicy() AccountCreationPolicy {
 	return AccountCreationPolicy_ACCOUNT_CREATION_POLICY_UNSPECIFIED
 }
 
-func (x *ServerLogin) GetPasswordLoginEnabled() bool {
-	if x != nil && x.PasswordLoginEnabled != nil {
-		return *x.PasswordLoginEnabled
+func (x *ServerLogin) GetDirectLoginEnabled() bool {
+	if x != nil && x.DirectLoginEnabled != nil {
+		return *x.DirectLoginEnabled
 	}
 	return false
 }
@@ -264,14 +264,14 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\t_logo_urlB\r\n" +
 	"\v_banner_urlB\x12\n" +
 	"\x10_welcome_messageB\x0e\n" +
-	"\f_description\"\xe5\x02\n" +
+	"\f_description\"\xdf\x02\n" +
 	"\vServerLogin\x12>\n" +
 	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x12=\n" +
 	"\tproviders\x18\x02 \x03(\v2\x1f.chatto.api.v1.ProviderMetadataR\tproviders\x12#\n" +
 	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrl\x12\\\n" +
-	"\x17account_creation_policy\x18\x04 \x01(\x0e2$.chatto.api.v1.AccountCreationPolicyR\x15accountCreationPolicy\x129\n" +
-	"\x16password_login_enabled\x18\x05 \x01(\bH\x00R\x14passwordLoginEnabled\x88\x01\x01B\x19\n" +
-	"\x17_password_login_enabled*\x8b\x01\n" +
+	"\x17account_creation_policy\x18\x04 \x01(\x0e2$.chatto.api.v1.AccountCreationPolicyR\x15accountCreationPolicy\x125\n" +
+	"\x14direct_login_enabled\x18\x05 \x01(\bH\x00R\x12directLoginEnabled\x88\x01\x01B\x17\n" +
+	"\x15_direct_login_enabled*\x8b\x01\n" +
 	"\x15AccountCreationPolicy\x12'\n" +
 	"#ACCOUNT_CREATION_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cACCOUNT_CREATION_POLICY_OPEN\x10\x01\x12'\n" +

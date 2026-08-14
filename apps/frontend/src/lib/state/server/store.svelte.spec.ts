@@ -1208,7 +1208,7 @@ describe('ServerStateStore live server updates', () => {
       iconUrl: 'https://cdn/icon.webp',
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
-      passwordLoginEnabled: false,
+      directLoginEnabled: false,
       accountCreationPolicy: 'open',
       authProviders: []
     });
