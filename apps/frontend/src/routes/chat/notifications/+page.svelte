@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { EmptyState, PaneHeader, UnreadDot } from '$lib/ui';
+  import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -686,7 +686,7 @@
                   disabled={mutationPending}
                   onclick={() => openGroup(item)}
                 >
-                  <span class="relative flex shrink-0">
+                  <span class="flex shrink-0">
                     {#if actors.length > 1}
                       <span
                         class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
@@ -697,17 +697,10 @@
                         {/each}
                       </span>
                     {:else if actor}<UserAvatar user={actor} size="md" />{/if}
-                    {#if item.group.unread}
-                      <UnreadDot
-                        color={item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                          ? 'warning'
-                          : 'ambient'}
-                        class="absolute -start-3 top-1/2 -translate-y-1/2"
-                        testid="notification-unread-dot"
-                      />
-                      <span class="sr-only">{m('chat.notifications.unread')}</span>
-                    {/if}
                   </span>
+                  {#if item.group.unread}
+                    <span class="sr-only">{m('chat.notifications.unread')}</span>
+                  {/if}
                   <span class="min-w-0 flex-1" data-testid="notification-content">
                     <bdi class="block truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
