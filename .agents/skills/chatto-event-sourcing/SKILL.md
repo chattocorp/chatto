@@ -5,7 +5,10 @@ description: "Use when designing, implementing, reviewing, debugging, or documen
 
 # Chatto Event Sourcing
 
-Use this skill whenever touching durable domain state in Chatto. It is a guardrail checklist for the event-sourced architecture, not a replacement for the architecture docs.
+Use this skill whenever touching durable domain state in Chatto. Apply the
+repository-wide [`loom-architecture`](../loom-architecture/SKILL.md) skill
+alongside it for the shared architectural invariants. This skill adds
+Chatto-specific guardrails and does not replace the architecture docs.
 
 ## Start Here
 

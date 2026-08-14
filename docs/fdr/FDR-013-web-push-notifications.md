@@ -122,5 +122,5 @@ No Chatto-side permission gates push. The OS and browser permissions are the onl
 
 ## Related
 
-- **ADRs:** ADR-073 (deterministic notification occurrences), ADR-074 (persistent notification list)
+- **ADRs:** ADR-074 (deterministic notification occurrences), ADR-075 (persistent notification list)
 - **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)

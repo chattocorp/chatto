@@ -109,6 +109,9 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 	if !strings.Contains(rawText, "\n# [[auth.providers]]\n# id = 'github'\n# type = 'github'") {
 		t.Fatal("generated config should include a commented GitHub auth provider example")
 	}
+	if !strings.Contains(rawText, "\ndirect_login = true\n") {
+		t.Fatal("generated config should explicitly enable password login")
+	}
 	if !strings.Contains(rawText, "\n[auth.email_otp]\n") {
 		t.Fatal("generated config should include an active auth.email_otp section")
 	}

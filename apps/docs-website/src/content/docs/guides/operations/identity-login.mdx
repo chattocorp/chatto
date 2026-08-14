@@ -17,6 +17,36 @@ Chatto supports local password accounts, email verification and reset flows, ext
 | Mixed community | Allow local accounts and selected external providers. |
 | Passwordless external login | Ensure users keep at least one linked provider and understand recovery paths. |
 
+## SSO-Only Login
+
+Configure and test at least one external provider before disabling password login. To make the server SSO-only, disable both password sign-in and direct email/password registration on every serving replica:
+
+<Tabs>
+<TabItem label="TOML">
+
+```toml
+[auth]
+direct_login = false
+direct_registration = false
+```
+
+</TabItem>
+<TabItem label="Environment">
+
+```bash
+CHATTO_AUTH_DIRECT_LOGIN=false
+CHATTO_AUTH_DIRECT_REGISTRATION=false
+```
+
+</TabItem>
+</Tabs>
+
+With `direct_login = false`, Chatto rejects `/auth/login` and advertises the disabled capability through public server discovery. The bundled login page then shows only configured external providers. Existing sessions stay valid, and registration remains independently controlled by `direct_registration`.
+
+<Aside type="caution">
+  Disabling password login without a working external provider can lock signed-out users out. Keep an operator recovery path and apply the same authentication configuration to every replica.
+</Aside>
+
 ## SMTP Email
 
 SMTP is needed for verification and password reset email flows. Configure it before inviting members if you expect self-service account recovery.

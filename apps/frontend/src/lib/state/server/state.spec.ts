@@ -8,6 +8,7 @@ function publicServerInfo(overrides: Partial<PublicServerInfo> = {}): PublicServ
     version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: false,
+    directLoginEnabled: false,
     accountCreationPolicy: 'open',
     welcomeMessage: 'welcome',
     description: 'a server for acme',
@@ -46,6 +47,7 @@ describe('ServerInfoState.init()', () => {
     expect(state.welcomeMessage).toBe('welcome');
     expect(state.description).toBe('a server for acme');
     expect(state.directRegistrationEnabled).toBe(false);
+    expect(state.directLoginEnabled).toBe(false);
     expect(state.videoProcessingEnabled).toBe(false);
     expect(state.messageEditWindowSeconds).toBe(3 * 60 * 60);
     expect(consoleError).not.toHaveBeenCalled();

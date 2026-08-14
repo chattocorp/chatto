@@ -40,6 +40,7 @@ describe('getPublicServerInfo', () => {
       },
       login: {
         directRegistrationEnabled: true,
+        directLoginEnabled: false,
         authorizeUrl: '/oauth/authorize',
         providers: [
           {
@@ -66,6 +67,7 @@ describe('getPublicServerInfo', () => {
       version: '9.8.7',
       authorizeUrl: '/oauth/authorize',
       directRegistrationEnabled: true,
+      directLoginEnabled: false,
       accountCreationPolicy: 'open',
       welcomeMessage: 'welcome',
       description: 'description',
@@ -95,6 +97,7 @@ describe('getPublicServerInfo', () => {
 
     await expect(getPublicServerInfo('https://chat.example.test')).resolves.toMatchObject({
       name: 'Chatto',
+      directLoginEnabled: true,
       welcomeMessage: null,
       description: null,
       iconUrl: null,

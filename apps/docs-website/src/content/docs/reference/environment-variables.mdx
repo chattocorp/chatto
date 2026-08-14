@@ -330,7 +330,11 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_DIRECT_REGISTRATION" toml="auth.direct_registration" default="true">
-  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Users can still sign in via configured SSO providers.
+  Enable direct (email/password) registration. When `false`, the registration page is hidden and the registration API returns `403`. Existing users can still sign in through enabled password login or configured SSO providers.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_DIRECT_LOGIN" toml="auth.direct_login" default="true">
+  Enable direct sign-in with a username or email address and password. When `false`, the password form and recovery link are hidden and the password login endpoint returns `403`. Existing sessions, registration, and authenticated password management are unaffected.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">

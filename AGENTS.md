@@ -342,6 +342,8 @@ leave a dev stack running in a detached or yielded terminal session.
 
 - Pick the lowest test layer that exercises the change, but do not stop below
   the layer where the bug could occur.
+- When testing an early rejection, use input that would fail a later check. The
+  test should still return the early error.
 - Svelte runtime errors, hydration issues, missing context, and `$effect` loops
   require mounting a component or browser verification.
 - Native macOS Desktop helper behavior should have focused Swift tests wired

@@ -46,6 +46,7 @@
     authProviders.filter((provider) => provider.id !== authlingProviderId)
   );
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
+  const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
   const pageError = $derived(
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
@@ -315,7 +316,7 @@
 
     {@render authlingSignIn()}
 
-    {#if authlingAvailable}
+    {#if authlingAvailable && (visibleAuthProviders.length > 0 || directLoginEnabled)}
       <Divider label={m('common.or')} />
     {/if}
 
@@ -338,52 +339,60 @@
           </Button>
         {/each}
 
-        <Divider label={m('common.or')} />
+        {#if directLoginEnabled}
+          <Divider label={m('common.or')} />
+        {/if}
       </div>
     {/if}
 
-    <Form onsubmit={handleSubmit}>
-      <TextInput
-        id="identifier"
-        label={m('auth.login.identifier_label')}
-        bind:value={identifier}
-        placeholder={m('common.email_placeholder')}
-        disabled={isAuthenticating}
-        required
-        autocomplete="username"
-        autofocus
-      />
+    {#if !directLoginEnabled && displayedError}
+      <Hint tone="danger">{displayedError}</Hint>
+    {/if}
 
-      <TextInput
-        id="password"
-        label={m('common.password')}
-        type="password"
-        bind:value={password}
-        placeholder={m('common.password_placeholder')}
-        disabled={isAuthenticating}
-        required
-        autocomplete="current-password"
-      />
+    {#if directLoginEnabled}
+      <Form onsubmit={handleSubmit}>
+        <TextInput
+          id="identifier"
+          label={m('auth.login.identifier_label')}
+          bind:value={identifier}
+          placeholder={m('common.email_placeholder')}
+          disabled={isAuthenticating}
+          required
+          autocomplete="username"
+          autofocus
+        />
 
-      {#if displayedError}
-        <Hint tone="danger">{displayedError}</Hint>
-      {/if}
+        <TextInput
+          id="password"
+          label={m('common.password')}
+          type="password"
+          bind:value={password}
+          placeholder={m('common.password_placeholder')}
+          disabled={isAuthenticating}
+          required
+          autocomplete="current-password"
+        />
 
-      <Button
-        type="submit"
-        size="lg"
-        disabled={!canSubmit || isAuthenticating}
-        loading={isLoading}
-        loadingText={m('auth.login.signing_in')}
-      >
-        <span class="iconify icon-[mdi--login]"></span>
-        {m('common.sign_in')}
-      </Button>
-    </Form>
+        {#if displayedError}
+          <Hint tone="danger">{displayedError}</Hint>
+        {/if}
 
-    <div class="mt-4 text-center">
-      <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
-    </div>
+        <Button
+          type="submit"
+          size="lg"
+          disabled={!canSubmit || isAuthenticating}
+          loading={isLoading}
+          loadingText={m('auth.login.signing_in')}
+        >
+          <span class="iconify icon-[mdi--login]"></span>
+          {m('common.sign_in')}
+        </Button>
+      </Form>
+
+      <div class="mt-4 text-center">
+        <a href={resolve('/forgot-password')} class="link">{m('auth.login.forgot_password')}</a>
+      </div>
+    {/if}
 
     {#if directRegistrationEnabled}
       <Divider label={m('common.or')} />

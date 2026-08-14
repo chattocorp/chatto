@@ -1,6 +1,9 @@
 # Architecture Decision Records
 
-This directory contains Architecture Decision Records (ADRs) for the Chatto project. ADRs document significant architectural decisions along with their context and consequences.
+This directory contains Architecture Decision Records (ADRs) for Chatto and
+for explicitly repository-wide monorepo or shared-framework decisions. ADRs
+document significant architectural decisions along with their context and
+consequences.
 
 For more about ADRs, see [Michael Nygard's article](https://cognitect.com/blog/2011/11/15/documenting-architecture-decisions).
 
@@ -84,5 +87,6 @@ replace part of their original design.
 | [ADR-070](ADR-070-deterministic-invite-link-capabilities.md) | Derive Invite-Link Capabilities from Durable EVT Identity | Accepted | 2026-08-11 |
 | [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md) | Identify Open OAuth Clients through CIMD | Accepted | 2026-08-11 |
 | [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md) | Optional Host Capabilities in the Shared Frontend | Accepted | 2026-08-13 |
-| [ADR-073](ADR-073-deterministic-notification-occurrences.md) | Derive Deterministic Notification Occurrences into Runtime State | Accepted | 2026-08-10 |
-| [ADR-074](ADR-074-persistent-notification-list.md) | Present Notifications as One Persistent List with Derived Groups | Accepted | 2026-08-10 |
+| [ADR-073](ADR-073-define-the-loom-architecture.md) | Define the Loom Architecture | Accepted | 2026-08-14 |
+| [ADR-074](ADR-074-deterministic-notification-occurrences.md) | Derive Deterministic Notification Occurrences into Runtime State | Accepted | 2026-08-10 |
+| [ADR-075](ADR-075-persistent-notification-list.md) | Present Notifications as One Persistent List with Derived Groups | Accepted | 2026-08-10 |

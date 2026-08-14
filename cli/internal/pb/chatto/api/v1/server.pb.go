@@ -176,8 +176,11 @@ type ServerLogin struct {
 	AuthorizeUrl string `protobuf:"bytes,3,opt,name=authorize_url,json=authorizeUrl,proto3" json:"authorize_url,omitempty"`
 	// Admission policy for direct registration and provider auto-provisioning.
 	AccountCreationPolicy AccountCreationPolicy `protobuf:"varint,4,opt,name=account_creation_policy,json=accountCreationPolicy,proto3,enum=chatto.api.v1.AccountCreationPolicy" json:"account_creation_policy,omitempty"`
-	unknownFields         protoimpl.UnknownFields
-	sizeCache             protoimpl.SizeCache
+	// Whether users can sign in directly with a username or email address and password.
+	// Absent on older servers, where clients should treat direct login as enabled.
+	DirectLoginEnabled *bool `protobuf:"varint,5,opt,name=direct_login_enabled,json=directLoginEnabled,proto3,oneof" json:"direct_login_enabled,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
 }
 
 func (x *ServerLogin) Reset() {
@@ -238,6 +241,13 @@ func (x *ServerLogin) GetAccountCreationPolicy() AccountCreationPolicy {
 	return AccountCreationPolicy_ACCOUNT_CREATION_POLICY_UNSPECIFIED
 }
 
+func (x *ServerLogin) GetDirectLoginEnabled() bool {
+	if x != nil && x.DirectLoginEnabled != nil {
+		return *x.DirectLoginEnabled
+	}
+	return false
+}
+
 var File_chatto_api_v1_server_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_server_proto_rawDesc = "" +
@@ -254,12 +264,14 @@ const file_chatto_api_v1_server_proto_rawDesc = "" +
 	"\t_logo_urlB\r\n" +
 	"\v_banner_urlB\x12\n" +
 	"\x10_welcome_messageB\x0e\n" +
-	"\f_description\"\x8f\x02\n" +
+	"\f_description\"\xdf\x02\n" +
 	"\vServerLogin\x12>\n" +
 	"\x1bdirect_registration_enabled\x18\x01 \x01(\bR\x19directRegistrationEnabled\x12=\n" +
 	"\tproviders\x18\x02 \x03(\v2\x1f.chatto.api.v1.ProviderMetadataR\tproviders\x12#\n" +
 	"\rauthorize_url\x18\x03 \x01(\tR\fauthorizeUrl\x12\\\n" +
-	"\x17account_creation_policy\x18\x04 \x01(\x0e2$.chatto.api.v1.AccountCreationPolicyR\x15accountCreationPolicy*\x8b\x01\n" +
+	"\x17account_creation_policy\x18\x04 \x01(\x0e2$.chatto.api.v1.AccountCreationPolicyR\x15accountCreationPolicy\x125\n" +
+	"\x14direct_login_enabled\x18\x05 \x01(\bH\x00R\x12directLoginEnabled\x88\x01\x01B\x17\n" +
+	"\x15_direct_login_enabled*\x8b\x01\n" +
 	"\x15AccountCreationPolicy\x12'\n" +
 	"#ACCOUNT_CREATION_POLICY_UNSPECIFIED\x10\x00\x12 \n" +
 	"\x1cACCOUNT_CREATION_POLICY_OPEN\x10\x01\x12'\n" +
@@ -303,6 +315,7 @@ func file_chatto_api_v1_server_proto_init() {
 	}
 	file_chatto_api_v1_common_proto_init()
 	file_chatto_api_v1_server_proto_msgTypes[0].OneofWrappers = []any{}
+	file_chatto_api_v1_server_proto_msgTypes[1].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
