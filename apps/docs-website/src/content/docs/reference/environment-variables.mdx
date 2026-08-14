@@ -55,12 +55,6 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
   Comma-separated IP addresses or CIDR ranges for reverse proxies that Chatto may trust to supply `X-Forwarded-For`, `X-Real-IP`, and `X-Forwarded-Host`. The default is empty, so direct clients cannot spoof audit attribution or WebSocket same-origin checks with forwarded headers. Configure the narrow network used by your proxy—for example, `127.0.0.1` for a same-host proxy or the specific container-network CIDR—and make the proxy overwrite forwarded headers rather than preserving client-supplied values. This does not make forwarded protocol headers authoritative for public URL generation; continue setting `webserver.url`.
 </EnvVar>
 
-## Frontend
-
-<EnvVar name="CHATTO_FRONTEND_AUTHLING_ISSUER" toml="frontend.authling_issuer">
-  Select the Authling issuer used by the frontend for global identity and account-data synchronization. The value must be an HTTPS origin, except for loopback development. When set, Chatto publishes `/client-config.json` and the separate frontend CIMD document at `/oauth/frontend-client-metadata.json`. This does not make Chatto trust the issuer for server login; configure an OIDC provider separately for that purpose.
-</EnvVar>
-
 ### TLS
 
 Built-in automatic TLS via Let's Encrypt. When enabled, Chatto handles certificate provisioning and renewal automatically.

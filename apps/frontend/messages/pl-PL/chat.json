@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Dodaj serwer",
-      "account_data_connect": "Synchronizuj listę serwerów z Authling",
-      "account_data_connecting": "Łączenie synchronizacji listy serwerów…",
-      "account_data_connected": "Lista serwerów jest synchronizowana z {provider}",
-      "account_data_connected_toast": "Twoja lista serwerów jest teraz synchronizowana.",
-      "account_data_error": "Nie udało się zsynchronizować listy serwerów",
       "version": "Wersja {version}",
       "version_unknown": "Nieznana wersja",
       "unreachable": "Serwer jest niedostępny",

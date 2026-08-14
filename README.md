@@ -68,20 +68,9 @@ login because Authling's initial OIDC profile intentionally shares only its
 stable account ID. The stack also bootstraps a Chatto owner named
 `compose-admin` with the development-only password `compose-admin`.
 
-After login, select the cloud button below the server list. Authling asks for
-separate permission to read and write account data. The cloud turns green when
-the TinyBase connection is active. Chatto then stores the public server list in
-Authling. Server URLs, names, icons, and registration times synchronize; Chatto
-login tokens and user details stay only in that browser. The frontend shows a
-trusted Authling sign-in action and can use the resulting browser session to
-start login on Chatto servers that advertise the same issuer. The frontend and
-each Chatto server still receive separate tokens and scopes.
-
-The frontend reads its Authling issuer from `/client-config.json`. The Compose
-stack sets `CHATTO_FRONTEND_AUTHLING_ISSUER`, so the bundled Chatto server
-publishes that document and a separate frontend CIMD identity automatically.
-A standalone web, desktop, or mobile client can publish or inject the same
-versioned JSON contract from its own trusted application origin.
+Authling is configured as an ordinary OIDC provider for the development Chatto
+server. Chatto's server catalogue, login tokens, and cached user details stay
+on the current device; Authling stores identity-provider state only.
 
 The checked-in credentials and bootstrap account are for local development
 only. Stop the stack with `docker compose down`; add `--volumes` to delete both

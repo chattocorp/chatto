@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Lisa server",
-      "account_data_connect": "Serverite loendi sünkroonimine Authlingiga",
-      "account_data_connecting": "Serveriloendi sünkroonimise ühendamine…",
-      "account_data_connected": "Serverite loend on sünkroonitud {provider}-ga",
-      "account_data_connected_toast": "Teie serveriloend on nüüd sünkroonitud.",
-      "account_data_error": "Serverite loendit ei saanud sünkroonida",
       "version": "Versioon {version}",
       "version_unknown": "Versioon teadmata",
       "unreachable": "Server pole kättesaadav",

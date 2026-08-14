@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Legg til server",
-      "account_data_connect": "Synkroniser serverlisten med Authling",
-      "account_data_connecting": "Kobler til synkronisering av serverlisten…",
-      "account_data_connected": "Serverlisten synkroniseres med {provider}",
-      "account_data_connected_toast": "Serverlisten din synkroniseres nå.",
-      "account_data_error": "Kunne ikke synkronisere serverlisten",
       "version": "Versjon {version}",
       "version_unknown": "Ukjent versjon",
       "unreachable": "Tjeneren er utilgjengelig",

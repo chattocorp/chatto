@@ -82,11 +82,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   `$lib/state/server/serverConnection.svelte.ts` for Connect base URLs,
   `/api/realtime` URLs, bearer tokens, auth-required handling, and
   reconnect/status UI state.
-- Keep the synchronized known-server catalogue, device-local per-server
-  sessions, and the Authling account-data session as separate state owners.
-  Server IDs and origins are immutable after registration. Never serialize
-  Chatto bearer tokens, user summaries, reauthentication state, or other
-  device-local session data into Authling/TinyBase account data.
+- Keep the known-server catalogue and per-server sessions device-local and as
+  separate state owners. Server IDs and origins are immutable after
+  registration. Never serialize Chatto bearer tokens, user summaries, or
+  reauthentication state into a public or shared catalogue.
 - Treat an intentionally dormant inactive-server transport as healthy retained
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.

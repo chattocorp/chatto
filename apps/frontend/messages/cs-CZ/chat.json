@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Přidat server",
-      "account_data_connect": "Synchronizujte seznam serverů pomocí ověřování",
-      "account_data_connecting": "Připojování synchronizace seznamu serverů…",
-      "account_data_connected": "Seznam serverů je synchronizován s {provider}",
-      "account_data_connected_toast": "Váš seznam serverů je nyní synchronizován.",
-      "account_data_error": "Nelze synchronizovat seznam serverů",
       "version": "Verze {version}",
       "version_unknown": "Verze neznámá",
       "unreachable": "Server je nedostupný",

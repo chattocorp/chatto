@@ -10,7 +10,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/rs/cors"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
@@ -64,7 +63,7 @@ func (s *Service) Initialize() error {
 	}
 	provider, err := op.NewProvider(&op.Config{
 		CryptoKey: cryptoKey, CryptoKeyId: key.ID, CodeMethodS256: true,
-		SupportedClaims: []string{"sub"}, SupportedScopes: []string{liboidc.ScopeOpenID, ScopeAccountData},
+		SupportedClaims: []string{"sub"}, SupportedScopes: []string{liboidc.ScopeOpenID},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
 		return fmt.Errorf("construct OIDC provider: %w", err)
@@ -74,38 +73,6 @@ func (s *Service) Initialize() error {
 	s.handler = s.wrap(provider)
 	s.mu.Unlock()
 	return nil
-}
-
-// AccessGrant is the authority carried by one valid account-data access token.
-type AccessGrant struct {
-	AccountID string
-	ClientID  string
-	Origin    string
-	Expires   time.Time
-}
-
-// AuthorizeAccountDataToken validates one opaque access token for the exact
-// browser origin that received its authorization response.
-func (s *Service) AuthorizeAccountDataToken(ctx context.Context, token, origin string) (AccessGrant, error) {
-	s.mu.RLock()
-	provider := s.provider
-	s.mu.RUnlock()
-	if provider == nil || token == "" || origin == "" {
-		return AccessGrant{}, errOIDCStateNotFound
-	}
-	plain, err := provider.Crypto().Decrypt(token)
-	if err != nil {
-		return AccessGrant{}, errOIDCStateNotFound
-	}
-	tokenID, subject, ok := strings.Cut(plain, ":")
-	if !ok || tokenID == "" || subject == "" {
-		return AccessGrant{}, errOIDCStateNotFound
-	}
-	canonical, err := canonicalOrigin(origin)
-	if err != nil {
-		return AccessGrant{}, errOIDCStateNotFound
-	}
-	return s.storage.AccountDataGrant(ctx, tokenID, subject, canonical)
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +177,7 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"token_endpoint":                        issuer + "/oauth/token",
 		"userinfo_endpoint":                     issuer + "/oauth/userinfo",
 		"jwks_uri":                              issuer + "/oauth/jwks",
-		"scopes_supported":                      []string{"openid", ScopeAccountData},
+		"scopes_supported":                      []string{"openid"},
 		"response_types_supported":              []string{"code"},
 		"response_modes_supported":              []string{"query"},
 		"grant_types_supported":                 []string{"authorization_code"},
@@ -262,12 +229,12 @@ func validateAuthorizeRequest(r *http.Request) error {
 
 func validAuthorizeScopes(raw string) bool {
 	scopes := strings.Fields(raw)
-	if len(scopes) == 0 || len(scopes) > 2 {
+	if len(scopes) != 1 {
 		return false
 	}
 	seen := make(map[string]struct{}, len(scopes))
 	for _, scope := range scopes {
-		if scope != liboidc.ScopeOpenID && scope != ScopeAccountData {
+		if scope != liboidc.ScopeOpenID {
 			return false
 		}
 		if _, duplicate := seen[scope]; duplicate {

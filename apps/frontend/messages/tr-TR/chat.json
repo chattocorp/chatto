@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Sunucu Ekle",
-      "account_data_connect": "Sunucu listesini Authling ile senkronize et",
-      "account_data_connecting": "Sunucu listesi senkronizasyonu bağlanıyor…",
-      "account_data_connected": "Sunucu listesi {provider} ile senkronize edildi",
-      "account_data_connected_toast": "Sunucu listeniz artık senkronize edildi.",
-      "account_data_error": "Sunucu listesi senkronize edilemedi",
       "version": "Sürüm {version}",
       "version_unknown": "Sürüm bilinmiyor",
       "unreachable": "Sunucuya ulaşılamıyor",

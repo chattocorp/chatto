@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Pievienot serveri",
-      "account_data_connect": "Sinhronizējiet serveru sarakstu ar Authling",
-      "account_data_connecting": "Notiek savienojuma izveide ar serveru saraksta sinhronizāciju…",
-      "account_data_connected": "Serveru saraksts ir sinhronizēts ar {provider}",
-      "account_data_connected_toast": "Jūsu serveru saraksts tagad ir sinhronizēts.",
-      "account_data_error": "Nevarēja sinhronizēt serveru sarakstu",
       "version": "Versija {version}",
       "version_unknown": "Versija nav zināma",
       "unreachable": "Serveris nav sasniedzams",

@@ -9,7 +9,6 @@ import (
 
 const cimdPath = "/oauth/client-metadata.json"
 const frontendCIMDPath = "/oauth/frontend-client-metadata.json"
-const accountDataCallbackPath = "/servers/callback?mode=authling-account-data"
 const popupCallbackPath = "/servers/callback?mode=popup"
 
 type cimdDocument struct {
@@ -48,9 +47,6 @@ func (s *HTTPServer) setupCIMDRoutes() {
 	}
 
 	frontendRedirects := []string{baseURL + popupCallbackPath}
-	if s.config.Frontend.AuthlingIssuer != "" {
-		frontendRedirects = append(frontendRedirects, baseURL+accountDataCallbackPath)
-	}
 	s.publishCIMD(frontendCIMDPath, cimdDocument{
 		ClientID:                baseURL + frontendCIMDPath,
 		ClientName:              "Chatto Web",

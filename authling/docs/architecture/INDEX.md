@@ -12,18 +12,9 @@ HTTP listener, and then runs until its process context is cancelled.
 
 The HTTP surface contains server-rendered signup, login, consent, account, and
 logout pages plus embedded browser assets. It also exposes OpenID Connect
-discovery, authorization, token, UserInfo, and JWKS endpoints and an
-experimental authenticated account-data WebSocket. Authling still exposes no
-public account-management API.
-
-Chatto's bundled frontend is the first account-data client. It authorizes as a
-dedicated CIMD public client selected by the frontend origin's trusted
-`/client-config.json`, retains the short-lived access token in browser-local
-storage across browser sessions, reads the account ID from UserInfo, and
-synchronizes only public server-registration fields. Chatto server login uses a
-different CIMD client. A matching advertised issuer lets the frontend start
-that separate authorization with the existing Authling browser session. Chatto
-server credentials remain in the browser's separate local registry.
+discovery, authorization, token, UserInfo, and JWKS endpoints. Authling exposes
+no public account-management, application-data, document, or synchronization
+API.
 
 ## Configuration
 
@@ -42,11 +33,6 @@ carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
 the unprefixed cookie name exists only for loopback development.
-
-`http.trusted_proxy_cidrs` identifies direct reverse-proxy networks for
-account-data handshake admission. Only those peers may supply the single,
-sanitized client IP in `X-Forwarded-For`. Authling otherwise uses the direct
-TCP peer and does not trust forwarding headers.
 
 `authentication.password_minimum_length` sets the local signup password
 minimum and defaults to ten Unicode characters. Values from eight through 128
@@ -89,17 +75,10 @@ storage-path, logging, and deployment policy.
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
 | `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
-| `AUTHLING_USER_DATA` | KV bucket | File, history 1, compressed, 384 KiB record limit | HMAC-derived account keys | Encrypted TinyBase account data spaces |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
 commands. The key bucket is a separate, exceptionally sensitive backup and
 restore boundary.
-
-One account data space uses a random purpose-scoped data key wrapped by its
-account user key. The encrypted KV envelope authenticates its opaque state key,
-data-key reference, purpose, and version. KV revision checks provide the
-cross-replica write boundary; a losing writer reloads, merges its TinyBase
-changes, and retries.
 
 Credential provisioning writes an opaque operation record before creating its
 user and data keys, then removes the marker after the referencing event
@@ -181,7 +160,7 @@ deadline. Logout deletes the server record before clearing the cookie.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
-requires `openid` and S256 PKCE, and optionally accepts `account_data`.
+requires exactly the `openid` scope and S256 PKCE.
 Signed-out requests resume through an opaque server-side request ID after
 login; `GET` and same-origin `POST` `/oidc/consent` display and record
 per-request consent.
@@ -195,21 +174,6 @@ Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
 part. The initial UserInfo response contains only the account ID as `sub`.
 
-`GET /data/sync` upgrades an exact-origin request with a valid browser session
-to the experimental TinyBase 9.3 synchronization transport. A client with an
-`account_data` access token can instead use the
-`authling.account-data.v1` subprotocol from the exact callback origin. It must
-send the token in a bounded first message and receive `ready` before TinyBase
-messages begin. The validated session or token alone selects one account-owned
-data space. The endpoint revalidates authorization for incoming and outgoing
-messages, limits authentication time, pending unauthenticated connections,
-frame and state size, live connections, and pending protocol requests, and
-rejects invalid or future-clock input before persistence. Process-local hubs
-provide live fanout. They cap all live connections and retained decrypted
-spaces, evict idle spaces under pressure, and load different accounts without
-holding one global lock across storage or cryptographic work. Durable KV OCC,
-not the hub, protects concurrent Authling replicas.
-
 The HTTP server bounds header, body-read, response-write, and idle time. Signup
 also caps request bodies, globally limits OTP delivery, and bounds concurrent
 SMTP calls per process.
@@ -218,10 +182,6 @@ SMTP calls per process.
 
 The runtime does not yet contain recovery, account erasure, session lists or
 account-wide session revocation, OIDC refresh tokens or key rotation,
-application-scoped document namespaces, diagnostic endpoints, or backup
-tooling.
-
-The runtime does not yet contain application-scoped data grants, a general
-document CRUD API, or cross-replica live fanout. The original
-[TinyBase durable peer proof](../experiments/tinybase-durable-peer.md) remains
-as a pinned transport compatibility test.
+diagnostic endpoints, or backup tooling. Application data, documents, and
+generic synchronization are deliberately outside Authling's identity-provider
+boundary.

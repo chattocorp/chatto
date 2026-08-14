@@ -52,7 +52,6 @@ func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
 	server := &HTTPServer{
 		config: config.ChattoConfig{
 			Webserver: config.WebserverConfig{URL: baseURL},
-			Frontend:  config.FrontendConfig{AuthlingIssuer: "https://id.example"},
 		},
 		router: gin.New(),
 	}
@@ -67,7 +66,7 @@ func TestFrontendCIMDDocumentUsesSeparateClientIdentity(t *testing.T) {
 	if err := json.Unmarshal(response.Body.Bytes(), &document); err != nil {
 		t.Fatal(err)
 	}
-	if document.ClientID != baseURL+frontendCIMDPath || document.ClientName != "Chatto Web" || document.ApplicationType != "web" || len(document.RedirectURIs) != 2 || document.RedirectURIs[0] != baseURL+popupCallbackPath || document.RedirectURIs[1] != baseURL+accountDataCallbackPath {
+	if document.ClientID != baseURL+frontendCIMDPath || document.ClientName != "Chatto Web" || document.ApplicationType != "web" || len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+popupCallbackPath {
 		t.Fatalf("document = %#v", document)
 	}
 }
@@ -117,6 +116,21 @@ func TestFrontendCIMDDocumentIsPublishedWithoutAuthling(t *testing.T) {
 	}
 	if len(document.RedirectURIs) != 1 || document.RedirectURIs[0] != baseURL+popupCallbackPath {
 		t.Fatalf("redirect_uris = %#v", document.RedirectURIs)
+	}
+}
+
+func TestCIMDRoutesDoNotPublishRetiredFrontendBootstrap(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	server := &HTTPServer{
+		config: config.ChattoConfig{Webserver: config.WebserverConfig{URL: "https://chat.example"}},
+		router: gin.New(),
+	}
+	server.setupCIMDRoutes()
+
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "/client-config.json", nil))
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }
 

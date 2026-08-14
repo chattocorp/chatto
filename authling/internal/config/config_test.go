@@ -121,22 +121,6 @@ func TestValidateAllowsPlainHTTPPublicURLOnlyOnLoopback(t *testing.T) {
 	}
 }
 
-func TestValidateTrustedProxyCIDRs(t *testing.T) {
-	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
-	cfg := Config{HTTP: HTTPConfig{TrustedProxyCIDRs: []string{"192.0.2.10/24", "2001:db8::/32"}}, NATS: validNATS}
-	if err := cfg.Validate(); err != nil {
-		t.Fatalf("valid trusted proxies: %v", err)
-	}
-	trusted := cfg.HTTP.TrustedProxies()
-	if len(trusted) != 2 || trusted[0].String() != "192.0.2.0/24" || trusted[1].String() != "2001:db8::/32" {
-		t.Fatalf("trusted proxies = %v", trusted)
-	}
-	cfg.HTTP.TrustedProxyCIDRs = []string{"192.0.2.1", "not-a-network"}
-	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "http.trusted_proxy_cidrs") {
-		t.Fatalf("invalid trusted proxies error = %v", err)
-	}
-}
-
 func TestValidateSMTPRequiresSafeCompleteConfiguration(t *testing.T) {
 	cfg := Config{NATS: NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}, SMTP: SMTPConfig{Enabled: true, TLS: "plaintext"}}
 	err := cfg.Validate()

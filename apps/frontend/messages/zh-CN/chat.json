@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "添加服务器",
-      "account_data_connect": "使用 Authling 同步服务器列表",
-      "account_data_connecting": "正在连接服务器列表同步…",
-      "account_data_connected": "服务器列表正在与 {provider} 同步",
-      "account_data_connected_toast": "你的服务器列表现已同步。",
-      "account_data_error": "无法同步服务器列表",
       "version": "版本 {version}",
       "version_unknown": "版本未知",
       "unreachable": "无法访问服务器",

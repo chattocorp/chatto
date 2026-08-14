@@ -1,6 +1,6 @@
 # ADR-005: Synchronize Account Data with a Durable TinyBase Peer
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-007](ADR-007-limit-authling-to-identity-provider.md)
 
 **Date:** 2026-08-02
 
@@ -106,4 +106,4 @@ replace or version the wire boundary while retaining the account data model.
 ## Related
 
 - [ADR-002: Protect User Data with Hierarchical Keys and Cryptographic Erasure](ADR-002-hierarchical-keys-and-cryptographic-erasure.md)
-- [TinyBase durable peer proof](../experiments/tinybase-durable-peer.md)
+- [ADR-007: Limit Authling to Identity-Provider State](ADR-007-limit-authling-to-identity-provider.md)

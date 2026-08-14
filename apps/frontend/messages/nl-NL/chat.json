@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Server toevoegen",
-      "account_data_connect": "Serverlijst synchroniseren met Authling",
-      "account_data_connecting": "Verbinding maken met serversynchronisatie…",
-      "account_data_connected": "Serverlijst wordt gesynchroniseerd met {provider}",
-      "account_data_connected_toast": "Je serverlijst wordt nu gesynchroniseerd.",
-      "account_data_error": "Serverlijst kon niet worden gesynchroniseerd",
       "version": "Versie {version}",
       "version_unknown": "Versie onbekend",
       "unreachable": "Server onbereikbaar",
