@@ -132,7 +132,7 @@ func TestRecoverUnmanifestedVideoAttachments_ReschedulesUnmanifested(t *testing.
 	user, _ := core.CreateUser(ctx, "system", "recuser", "recuser", "password123")
 	core.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
 
-	att, err := core.UploadAttachment(ctx, SystemActorID, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
+	att, err := core.UploadAttachment(ctx, user.Id, room.Id, "clip.mp4", "video/mp4", bytes.NewReader([]byte("video")))
 	if err != nil {
 		t.Fatalf("UploadAttachment: %v", err)
 	}

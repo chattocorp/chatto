@@ -28,8 +28,9 @@ export class CreateMessageRequest extends Message<CreateMessageRequest> {
   body = "";
 
   /**
-   * Existing room-scoped attachment asset IDs to include with the message.
-   * At most 10 IDs may be supplied.
+   * Completed room-scoped asset IDs uploaded by the caller and not yet attached
+   * to a message. The server attaches them exclusively and atomically to this
+   * message. At most 10 IDs may be supplied.
    *
    * @generated from field: repeated string attachment_asset_ids = 3;
    */

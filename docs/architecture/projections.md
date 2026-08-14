@@ -160,7 +160,7 @@ generation prefix. The contract covers serialized state, replay semantics,
 consumed event families, and cutoff meaning. Each ID combines a manual semantic
 token with a fingerprint of the codec's reachable protobuf schema, so a schema
 change automatically starts a new contract namespace. Most contracts use
-semantic token `v1`; Assets uses `v2`, user profile uses `v3`, and Room Timeline
+semantic token `v1`; Assets uses `v3`, user profile uses `v3`, and Room Timeline
 uses `v6`.
 
 Room Timeline `v3` keeps retraction tombstones authoritative when a legacy
@@ -249,7 +249,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Room Directory, Notification Visibility, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours. Notification Visibility caps restore at the notification worker's full acknowledged floor so pending exact boundaries replay into one full checkpoint plus compact deltas; publication beyond that same floor defers rather than rotating away the last safe generation. Startup reconstructs idle-tail advancement immediately before the earliest worker-filtered fact following the sparse AckFloor |
 | Threads, Mentionables | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates pre-request snapshot contracts |
 | Room Timeline | `v6` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores call lifecycle rows and active pin associations, and rebuilds Slow Mode's latest-original-post index; earlier contracts remain isolated |
-| Assets | `v2` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Same elected age-aware publisher; `v1` snapshots remain independently addressable during rollout and rollback |
+| Assets | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores explicit exclusive attachments while retaining first uploader-authored message-reference ownership for older histories; earlier snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates `v2` snapshots |
 
 ## Registered projections
@@ -260,7 +260,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Notification privacy | Notification Visibility | Focused room creation/universal/deletion/membership/ban facts, room-group lifecycle/placement facts, and `evt.rbac.>` | Exact room-membership and `room.join` authorization state retained for pending administrative boundaries as one checkpoint plus an event-delta journal; release follows the shared consumer's confirmed acknowledgement floor |
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Visible room timeline including call start/end facts, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, active canonical pinned-message associations, the latest pin-fact marker per room, and latest original post by room and author |
-| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, message ownership/author references, public link-preview image references, and legacy room-asset compatibility |
+| Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, exclusive message attachment/author references, public link-preview image references, and legacy uploader-matched first-reference compatibility |
 | Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Per-thread existence, reply logs, summaries, participants, reply counts, and follow state  |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
@@ -297,8 +297,9 @@ consumers and projection-local replay frontiers.
 `AssetModel` is the sole production reader of every asset-derived index and
 owns asset-projector readiness. Cross-package callers receive a detached
 `AssetState` containing declaration, room, processing, and deletion state from
-one projection generation. Message-body facts establish immutable message,
-room, and author ownership plus public link-preview references. Room Timeline
+one projection generation. Explicit asset attachments establish immutable
+message, room, and author ownership; message-body facts supply an uploader-matched
+first-reference fallback for older histories plus public link-preview references. Room Timeline
 retains only timeline rendering, body lifecycle, tombstone, echo, and current
 room-file indexes; it does not duplicate asset lifecycle state. Message-body
 writers wait for both projectors before returning.

@@ -46,11 +46,11 @@ enum AssetDerivativeRole {
 }
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
-// time, before any message exists. Message ownership of an asset is derived
-// from MessageBodyEvent.asset_ids in the asset projection.
+// time, before any message exists. AssetAttachedEvent later records the
+// exclusive message attachment; MessageBodyEvent.asset_ids remains a replay
+// fallback for histories written before explicit attachment events existed.
 message AssetCreatedEvent {
-  // Tag 4 was message_event_id, removed before this event type shipped —
-  // message ownership is derived from MessagePostedEvent.asset_ids instead.
+  // Tag 4 was message_event_id, removed before this event type shipped.
   reserved 4;
   reserved "message_event_id";
 
@@ -82,12 +82,12 @@ message AssetCreatedEvent {
   // Empty for legacy assets and generated derivatives.
   string sha256 = 8;
 
-  // Time after which an unclaimed room-scoped attachment upload may be
-  // deleted. Cleared/ignored once a message body references the asset ID.
+  // Time after which an unattached room-scoped upload may be deleted. Ignored
+  // once AssetAttachedEvent binds the asset to a message.
   google.protobuf.Timestamp pending_expires_at = 9;
 
   // Whether this asset should be routed through attachment video processing
-  // after a message claims it. Set for videos and animated GIFs.
+  // after a message attaches it. Set for videos and animated GIFs.
   bool needs_video_processing = 10;
 }
 
@@ -95,6 +95,21 @@ message AssetCreatedEvent {
 // asset from any local projection; storage cleanup is separate.
 message AssetDeletedEvent {
   string asset_id = 1;
+}
+
+// AssetAttachedEvent records that one pending uploaded asset became an
+// attachment of the exact message that first references it. The attachment
+// commits atomically with the message and is fenced against the complete asset
+// aggregate.
+message AssetAttachedEvent {
+  // Asset ID being attached.
+  string asset_id = 1;
+  // Room containing both the upload and owning message.
+  string room_id = 2;
+  // Event ID of the one message that owns the asset.
+  string message_event_id = 3;
+  // User ID of the uploader and message author.
+  string user_id = 4;
 }
 
 // AssetProcessingStartedEvent signals that derivative processing has been

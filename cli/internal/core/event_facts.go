@@ -109,6 +109,8 @@ func assetIDOfLifecycleEvent(event *corev1.Event) string {
 		return ev.AssetProcessingFailed.GetAssetId()
 	case *corev1.Event_AssetDeleted:
 		return ev.AssetDeleted.GetAssetId()
+	case *corev1.Event_AssetAttached:
+		return ev.AssetAttached.GetAssetId()
 	default:
 		return ""
 	}
@@ -120,7 +122,8 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted:
+		*corev1.Event_AssetDeleted,
+		*corev1.Event_AssetAttached:
 		return true
 	default:
 		return false
@@ -176,7 +179,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_RoomSlowModeChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomMemberAdded, *corev1.Event_RoomMemberRemoved,
-		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted,
+		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted, *corev1.Event_AssetAttached,
 		*corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded, *corev1.Event_AssetProcessingFailed,
 		*corev1.Event_ReactionAdded, *corev1.Event_ReactionRemoved,

@@ -137,13 +137,13 @@ func TestMessageSlowModeCountsAttachmentOnlyPostsButNotAttachmentStaging(t *test
 	_, err = chatto.SetRoomSlowMode(ctx, SystemActorID, KindChannel, room.Id, 60)
 	require.NoError(t, err)
 
-	first := uploadRoomAttachment(t, chatto, ctx, room.Id, "slow-mode-first.png")
+	first := uploadRoomAttachment(t, chatto, ctx, user.Id, room.Id, "slow-mode-first.png")
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, AttachmentAssetIDs: []string{first.Id},
 	})
 	require.NoError(t, err, "staging an attachment must not start slow mode")
 
-	second := uploadRoomAttachment(t, chatto, ctx, room.Id, "slow-mode-second.png")
+	second := uploadRoomAttachment(t, chatto, ctx, user.Id, room.Id, "slow-mode-second.png")
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, AttachmentAssetIDs: []string{second.Id},
 	})

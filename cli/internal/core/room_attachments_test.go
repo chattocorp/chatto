@@ -14,14 +14,14 @@ func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	rootA := uploadRoomAttachment(t, core, ctx, room.Id, "root-a.png")
-	rootB := uploadRoomAttachment(t, core, ctx, room.Id, "root-b.png")
+	rootA := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "root-a.png")
+	rootB := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "root-b.png")
 	rootEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "root with files", []string{rootA.Id, rootB.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post root message: %v", err)
 	}
 
-	threadAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "thread.png")
+	threadAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "thread.png")
 	threadEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "thread with file", []string{threadAttachment.Id}, rootEvent.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("Post thread reply: %v", err)
@@ -58,12 +58,12 @@ func TestChattoCore_GetRoomAttachmentsPagination(t *testing.T) {
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	oldAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "old.png")
+	oldAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "old.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "old", []string{oldAttachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post old message: %v", err)
 	}
 
-	newAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "new.png")
+	newAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "new.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "new", []string{newAttachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post new message: %v", err)
 	}
@@ -90,8 +90,8 @@ func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testin
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	removedAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "removed.png")
-	keptAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "kept.png")
+	removedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "removed.png")
+	keptAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "kept.png")
 	editedEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "edit target", []string{removedAttachment.Id, keptAttachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post edit target: %v", err)
@@ -100,7 +100,7 @@ func TestChattoCore_GetRoomAttachmentsExcludesRemovedAndRetractedFiles(t *testin
 		t.Fatalf("DeleteAttachmentFromMessage: %v", err)
 	}
 
-	retractedAttachment := uploadRoomAttachment(t, core, ctx, room.Id, "retracted.png")
+	retractedAttachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "retracted.png")
 	retractedEvent, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "delete target", []string{retractedAttachment.Id}, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("Post delete target: %v", err)
@@ -124,7 +124,7 @@ func TestChattoCore_GetRoomAttachmentsDoesNotDecryptNonFileMessages(t *testing.T
 	ctx := testContext(t)
 	room, user := setupRoomAttachmentTest(t, core, ctx)
 
-	attachment := uploadRoomAttachment(t, core, ctx, room.Id, "file.png")
+	attachment := uploadRoomAttachment(t, core, ctx, user.Id, room.Id, "file.png")
 	if _, err := core.PostMessage(ctx, KindChannel, room.Id, user.Id, "with file", []string{attachment.Id}, "", "", nil, false); err != nil {
 		t.Fatalf("Post file message: %v", err)
 	}
@@ -191,9 +191,9 @@ func setupRoomAttachmentTest(t *testing.T, core *ChattoCore, ctx context.Context
 	return room, user
 }
 
-func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, roomID string, filename string) *corev1.Attachment {
+func uploadRoomAttachment(t *testing.T, core *ChattoCore, ctx context.Context, actorID, roomID, filename string) *corev1.Attachment {
 	t.Helper()
-	attachment, err := core.UploadAttachment(ctx, SystemActorID, roomID, filename, "image/png", bytes.NewReader(createTestPNG(16, 16)))
+	attachment, err := core.UploadAttachment(ctx, actorID, roomID, filename, "image/png", bytes.NewReader(createTestPNG(16, 16)))
 	if err != nil {
 		t.Fatalf("UploadAttachment %s: %v", filename, err)
 	}

@@ -2662,6 +2662,18 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 	}
 }
 
+func TestEventTypeOf_AssetAttached(t *testing.T) {
+	event := &corev1.Event{Event: &corev1.Event_AssetAttached{
+		AssetAttached: &corev1.AssetAttachedEvent{AssetId: "A1", RoomId: "R1", MessageEventId: "M1", UserId: "U1"},
+	}}
+	if got := EventTypeOf(event); got != EventAssetAttached {
+		t.Fatalf("EventTypeOf(asset attached) = %q, want %q", got, EventAssetAttached)
+	}
+	if got := AssetAggregate("A1").SubjectFor(event); got != "evt.asset.A1.asset_attached" {
+		t.Fatalf("asset attachment subject = %q", got)
+	}
+}
+
 func TestAuthAggregate_Subject(t *testing.T) {
 	got := AuthAggregate().Subject(EventRegistrationVerificationCodeIssued)
 	want := "evt.auth.server.registration_verification_code_issued"

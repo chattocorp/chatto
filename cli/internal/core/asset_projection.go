@@ -10,9 +10,10 @@ import (
 )
 
 // AssetProjection owns durable asset lifecycle and message-ownership state.
-// New lifecycle writes live under evt.asset.{assetId}.*, while message bodies
-// establish which message, room, and author claimed an asset. The projection
-// also consumes legacy evt.room.*.asset_* lanes so beta histories replay.
+// New lifecycle writes live under evt.asset.{assetId}.*, including the
+// exclusive message attachment. Message bodies remain a first-reference
+// fallback for histories written before attachment events existed. The projection also
+// consumes legacy evt.room.*.asset_* lanes so beta histories replay.
 type AssetProjection struct {
 	events.MemoryProjection
 	replayGuard             projectionReplayGuard
@@ -104,6 +105,18 @@ func (p *AssetProjection) Apply(event *corev1.Event, seq uint64) error {
 				p.assetChildren[parentID] = appendIfMissing(p.assetChildren[parentID], assetID)
 			}
 		}
+	case *corev1.Event_AssetAttached:
+		attached := ev.AssetAttached
+		assetID := attached.GetAssetId()
+		if assetID != "" {
+			if _, exists := p.messageOwners[assetID]; !exists {
+				p.messageOwners[assetID] = assetMessageRef{
+					roomID:         attached.GetRoomId(),
+					messageEventID: attached.GetMessageEventId(),
+					authorID:       attached.GetUserId(),
+				}
+			}
+		}
 	case *corev1.Event_AssetProcessingStarted:
 		assetID := ev.AssetProcessingStarted.GetAssetId()
 		if assetID != "" {
@@ -185,6 +198,15 @@ func (p *AssetProjection) rememberMessageBodyAssetsLocked(roomID, messageEventID
 		}
 		if _, exists := p.messageOwners[assetID]; exists {
 			continue
+		}
+		// Pre-attachment histories derive ownership from message bodies. When the
+		// durable creation identifies an ordinary uploader, an alias authored by
+		// somebody else must never become the fallback owner during cold replay.
+		if creation := p.assetCreations[assetID]; creation != nil {
+			uploaderID := creation.GetUserId()
+			if uploaderID != "" && uploaderID != SystemActorID && uploaderID != authorID {
+				continue
+			}
 		}
 		p.messageOwners[assetID] = assetMessageRef{
 			roomID:         roomID,
@@ -291,9 +313,9 @@ func (p *AssetProjection) AssetDeleted(assetID string) bool {
 	return deleted
 }
 
-// AssetMessageOwner returns the room and message that first claimed assetID in
-// durable message history. Ownership survives asset deletion so a deletion
-// event can still be routed to the timeline row whose attachment changed.
+// AssetMessageOwner returns the room and message to which assetID was first
+// attached in durable message history. Ownership survives asset deletion so a
+// deletion event can still be routed to the timeline row whose attachment changed.
 func (p *AssetProjection) AssetMessageOwner(assetID string) (roomID, messageEventID string, ok bool) {
 	p.RLock()
 	defer p.RUnlock()
@@ -302,6 +324,13 @@ func (p *AssetProjection) AssetMessageOwner(assetID string) (roomID, messageEven
 		return "", "", false
 	}
 	return owner.roomID, owner.messageEventID, true
+}
+
+func (p *AssetProjection) assetMessageAttachment(assetID string) (assetMessageRef, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	owner, ok := p.messageOwners[assetID]
+	return owner, ok
 }
 
 // MessageAssetsByAuthor returns message-owned assets attributed to userID.

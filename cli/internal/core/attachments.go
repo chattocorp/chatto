@@ -77,9 +77,9 @@ func (c *MediaModel) GetAttachmentsStore(ctx context.Context) (jetstream.ObjectS
 // the rendered Attachment view for the caller.
 //
 // `actorID` is the uploader; it's stamped on the AssetCreatedEvent as the
-// asset's user_id, distinct from any future message_event_id that might
-// claim the asset. The returned Attachment has `MessageBodyId` empty — the
-// asset is not (yet) bound to a message; PostMessage references it by id.
+// asset's user_id, distinct from any future message_event_id that attaches the
+// asset. The returned Attachment has `MessageBodyId` empty — the asset is not
+// yet bound to a message; PostMessage references it by ID.
 func (c *MediaModel) UploadAttachment(
 	ctx context.Context,
 	actorID string,

@@ -143,8 +143,9 @@ func (AssetProcessingFailureCode) EnumDescriptor() ([]byte, []int) {
 }
 
 // AssetCreatedEvent carries no message linkage: it is emitted at upload
-// time, before any message exists. Message ownership of an asset is derived
-// from MessageBodyEvent.asset_ids in the asset projection.
+// time, before any message exists. AssetAttachedEvent later records the
+// exclusive message attachment; MessageBodyEvent.asset_ids remains a replay
+// fallback for histories written before explicit attachment events existed.
 type AssetCreatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// The asset record (content identity + storage).
@@ -168,11 +169,11 @@ type AssetCreatedEvent struct {
 	// SHA-256 digest of the original uploaded binary, lowercase hexadecimal.
 	// Empty for legacy assets and generated derivatives.
 	Sha256 string `protobuf:"bytes,8,opt,name=sha256,proto3" json:"sha256,omitempty"`
-	// Time after which an unclaimed room-scoped attachment upload may be
-	// deleted. Cleared/ignored once a message body references the asset ID.
+	// Time after which an unattached room-scoped upload may be deleted. Ignored
+	// once AssetAttachedEvent binds the asset to a message.
 	PendingExpiresAt *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=pending_expires_at,json=pendingExpiresAt,proto3" json:"pending_expires_at,omitempty"`
 	// Whether this asset should be routed through attachment video processing
-	// after a message claims it. Set for videos and animated GIFs.
+	// after a message attaches it. Set for videos and animated GIFs.
 	NeedsVideoProcessing bool `protobuf:"varint,10,opt,name=needs_video_processing,json=needsVideoProcessing,proto3" json:"needs_video_processing,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
@@ -317,6 +318,82 @@ func (x *AssetDeletedEvent) GetAssetId() string {
 	return ""
 }
 
+// AssetAttachedEvent records that one pending uploaded asset became an
+// attachment of the exact message that first references it. The attachment
+// commits atomically with the message and is fenced against the complete asset
+// aggregate.
+type AssetAttachedEvent struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Asset ID being attached.
+	AssetId string `protobuf:"bytes,1,opt,name=asset_id,json=assetId,proto3" json:"asset_id,omitempty"`
+	// Room containing both the upload and owning message.
+	RoomId string `protobuf:"bytes,2,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
+	// Event ID of the one message that owns the asset.
+	MessageEventId string `protobuf:"bytes,3,opt,name=message_event_id,json=messageEventId,proto3" json:"message_event_id,omitempty"`
+	// User ID of the uploader and message author.
+	UserId        string `protobuf:"bytes,4,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *AssetAttachedEvent) Reset() {
+	*x = AssetAttachedEvent{}
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *AssetAttachedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*AssetAttachedEvent) ProtoMessage() {}
+
+func (x *AssetAttachedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use AssetAttachedEvent.ProtoReflect.Descriptor instead.
+func (*AssetAttachedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *AssetAttachedEvent) GetAssetId() string {
+	if x != nil {
+		return x.AssetId
+	}
+	return ""
+}
+
+func (x *AssetAttachedEvent) GetRoomId() string {
+	if x != nil {
+		return x.RoomId
+	}
+	return ""
+}
+
+func (x *AssetAttachedEvent) GetMessageEventId() string {
+	if x != nil {
+		return x.MessageEventId
+	}
+	return ""
+}
+
+func (x *AssetAttachedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
 // AssetProcessingStartedEvent signals that derivative processing has been
 // enqueued for an asset. It is the PENDING marker the frontend uses to
 // render a "processing…" placeholder until succeeded/failed lands.
@@ -335,7 +412,7 @@ type AssetProcessingStartedEvent struct {
 
 func (x *AssetProcessingStartedEvent) Reset() {
 	*x = AssetProcessingStartedEvent{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[3]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -347,7 +424,7 @@ func (x *AssetProcessingStartedEvent) String() string {
 func (*AssetProcessingStartedEvent) ProtoMessage() {}
 
 func (x *AssetProcessingStartedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[2]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[3]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -360,7 +437,7 @@ func (x *AssetProcessingStartedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessingStartedEvent.ProtoReflect.Descriptor instead.
 func (*AssetProcessingStartedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{2}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{3}
 }
 
 func (x *AssetProcessingStartedEvent) GetAssetId() string {
@@ -395,7 +472,7 @@ type AssetProcessingSucceededEvent struct {
 
 func (x *AssetProcessingSucceededEvent) Reset() {
 	*x = AssetProcessingSucceededEvent{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -407,7 +484,7 @@ func (x *AssetProcessingSucceededEvent) String() string {
 func (*AssetProcessingSucceededEvent) ProtoMessage() {}
 
 func (x *AssetProcessingSucceededEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[3]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -420,7 +497,7 @@ func (x *AssetProcessingSucceededEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessingSucceededEvent.ProtoReflect.Descriptor instead.
 func (*AssetProcessingSucceededEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{3}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{4}
 }
 
 func (x *AssetProcessingSucceededEvent) GetAssetId() string {
@@ -460,7 +537,7 @@ type AssetProcessingFailedEvent struct {
 
 func (x *AssetProcessingFailedEvent) Reset() {
 	*x = AssetProcessingFailedEvent{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -472,7 +549,7 @@ func (x *AssetProcessingFailedEvent) String() string {
 func (*AssetProcessingFailedEvent) ProtoMessage() {}
 
 func (x *AssetProcessingFailedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[4]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -485,7 +562,7 @@ func (x *AssetProcessingFailedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessingFailedEvent.ProtoReflect.Descriptor instead.
 func (*AssetProcessingFailedEvent) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{4}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *AssetProcessingFailedEvent) GetAssetId() string {
@@ -527,7 +604,7 @@ type AssetProcessedVideo struct {
 
 func (x *AssetProcessedVideo) Reset() {
 	*x = AssetProcessedVideo{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[6]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -539,7 +616,7 @@ func (x *AssetProcessedVideo) String() string {
 func (*AssetProcessedVideo) ProtoMessage() {}
 
 func (x *AssetProcessedVideo) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[5]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[6]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -552,7 +629,7 @@ func (x *AssetProcessedVideo) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessedVideo.ProtoReflect.Descriptor instead.
 func (*AssetProcessedVideo) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{5}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{6}
 }
 
 func (x *AssetProcessedVideo) GetDurationMs() int64 {
@@ -607,7 +684,7 @@ type AssetVideoVariant struct {
 
 func (x *AssetVideoVariant) Reset() {
 	*x = AssetVideoVariant{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -619,7 +696,7 @@ func (x *AssetVideoVariant) String() string {
 func (*AssetVideoVariant) ProtoMessage() {}
 
 func (x *AssetVideoVariant) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[6]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -632,7 +709,7 @@ func (x *AssetVideoVariant) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetVideoVariant.ProtoReflect.Descriptor instead.
 func (*AssetVideoVariant) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{6}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *AssetVideoVariant) GetQuality() string {
@@ -661,7 +738,7 @@ type AssetProcessedHLS struct {
 
 func (x *AssetProcessedHLS) Reset() {
 	*x = AssetProcessedHLS{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -673,7 +750,7 @@ func (x *AssetProcessedHLS) String() string {
 func (*AssetProcessedHLS) ProtoMessage() {}
 
 func (x *AssetProcessedHLS) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[7]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -686,7 +763,7 @@ func (x *AssetProcessedHLS) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetProcessedHLS.ProtoReflect.Descriptor instead.
 func (*AssetProcessedHLS) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{7}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AssetProcessedHLS) GetRenditions() []*AssetHLSRendition {
@@ -708,7 +785,7 @@ type AssetHLSRendition struct {
 
 func (x *AssetHLSRendition) Reset() {
 	*x = AssetHLSRendition{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -720,7 +797,7 @@ func (x *AssetHLSRendition) String() string {
 func (*AssetHLSRendition) ProtoMessage() {}
 
 func (x *AssetHLSRendition) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[8]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -733,7 +810,7 @@ func (x *AssetHLSRendition) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetHLSRendition.ProtoReflect.Descriptor instead.
 func (*AssetHLSRendition) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{8}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *AssetHLSRendition) GetWidth() int32 {
@@ -775,7 +852,7 @@ type AssetHLSSegment struct {
 
 func (x *AssetHLSSegment) Reset() {
 	*x = AssetHLSSegment{}
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -787,7 +864,7 @@ func (x *AssetHLSSegment) String() string {
 func (*AssetHLSSegment) ProtoMessage() {}
 
 func (x *AssetHLSSegment) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[9]
+	mi := &file_chatto_core_v1_asset_events_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -800,7 +877,7 @@ func (x *AssetHLSSegment) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AssetHLSSegment.ProtoReflect.Descriptor instead.
 func (*AssetHLSSegment) Descriptor() ([]byte, []int) {
-	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{9}
+	return file_chatto_core_v1_asset_events_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *AssetHLSSegment) GetAssetId() string {
@@ -834,7 +911,12 @@ const file_chatto_core_v1_asset_events_proto_rawDesc = "" +
 	"\x16needs_video_processing\x18\n" +
 	" \x01(\bR\x14needsVideoProcessingJ\x04\b\x04\x10\x05R\x10message_event_id\".\n" +
 	"\x11AssetDeletedEvent\x12\x19\n" +
-	"\basset_id\x18\x01 \x01(\tR\aassetId\"b\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\"\x8b\x01\n" +
+	"\x12AssetAttachedEvent\x12\x19\n" +
+	"\basset_id\x18\x01 \x01(\tR\aassetId\x12\x17\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12(\n" +
+	"\x10message_event_id\x18\x03 \x01(\tR\x0emessageEventId\x12\x17\n" +
+	"\auser_id\x18\x04 \x01(\tR\x06userId\"b\n" +
 	"\x1bAssetProcessingStartedEvent\x12\x19\n" +
 	"\basset_id\x18\x01 \x01(\tR\aassetId\x12(\n" +
 	"\x10message_event_id\x18\x02 \x01(\tR\x0emessageEventId\"\x9f\x01\n" +
@@ -894,33 +976,34 @@ func file_chatto_core_v1_asset_events_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_asset_events_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_chatto_core_v1_asset_events_proto_msgTypes = make([]protoimpl.MessageInfo, 11)
 var file_chatto_core_v1_asset_events_proto_goTypes = []any{
 	(AssetDerivativeRole)(0),              // 0: chatto.core.v1.AssetDerivativeRole
 	(AssetProcessingFailureCode)(0),       // 1: chatto.core.v1.AssetProcessingFailureCode
 	(*AssetCreatedEvent)(nil),             // 2: chatto.core.v1.AssetCreatedEvent
 	(*AssetDeletedEvent)(nil),             // 3: chatto.core.v1.AssetDeletedEvent
-	(*AssetProcessingStartedEvent)(nil),   // 4: chatto.core.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil), // 5: chatto.core.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),    // 6: chatto.core.v1.AssetProcessingFailedEvent
-	(*AssetProcessedVideo)(nil),           // 7: chatto.core.v1.AssetProcessedVideo
-	(*AssetVideoVariant)(nil),             // 8: chatto.core.v1.AssetVideoVariant
-	(*AssetProcessedHLS)(nil),             // 9: chatto.core.v1.AssetProcessedHLS
-	(*AssetHLSRendition)(nil),             // 10: chatto.core.v1.AssetHLSRendition
-	(*AssetHLSSegment)(nil),               // 11: chatto.core.v1.AssetHLSSegment
-	(*AssetRecord)(nil),                   // 12: chatto.core.v1.AssetRecord
-	(*timestamppb.Timestamp)(nil),         // 13: google.protobuf.Timestamp
+	(*AssetAttachedEvent)(nil),            // 4: chatto.core.v1.AssetAttachedEvent
+	(*AssetProcessingStartedEvent)(nil),   // 5: chatto.core.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil), // 6: chatto.core.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),    // 7: chatto.core.v1.AssetProcessingFailedEvent
+	(*AssetProcessedVideo)(nil),           // 8: chatto.core.v1.AssetProcessedVideo
+	(*AssetVideoVariant)(nil),             // 9: chatto.core.v1.AssetVideoVariant
+	(*AssetProcessedHLS)(nil),             // 10: chatto.core.v1.AssetProcessedHLS
+	(*AssetHLSRendition)(nil),             // 11: chatto.core.v1.AssetHLSRendition
+	(*AssetHLSSegment)(nil),               // 12: chatto.core.v1.AssetHLSSegment
+	(*AssetRecord)(nil),                   // 13: chatto.core.v1.AssetRecord
+	(*timestamppb.Timestamp)(nil),         // 14: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_asset_events_proto_depIdxs = []int32{
-	12, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	13, // 0: chatto.core.v1.AssetCreatedEvent.asset:type_name -> chatto.core.v1.AssetRecord
 	0,  // 1: chatto.core.v1.AssetCreatedEvent.derivative_role:type_name -> chatto.core.v1.AssetDerivativeRole
-	13, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
-	7,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
+	14, // 2: chatto.core.v1.AssetCreatedEvent.pending_expires_at:type_name -> google.protobuf.Timestamp
+	8,  // 3: chatto.core.v1.AssetProcessingSucceededEvent.video:type_name -> chatto.core.v1.AssetProcessedVideo
 	1,  // 4: chatto.core.v1.AssetProcessingFailedEvent.failure_code:type_name -> chatto.core.v1.AssetProcessingFailureCode
-	8,  // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
-	9,  // 6: chatto.core.v1.AssetProcessedVideo.hls:type_name -> chatto.core.v1.AssetProcessedHLS
-	10, // 7: chatto.core.v1.AssetProcessedHLS.renditions:type_name -> chatto.core.v1.AssetHLSRendition
-	11, // 8: chatto.core.v1.AssetHLSRendition.segments:type_name -> chatto.core.v1.AssetHLSSegment
+	9,  // 5: chatto.core.v1.AssetProcessedVideo.variants:type_name -> chatto.core.v1.AssetVideoVariant
+	10, // 6: chatto.core.v1.AssetProcessedVideo.hls:type_name -> chatto.core.v1.AssetProcessedHLS
+	11, // 7: chatto.core.v1.AssetProcessedHLS.renditions:type_name -> chatto.core.v1.AssetHLSRendition
+	12, // 8: chatto.core.v1.AssetHLSRendition.segments:type_name -> chatto.core.v1.AssetHLSSegment
 	9,  // [9:9] is the sub-list for method output_type
 	9,  // [9:9] is the sub-list for method input_type
 	9,  // [9:9] is the sub-list for extension type_name
@@ -940,7 +1023,7 @@ func file_chatto_core_v1_asset_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_asset_events_proto_rawDesc), len(file_chatto_core_v1_asset_events_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   10,
+			NumMessages:   11,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

@@ -29,8 +29,9 @@ type CreateMessageRequest struct {
 	RoomId string `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	// Message body text. Required unless attachment_asset_ids is non-empty.
 	Body string `protobuf:"bytes,2,opt,name=body,proto3" json:"body,omitempty"`
-	// Existing room-scoped attachment asset IDs to include with the message.
-	// At most 10 IDs may be supplied.
+	// Completed room-scoped asset IDs uploaded by the caller and not yet attached
+	// to a message. The server attaches them exclusively and atomically to this
+	// message. At most 10 IDs may be supplied.
 	AttachmentAssetIds []string `protobuf:"bytes,3,rep,name=attachment_asset_ids,json=attachmentAssetIds,proto3" json:"attachment_asset_ids,omitempty"`
 	// Event ID of the thread root message when posting a thread reply.
 	ThreadRootEventId string `protobuf:"bytes,4,opt,name=thread_root_event_id,json=threadRootEventId,proto3" json:"thread_root_event_id,omitempty"`

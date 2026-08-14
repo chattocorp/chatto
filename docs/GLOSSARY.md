@@ -78,7 +78,9 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Delivery Intensity** — Per-cause notification preference with one of three effective values: Off, Badge, or Alert. See [FDR-012](fdr/FDR-012-notifications.md).
 
-**Attachment** — File (image, document, video) uploaded alongside a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
+**Asset** — An uploaded or generated file stored by Chatto; it may exist before or independently of a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
+
+**Attachment** — An asset attached to one message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 
 **Link Preview** — Auto-generated preview card for URLs in messages. See [FDR-009](fdr/FDR-009-link-previews.md).
 
