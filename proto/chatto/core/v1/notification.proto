@@ -105,6 +105,9 @@ message RoomMessageNotification {
 // NotificationReason identifies why one source activity qualified for a
 // recipient's notification list. One occurrence can retain several reasons.
 enum NotificationReason {
+  reserved 10;
+  reserved "NOTIFICATION_REASON_ROOM_INVITATION";
+
   NOTIFICATION_REASON_UNSPECIFIED = 0;
   NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
   NOTIFICATION_REASON_DIRECT_MENTION = 2;
@@ -115,7 +118,6 @@ enum NotificationReason {
   NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
   NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
   NOTIFICATION_REASON_REACTION = 9;
-  NOTIFICATION_REASON_ROOM_INVITATION = 10;
 }
 
 // NotificationDeliveryIntensity controls whether qualifying activity is
@@ -216,6 +218,10 @@ message NotificationOccurrence {
   // Source-time visual importance. Older records without this field derive a
   // conservative value from their retained reasons.
   NotificationAttentionLevel attention_level = 19;
+  // Immutable interruptive-delivery deadline derived from source_created_at.
+  // Older Alert records without this field derive the same bounded deadline
+  // from source_created_at.
+  google.protobuf.Timestamp alert_expires_at = 20;
 }
 
 // NotificationAlertJob is the content-free handoff from occurrence
@@ -229,4 +235,6 @@ message NotificationAlertJob {
   string source_event_id = 2;
   // Deterministic occurrence ID used as the delivery idempotency fence.
   string notification_id = 3;
+  // Immutable delivery deadline copied from the authoritative occurrence.
+  google.protobuf.Timestamp alert_expires_at = 4;
 }

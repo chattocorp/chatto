@@ -20,6 +20,16 @@ const (
 
 type notificationService struct {
 	api *API
+	// assembleOccurrence is an unexported failure-injection seam for proving
+	// that response hydration completes before a triage mutation commits.
+	assembleOccurrence func(context.Context, *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error)
+}
+
+func (s *notificationService) hydratedOccurrence(ctx context.Context, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+	if s.assembleOccurrence != nil {
+		return s.assembleOccurrence(ctx, occurrence)
+	}
+	return newNotificationAssembler(s.api).occurrence(ctx, occurrence)
 }
 
 func (s *notificationService) waitForCurrentOccurrences(ctx context.Context) error {
@@ -199,14 +209,18 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return nil, connectError(core.ErrNotFound)
 	}
-	occurrence, err := s.api.core.NotificationOccurrences().MarkRead(ctx, caller.UserID, req.Msg.GetNotificationId())
+	// Hydration may consult unrelated projections and fail. Complete it before
+	// committing the triage mutation so an error response never ambiguously
+	// means that the server may already have marked the occurrence read.
+	item, err := s.hydratedOccurrence(ctx, existing)
 	if err != nil {
 		return nil, connectError(err)
 	}
-	item, err := newNotificationAssembler(s.api).occurrence(ctx, occurrence)
+	_, err = s.api.core.NotificationOccurrences().MarkRead(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
 		return nil, connectError(err)
 	}
+	item.Unread = false
 	return connect.NewResponse(&apiv1.MarkNotificationReadResponse{Notification: item}), nil
 }
 

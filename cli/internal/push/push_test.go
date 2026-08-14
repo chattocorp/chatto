@@ -718,6 +718,28 @@ func TestSend(t *testing.T) {
 		}
 	})
 
+	t.Run("uses the notification alert remaining lifetime as provider TTL", func(t *testing.T) {
+		var ttl string
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			ttl = r.Header.Get("TTL")
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), &Payload{
+			Title:      "Test",
+			TTLSeconds: 73,
+		})
+
+		if result.Error != nil {
+			t.Fatalf("Send error: %v", result.Error)
+		}
+		if ttl != "73" {
+			t.Fatalf("TTL = %q, want 73", ttl)
+		}
+	})
+
 	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
 		var urgency string
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

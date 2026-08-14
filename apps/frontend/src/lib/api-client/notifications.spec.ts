@@ -40,7 +40,6 @@ function occurrence(
         : NotificationAttentionLevel.IMPORTANT,
     unread: true,
     reactionEmoji: null,
-    threadRootMessageExcerpt: null,
     ...overrides
   };
 }

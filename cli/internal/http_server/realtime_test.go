@@ -1753,11 +1753,17 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 			t.Fatalf("JoinRoom %q: %v", userID, err)
 		}
 	}
+	eventCtx, cancelEvents := context.WithCancel(env.ctx)
+	defer cancelEvents()
+	eventStream, err := env.core.StreamMyEvents(eventCtx, viewer.Id)
+	if err != nil {
+		t.Fatalf("StreamMyEvents: %v", err)
+	}
 	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
 	}
-	_, err = env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "@rt-notification-v2-viewer hello", nil, root.Id, "", nil, false)
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "@rt-notification-v2-viewer hello", nil, root.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
@@ -1766,12 +1772,35 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
 	}
 	occurrence := occurrences[0]
+	var createdChange *corev1.NotificationOccurrenceChangedEvent
+	deadline := time.After(5 * time.Second)
+	for createdChange == nil {
+		select {
+		case envelope := <-eventStream:
+			if envelope == nil || envelope.LiveEvent() == nil {
+				continue
+			}
+			change := envelope.LiveEvent().GetNotificationOccurrenceChanged()
+			if change.GetCreated() && change.GetSourceEventId() == reply.GetId() {
+				createdChange = proto.Clone(change).(*corev1.NotificationOccurrenceChangedEvent)
+			}
+		case <-deadline:
+			t.Fatal("timed out waiting for authoritative notification creation signal")
+		}
+	}
+	if createdChange.GetRuntimeStateRevision() == 0 {
+		t.Fatal("creation signal has no runtime-state revision fence")
+	}
 
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-created",
 		ActorId: author.Id,
 		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-			NotificationId: occurrence.GetId(), Created: true, Alert: true,
+			NotificationId:       createdChange.GetNotificationId(),
+			Created:              true,
+			Alert:                createdChange.GetAlert(),
+			SourceEventId:        createdChange.GetSourceEventId(),
+			RuntimeStateRevision: createdChange.GetRuntimeStateRevision(),
 		}},
 	}))
 	if err != nil || !handled {
@@ -1811,6 +1840,38 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	}
 	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
 		t.Fatalf("updated change = %+v", change)
+	}
+
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-v2-stale-created-after-read",
+		ActorId: author.Id,
+		Event:   &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: proto.Clone(createdChange).(*corev1.NotificationOccurrenceChangedEvent)},
+	}))
+	if err != nil || !handled {
+		t.Fatalf("stale created-after-read frame = %+v, handled=%v, err=%v", frame, handled, err)
+	}
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || !change.GetSilent() {
+		t.Fatalf("stale created-after-read change = %+v, want updated and silent", change)
+	}
+
+	if deleted, err := env.core.NotificationOccurrences().Delete(env.ctx, viewer.Id, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED); err != nil || !deleted {
+		t.Fatalf("Delete occurrence = (%v, %v), want true, nil", deleted, err)
+	}
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id:      "notification-v2-stale-created-after-delete",
+		ActorId: author.Id,
+		Event:   &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: proto.Clone(createdChange).(*corev1.NotificationOccurrenceChangedEvent)},
+	}))
+	if err != nil || !handled {
+		t.Fatalf("stale created-after-delete frame = %+v, handled=%v, err=%v", frame, handled, err)
+	}
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	if len(replacement.GetOccurrences().GetOccurrences()) != 0 {
+		t.Fatalf("stale created-after-delete occurrences = %+v, want empty", replacement.GetOccurrences().GetOccurrences())
+	}
+	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || !change.GetSilent() {
+		t.Fatalf("stale created-after-delete change = %+v, want updated and silent", change)
 	}
 }
 

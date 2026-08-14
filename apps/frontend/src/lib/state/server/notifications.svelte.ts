@@ -125,17 +125,17 @@ export function notificationTarget(n: NotificationItem): NotificationTarget {
 export class NotificationStore {
   #api: NotificationAPI;
   #fetchGeneration = 0;
-  // Authoritative replacements suppress rollback of older optimistic state.
+  // Authoritative replacements suppress stale reads and optimistic state.
   #authoritativeGeneration = 0;
-  // Exact deletions are independent; delete-all supersedes all of them.
+  // Exact deletions are independent and can overlap.
   #deletionSequence = 0;
-  #deleteAllGeneration = 0;
   #pendingDeletionById = new SvelteMap<string, number>();
   #readSequence = 0;
   #pendingReadById = new SvelteMap<string, number>();
   #pendingReadRequestById = new SvelteMap<string, Promise<NotificationOccurrenceItem>>();
   #pendingMutationCount = 0;
   #mutationIdleWaiters = new SvelteSet<() => void>();
+  #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
   notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
@@ -508,7 +508,7 @@ export class NotificationStore {
     }
   }
 
-  /** Delete exact occurrences optimistically, restoring them on failure. */
+  /** Delete exact occurrences optimistically, reconciling ambiguous failures. */
   async deleteOccurrences(
     notificationIds: string[],
     knownCounts?: { unread: number; importantUnread: number; roomId?: string | null }
@@ -518,10 +518,6 @@ export class NotificationStore {
     const removedOccurrences = this.occurrences.filter((occurrence) =>
       removedIds.has(occurrence.id)
     );
-    const removedNotifications = this.notifications.filter((notification) =>
-      removedIds.has(notification.id)
-    );
-    const deleteAllGeneration = this.#deleteAllGeneration;
     const mutation = ++this.#deletionSequence;
     const overlappingReadRequests = uniqueIds.flatMap((id) => {
       const request = this.#pendingReadRequestById.get(id);
@@ -556,6 +552,8 @@ export class NotificationStore {
     this.#adjustRoomCounts(roomAdjustments, -1);
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
 
+    let mutationFailed = false;
+    let mutationError: unknown;
     try {
       await this.#api.batchDeleteNotificationOccurrences(uniqueIds);
       // Keep the deletion marker in place until older reads settle. A failed
@@ -564,61 +562,8 @@ export class NotificationStore {
         await Promise.allSettled(overlappingReadRequests);
       }
     } catch (error) {
-      const rollbackIds = new SvelteSet(
-        uniqueIds.filter((id) => this.#pendingDeletionById.get(id) === mutation)
-      );
-      if (this.#deleteAllGeneration === deleteAllGeneration && rollbackIds.size > 0) {
-        if (overlappingReadRequests.length > 0) {
-          await Promise.allSettled(overlappingReadRequests);
-          await this.#reconcileAfterOverlappingMutation();
-          throw error;
-        }
-        const visibleRollbackIds = new SvelteSet(
-          [...rollbackIds].filter((id) => {
-            const occurrence = removedOccurrences.find((candidate) => candidate.id === id);
-            const roomId = occurrence?.room?.id;
-            return !roomId || !this.revokedRoomIds.has(roomId);
-          })
-        );
-        this.occurrences = mergeNotificationOccurrences(
-          this.occurrences,
-          removedOccurrences
-            .filter((occurrence) => visibleRollbackIds.has(occurrence.id))
-            .map((occurrence) => this.#privacySafeOccurrence(occurrence))
-        );
-        this.notifications = mergeNotificationItems(
-          this.notifications,
-          removedNotifications
-            .filter((notification) => visibleRollbackIds.has(notification.id))
-            .map((notification) => this.#privacySafeNotification(notification))
-        );
-        const rollbackUnreadCount =
-          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
-            ? knownCounts.unread
-            : removedOccurrences.filter(
-                (occurrence) => visibleRollbackIds.has(occurrence.id) && occurrence.unread
-              ).length;
-        const rollbackImportantUnreadCount =
-          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
-            ? knownCounts.importantUnread
-            : removedOccurrences.filter(
-                (occurrence) =>
-                  visibleRollbackIds.has(occurrence.id) &&
-                  occurrence.unread &&
-                  occurrence.attentionLevel === NotificationAttentionLevel.IMPORTANT
-              ).length;
-        this.unreadNotificationCount += rollbackUnreadCount;
-        this.importantUnreadNotificationCount += rollbackImportantUnreadCount;
-        const rollbackRoomAdjustments =
-          knownCounts !== undefined && visibleRollbackIds.size === removedIds.size
-            ? notificationRoomAdjustments([], knownCounts)
-            : notificationRoomAdjustments(
-                removedOccurrences.filter((occurrence) => visibleRollbackIds.has(occurrence.id))
-              );
-        this.#adjustRoomCounts(rollbackRoomAdjustments, 1);
-        this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
-      }
-      throw error;
+      mutationFailed = true;
+      mutationError = error;
     } finally {
       for (const id of uniqueIds) {
         if (this.#pendingDeletionById.get(id) === mutation) {
@@ -627,24 +572,18 @@ export class NotificationStore {
       }
       this.#endMutation();
     }
+    if (mutationFailed) {
+      await this.#reconcileAfterFailedMutation(mutationError);
+      throw mutationError;
+    }
   }
 
   /** Delete every current occurrence optimistically for this server. */
   async deleteAllOccurrences(): Promise<void> {
-    const originalOccurrences = this.occurrences;
-    const originalNotifications = this.notifications;
-    const originalCount = this.unreadNotificationCount;
-    const originalImportantCount = this.importantUnreadNotificationCount;
-    const originalRoomUnreadCounts = this.roomUnreadCounts;
-    const originalRoomImportantUnreadCounts = this.roomImportantUnreadCounts;
-    const originalNextExpiryAt = this.nextExpiryAt;
-    const overlappingReadRequests = [...this.#pendingReadRequestById.values()];
     this.#fetchGeneration++;
     this.#beginMutation();
-    this.#deleteAllGeneration++;
     this.#pendingDeletionById.clear();
     this.loading = false;
-    const mutationGeneration = this.#fetchGeneration;
     this.occurrences = [];
     this.notifications = [];
     this.unreadNotificationCount = 0;
@@ -653,49 +592,19 @@ export class NotificationStore {
     this.roomImportantUnreadCounts = {};
     this.nextExpiryAt = null;
 
+    let mutationFailed = false;
+    let mutationError: unknown;
     try {
       await this.#api.deleteAllNotificationOccurrences();
     } catch (error) {
-      if (this.#fetchGeneration === mutationGeneration) {
-        if (overlappingReadRequests.length > 0) {
-          await Promise.allSettled(overlappingReadRequests);
-          await this.#reconcileAfterOverlappingMutation();
-          throw error;
-        }
-        const revokedUnreadCount = [...this.revokedRoomIds].reduce(
-          (total, roomId) => total + (originalRoomUnreadCounts[roomId] ?? 0),
-          0
-        );
-        const revokedImportantUnreadCount = [...this.revokedRoomIds].reduce(
-          (total, roomId) => total + (originalRoomImportantUnreadCounts[roomId] ?? 0),
-          0
-        );
-        this.occurrences = originalOccurrences
-          .filter((occurrence) => !occurrence.room || !this.revokedRoomIds.has(occurrence.room.id))
-          .map((occurrence) => this.#privacySafeOccurrence(occurrence));
-        this.notifications = originalNotifications
-          .filter((notification) => {
-            const roomId = notificationTarget(notification).roomId;
-            return !roomId || !this.revokedRoomIds.has(roomId);
-          })
-          .map((notification) => this.#privacySafeNotification(notification));
-        this.unreadNotificationCount = Math.max(0, originalCount - revokedUnreadCount);
-        this.importantUnreadNotificationCount = Math.max(
-          0,
-          originalImportantCount - revokedImportantUnreadCount
-        );
-        this.roomUnreadCounts = omitRecordKeys(originalRoomUnreadCounts, this.revokedRoomIds);
-        this.roomImportantUnreadCounts = omitRecordKeys(
-          originalRoomImportantUnreadCounts,
-          this.revokedRoomIds
-        );
-        this.nextExpiryAt = this.revokedRoomIds.size
-          ? earliestNotificationOccurrenceExpiry(this.occurrences)
-          : originalNextExpiryAt;
-      }
-      throw error;
+      mutationFailed = true;
+      mutationError = error;
     } finally {
       this.#endMutation();
+    }
+    if (mutationFailed) {
+      await this.#reconcileAfterFailedMutation(mutationError);
+      throw mutationError;
     }
   }
 
@@ -801,12 +710,21 @@ export class NotificationStore {
     if (!removed && !occurrence) {
       this.#fetchGeneration++;
       this.#beginMutation();
+      let mutationFailed = false;
+      let mutationError: unknown;
       try {
         await this.#api.markNotificationRead(notificationId);
-        return true;
+      } catch (error) {
+        mutationFailed = true;
+        mutationError = error;
       } finally {
         this.#endMutation();
       }
+      if (mutationFailed) {
+        await this.#reconcileAfterFailedMutation(mutationError);
+        throw mutationError;
+      }
+      return true;
     }
     if (occurrence && !occurrence.unread) return true;
 
@@ -815,7 +733,6 @@ export class NotificationStore {
     this.#fetchGeneration++;
     this.#beginMutation();
     this.loading = false;
-    const deleteAllGeneration = this.#deleteAllGeneration;
     const mutation = ++this.#readSequence;
     this.#pendingReadById.set(notificationId, mutation);
     const unreadDelta = occurrence?.unread || removed ? 1 : 0;
@@ -836,6 +753,7 @@ export class NotificationStore {
     this.#adjustRoomCounts(roomAdjustments, -1);
 
     let request: Promise<NotificationOccurrenceItem> | undefined;
+    let mutationFailed = false;
     try {
       request = this.#api.markNotificationRead(notificationId);
       this.#pendingReadRequestById.set(notificationId, request);
@@ -843,28 +761,7 @@ export class NotificationStore {
       return true;
     } catch (e) {
       console.error('Failed to mark notification read:', e);
-      if (
-        this.#pendingReadById.get(notificationId) === mutation &&
-        !this.#pendingDeletionById.has(notificationId) &&
-        this.#deleteAllGeneration === deleteAllGeneration
-      ) {
-        if (occurrence && !this.revokedRoomIds.has(occurrence.room?.id ?? '')) {
-          this.occurrences = mergeNotificationOccurrences(this.occurrences, [
-            this.#privacySafeOccurrence(occurrence)
-          ]);
-          if (removed) this.#restoreNotification(this.#privacySafeNotification(removed));
-          this.unreadNotificationCount += unreadDelta;
-          this.importantUnreadNotificationCount += importantDelta;
-          this.#adjustRoomCounts(roomAdjustments, 1);
-        } else if (!occurrence && removed) {
-          const roomId = notificationTarget(removed).roomId;
-          if (!roomId || !this.revokedRoomIds.has(roomId)) {
-            this.#restoreNotification(this.#privacySafeNotification(removed));
-            this.unreadNotificationCount += unreadDelta;
-          }
-        }
-      }
-      return false;
+      mutationFailed = true;
     } finally {
       if (this.#pendingReadById.get(notificationId) === mutation) {
         this.#pendingReadById.delete(notificationId);
@@ -874,6 +771,11 @@ export class NotificationStore {
       }
       this.#endMutation();
     }
+    if (mutationFailed) {
+      await this.#reconcileAfterFailedMutation();
+      return false;
+    }
+    return true;
   }
 
   #beginMutation(): void {
@@ -907,12 +809,24 @@ export class NotificationStore {
     this.roomImportantUnreadCounts = important;
   }
 
-  async #reconcileAfterOverlappingMutation(): Promise<void> {
-    const authoritativeGeneration = this.#authoritativeGeneration;
-    const page = await this.#api.listNotificationOccurrences(50, 0);
-    if (authoritativeGeneration !== this.#authoritativeGeneration) return;
-    this.replaceOccurrenceProjection(page);
-    this.invalidateViews();
+  async #reconcileAfterFailedMutation(originalError?: unknown): Promise<void> {
+    if (!this.#failedMutationReconciliation) {
+      const reconciliation = this.#runFailedMutationReconciliation();
+      this.#failedMutationReconciliation = reconciliation;
+      const clearReconciliation = () => {
+        if (this.#failedMutationReconciliation === reconciliation) {
+          this.#failedMutationReconciliation = undefined;
+        }
+      };
+      void reconciliation.then(clearReconciliation, clearReconciliation);
+    }
+    try {
+      await this.#failedMutationReconciliation;
+    } catch (error) {
+      console.error('Failed to reconcile notifications after an ambiguous mutation:', error, {
+        cause: originalError
+      });
+    }
   }
 
   #privacySafeOccurrence(occurrence: NotificationOccurrenceItem): NotificationOccurrenceItem {
@@ -931,12 +845,21 @@ export class NotificationStore {
       : notification;
   }
 
-  /**
-   * Re-insert a previously-removed notification, sorted most-recent-first by
-   * createdAt to preserve the canonical ordering after a rollback.
-   */
-  #restoreNotification(notification: NotificationItem): void {
-    this.#upsertNotification(notification);
+  async #runFailedMutationReconciliation(): Promise<void> {
+    while (true) {
+      if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
+      const authoritativeGeneration = this.#authoritativeGeneration;
+      const page = await this.#api.listNotificationOccurrences(50, 0);
+      if (
+        this.#pendingMutationCount > 0 ||
+        authoritativeGeneration !== this.#authoritativeGeneration
+      ) {
+        continue;
+      }
+      this.replaceOccurrenceProjection(page);
+      this.invalidateViews();
+      return;
+    }
   }
 
   #upsertNotification(notification: NotificationItem): boolean {
@@ -1095,13 +1018,4 @@ function mergeNotificationOccurrences(
   const byId = new SvelteMap(current.map((occurrence) => [occurrence.id, occurrence]));
   for (const occurrence of restored) byId.set(occurrence.id, occurrence);
   return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
-}
-
-function mergeNotificationItems(
-  current: NotificationItem[],
-  restored: NotificationItem[]
-): NotificationItem[] {
-  const byId = new SvelteMap(current.map((notification) => [notification.id, notification]));
-  for (const notification of restored) byId.set(notification.id, notification);
-  return [...byId.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 50);
 }

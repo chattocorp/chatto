@@ -2,10 +2,13 @@ package core
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
 )
 
 var notificationPolicyReasons = []corev1.NotificationReason{
@@ -145,28 +148,17 @@ func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID 
 	})
 }
 
-func (c *ChattoCore) setRoomNotificationIntensity(ctx context.Context, userID, roomID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) error {
-	if !validNotificationReason(reason) || !validNotificationIntensity(intensity, true) {
-		return invalidArgument("invalid notification reason or delivery intensity")
-	}
-	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		if c.configModel.notificationRoomIntensity(userID, roomID, reason) == intensity {
-			return nil, nil
-		}
-		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
-			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, RoomId: &roomID, Reason: reason, Intensity: intensity},
-		}})}, nil
-	})
-}
-
 // GetNotificationPolicy returns every supported cause with its explicit and
 // effective values. If roomID is set, the actor must be a room member.
 func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
+	if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
+		return nil, err
+	}
 	if roomID != "" {
-		if err := s.requireRoomMember(ctx, actorID, roomID); err != nil {
+		if _, err := s.prepareRoomAccess(ctx, actorID, roomID); err != nil {
 			return nil, err
 		}
 	}
@@ -197,13 +189,93 @@ func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Conte
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
+	if !validNotificationReason(reason) || !validNotificationIntensity(intensity, true) {
+		return nil, invalidArgument("invalid notification reason or delivery intensity")
+	}
+	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
+		authorizationSeq, err := s.prepareRoomAccess(ctx, actorID, roomID)
+		if err != nil {
+			return nil, err
+		}
+		agg, filter, expectedSeq, err := s.core.configModel.prepareSubject(ctx, actorID)
+		if err != nil {
+			return nil, fmt.Errorf("prepare room notification preference: %w", err)
+		}
+		if s.core.configModel.notificationRoomIntensity(actorID, roomID, reason) == intensity {
+			return s.GetNotificationPolicy(ctx, actorID, roomID)
+		}
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
+			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
+				UserId: actorID, RoomId: &roomID, Reason: reason, Intensity: intensity,
+			},
+		}})
+		subject := agg.SubjectFor(event)
+		seqs, err := s.core.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
+		}}, authorizationSeq)
+		if errors.Is(err, events.ErrConflict) {
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+			}
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("set room notification preference: %w", err)
+		}
+		if len(seqs) == 0 {
+			return nil, errors.New("room notification preference committed no event")
+		}
+		if err := s.core.configModel.waitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
+			return nil, fmt.Errorf("wait for room notification preference: %w", err)
+		}
+		return s.GetNotificationPolicy(ctx, actorID, roomID)
+	}
+	return nil, ErrConfigConflict
+}
+
+// prepareRoomAccess returns the authorization-fence position that must remain
+// unchanged through a room-scoped preference write. Capturing it first makes
+// the following projection boundaries include every authorization fact it
+// represents; a later membership/group/RBAC change conflicts at commit.
+func (s *NotificationPolicyModel) prepareRoomAccess(ctx context.Context, actorID, roomID string) (uint64, error) {
+	authorizationSeq, err := s.core.authorizationFenceSeq(ctx)
+	if err != nil {
+		return 0, fmt.Errorf("capture notification policy authorization fence: %w", err)
+	}
+	roomPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
+	if err != nil {
+		return 0, fmt.Errorf("capture notification policy room boundary: %w", err)
+	}
+	groupPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+	if err != nil {
+		return 0, fmt.Errorf("capture notification policy group boundary: %w", err)
+	}
+	rbacPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return 0, fmt.Errorf("capture notification policy RBAC boundary: %w", err)
+	}
+	userPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(actorID).AllEventsFilter())
+	if err != nil {
+		return 0, fmt.Errorf("capture notification policy user boundary: %w", err)
+	}
+	if err := s.core.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
+		return 0, fmt.Errorf("wait for notification policy room boundary: %w", err)
+	}
+	if err := s.core.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+		return 0, fmt.Errorf("wait for notification policy group boundary: %w", err)
+	}
+	if err := s.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
+		return 0, fmt.Errorf("wait for notification policy RBAC boundary: %w", err)
+	}
+	if err := s.core.userModel.waitForUsers(ctx, userPosition); err != nil {
+		return 0, fmt.Errorf("wait for notification policy user boundary: %w", err)
+	}
 	if err := s.requireRoomMember(ctx, actorID, roomID); err != nil {
-		return nil, err
+		return 0, err
 	}
-	if err := s.core.setRoomNotificationIntensity(ctx, actorID, roomID, reason, intensity); err != nil {
-		return nil, fmt.Errorf("set room notification preference: %w", err)
-	}
-	return s.GetNotificationPolicy(ctx, actorID, roomID)
+	return authorizationSeq, nil
 }
 
 func (s *NotificationPolicyModel) requireRoomMember(ctx context.Context, actorID, roomID string) error {

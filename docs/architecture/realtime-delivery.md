@@ -283,6 +283,13 @@ Room/thread marker hydration reads the process-wide `ReadStateModel` index,
 which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
 realtime subscriptions do not create their own marker watchers.
 
+Notification occurrence signals also carry their written `RUNTIME_STATE`
+revision. A delayed Created signal is classified as Created, and may request a
+sound, only when it still names the current live unread occurrence after that
+revision fence. A newer
+read, deletion, or lifecycle mutation downgrades that signal to a silent update
+while the accompanying finite replacement remains authoritative.
+
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
 mechanism. Presence and later room/thread read transitions use buffered live

@@ -63,6 +63,10 @@ type Payload struct {
 	NotificationID string `json:"notificationId,omitempty"`
 	URL            string `json:"url,omitempty"`
 	AppBadge       string `json:"-"`
+	// TTLSeconds overrides the provider retention horizon. Notification alerts
+	// set this to their remaining immutable delivery lifetime; other push types
+	// retain the normal 24-hour default.
+	TTLSeconds int `json:"-"`
 	// Action is empty for regular user-visible notifications. Control pushes set
 	// it to a command such as "dismiss" and do not display a new notification.
 	Action string `json:"action,omitempty"`
@@ -148,6 +152,13 @@ func (p Payload) deliveryUrgency() webpush.Urgency {
 	return webpush.UrgencyNormal
 }
 
+func (p Payload) deliveryTTL() int {
+	if p.TTLSeconds > 0 {
+		return p.TTLSeconds
+	}
+	return 24 * 60 * 60
+}
+
 // PayloadContext provides optional context for building push payloads.
 type PayloadContext struct {
 	// MessagePreview is a truncated preview of the message body
@@ -228,7 +239,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		Subscriber:      normalizeVAPIDSubject(s.config.VAPIDSubject),
 		VAPIDPublicKey:  s.config.VAPIDPublicKey,
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
-		TTL:             86400, // 24 hours
+		TTL:             payload.deliveryTTL(),
 		Urgency:         payload.deliveryUrgency(),
 		RecordSize:      pushRecordSize,
 		HTTPClient:      s.httpClient,

@@ -38,8 +38,10 @@ targets, unread counts, read state, or deletion semantics.
   split.
 - Trash deletes the exact visible occurrence IDs represented by the current
   row. Dismiss All deletes every visible occurrence current at the server
-  boundary. Both are optimistic; a failed server restores only that server's
-  rows.
+  boundary. Both are optimistic. Because a failed response can arrive after a
+  server commit, the client reconciles that server's authoritative list rather
+  than restoring a possibly stale local snapshot; if reconciliation also
+  fails, it keeps the privacy-safe optimistic state.
 - Every occurrence and deletion tombstone expires exactly 90 days after source
   activity. Mutations never extend the lifetime.
 - The combined multi-server list preserves healthy results when another server
@@ -108,8 +110,9 @@ an occurrence is visually Ambient or Important.
 
 ## Durable derivation and push delivery
 
-Source-command OCC attempts recompute recipients, mention expansion, and
-policy after waiting the current Config projection. They stage exact temporary
+Source-command OCC attempts recompute recipients, mention expansion, thread
+followers, and policy after waiting the relevant Thread and Config projection
+tails. They stage exact temporary
 work in `RUNTIME_STATE` before appending the existing message or reaction fact.
 No notification-only fact is added to `EVT`.
 
@@ -130,8 +133,10 @@ but never upgrades an occurrence that was source-time Badge.
 
 The queue and its consumer are included in normal backups. This preserves
 accepted work across restore; excluding it would silently drop valid alerts at
-an arbitrary backup boundary. A strict two-minute stream and worker age horizon
-prevents restored jobs from producing stale interruptions. Delivery is at
+an arbitrary backup boundary. Every Alert occurrence and queue job carries an
+immutable deadline derived from source time. The worker, provider TTL, and an
+expired-Pending reconciler all enforce that deadline, so redelivery, republish,
+queue eviction, or restore cannot restart the two-minute window. Delivery is at
 least once, so a crash after provider acceptance can still duplicate a push.
 
 ## Visibility and consistency

@@ -108,7 +108,6 @@ export type NotificationOccurrenceItem = {
   attentionLevel: NotificationAttentionLevel;
   unread: boolean;
   reactionEmoji?: string | null;
-  threadRootMessageExcerpt?: string | null;
   expiresAt?: string;
 };
 
@@ -116,7 +115,6 @@ export type NotificationGroupItem = {
   id: string;
   occurrences: NotificationOccurrenceItem[];
   openTarget: NotificationOccurrenceItem | null;
-  threadRootMessageExcerpt?: string | null;
   unread: boolean;
   attentionLevel: NotificationAttentionLevel;
   occurrenceCount: number;
@@ -275,7 +273,6 @@ export function notificationOccurrence(
     attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),
     unread: item.unread,
     reactionEmoji: item.reactionEmoji || null,
-    threadRootMessageExcerpt: item.threadRootMessageExcerpt ?? null,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
 }
@@ -310,7 +307,6 @@ export function groupNotificationOccurrences(
         id,
         occurrences,
         openTarget,
-        threadRootMessageExcerpt: openTarget?.threadRootMessageExcerpt ?? null,
         unread: occurrences.some((occurrence) => occurrence.unread),
         attentionLevel,
         occurrenceCount: occurrences.length,

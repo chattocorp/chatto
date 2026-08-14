@@ -719,7 +719,6 @@ One exact Notifications 2.0 source occurrence.
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `reaction_emoji` | `string` | Exact emoji for a reaction occurrence. Empty for every other cause. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
-| `thread_root_message_excerpt` | `optional string` | Current whitespace-collapsed text excerpt from the target thread's root message. Absent outside threads and when no root text is available. The server truncates the excerpt to at most 180 Unicode code points. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
 <a id="chatto-api-v1-NotificationPolicyPreference"></a>
@@ -1613,7 +1612,6 @@ Why source activity matched the authenticated viewer's notification policy.
 | `NOTIFICATION_REASON_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
 | `NOTIFICATION_REASON_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
 | `NOTIFICATION_REASON_REACTION` | `9` | Someone reacted to the viewer's message. |
-| `NOTIFICATION_REASON_ROOM_INVITATION` | `10` | The viewer was invited to a room. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

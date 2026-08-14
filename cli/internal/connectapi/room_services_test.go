@@ -1559,47 +1559,6 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	}
 }
 
-func TestNotificationServiceHydratesCurrentThreadRootExcerpts(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-	ctx := withCaller(env.ctx, env.viewer)
-	room := env.createJoinedRoom("notification-thread-excerpts")
-
-	firstRoot := env.post(room.Id, env.viewer.Id, "  First thread root\nwith context  ", "")
-	firstReply := env.post(room.Id, env.viewer.Id, "first reply", firstRoot.Id)
-	secondRoot := env.post(room.Id, env.viewer.Id, "Second thread root", "")
-	secondReply := env.post(room.Id, env.viewer.Id, "second reply", secondRoot.Id)
-	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, firstReply, firstRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
-	createReadTestOccurrence(t, env, env.viewer.Id, env.viewer.Id, room.Id, secondReply, secondRoot.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
-
-	list, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
-	if err != nil {
-		t.Fatalf("ListNotificationOccurrences: %v", err)
-	}
-	excerpts := make(map[string]string, len(list.Msg.GetOccurrences()))
-	for _, occurrence := range list.Msg.GetOccurrences() {
-		excerpts[occurrence.GetTarget().GetThreadRootEventId()] = occurrence.GetThreadRootMessageExcerpt()
-	}
-	if got := excerpts[firstRoot.Id]; got != "First thread root with context" {
-		t.Fatalf("first thread excerpt = %q, want whitespace-collapsed root", got)
-	}
-	if got := excerpts[secondRoot.Id]; got != "Second thread root" {
-		t.Fatalf("second thread excerpt = %q, want distinct root", got)
-	}
-
-	if err := env.core.EditMessage(env.ctx, env.viewer.Id, core.KindChannel, room.Id, firstRoot.Id, "Updated first thread context"); err != nil {
-		t.Fatalf("EditMessage root: %v", err)
-	}
-	updated, err := env.notifications.ListNotificationOccurrences(ctx, connect.NewRequest(&apiv1.ListNotificationOccurrencesRequest{}))
-	if err != nil {
-		t.Fatalf("ListNotificationOccurrences after root edit: %v", err)
-	}
-	for _, occurrence := range updated.Msg.GetOccurrences() {
-		if occurrence.GetTarget().GetThreadRootEventId() == firstRoot.Id && occurrence.GetThreadRootMessageExcerpt() != "Updated first thread context" {
-			t.Fatalf("edited thread excerpt = %q, want current root body", occurrence.GetThreadRootMessageExcerpt())
-		}
-	}
-}
-
 func TestNotificationServiceDeleteOccurrenceIsIdempotent(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)
@@ -2013,6 +1972,48 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	}
 	if _, err := live.NextMsg(200 * time.Millisecond); err == nil {
 		t.Fatal("mark read published more than one notification invalidation")
+	}
+}
+
+func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	ctx := withCaller(env.ctx, env.viewer)
+	actor, err := env.core.CreateUser(env.ctx, core.SystemActorID, "read-hydration-actor", "Read Hydration", "password")
+	if err != nil {
+		t.Fatalf("CreateUser actor: %v", err)
+	}
+	dm, _, err := env.core.FindOrCreateDM(env.ctx, env.viewer.Id, []string{actor.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	posted, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, actor.Id, "hydrate before marking read", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.NotificationOccurrences().WaitCurrent(env.ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	occurrences, err := env.core.NotificationOccurrences().List(env.ctx, env.viewer.Id)
+	if err != nil || len(occurrences) != 1 || occurrences[0].GetSourceEventId() != posted.GetId() {
+		t.Fatalf("notification occurrences = (%+v, %v), want posted DM", occurrences, err)
+	}
+	hydrationErr := errors.New("injected notification hydration failure")
+	env.notifications.assembleOccurrence = func(context.Context, *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
+		return nil, hydrationErr
+	}
+
+	_, err = env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
+		NotificationId: occurrences[0].GetId(),
+	}))
+	if connect.CodeOf(err) != connect.CodeInternal {
+		t.Fatalf("MarkNotificationRead code = %v, want internal", connect.CodeOf(err))
+	}
+	stored, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.Id, occurrences[0].GetId())
+	if err != nil {
+		t.Fatalf("Get occurrence after hydration failure: %v", err)
+	}
+	if stored.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		t.Fatalf("occurrence state after hydration failure = %v, want unread", stored.GetInboxState())
 	}
 }
 

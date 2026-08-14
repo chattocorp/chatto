@@ -84,13 +84,6 @@ export enum NotificationReason {
    * @generated from enum value: NOTIFICATION_REASON_REACTION = 9;
    */
   REACTION = 9,
-
-  /**
-   * The viewer was invited to a room.
-   *
-   * @generated from enum value: NOTIFICATION_REASON_ROOM_INVITATION = 10;
-   */
-  ROOM_INVITATION = 10,
 }
 // Retrieve enum metadata with: proto3.getEnumType(NotificationReason)
 proto3.util.setEnumType(NotificationReason, "chatto.api.v1.NotificationReason", [
@@ -104,7 +97,6 @@ proto3.util.setEnumType(NotificationReason, "chatto.api.v1.NotificationReason", 
   { no: 7, name: "NOTIFICATION_REASON_FOLLOWED_THREAD" },
   { no: 8, name: "NOTIFICATION_REASON_FOLLOWED_ROOM" },
   { no: 9, name: "NOTIFICATION_REASON_REACTION" },
-  { no: 10, name: "NOTIFICATION_REASON_ROOM_INVITATION" },
 ]);
 
 /**
@@ -375,15 +367,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   expiresAt?: Timestamp;
 
   /**
-   * Current whitespace-collapsed text excerpt from the target thread's root
-   * message. Absent outside threads and when no root text is available. The
-   * server truncates the excerpt to at most 180 Unicode code points.
-   *
-   * @generated from field: optional string thread_root_message_excerpt = 11;
-   */
-  threadRootMessageExcerpt?: string;
-
-  /**
    * Source-time visual importance of this occurrence.
    *
    * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 12;
@@ -408,7 +391,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 8, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 9, name: "reaction_emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "expires_at", kind: "message", T: Timestamp },
-    { no: 11, name: "thread_root_message_excerpt", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 12, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
   ]);
 

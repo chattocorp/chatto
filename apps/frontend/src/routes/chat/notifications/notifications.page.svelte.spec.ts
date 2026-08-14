@@ -286,8 +286,7 @@ describe('notifications page', () => {
       reasons: [NotificationReason.REACTION],
       reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
       attentionLevel: NotificationAttentionLevel.AMBIENT,
-      reactionEmoji: emoji,
-      threadRootMessageExcerpt: 'This preview should not be rendered'
+      reactionEmoji: emoji
     });
     mocks.store.notifications.fetchPage.mockResolvedValue(
       page([reaction('reaction-alice', alice, 'thumbsup'), reaction('reaction-bob', bob, 'heart')])
@@ -304,15 +303,13 @@ describe('notifications page', () => {
       "Alice and others reacted with '👍 ❤️' to your message in #general."
     );
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
-    expect(row.textContent).not.toContain('This preview should not be rendered');
-    expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
     expect(row.dataset.notificationAttention).toBe('ambient');
     expect(row.classList.contains('bg-attention/5')).toBe(false);
     expect(q(row, '[data-testid="notification-unread-dot"]')).toBeNull();
     expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
   });
 
-  it('renders a single reaction as a sentence without a message preview', async () => {
+  it('renders a single reaction as a sentence', async () => {
     const bob = {
       id: 'bob',
       login: 'bob',
@@ -331,8 +328,7 @@ describe('notifications page', () => {
           reasons: [NotificationReason.REACTION],
           reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
           attentionLevel: NotificationAttentionLevel.AMBIENT,
-          reactionEmoji: 'heart',
-          threadRootMessageExcerpt: 'Do not show this message preview'
+          reactionEmoji: 'heart'
         }
       ])
     );
@@ -346,38 +342,6 @@ describe('notifications page', () => {
 
     expect(row.textContent).toContain("Bob reacted with '❤️' to your message in #general.");
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
-    expect(row.textContent).not.toContain('Do not show this message preview');
-    expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
-  });
-
-  it('omits message previews from thread notification rows', async () => {
-    const now = Date.now();
-    const firstOccurrence = {
-      ...mocks.occurrence,
-      id: 'reply-first',
-      threadRootId: 'thread-first',
-      threadRootMessageExcerpt: 'Where should we deploy the preview environment?',
-      createdAt: new Date(now).toISOString()
-    };
-    const secondOccurrence = {
-      ...mocks.occurrence,
-      id: 'reply-second',
-      threadRootId: 'thread-second',
-      threadRootMessageExcerpt: 'Can somebody review the migration plan?',
-      createdAt: new Date(now - 1_000).toISOString()
-    };
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([firstOccurrence, secondOccurrence])
-    );
-
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
-    });
-
-    expect(container.textContent).not.toContain('Where should we deploy the preview environment?');
-    expect(container.textContent).not.toContain('Can somebody review the migration plan?');
-    expect(q(container, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
   });
 
   it('preserves a healthy server result when another server fails', async () => {

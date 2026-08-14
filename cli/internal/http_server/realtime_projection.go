@@ -279,8 +279,18 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			action := realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED
+			silent := true
 			if change.GetCreated() {
-				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
+				current, err := s.core.NotificationOccurrences().CurrentCreationSignal(
+					ctx, viewerID, change.GetSourceEventId(), change.GetNotificationId(), change.GetRuntimeStateRevision(),
+				)
+				if err != nil {
+					return nil, false, err
+				}
+				if current {
+					action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
+					silent = !change.GetAlert()
+				}
 			} else if change.GetDeleted() {
 				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED
 			}
@@ -288,7 +298,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
 				Action:         action,
 				NotificationId: change.GetNotificationId(),
-				Silent:         !change.GetAlert(),
+				Silent:         silent,
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,

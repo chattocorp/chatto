@@ -18,20 +18,23 @@ import (
 )
 
 type recordingNotificationPushSender struct {
-	mu      sync.Mutex
-	calls   int
-	inputs  [][]*corev1.PushSubscription
-	payload []*push.Payload
-	results func([]*corev1.PushSubscription) []*push.SendResult
+	mu        sync.Mutex
+	calls     int
+	inputs    [][]*corev1.PushSubscription
+	payload   []*push.Payload
+	deadlines []time.Time
+	results   func([]*corev1.PushSubscription) []*push.SendResult
 }
 
-func (s *recordingNotificationPushSender) SendToMany(_ context.Context, subscriptions []*corev1.PushSubscription, payload *push.Payload) []*push.SendResult {
+func (s *recordingNotificationPushSender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *push.Payload) []*push.SendResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
 	s.inputs = append(s.inputs, subscriptions)
 	copyPayload := *payload
 	s.payload = append(s.payload, &copyPayload)
+	deadline, _ := ctx.Deadline()
+	s.deadlines = append(s.deadlines, deadline)
 	return s.results(subscriptions)
 }
 
@@ -136,6 +139,16 @@ func TestNotificationAlertHandlerCompletesWhenAnyCurrentDeviceAccepts(t *testing
 	}
 	if sender.calls != 1 || len(sender.payload) != 1 || sender.payload[0].AppBadge != "2" {
 		t.Fatalf("sender calls/payload = (%d, %+v), want one call with app badge 2", sender.calls, sender.payload)
+	}
+	if ttl := sender.payload[0].TTLSeconds; ttl <= 0 || ttl > int((2*time.Minute)/time.Second) {
+		t.Fatalf("notification provider TTL = %d, want remaining immutable alert lifetime", ttl)
+	}
+	wantDeadline := core.NotificationAlertDeadline(occurrence)
+	if parentDeadline, ok := ctx.Deadline(); ok && parentDeadline.Before(wantDeadline) {
+		wantDeadline = parentDeadline
+	}
+	if len(sender.deadlines) != 1 || sender.deadlines[0].IsZero() || !sender.deadlines[0].Equal(wantDeadline) {
+		t.Fatalf("notification provider context deadline = %v, want %v", sender.deadlines, wantDeadline)
 	}
 	remaining, err := chattoCore.GetUserPushSubscriptions(ctx, alice.Id)
 	if err != nil {

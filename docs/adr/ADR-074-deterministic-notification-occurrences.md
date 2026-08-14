@@ -261,9 +261,12 @@ Marking an occurrence Read silences a pending Alert.
 
 The queue is file-backed and included in normal backups together with its
 consumer state. This preserves accepted delivery work across restore instead
-of silently turning a backup boundary into alert loss. Both stream retention
-and the worker's `PublishedAt` check enforce a two-minute delivery horizon:
-restoring inside it may resume the job; restoring later records it as silenced.
+of silently turning a backup boundary into alert loss. Each Alert occurrence
+persists an immutable source-time-plus-two-minutes deadline and copies it into
+the queue job. Worker eligibility and provider TTL use that deadline rather
+than queue publication time, so republish and restore cannot renew the window.
+An index-backed reconciler terminally silences expired Pending rows whose queue
+work was absent or evicted; it does not recreate interruptive work.
 
 Before sending, the alert worker fences occurrence materialization and the
 current notification-policy projection, reloads the exact unread occurrence,
@@ -313,6 +316,8 @@ them. This is an intentional pre-1.0 product reset, not a dual-store period.
 The later visual-attention field is additive within the v2 record. A current
 reader derives it from retained reasons when an earlier v2 row omits it, which
 keeps rolling upgrades deterministic without rewriting runtime history.
+The later alert-deadline field is likewise additive; readers derive the same
+two-minute deadline from source time for an earlier v2 row that omits it.
 
 The public `chatto.api.v1` notification and coarse-preference RPCs are removed
 at the same release boundary and replaced by an exact occurrence list,

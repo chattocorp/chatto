@@ -666,10 +666,18 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 // reconcileOccurrenceVisibility handles effective membership changes that do
 // not emit an explicit leave event, such as disabling a universal room,
 // moving it across permission scopes, or changing room.join RBAC. These facts
-// are rare administrative operations, so an authoritative occurrence scan is
-// preferable to maintaining another derived recipient index.
+// are rare administrative operations. The materializer is the sole lifecycle
+// writer and waits for each KV revision to reach the process-wide index, so its
+// complete in-memory snapshot is a safe candidate set; each selected removal
+// is still checked and committed against authoritative KV with OCC.
 func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64, visibilityAt time.Time) error {
-	entries, err := m.core.notificationOccurrences.storedOccurrenceEntries(ctx, userID)
+	var entries []notificationOccurrenceIndexEntry
+	var err error
+	if userID == "" {
+		entries, err = m.core.notificationOccurrences.index.allEntries(ctx)
+	} else {
+		entries, err = m.core.notificationOccurrences.index.userEntries(ctx, userID)
+	}
 	if err != nil {
 		return err
 	}

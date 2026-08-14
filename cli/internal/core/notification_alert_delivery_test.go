@@ -175,10 +175,11 @@ func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *test
 		return nil
 	})
 	now := time.Now().UTC()
+	sourceCreated := now.Add(-notificationAlertDeliveryTTL - time.Second)
 	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID:   "U-expired-alert",
 		SourceEventID: "E-expired-alert",
-		SourceCreated: now,
+		SourceCreated: sourceCreated,
 		Target:        &corev1.NotificationTarget{RoomId: "R-expired-alert", EventId: "E-expired-alert"},
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
@@ -197,7 +198,7 @@ func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *test
 		t.Fatalf("Marshal: %v", err)
 	}
 	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
-		Data: data, PublishedAt: now.Add(-notificationAlertDeliveryTTL - time.Second),
+		Data: data, PublishedAt: now,
 	}); err != nil {
 		t.Fatalf("processDelivery: %v", err)
 	}
@@ -207,6 +208,80 @@ func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *test
 	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
 	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("expired alert state = (%v, %v), want silenced", stored, err)
+	}
+}
+
+func TestNotificationAlertQueueDoesNotExtendOrShortenDeadlineFromPublishTime(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	now := time.Now().UTC()
+	chattoCore.NotificationOccurrences().now = func() time.Time { return now }
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "republished-alert-author", "Republished Alert Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "republished-alert-recipient", "Republished Alert Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "republished-alert-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.Id, recipient.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "still-live target", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	providerCalls := 0
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		providerCalls++
+		return nil
+	})
+	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   recipient.Id,
+		SourceEventID: posted.Id,
+		SourceCreated: now.Add(-time.Minute),
+		ActorID:       author.Id,
+		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	wantDeadline := occurrence.GetSourceCreatedAt().AsTime().UTC().Add(notificationAlertDeliveryTTL)
+	if got := NotificationAlertDeadline(occurrence); !got.Equal(wantDeadline) {
+		t.Fatalf("alert deadline = %v, want source-time deadline %v", got, wantDeadline)
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+		AlertExpiresAt: occurrence.GetAlertExpiresAt(),
+	}
+	data, err := proto.Marshal(job)
+	if err != nil {
+		t.Fatalf("Marshal: %v", err)
+	}
+	// A restored or redelivered queue record may have an old publish timestamp.
+	// That transport metadata must not shorten a still-live source deadline.
+	if err := chattoCore.notificationAlertDelivery.processDelivery(ctx, events.DurableDelivery{
+		Data: data, PublishedAt: now.Add(-24 * time.Hour),
+	}); err != nil {
+		t.Fatalf("processDelivery: %v", err)
+	}
+	if providerCalls != 1 {
+		t.Fatalf("provider calls = %d, want 1 while source deadline remains live", providerCalls)
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, occurrence.GetRecipientId(), occurrence.GetId())
+	if err != nil || stored.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		t.Fatalf("alert state = (%v, %v), want delivered", stored, err)
 	}
 }
 

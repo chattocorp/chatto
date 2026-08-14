@@ -7,12 +7,28 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+type testNotificationKVEntry struct {
+	key       string
+	value     []byte
+	revision  uint64
+	operation jetstream.KeyValueOp
+}
+
+func (e testNotificationKVEntry) Bucket() string                  { return "RUNTIME_STATE" }
+func (e testNotificationKVEntry) Key() string                     { return e.key }
+func (e testNotificationKVEntry) Value() []byte                   { return e.value }
+func (e testNotificationKVEntry) Revision() uint64                { return e.revision }
+func (e testNotificationKVEntry) Created() time.Time              { return time.Time{} }
+func (e testNotificationKVEntry) Delta() uint64                   { return 0 }
+func (e testNotificationKVEntry) Operation() jetstream.KeyValueOp { return e.operation }
 
 func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
@@ -392,6 +408,145 @@ func TestNotificationOccurrenceIndexConvergesAcrossReplicas(t *testing.T) {
 	got, exists, err := second.index.occurrenceByID(ctx, "U-replica-recipient", created.GetId())
 	if err != nil || !exists || got.occurrence.GetId() != created.GetId() {
 		t.Fatalf("second index occurrence = (%v, %v, %v)", got.occurrence, exists, err)
+	}
+}
+
+func TestNotificationOccurrenceIndexStagesReplacementBeforeAtomicInstall(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	now := time.Now().UTC()
+	oldOccurrence, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-index-old",
+		SourceEventID: "E-index-old",
+		SourceCreated: now,
+		Target:        &corev1.NotificationTarget{RoomId: "R-index", EventId: "E-index-old"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason: corev1.NotificationReason_NOTIFICATION_REASON_REPLY, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create old occurrence: %v", err)
+	}
+
+	newOccurrence := proto.Clone(oldOccurrence).(*corev1.NotificationOccurrence)
+	newOccurrence.Id = notificationOccurrenceID("U-index-new", "E-index-new")
+	newOccurrence.RecipientId = "U-index-new"
+	newOccurrence.SourceEventId = "E-index-new"
+	newOccurrence.Target.EventId = "E-index-new"
+	data, err := proto.Marshal(newOccurrence)
+	if err != nil {
+		t.Fatalf("Marshal replacement occurrence: %v", err)
+	}
+	staged := newNotificationOccurrenceIndexSnapshot()
+	model.index.applyToSnapshot(staged, testNotificationKVEntry{
+		key: notificationOccurrenceKey(newOccurrence.GetRecipientId(), newOccurrence.GetSourceEventId()), value: data, revision: 123,
+	})
+
+	// Building the replacement snapshot must leave the last ready snapshot
+	// available to concurrent readers until the one atomic install point.
+	if old, err := model.List(ctx, oldOccurrence.GetRecipientId()); err != nil || len(old) != 1 {
+		t.Fatalf("old snapshot during staged rebuild = (%+v, %v), want one occurrence", old, err)
+	}
+	if replacement, err := model.List(ctx, newOccurrence.GetRecipientId()); err != nil || len(replacement) != 0 {
+		t.Fatalf("replacement visible before install = (%+v, %v), want empty", replacement, err)
+	}
+
+	model.index.installSnapshot(staged)
+	if old, err := model.List(ctx, oldOccurrence.GetRecipientId()); err != nil || len(old) != 0 {
+		t.Fatalf("old snapshot after install = (%+v, %v), want empty", old, err)
+	}
+	if replacement, err := model.List(ctx, newOccurrence.GetRecipientId()); err != nil || len(replacement) != 1 || replacement[0].GetId() != newOccurrence.GetId() {
+		t.Fatalf("replacement after install = (%+v, %v), want staged occurrence", replacement, err)
+	}
+}
+
+func TestNotificationAlertCompletionUsesAuthoritativeStoreWhenIndexMisses(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	occurrence, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID:   "U-alert-index-miss",
+		SourceEventID: "E-alert-index-miss",
+		SourceCreated: time.Now().UTC(),
+		Target:        &corev1.NotificationTarget{RoomId: "R-alert-index-miss", EventId: "E-alert-index-miss"},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	key := notificationOccurrenceKey(occurrence.GetRecipientId(), occurrence.GetSourceEventId())
+	model.index.mu.Lock()
+	delete(model.index.entriesByUser[occurrence.GetRecipientId()], key)
+	delete(model.index.keyRevisions, key)
+	model.index.mu.Unlock()
+
+	if current, err := model.alertDeliveryCurrent(ctx, occurrence); err != nil || !current {
+		t.Fatalf("alertDeliveryCurrent with index miss = (%v, %v), want true, nil", current, err)
+	}
+	job := &corev1.NotificationAlertJob{
+		RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+	}
+	if err := model.completeAlertDelivery(ctx, job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED); err != nil {
+		t.Fatalf("completeAlertDelivery with index miss: %v", err)
+	}
+	stored, exists, err := model.storedOccurrenceBySource(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId())
+	if err != nil || !exists || stored.occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		t.Fatalf("authoritative alert state = (%+v, %v, %v), want delivered", stored.occurrence, exists, err)
+	}
+}
+
+func TestNotificationOccurrenceListHasDeterministicTotalOrderForEqualTimestamps(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	model := chattoCore.NotificationOccurrences()
+	createdAt := time.Now().UTC().Truncate(time.Second)
+	type candidate struct {
+		sourceID string
+		sequence uint64
+	}
+	for _, item := range []candidate{
+		{sourceID: "E-order-a", sequence: 7},
+		{sourceID: "E-order-b", sequence: 9},
+		{sourceID: "E-order-c", sequence: 9},
+	} {
+		if _, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
+			RecipientID: "U-total-order", SourceEventID: item.sourceID, SourceCreated: createdAt, SourceStreamSequence: item.sequence,
+			Target: &corev1.NotificationTarget{RoomId: "R-total-order", EventId: item.sourceID},
+			Reasons: []*corev1.NotificationReasonMatch{{
+				Reason: corev1.NotificationReason_NOTIFICATION_REASON_REPLY, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+			SkipReadLookup: true,
+		}); err != nil {
+			t.Fatalf("Create %s: %v", item.sourceID, err)
+		}
+	}
+
+	first, err := model.List(ctx, "U-total-order")
+	if err != nil {
+		t.Fatalf("first List: %v", err)
+	}
+	second, err := model.List(ctx, "U-total-order")
+	if err != nil {
+		t.Fatalf("second List: %v", err)
+	}
+	if len(first) != 3 || len(second) != 3 {
+		t.Fatalf("list lengths = %d, %d, want 3", len(first), len(second))
+	}
+	for index := range first {
+		if first[index].GetId() != second[index].GetId() {
+			t.Fatalf("list order changed at %d: %q then %q", index, first[index].GetId(), second[index].GetId())
+		}
+	}
+	if first[0].GetSourceStreamSequence() != 9 || first[1].GetSourceStreamSequence() != 9 || first[2].GetSourceStreamSequence() != 7 {
+		t.Fatalf("sequence order = [%d %d %d], want [9 9 7]", first[0].GetSourceStreamSequence(), first[1].GetSourceStreamSequence(), first[2].GetSourceStreamSequence())
+	}
+	if first[0].GetId() < first[1].GetId() {
+		t.Fatalf("equal-sequence ID tie-break = [%q %q], want descending", first[0].GetId(), first[1].GetId())
 	}
 }
 

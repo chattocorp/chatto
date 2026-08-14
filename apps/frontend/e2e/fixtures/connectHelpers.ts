@@ -54,8 +54,7 @@ export type E2ENotificationReason =
   | 'ALL'
   | 'FOLLOWED_THREAD'
   | 'FOLLOWED_ROOM'
-  | 'REACTION'
-  | 'ROOM_INVITATION';
+  | 'REACTION';
 
 export type E2ENotificationIntensity = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
 
@@ -115,8 +114,7 @@ const notificationReasonByNumber: Record<number, E2ENotificationReason> = {
   6: 'ALL',
   7: 'FOLLOWED_THREAD',
   8: 'FOLLOWED_ROOM',
-  9: 'REACTION',
-  10: 'ROOM_INVITATION'
+  9: 'REACTION'
 };
 
 const notificationIntensityByNumber: Record<number, E2ENotificationIntensity> = {

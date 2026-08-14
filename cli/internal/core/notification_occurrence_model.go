@@ -93,6 +93,23 @@ func (m *NotificationOccurrenceModel) WaitForSourceRevision(ctx context.Context,
 	return m.index.waitForRevision(ctx, notificationOccurrenceKey(recipientID, sourceEventID), revision)
 }
 
+// CurrentCreationSignal reports whether a realtime creation signal still
+// names the live unread occurrence after its revision fence. A newer read,
+// delete, or lifecycle mutation makes the old signal stale; an internal
+// provider-delivery state transition does not erase otherwise-current in-app
+// activity.
+func (m *NotificationOccurrenceModel) CurrentCreationSignal(ctx context.Context, recipientID, sourceEventID, notificationID string, revision uint64) (bool, error) {
+	entry, exists, err := m.index.occurrenceBySource(ctx, recipientID, sourceEventID)
+	if err != nil || !exists {
+		return false, err
+	}
+	occurrence := entry.occurrence
+	current := entry.revision >= revision && occurrence.GetId() == notificationID &&
+		occurrence.GetRemovalReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED &&
+		occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
+	return current, nil
+}
+
 func notificationOccurrenceKey(recipientID, sourceEventID string) string {
 	return notificationOccurrenceKeyPrefix + recipientID + "." + sourceEventID
 }
@@ -140,10 +157,12 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		state = corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
 	}
 	alertState := corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_NOT_APPLICABLE
+	var alertExpiresAt *timestamppb.Timestamp
 	if strongest == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
 		// UNSPECIFIED is a persisted initialization fence. Alert claimers ignore
 		// it until the authoritative read-boundary check below finalizes the row.
 		alertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_UNSPECIFIED
+		alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
 	}
 	occurrence := &corev1.NotificationOccurrence{
 		Id:                   notificationOccurrenceID(input.RecipientID, input.SourceEventID),
@@ -161,6 +180,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		EvaluatedAt:          timestamppb.New(evaluatedAt),
 		ExpiresAt:            timestamppb.New(expiresAt),
 		AlertState:           alertState,
+		AlertExpiresAt:       alertExpiresAt,
 	}
 	data, err := proto.Marshal(occurrence)
 	if err != nil {
@@ -216,6 +236,22 @@ func NotificationOccurrenceAttentionLevel(occurrence *corev1.NotificationOccurre
 		return level
 	}
 	return notificationAttentionLevelForReasons(occurrence.GetReasons())
+}
+
+// NotificationAlertDeadline returns the immutable provider-delivery deadline.
+// Records written before alert_expires_at was added derive the same deadline
+// from source time, so replay, restore, and redelivery cannot extend it.
+func NotificationAlertDeadline(occurrence *corev1.NotificationOccurrence) time.Time {
+	if occurrence == nil {
+		return time.Time{}
+	}
+	if deadline := occurrence.GetAlertExpiresAt(); deadline != nil && deadline.IsValid() {
+		return deadline.AsTime().UTC()
+	}
+	if created := occurrence.GetSourceCreatedAt(); created != nil && created.IsValid() {
+		return created.AsTime().UTC().Add(notificationAlertDeliveryTTL)
+	}
+	return time.Time{}
 }
 
 func notificationAttentionLevelForReasons(reasons []*corev1.NotificationReasonMatch) corev1.NotificationAttentionLevel {
@@ -304,7 +340,15 @@ func (m *NotificationOccurrenceModel) List(ctx context.Context, userID string) (
 		}
 	}
 	sort.Slice(result, func(a, b int) bool {
-		return result[a].GetSourceCreatedAt().AsTime().After(result[b].GetSourceCreatedAt().AsTime())
+		left, right := result[a], result[b]
+		leftCreated, rightCreated := left.GetSourceCreatedAt().AsTime(), right.GetSourceCreatedAt().AsTime()
+		if !leftCreated.Equal(rightCreated) {
+			return leftCreated.After(rightCreated)
+		}
+		if left.GetSourceStreamSequence() != right.GetSourceStreamSequence() {
+			return left.GetSourceStreamSequence() > right.GetSourceStreamSequence()
+		}
+		return left.GetId() > right.GetId()
 	})
 	return result, nil
 }
@@ -331,11 +375,12 @@ func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, 
 	if expected == nil {
 		return false, nil
 	}
-	entry, exists, err := m.index.occurrenceByID(ctx, expected.GetRecipientId(), expected.GetId())
+	entry, exists, err := m.storedOccurrenceBySource(ctx, expected.GetRecipientId(), expected.GetSourceEventId())
 	if err != nil || !exists {
 		return false, err
 	}
-	return entry.occurrence.GetSourceEventId() == expected.GetSourceEventId() &&
+	return entry.occurrence.GetId() == expected.GetId() &&
+		entry.occurrence.GetSourceEventId() == expected.GetSourceEventId() &&
 		entry.occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING &&
 		entry.occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
 		entry.occurrence.GetRemovalReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED, nil
@@ -349,11 +394,12 @@ func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context,
 		return nil
 	}
 	for attempt := 0; attempt < maxNotificationUpdateRetries; attempt++ {
-		entry, exists, err := m.index.occurrenceByID(ctx, job.GetRecipientId(), job.GetNotificationId())
+		entry, exists, err := m.storedOccurrenceBySource(ctx, job.GetRecipientId(), job.GetSourceEventId())
 		if err != nil || !exists {
 			return err
 		}
-		if entry.occurrence.GetSourceEventId() != job.GetSourceEventId() ||
+		if entry.occurrence.GetId() != job.GetNotificationId() ||
+			entry.occurrence.GetSourceEventId() != job.GetSourceEventId() ||
 			entry.occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
 			return nil
 		}
@@ -680,7 +726,7 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 }
 
 func (m *NotificationOccurrenceModel) RemoveTarget(ctx context.Context, roomID, eventID string, reason corev1.NotificationRemovalReason) (int, error) {
-	entries, err := m.storedOccurrenceEntries(ctx, "")
+	entries, err := m.index.allEntries(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -711,7 +757,7 @@ func (m *NotificationOccurrenceModel) RemoveSource(ctx context.Context, userID, 
 }
 
 func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipientID, roomID, messageEventID, actorID, emoji string, removedAtSequence uint64) (int, error) {
-	entries, err := m.storedOccurrenceEntries(ctx, recipientID)
+	entries, err := m.index.userEntries(ctx, recipientID)
 	if err != nil {
 		return 0, err
 	}
@@ -749,7 +795,7 @@ func notificationOccurrenceHasReason(occurrence *corev1.NotificationOccurrence, 
 }
 
 func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, userID, roomID string, removedThroughSequence uint64, reason corev1.NotificationRemovalReason) (int, error) {
-	entries, err := m.storedOccurrenceEntries(ctx, userID)
+	entries, err := m.index.userEntries(ctx, userID)
 	if err != nil {
 		return 0, err
 	}
@@ -774,7 +820,7 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 }
 
 func (m *NotificationOccurrenceModel) RemoveRoom(ctx context.Context, roomID string, reason corev1.NotificationRemovalReason) (int, error) {
-	entries, err := m.storedOccurrenceEntries(ctx, "")
+	entries, err := m.index.allEntries(ctx)
 	if err != nil {
 		return 0, err
 	}

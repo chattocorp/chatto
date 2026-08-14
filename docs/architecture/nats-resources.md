@@ -35,6 +35,7 @@ inventories.
 | `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-notification-materializer-v2` | Existing message, reaction, membership, room-layout, RBAC, account, and configured-owner facts | Explicit ack after idempotent notification occurrence and visibility-state writes reach `RUNTIME_STATE`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas through `events.DurableWorker` |
 | `NOTIFICATIONS_QUEUE` | `chatto-notification-alert-delivery-v1` | `notifications.alert` | Explicit ack after the occurrence has a terminal delivered/silenced state; transient provider failures are redelivered within the two-minute horizon | Shared `ChattoCore` replicas through `events.DurableWorker` |
 
 All consumers use file-backed durable consumer state. Most consume domain facts
@@ -53,8 +54,9 @@ arbitrary backup boundary. Backups snapshot `EVT` before `RUNTIME_STATE`, then
 snapshot `NOTIFICATIONS_QUEUE` after both. This causal order guarantees that a
 queued alert either has its occurrence in the runtime-state snapshot or has a
 source fact beyond the restored materializer cursor and will be recreated by
-replay. Its two-minute stream retention and publication-time validation prevent
-an old restore from producing stale alerts, while omission would create an
+replay. Its two-minute stream retention plus the occurrence/job's immutable
+source-time deadline and provider TTL prevent an old restore from producing
+stale alerts, while omission would create an
 unavoidable recent-alert loss window. Chatto currently has no retired durable
 effect consumers. A future removal or incompatible contract change follows
 ADR-069's explicit drain, rollout, and deletion lifecycle.

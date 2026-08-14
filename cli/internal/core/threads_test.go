@@ -1,6 +1,7 @@
 package core
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -12,6 +13,83 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
 )
+
+func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	alice, err := chattoCore.CreateUser(ctx, SystemActorID, "thread-fence-alice", "Thread Fence Alice", "password")
+	if err != nil {
+		t.Fatalf("CreateUser alice: %v", err)
+	}
+	bob, err := chattoCore.CreateUser(ctx, SystemActorID, "thread-fence-bob", "Thread Fence Bob", "password")
+	if err != nil {
+		t.Fatalf("CreateUser bob: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, alice.Id, KindChannel, "", "thread-fence-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{alice.Id, bob.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, alice.Id, "thread fence root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if _, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, bob.Id, "first reply creates the thread", nil, root.Id, "", nil, false); err != nil {
+		t.Fatalf("PostMessage first reply: %v", err)
+	}
+	testDeleteAllNotificationOccurrences(t, chattoCore, alice.Id)
+
+	delayedThreads := evtstream.NewProjectionHandle(
+		chattoCore.js,
+		chattoCore.storage.serverEvtStream,
+		NewThreadProjection(),
+		testCoreLogger(),
+	)
+	chattoCore.roomModel.threads = delayedThreads
+	type postResult struct {
+		event *corev1.Event
+		err   error
+	}
+	result := make(chan postResult, 1)
+	go func() {
+		event, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, bob.Id, "second reply needs the follower snapshot", nil, root.Id, "", nil, false)
+		result <- postResult{event: event, err: err}
+	}()
+	select {
+	case early := <-result:
+		t.Fatalf("PostMessage returned before delayed thread projection started: (%+v, %v)", early.event, early.err)
+	case <-time.After(50 * time.Millisecond):
+	}
+
+	runCtx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- delayedThreads.Projector().Run(runCtx) }()
+	t.Cleanup(func() {
+		cancel()
+		select {
+		case <-done:
+		case <-time.After(5 * time.Second):
+			t.Fatal("delayed thread projector did not stop")
+		}
+	})
+	select {
+	case posted := <-result:
+		if posted.err != nil || posted.event == nil {
+			t.Fatalf("PostMessage after thread projection catch-up = (%+v, %v)", posted.event, posted.err)
+		}
+	case <-time.After(5 * time.Second):
+		t.Fatal("PostMessage did not finish after thread projection caught up")
+	}
+
+	occurrences := testNotificationOccurrences(t, chattoCore, alice.Id)
+	if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
+		t.Fatalf("followed-thread occurrences after delayed catch-up = %+v, want one", occurrences)
+	}
+}
 
 func TestChattoCore_PostMessage_Threading(t *testing.T) {
 	core, _ := setupTestCore(t)

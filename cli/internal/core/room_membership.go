@@ -364,6 +364,10 @@ func (c *ChattoCore) waitForRoomLeaveTail(ctx context.Context, filter string, se
 func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, roomID, userID string, expectedSeq uint64, prefixEvents ...*corev1.Event) error {
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
+	authorizationSeq, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		return fmt.Errorf("read authorization fence before room leave: %w", err)
+	}
 
 	leaveEvent := newEvent(userID, &corev1.Event{
 		Event: &corev1.Event_UserLeftRoom{
@@ -413,7 +417,11 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 		entries = append(entries, entry)
 	}
 
-	seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
+	// Leaving, removal, and ban are authorization-changing domain facts. Advance
+	// the existing generic fence in the same batch so an independently scoped
+	// mutation (for example a room notification preference) cannot commit from
+	// a membership decision that this leave has already invalidated.
+	seqs, err := c.appendAuthorizationFencedBatch(ctx, userID, entries, authorizationSeq)
 	if err != nil {
 		return fmt.Errorf("publish room leave batch: %w", err)
 	}
@@ -426,7 +434,7 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 			return fmt.Errorf("record notification visibility boundary: %w", err)
 		}
 	}
-	pos := events.SubjectPosition(filter, seqs[len(seqs)-1])
+	pos := events.SubjectPosition(filter, seqs[len(eventsToAppend)-1])
 
 	var cleanupErr error
 	if cleanup.endedKeyRef != "" {

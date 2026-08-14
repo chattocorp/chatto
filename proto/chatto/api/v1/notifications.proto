@@ -11,6 +11,9 @@ import "google/protobuf/timestamp.proto";
 
 // Why source activity matched the authenticated viewer's notification policy.
 enum NotificationReason {
+  reserved 10;
+  reserved "NOTIFICATION_REASON_ROOM_INVITATION";
+
   // No cause was specified. This value is not valid in preference writes.
   NOTIFICATION_REASON_UNSPECIFIED = 0;
   // A message was posted in a direct-message conversation.
@@ -31,8 +34,6 @@ enum NotificationReason {
   NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
   // Someone reacted to the viewer's message.
   NOTIFICATION_REASON_REACTION = 9;
-  // The viewer was invited to a room.
-  NOTIFICATION_REASON_ROOM_INVITATION = 10;
 }
 
 // Delivery strength for one notification cause.
@@ -80,6 +81,9 @@ message NotificationTarget {
 
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
+  reserved 11;
+  reserved "thread_root_message_excerpt";
+
   // Stable occurrence ID.
   string id = 1;
   // Durable source event from which this occurrence was derived.
@@ -100,10 +104,6 @@ message NotificationOccurrence {
   string reaction_emoji = 9;
   // Absolute expiry, 90 days after the source activity.
   google.protobuf.Timestamp expires_at = 10;
-  // Current whitespace-collapsed text excerpt from the target thread's root
-  // message. Absent outside threads and when no root text is available. The
-  // server truncates the excerpt to at most 180 Unicode code points.
-  optional string thread_root_message_excerpt = 11;
   // Source-time visual importance of this occurrence.
   NotificationAttentionLevel attention_level = 12;
 }

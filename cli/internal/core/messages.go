@@ -320,6 +320,20 @@ func (c *ChattoCore) prepareMessageAppendAttempt(
 			return messageAppendAttempt{}, fmt.Errorf("wait for room mutation projections: %w", err)
 		}
 	}
+	// Notification recipients for thread replies depend on the follow model.
+	// That projection deliberately consumes only sparse event-type subjects, so
+	// fence those exact tails instead of the broad room tail (which it cannot
+	// acknowledge for unrelated room facts).
+	for _, eventType := range []string{evtstream.EventThreadFollowed, evtstream.EventThreadUnfollowed} {
+		subject := agg.Subject(eventType)
+		position, err := c.EventPublisher.LastSubjectPosition(ctx, subject)
+		if err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("read thread follow tail: %w", err)
+		}
+		if err := c.roomModel.waitForThreads(ctx, position); err != nil {
+			return messageAppendAttempt{}, fmt.Errorf("wait for thread follow projection: %w", err)
+		}
+	}
 	if authorize == nil {
 		return attempt, nil
 	}

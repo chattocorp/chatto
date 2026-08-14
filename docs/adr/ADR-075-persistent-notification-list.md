@@ -55,9 +55,8 @@ plus totals independent of pagination:
 - the earliest expiry in the complete retained list.
 
 Each occurrence carries its exact target and cause data, including reaction
-emoji and a current, visibility-checked thread-root excerpt where applicable.
-Presentation text is hydrated only after authorization and is not persisted in
-the occurrence.
+emoji. The API does not hydrate or return message excerpts; clients render
+concise descriptions from target, actor, room, cause, and reaction metadata.
 
 The realtime projection replaces the same finite occurrence page and totals.
 Realtime transitions accelerate convergence; list/reconnect state remains
@@ -125,5 +124,8 @@ totals are derived, including occurrences outside the requested page.
 - Mentions cannot collapse distinct jump targets, while high-volume reactions
   can remain one compact row.
 - Batch deletion is safely retryable because its membership is explicit.
+- A mutation transport error is ambiguous because some members may already be
+  committed. Clients reconcile the authoritative occurrence page instead of
+  rolling back captured rows and potentially resurrecting deleted content.
 - Clients own grouping complexity, but the public API is smaller and no
   server-side group state can drift from occurrences.

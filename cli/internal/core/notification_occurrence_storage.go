@@ -21,8 +21,9 @@ func notificationOccurrenceFilter(userID string) string {
 }
 
 // storedOccurrenceEntries reads the authoritative KV state. It is reserved
-// for cross-replica handshakes and causally ordered lifecycle cleanup; normal
-// hot list/count reads continue to use the process-wide watcher index.
+// for operations that require a complete cross-replica handshake, such as
+// covered-read reconciliation and account purge. Normal list/count reads and
+// lifecycle candidate selection use the process-wide watcher index.
 func (m *NotificationOccurrenceModel) storedOccurrenceEntries(ctx context.Context, userID string) ([]notificationOccurrenceIndexEntry, error) {
 	lister, err := m.kv.ListKeysFiltered(ctx, notificationOccurrenceFilter(userID))
 	if errors.Is(err, jetstream.ErrNoKeysFound) {

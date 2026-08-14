@@ -58,8 +58,7 @@ function occurrencePage(source: FlatNotificationPage): NotificationOccurrencePag
       ],
       attentionLevel: NotificationAttentionLevel.IMPORTANT,
       unread: true,
-      reactionEmoji: null,
-      threadRootMessageExcerpt: null
+      reactionEmoji: null
     };
     return occurrence;
   });
@@ -165,7 +164,7 @@ describe('NotificationStore', () => {
 
   it('does not restore a scrubbed actor when a pending read fails', async () => {
     const mutation = deferred<NotificationOccurrenceItem>();
-    const api = makeAPI();
+    const api = makeAPI({ notifications: page([mention('n1')]) });
     api.markNotificationRead.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
@@ -244,14 +243,14 @@ describe('NotificationStore', () => {
     expect(store.roomUnreadCounts).toEqual({});
   });
 
-  it('restores an unrelated failed read when another room loses authorization', async () => {
+  it('reconciles an unrelated failed read when another room loses authorization', async () => {
     const mutation = deferred<NotificationOccurrenceItem>();
-    const api = makeAPI();
-    api.markNotificationRead.mockReturnValueOnce(mutation.promise);
     const other = {
       ...mention('n2'),
       mentionRoom: { id: 'r2', name: 'other' }
     } as NotificationItem;
+    const api = makeAPI({ notifications: page([mention('n1'), other], 2) });
+    api.markNotificationRead.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1'), other], 2)));
 
@@ -266,14 +265,14 @@ describe('NotificationStore', () => {
     expect(store.roomUnreadCounts).toEqual({ r2: 1 });
   });
 
-  it('restores an unrelated failed deletion when another room loses authorization', async () => {
+  it('reconciles an unrelated failed deletion when another room loses authorization', async () => {
     const mutation = deferred<number>();
-    const api = makeAPI();
-    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
     const other = {
       ...mention('n2'),
       mentionRoom: { id: 'r2', name: 'other' }
     } as NotificationItem;
+    const api = makeAPI({ notifications: page([mention('n1'), other], 2) });
+    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1'), other], 2)));
 
@@ -288,14 +287,14 @@ describe('NotificationStore', () => {
     expect(store.roomUnreadCounts).toEqual({ r2: 1 });
   });
 
-  it('restores only still-visible rooms when delete-all fails after authorization loss', async () => {
+  it('reconciles only still-visible rooms when delete-all fails after authorization loss', async () => {
     const mutation = deferred<number>();
-    const api = makeAPI();
-    api.deleteAllNotificationOccurrences.mockReturnValueOnce(mutation.promise);
     const other = {
       ...mention('n2'),
       mentionRoom: { id: 'r2', name: 'other' }
     } as NotificationItem;
+    const api = makeAPI({ notifications: page([mention('n1'), other], 2) });
+    api.deleteAllNotificationOccurrences.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1'), other], 2)));
 
@@ -626,9 +625,9 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
   });
 
-  it('deletes occurrences optimistically and restores them when the server rejects the mutation', async () => {
+  it('reconciles an optimistic deletion when the server rejects the mutation', async () => {
     const mutation = deferred<number>();
-    const api = makeAPI();
+    const api = makeAPI({ notifications: page([mention('n1')]) });
     api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
@@ -642,16 +641,91 @@ describe('NotificationStore', () => {
 
     mutation.reject(new Error('offline'));
     await expect(deletion).rejects.toThrow('offline');
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
     expect(store.occurrences.map(({ id }) => id)).toEqual(['n1']);
     expect(store.notifications.map(({ id }) => id)).toEqual(['n1']);
     expect(store.unreadNotificationCount).toBe(1);
     expect(store.roomUnreadCounts).toEqual({ r1: 1 });
   });
 
-  it('restores both distinct optimistic deletions when concurrent requests fail', async () => {
+  it('does not resurrect a deletion that committed before its request failed', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI({ notifications: page([]) });
+    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const deletion = store.deleteOccurrences(['n1']);
+    mutation.reject(new Error('response lost after commit'));
+
+    await expect(deletion).rejects.toThrow('response lost after commit');
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
+    expect(store.occurrences).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
+  it('keeps optimistic deletion state when authoritative reconciliation also fails', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI({ notificationsError: new Error('still offline') });
+    api.batchDeleteNotificationOccurrences.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const deletion = store.deleteOccurrences(['n1']);
+    mutation.reject(new Error('offline'));
+
+    await expect(deletion).rejects.toThrow('offline');
+    expect(store.occurrences).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
+  it('keeps a read committed before its request failed', async () => {
+    const mutation = deferred<NotificationOccurrenceItem>();
+    const authoritative = occurrencePage(page([mention('n1')]));
+    authoritative.occurrences[0]!.unread = false;
+    authoritative.unreadCount = 0;
+    authoritative.importantUnreadCount = 0;
+    authoritative.roomUnreadCounts = {};
+    authoritative.roomImportantUnreadCounts = {};
+    const api = makeAPI();
+    api.listNotificationOccurrences.mockResolvedValue(authoritative);
+    api.markNotificationRead.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const marking = store.markRead('n1');
+    mutation.reject(new Error('response lost after commit'));
+
+    await expect(marking).resolves.toBe(false);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
+    expect(store.occurrences[0]?.unread).toBe(false);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
+  it('does not resurrect delete-all state that committed before its request failed', async () => {
+    const mutation = deferred<number>();
+    const api = makeAPI({ notifications: page([]) });
+    api.deleteAllNotificationOccurrences.mockReturnValueOnce(mutation.promise);
+    const store = new NotificationStore(api);
+    store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
+
+    const deletion = store.deleteAllOccurrences();
+    mutation.reject(new Error('response lost after commit'));
+
+    await expect(deletion).rejects.toThrow('response lost after commit');
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
+    expect(store.occurrences).toEqual([]);
+    expect(store.notifications).toEqual([]);
+    expect(store.unreadNotificationCount).toBe(0);
+  });
+
+  it('coalesces authoritative reconciliation when concurrent deletions fail', async () => {
     const firstMutation = deferred<number>();
     const secondMutation = deferred<number>();
-    const api = makeAPI();
+    const api = makeAPI({ notifications: page([mention('n1'), mention('n2')], 2) });
     api.batchDeleteNotificationOccurrences
       .mockReturnValueOnce(firstMutation.promise)
       .mockReturnValueOnce(secondMutation.promise);
@@ -664,21 +738,21 @@ describe('NotificationStore', () => {
     expect(store.unreadNotificationCount).toBe(0);
 
     secondMutation.reject(new Error('second offline'));
-    await expect(secondDeletion).rejects.toThrow('second offline');
-    expect(store.occurrences.map(({ id }) => id)).toEqual(['n2']);
-    expect(store.unreadNotificationCount).toBe(1);
-
     firstMutation.reject(new Error('first offline'));
-    await expect(firstDeletion).rejects.toThrow('first offline');
+    await Promise.all([
+      expect(firstDeletion).rejects.toThrow('first offline'),
+      expect(secondDeletion).rejects.toThrow('second offline')
+    ]);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
     expect(store.occurrences.map(({ id }) => id).sort()).toEqual(['n1', 'n2']);
     expect(store.notifications.map(({ id }) => id).sort()).toEqual(['n1', 'n2']);
     expect(store.unreadNotificationCount).toBe(2);
   });
 
-  it('restores only the failed one of two concurrent optimistic deletions', async () => {
+  it('reconciles the result when one of two concurrent optimistic deletions fails', async () => {
     const firstMutation = deferred<number>();
     const secondMutation = deferred<number>();
-    const api = makeAPI();
+    const api = makeAPI({ notifications: page([mention('n2')]) });
     api.batchDeleteNotificationOccurrences
       .mockReturnValueOnce(firstMutation.promise)
       .mockReturnValueOnce(secondMutation.promise);
@@ -688,10 +762,13 @@ describe('NotificationStore', () => {
     const firstDeletion = store.deleteOccurrences(['n1']);
     const secondDeletion = store.deleteOccurrences(['n2']);
     firstMutation.resolve(1);
-    await firstDeletion;
     secondMutation.reject(new Error('offline'));
-    await expect(secondDeletion).rejects.toThrow('offline');
+    await Promise.all([
+      expect(firstDeletion).resolves.toBeUndefined(),
+      expect(secondDeletion).rejects.toThrow('offline')
+    ]);
 
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
     expect(store.occurrences.map(({ id }) => id)).toEqual(['n2']);
     expect(store.notifications.map(({ id }) => id)).toEqual(['n2']);
     expect(store.unreadNotificationCount).toBe(1);
@@ -752,9 +829,9 @@ describe('NotificationStore', () => {
     expect(store.roomImportantUnreadCounts).toEqual({ r1: 2 });
   });
 
-  it('updates exact room counts before a read request resolves and restores them on failure', async () => {
+  it('updates exact room counts optimistically and reconciles them on failure', async () => {
     const mutation = deferred<NotificationOccurrenceItem>();
-    const api = makeAPI();
+    const api = makeAPI({ notifications: page([mention('n1')]) });
     api.markNotificationRead.mockReturnValueOnce(mutation.promise);
     const store = new NotificationStore(api);
     store.replaceOccurrenceProjection(occurrencePage(page([mention('n1')])));
@@ -768,6 +845,7 @@ describe('NotificationStore', () => {
 
     mutation.reject(new Error('offline'));
     await expect(marking).resolves.toBe(false);
+    expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
     expect(store.unreadNotificationCount).toBe(1);
     expect(store.importantUnreadNotificationCount).toBe(1);
     expect(store.roomUnreadCounts).toEqual({ r1: 1 });
@@ -798,10 +876,17 @@ describe('NotificationStore', () => {
     await expect(marking).resolves.toBe(true);
   });
 
-  it('rolls back only the failed one of two concurrent reads', async () => {
+  it('reconciles only the failed one of two concurrent reads', async () => {
     const firstMutation = deferred<NotificationOccurrenceItem>();
     const secondMutation = deferred<NotificationOccurrenceItem>();
     const api = makeAPI();
+    const authoritative = occurrencePage(page([mention('n1'), mention('n2')], 2));
+    authoritative.occurrences[1]!.unread = false;
+    authoritative.unreadCount = 1;
+    authoritative.importantUnreadCount = 1;
+    authoritative.roomUnreadCounts = { r1: 1 };
+    authoritative.roomImportantUnreadCounts = { r1: 1 };
+    api.listNotificationOccurrences.mockResolvedValue(authoritative);
     api.markNotificationRead
       .mockReturnValueOnce(firstMutation.promise)
       .mockReturnValueOnce(secondMutation.promise);
@@ -863,9 +948,11 @@ describe('NotificationStore', () => {
     const marking = store.markRead('n1');
     const deletion = store.deleteOccurrences(['n1']);
     readMutation.reject(new Error('read offline'));
-    await expect(marking).resolves.toBe(false);
     deleteMutation.reject(new Error('delete offline'));
-    await expect(deletion).rejects.toThrow('delete offline');
+    await Promise.all([
+      expect(marking).resolves.toBe(false),
+      expect(deletion).rejects.toThrow('delete offline')
+    ]);
 
     expect(store.occurrences.find(({ id }) => id === 'n1')?.unread).toBe(true);
     expect(store.notifications.map(({ id }) => id)).toEqual(['n1']);
@@ -885,9 +972,11 @@ describe('NotificationStore', () => {
     const marking = store.markRead('n1');
     const deletion = store.deleteAllOccurrences();
     readMutation.reject(new Error('read offline'));
-    await expect(marking).resolves.toBe(false);
     deleteMutation.reject(new Error('delete offline'));
-    await expect(deletion).rejects.toThrow('delete offline');
+    await Promise.all([
+      expect(marking).resolves.toBe(false),
+      expect(deletion).rejects.toThrow('delete offline')
+    ]);
 
     expect(store.occurrences.find(({ id }) => id === 'n1')?.unread).toBe(true);
     expect(store.notifications.map(({ id }) => id)).toEqual(['n1']);

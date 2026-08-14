@@ -37,23 +37,21 @@ const (
 	NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD NotificationReason = 7
 	NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM   NotificationReason = 8
 	NotificationReason_NOTIFICATION_REASON_REACTION        NotificationReason = 9
-	NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION NotificationReason = 10
 )
 
 // Enum value maps for NotificationReason.
 var (
 	NotificationReason_name = map[int32]string{
-		0:  "NOTIFICATION_REASON_UNSPECIFIED",
-		1:  "NOTIFICATION_REASON_DIRECT_MESSAGE",
-		2:  "NOTIFICATION_REASON_DIRECT_MENTION",
-		3:  "NOTIFICATION_REASON_REPLY",
-		4:  "NOTIFICATION_REASON_ROLE_MENTION",
-		5:  "NOTIFICATION_REASON_HERE",
-		6:  "NOTIFICATION_REASON_ALL",
-		7:  "NOTIFICATION_REASON_FOLLOWED_THREAD",
-		8:  "NOTIFICATION_REASON_FOLLOWED_ROOM",
-		9:  "NOTIFICATION_REASON_REACTION",
-		10: "NOTIFICATION_REASON_ROOM_INVITATION",
+		0: "NOTIFICATION_REASON_UNSPECIFIED",
+		1: "NOTIFICATION_REASON_DIRECT_MESSAGE",
+		2: "NOTIFICATION_REASON_DIRECT_MENTION",
+		3: "NOTIFICATION_REASON_REPLY",
+		4: "NOTIFICATION_REASON_ROLE_MENTION",
+		5: "NOTIFICATION_REASON_HERE",
+		6: "NOTIFICATION_REASON_ALL",
+		7: "NOTIFICATION_REASON_FOLLOWED_THREAD",
+		8: "NOTIFICATION_REASON_FOLLOWED_ROOM",
+		9: "NOTIFICATION_REASON_REACTION",
 	}
 	NotificationReason_value = map[string]int32{
 		"NOTIFICATION_REASON_UNSPECIFIED":     0,
@@ -66,7 +64,6 @@ var (
 		"NOTIFICATION_REASON_FOLLOWED_THREAD": 7,
 		"NOTIFICATION_REASON_FOLLOWED_ROOM":   8,
 		"NOTIFICATION_REASON_REACTION":        9,
-		"NOTIFICATION_REASON_ROOM_INVITATION": 10,
 	}
 )
 
@@ -948,6 +945,10 @@ type NotificationOccurrence struct {
 	// Source-time visual importance. Older records without this field derive a
 	// conservative value from their retained reasons.
 	AttentionLevel NotificationAttentionLevel `protobuf:"varint,19,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	// Immutable interruptive-delivery deadline derived from source_created_at.
+	// Older Alert records without this field derive the same bounded deadline
+	// from source_created_at.
+	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1115,6 +1116,13 @@ func (x *NotificationOccurrence) GetAttentionLevel() NotificationAttentionLevel 
 	return NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED
 }
 
+func (x *NotificationOccurrence) GetAlertExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AlertExpiresAt
+	}
+	return nil
+}
+
 // NotificationAlertJob is the content-free handoff from occurrence
 // materialization to interruptive delivery. It is stored transiently in the
 // application-owned NOTIFICATIONS_QUEUE stream; the occurrence remains the
@@ -1127,6 +1135,8 @@ type NotificationAlertJob struct {
 	SourceEventId string `protobuf:"bytes,2,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
 	// Deterministic occurrence ID used as the delivery idempotency fence.
 	NotificationId string `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	// Immutable delivery deadline copied from the authoritative occurrence.
+	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1182,6 +1192,13 @@ func (x *NotificationAlertJob) GetNotificationId() string {
 	return ""
 }
 
+func (x *NotificationAlertJob) GetAlertExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.AlertExpiresAt
+	}
+	return nil
+}
+
 var File_chatto_core_v1_notification_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_notification_proto_rawDesc = "" +
@@ -1223,7 +1240,7 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12+\n" +
 	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"\x87\t\n" +
+	"\x10_parent_event_id\"\xcd\t\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
@@ -1249,11 +1266,13 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"alertState\x12J\n" +
 	"\x13alert_claimed_until\x18\x11 \x01(\v2\x1a.google.protobuf.TimestampR\x11alertClaimedUntil\x124\n" +
 	"\x16source_stream_sequence\x18\x12 \x01(\x04R\x14sourceStreamSequence\x12S\n" +
-	"\x0fattention_level\x18\x13 \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\"\x8a\x01\n" +
+	"\x0fattention_level\x18\x13 \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
+	"\x10alert_expires_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\"\xd0\x01\n" +
 	"\x14NotificationAlertJob\x12!\n" +
 	"\frecipient_id\x18\x01 \x01(\tR\vrecipientId\x12&\n" +
 	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x12'\n" +
-	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId*\xa4\x03\n" +
+	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x12D\n" +
+	"\x10alert_expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt*\xa6\x03\n" +
 	"\x12NotificationReason\x12#\n" +
 	"\x1fNOTIFICATION_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"NOTIFICATION_REASON_DIRECT_MESSAGE\x10\x01\x12&\n" +
@@ -1264,9 +1283,9 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x17NOTIFICATION_REASON_ALL\x10\x06\x12'\n" +
 	"#NOTIFICATION_REASON_FOLLOWED_THREAD\x10\a\x12%\n" +
 	"!NOTIFICATION_REASON_FOLLOWED_ROOM\x10\b\x12 \n" +
-	"\x1cNOTIFICATION_REASON_REACTION\x10\t\x12'\n" +
-	"#NOTIFICATION_REASON_ROOM_INVITATION\x10\n" +
-	"*\xcf\x01\n" +
+	"\x1cNOTIFICATION_REASON_REACTION\x10\t\"\x04\b\n" +
+	"\x10\n" +
+	"*#NOTIFICATION_REASON_ROOM_INVITATION*\xcf\x01\n" +
 	"\x1dNotificationDeliveryIntensity\x12/\n" +
 	"+NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED\x10\x00\x12'\n" +
 	"#NOTIFICATION_DELIVERY_INTENSITY_OFF\x10\x01\x12)\n" +
@@ -1350,11 +1369,13 @@ var file_chatto_core_v1_notification_proto_depIdxs = []int32{
 	5,  // 17: chatto.core.v1.NotificationOccurrence.alert_state:type_name -> chatto.core.v1.NotificationAlertState
 	15, // 18: chatto.core.v1.NotificationOccurrence.alert_claimed_until:type_name -> google.protobuf.Timestamp
 	2,  // 19: chatto.core.v1.NotificationOccurrence.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
-	20, // [20:20] is the sub-list for method output_type
-	20, // [20:20] is the sub-list for method input_type
-	20, // [20:20] is the sub-list for extension type_name
-	20, // [20:20] is the sub-list for extension extendee
-	0,  // [0:20] is the sub-list for field type_name
+	15, // 20: chatto.core.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
+	15, // 21: chatto.core.v1.NotificationAlertJob.alert_expires_at:type_name -> google.protobuf.Timestamp
+	22, // [22:22] is the sub-list for method output_type
+	22, // [22:22] is the sub-list for method input_type
+	22, // [22:22] is the sub-list for extension type_name
+	22, // [22:22] is the sub-list for extension extendee
+	0,  // [0:22] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_notification_proto_init() }

@@ -48,24 +48,21 @@ const (
 	NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM NotificationReason = 8
 	// Someone reacted to the viewer's message.
 	NotificationReason_NOTIFICATION_REASON_REACTION NotificationReason = 9
-	// The viewer was invited to a room.
-	NotificationReason_NOTIFICATION_REASON_ROOM_INVITATION NotificationReason = 10
 )
 
 // Enum value maps for NotificationReason.
 var (
 	NotificationReason_name = map[int32]string{
-		0:  "NOTIFICATION_REASON_UNSPECIFIED",
-		1:  "NOTIFICATION_REASON_DIRECT_MESSAGE",
-		2:  "NOTIFICATION_REASON_DIRECT_MENTION",
-		3:  "NOTIFICATION_REASON_REPLY",
-		4:  "NOTIFICATION_REASON_ROLE_MENTION",
-		5:  "NOTIFICATION_REASON_HERE",
-		6:  "NOTIFICATION_REASON_ALL",
-		7:  "NOTIFICATION_REASON_FOLLOWED_THREAD",
-		8:  "NOTIFICATION_REASON_FOLLOWED_ROOM",
-		9:  "NOTIFICATION_REASON_REACTION",
-		10: "NOTIFICATION_REASON_ROOM_INVITATION",
+		0: "NOTIFICATION_REASON_UNSPECIFIED",
+		1: "NOTIFICATION_REASON_DIRECT_MESSAGE",
+		2: "NOTIFICATION_REASON_DIRECT_MENTION",
+		3: "NOTIFICATION_REASON_REPLY",
+		4: "NOTIFICATION_REASON_ROLE_MENTION",
+		5: "NOTIFICATION_REASON_HERE",
+		6: "NOTIFICATION_REASON_ALL",
+		7: "NOTIFICATION_REASON_FOLLOWED_THREAD",
+		8: "NOTIFICATION_REASON_FOLLOWED_ROOM",
+		9: "NOTIFICATION_REASON_REACTION",
 	}
 	NotificationReason_value = map[string]int32{
 		"NOTIFICATION_REASON_UNSPECIFIED":     0,
@@ -78,7 +75,6 @@ var (
 		"NOTIFICATION_REASON_FOLLOWED_THREAD": 7,
 		"NOTIFICATION_REASON_FOLLOWED_ROOM":   8,
 		"NOTIFICATION_REASON_REACTION":        9,
-		"NOTIFICATION_REASON_ROOM_INVITATION": 10,
 	}
 )
 
@@ -371,10 +367,6 @@ type NotificationOccurrence struct {
 	ReactionEmoji string `protobuf:"bytes,9,opt,name=reaction_emoji,json=reactionEmoji,proto3" json:"reaction_emoji,omitempty"`
 	// Absolute expiry, 90 days after the source activity.
 	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	// Current whitespace-collapsed text excerpt from the target thread's root
-	// message. Absent outside threads and when no root text is available. The
-	// server truncates the excerpt to at most 180 Unicode code points.
-	ThreadRootMessageExcerpt *string `protobuf:"bytes,11,opt,name=thread_root_message_excerpt,json=threadRootMessageExcerpt,proto3,oneof" json:"thread_root_message_excerpt,omitempty"`
 	// Source-time visual importance of this occurrence.
 	AttentionLevel NotificationAttentionLevel `protobuf:"varint,12,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.api.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	unknownFields  protoimpl.UnknownFields
@@ -479,13 +471,6 @@ func (x *NotificationOccurrence) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
-}
-
-func (x *NotificationOccurrence) GetThreadRootMessageExcerpt() string {
-	if x != nil && x.ThreadRootMessageExcerpt != nil {
-		return *x.ThreadRootMessageExcerpt
-	}
-	return ""
 }
 
 func (x *NotificationOccurrence) GetAttentionLevel() NotificationAttentionLevel {
@@ -1370,7 +1355,7 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01\x12+\n" +
 	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"\xc4\x05\n" +
+	"\x10_parent_event_id\"\x83\x05\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x129\n" +
@@ -1384,10 +1369,8 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x0ereaction_emoji\x18\t \x01(\tR\rreactionEmoji\x129\n" +
 	"\n" +
 	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12B\n" +
-	"\x1bthread_root_message_excerpt\x18\v \x01(\tH\x00R\x18threadRootMessageExcerpt\x88\x01\x01\x12R\n" +
-	"\x0fattention_level\x18\f \x01(\x0e2).chatto.api.v1.NotificationAttentionLevelR\x0eattentionLevelB\x1e\n" +
-	"\x1c_thread_root_message_excerpt\"T\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12R\n" +
+	"\x0fattention_level\x18\f \x01(\x0e2).chatto.api.v1.NotificationAttentionLevelR\x0eattentionLevelJ\x04\b\v\x10\fR\x1bthread_root_message_excerpt\"T\n" +
 	"\"ListNotificationOccurrencesRequest\x12.\n" +
 	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xb0\x03\n" +
 	"#ListNotificationOccurrencesResponse\x12G\n" +
@@ -1444,7 +1427,7 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\aroom_id\x18\x01 \x01(\tH\x00R\x06roomId\x88\x01\x01\x12M\n" +
 	"\vpreferences\x18\x02 \x03(\v2+.chatto.api.v1.NotificationPolicyPreferenceR\vpreferencesB\n" +
 	"\n" +
-	"\b_room_id*\xa4\x03\n" +
+	"\b_room_id*\xa6\x03\n" +
 	"\x12NotificationReason\x12#\n" +
 	"\x1fNOTIFICATION_REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"NOTIFICATION_REASON_DIRECT_MESSAGE\x10\x01\x12&\n" +
@@ -1455,9 +1438,9 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x17NOTIFICATION_REASON_ALL\x10\x06\x12'\n" +
 	"#NOTIFICATION_REASON_FOLLOWED_THREAD\x10\a\x12%\n" +
 	"!NOTIFICATION_REASON_FOLLOWED_ROOM\x10\b\x12 \n" +
-	"\x1cNOTIFICATION_REASON_REACTION\x10\t\x12'\n" +
-	"#NOTIFICATION_REASON_ROOM_INVITATION\x10\n" +
-	"*\xcf\x01\n" +
+	"\x1cNOTIFICATION_REASON_REACTION\x10\t\"\x04\b\n" +
+	"\x10\n" +
+	"*#NOTIFICATION_REASON_ROOM_INVITATION*\xcf\x01\n" +
 	"\x1dNotificationDeliveryIntensity\x12/\n" +
 	"+NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED\x10\x00\x12'\n" +
 	"#NOTIFICATION_DELIVERY_INTENSITY_OFF\x10\x01\x12)\n" +
@@ -1575,7 +1558,6 @@ func file_chatto_api_v1_notifications_proto_init() {
 	file_chatto_api_v1_rooms_proto_init()
 	file_chatto_api_v1_users_proto_init()
 	file_chatto_api_v1_notifications_proto_msgTypes[1].OneofWrappers = []any{}
-	file_chatto_api_v1_notifications_proto_msgTypes[2].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[4].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[5].OneofWrappers = []any{}
 	file_chatto_api_v1_notifications_proto_msgTypes[15].OneofWrappers = []any{}

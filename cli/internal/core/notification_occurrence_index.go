@@ -24,6 +24,19 @@ type notificationOccurrenceIndexEntry struct {
 	occurrence *corev1.NotificationOccurrence
 }
 
+type notificationOccurrenceIndexSnapshot struct {
+	entriesByUser    map[string]map[string]notificationOccurrenceIndexEntry
+	keyRevisions     map[string]uint64
+	observedRevision uint64
+}
+
+func newNotificationOccurrenceIndexSnapshot() *notificationOccurrenceIndexSnapshot {
+	return &notificationOccurrenceIndexSnapshot{
+		entriesByUser: make(map[string]map[string]notificationOccurrenceIndexEntry),
+		keyRevisions:  make(map[string]uint64),
+	}
+}
+
 // NotificationOccurrenceIndex mirrors the versioned notification occurrence
 // keyspace through one process-wide RUNTIME_STATE watcher. KV remains the
 // authority; this index makes user lists, counts, and realtime reconciliation
@@ -78,6 +91,12 @@ func (i *NotificationOccurrenceIndex) Run(ctx context.Context) error {
 			return fmt.Errorf("notification occurrence index: create watcher: %w", err)
 		}
 
+		// A watcher always begins with a complete snapshot followed by a nil
+		// sentinel. Build that snapshot away from readers and publish it in one
+		// swap. In particular, a recovery resync must not expose a transiently
+		// empty but still "ready" index to list or delivery paths.
+		staged := newNotificationOccurrenceIndexSnapshot()
+		initialSync := true
 		restart := false
 		for !restart {
 			var resyncRequests <-chan chan error
@@ -92,7 +111,6 @@ func (i *NotificationOccurrenceIndex) Run(ctx context.Context) error {
 				}
 				return ctx.Err()
 			case pendingResync = <-resyncRequests:
-				i.resetSnapshot()
 				restart = true
 			case entry, ok := <-watcher.Updates():
 				if !ok {
@@ -103,6 +121,10 @@ func (i *NotificationOccurrenceIndex) Run(ctx context.Context) error {
 					return fmt.Errorf("notification occurrence index: watcher stopped")
 				}
 				if entry == nil {
+					if initialSync {
+						i.installSnapshot(staged)
+						initialSync = false
+					}
 					i.readyOnce.Do(func() { close(i.ready) })
 					if pendingResync != nil {
 						pendingResync <- nil
@@ -113,7 +135,11 @@ func (i *NotificationOccurrenceIndex) Run(ctx context.Context) error {
 					}
 					continue
 				}
-				i.apply(entry)
+				if initialSync {
+					i.applyToSnapshot(staged, entry)
+				} else {
+					i.apply(entry)
+				}
 			}
 		}
 		watcher.Stop()
@@ -144,14 +170,55 @@ func (i *NotificationOccurrenceIndex) Resync(ctx context.Context) error {
 	}
 }
 
-func (i *NotificationOccurrenceIndex) resetSnapshot() {
+func (i *NotificationOccurrenceIndex) installSnapshot(snapshot *notificationOccurrenceIndexSnapshot) {
 	i.mu.Lock()
 	defer i.mu.Unlock()
-	i.entriesByUser = make(map[string]map[string]notificationOccurrenceIndexEntry)
-	i.keyRevisions = make(map[string]uint64)
-	i.observedRevision = 0
+	i.entriesByUser = snapshot.entriesByUser
+	i.keyRevisions = snapshot.keyRevisions
+	i.observedRevision = snapshot.observedRevision
 	close(i.changed)
 	i.changed = make(chan struct{})
+}
+
+func (i *NotificationOccurrenceIndex) applyToSnapshot(snapshot *notificationOccurrenceIndexSnapshot, entry jetstream.KeyValueEntry) {
+	snapshot.observedRevision = max(snapshot.observedRevision, entry.Revision())
+	userID, _, ok := parseNotificationOccurrenceKey(entry.Key())
+	if !ok {
+		return
+	}
+	if entry.Revision() <= snapshot.keyRevisions[entry.Key()] {
+		return
+	}
+	if entry.Operation() == jetstream.KeyValueDelete || entry.Operation() == jetstream.KeyValuePurge {
+		delete(snapshot.keyRevisions, entry.Key())
+		if entries := snapshot.entriesByUser[userID]; entries != nil {
+			delete(entries, entry.Key())
+			if len(entries) == 0 {
+				delete(snapshot.entriesByUser, userID)
+			}
+		}
+		return
+	}
+	var occurrence corev1.NotificationOccurrence
+	if err := proto.Unmarshal(entry.Value(), &occurrence); err != nil {
+		if i.logger != nil {
+			i.logger.Warn("Ignoring malformed notification occurrence", "key", entry.Key(), "error", err)
+		}
+		return
+	}
+	if occurrence.GetRecipientId() != userID {
+		if i.logger != nil {
+			i.logger.Warn("Ignoring notification occurrence with mismatched recipient", "key", entry.Key())
+		}
+		return
+	}
+	if snapshot.entriesByUser[userID] == nil {
+		snapshot.entriesByUser[userID] = make(map[string]notificationOccurrenceIndexEntry)
+	}
+	snapshot.keyRevisions[entry.Key()] = entry.Revision()
+	snapshot.entriesByUser[userID][entry.Key()] = notificationOccurrenceIndexEntry{
+		key: entry.Key(), revision: entry.Revision(), occurrence: &occurrence,
+	}
 }
 
 func (i *NotificationOccurrenceIndex) apply(entry jetstream.KeyValueEntry) {

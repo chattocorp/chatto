@@ -508,7 +508,15 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		if status == core.PresenceStatusDoNotDisturb {
 			return core.ErrNotificationAlertSuppressed
 		}
-		results := sender.SendToMany(ctx, subscriptions, payload)
+		alertDeadline := core.NotificationAlertDeadline(occurrence)
+		remaining := time.Until(alertDeadline)
+		payload.TTLSeconds = int(remaining / time.Second)
+		if payload.TTLSeconds <= 0 {
+			return core.ErrNotificationAlertSuppressed
+		}
+		sendCtx, cancel := context.WithDeadline(ctx, alertDeadline)
+		defer cancel()
+		results := sender.SendToMany(sendCtx, subscriptions, payload)
 		var sendErr error
 		accepted := false
 		for _, result := range results {

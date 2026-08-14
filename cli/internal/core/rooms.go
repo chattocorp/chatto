@@ -299,32 +299,50 @@ func (c *ChattoCore) SetRoomUniversal(ctx context.Context, actorID string, kind 
 	if kind == KindDM {
 		return nil, fmt.Errorf("DM rooms cannot be universal")
 	}
-	room, err := c.GetRoom(ctx, kind, roomID)
-	if err != nil {
-		return nil, err
+	agg := evtstream.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read authorization fence before universal-room change: %w", err)
+		}
+		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+		if err != nil {
+			return nil, fmt.Errorf("read universal-room OCC tail: %w", err)
+		}
+		if expectedSeq > 0 {
+			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
+				return nil, fmt.Errorf("wait for room before universal-room change: %w", err)
+			}
+		}
+		room, err := c.GetRoom(ctx, kind, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if room.GetUniversal() == universal {
+			return room, nil
+		}
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RoomUniversalChanged{
+			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{RoomId: roomID, Universal: universal},
+		}})
+		subject := agg.SubjectFor(event)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
+		}}, authorizationSeq)
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("publish RoomUniversalChangedEvent: %w", err)
+		}
+		pos := events.SubjectPosition(subject, seqs[0])
+		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
+			return nil, err
+		}
+		c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
+		return c.GetRoom(ctx, kind, roomID)
 	}
-	if room.GetUniversal() == universal {
-		return room, nil
-	}
-
-	event := newEvent(actorID, &corev1.Event{
-		Event: &corev1.Event_RoomUniversalChanged{
-			RoomUniversalChanged: &corev1.RoomUniversalChangedEvent{
-				RoomId:    roomID,
-				Universal: universal,
-			},
-		},
-	})
-	pos, err := c.roomModel.appendDirectoryEventually(ctx, c.EventPublisher, evtstream.RoomAggregate(roomID), event)
-	if err != nil {
-		return nil, fmt.Errorf("publish RoomUniversalChangedEvent: %w", err)
-	}
-	if err := c.roomModel.waitForTimeline(ctx, pos); err != nil {
-		return nil, err
-	}
-
-	c.logger.Info("Room universal flag updated", "kind", kind, "room_id", roomID, "universal", universal)
-	return c.GetRoom(ctx, kind, roomID)
+	return nil, fmt.Errorf("publish universal-room change retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 }
 
 // SetRoomSlowMode updates a channel room's per-user posting interval.

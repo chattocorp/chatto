@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+	"golang.org/x/sync/errgroup"
 	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -85,22 +86,36 @@ func (d *notificationAlertDelivery) run(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("configure notification alert worker: %w", err)
 	}
-	return worker.Run(ctx)
+	g, gctx := errgroup.WithContext(ctx)
+	g.Go(func() error { return worker.Run(gctx) })
+	g.Go(func() error { return d.reconcileExpired(gctx) })
+	return g.Wait()
 }
 
 // Enqueue publishes only an opaque occurrence coordinate. Message-ID
 // deduplication covers source-worker redelivery; the occurrence's terminal
 // alert state is the durable idempotency fence after queue acknowledgement.
 func (d *notificationAlertDelivery) enqueue(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
-	if !d.core.notificationAlertsEnabled || occurrence == nil ||
-		occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+	if occurrence == nil || occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
 		return nil
 	}
-	data, err := proto.Marshal(&corev1.NotificationAlertJob{
+	// PENDING also drives the in-app alert signal. When no external provider is
+	// configured, leave it pending through that short window; the expiry
+	// reconciler will terminally silence it afterward.
+	if !d.core.notificationAlertsEnabled {
+		return nil
+	}
+	job := &corev1.NotificationAlertJob{
 		RecipientId:    occurrence.GetRecipientId(),
 		SourceEventId:  occurrence.GetSourceEventId(),
 		NotificationId: occurrence.GetId(),
-	})
+		AlertExpiresAt: occurrence.GetAlertExpiresAt(),
+	}
+	deadline := NotificationAlertDeadline(occurrence)
+	if deadline.IsZero() || !d.core.notificationOccurrences.now().UTC().Before(deadline) {
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+	}
+	data, err := proto.Marshal(job)
 	if err != nil {
 		return fmt.Errorf("encode notification alert job: %w", err)
 	}
@@ -124,19 +139,24 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 	if err := d.waitForMaterializerCurrent(ctx); err != nil {
 		return fmt.Errorf("fence notification materializer before alert delivery: %w", err)
 	}
-	if time.Since(delivery.PublishedAt) > notificationAlertDeliveryTTL {
-		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
-	}
-
-	occurrence, err := d.core.notificationOccurrences.Get(ctx, job.GetRecipientId(), job.GetNotificationId())
-	if errors.Is(err, ErrNotFound) {
-		return nil
-	}
+	entry, exists, err := d.core.notificationOccurrences.storedOccurrenceBySource(ctx, job.GetRecipientId(), job.GetSourceEventId())
 	if err != nil {
 		return err
 	}
+	if !exists {
+		return nil
+	}
+	occurrence := entry.occurrence
 	if occurrence.GetSourceEventId() != job.GetSourceEventId() {
 		return nil
+	}
+	deadline := NotificationAlertDeadline(occurrence)
+	if jobDeadline := job.GetAlertExpiresAt(); jobDeadline != nil && jobDeadline.IsValid() &&
+		(deadline.IsZero() || jobDeadline.AsTime().Before(deadline)) {
+		deadline = jobDeadline.AsTime().UTC()
+	}
+	if deadline.IsZero() || !d.core.notificationOccurrences.now().UTC().Before(deadline) {
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
 	}
 	eligible, err := d.core.NotificationAlertEligible(ctx, occurrence)
 	if err != nil {
@@ -158,6 +178,42 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 		return err
 	}
 	return d.core.notificationOccurrences.completeAlertDelivery(ctx, &job, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED)
+}
+
+// reconcileExpired terminally silences PENDING occurrences whose short-lived
+// queue item was never published, was evicted, or was absent from an
+// independently captured backup. It deliberately does not recreate provider
+// work: the immutable source-time deadline is the safe recovery boundary.
+func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error {
+	ticker := time.NewTicker(15 * time.Second)
+	defer ticker.Stop()
+	for {
+		entries, err := d.core.notificationOccurrences.index.allEntries(ctx)
+		if err != nil {
+			return err
+		}
+		now := d.core.notificationOccurrences.now().UTC()
+		for _, entry := range entries {
+			occurrence := entry.occurrence
+			if occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+				continue
+			}
+			deadline := NotificationAlertDeadline(occurrence)
+			if !deadline.IsZero() && now.Before(deadline) {
+				continue
+			}
+			if err := d.core.notificationOccurrences.completeAlertDelivery(ctx, &corev1.NotificationAlertJob{
+				RecipientId: occurrence.GetRecipientId(), SourceEventId: occurrence.GetSourceEventId(), NotificationId: occurrence.GetId(),
+			}, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED); err != nil {
+				return err
+			}
+		}
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+		}
+	}
 }
 
 // NotificationAlertEligible fences notification materialization and policy,
