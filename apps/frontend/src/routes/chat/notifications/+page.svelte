@@ -3,7 +3,7 @@
   import { resolve } from '$app/paths';
   import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-  import { EmptyState, PaneHeader } from '$lib/ui';
+  import { EmptyState, PaneHeader, UnreadDot } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
@@ -680,48 +680,56 @@
                 <button
                   type="button"
                   class={[
-                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
+                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start text-sm focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
                     !item.group.unread && 'opacity-60'
                   ]}
                   disabled={mutationPending}
                   onclick={() => openGroup(item)}
                 >
-                  {#if actors.length > 1}
-                    <span
-                      class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
-                      data-testid="notification-actor-stack"
-                    >
-                      {#each actors as groupedActor (groupedActor.id)}
-                        <UserAvatar user={groupedActor} size="md" class="ring-2 ring-background" />
-                      {/each}
-                    </span>
-                  {:else if actor}<UserAvatar user={actor} size="md" />{/if}
-                  {#if item.group.unread}
-                    <span
-                      class={[
-                        'size-2 shrink-0 rounded-full',
-                        item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
-                          ? 'bg-attention'
-                          : 'bg-text'
-                      ]}
-                      aria-label={m('chat.notifications.unread')}
-                    ></span>
-                  {/if}
-                  <span class="min-w-0 flex-1">
-                    <bdi class="block truncate font-medium" dir="auto">
+                  <span class="relative flex shrink-0">
+                    {#if actors.length > 1}
+                      <span
+                        class="flex shrink-0 -space-x-2 rtl:space-x-reverse"
+                        data-testid="notification-actor-stack"
+                      >
+                        {#each actors as groupedActor (groupedActor.id)}
+                          <UserAvatar user={groupedActor} size="md" class="ring-2 ring-background" />
+                        {/each}
+                      </span>
+                    {:else if actor}<UserAvatar user={actor} size="md" />{/if}
+                    {#if item.group.unread}
+                      <UnreadDot
+                        color={item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT
+                          ? 'warning'
+                          : 'ambient'}
+                        class="absolute -end-1 top-1/2 -translate-y-1/2 ring-2 ring-background"
+                        testid="notification-unread-dot"
+                      />
+                      <span class="sr-only">{m('chat.notifications.unread')}</span>
+                    {/if}
+                  </span>
+                  <span
+                    class="flex min-w-0 flex-1 items-baseline gap-2 overflow-hidden whitespace-nowrap"
+                    data-testid="notification-line"
+                  >
+                    <bdi class="min-w-0 truncate font-medium" dir="auto">
                       {occurrenceSummary(item.group)}
                     </bdi>
-                    <span class="block truncate text-sm text-muted">
-                      {#if showServerHostname}{item.serverHostname}<span
-                          class="mx-1.5"
-                          aria-hidden="true">·</span
-                        >{/if}
-                      {#if occurrence?.room?.name && !isReaction}
-                        <bdi dir="auto">#{occurrence.room.name}</bdi><span
-                          class="mx-1.5"
-                          aria-hidden="true">·</span
-                        >{/if}{formatTime(item.group.latestAt, item.timeFormatSettings)}
-                    </span>
+                    {#if showServerHostname || (occurrence?.room?.name && !isReaction)}
+                      <span class="min-w-0 truncate text-muted">
+                        {#if showServerHostname}{item.serverHostname}{/if}
+                        {#if showServerHostname && occurrence?.room?.name && !isReaction}<span
+                            class="mx-1.5"
+                            aria-hidden="true">·</span
+                          >{/if}
+                        {#if occurrence?.room?.name && !isReaction}
+                          <bdi dir="auto">#{occurrence.room.name}</bdi>
+                        {/if}
+                      </span>
+                    {/if}
+                    <span class="shrink-0 text-muted"
+                      >{formatTime(item.group.latestAt, item.timeFormatSettings)}</span
+                    >
                   </span>
                 </button>
                 <div class="flex shrink-0 items-center gap-2">

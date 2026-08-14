@@ -174,7 +174,9 @@ describe('notifications page', () => {
 
     expect(row.classList.contains('cursor-pointer')).toBe(true);
     expect(row.classList.contains('bg-attention/5')).toBe(true);
-    expect(q(row, '.bg-attention')).not.toBeNull();
+    const unreadDot = q(row, '[data-testid="notification-unread-dot"]') as HTMLElement;
+    expect(unreadDot.classList.contains('bg-attention')).toBe(true);
+    expect(unreadDot.classList.contains('absolute')).toBe(true);
     expect(rowTarget.classList.contains('cursor-pointer')).toBe(true);
     expect(deleteButton.classList.contains('btn-danger-secondary')).toBe(true);
     expect(row.querySelectorAll('button')).toHaveLength(2);
@@ -203,10 +205,15 @@ describe('notifications page', () => {
     const unreadRow = q(container, '[data-notification-state="unread"]') as HTMLElement;
     const readTarget = q(readRow, ':scope > button') as HTMLButtonElement;
     const unreadTarget = q(unreadRow, ':scope > button') as HTMLButtonElement;
+    const readLine = q(readRow, '[data-testid="notification-line"]') as HTMLElement;
+    const unreadLine = q(unreadRow, '[data-testid="notification-line"]') as HTMLElement;
     expect(readRow.classList.contains('bg-attention/5')).toBe(false);
-    expect(q(readRow, '.bg-attention')).toBeNull();
+    expect(q(readRow, '[data-testid="notification-unread-dot"]')).toBeNull();
+    expect(q(unreadRow, '[data-testid="notification-unread-dot"]')).not.toBeNull();
     expect(readTarget.classList.contains('opacity-60')).toBe(true);
     expect(unreadTarget.classList.contains('opacity-60')).toBe(false);
+    expect(readLine.classList.contains('whitespace-nowrap')).toBe(true);
+    expect(unreadLine.classList.contains('whitespace-nowrap')).toBe(true);
   });
 
   it('renders the retained occurrence projection immediately while refreshing', async () => {
@@ -303,7 +310,9 @@ describe('notifications page', () => {
     expect(q(row, '[data-testid="notification-thread-root-excerpt"]')).toBeNull();
     expect(row.dataset.notificationAttention).toBe('ambient');
     expect(row.classList.contains('bg-attention/5')).toBe(false);
-    expect(q(row, '.bg-text')).not.toBeNull();
+    expect(
+      q(row, '[data-testid="notification-unread-dot"]')?.classList.contains('bg-text')
+    ).toBe(true);
     expect(q(row, '[data-testid="notification-actor-stack"]')?.children).toHaveLength(2);
   });
 
