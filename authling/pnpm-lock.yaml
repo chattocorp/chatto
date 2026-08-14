@@ -14,12 +14,6 @@ importers:
       '@types/node':
         specifier: ^22.20.1
         version: 22.20.1
-      esbuild:
-        specifier: 0.28.1
-        version: 0.28.1
-      tinybase:
-        specifier: 9.3.0
-        version: 9.3.0
       typescript:
         specifier: ^6.0.3
         version: 6.0.3
@@ -714,95 +708,6 @@ packages:
     resolution: {integrity: sha512-uxc/zpqFg6x7C8vOE7lh6Lbda8eEL9zmVm/PLeTPBRhh1xCgdWaQ+J1CUieGpIfm2HdtsUpRv+HshiasBMcc6A==}
     engines: {node: '>=6'}
 
-  tinybase@9.3.0:
-    resolution: {integrity: sha512-jJxoeuL1PSFroVjUBJCTEceAktzhylRyu4xpwvwGtT3yzKY0VKtOeFgxDj/5xereDGtOxzhEoDZ5lqEkk08HdQ==}
-    peerDependencies:
-      '@automerge/automerge-repo': ^2.5.6
-      '@cloudflare/workers-types': ^5.20260726.1
-      '@electric-sql/pglite': ^0.5.4
-      '@libsql/client': ^0.17.4
-      '@powersync/common': ^2.0.0
-      '@sinclair/typebox': ^0.34.52
-      '@sqlite.org/sqlite-wasm': ^3.53.0-build1
-      '@vlcn.io/crsqlite-wasm': ^0.16.0
-      arktype: ^2.2.3
-      bun: ^1.3.14
-      effect: ^3.22.0
-      electric-sql: ^0.12.1
-      expo: ^57.0.8
-      expo-sqlite: ^57.0.1
-      partykit: ^0.0.115
-      partysocket: ^1.3.0
-      postgres: ^3.4.9
-      react: ^19.2.8
-      react-dom: ^19.2.8
-      react-native-mmkv: 4.3.2
-      react-native-sqlite-storage: ^6.0.1
-      solid-js: ^1.9.14
-      sqlite3: ^5.1.7
-      svelte: ^5.56.8
-      valibot: ^1.4.2
-      ws: ^8.21.1
-      yjs: ^13.6.31
-      zod: ^4.4.3
-    peerDependenciesMeta:
-      '@automerge/automerge-repo':
-        optional: true
-      '@cloudflare/workers-types':
-        optional: true
-      '@electric-sql/pglite':
-        optional: true
-      '@libsql/client':
-        optional: true
-      '@powersync/common':
-        optional: true
-      '@sinclair/typebox':
-        optional: true
-      '@sqlite.org/sqlite-wasm':
-        optional: true
-      '@vlcn.io/crsqlite-wasm':
-        optional: true
-      arktype:
-        optional: true
-      bun:
-        optional: true
-      effect:
-        optional: true
-      electric-sql:
-        optional: true
-      expo:
-        optional: true
-      expo-sqlite:
-        optional: true
-      partykit:
-        optional: true
-      partysocket:
-        optional: true
-      postgres:
-        optional: true
-      react:
-        optional: true
-      react-dom:
-        optional: true
-      react-native-mmkv:
-        optional: true
-      react-native-sqlite-storage:
-        optional: true
-      solid-js:
-        optional: true
-      sqlite3:
-        optional: true
-      svelte:
-        optional: true
-      valibot:
-        optional: true
-      ws:
-        optional: true
-      yjs:
-        optional: true
-      zod:
-        optional: true
-
   tinyexec@1.2.4:
     resolution: {integrity: sha512-SHf/r48b7vOrjve9PxJo3MN5v5yuyjHvdUcrQffT3WXMUfnGmHDVbC4k3sHJaJTgZCwpUplIaAo5ANtMyp3YHg==}
     engines: {node: '>=18'}
@@ -1396,8 +1301,6 @@ snapshots:
   tailwindcss@4.3.3: {}
 
   tapable@2.3.3: {}
-
-  tinybase@9.3.0: {}
 
   tinyexec@1.2.4: {}
 

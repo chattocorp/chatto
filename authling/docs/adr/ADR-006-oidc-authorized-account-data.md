@@ -1,6 +1,6 @@
 # ADR-006: Authorize Global Account Data Through OpenID Connect
 
-**Status:** Accepted
+**Status:** Superseded by [ADR-007](ADR-007-limit-authling-to-identity-provider.md)
 
 **Date:** 2026-08-02
 

@@ -8,7 +8,6 @@ import { removeRegisteredServerQueries } from '$lib/query/cacheRegistry';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
 	ServerCatalog,
-	type ServerCatalogChange,
 	type ServerRegistration,
 	type ServerRegistrationMetadataPatch
 } from './catalog.svelte';
@@ -71,12 +70,14 @@ export function generateServerId(url: string, existingIds: string[] = []): strin
 // Storage key intentionally stays as 'instances' — renaming would lose users'
 // multi-server registrations (including remote bearer tokens that can't be
 // regenerated). The in-code rename is purely cosmetic.
-function normalizeRegisteredServer(server: RegisteredServer): RegisteredServer {
+type PersistedRegisteredServer = RegisteredServer & { source?: 'local' | 'synced' };
+
+function normalizeRegisteredServer(server: PersistedRegisteredServer): RegisteredServer {
+	const { source: _retiredSource, ...local } = server;
 	return {
 		...emptyServerSession(),
-		...server,
+		...local,
 		iconUrl: server.iconUrl ?? null,
-		source: server.source ?? 'local',
 		reauthRequiredAt: server.reauthRequiredAt ?? null
 	};
 }
@@ -85,7 +86,7 @@ function isOptionalNullableString(value: unknown): boolean {
 	return value === undefined || value === null || typeof value === 'string';
 }
 
-function isPersistedServer(value: unknown): value is RegisteredServer {
+function isPersistedServer(value: unknown): value is PersistedRegisteredServer {
 	if (typeof value !== 'object' || value === null) return false;
 	const server = value as Record<string, unknown>;
 	if (
@@ -117,7 +118,7 @@ function isPersistedServer(value: unknown): value is RegisteredServer {
 	}
 }
 
-function isPersistedServerArray(value: unknown): value is RegisteredServer[] {
+function isPersistedServerArray(value: unknown): value is PersistedRegisteredServer[] {
 	if (!Array.isArray(value) || !value.every(isPersistedServer)) return false;
 	return new Set(value.map((server) => server.id)).size === value.length;
 }
@@ -128,8 +129,7 @@ function registrationFromServer(server: RegisteredServer): ServerRegistration {
 		url: server.url,
 		name: server.name,
 		iconUrl: server.iconUrl,
-		addedAt: server.addedAt,
-		source: server.source
+		addedAt: server.addedAt
 	};
 }
 
@@ -145,7 +145,7 @@ function sessionFromServer(server: RegisteredServer): ServerSession {
 }
 
 /** Split the legacy combined persistence shape into its runtime owners. */
-export function splitPersistedServers(servers: RegisteredServer[]): {
+export function splitPersistedServers(servers: PersistedRegisteredServer[]): {
 	registrations: ServerRegistration[];
 	sessions: Array<readonly [string, ServerSession]>;
 } {
@@ -158,13 +158,35 @@ export function splitPersistedServers(servers: RegisteredServer[]): {
 
 const serversSlot = globalSlot(
 	'instances',
-	[] as RegisteredServer[],
-	Codecs.json<RegisteredServer[]>(isPersistedServerArray)
+	[] as PersistedRegisteredServer[],
+	Codecs.json<PersistedRegisteredServer[]>(isPersistedServerArray)
 );
+
+const RETIRED_ACCOUNT_DATA_KEYS = [
+	'chatto:account-data:authorization',
+	'chatto:account-data:device-id',
+	'chatto:account-data:tinybase'
+];
+
+function clearRetiredAccountDataStorage(): void {
+	if (typeof localStorage === 'undefined') return;
+	try {
+		for (const key of RETIRED_ACCOUNT_DATA_KEYS) localStorage.removeItem(key);
+	} catch {
+		// Browser storage can be unavailable in privacy-restricted contexts.
+	}
+}
 
 /** Read and split the legacy combined storage shape used at registry construction. */
 export function restorePersistedServerState(): ReturnType<typeof splitPersistedServers> {
-	return splitPersistedServers(serversSlot.get());
+	const stored = serversSlot.get();
+	const normalized = stored.map(normalizeRegisteredServer);
+	if (stored.some((server) => server.source !== undefined)) {
+		serversSlot.set(normalized);
+	}
+	const persisted = splitPersistedServers(normalized);
+	clearRetiredAccountDataStorage();
+	return persisted;
 }
 
 /**
@@ -201,7 +223,7 @@ class ServerRegistry {
 		}));
 	}
 
-	/** Public, synchronizable server metadata without device-local sessions. */
+	/** Device-local public metadata for the servers known to this client. */
 	get registrations(): ServerRegistration[] {
 		return this.catalog.registrations;
 	}
@@ -257,10 +279,7 @@ class ServerRegistry {
 	 *
 	 * No-ops if the origin is already registered (e.g., from localStorage).
 	 */
-	probeOrigin(
-		knownServer = false,
-		location?: Pick<Location, 'origin' | 'protocol'> | URL
-	): void {
+	probeOrigin(knownServer = false, location?: Pick<Location, 'origin' | 'protocol'> | URL): void {
 		if (typeof window === 'undefined') return;
 		const currentLocation = location ?? window.location;
 		if (!isBackendCapableOrigin(currentLocation)) {
@@ -322,8 +341,7 @@ class ServerRegistry {
 				url,
 				name,
 				iconUrl,
-				addedAt: Date.now(),
-				source: 'local'
+				addedAt: Date.now()
 			},
 			{
 				token,
@@ -436,8 +454,7 @@ class ServerRegistry {
 			url: registration.url,
 			name: registration.name,
 			iconUrl: registration.iconUrl,
-			addedAt: registration.addedAt,
-			source: registration.source
+			addedAt: registration.addedAt
 		};
 		const localSession =
 			session ?? ('token' in registration ? sessionFromServer(registration) : emptyServerSession());
@@ -492,19 +509,6 @@ class ServerRegistry {
 		this.#persist();
 	}
 
-	/** Drop catalogue entries learned only from a previous Authling account. */
-	detachSyncedRegistrations(): void {
-		for (const registration of [...this.registrations]) {
-			if (registration.source !== 'synced') continue;
-			if (this.isAuthenticated(registration.id)) {
-				this.catalog.markLocal(registration.id);
-				this.#persist();
-			} else {
-				this.removeServer(registration.id);
-			}
-		}
-	}
-
 	#disposeServers(ids: string[]): void {
 		for (const id of ids) {
 			eventBusManager.stopBus(id);
@@ -514,16 +518,11 @@ class ServerRegistry {
 		}
 	}
 
-	/** Update synchronizable metadata without touching the local session. */
+	/** Update device-local public metadata without touching the local session. */
 	updateRegistration(id: string, data: ServerRegistrationMetadataPatch): boolean {
 		if (!this.catalog.update(id, data)) return false;
 		this.#persist();
 		return true;
-	}
-
-	/** Subscribe only to public catalogue changes used by account-data sync. */
-	subscribeCatalog(listener: (change: ServerCatalogChange) => void): () => void {
-		return this.catalog.subscribe(listener);
 	}
 
 	replaceServerAuthentication(

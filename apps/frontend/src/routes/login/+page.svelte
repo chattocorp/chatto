@@ -1,10 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { onMount } from 'svelte';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { startRemoteReauthentication } from '$lib/auth/reauth';
-  import { findAuthlingServerProvider } from '$lib/authling/serverProvider';
-  import { getClientConfiguration } from '$lib/clientConfig';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -14,8 +11,6 @@
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, Button, Form } from '$lib/ui/form';
   import { serverRegistry, type RegisteredServer } from '$lib/state/server/registry.svelte';
-
-  type AccountDataSyncAPI = typeof import('$lib/accountData/sync.svelte').accountDataSync;
 
   const { data } = $props();
 
@@ -29,10 +24,6 @@
   let addServerDialogModule: Promise<
     typeof import('$lib/components/AddServerDialog.svelte')
   > | null = null;
-  let authlingAvailable = $state(false);
-  let authlingSync = $state<AccountDataSyncAPI | null>(null);
-  let authlingError = $state('');
-  let authlingProviderId = $state<string | null>(null);
   let connectingServerId = $state<string | null>(null);
 
   function loadAddServerDialog() {
@@ -42,9 +33,6 @@
 
   const canSubmit = $derived(identifier.trim() && password);
   const authProviders = $derived(data.serverInfo?.authProviders ?? []);
-  const visibleAuthProviders = $derived(
-    authProviders.filter((provider) => provider.id !== authlingProviderId)
-  );
   const directRegistrationEnabled = $derived(data.serverInfo?.directRegistrationEnabled ?? true);
   const directLoginEnabled = $derived(data.serverInfo?.directLoginEnabled ?? true);
   const isAuthenticating = $derived(isLoading || selectedProviderId !== null);
@@ -52,9 +40,7 @@
     pageErrorDismissed ? '' : loginErrorMessage(data.loginErrorCode || '')
   );
   const displayedError = $derived(error || pageError);
-  const authlingStatus = $derived(authlingSync?.status ?? 'disconnected');
-  const authlingAccountId = $derived(authlingSync?.accountId ?? null);
-  const syncedServers = $derived(serverRegistry.servers.filter((server) => !server.token));
+  const signedOutServers = $derived(serverRegistry.servers.filter((server) => !server.token));
 
   // Standalone detection: if public server info failed to load, there is no local
   // backend to log in to. Redirect URLs are backend-driven flows, so keep the
@@ -62,21 +48,6 @@
   const isStandalone = $derived(
     !data.serverInfo && data.serverInfoLoaded && data.redirectUrl === '/'
   );
-
-  onMount(() => {
-    void getClientConfiguration()
-      .then(async (configuration) => {
-        if (!configuration.authling) return;
-        authlingAvailable = true;
-        authlingProviderId = (await findAuthlingServerProvider(authProviders))?.id ?? null;
-        const { accountDataSync } = await import('$lib/accountData/sync.svelte');
-        authlingSync = accountDataSync;
-        await authlingSync.initialize();
-      })
-      .catch((cause) => {
-        console.error('[authling] invalid client configuration', cause);
-      });
-  });
 
   function providerIcon(type: string): string {
     switch (type) {
@@ -128,33 +99,13 @@
     }, 250);
   }
 
-  async function handleAuthlingSignIn() {
-    if (!authlingSync || authlingStatus === 'connecting') return;
-    authlingError = '';
-    await authlingSync.connect();
-    if (authlingSync.status !== 'connected') {
-      authlingError = authlingSync.error || m('chat.server_gutter.account_data_error');
-      return;
-    }
-
-    if (!isStandalone) {
-      const provider = await findAuthlingServerProvider(authProviders);
-      if (!provider) {
-        authlingError = m('auth.login.error.provider_not_found');
-        return;
-      }
-      selectedProviderId = provider.id;
-      window.location.href = providerLoginHref(provider);
-    }
-  }
-
-  async function handleSyncedServerSignIn(server: RegisteredServer) {
-    authlingError = '';
+  async function handleKnownServerSignIn(server: RegisteredServer) {
+    error = '';
     connectingServerId = server.id;
     try {
       await startRemoteReauthentication(server);
     } catch (cause) {
-      authlingError = cause instanceof Error ? cause.message : m('add_server.start_failed');
+      error = cause instanceof Error ? cause.message : m('add_server.start_failed');
       connectingServerId = null;
     }
   }
@@ -200,38 +151,6 @@
   }
 </script>
 
-{#snippet authlingSignIn()}
-  {#if authlingAvailable}
-    <div class="flex flex-col gap-3">
-      <Button
-        variant="action"
-        size="lg"
-        fullWidth
-        onclick={handleAuthlingSignIn}
-        disabled={authlingStatus === 'connecting' ||
-          (authlingStatus === 'connected' && isStandalone)}
-        loading={authlingStatus === 'connecting'}
-        loadingText={m('auth.login.connecting_provider', { provider: 'Authling' })}
-      >
-        <span class="iconify icon-[mdi--shield-account] text-lg"></span>
-        {#if authlingStatus === 'connected' && isStandalone}
-          {m('chat.server_gutter.account_data_connected', { provider: 'Authling' })}
-        {:else}
-          {m('auth.login.continue_with_provider', { provider: 'Authling' })}
-        {/if}
-      </Button>
-      {#if authlingAccountId}
-        <p class="truncate text-center font-mono text-xs text-muted">
-          Authling · {authlingAccountId}
-        </p>
-      {/if}
-      {#if authlingError}
-        <Hint tone="danger">{authlingError}</Hint>
-      {/if}
-    </div>
-  {/if}
-{/snippet}
-
 <PageTitle title={isStandalone ? m('auth.login.welcome_page_title') : m('auth.login.title')} />
 
 {#if isStandalone}
@@ -254,14 +173,6 @@
       </div>
 
       <div class="mt-8 w-full">
-        {@render authlingSignIn()}
-
-        {#if authlingAvailable}
-          <div class="my-4">
-            <Divider label={m('common.or')} />
-          </div>
-        {/if}
-
         <Button
           variant="action"
           size="lg"
@@ -273,9 +184,15 @@
         </Button>
       </div>
 
-      {#if authlingStatus === 'connected' && syncedServers.length > 0}
+      {#if displayedError}
+        <div class="mt-4 w-full">
+          <Hint tone="danger">{displayedError}</Hint>
+        </div>
+      {/if}
+
+      {#if signedOutServers.length > 0}
         <div class="mt-8 flex w-full flex-col gap-3 text-left">
-          {#each syncedServers as server (server.id)}
+          {#each signedOutServers as server (server.id)}
             <div class="flex items-center gap-3 rounded-lg border border-border bg-surface p-3">
               <div class="min-w-0 flex-1">
                 <div class="truncate font-semibold">{server.name}</div>
@@ -284,7 +201,7 @@
               <Button
                 variant="secondary"
                 size="sm"
-                onclick={() => handleSyncedServerSignIn(server)}
+                onclick={() => handleKnownServerSignIn(server)}
                 loading={connectingServerId === server.id}
                 disabled={connectingServerId !== null && connectingServerId !== server.id}
               >
@@ -314,16 +231,10 @@
       </div>
     {/if}
 
-    {@render authlingSignIn()}
-
-    {#if authlingAvailable && (visibleAuthProviders.length > 0 || directLoginEnabled)}
-      <Divider label={m('common.or')} />
-    {/if}
-
     <!-- SSO providers -->
-    {#if visibleAuthProviders.length > 0}
+    {#if authProviders.length > 0}
       <div class="flex flex-col gap-3">
-        {#each visibleAuthProviders as provider (provider.id)}
+        {#each authProviders as provider (provider.id)}
           <Button
             variant="secondary"
             size="lg"

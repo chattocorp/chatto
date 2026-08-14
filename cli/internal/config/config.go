@@ -17,7 +17,6 @@ type ChattoConfig struct {
 	General         GeneralConfig         `toml:"general"`
 	Owners          OwnersConfig          `toml:"owners" comment:"Email addresses that confer owner status."`
 	Webserver       WebserverConfig       `toml:"webserver"`
-	Frontend        FrontendConfig        `toml:"frontend,commented" comment:"Trusted configuration published to the bundled frontend."`
 	Metrics         MetricsConfig         `toml:"metrics,commented" comment:"Process-local Prometheus metrics endpoint."`
 	Exporter        ExporterConfig        `toml:"exporter,commented" comment:"Deployment-wide Prometheus metrics exporter."`
 	Search          SearchConfig          `toml:"search,commented" comment:"Consumer-facing message search configuration."`
@@ -216,16 +215,6 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, err.Error())
 		}
 	}
-	if c.Frontend.AuthlingIssuer != "" {
-		if err := validateFrontendAuthlingIssuer(c.Frontend.AuthlingIssuer); err != nil {
-			errs = append(errs, err.Error())
-		}
-		if c.Webserver.URL == "" {
-			errs = append(errs, "webserver.url is required when frontend.authling_issuer is configured")
-		} else if publicURL, err := url.Parse(c.Webserver.URL); err == nil && publicURL.Scheme != "https" {
-			errs = append(errs, "webserver.url must use https when frontend.authling_issuer is configured because CIMD client IDs require https")
-		}
-	}
 	if c.NATS.Client.URL != "" {
 		if _, err := url.Parse(c.NATS.Client.URL); err != nil {
 			errs = append(errs, fmt.Sprintf("nats.client.url is invalid: %v", err))
@@ -416,20 +405,6 @@ func (c *ChattoConfig) Validate() error {
 
 	if len(errs) > 0 {
 		return fmt.Errorf("config validation failed:\n  - %s", strings.Join(errs, "\n  - "))
-	}
-	return nil
-}
-
-func validateFrontendAuthlingIssuer(raw string) error {
-	issuer, err := url.Parse(raw)
-	if err != nil {
-		return fmt.Errorf("frontend.authling_issuer is invalid: %w", err)
-	}
-	if issuer.Scheme != "https" && !(issuer.Scheme == "http" && isLoopbackHost(issuer.Hostname())) {
-		return fmt.Errorf("frontend.authling_issuer must use https except for loopback development")
-	}
-	if issuer.Host == "" || issuer.User != nil || (issuer.Path != "" && issuer.Path != "/") || issuer.RawQuery != "" || issuer.Fragment != "" {
-		return fmt.Errorf("frontend.authling_issuer must be an absolute origin without user info, path, query, or fragment")
 	}
 	return nil
 }

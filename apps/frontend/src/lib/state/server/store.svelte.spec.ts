@@ -307,8 +307,7 @@ const registered: RegisteredServer = {
   userDisplayName: 'Alice',
   userAvatarUrl: null,
   reauthRequiredAt: null,
-  addedAt: 1,
-  source: 'local'
+  addedAt: 1
 };
 
 const stores: ServerStateStore[] = [];
@@ -331,8 +330,7 @@ function makeStore(
       url: server.url,
       name: server.name,
       iconUrl: server.iconUrl,
-      addedAt: server.addedAt,
-      source: server.source
+      addedAt: server.addedAt
     },
     () => ({
       token: server.token,

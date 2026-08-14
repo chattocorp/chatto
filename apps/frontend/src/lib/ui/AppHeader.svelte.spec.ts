@@ -49,10 +49,6 @@ vi.mock('$lib/state/globals.svelte', () => ({
     open: mocks.openQuickSwitcher
   }
 }));
-vi.mock('$lib/accountData/AccountDataSyncButton.svelte', async () => ({
-  default: (await import('$lib/accountData/AccountDataSyncButtonMock.svelte')).default
-}));
-
 describe('AppHeader', () => {
   beforeEach(() => {
     mocks.servers = [];
@@ -75,13 +71,6 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
-  });
-
-  it('hosts the account-data sync control', () => {
-    const { container } = render(AppHeader);
-
-    const leadingActions = container.querySelector('header > div:first-child');
-    expect(leadingActions?.querySelector('[data-testid="account-data-sync"]')).not.toBeNull();
   });
 
   it('opens the About Chatto dialog from the frontend version', () => {

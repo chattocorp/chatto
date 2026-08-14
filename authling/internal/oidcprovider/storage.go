@@ -89,7 +89,6 @@ type tokenState struct {
 	ClientID string    `json:"client_id"`
 	Subject  string    `json:"subject"`
 	Scopes   []string  `json:"scopes"`
-	Origin   string    `json:"origin"`
 	Expires  time.Time `json:"expires"`
 }
 
@@ -97,7 +96,6 @@ type tokenState struct {
 type ConsentRequest struct {
 	ID, ClientName, ClientHost, RedirectOrigin string
 	Scopes                                     []string
-	AccountData                                bool
 }
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.
@@ -212,7 +210,7 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 	return ConsentRequest{
 		ID: state.ID, ClientName: state.ClientName, ClientHost: state.ClientHost,
 		RedirectOrigin: redirectOrigin,
-		Scopes:         append([]string(nil), state.Scopes...), AccountData: hasScope(state.Scopes, ScopeAccountData),
+		Scopes:         append([]string(nil), state.Scopes...),
 	}, nil
 }
 
@@ -266,46 +264,14 @@ func (s *Storage) CreateAccessToken(ctx context.Context, request op.TokenRequest
 	}
 	expires := s.now().UTC().Add(accessTokenLifetime)
 	clientID := ""
-	origin := ""
 	if auth, ok := request.(op.AuthRequest); ok {
 		clientID = auth.GetClientID()
-		redirect, parseErr := url.Parse(auth.GetRedirectURI())
-		if parseErr != nil || redirect.Scheme == "" || redirect.Host == "" {
-			return "", time.Time{}, fmt.Errorf("resolve access-token origin")
-		}
-		origin, parseErr = canonicalOrigin(auth.GetRedirectURI())
-		if parseErr != nil {
-			return "", time.Time{}, fmt.Errorf("resolve access-token origin")
-		}
 	}
-	state := tokenState{ClientID: clientID, Subject: request.GetSubject(), Scopes: request.GetScopes(), Origin: origin, Expires: expires}
+	state := tokenState{ClientID: clientID, Subject: request.GetSubject(), Scopes: request.GetScopes(), Expires: expires}
 	if err := s.create(ctx, s.tokenKey(id), state, accessTokenLifetime); err != nil {
 		return "", time.Time{}, err
 	}
 	return id, expires, nil
-}
-
-// AccountDataGrant resolves a stored token only when its subject, scope,
-// callback origin, and expiry all remain valid.
-func (s *Storage) AccountDataGrant(ctx context.Context, tokenID, subject, origin string) (AccessGrant, error) {
-	var state tokenState
-	if err := s.read(s.tokenKey(tokenID), ctx, &state); err != nil ||
-		state.Subject != subject || state.ClientID == "" || state.Origin != origin ||
-		!state.Expires.After(s.now().UTC()) || !hasScope(state.Scopes, ScopeAccountData) {
-		return AccessGrant{}, errOIDCStateNotFound
-	}
-	return AccessGrant{
-		AccountID: state.Subject, ClientID: state.ClientID, Origin: state.Origin, Expires: state.Expires,
-	}, nil
-}
-
-func hasScope(scopes []string, required string) bool {
-	for _, scope := range scopes {
-		if scope == required {
-			return true
-		}
-	}
-	return false
 }
 
 func canonicalOrigin(raw string) (string, error) {

@@ -3,7 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const {
   addServerMock,
   clearOriginAuthenticationMock,
-  findAuthlingServerProviderMock,
   generateServerIdMock,
   getPublicServerInfoMock,
   initServerInfoMock,
@@ -13,7 +12,6 @@ const {
 } = vi.hoisted(() => ({
   addServerMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
-  findAuthlingServerProviderMock: vi.fn(),
   generateServerIdMock: vi.fn(() => 'remote-example'),
   getPublicServerInfoMock: vi.fn(),
   initServerInfoMock: vi.fn(() => Promise.resolve()),
@@ -29,9 +27,6 @@ vi.mock('$app/paths', () => ({
     params?.serverId ? `/chat/${params.serverId}` : '/login'
 }));
 vi.mock('$lib/api-client/server', () => ({ getPublicServerInfo: getPublicServerInfoMock }));
-vi.mock('$lib/authling/serverProvider', () => ({
-  findAuthlingServerProvider: findAuthlingServerProviderMock
-}));
 vi.mock('$lib/navigation', () => ({ serverIdToSegment: (serverId: string) => serverId }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
   generateServerId: generateServerIdMock,
@@ -113,7 +108,6 @@ describe('remote server OAuth popup', () => {
     vi.stubGlobal('BroadcastChannel', FakeBroadcastChannel);
     vi.stubGlobal('sessionStorage', memoryStorage());
     getPublicServerInfoMock.mockReset();
-    findAuthlingServerProviderMock.mockReset();
   });
 
   afterEach(() => {
@@ -231,7 +225,7 @@ describe('remote server OAuth popup', () => {
     expect(popup.close).toHaveBeenCalledOnce();
   });
 
-  it('opens before server discovery completes and selects the Authling provider', async () => {
+  it('opens before server discovery completes without selecting a login provider', async () => {
     const popup = {
       closed: false,
       opener: {} as Window,
@@ -259,8 +253,6 @@ describe('remote server OAuth popup', () => {
           finishDiscovery = resolve;
         })
     );
-    findAuthlingServerProviderMock.mockResolvedValueOnce({ id: 'authling' });
-
     const { startRemoteReauthentication } = await import('./reauth');
     const completion = startRemoteReauthentication({
       id: 'remote',
@@ -273,8 +265,7 @@ describe('remote server OAuth popup', () => {
       userDisplayName: null,
       userAvatarUrl: null,
       reauthRequiredAt: null,
-      addedAt: 0,
-      source: 'synced'
+      addedAt: 0
     });
 
     expect(open).toHaveBeenCalledOnce();
@@ -289,8 +280,7 @@ describe('remote server OAuth popup', () => {
 
     await vi.waitFor(() => expect(popup.location.href).toContain('/oauth/authorize?'));
     const authorizeURL = new URL(popup.location.href);
-    expect(authorizeURL.searchParams.get('provider_id')).toBe('authling');
-    expect(findAuthlingServerProviderMock).toHaveBeenCalledWith([{ id: 'authling' }]);
+    expect(authorizeURL.searchParams.has('provider_id')).toBe(false);
 
     const state = authorizeURL.searchParams.get('state');
     FakeBroadcastChannel.instances
@@ -330,8 +320,7 @@ describe('remote server OAuth popup', () => {
         userDisplayName: null,
         userAvatarUrl: null,
         reauthRequiredAt: null,
-        addedAt: 0,
-        source: 'synced'
+        addedAt: 0
       })
     ).rejects.toThrow('discovery failed');
 

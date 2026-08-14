@@ -254,7 +254,6 @@ func (s *HTTPServer) setupRoutes() error {
 	s.setupWebhookRoutes()
 	s.setupConnectAPI()
 	s.setupRealtimeAPI()
-	s.setupClientConfigurationRoutes()
 	s.setupCIMDRoutes()
 	s.setupOIDCRoutes()
 	s.setupAuthRoutes()

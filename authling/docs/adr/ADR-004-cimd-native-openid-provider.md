@@ -32,8 +32,8 @@ OIDC `sub`.
 
 The provider profile supports discovery, JWKS, Authorization Code, ID-token
 issuance, bearer access tokens, and UserInfo. It requires `openid`, `code` as
-the response type, and S256 PKCE for every client. ADR-006 adds the optional
-`account_data` scope.
+the response type, and S256 PKCE for every client. ADR-007 limits the provider
+to identity scopes; the initial profile accepts exactly `openid`.
 Authorization codes are short-lived, single-use through JetStream optimistic
 concurrency, and bound to the exact client and redirect URI. The first slice
 does not support refresh tokens, implicit or hybrid flow, request objects,

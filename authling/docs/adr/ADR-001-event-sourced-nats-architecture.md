@@ -1,14 +1,14 @@
 # ADR-001: Build Authling on an Event-Sourced NATS Architecture
 
-**Status:** Accepted
+**Status:** Accepted; application-data scope superseded by [ADR-007](ADR-007-limit-authling-to-identity-provider.md)
 
 **Date:** 2026-07-31
 
 ## Context
 
 Authling needs authoritative storage for security-sensitive identity state,
-OIDC applications and consent, linked upstream identities, and app-scoped user
-documents. It must remain correct when multiple Authling replicas handle
+OIDC relying parties and consent, and linked upstream identities. It must
+remain correct when multiple Authling replicas handle
 concurrent requests, and operators must be able to recover derived state
 without maintaining a second durable source of truth.
 
@@ -56,9 +56,9 @@ removed or renumbered, and existing field types or meanings must not be changed.
 Evolution should be additive; incompatible semantic changes require a new
 event type and explicit migration or replay reasoning.
 
-Accounts, credentials, linked upstream identities, OIDC applications and
-consent, and user documents are durable domain state and will be represented by
-events. Short-lived authorization codes, login challenges, nonce material, and
+Accounts, credentials, linked upstream identities, OIDC relying parties and
+consent are durable domain state and will be represented by events. Short-lived
+authorization codes, login challenges, nonce material, and
 similar workflow state may use dedicated expiring runtime storage when replay
 and historical retention would be inappropriate. Such runtime state must not
 become the only record of a durable domain fact.

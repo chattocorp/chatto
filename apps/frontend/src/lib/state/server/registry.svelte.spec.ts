@@ -23,7 +23,6 @@ function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer
 		userAvatarUrl: null,
 		reauthRequiredAt: null,
 		addedAt: 1000,
-		source: 'local',
 		...overrides
 	};
 }
@@ -101,20 +100,6 @@ describe('ServerRegistry', () => {
 			expect(registry.originProbed).toBe(true);
 			expect(registry.servers).toHaveLength(0);
 		});
-	});
-
-	it('distinguishes public registry changes from a local sign-out reset', async () => {
-		const registry = await createRegistry();
-		registry.removeAll();
-		const changes: Array<'public' | 'local-reset'> = [];
-		const unsubscribe = registry.subscribeCatalog((change) => changes.push(change));
-
-		registry.addServer(makeServer());
-		registry.updateRegistration('test-instance', { name: 'Updated' });
-		registry.removeAll();
-		unsubscribe();
-
-		expect(changes).toEqual(['public', 'public', 'local-reset']);
 	});
 
 	describe('originServer', () => {
@@ -383,12 +368,10 @@ describe('ServerRegistry', () => {
 	});
 
 	describe('catalogue and session ownership', () => {
-		it('updates public metadata without changing or publishing the local session', async () => {
+		it('updates public metadata without changing the local session', async () => {
 			const registry = await createRegistry();
 			registry.removeAll();
 			registry.addServer(makeServer({ token: 'secret-token', userId: 'user-1' }));
-			const changes: Array<'public' | 'local-reset'> = [];
-			const unsubscribe = registry.subscribeCatalog((change) => changes.push(change));
 
 			registry.updateRegistration('test-instance', { name: 'Renamed' });
 			registry.replaceServerAuthentication('test-instance', {
@@ -399,21 +382,18 @@ describe('ServerRegistry', () => {
 				userAvatarUrl: null,
 				reauthRequiredAt: null
 			});
-			unsubscribe();
 
 			expect(registry.registrations[0]).toEqual({
 				id: 'test-instance',
 				url: 'https://test.example.com',
 				name: 'Renamed',
 				iconUrl: null,
-				addedAt: 1000,
-				source: 'local'
+				addedAt: 1000
 			});
 			expect(registry.getServer('test-instance')).toMatchObject({
 				token: 'replacement-token',
 				userId: 'user-2'
 			});
-			expect(changes).toEqual(['public']);
 		});
 
 		it('retains only an unauthenticated origin during a local all-server reset', async () => {
@@ -441,42 +421,15 @@ describe('ServerRegistry', () => {
 			]);
 		});
 
-		it('drops signed-out synced entries and promotes authenticated ones on disconnect', async () => {
-			const registry = await createRegistry();
-			registry.removeAll();
-			registry.addServer(
-				makeServer({ id: 'local', url: 'https://local.example.com', source: 'local' })
-			);
-			registry.addServer(
-				makeServer({ id: 'signed-out', url: 'https://signed-out.example.com', source: 'synced' })
-			);
-			registry.addServer(
-				makeServer({
-					id: 'signed-in',
-					url: 'https://signed-in.example.com',
-					source: 'synced',
-					token: 'remote-token'
-				})
-			);
-
-			registry.detachSyncedRegistrations();
-
-			expect(registry.getServer('local')?.source).toBe('local');
-			expect(registry.getServer('signed-out')).toBeUndefined();
-			expect(registry.getServer('signed-in')).toMatchObject({
-				source: 'local',
-				token: 'remote-token'
-			});
-		});
-
-		it('loads the existing combined storage shape as separate runtime state', () => {
-			const persisted = makeServer({ token: 'persisted-token', userId: 'persisted-user' });
-			delete (persisted as Partial<RegisteredServer>).source;
+		it('loads the existing combined storage shape and retires sync provenance', () => {
+			const persisted = {
+				...makeServer({ token: 'persisted-token', userId: 'persisted-user' }),
+				source: 'synced' as const
+			};
 			const restored = splitPersistedServers([persisted]);
 
-			expect(restored.registrations[0]).toEqual(
-				expect.objectContaining({ id: 'test-instance', source: 'local' })
-			);
+			expect(restored.registrations[0]).toEqual(expect.objectContaining({ id: 'test-instance' }));
+			expect(restored.registrations[0]).not.toHaveProperty('source');
 			expect(restored.sessions).toEqual([
 				[
 					'test-instance',
@@ -515,11 +468,31 @@ describe('ServerRegistry', () => {
 				expect.objectContaining({ id: 'persisted', name: 'Persisted' })
 			]);
 			expect(restored.sessions).toEqual([
-				[
-					'persisted',
-					expect.objectContaining({ token: server.token, userId: server.userId })
-				]
+				['persisted', expect.objectContaining({ token: server.token, userId: server.userId })]
 			]);
+		});
+
+		it('clears retired account-data browser storage', () => {
+			localStorage.setItem('chatto:account-data:authorization', 'grant');
+			localStorage.setItem('chatto:account-data:device-id', 'device');
+			localStorage.setItem('chatto:account-data:tinybase', 'cache');
+
+			restorePersistedServerState();
+
+			expect(localStorage.getItem('chatto:account-data:authorization')).toBeNull();
+			expect(localStorage.getItem('chatto:account-data:device-id')).toBeNull();
+			expect(localStorage.getItem('chatto:account-data:tinybase')).toBeNull();
+		});
+
+		it('rewrites retired sync provenance as device-local storage', () => {
+			localStorage.setItem(
+				STORAGE_KEY,
+				JSON.stringify([{ ...makeServer({ id: 'migrated' }), source: 'synced' }])
+			);
+
+			restorePersistedServerState();
+
+			expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')[0]).not.toHaveProperty('source');
 		});
 
 		it('handles corrupted localStorage gracefully', () => {

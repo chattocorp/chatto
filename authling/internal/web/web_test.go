@@ -1,14 +1,11 @@
 package web
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
-	"net/netip"
 	"net/url"
 	"strings"
 	"testing"
-	"time"
 )
 
 func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
@@ -60,6 +57,17 @@ func TestHandlerServesEmbeddedStylesheet(t *testing.T) {
 	}
 	if response.Body.Len() == 0 {
 		t.Fatal("embedded stylesheet is empty")
+	}
+}
+
+func TestHandlerDoesNotExposeAccountDataSync(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/data/sync", nil)
+	response := httptest.NewRecorder()
+
+	Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusNotFound {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusNotFound)
 	}
 }
 
@@ -151,123 +159,5 @@ func TestHandlerAcceptsCanonicalHostWithImplicitDefaultPort(t *testing.T) {
 				t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 			}
 		})
-	}
-}
-
-func TestAccountSyncAuthorizationMonitorExpiresIdleConnection(t *testing.T) {
-	expired := make(chan struct{})
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
-	go monitorAccountSyncAuthorization(ctx, time.Millisecond, func(context.Context, bool) bool {
-		return false
-	}, func() {
-		close(expired)
-	})
-	select {
-	case <-expired:
-	case <-time.After(time.Second):
-		t.Fatal("idle connection authorization was not checked")
-	}
-}
-
-func TestAccountSyncAuthenticationAdmissionIsFairAcrossNetworkSources(t *testing.T) {
-	admission := newAccountSyncAuthenticationAdmission()
-	for attempt := range maxPendingAccountSyncAuthPerSource {
-		if !admission.acquire("192.0.2.1") {
-			t.Fatalf("source admission %d was rejected", attempt)
-		}
-	}
-	if admission.acquire("192.0.2.1") {
-		t.Fatal("source above its pending limit was accepted")
-	}
-	if !admission.acquire("198.51.100.2") {
-		t.Fatal("one saturated source excluded another source")
-	}
-	admission.release("192.0.2.1")
-	if !admission.acquire("192.0.2.1") {
-		t.Fatal("source did not recover after one authentication ended")
-	}
-}
-
-func TestAccountSyncNetworkSourceUsesForwardingOnlyFromTrustedProxy(t *testing.T) {
-	request := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
-	request.RemoteAddr = "192.0.2.10:54321"
-	request.Header.Set("X-Forwarded-For", "198.51.100.20")
-	if got := accountSyncNetworkSource(request, nil); got != "192.0.2.10" {
-		t.Fatalf("network source = %q, want direct peer address", got)
-	}
-	trusted := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
-	if got := accountSyncNetworkSource(request, trusted); got != "198.51.100.20" {
-		t.Fatalf("trusted-proxy source = %q, want forwarded client address", got)
-	}
-	request.Header.Set("X-Forwarded-For", "198.51.100.20, 192.0.2.10")
-	if got := accountSyncNetworkSource(request, trusted); got != "192.0.2.10" {
-		t.Fatalf("ambiguous forwarded source = %q, want direct peer address", got)
-	}
-}
-
-func TestTrustedProxyClientsReceiveIndependentAuthenticationAdmission(t *testing.T) {
-	trusted := []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
-	request := func(client string) *http.Request {
-		candidate := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
-		candidate.RemoteAddr = "192.0.2.10:54321"
-		candidate.Header.Set("X-Forwarded-For", client)
-		return candidate
-	}
-	admission := newAccountSyncAuthenticationAdmission()
-	attacker := accountSyncNetworkSource(request("198.51.100.1"), trusted)
-	for range maxPendingAccountSyncAuthPerSource {
-		if !admission.acquire(attacker) {
-			t.Fatal("attacker allowance ended early")
-		}
-	}
-	legitimate := accountSyncNetworkSource(request("203.0.113.2"), trusted)
-	if !admission.acquire(legitimate) {
-		t.Fatal("one forwarded client excluded another forwarded client")
-	}
-}
-
-func TestAccountSyncRequestOriginAllowsHTTPSAndLoopbackDevelopment(t *testing.T) {
-	tests := []struct {
-		origin string
-		want   bool
-	}{
-		{origin: "https://client.example", want: true},
-		{origin: "http://localhost:5173", want: true},
-		{origin: "http://app.localhost:5173", want: true},
-		{origin: "http://127.0.0.1:5173", want: true},
-		{origin: "http://client.example"},
-		{origin: "https://client.example/path"},
-		{origin: "null"},
-		{origin: "file://client"},
-	}
-	for _, test := range tests {
-		t.Run(test.origin, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "https://auth.example/data/sync", nil)
-			request.Header.Set("Origin", test.origin)
-			got, ok := accountSyncRequestOrigin(request)
-			if ok != test.want || ok && got != test.origin {
-				t.Fatalf("accountSyncRequestOrigin = %q, %v; want %q, %v", got, ok, test.origin, test.want)
-			}
-		})
-	}
-}
-
-func TestDecodeAccountSyncAuthenticationRejectsInvalidEnvelopes(t *testing.T) {
-	valid := `{"type":"authenticate","access_token":"opaque"}`
-	if got, ok := decodeAccountSyncAuthentication([]byte(valid)); !ok || got.AccessToken != "opaque" {
-		t.Fatalf("valid authentication = %+v, %v", got, ok)
-	}
-	for _, invalid := range []string{
-		`{}`,
-		`{"type":"other","access_token":"opaque"}`,
-		`{"type":"authenticate","access_token":""}`,
-		`{"type":"authenticate","access_token":"opaque","extra":true}`,
-		valid + `{}`,
-		`["authenticate","opaque"]`,
-	} {
-		if _, ok := decodeAccountSyncAuthentication([]byte(invalid)); ok {
-			t.Fatalf("invalid authentication %s was accepted", invalid)
-		}
 	}
 }
