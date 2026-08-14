@@ -1,38 +1,38 @@
 ---
 name: loom-architecture
-description: Apply the repository-wide Loom Architecture—Log-Oriented Outcomes and Materializations—when designing, implementing, reviewing, debugging, or documenting NATS and JetStream event-sourced application state. Use for Chatto, Authling, or shared-framework work involving NATS account boundaries, the primary EVT stream, optimistic concurrency control, projections and read-your-writes, snapshots or checkpoints, snapshot repositories, durable workers, or reliable external effects.
+description: Apply the Loom Architecture—Log-Oriented Outcomes and Materializations—when designing, implementing, reviewing, debugging, or documenting NATS and JetStream event-sourced applications. Use for work involving NATS account boundaries, a primary event stream, optimistic concurrency control, projections and read-your-writes, snapshots or checkpoints, snapshot repositories, durable workers, or reliable external effects.
 ---
 
 # Loom Architecture
 
-Apply the Loom Architecture as the shared application pattern across Chatto,
-Authling, and the reusable events framework. Treat
-[`ADR-073`](../../../docs/adr/ADR-073-define-the-loom-architecture.md) as the
-canonical definition; use this skill as its implementation and review
-checklist.
+Use this skill as an implementation and review checklist for applications and
+frameworks that follow the Loom Architecture: one authoritative event log,
+disposable materializations, and durable outcomes.
 
-## Route the Work First
+## Establish the Boundaries
 
-Classify the change before designing it:
+Before designing a change:
 
-- For Chatto, read the root and `cli/AGENTS.md`, then apply
-  [`chatto-event-sourcing`](../chatto-event-sourcing/SKILL.md) for product
-  subjects, services, projections, public delivery, compatibility, and
-  documentation.
-- For Authling, read the root and `authling/AGENTS.md`, then use Authling's own
-  ADRs, FDRs, architecture inventory, and glossary. Do not import Chatto policy
-  or storage coordinates.
-- For shared framework code, read both product instruction files, the target
-  module's `AGENTS.md`, ADR-057, and its module-specific ADR. Keep the code
-  application-neutral and drive new public surface from a concrete consumer.
+- Identify the application, its NATS account, and the component that owns the
+  data or effect.
+- Separate architectural invariants, application policy, and reusable
+  framework mechanics.
+- Read the host project's instructions and its application- or
+  framework-specific architecture before changing code.
+- Keep reusable framework code independent of application-owned domains,
+  configuration, event envelopes, subjects, resource names, and lifecycle
+  policy.
+- Drive new framework surface from concrete application needs rather than
+  speculative generality.
 
-Keep each product independently versioned, deployable, and movable. Never let
-co-location in this repository turn Authling into a Chatto component.
+Co-location does not erase application boundaries. Independently deployed
+applications remain independently versioned, configurable, and operable.
 
 ## Preserve the Loom Invariants
 
-- Give each independent application its own NATS account. Never share a
-  Chatto application account with Authling.
+- Give each independent application its own NATS account. Do not share an
+  application account merely because applications use the same NATS server or
+  run in the same operating-system process.
 - Keep one primary JetStream event stream with the logical role `EVT` inside
   that account. Let the application own its physical name, subjects,
   vocabulary, aggregate boundaries, identity, configuration, and lifecycle.
@@ -45,8 +45,8 @@ co-location in this repository turn Authling into a Chatto component.
 - Use committed stream positions for readiness and local read-your-writes.
   Do not infer business causality between unrelated aggregates from incidental
   global stream order.
-- Keep event envelopes and codecs application-owned. Protobuf is used by the
-  current applications but is not a framework or Loom invariant.
+- Keep event envelopes and codecs application-owned. Protobuf is a valid
+  choice, but it is not a framework or Loom invariant.
 - Keep runtime state, expiring workflows, secrets, binary objects, and
   transient signals outside `EVT` unless they represent a durable domain fact.
 
@@ -62,9 +62,9 @@ Treat projections as disposable materializations of retained events:
   frontier with the projection it owns.
 - Fail the affected capability when decode, apply, or startup replay fails.
   Never serve partial state as if it were current.
-- Use `pkg/events.MemoryProjection` as the current reusable in-memory locking
-  base where appropriate. Do not claim that the framework already supplies
-  storage-specific projection bases that have not been extracted.
+- Prefer framework-provided projection bases where they match the storage and
+  concurrency model. Do not claim support for storage-specific bases that have
+  not actually been implemented.
 
 Choose one restore strategy per projection:
 
@@ -81,12 +81,12 @@ future, or retention-gapped artifacts as unavailable acceleration, not truth.
 Review snapshot contents for privacy, deletion, cryptographic-erasure, and key
 exposure risks.
 
-The framework currently supplies snapshot capture and restore capability
-hooks; Chatto owns the current repository and NATS Object Store/S3 adapters.
-When extracting reusable repository interfaces or implementations, require a
-concrete second application, accept opaque application payloads and metadata,
-and keep product configuration, Protobufs, encryption policy, resource names,
-paths, retention, and cleanup policy outside the shared package.
+Snapshot repositories should accept opaque application payloads and metadata.
+Keep application configuration, serialization types, encryption policy,
+resource names, paths, retention, and cleanup policy outside reusable
+repository implementations. Add shared repository interfaces or storage
+adapters only once concrete application needs establish the smallest useful
+contract.
 
 ## Design Outcomes
 
@@ -125,14 +125,14 @@ Answer these questions before considering Loom work complete:
    at-least-once-safe handler?
 7. Who owns each durable consumer's creation, versioned identity, rollout, and
    retirement?
-8. Does the change preserve application-neutral framework boundaries and the
-   independent Chatto/Authling release and extraction paths?
+8. Does the change preserve application-neutral framework boundaries and each
+   application's independent deployment and evolution?
 9. What happens during startup, replay, conflict, dependency failure, rolling
    deployment, rollback, and stream recreation?
-10. Which focused tests and product-owned documentation prove those answers?
+10. Which focused tests and application-owned documentation prove those
+    answers?
 
-Update the applicable ADRs and current architecture inventories when the
-topology or responsibilities change. Update product FDRs for user-visible
-behavior and product glossaries for product vocabulary. Keep the Loom name and
-repository-wide framework decisions in root documentation rather than copying
-cross-product architecture into either product's namespace.
+Update the relevant architecture decisions, architecture inventory, feature
+documentation, and glossary when topology, responsibilities, behavior, or
+vocabulary changes. Keep Loom invariants distinct from application-specific
+decisions.
