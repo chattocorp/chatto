@@ -345,6 +345,10 @@
       </div>
     {/if}
 
+    {#if !passwordLoginEnabled && displayedError}
+      <Hint tone="danger">{displayedError}</Hint>
+    {/if}
+
     {#if passwordLoginEnabled}
       <Form onsubmit={handleSubmit}>
         <TextInput
