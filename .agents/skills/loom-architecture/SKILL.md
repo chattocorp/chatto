@@ -9,25 +9,6 @@ Use this skill as an implementation and review checklist for applications and
 frameworks that follow the Loom Architecture: one authoritative event log,
 disposable materializations, and durable outcomes.
 
-## Establish the Boundaries
-
-Before designing a change:
-
-- Identify the application, its NATS account, and the component that owns the
-  data or effect.
-- Separate architectural invariants, application policy, and reusable
-  framework mechanics.
-- Read the host project's instructions and its application- or
-  framework-specific architecture before changing code.
-- Keep reusable framework code independent of application-owned domains,
-  configuration, event envelopes, subjects, resource names, and lifecycle
-  policy.
-- Drive new framework surface from concrete application needs rather than
-  speculative generality.
-
-Co-location does not erase application boundaries. Independently deployed
-applications remain independently versioned, configurable, and operable.
-
 ## Preserve the Loom Invariants
 
 - Give each independent application its own NATS account. Do not share an
@@ -62,9 +43,6 @@ Treat projections as disposable materializations of retained events:
   frontier with the projection it owns.
 - Fail the affected capability when decode, apply, or startup replay fails.
   Never serve partial state as if it were current.
-- Prefer framework-provided projection bases where they match the storage and
-  concurrency model. Do not claim support for storage-specific bases that have
-  not actually been implemented.
 
 Choose one restore strategy per projection:
 
@@ -81,12 +59,11 @@ future, or retention-gapped artifacts as unavailable acceleration, not truth.
 Review snapshot contents for privacy, deletion, cryptographic-erasure, and key
 exposure risks.
 
-Snapshot repositories should accept opaque application payloads and metadata.
-Keep application configuration, serialization types, encryption policy,
-resource names, paths, retention, and cleanup policy outside reusable
-repository implementations. Add shared repository interfaces or storage
-adapters only once concrete application needs establish the smallest useful
-contract.
+A framework may provide a snapshot repository interface and implementations
+for stores such as NATS Object Store or S3-compatible object storage. Keep
+these contracts payload-agnostic: the application owns serialization,
+encryption and privacy policy, retention, cleanup, resource names, storage
+configuration, and key management.
 
 ## Design Outcomes
 
@@ -125,14 +102,6 @@ Answer these questions before considering Loom work complete:
    at-least-once-safe handler?
 7. Who owns each durable consumer's creation, versioned identity, rollout, and
    retirement?
-8. Does the change preserve application-neutral framework boundaries and each
-   application's independent deployment and evolution?
-9. What happens during startup, replay, conflict, dependency failure, rolling
+8. What happens during startup, replay, conflict, dependency failure, rolling
    deployment, rollback, and stream recreation?
-10. Which focused tests and application-owned documentation prove those
-    answers?
-
-Update the relevant architecture decisions, architecture inventory, feature
-documentation, and glossary when topology, responsibilities, behavior, or
-vocabulary changes. Keep Loom invariants distinct from application-specific
-decisions.
+9. Which focused tests demonstrate those answers?
