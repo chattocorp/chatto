@@ -10,7 +10,7 @@
   import { getComposerContext, getRoomPermissions } from '$lib/state/room';
   import RoomEvent from './RoomEvent.svelte';
   import SystemEventGroup from './SystemEventGroup.svelte';
-  import DaySeparator from './DaySeparator.svelte';
+  import DaySeparator from '$lib/components/DaySeparator.svelte';
   import UnreadSeparator from './UnreadSeparator.svelte';
   import TypingIndicator from './TypingIndicator.svelte';
   import { computeEventMetadata } from './messageGrouping';

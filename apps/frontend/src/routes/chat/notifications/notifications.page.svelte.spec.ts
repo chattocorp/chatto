@@ -47,6 +47,8 @@ const { mocks } = vi.hoisted(() => ({
         resetVersion: 0,
         revokedRoomIds: new Set<string>(),
         scrubbedUserIds: new Set<string>(),
+        occurrences: [] as NotificationOccurrenceItem[],
+        hasLoaded: false,
         fetchPage: vi.fn(),
         markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
         deleteOccurrences: vi.fn().mockResolvedValue(undefined),
@@ -119,6 +121,8 @@ describe('notifications page', () => {
     mocks.store.notifications.resetVersion = 0;
     mocks.store.notifications.revokedRoomIds.clear();
     mocks.store.notifications.scrubbedUserIds.clear();
+    mocks.store.notifications.occurrences = [];
+    mocks.store.notifications.hasLoaded = false;
     mocks.store.notifications.fetchPage.mockResolvedValue(page());
     mocks.store.notifications.deleteOccurrences.mockResolvedValue(undefined);
     mocks.store.notifications.deleteAllOccurrences.mockResolvedValue(undefined);
@@ -203,6 +207,28 @@ describe('notifications page', () => {
     expect(q(readRow, '.bg-attention')).toBeNull();
     expect(readTarget.classList.contains('opacity-60')).toBe(true);
     expect(unreadTarget.classList.contains('opacity-60')).toBe(false);
+  });
+
+  it('renders the retained occurrence projection immediately while refreshing', async () => {
+    let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
+    mocks.store.notifications.occurrences = [mocks.occurrence as NotificationOccurrenceItem];
+    mocks.store.notifications.hasLoaded = true;
+    mocks.store.notifications.fetchPage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+
+    const rendered = render(NotificationsPage);
+    expect(rendered.container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(
+      1
+    );
+    expect(rendered.container.textContent).not.toContain('Loading');
+
+    resolveRefresh?.(page());
+    await vi.waitFor(() => expect(mocks.store.notifications.fetchPage).toHaveBeenCalledTimes(1));
+    rendered.unmount();
   });
 
   it('renders a full-sentence summary and omits the single-occurrence counter', async () => {
@@ -654,6 +680,8 @@ describe('notifications page', () => {
       '[data-testid="notification-date-heading"]'
     ) as HTMLElement;
     expect(firstHeading.classList.contains('sticky')).toBe(false);
+    expect(firstHeading.classList.contains('w-full')).toBe(true);
+    expect(firstHeading.classList.contains('px-4')).toBe(false);
     expect(firstHeading.querySelectorAll('.h-px.bg-border')).toHaveLength(2);
   });
 

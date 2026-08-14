@@ -20,6 +20,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverIdToSegment } from '$lib/navigation';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
+  import DaySeparator from '$lib/components/DaySeparator.svelte';
   import {
     fileDateGroup,
     formatDate,
@@ -52,8 +53,9 @@
 
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
-  let groups = $state.raw<ServerGroup[]>([]);
-  let loading = $state(true);
+  let groups = $state.raw<ServerGroup[]>(notificationGroupsFromProjection());
+  let loading = $state(!notificationProjectionHasLoaded());
+  let hasRenderedProjection = $state(notificationProjectionHasLoaded());
   let loadingMore = $state(false);
   let pageError = $state(false);
   let dismissingAll = $state(false);
@@ -101,8 +103,17 @@
       .map((instance) => serverRegistry.getStore(instance.id).notifications.resetVersion)
       .join(':')
   );
+  let observedResetVersions = '';
+  let hasObservedResetVersions = false;
   $effect(() => {
-    void notificationResetVersions;
+    const currentResetVersions = notificationResetVersions;
+    if (!hasObservedResetVersions) {
+      observedResetVersions = currentResetVersions;
+      hasObservedResetVersions = true;
+      return;
+    }
+    if (currentResetVersions === observedResetVersions) return;
+    observedResetVersions = currentResetVersions;
     // A compacted projection reset invalidates every hydrated page row.
     groups = [];
     pagination = [];
@@ -188,9 +199,13 @@
     });
     const results = await Promise.allSettled(requests.map(({ request }) => request));
     if (generation !== loadGeneration) return;
-    groups = results
-      .flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-      .sort(compareGroups);
+    const refreshedServerIds = new SvelteSet(
+      results.flatMap((result) => (result.status === 'fulfilled' ? [result.value.serverId] : []))
+    );
+    groups = [
+      ...groups.filter((item) => !refreshedServerIds.has(item.serverId)),
+      ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
+    ].sort(compareGroups);
     pagination = results.flatMap((result, index): PaginationSource[] => {
       if (result.status !== 'fulfilled') {
         return [
@@ -211,6 +226,7 @@
     });
     pageError = results.some((result) => result.status === 'rejected');
     loading = false;
+    hasRenderedProjection = true;
     if (groups.length === 0 && hasMore && !pageError) void loadMore();
   }
 
@@ -301,6 +317,36 @@
           ? { ...occurrence, actor: null }
           : occurrence
       );
+  }
+
+  function notificationGroupsFromProjection(): ServerGroup[] {
+    return serverRegistry.servers
+      .flatMap((instance) => {
+        const stores = serverRegistry.getStore(instance.id);
+        if (!stores.isAuthenticated) return [];
+        let hostname: string;
+        try {
+          hostname = new URL(instance.url).hostname;
+        } catch {
+          hostname = instance.url;
+        }
+        return groupNotificationOccurrences(
+          visibleOccurrencesForServer(instance.id, stores.notifications.occurrences)
+        ).map((group): ServerGroup => ({
+          serverId: instance.id,
+          serverHostname: hostname,
+          timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+          group
+        }));
+      })
+      .sort(compareGroups);
+  }
+
+  function notificationProjectionHasLoaded(): boolean {
+    return serverRegistry.servers.every((instance) => {
+      const stores = serverRegistry.getStore(instance.id);
+      return !stores.isAuthenticated || stores.notifications.hasLoaded;
+    });
   }
 
   function compareGroups(a: ServerGroup, b: ServerGroup): number {
@@ -588,7 +634,7 @@
   </PaneHeader>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if loading && groups.length === 0}
+    {#if loading && groups.length === 0 && !hasRenderedProjection}
       <div class="p-6 text-muted">{m('common.loading')}</div>
     {:else if pageError && groups.length === 0}
       <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
@@ -604,15 +650,11 @@
       <div class="selectable-list pb-3">
         {#each dateSections as section (section.key)}
           <section aria-labelledby={`notification-date-${section.key}`}>
-            <h2
+            <DaySeparator
               id={`notification-date-${section.key}`}
-              class="mt-4 flex items-center gap-4 px-4 py-3"
-              data-testid="notification-date-heading"
-            >
-              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
-              <span class="text-xs font-medium text-muted">{section.label}</span>
-              <span class="h-px flex-1 bg-border" aria-hidden="true"></span>
-            </h2>
+              label={section.label}
+              testId="notification-date-heading"
+            />
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
               {@const isReaction =
