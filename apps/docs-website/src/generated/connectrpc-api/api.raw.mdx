@@ -1123,7 +1123,7 @@ Request to create a message in a room or thread.
 | --- | --- | --- |
 | `room_id` | `string` | Required. Room where the message should be created. |
 | `body` | `string` | Message body text. Required unless attachment_asset_ids is non-empty. |
-| `attachment_asset_ids` | `repeated string` | Existing room-scoped attachment asset IDs to include with the message. At most 10 IDs may be supplied. |
+| `attachment_asset_ids` | `repeated string` | Completed room-scoped asset IDs uploaded by the caller and not yet attached to a message. The server attaches them exclusively and atomically to this message. At most 10 IDs may be supplied. |
 | `thread_root_event_id` | `string` | Event ID of the thread root message when posting a thread reply. |
 | `in_reply_to` | `string` | Event ID this message replies to for attribution. |
 | `also_send_to_channel` | `bool` | True to also echo a thread reply into the main room timeline. |
@@ -2577,7 +2577,7 @@ Request to store a PushSubscription returned by the browser Push API.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL. |
+| `endpoint` | `string` | Absolute HTTPS push service endpoint URL. The server rejects redirects and destinations that resolve to private or other special-use addresses. |
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
@@ -2633,6 +2633,8 @@ Response from removing a browser push subscription.
 ### SendTestNotification
 
 Sends a test notification to the caller's registered browser subscriptions.
+Calls are rate-limited per account. Delivery failures return a generic
+unavailable error without exposing the push provider's response body.
 
 ```http
 POST /api/connect/chatto.api.v1.PushNotificationService/SendTestNotification
@@ -4539,6 +4541,7 @@ Login and registration options exposed before authentication.
 | `providers` | repeated [`ProviderMetadata`](#chatto-api-v1-ProviderMetadata) | Configured login providers. |
 | `authorize_url` | `string` | URL for the legacy authorization flow, when enabled. |
 | `account_creation_policy` | [`AccountCreationPolicy`](#chatto-api-v1-AccountCreationPolicy) | Admission policy for direct registration and provider auto-provisioning. |
+| `direct_login_enabled` | `optional bool` | Whether users can sign in directly with a username or email address and password. Absent on older servers, where clients should treat direct login as enabled. |
 
 
 

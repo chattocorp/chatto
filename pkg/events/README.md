@@ -1,10 +1,11 @@
 # Events
 
-`hmans.de/chatto/pkg/events` is an envelope-neutral event-sourcing framework
-for NATS JetStream. It provides optimistic-concurrency-controlled publication,
-ordered projection replay, startup and read-your-writes barriers, optional
-snapshot or checkpoint restore, bounded subject reads, and bounded durable
-pull-worker execution.
+`hmans.de/chatto/pkg/events` supplies the core reusable mechanics for the
+repository-wide [Loom Architecture](../../docs/adr/ADR-073-define-the-loom-architecture.md).
+It is an envelope-neutral event-sourcing framework for NATS JetStream,
+providing optimistic-concurrency-controlled publication, ordered projection
+replay, startup and read-your-writes barriers, optional snapshot or checkpoint
+restore, bounded subject reads, and bounded durable pull-worker execution.
 
 The intended reader is an application integrator. This module owns ordering,
 OCC, replay, and delivery mechanics; the application owns event codecs,

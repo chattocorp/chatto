@@ -2,7 +2,6 @@
 
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
-[`cli/internal/http_server/client_config.go`](../../cli/internal/http_server/client_config.go),
 [`cli/internal/http_server/cimd.go`](../../cli/internal/http_server/cimd.go),
 [`cli/internal/http_server/oauth.go`](../../cli/internal/http_server/oauth.go),
 [`cli/internal/http_server/oidc.go`](../../cli/internal/http_server/oidc.go),
@@ -28,9 +27,8 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
 | Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents`; OAuth-client blocks terminate matching established bearer connections |
-| Client bootstrap | `GET /client-config.json` | Versioned, non-secret selection of the Authling issuer and frontend CIMD client ID | Public, same-origin frontend configuration; always mounted and returned with `Cache-Control: no-store` |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
-| Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact SPA callbacks for connecting to Chatto servers and optional Authling account data | Public; always mounted, with the Authling callback included only when `frontend.authling_issuer` is configured |
+| Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted |
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token exchange; the validated client identity and exact callback are bound through code exchange, and provider hints cannot supply an issuer or endpoint |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
@@ -119,23 +117,19 @@ credentialed CORS; cross-origin authentication is bearer-only, while cookie
 fallback is restricted to the configured server origin.
 
 The discovery response includes the server software version as public
-pre-authentication state. The bundled client refreshes it per server and owns
-an internal feature-to-minimum-server-version table for compatibility gates.
+pre-authentication state, along with configured provider metadata and the
+independently configured direct-registration and direct-login capabilities.
+The direct-login capability uses scalar presence so a new client treats an
+older server that omits it as enabled. The bundled client refreshes discovery
+per server and owns an internal feature-to-minimum-server-version table for compatibility gates.
 The 0.5 client requires the 0.5 server baseline before opening realtime
 protocol 2, the only accepted behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.
 
-The bundled frontend loads `/client-config.json` from its own origin before it
-offers Authling account-data synchronization. This client-owned bootstrap is
-separate from Chatto server discovery. A standalone frontend can publish the
-same schema without a Chatto origin server, and no connected remote server can
-change the selected global identity provider.
-
-Public server discovery includes each OIDC provider's issuer. The frontend uses
-that field only to compare a server provider with its own trusted Authling
-issuer. A match lets the client add the provider's server-local ID to the
-Chatto authorization request. `/oauth/authorize` validates that the ID belongs
-to a configured provider before it skips the regular server login screen.
+Public server discovery includes each OIDC provider's issuer for clients that
+need to identify or present configured login options. Authling has no special
+frontend trust path: a Chatto server uses it only when the operator configures
+it as an ordinary OIDC provider.
 
 `MessageSearchService.GetStatus` remains the authority for configured search
 availability and transient provider readiness. Viewer permissions remain the

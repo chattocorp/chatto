@@ -1,6 +1,6 @@
 # ADR-002: Protect User Data with Hierarchical Keys and Cryptographic Erasure
 
-**Status:** Accepted
+**Status:** Accepted; application-data scope superseded by [ADR-007](ADR-007-limit-authling-to-identity-provider.md)
 
 **Date:** 2026-07-31
 
@@ -8,7 +8,7 @@
 
 [ADR-001](ADR-001-event-sourced-nats-architecture.md) makes Authling's
 append-only event log the source of truth for accounts, credentials, linked
-identities, OIDC state, and app-scoped user documents. Those events must remain
+identities, and OIDC state. Those events must remain
 replayable, but much of their payload is personal, secret, or
 credential-adjacent data that users may later erase.
 
@@ -45,7 +45,6 @@ backups. Protected values include:
 - password verifiers and password-recovery material;
 - upstream provider subjects, tokens, and provider profile data;
 - consent details when they reveal user activity;
-- user document keys and values; and
 - any future field classified as personal, secret, or credential material.
 
 Passwords, authorization codes, raw session credentials, and equivalent
@@ -70,12 +69,11 @@ the user key. A data key belongs to a declared purpose and epoch and is wrapped
 by the user's key. Initial purpose boundaries will distinguish at least:
 
 - core account and profile data;
-- authentication credentials and linked identities; and
-- app-scoped user documents.
+- authentication credentials and linked identities.
 
 Key granularity follows the promised erasure boundary. A feature that promises
-independent cryptographic erasure of one credential, application namespace, or
-document must give that scope independently destroyable key material. Purpose
+independent cryptographic erasure of one credential must give that scope
+independently destroyable key material. Purpose
 names, scope identifiers, epochs, wrapping algorithms, and rotation rules are
 persisted contracts and must be versioned deliberately.
 
@@ -102,9 +100,9 @@ reference or epoch, nonce, and ciphertext.
 
 Additional Authenticated Data (AAD) will bind ciphertext to a versioned,
 Authling-specific context containing the relevant event ID and type, account
-ID, data purpose, key epoch, and any application, credential, document, or
-field identity needed to prevent ciphertext substitution. A ciphertext copied
-to another event, account, field, application, or document must fail
+ID, data purpose, key epoch, and any credential or field identity needed to
+prevent ciphertext substitution. A ciphertext copied to another event,
+account, or field must fail
 authentication.
 
 Algorithm and envelope versions are storage contracts. New writers may move to
@@ -126,7 +124,7 @@ When an erasure tombstone is projected, every derived lookup entry and cached
 plaintext or unwrapped key for the affected scope is purged. A missing key for
 active data, an unavailable KMS, or a decryption failure is an operational
 error and must fail closed; it must never look like an absent account,
-available email address, invalid password, empty document, or successful
+available email address, invalid password, or successful
 deletion.
 
 Projection snapshots may contain ciphertext, opaque key references, and safe

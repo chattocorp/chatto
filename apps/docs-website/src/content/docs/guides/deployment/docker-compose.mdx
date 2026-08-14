@@ -226,7 +226,7 @@ for private STUN and fixed-IP alternatives.
 
 The setup above enables direct email/password registration, which requires SMTP because Chatto sends registration codes by email. SMTP is also used for email verification and password reset.
 
-If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Users can still sign in through configured SSO providers.
+If you do not want public email/password registration after the first owner exists, set `CHATTO_AUTH_DIRECT_REGISTRATION=false`. Existing users can still sign in with passwords or configured SSO providers. For an SSO-only deployment, configure and test a provider first, then also set `CHATTO_AUTH_DIRECT_LOGIN=false` on every replica.
 
 ### Push Notifications
 

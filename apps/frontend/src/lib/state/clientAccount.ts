@@ -1,4 +1,3 @@
-import { signOutAccountData } from '$lib/accountData/signOut';
 import { beginExplicitSignOutRedirect, signOutServer, signOutServers } from '$lib/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
 import { clearLastRoom } from '$lib/storage/lastRoom';
@@ -9,7 +8,7 @@ export interface ClientAccountNavigation {
   serverId?: string;
 }
 
-/** Coordinates user commands that cross catalogue, session, and Authling state. */
+/** Coordinates user commands that cross the device-local catalogue and sessions. */
 class ClientAccountCoordinator {
   async signOutCurrentServer(serverId: string): Promise<ClientAccountNavigation | null> {
     const server = serverRegistry.getServer(serverId);
@@ -41,7 +40,6 @@ class ClientAccountCoordinator {
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
     );
-    await signOutAccountData().catch(() => undefined);
     serverRegistry.resetToOrigin();
     notifyLogout();
     return { kind: 'hard' };

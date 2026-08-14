@@ -357,16 +357,14 @@ describe('RoomList', () => {
     const { container } = render(RoomList);
     const roomList = q(container, 'nav.room-list') as HTMLElement;
     const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
-    const separator = q(roomList, '[data-testid="collapsible-group-separator"]');
+    const sections = roomList.querySelectorAll<HTMLElement>('[data-testid="room-group-section"]');
+    const separatedSection = sections[1];
 
     expect(groupHeaders).toHaveLength(2);
-    expect(separator).not.toBeNull();
-    expect(separator?.previousElementSibling?.contains(groupHeaders[0])).toBe(true);
-    expect(separator?.nextElementSibling?.contains(groupHeaders[1])).toBe(true);
-    expect(separator?.classList.contains('-mx-2')).toBe(true);
-    expect(roomList.querySelectorAll('[data-testid="collapsible-group-separator"]')).toHaveLength(
-      1
-    );
+    expect(sections).toHaveLength(2);
+    expect(separatedSection?.classList.contains('border-t')).toBe(true);
+    expect(separatedSection?.previousElementSibling?.contains(groupHeaders[0])).toBe(true);
+    expect(separatedSection?.contains(groupHeaders[1])).toBe(true);
   });
 
   it('opens room actions on right-click and marks an unread room as read', async () => {
@@ -838,6 +836,43 @@ describe('RoomList', () => {
     expect(row.classList.contains('sidebar-item-attention')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
+  });
+
+  it('uses the established globe icon for universal joined rooms', async () => {
+    const universal = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    ) as unknown as { isUniversal: boolean };
+    universal.isUniversal = true;
+
+    const { container } = render(RoomList);
+
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+    await expect.element(row).toBeInTheDocument();
+    const icon = q(row, '[class~="icon-[uil--globe]"]');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Universal');
+    expect(icon?.getAttribute('title')).toBeTruthy();
+  });
+
+  it('renders room groups as sections and keeps notification rooms visible while collapsed', async () => {
+    setRoomNotificationCount('channel-1', 1);
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'community',
+        name: 'Community',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1', 'joinable-channel']
+      }
+    ];
+    localStorage.setItem('chatto:i:origin:collapsible:set:community', '1');
+
+    const { container } = render(RoomList);
+
+    await expect.element(q(container, '[data-testid="room-group-section"]')).toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="room-group-section"] button'))
+      .toHaveAttribute('aria-expanded', 'false');
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+    expect(container.querySelector('[href="/chat/-/joinable-channel"]')).toBeNull();
   });
 
   it('renders server-local sidebar links as same-tab anchors resolved against the active server', async () => {

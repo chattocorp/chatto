@@ -13,7 +13,8 @@ import { Message, proto3 } from "@bufbuild/protobuf";
  */
 export class SubscribePushRequest extends Message<SubscribePushRequest> {
   /**
-   * Push service endpoint URL.
+   * Absolute HTTPS push service endpoint URL. The server rejects redirects and
+   * destinations that resolve to private or other special-use addresses.
    *
    * @generated from field: string endpoint = 1;
    */

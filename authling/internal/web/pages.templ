@@ -65,9 +65,6 @@ templ consentPage(request oidcprovider.ConsentRequest) {
 			<p class="font-medium">This application will be able to:</p>
 			<ul class="mt-2 list-disc space-y-2 pl-5 text-sm text-slate-600 dark:text-slate-300">
 				<li>Know your stable account identifier.</li>
-				if request.AccountData {
-					<li>Read and change your private global account data, including registered servers and client preferences.</li>
-				}
 			</ul>
 		</div>
 		<form class="mt-8 grid gap-3" method="post" action="/oidc/consent">

@@ -12,7 +12,7 @@ Room-scoped file list for the room sidebar.
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
   import { serverStorageKey } from '$lib/storage/serverStorage';
-  import CollapsibleGroupStack from '$lib/ui/CollapsibleGroupStack.svelte';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
 
   type RoomFileListItem = {
     id: string;
@@ -179,9 +179,9 @@ Room-scoped file list for the room sidebar.
   </button>
 {/snippet}
 
-<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2" aria-label={m('room.sidebar.files')}>
+<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.files')}>
   {#if loading}
-    <ul role="list" class="space-y-1">
+    <ul role="list" class="space-y-1 p-2">
       {#each Array(8) as _, i (i)}
         <li class="flex items-center gap-3 rounded-md px-2 py-2">
           <div class="skeleton h-10 w-10 shrink-0 rounded-md"></div>
@@ -199,7 +199,16 @@ Room-scoped file list for the room sidebar.
       {m('room.sidebar.no_files')}
     </div>
   {:else}
-    <CollapsibleGroupStack groups={fileSections} item={fileRow} />
+    {#each fileSections as section, i (section.id)}
+      <RoomGroupSection
+        label={section.label}
+        items={section.items}
+        item={fileRow}
+        persistKey={section.persistKey}
+        testid={section.testid}
+        separated={i > 0}
+      />
+    {/each}
 
     {#if store.hasMore}
       <div

@@ -8,7 +8,6 @@ const { mocks } = vi.hoisted(() => ({
     beginExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
-    signOutAccountData: vi.fn(),
     notifyLogout: vi.fn(),
     clearLastRoom: vi.fn(),
     clearServerAuthentication: vi.fn(),
@@ -17,7 +16,6 @@ const { mocks } = vi.hoisted(() => ({
   }
 }));
 
-vi.mock('$lib/accountData/signOut', () => ({ signOutAccountData: mocks.signOutAccountData }));
 vi.mock('$lib/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
   signOutServer: mocks.signOutServer,
@@ -53,7 +51,6 @@ beforeEach(() => {
   mocks.authenticated = new Set(['origin', 'remote']);
   mocks.signOutServer.mockResolvedValue(new Response('{}'));
   mocks.signOutServers.mockResolvedValue(undefined);
-  mocks.signOutAccountData.mockResolvedValue(undefined);
 });
 
 describe('ClientAccountCoordinator', () => {
@@ -77,18 +74,12 @@ describe('ClientAccountCoordinator', () => {
     expect(result).toEqual({ kind: 'hard', serverId: 'remote' });
   });
 
-  it('clears local state even when Authling cleanup fails', async () => {
-    mocks.signOutAccountData.mockRejectedValueOnce(new Error('unavailable'));
-
+  it('clears local state after signing out every server', async () => {
     const result = await clientAccount.signOutAllServers();
 
     expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
-    expect(mocks.signOutAccountData).toHaveBeenCalledOnce();
     expect(mocks.resetToOrigin).toHaveBeenCalledOnce();
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
-    expect(mocks.signOutAccountData.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.resetToOrigin.mock.invocationCallOrder[0]!
-    );
     expect(result).toEqual({ kind: 'hard' });
   });
 });

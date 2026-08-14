@@ -379,68 +379,6 @@ func TestChattoConfig_Validate_AccountCreationPolicy(t *testing.T) {
 	}
 }
 
-func TestChattoConfig_Validate_FrontendAuthling(t *testing.T) {
-	tests := []struct {
-		name      string
-		publicURL string
-		issuer    string
-		wantError string
-	}{
-		{name: "accepts HTTPS origins", publicURL: "https://chat.example", issuer: "https://id.example"},
-		{name: "rejects missing public URL", issuer: "https://id.example", wantError: "webserver.url is required"},
-		{name: "rejects HTTP public URL", publicURL: "http://chat.example", issuer: "https://id.example", wantError: "webserver.url must use https"},
-		{name: "rejects insecure issuer", publicURL: "https://chat.example", issuer: "http://id.example", wantError: "frontend.authling_issuer must use https"},
-		{name: "accepts loopback development issuer", publicURL: "https://chat.example", issuer: "http://localhost:8080"},
-		{name: "rejects issuer path", publicURL: "https://chat.example", issuer: "https://id.example/tenant", wantError: "without user info, path, query, or fragment"},
-		{name: "rejects issuer query", publicURL: "https://chat.example", issuer: "https://id.example?tenant=one", wantError: "without user info, path, query, or fragment"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			cfg := validTestConfig()
-			cfg.Webserver.URL = tt.publicURL
-			cfg.Frontend.AuthlingIssuer = tt.issuer
-			err := cfg.Validate()
-			if tt.wantError == "" {
-				if err != nil {
-					t.Fatalf("Validate() unexpected error = %v", err)
-				}
-				return
-			}
-			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
-				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
-			}
-		})
-	}
-}
-
-func TestReadConfig_FrontendAuthlingIssuerFromEnv(t *testing.T) {
-	path := filepath.Join(t.TempDir(), "chatto.toml")
-	if err := os.WriteFile(path, []byte(`
-[webserver]
-url = "https://chat.example"
-port = 4000
-cookie_signing_secret = "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
-
-[core]
-secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
-
-[core.assets]
-signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
-`), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	t.Setenv("CHATTO_FRONTEND_AUTHLING_ISSUER", "https://id.example")
-
-	cfg, err := ReadConfig(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if cfg.Frontend.AuthlingIssuer != "https://id.example" {
-		t.Fatalf("frontend Authling issuer = %q", cfg.Frontend.AuthlingIssuer)
-	}
-}
-
 func TestChattoConfig_ApplyDefaultsAndNormalize(t *testing.T) {
 	cfg := validTestConfig()
 	cfg.Webserver.URL = "https://chat.example"

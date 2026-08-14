@@ -22,6 +22,13 @@ export class ChatPage {
     return this.page.locator('.room-list');
   }
 
+  /** Return a sidebar room link without depending on its room-type icon. */
+  getRoomLink(roomName: string): Locator {
+    return this.roomList
+      .getByRole('link')
+      .filter({ has: this.page.getByText(roomName, { exact: true }) });
+  }
+
   /**
    * Navigate to the chat page.
    * Note: users may be redirected to the server root, their last room, or
@@ -65,7 +72,7 @@ export class ChatPage {
    * Always waits for room UI to be ready before returning.
    */
   async enterRoom(roomName: string): Promise<RoomPage> {
-    const link = this.roomList.getByRole('link', { name: `# ${roomName}` });
+    const link = this.getRoomLink(roomName);
     await expect(link).toBeVisible();
 
     // Check if already in this room (aria-current="page" indicates active link)

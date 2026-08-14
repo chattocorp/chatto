@@ -35,6 +35,11 @@ available_in = [ "local" ]
 default = true
 icon = "boxes"
 
+[scripts.run.compose-watch]
+command = "exec docker compose up --build --watch"
+available_in = [ "local" ]
+icon = "refresh-cw"
+
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."
 

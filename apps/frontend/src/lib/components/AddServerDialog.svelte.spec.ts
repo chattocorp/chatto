@@ -4,16 +4,12 @@ import { flushSync } from 'svelte';
 import AddServerDialog from './AddServerDialog.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
-const { findAuthlingServerProviderMock, startServerOAuthFlowMock } = vi.hoisted(() => ({
-  findAuthlingServerProviderMock: vi.fn(),
+const { startServerOAuthFlowMock } = vi.hoisted(() => ({
   startServerOAuthFlowMock: vi.fn()
 }));
 
 vi.mock('$lib/auth/reauth', () => ({
   startServerOAuthFlow: startServerOAuthFlowMock
-}));
-vi.mock('$lib/authling/serverProvider', () => ({
-  findAuthlingServerProvider: findAuthlingServerProviderMock
 }));
 
 const STORAGE_KEY = 'chatto:instances';
@@ -33,8 +29,6 @@ describe('AddServerDialog', () => {
     serverRegistry.removeAll();
     startServerOAuthFlowMock.mockReset();
     startServerOAuthFlowMock.mockResolvedValue(undefined);
-    findAuthlingServerProviderMock.mockReset();
-    findAuthlingServerProviderMock.mockResolvedValue(null);
     originalFetch = globalThis.fetch;
   });
 
@@ -159,7 +153,6 @@ describe('AddServerDialog', () => {
 
   it('starts the shared OAuth flow from the preview stage', async () => {
     const onclose = vi.fn();
-    findAuthlingServerProviderMock.mockResolvedValueOnce({ id: 'authling' });
     startServerOAuthFlowMock.mockImplementationOnce(
       async (_serverUrl, _serverInfo, beforeNavigate?: () => void) => beforeNavigate?.()
     );
@@ -202,8 +195,7 @@ describe('AddServerDialog', () => {
           name: 'Remote Chatto',
           authorizeUrl: '/oauth/authorize'
         }),
-        expect.any(Function),
-        'authling'
+        expect.any(Function)
       );
     });
     expect(onclose).toHaveBeenCalledOnce();
@@ -238,8 +230,7 @@ describe('AddServerDialog', () => {
         url: 'https://chat.example.com',
         name: 'Remote',
         iconUrl: null,
-        addedAt: 0,
-        source: 'local'
+        addedAt: 0
       },
       {
         token: 'abc',

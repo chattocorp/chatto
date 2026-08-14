@@ -64,7 +64,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		semantics string
 		message   proto.Message
 	}{
-		{assetSnapshotContractID, "v2", &corev1.AssetProjectionSnapshot{}},
+		{assetSnapshotContractID, "v3", &corev1.AssetProjectionSnapshot{}},
 		{callStateSnapshotContractID, "v1", &corev1.CallStateProjectionSnapshot{}},
 		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
@@ -270,7 +270,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"room_timeline": "v6-", "call_state": "v1-", "assets": "v2-", "reactions": "v1-",
+		"room_timeline": "v6-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {

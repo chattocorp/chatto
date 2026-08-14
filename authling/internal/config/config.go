@@ -4,7 +4,6 @@ package config
 import (
 	"fmt"
 	"net"
-	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -112,21 +111,6 @@ type HTTPConfig struct {
 	// PublicURL is the externally visible origin. It determines whether browser
 	// cookies require HTTPS and will become the basis of Authling's issuer URL.
 	PublicURL string `toml:"public_url" env:"AUTHLING_HTTP_PUBLIC_URL"`
-	// TrustedProxyCIDRs contains direct reverse-proxy peers whose sanitized,
-	// single-address X-Forwarded-For value Authling may trust.
-	TrustedProxyCIDRs []string `toml:"trusted_proxy_cidrs" env:"AUTHLING_HTTP_TRUSTED_PROXY_CIDRS"`
-}
-
-// TrustedProxies returns the validated network prefixes of direct proxies.
-func (c HTTPConfig) TrustedProxies() []netip.Prefix {
-	trusted := make([]netip.Prefix, 0, len(c.TrustedProxyCIDRs))
-	for _, raw := range c.TrustedProxyCIDRs {
-		prefix, err := netip.ParsePrefix(strings.TrimSpace(raw))
-		if err == nil {
-			trusted = append(trusted, prefix.Masked())
-		}
-	}
-	return trusted
 }
 
 // PublicURLOrDefault returns the configured browser origin. A loopback
@@ -236,12 +220,6 @@ func (c Config) Validate() error {
 		bindHost, _, bindErr := net.SplitHostPort(c.HTTP.BindAddressOrDefault())
 		if bindErr != nil || !isLoopbackHost(bindHost) || !isLoopbackHost(publicURL.Hostname()) {
 			problems = append(problems, "http.public_url may use plain HTTP only when both the public URL and listener are loopback")
-		}
-	}
-	for _, raw := range c.HTTP.TrustedProxyCIDRs {
-		prefix, prefixErr := netip.ParsePrefix(strings.TrimSpace(raw))
-		if prefixErr != nil || !prefix.Addr().IsValid() {
-			problems = append(problems, "http.trusted_proxy_cidrs must contain valid IP network prefixes")
 		}
 	}
 	seenClients := make(map[string]struct{}, len(c.OIDC.Clients))

@@ -17,6 +17,7 @@ export type PublicServerInfo = {
   version: string;
   authorizeUrl: string;
   directRegistrationEnabled: boolean;
+  directLoginEnabled: boolean;
   accountCreationPolicy: 'open' | 'invite_only';
   welcomeMessage: string | null;
   description: string | null;
@@ -41,6 +42,7 @@ export async function getPublicServerInfo(
     version: profile.version,
     authorizeUrl: response.login?.authorizeUrl ?? '',
     directRegistrationEnabled: response.login?.directRegistrationEnabled ?? false,
+    directLoginEnabled: response.login?.directLoginEnabled ?? true,
     accountCreationPolicy:
       response.login?.accountCreationPolicy === AccountCreationPolicy.INVITE_ONLY
         ? 'invite_only'

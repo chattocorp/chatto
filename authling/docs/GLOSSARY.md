@@ -5,9 +5,9 @@ here unless Authling uses the same word with an explicitly defined meaning.
 
 ## Product
 
-**Authling** — An independent, self-hostable identity provider and light
-user-controlled metadata service. Authling may be trusted by Chatto servers but
-is not itself a Chatto server or a user's home server.
+**Authling** — An independent, self-hostable identity provider. Authling may be
+trusted by Chatto servers but is not itself a Chatto server, application-data
+store, or a user's home server.
 
 **Account** — Authling's opaque aggregate for one user identity. Its account ID
 is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
@@ -39,14 +39,21 @@ client.
 also a public OIDC client's identifier. Authling uses CIMD for automatic,
 read-only client onboarding without a dynamic registration write API.
 
-**Account data space** — One small, global, account-owned TinyBase data set that
-user devices synchronize through Authling. It is independent of Chatto servers
-and does not yet contain application namespaces. An OIDC client can receive
-read and write access through explicit consent for the `account_data` scope.
+## Backend
 
-**TinyBase peer** — One participant in TinyBase synchronization. Authling is
-the durable, always-online peer; each user device is another peer with its own
-local `MergeableStore`.
+**Loom Architecture** — Repository-wide event-sourced architecture adopted by
+Authling, built around one authoritative event log, disposable
+materializations, and durable outcomes. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md) and
+[Authling ADR-001](adr/ADR-001-event-sourced-nats-architecture.md).
+
+**Materialization** — Loom term for disposable state derived from the event
+log; Authling's in-memory projections are materializations. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md).
+
+**Outcome** — Loom term for reliable asynchronous work caused by a committed
+event and performed by a durable worker. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md).
 
 ## Data protection
 
@@ -55,9 +62,9 @@ unreadable by irreversibly destroying the key material required to decrypt it.
 Authling uses this to erase data from immutable event history without rewriting
 that history.
 
-**Data key** — A random, purpose- and epoch-scoped encryption key used to
-encrypt sensitive account, credential, or application data. Data keys are
-wrapped by a user key and referenced opaquely from durable events.
+**Data key** — A random encryption key used to encrypt sensitive credential
+data. Data keys are wrapped by a user key and referenced opaquely from durable
+events.
 
 **User key** — An account-scoped, KMS-managed wrapping key. Destroying a user
 key makes all data keys wrapped by it unusable and provides Authling's

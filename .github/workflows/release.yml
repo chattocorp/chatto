@@ -183,6 +183,41 @@ jobs:
         with:
           install-cli-deps: "false"
 
+      - name: Resolve desktop version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
+            version="${GITHUB_REF_NAME#chatto-desktop/v}"
+          else
+            version="$(jq -r '.version' apps/desktop/package.json)"
+          fi
+          sha="$(git rev-parse HEAD)"
+
+          if [[ -z "$version" || "$version" == "null" ]]; then
+            echo "::error::Could not determine the Chatto Desktop version."
+            exit 1
+          fi
+          if [[ -z "$sha" ]]; then
+            echo "::error::Could not determine the checked-out commit."
+            exit 1
+          fi
+
+          frontend_version="${version}+${sha:0:12}"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          echo "sha=${sha}" >> "$GITHUB_OUTPUT"
+          echo "frontend_version=${frontend_version}" >> "$GITHUB_OUTPUT"
+
+          {
+            echo "### Chatto Desktop"
+            echo
+            echo "- Commit: \`${sha}\`"
+            echo "- Desktop version: \`${version}\`"
+            echo "- Bundled frontend version: \`${frontend_version}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Check and test desktop shell
         run: mise test-desktop
 
@@ -192,23 +227,17 @@ jobs:
 
       - name: Build desktop bundle
         run: mise desktop-build
+        env:
+          CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
 
-      - name: Resolve desktop version
-        id: version
+      - name: Verify bundled frontend version
         shell: bash
+        env:
+          EXPECTED_VERSION: ${{ steps.version.outputs.frontend_version }}
         run: |
-          if [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
-            version="${GITHUB_REF_NAME#chatto-desktop/v}"
-          else
-            version="$(jq -r '.version' apps/desktop/package.json)"
-          fi
-
-          if [[ -z "$version" || "$version" == "null" ]]; then
-            echo "::error::Could not determine the Chatto Desktop version."
-            exit 1
-          fi
-
-          echo "version=${version}" >> "$GITHUB_OUTPUT"
+          jq -e --arg expected "$EXPECTED_VERSION" \
+            '.version == $expected' \
+            apps/frontend/build/_app/version.json
 
       - name: Package macOS release
         if: runner.os == 'macOS'

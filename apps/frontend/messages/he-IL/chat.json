@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "הוסף שרת",
-      "account_data_connect": "רשימת שרתי סנכרון עם Authling",
-      "account_data_connecting": "מתחבר סנכרון רשימת שרתים...",
-      "account_data_connected": "רשימת השרתים מסונכרנת עם {provider}",
-      "account_data_connected_toast": "רשימת השרתים שלך מסונכרנת כעת.",
-      "account_data_error": "לא ניתן לסנכרן את רשימת השרתים",
       "version": "גרסה {version}",
       "version_unknown": "גרסה לא ידועה",
       "unreachable": "לא ניתן להגיע לשרת",

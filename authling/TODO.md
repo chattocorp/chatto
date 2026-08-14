@@ -12,7 +12,7 @@ current runtime in `docs/architecture/`.
 
 ## Product foundations
 
-- [ ] Establish canonical identity, application, client, account, and document terminology
+- [ ] Establish canonical identity, relying-party, client, and account terminology
 - [ ] Add standalone diagnostics and backup behavior
 
 ## Later account and authentication work
@@ -29,26 +29,13 @@ current runtime in `docs/architecture/`.
 
 ## OpenID Connect
 
-- [ ] Define applications as consent and document boundaries containing one or more OIDC clients
-- [ ] Define ownership and authorization for attaching additional clients to an application
+- [ ] Define relying-party grouping for consent across one or more OIDC clients
 - [ ] Track CIMD Internet-Draft evolution and define compatibility policy before upgrading from draft-02
 - [ ] Design signing-key rotation and retirement
 - [ ] Add refresh-token, token-revocation, and RP-initiated logout behavior
-- [ ] Define data-release policies before adding further scopes and claims
+- [ ] Define identity-claim release policies before adding further scopes and claims
 - [ ] Automate the official OpenID Provider conformance suite outside the fast Docker-free test path
 - [ ] Add version-skew fixtures for CIMD-aware Chatto consumers
-
-## User documents
-
-- [ ] Define the per-user, per-application document ownership and authorization model
-- [ ] Add application-scoped user data alongside the existing global account data space
-- [ ] Decide whether untyped documents contain JSON, arbitrary bytes, or both
-- [ ] Decide the independently erasable key granularity for user documents
-- [ ] Add opt-in, configurable user DEK rotation with versioned epochs and restart-safe migration
-- [ ] Define key validation, enumeration, concurrency, deletion, size, and quota semantics
-- [ ] Design the authenticated document and synchronization API
-- [ ] Add cross-replica live fanout for account data connections
-- [ ] Add isolation, reconnect, multi-replica, concurrency, quota, and data-deletion tests
 
 ## Later user interface work
 

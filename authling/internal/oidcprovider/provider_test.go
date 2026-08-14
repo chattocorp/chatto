@@ -24,8 +24,8 @@ func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 		want bool
 	}{
 		{name: "valid", want: true},
-		{name: "account data", want: true},
-		{name: "account data first", want: true},
+		{name: "account data"},
+		{name: "account data first"},
 		{name: "missing PKCE"},
 		{name: "plain PKCE"},
 		{name: "extra scope"},

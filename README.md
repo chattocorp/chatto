@@ -30,15 +30,26 @@ repository once it no longer needs frequent atomic changes with the shared
 The root [`compose.yml`](compose.yml) runs Chatto, Authling, Mailpit, LiveKit,
 Storybook, and the Chatto docs website together on
 [OrbStack](https://docs.orbstack.dev/docker/domains). It builds every
-repository-owned service from the current checkout, gives Chatto and Authling
-separate persistent embedded-NATS storage, and configures Chatto to use
-Authling as an OpenID Connect provider through Chatto's public Client ID
-Metadata Document, without preregistering Chatto in Authling. Compose derives
-the project name from the checkout directory, keeping containers and OrbStack
-domains isolated between worktrees.
+repository-owned service from the current checkout. Chatto, Authling, and
+Storybook run from bind-mounted project files with container-native dependency
+volumes and live reloads. The stack gives Chatto and Authling separate
+persistent embedded-NATS storage and configures Chatto to use Authling as an
+OpenID Connect provider through Chatto's public Client ID Metadata Document,
+without preregistering Chatto in Authling. Compose derives the project name
+from the checkout directory, keeping containers and OrbStack domains isolated
+between worktrees.
 
 ```sh
 docker compose up --build
+```
+
+Vite, Storybook, and the Go development processes reload ordinary source
+changes themselves. Add Compose's optional watch mode to restart services when
+dependency manifests change and rebuild the shared development image when its
+Dockerfile changes:
+
+```sh
+docker compose up --build --watch
 ```
 
 For a checkout in a directory named `<project>`, open these OrbStack-managed
@@ -57,20 +68,9 @@ login because Authling's initial OIDC profile intentionally shares only its
 stable account ID. The stack also bootstraps a Chatto owner named
 `compose-admin` with the development-only password `compose-admin`.
 
-After login, select the cloud button below the server list. Authling asks for
-separate permission to read and write account data. The cloud turns green when
-the TinyBase connection is active. Chatto then stores the public server list in
-Authling. Server URLs, names, icons, and registration times synchronize; Chatto
-login tokens and user details stay only in that browser. The frontend shows a
-trusted Authling sign-in action and can use the resulting browser session to
-start login on Chatto servers that advertise the same issuer. The frontend and
-each Chatto server still receive separate tokens and scopes.
-
-The frontend reads its Authling issuer from `/client-config.json`. The Compose
-stack sets `CHATTO_FRONTEND_AUTHLING_ISSUER`, so the bundled Chatto server
-publishes that document and a separate frontend CIMD identity automatically.
-A standalone web, desktop, or mobile client can publish or inject the same
-versioned JSON contract from its own trusted application origin.
+Authling is configured as an ordinary OIDC provider for the development Chatto
+server. Chatto's server catalogue, login tokens, and cached user details stay
+on the current device; Authling stores identity-provider state only.
 
 The checked-in credentials and bootstrap account are for local development
 only. Stop the stack with `docker compose down`; add `--volumes` to delete both

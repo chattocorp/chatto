@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "إضافة خادم",
-      "account_data_connect": "مزامنة قائمة الخادم مع Authling",
-      "account_data_connecting": "جارٍ توصيل مزامنة قائمة الخوادم...",
-      "account_data_connected": "تمت مزامنة قائمة الخوادم مع {provider}",
-      "account_data_connected_toast": "تمت الآن مزامنة قائمة الخادم الخاصة بك.",
-      "account_data_error": "تعذر مزامنة قائمة الخادم",
       "version": "الإصدار {version}",
       "version_unknown": "الإصدار غير معروف",
       "unreachable": "تعذر الوصول إلى الخادم",

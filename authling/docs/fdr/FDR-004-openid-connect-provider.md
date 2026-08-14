@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-01
+**Last reviewed:** 2026-08-14
 
 ## Overview
 
@@ -15,8 +15,7 @@ to the relying party with an Authorization Code.
 - Discovery is available at `/.well-known/openid-configuration`; public keys
   are published at the advertised JWKS endpoint.
 - Authling advertises and accepts only Authorization Code. Every request
-  requires `openid` and S256 PKCE, including confidential clients. A client may
-  also request `account_data` for the access recorded in FDR-005.
+  requires exactly `openid` and S256 PKCE, including confidential clients.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
@@ -31,11 +30,7 @@ to the relying party with an Authorization Code.
 - Successful exchange returns a five-minute RS256 ID token and opaque bearer
   access token. The issuer is Authling's immutable public URL and `sub` is the
   Authling account ID. UserInfo returns only `sub`. Access-token state also
-  binds the client, granted scopes, and authorization callback origin.
-- A Chatto frontend can use its own authorization as the global client session,
-  then start a separate Chatto-server authorization through a provider that
-  advertises the same issuer. Authling's browser session is reused, but each
-  client receives only its own code, token, redirect, and granted scopes.
+  binds the client and granted scopes.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.
@@ -81,7 +76,7 @@ destinations.
 
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
-- Refresh tokens, token revocation, RP-initiated logout, further scopes and
+- Refresh tokens, token revocation, RP-initiated logout, further identity scopes and
   claims, persistent consent, application grouping, key rotation, and official
   conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
@@ -90,5 +85,5 @@ destinations.
 ## Related
 
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
-- **Delegated account data:** [ADR-006](../adr/ADR-006-oidc-authorized-account-data.md)
+- **Product boundary:** [ADR-007](../adr/ADR-007-limit-authling-to-identity-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)

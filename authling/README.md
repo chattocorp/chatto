@@ -4,7 +4,8 @@ Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
 credentials, password login, revocable browser sessions, and a small
 Authorization Code OpenID Provider for conventional and CIMD clients. It also
-provides an experimental authenticated TinyBase account-data sync endpoint.
+stores only identity-provider state; application data and synchronization are
+outside its scope.
 
 Contributors must read [`AGENTS.md`](AGENTS.md) before making Authling changes.
 Authling's ADRs, FDRs, architecture inventory, and glossary live under
@@ -98,13 +99,6 @@ corpus.
 Authling's HTTP listener does not terminate TLS. Production deployments must
 place it behind an HTTPS reverse proxy and configure an `https://` public URL.
 Plain HTTP is supported only when both the public URL and listener are loopback.
-For fair account-data handshake limits, list the direct proxy networks in
-`http.trusted_proxy_cidrs` or the comma-separated
-`AUTHLING_HTTP_TRUSTED_PROXY_CIDRS` value. A trusted proxy must remove any
-client-supplied `X-Forwarded-For` header and set it to one client IP address.
-Authling ignores forwarded addresses from every other peer and rejects
-ambiguous forwarded chains for admission purposes.
-
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.
@@ -114,9 +108,8 @@ binary; Node.js is not needed to run the resulting executable.
 Authling publishes discovery at `/.well-known/openid-configuration`. The
 initial profile supports Authorization Code, requires `openid` and S256 PKCE
 for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
-response containing only the account ID as `sub`. A client may also request
-`account_data` for read and write synchronization of the user's private global
-account data after explicit consent.
+response containing only the account ID as `sub`. It exposes no
+application-data scopes.
 
 CIMD public clients use their HTTPS metadata-document URL directly as
 `client_id`; they need no Authling-side registration. Conventional consumers
@@ -149,9 +142,5 @@ Embedded NATS is opt-in and has no TCP listener. For an external NATS
 deployment, configure `nats.client.url` and `nats.client.credentials_file`
 instead. Equivalent `AUTHLING_NATS_*` environment variables override TOML.
 
-The runtime currently has no public account-management or general document
-CRUD API. The experimental `GET /data/sync` WebSocket uses either the signed-in
-browser session or an origin-bound `account_data` access token to select one
-account-owned TinyBase 9.3 data space. See
-[FDR-005](docs/fdr/FDR-005-account-data-sync.md) for its limits and wire
-compatibility policy.
+The runtime currently has no public account-management, application-data,
+document, or synchronization API.

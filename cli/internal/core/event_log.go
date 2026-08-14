@@ -338,11 +338,7 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 	aggregateType, aggregateID := parseAggregateSubject(msg.Subject)
 	eventType := eventVariantName(&event)
 
-	payloadJSON, err := protojson.MarshalOptions{
-		Multiline:       true,
-		Indent:          "  ",
-		EmitUnpopulated: false,
-	}.Marshal(&event)
+	payloadJSON, err := marshalEventLogPayloadJSON(&event)
 	if err != nil {
 		return nil, fmt.Errorf("marshal payload json: %w", err)
 	}
@@ -358,6 +354,24 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 		CreatedAt:     event.GetCreatedAt(),
 		PayloadJSON:   string(payloadJSON),
 	}, nil
+}
+
+// marshalEventLogPayloadJSON redacts password verifiers from the public audit
+// API without changing the durable event used by projections and replay.
+func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
+	redacted, ok := proto.Clone(event).(*corev1.Event)
+	if !ok {
+		return nil, errors.New("clone event for audit payload")
+	}
+	if passwordChanged := redacted.GetUserPasswordHashChanged(); passwordChanged != nil {
+		passwordChanged.PasswordHash = nil
+	}
+
+	return protojson.MarshalOptions{
+		Multiline:       true,
+		Indent:          "  ",
+		EmitUnpopulated: false,
+	}.Marshal(redacted)
 }
 
 func parseAggregateSubject(subject string) (aggregateType, aggregateID string) {

@@ -182,8 +182,7 @@
 			userDisplayName: 'Alice',
 			userAvatarUrl: null,
 			reauthRequiredAt: null,
-			addedAt: Date.now(),
-			source: 'local'
+			addedAt: Date.now()
 		};
 		serverRegistry.addServer(
 			{
@@ -191,8 +190,7 @@
 				url: server.url,
 				name: server.name,
 				iconUrl: server.iconUrl,
-				addedAt: server.addedAt,
-				source: server.source
+				addedAt: server.addedAt
 			},
 			{
 				token: server.token,

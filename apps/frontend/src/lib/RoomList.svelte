@@ -18,7 +18,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   } from '$lib/navigation/sidebarLinkTarget';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import CollapsibleGroupStack from '$lib/ui/CollapsibleGroupStack.svelte';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import EmptyState from '$lib/ui/EmptyState.svelte';
   import { serverStorageKey } from '$lib/storage/serverStorage';
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
@@ -400,12 +400,24 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       <span class="flex-1 truncate">{presentation.label}</span>
     {:else}
       {#if isJoined}
-        <span
-          class={[
-            'sidebar-icon',
-            showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
-          ]}>#</span
-        >
+        {#if room.isUniversal}
+          <span
+            class={[
+              'iconify sidebar-icon icon-[uil--globe]',
+              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
+            ]}
+            role="img"
+            aria-label={m('room.directory.universal')}
+            title={m('room.directory.universal_title')}
+          ></span>
+        {:else}
+          <span
+            class={[
+              'sidebar-icon',
+              showUnread && room.id !== activeRoomId ? 'text-text-top' : 'text-muted'
+            ]}>#</span
+          >
+        {/if}
       {:else if room.viewerCanJoinRoom}
         <span class="sidebar-icon text-muted">+</span>
       {:else}
@@ -475,8 +487,18 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     {m('room_list.empty_suffix')}
   </EmptyState>
 {:else}
-  <nav class="room-list p-2 md:w-full">
-    <CollapsibleGroupStack groups={navigationSections} item={sidebarLink} />
+  <nav class="room-list md:w-full">
+    {#each navigationSections as section, i (section.id)}
+      <RoomGroupSection
+        label={section.label}
+        items={section.items}
+        item={sidebarLink}
+        persistKey={section.persistKey}
+        keepVisibleWhenCollapsed={section.keepVisibleWhenCollapsed}
+        contextMenuTrigger={section.contextMenuTrigger}
+        separated={i > 0}
+      />
+    {/each}
   </nav>
 {/if}
 

@@ -315,8 +315,7 @@ const registered: RegisteredServer = {
   userDisplayName: 'Alice',
   userAvatarUrl: null,
   reauthRequiredAt: null,
-  addedAt: 1,
-  source: 'local'
+  addedAt: 1
 };
 
 const stores: ServerStateStore[] = [];
@@ -339,8 +338,7 @@ function makeStore(
       url: server.url,
       name: server.name,
       iconUrl: server.iconUrl,
-      addedAt: server.addedAt,
-      source: server.source
+      addedAt: server.addedAt
     },
     () => ({
       token: server.token,
@@ -1208,6 +1206,7 @@ describe('ServerStateStore live server updates', () => {
       iconUrl: 'https://cdn/icon.webp',
       bannerUrl: 'https://cdn/banner.webp',
       directRegistrationEnabled: false,
+      directLoginEnabled: false,
       accountCreationPolicy: 'open',
       authProviders: []
     });

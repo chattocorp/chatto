@@ -3,30 +3,21 @@
 package web
 
 import (
-	"bytes"
-	"context"
 	"embed"
-	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"io/fs"
-	"net"
 	"net/http"
-	"net/netip"
 	"net/url"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/a-h/templ"
-	"github.com/coder/websocket"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/sessions"
-	"hmans.de/authling/internal/tinybasesync"
 )
 
 //go:embed assets
@@ -47,10 +38,8 @@ type Dependencies struct {
 	Registration   *registration.Service
 	Sessions       *sessions.Service
 	OIDC           *oidcprovider.Service
-	AccountSync    *tinybasesync.Hub
 	SecureCookies  bool
 	PublicURL      string
-	TrustedProxies []netip.Prefix
 }
 
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
@@ -69,7 +58,6 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		}
 	}
 	mux := http.NewServeMux()
-	accountSyncAuthenticationAdmission := newAccountSyncAuthenticationAdmission()
 	assets, err := fs.Sub(embeddedAssets, "assets")
 	if err != nil {
 		panic("open embedded web assets: " + err.Error())
@@ -218,43 +206,6 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		clearSessionCookie(w, deps.SecureCookies)
 		redirect(w, r, "/login")
 	})
-	mux.HandleFunc("GET /data/sync", func(w http.ResponseWriter, r *http.Request) {
-		if deps.AccountSync == nil {
-			http.Error(w, "account sync unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		if requestsSubprotocol(r, accountSyncTokenSubprotocol) {
-			serveTokenAccountSync(w, r, deps, accountSyncAuthenticationAdmission)
-			return
-		}
-		if !sameOrigin(r, publicOrigin) {
-			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
-			return
-		}
-		account, err := authenticatedAccount(r, deps)
-		if errors.Is(err, sessions.ErrNotFound) {
-			http.Error(w, "authentication required", http.StatusUnauthorized)
-			return
-		}
-		if err != nil {
-			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		connection, err := deps.AccountSync.Connect(r.Context(), account.ID)
-		if errors.Is(err, tinybasesync.ErrConnectionLimit) || errors.Is(err, tinybasesync.ErrCapacityLimit) {
-			http.Error(w, "account sync connection limit reached", http.StatusTooManyRequests)
-			return
-		}
-		if err != nil {
-			http.Error(w, "account sync unavailable", http.StatusServiceUnavailable)
-			return
-		}
-		defer connection.Close()
-		serveAccountSync(w, r, connection, func(ctx context.Context, active bool) bool {
-			current, err := authenticatedAccountMode(r.WithContext(ctx), deps, active)
-			return err == nil && current.ID == account.ID
-		})
-	})
 	mux.HandleFunc("GET /signup", func(w http.ResponseWriter, r *http.Request) { render(w, r, http.StatusOK, signupPage("")) })
 	mux.HandleFunc("POST /signup", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Registration == nil {
@@ -336,308 +287,6 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		mux.Handle("/", deps.OIDC)
 	}
 	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
-}
-
-const (
-	accountSyncAuthCheckInterval            = 30 * time.Second
-	accountSyncAuthenticationTimeout        = 2 * time.Second
-	accountSyncTokenSubprotocol             = "authling.account-data.v1"
-	maxAccountSyncAuthenticationMessageSize = 8 << 10
-	maxPendingAccountSyncAuthentications    = 64
-	maxPendingAccountSyncAuthPerSource      = 8
-)
-
-type accountSyncAuthentication struct {
-	Type        string `json:"type"`
-	AccessToken string `json:"access_token"`
-}
-
-type accountSyncAuthenticationAdmission struct {
-	mu       sync.Mutex
-	slots    chan struct{}
-	bySource map[string]int
-}
-
-func newAccountSyncAuthenticationAdmission() *accountSyncAuthenticationAdmission {
-	return &accountSyncAuthenticationAdmission{
-		slots: make(chan struct{}, maxPendingAccountSyncAuthentications), bySource: map[string]int{},
-	}
-}
-
-func (admission *accountSyncAuthenticationAdmission) acquire(source string) bool {
-	admission.mu.Lock()
-	defer admission.mu.Unlock()
-	if admission.bySource[source] >= maxPendingAccountSyncAuthPerSource {
-		return false
-	}
-	select {
-	case admission.slots <- struct{}{}:
-		admission.bySource[source]++
-		return true
-	default:
-		return false
-	}
-}
-
-func (admission *accountSyncAuthenticationAdmission) release(source string) {
-	admission.mu.Lock()
-	if admission.bySource[source] == 1 {
-		delete(admission.bySource, source)
-	} else {
-		admission.bySource[source]--
-	}
-	admission.mu.Unlock()
-	<-admission.slots
-}
-
-func monitorAccountSyncAuthorization(ctx context.Context, interval time.Duration, authorized func(context.Context, bool) bool, expire func()) {
-	ticker := time.NewTicker(interval)
-	defer ticker.Stop()
-	for {
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
-			if !authorized(ctx, false) {
-				expire()
-				return
-			}
-		}
-	}
-}
-
-func serveAccountSync(w http.ResponseWriter, r *http.Request, syncConnection *tinybasesync.Connection, authorized func(context.Context, bool) bool) {
-	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{CompressionMode: websocket.CompressionDisabled})
-	if err != nil {
-		return
-	}
-	runAccountSync(r.Context(), connection, syncConnection, authorized)
-}
-
-func serveTokenAccountSync(w http.ResponseWriter, r *http.Request, deps Dependencies, admission *accountSyncAuthenticationAdmission) {
-	if deps.OIDC == nil || deps.Accounts == nil {
-		http.Error(w, "account sync authentication unavailable", http.StatusServiceUnavailable)
-		return
-	}
-	origin, ok := accountSyncRequestOrigin(r)
-	if !ok {
-		http.Error(w, "account sync origin rejected", http.StatusForbidden)
-		return
-	}
-	connection, err := websocket.Accept(w, r, &websocket.AcceptOptions{
-		Subprotocols: []string{accountSyncTokenSubprotocol}, CompressionMode: websocket.CompressionDisabled,
-		// The access token is bound to the validated Origin below. The library's
-		// host-pattern check cannot express origins discovered at runtime.
-		InsecureSkipVerify: true,
-	})
-	if err != nil {
-		return
-	}
-	source := accountSyncNetworkSource(r, deps.TrustedProxies)
-	if !admission.acquire(source) {
-		_ = connection.Close(websocket.StatusPolicyViolation, "account sync authentication limit reached")
-		return
-	}
-	slotHeld := true
-	defer func() {
-		if slotHeld {
-			admission.release(source)
-		}
-	}()
-	connection.SetReadLimit(maxAccountSyncAuthenticationMessageSize)
-	authContext, cancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
-	messageType, data, err := connection.Read(authContext)
-	cancel()
-	if err != nil || messageType != websocket.MessageText {
-		_ = connection.Close(websocket.StatusPolicyViolation, "authentication required")
-		return
-	}
-	authentication, ok := decodeAccountSyncAuthentication(data)
-	if !ok {
-		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
-		return
-	}
-	grant, err := deps.OIDC.AuthorizeAccountDataToken(r.Context(), authentication.AccessToken, origin)
-	if err != nil {
-		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
-		return
-	}
-	if _, exists := deps.Accounts.Get(grant.AccountID); !exists {
-		_ = connection.Close(websocket.StatusPolicyViolation, "authentication failed")
-		return
-	}
-	syncConnection, err := deps.AccountSync.Connect(r.Context(), grant.AccountID)
-	if errors.Is(err, tinybasesync.ErrConnectionLimit) || errors.Is(err, tinybasesync.ErrCapacityLimit) {
-		_ = connection.Close(websocket.StatusPolicyViolation, "account sync connection limit reached")
-		return
-	}
-	if err != nil {
-		_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
-		return
-	}
-	defer syncConnection.Close()
-	slotHeld = false
-	admission.release(source)
-	readyContext, readyCancel := context.WithTimeout(r.Context(), accountSyncAuthenticationTimeout)
-	err = connection.Write(readyContext, websocket.MessageText, []byte(`{"type":"ready"}`))
-	readyCancel()
-	if err != nil {
-		syncConnection.Close()
-		connection.CloseNow()
-		return
-	}
-	runAccountSync(r.Context(), connection, syncConnection, func(ctx context.Context, _ bool) bool {
-		current, err := deps.OIDC.AuthorizeAccountDataToken(ctx, authentication.AccessToken, origin)
-		if err != nil || current.AccountID != grant.AccountID || current.ClientID != grant.ClientID {
-			return false
-		}
-		_, exists := deps.Accounts.Get(current.AccountID)
-		return exists
-	})
-}
-
-func accountSyncNetworkSource(r *http.Request, trustedProxies []netip.Prefix) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil || host == "" {
-		host = r.RemoteAddr
-	}
-	direct, err := netip.ParseAddr(host)
-	if err != nil {
-		if host != "" {
-			return host
-		}
-		return "unknown"
-	}
-	direct = direct.Unmap()
-	for _, prefix := range trustedProxies {
-		if !prefix.Contains(direct) {
-			continue
-		}
-		values := r.Header.Values("X-Forwarded-For")
-		if len(values) == 1 && !strings.Contains(values[0], ",") {
-			if forwarded, parseErr := netip.ParseAddr(strings.TrimSpace(values[0])); parseErr == nil {
-				return forwarded.Unmap().String()
-			}
-		}
-		break
-	}
-	return direct.String()
-}
-
-func runAccountSync(ctx context.Context, connection *websocket.Conn, syncConnection *tinybasesync.Connection, authorized func(context.Context, bool) bool) {
-	defer connection.CloseNow()
-	connection.SetReadLimit(tinybasesync.MaxWireMessageSize)
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel()
-	writeErrors := make(chan error, 1)
-	go func() {
-		for {
-			message, err := syncConnection.Next(ctx)
-			if err == nil && !authorized(ctx, false) {
-				_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
-				writeErrors <- errors.New("account sync authorization expired")
-				return
-			}
-			if err != nil {
-				if ctx.Err() == nil {
-					_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
-				}
-				writeErrors <- err
-				return
-			}
-			encoded, err := tinybasesync.EncodeWireMessage(message)
-			if err == nil {
-				err = connection.Write(ctx, websocket.MessageText, encoded)
-			}
-			if err != nil {
-				writeErrors <- err
-				return
-			}
-		}
-	}()
-	go func() {
-		monitorAccountSyncAuthorization(ctx, accountSyncAuthCheckInterval, authorized, func() {
-			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
-			cancel()
-		})
-	}()
-	for {
-		messageType, data, err := connection.Read(ctx)
-		if err != nil {
-			return
-		}
-		if messageType != websocket.MessageText {
-			_ = connection.Close(websocket.StatusUnsupportedData, "text messages required")
-			return
-		}
-		message, err := tinybasesync.DecodeWireMessage(data)
-		if err != nil {
-			_ = connection.Close(websocket.StatusPolicyViolation, "invalid sync message")
-			return
-		}
-		if !authorized(ctx, true) {
-			_ = connection.Close(websocket.StatusPolicyViolation, "authentication expired")
-			return
-		}
-		if err := syncConnection.Handle(ctx, message); errors.Is(err, tinybasesync.ErrRateLimit) {
-			_ = connection.Close(websocket.StatusPolicyViolation, "sync rate limit exceeded")
-			return
-		} else if err != nil {
-			_ = connection.Close(websocket.StatusInternalError, "sync unavailable")
-			return
-		}
-		select {
-		case <-writeErrors:
-			return
-		default:
-		}
-	}
-}
-
-func decodeAccountSyncAuthentication(data []byte) (accountSyncAuthentication, bool) {
-	var authentication accountSyncAuthentication
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&authentication); err != nil {
-		return accountSyncAuthentication{}, false
-	}
-	if err := decoder.Decode(&struct{}{}); !errors.Is(err, io.EOF) {
-		return accountSyncAuthentication{}, false
-	}
-	return authentication, authentication.Type == "authenticate" && authentication.AccessToken != ""
-}
-
-func requestsSubprotocol(r *http.Request, expected string) bool {
-	for _, value := range r.Header.Values("Sec-WebSocket-Protocol") {
-		for protocol := range strings.SplitSeq(value, ",") {
-			if strings.TrimSpace(protocol) == expected {
-				return true
-			}
-		}
-	}
-	return false
-}
-
-func accountSyncRequestOrigin(r *http.Request) (string, bool) {
-	values := r.Header.Values("Origin")
-	if len(values) != 1 {
-		return "", false
-	}
-	origin := values[0]
-	parsed, err := url.Parse(origin)
-	if err != nil || parsed.User != nil || parsed.Host == "" || parsed.Path != "" ||
-		parsed.RawQuery != "" || parsed.Fragment != "" {
-		return "", false
-	}
-	if strings.EqualFold(parsed.Scheme, "https") {
-		return origin, true
-	}
-	if !strings.EqualFold(parsed.Scheme, "http") {
-		return "", false
-	}
-	host := strings.TrimSuffix(strings.ToLower(parsed.Hostname()), ".")
-	address := net.ParseIP(host)
-	return origin, host == "localhost" || strings.HasSuffix(host, ".localhost") || address != nil && address.IsLoopback()
 }
 
 func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {

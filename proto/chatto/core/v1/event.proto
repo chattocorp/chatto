@@ -108,13 +108,15 @@ message Event {
 
     // ----- Assets (450-474, durable) -----
     // The asset aggregate. AssetCreated establishes content identity for
-    // one uploaded or generated binary; AssetProcessingStarted/Succeeded/
-    // Failed track derivative work; AssetDeleted terminates the lifecycle.
+    // one uploaded or generated binary; AssetAttached binds an upload to one
+    // message as an attachment; processing events track derivative work;
+    // AssetDeleted terminates the lifecycle.
     AssetCreatedEvent asset_created = 450;
     AssetProcessingStartedEvent asset_processing_started = 451;
     AssetProcessingSucceededEvent asset_processing_succeeded = 452;
     AssetProcessingFailedEvent asset_processing_failed = 453;
     AssetDeletedEvent asset_deleted = 454;
+    AssetAttachedEvent asset_attached = 455;
 
     // ----- Config / preferences (500-599, durable) -----
     // These variants live on the EVT stream (subjects under evt.config.>)

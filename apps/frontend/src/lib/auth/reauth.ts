@@ -289,8 +289,7 @@ export async function completeServerOAuthFlow(
       url: flow.remoteUrl,
       name: flow.serverName || 'Chatto',
       iconUrl: flow.serverIconUrl,
-      addedAt: Date.now(),
-      source: 'local'
+      addedAt: Date.now()
     },
     {
       token: result.access_token,
@@ -320,18 +319,14 @@ export function oauthClientIdForLocation(
 
 export function startRemoteReauthentication(server: RegisteredServer): Promise<void> {
   const details = getPublicServerInfo(server.url, { signal: AbortSignal.timeout(10000) }).then(
-    async (info) => {
-      const { findAuthlingServerProvider } = await import('$lib/authling/serverProvider');
-      const provider = await findAuthlingServerProvider(info.authProviders).catch(() => null);
-      return {
-        serverInfo: {
-          name: info.name || server.name,
-          authorizeUrl: info.authorizeUrl,
-          iconUrl: info.iconUrl ?? server.iconUrl
-        },
-        providerId: provider?.id ?? null
-      };
-    }
+    (info) => ({
+      serverInfo: {
+        name: info.name || server.name,
+        authorizeUrl: info.authorizeUrl,
+        iconUrl: info.iconUrl ?? server.iconUrl
+      },
+      providerId: null
+    })
   );
   return runServerOAuthFlow(server.url, details);
 }

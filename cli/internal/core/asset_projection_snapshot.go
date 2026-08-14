@@ -9,7 +9,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-var assetSnapshotContractID = snapshotContractID("v2", &corev1.AssetProjectionSnapshot{})
+var assetSnapshotContractID = snapshotContractID("v3", &corev1.AssetProjectionSnapshot{})
 
 func (*AssetProjection) SnapshotContractID() string { return assetSnapshotContractID }
 

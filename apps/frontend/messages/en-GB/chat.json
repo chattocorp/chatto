@@ -31,11 +31,6 @@
     },
     "server_gutter": {
       "add_server": "Add Server",
-      "account_data_connect": "Sync server list with Authling",
-      "account_data_connecting": "Connecting server-list sync…",
-      "account_data_connected": "Server list is synced with {provider}",
-      "account_data_connected_toast": "Your server list is now synced.",
-      "account_data_error": "Could not sync the server list",
       "version": "Version {version}",
       "version_unknown": "Version unknown",
       "unreachable": "Server unreachable",

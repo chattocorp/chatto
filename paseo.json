@@ -6,6 +6,9 @@
   "scripts": {
     "compose": {
       "command": "exec docker compose up --build"
+    },
+    "compose-watch": {
+      "command": "exec docker compose up --build --watch"
     }
   },
   "metadataGeneration": {

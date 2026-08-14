@@ -90,6 +90,11 @@ var (
 	// the requested attachment.
 	ErrMessageAttachmentNotFound = errors.New("message attachment not found")
 
+	// ErrAssetNotAttachable is returned when a message references an asset that
+	// is unavailable, belongs to another uploader, or is already attached to a
+	// message.
+	ErrAssetNotAttachable = errors.New("asset is not available to attach")
+
 	// ErrMessageLinkPreviewNotFound is returned when a message does not contain
 	// the requested link preview.
 	ErrMessageLinkPreviewNotFound = errors.New("message link preview not found")

@@ -13,8 +13,7 @@ const remoteServer: RegisteredServer = {
 	userDisplayName: 'Alice',
 	userAvatarUrl: null,
 	reauthRequiredAt: null,
-	addedAt: 1,
-	source: 'local'
+	addedAt: 1
 };
 
 afterEach(() => {

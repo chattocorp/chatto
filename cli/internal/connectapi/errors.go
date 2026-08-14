@@ -100,6 +100,7 @@ func connectError(err error) error {
 	}
 	if errors.Is(err, core.ErrLimitExceeded) ||
 		errors.Is(err, core.ErrReactionLimitExceeded) ||
+		errors.Is(err, core.ErrPushSubscriptionLimitReached) ||
 		errors.Is(err, core.ErrSlowModeActive) {
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
@@ -117,6 +118,7 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrRoomGroupHasRooms) ||
 		errors.Is(err, core.ErrRoomGroupOrderMismatch) ||
 		errors.Is(err, core.ErrRoomMoveSourceChanged) ||
+		errors.Is(err, core.ErrAssetNotAttachable) ||
 		errors.Is(err, core.ErrSidebarLinkSourceChanged) {
 		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}

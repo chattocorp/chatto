@@ -436,7 +436,8 @@ export class AdminEventLogEntry extends Message<AdminEventLogEntry> {
   createdAt?: Timestamp;
 
   /**
-   * Pretty-printed JSON representation of the event payload.
+   * Pretty-printed, sanitized JSON representation of the event payload.
+   * Password verifiers are omitted.
    *
    * @generated from field: string payload_json = 9;
    */

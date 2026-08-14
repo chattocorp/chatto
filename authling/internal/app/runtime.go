@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"golang.org/x/sync/errgroup"
-	"hmans.de/authling/internal/accountdata"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/config"
@@ -25,7 +24,6 @@ import (
 	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/sessions"
 	"hmans.de/authling/internal/storage"
-	"hmans.de/authling/internal/tinybasesync"
 	"hmans.de/authling/internal/web"
 	"hmans.de/chatto/pkg/events"
 )
@@ -47,8 +45,6 @@ type Runtime struct {
 	Sessions *sessions.Service
 	// OIDC provides standards-based identity to configured and CIMD clients.
 	OIDC *oidcprovider.Service
-	// AccountSync synchronizes the authenticated account-owned data space.
-	AccountSync *tinybasesync.Hub
 }
 
 // New creates Authling's storage and model wiring without starting background
@@ -117,7 +113,6 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService)
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage)
-	accountData := accountdata.New(stores.UserData, vault, accountService, workflowKey)
 	return &Runtime{
 		connection:     connection,
 		projectors:     []*events.Projector{handle.Projector(), issuerHandle.Projector()},
@@ -127,7 +122,6 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		Authentication: authentication.New(stores.RuntimeState, js, workflowKey, accountService),
 		Sessions:       sessionService,
 		OIDC:           oidcService,
-		AccountSync:    tinybasesync.NewHub(accountData),
 	}, nil
 }
 
@@ -201,17 +195,14 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			Registration:   runtime.Registration,
 			Sessions:       runtime.Sessions,
 			OIDC:           runtime.OIDC,
-			AccountSync:    runtime.AccountSync,
 			SecureCookies:  cfg.HTTP.SecureCookies(),
 			PublicURL:      cfg.HTTP.PublicURLOrDefault(),
-			TrustedProxies: cfg.HTTP.TrustedProxies(),
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,
 		WriteTimeout:      30 * time.Second,
 		IdleTimeout:       time.Minute,
 	}
-	httpServer.RegisterOnShutdown(runtime.AccountSync.Close)
 	httpErrors := make(chan error, 1)
 	go func() {
 		httpErrors <- httpServer.Serve(listener)
