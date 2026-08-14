@@ -714,7 +714,7 @@ func TestAuthRoutes_Login_DisabledReturns403BeforeCredentialValidation(t *testin
 
 	body, _ := json.Marshal(map[string]string{
 		"login":    "disabledlogin",
-		"password": "password123",
+		"password": "definitely-wrong",
 	})
 	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
 	if err != nil {
