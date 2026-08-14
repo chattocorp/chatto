@@ -20,6 +20,10 @@ Event sourcing inverts the relationship: events are the truth, state is derived.
 
 This is a large change. The migration is per-aggregate and phased; that strategy is the subject of [ADR-035](ADR-035-per-aggregate-phased-migration.md). The shape of the event log itself — single stream vs. many — is the subject of [ADR-034](ADR-034-single-event-stream.md). This ADR commits to the model.
 
+[ADR-073](ADR-073-define-the-loom-architecture.md) later names the
+repository-wide application pattern built around this decision the Loom
+Architecture.
+
 ## Decision
 
 Adopt event sourcing as the storage pattern for domain state.
