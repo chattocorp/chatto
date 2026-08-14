@@ -1,6 +1,6 @@
 ---
 name: loom-architecture
-description: Apply the Loom Architecture—Log-Oriented Outcomes and Materializations—when designing, implementing, reviewing, debugging, or documenting NATS and JetStream event-sourced applications. Use for work involving NATS account boundaries, a primary event stream, optimistic concurrency control, projections and read-your-writes, snapshots or checkpoints, snapshot repositories, durable workers, or reliable external effects.
+description: Apply the repository-wide Loom Architecture—Log-Oriented Outcomes and Materializations—when designing, implementing, reviewing, debugging, or documenting NATS and JetStream event-sourced applications. Use for work involving NATS account boundaries, a primary event stream, optimistic concurrency control, projections and read-your-writes, snapshots or checkpoints, snapshot repositories, durable workers, or reliable external effects.
 ---
 
 # Loom Architecture
@@ -9,15 +9,16 @@ Loom stands for **Log-Oriented Outcomes and Materializations**. It is an
 architecture for building event-sourced applications on NATS and JetStream.
 
 ```text
-commands -> EVT -> materializations
-                -> durable workers -> outcomes
+commands -> event log (EVT role) -> materializations
+                                 -> durable workers -> outcomes
 ```
 
 ## Log-oriented
 
 Each application runs in its own NATS account. Within that account, one primary
-JetStream stream—conventionally called `EVT`—holds the application's durable
-domain events.
+JetStream stream holds the application's durable domain events. Loom calls the
+stream's logical role `EVT`; the application chooses its physical resource
+name.
 
 The event log is the source of truth. Commands decide what should happen and
 append new events only if the relevant history has not changed. This is

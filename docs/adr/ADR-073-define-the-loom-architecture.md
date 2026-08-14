@@ -96,9 +96,11 @@ when related credentials, payload objects, or caches live elsewhere.
 
 A projection declares the facts it consumes and applies them in stream order.
 Its state may live in process RAM, NATS, a local durable index, or another
-external store. Projection code derives state only; it must not perform an
-external side effect from `Apply`, because replay and multiple application
-replicas would repeat that effect.
+external store. `Apply` may update the materialization's own derived store and,
+for a checkpointed projection, atomically commit its EVT cutoff. It must not
+perform an outcome or mutate state outside that materialization, such as
+sending an email, calling a webhook, or updating an unrelated system, because
+replay and multiple application replicas may apply the same event again.
 
 The shared events framework owns reusable ordering, replay, readiness,
 read-your-writes, failure, and shutdown mechanics. It may provide
