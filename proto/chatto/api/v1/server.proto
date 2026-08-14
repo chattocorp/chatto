@@ -40,4 +40,7 @@ message ServerLogin {
   string authorize_url = 3;
   // Admission policy for direct registration and provider auto-provisioning.
   AccountCreationPolicy account_creation_policy = 4;
+  // Whether users can sign in directly with a username or email address and password.
+  // Absent on older servers, where clients should treat direct login as enabled.
+  optional bool direct_login_enabled = 5;
 }

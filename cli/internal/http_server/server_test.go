@@ -702,6 +702,41 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_Login_DisabledReturns403BeforeCredentialValidation(t *testing.T) {
+	disabled := false
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
+		server.config.Auth.DirectLogin = &disabled
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "disabledlogin", "Disabled Login", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{
+		"login":    "disabledlogin",
+		"password": "definitely-wrong",
+	})
+	resp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("POST /auth/login: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status = %d, want 403", resp.StatusCode)
+	}
+	var responseBody map[string]string
+	if err := json.NewDecoder(resp.Body).Decode(&responseBody); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if responseBody["error"] != "Password login is disabled" {
+		t.Fatalf("error = %q, want password-login-disabled response", responseBody["error"])
+	}
+	if cookies := client.Jar.Cookies(resp.Request.URL); len(cookies) != 0 {
+		t.Fatalf("disabled login created cookies: %+v", cookies)
+	}
+}
+
 func TestAuthRoutes_Login_WithIdentifier(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)

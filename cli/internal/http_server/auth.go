@@ -169,6 +169,11 @@ func (s *HTTPServer) setupAuthRoutes() {
 	// Password login endpoint
 	// Accepts login name (username) via "login" or "identifier" field
 	auth.POST("login", func(c *gin.Context) {
+		if !s.config.Auth.DirectLoginOrDefault() {
+			c.JSON(http.StatusForbidden, gin.H{"error": "Password login is disabled"})
+			return
+		}
+
 		var loginRequest struct {
 			Login      string `json:"login"`
 			Identifier string `json:"identifier"` // Alternative field name used by frontend

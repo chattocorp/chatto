@@ -6,7 +6,7 @@
 
 Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md),
 which replaces the origin allow-list client-registration requirement, and
-[ADR-073](ADR-073-keep-server-catalogue-device-local.md), which makes the
+[ADR-074](ADR-074-keep-server-catalogue-device-local.md), which makes the
 server catalogue device-local. The multi-server client architecture remains
 current.
 
@@ -44,7 +44,7 @@ its combined record remains a compatibility adapter. It is split into catalogue
 and session state at runtime and combined on save. This preserves registrations
 and remote bearer tokens across upgrade and rollback.
 
-The catalogue and sessions are device-local under ADR-073. A server can remain
+The catalogue and sessions are device-local under ADR-074. A server can remain
 known while signed out, and selecting it starts the normal Chatto OAuth flow.
 The existing `chatto:instances` compatibility record accepts former provenance
 fields but rewrites every registration into the device-local catalogue. The

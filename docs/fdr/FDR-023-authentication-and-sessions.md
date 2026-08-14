@@ -9,7 +9,7 @@ Chatto authenticates users with typed opaque runtime credentials. API and multi-
 
 ## Behavior
 
-- **Login** — users sign in with login + password on a `/login` page. The page is also used for redirect-after-signup.
+- **Login** — users sign in with login + password on a `/login` page. Operators can disable password login independently from direct registration. When disabled, the server rejects password-login requests before credential validation and public discovery tells clients not to render the password form or recovery link. Existing sessions, registration, and authenticated password management remain unchanged. The page is also used for redirect-after-signup and continues to offer configured external providers.
 - **External provider login** — operators configure repeated `[[auth.providers]]` entries or equivalent counted `CHATTO_AUTH_PROVIDERS_<index>_<field>` environment variables. Supported provider types are `oidc`, `github`, `gitlab`, `google`, and `discord`. The login page renders buttons from `chatto.discovery.v1.ServerDiscoveryService.GetServer` login providers, and provider flows use `/auth/providers/{providerID}` plus `/auth/providers/{providerID}/callback`. OIDC also keeps `/auth/oidc` and `/auth/oidc/callback` as compatibility aliases for older clients and provider registrations. A matched browser login establishes the HTTP-only cookie session and redirects without a bearer credential; when provider login is nested inside Chatto OAuth authorization, the existing PKCE authorization-code flow continues instead.
 - **CIMD public client** — OIDC providers may use a confidential client secret or Chatto's public client ID at `{webserver.url}/oauth/client-metadata.json`. The metadata document declares the exact callback URIs for OIDC providers configured with that client ID and requires Authorization Code with public token authentication, allowing CIMD-aware issuers to use Chatto without preregistration.
 - **Chatto OAuth client identity** — browser client applications use their HTTPS CIMD URL as `client_id`; Chatto retrieves the document, verifies its self-identified client ID, public-client grant shape, and exact redirect URI, then binds that client ID through consent, authorization code exchange, and the resulting opaque access token. Metadata retrieval is bounded and blocks special-use network destinations. Chatto Desktop uses the built-in `chatto://desktop` client identity and exact popup callback. Native CIMD clients may declare private-use callbacks with `application_type = "native"`. CIMD identity means the app is identifiable, not endorsed; user consent is still required.
@@ -104,8 +104,14 @@ Chatto authenticates users with typed opaque runtime credentials. API and multi-
 ### 8c. Separate device-local catalogue and server sessions
 
 **Decision:** Known server metadata and device-local Chatto sessions have separate state owners. Cross-boundary sign-out commands run through one client account coordinator. The legacy combined browser-storage record remains only as a compatibility adapter, and former catalogue provenance values are ignored during migration.
-**Why:** A server can be known while signed out, while catalogue metadata and credentials have different lifecycles. Authling stores identity-provider state only and does not synchronize the catalogue. See ADR-073.
+**Why:** A server can be known while signed out, while catalogue metadata and credentials have different lifecycles. Authling stores identity-provider state only and does not synchronize the catalogue. See ADR-074.
 **Tradeoff:** The frontend retains a composed server view and combined persisted shape during migration, so the adapter and coordinator require explicit tests.
+
+### 8d. Operator-controlled password login
+
+**Decision:** Password sign-in is a deployment configuration capability, separate from direct registration and from whether an account retains a password. Public discovery reports the capability before authentication, while the password-login endpoint remains authoritative and rejects disabled requests before inspecting credentials. Existing runtime credentials are not revoked when the setting changes.
+**Why:** SSO-only deployments need to close the local password entry point without migrating accounts, deleting fallback credentials, or coupling sign-in policy to account-creation policy. Discovery lets compatible clients present only valid choices, and endpoint enforcement protects against older or custom clients.
+**Tradeoff:** Older clients do not understand the discovery capability and can still display a form that the server rejects. Operators must configure every serving replica consistently and retain a tested provider or recovery path to avoid locking signed-out users out.
 
 ### 9. EVT audit facts without raw secrets
 
@@ -127,7 +133,7 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 
 ## Related
 
-- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-046 (typed runtime credentials), ADR-067 (Electron desktop packaging), ADR-071 (CIMD-identified open OAuth clients), ADR-073 (device-local frontend server catalogue)
+- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-046 (typed runtime credentials), ADR-067 (Electron desktop packaging), ADR-071 (CIMD-identified open OAuth clients), ADR-074 (device-local frontend server catalogue)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-034 (Chatto Desktop), FDR-036 (Invite Links)
 
 ## Open Questions

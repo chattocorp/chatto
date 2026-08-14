@@ -16,6 +16,7 @@ function serverInfo(overrides: Partial<PublicServerInfo> = {}): PublicServerInfo
     version: '0.5.0',
     authorizeUrl: '/oauth/authorize',
     directRegistrationEnabled: true,
+    directLoginEnabled: true,
     accountCreationPolicy: 'invite_only',
     welcomeMessage: null,
     description: null,

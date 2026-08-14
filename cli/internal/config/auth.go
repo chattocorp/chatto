@@ -70,7 +70,8 @@ func IsAllowedAuthProviderType(providerType string) bool {
 }
 
 type AuthConfig struct {
-	DirectRegistration    *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, users can only sign in via SSO providers. Default: true."`
+	DirectRegistration    *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, self-service account creation is disabled; existing accounts can still sign in. Default: true."`
+	DirectLogin           *bool                `toml:"direct_login" env:"CHATTO_AUTH_DIRECT_LOGIN" comment:"Enable direct login with a username or email address and password. When false, users must sign in via configured SSO providers. Default: true."`
 	AccountCreationPolicy string               `toml:"account_creation_policy,commented" env:"CHATTO_AUTH_ACCOUNT_CREATION_POLICY" comment:"Account admission policy: open or invite_only. Default: open. Upgrade every serving replica before enabling invite_only."`
 	TokenTTL              Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
 	EmailOTP              EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
@@ -142,6 +143,14 @@ func (c *AuthConfig) DirectRegistrationOrDefault() bool {
 		return true
 	}
 	return *c.DirectRegistration
+}
+
+// DirectLoginOrDefault returns whether direct password login is enabled (default: true).
+func (c *AuthConfig) DirectLoginOrDefault() bool {
+	if c.DirectLogin == nil {
+		return true
+	}
+	return *c.DirectLogin
 }
 
 // EnabledProviders returns a list of configured SSO provider IDs.

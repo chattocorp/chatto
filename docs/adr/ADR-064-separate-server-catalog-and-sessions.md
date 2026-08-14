@@ -4,7 +4,7 @@
 
 ## Status
 
-Superseded by [ADR-073](ADR-073-keep-server-catalogue-device-local.md)
+Superseded by [ADR-074](ADR-074-keep-server-catalogue-device-local.md)
 
 ## Context
 

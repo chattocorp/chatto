@@ -10,6 +10,10 @@ That package now owns proven NATS JetStream mechanics for mandatory OCC,
 ordered projection replay, read-your-writes barriers, failure propagation, and
 optional restore capabilities.
 
+[ADR-073](ADR-073-define-the-loom-architecture.md) later names the wider
+application pattern around this framework the Loom Architecture. This ADR
+continues to define the narrower package boundary and current ownership split.
+
 Chatto's composition layer has also accumulated application policy around those
 mechanics: stable diagnostic keys, display names, memory estimates, snapshot
 eligibility, domain model ownership, and the concrete `corev1.Event` envelope.

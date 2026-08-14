@@ -39,6 +39,22 @@ client.
 also a public OIDC client's identifier. Authling uses CIMD for automatic,
 read-only client onboarding without a dynamic registration write API.
 
+## Backend
+
+**Loom Architecture** — Repository-wide event-sourced architecture adopted by
+Authling, built around one authoritative event log, disposable
+materializations, and durable outcomes. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md) and
+[Authling ADR-001](adr/ADR-001-event-sourced-nats-architecture.md).
+
+**Materialization** — Loom term for disposable state derived from the event
+log; Authling's in-memory projections are materializations. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md).
+
+**Outcome** — Loom term for reliable asynchronous work caused by a committed
+event and performed by a durable worker. See
+[root ADR-073](../../docs/adr/ADR-073-define-the-loom-architecture.md).
+
 ## Data protection
 
 **Cryptographic erasure** — Making encrypted Authling data permanently

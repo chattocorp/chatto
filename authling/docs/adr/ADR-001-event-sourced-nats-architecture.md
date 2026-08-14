@@ -28,6 +28,9 @@ subjects, stream identity, resource names, domain policy, or application
 composition. Root
 [ADR-057](../../../docs/adr/ADR-057-temporarily-incubate-authling.md) requires
 the two products to remain independently buildable and separable.
+Root [ADR-073](../../../docs/adr/ADR-073-define-the-loom-architecture.md) names
+the repository-wide application pattern around these mechanics the Loom
+Architecture.
 
 ## Decision
 

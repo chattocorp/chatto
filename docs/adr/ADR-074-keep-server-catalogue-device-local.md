@@ -1,4 +1,4 @@
-# ADR-073: Keep the Frontend Server Catalogue Device-Local
+# ADR-074: Keep the Frontend Server Catalogue Device-Local
 
 **Date:** 2026-08-14
 
