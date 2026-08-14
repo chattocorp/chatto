@@ -97,4 +97,43 @@ describe('frontend Authling sign-in', () => {
       expect.objectContaining({ id: 'remote' })
     );
   });
+
+	it('shows configured providers without password controls when password login is disabled', async () => {
+		mocks.getClientConfiguration.mockResolvedValue({ version: 1, authling: null });
+		const { getByRole, getByLabelText } = render(LoginPage, {
+			props: {
+				data: {
+					...standaloneData,
+					serverInfo: {
+						name: 'SSO Community',
+						version: '0.5.0',
+						authorizeUrl: '/oauth/authorize',
+						directRegistrationEnabled: false,
+						passwordLoginEnabled: false,
+						accountCreationPolicy: 'open',
+						welcomeMessage: null,
+						description: null,
+						iconUrl: null,
+						bannerUrl: null,
+						authProviders: [
+							{
+								id: 'company',
+								type: 'oidc',
+								label: 'Company SSO',
+								loginUrl: '/auth/providers/company',
+								issuerUrl: 'https://id.example',
+								autoProvision: false
+							}
+						]
+					},
+					serverInfoLoaded: true
+				}
+			}
+		});
+
+		await expect.element(getByRole('link', { name: 'Continue with Company SSO' })).toBeVisible();
+		await expect.element(getByLabelText('Username or Email')).not.toBeInTheDocument();
+		await expect.element(getByLabelText('Password')).not.toBeInTheDocument();
+		await expect.element(getByRole('link', { name: 'Forgot password?' })).not.toBeInTheDocument();
+	});
 });

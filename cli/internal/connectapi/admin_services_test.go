@@ -57,6 +57,9 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	if !msg.GetLogin().GetDirectRegistrationEnabled() {
 		t.Fatal("DirectRegistrationEnabled = false, want true")
 	}
+	if msg.GetLogin().PasswordLoginEnabled == nil || !msg.GetLogin().GetPasswordLoginEnabled() {
+		t.Fatal("PasswordLoginEnabled is absent or false, want explicit true")
+	}
 	if msg.GetLogin().GetAccountCreationPolicy() != apiv1.AccountCreationPolicy_ACCOUNT_CREATION_POLICY_OPEN {
 		t.Fatalf("AccountCreationPolicy = %v, want OPEN", msg.GetLogin().GetAccountCreationPolicy())
 	}
@@ -75,6 +78,21 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 	if !provider.GetAutoProvision() {
 		t.Fatal("provider AutoProvision = false, want true")
+	}
+}
+
+func TestServerDiscoveryServiceGetServerReportsDisabledPasswordLogin(t *testing.T) {
+	disabled := false
+	api := New(nil, config.ChattoConfig{
+		Auth: config.AuthConfig{PasswordLogin: &disabled},
+	}, "9.8.7")
+
+	resp, err := (&serverDiscoveryService{api: api}).GetServer(context.Background(), connect.NewRequest(&discoveryv1.GetServerRequest{}))
+	if err != nil {
+		t.Fatalf("GetServer: %v", err)
+	}
+	if resp.Msg.GetLogin().PasswordLoginEnabled == nil || resp.Msg.GetLogin().GetPasswordLoginEnabled() {
+		t.Fatal("PasswordLoginEnabled is absent or true, want explicit false")
 	}
 }
 

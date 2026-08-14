@@ -119,8 +119,11 @@ credentialed CORS; cross-origin authentication is bearer-only, while cookie
 fallback is restricted to the configured server origin.
 
 The discovery response includes the server software version as public
-pre-authentication state. The bundled client refreshes it per server and owns
-an internal feature-to-minimum-server-version table for compatibility gates.
+pre-authentication state, along with configured provider metadata and the
+independently configured direct-registration and password-login capabilities.
+The password-login capability uses scalar presence so a new client treats an
+older server that omits it as enabled. The bundled client refreshes discovery
+per server and owns an internal feature-to-minimum-server-version table for compatibility gates.
 The 0.5 client requires the 0.5 server baseline before opening realtime
 protocol 2, the only accepted behavioral version. The
 `chatto.realtime.v1` suffix remains the protobuf namespace.
