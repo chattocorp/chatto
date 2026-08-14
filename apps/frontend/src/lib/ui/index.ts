@@ -3,6 +3,8 @@ export { default as AppHeader } from './AppHeader.svelte';
 export { default as BottomSheet } from './BottomSheet.svelte';
 export { default as ChoiceRow } from './ChoiceRow.svelte';
 export { default as CollapsibleGroup } from './CollapsibleGroup.svelte';
+export { default as CollapsibleGroupStack } from './CollapsibleGroupStack.svelte';
+export type { CollapsibleGroupStackEntry } from './CollapsibleGroupStack.svelte';
 export { default as ConfirmDialog } from './ConfirmDialog.svelte';
 export { default as ContextMenu } from './ContextMenu.svelte';
 export { default as Dialog } from './Dialog.svelte';

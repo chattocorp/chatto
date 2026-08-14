@@ -16,8 +16,10 @@ describe('CollapsibleGroup', () => {
     });
 
     const icon = q(container, '.iconify');
+    const toggle = q(container, 'button');
     expect(icon?.classList).toContain('icon-[uil--angle-right-b]');
     expect(icon?.classList).toContain('rtl:-scale-x-100');
     expect(icon?.classList).not.toContain('rotate-90');
+    expect(toggle?.getAttribute('aria-expanded')).toBe('false');
   });
 });

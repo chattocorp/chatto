@@ -9,8 +9,8 @@ When collapsed, items are hidden unless `keepVisibleWhenCollapsed` returns
 true for them — useful for anchoring rows that demand attention (active,
 unread, mentions, …) so the user can always reach them.
 
-Used by `RoomList` (channels, DMs, layout sections) and `RoomSidebar` (online /
-offline member groups).
+Used by sidebar section stacks for room navigation, room members, and room
+attachments.
 -->
 <script module lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
@@ -52,6 +52,8 @@ offline member groups).
     /** Collapsed state when no preference is stored. */
     defaultCollapsed?: boolean;
     keepVisibleWhenCollapsed?: (item: T) => boolean;
+    /** Optional stable selector for the disclosure button. */
+    testid?: string;
     class?: string;
   }
 
@@ -64,6 +66,7 @@ offline member groups).
     persistKey,
     defaultCollapsed = false,
     keepVisibleWhenCollapsed,
+    testid,
     class: className
   }: Props = $props();
 
@@ -79,6 +82,8 @@ offline member groups).
     <button
       type="button"
       onclick={toggle}
+      aria-expanded={!collapsed}
+      data-testid={testid}
       class="flex min-w-0 flex-1 cursor-pointer items-center gap-2 px-1 py-1 text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
       {@attach contextMenuTrigger}
     >

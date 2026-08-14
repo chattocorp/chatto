@@ -294,6 +294,81 @@ describe('RoomList', () => {
     await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
   });
 
+  it('renders a lone configured room group and keeps highlighted rooms visible when collapsed', async () => {
+    const channel = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'channel-1'
+    );
+    mocks.store.navigation.rooms = [channel] as never;
+    mocks.store.navigation.roomGroups = [
+      {
+        id: 'projects',
+        name: 'Projects',
+        viewerCanManageGroup: false,
+        roomIds: ['channel-1']
+      }
+    ];
+    setRoomUnread('channel-1', true);
+
+    const { container } = render(RoomList);
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeader = groupHeaders[0];
+
+    expect(groupHeaders).toHaveLength(1);
+    await expect.element(groupHeader).toHaveTextContent('Projects');
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+    expect(groupHeader?.parentElement?.parentElement?.classList.contains('mt-4')).toBe(false);
+
+    groupHeader?.click();
+
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'false');
+    await expect.element(q(container, '[href="/chat/-/channel-1"]')).toBeInTheDocument();
+
+    groupHeader?.click();
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('renders a DM-only sidebar with the same first-section disclosure treatment', async () => {
+    const dm = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'dm-with-participants'
+    );
+    mocks.store.navigation.rooms = [dm] as never;
+
+    const { container } = render(RoomList);
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const groupHeader = groupHeaders[0];
+
+    expect(groupHeaders).toHaveLength(1);
+    await expect.element(groupHeader).toHaveTextContent('Direct Messages');
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+    expect(groupHeader?.parentElement?.parentElement?.classList.contains('mt-4')).toBe(false);
+
+    groupHeader?.click();
+
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'false');
+    await vi.waitFor(() =>
+      expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull()
+    );
+
+    groupHeader?.click();
+    await expect.element(groupHeader).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  it('renders a full-width separator between adjacent room and DM sections', () => {
+    const { container } = render(RoomList);
+    const roomList = q(container, 'nav.room-list') as HTMLElement;
+    const groupHeaders = container.querySelectorAll<HTMLButtonElement>('button[aria-expanded]');
+    const separator = q(roomList, '[data-testid="collapsible-group-separator"]');
+
+    expect(groupHeaders).toHaveLength(2);
+    expect(separator).not.toBeNull();
+    expect(separator?.previousElementSibling?.contains(groupHeaders[0])).toBe(true);
+    expect(separator?.nextElementSibling?.contains(groupHeaders[1])).toBe(true);
+    expect(separator?.classList.contains('-mx-2')).toBe(true);
+    expect(roomList.querySelectorAll('[data-testid="collapsible-group-separator"]')).toHaveLength(
+      1
+    );
+  });
+
   it('opens room actions on right-click and marks an unread room as read', async () => {
     setRoomUnread('channel-1', true);
     const { container } = render(RoomList);
