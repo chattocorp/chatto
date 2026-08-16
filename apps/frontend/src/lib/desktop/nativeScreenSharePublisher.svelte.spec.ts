@@ -12,6 +12,7 @@ describe('NativeScreenSharePublisherSession', () => {
     hostChannel.port1.onmessage = (event) => {
       if (event.data?.kind !== 'stop') return;
       stopped();
+      hostChannel.port1.postMessage({ kind: 'stopping' });
       hostChannel.port1.postMessage({ kind: 'ended' });
     };
     hostChannel.port1.start();
@@ -30,7 +31,8 @@ describe('NativeScreenSharePublisherSession', () => {
               kind: 'started',
               width: 1920,
               height: 1080,
-              frameRate: 60
+              frameRate: 60,
+              localPreviewAvailable: true
             });
           });
           return 'publisher-1';
@@ -44,6 +46,20 @@ describe('NativeScreenSharePublisherSession', () => {
       token: 'publisher-token',
       e2eeKey: 'shared-e2ee-key'
     });
+    const previewFrame = vi.fn();
+    session.preview!.subscribe(previewFrame);
+    hostChannel.port1.postMessage({
+      kind: 'preview-frame',
+      timestampUs: 123_456,
+      keyFrame: true,
+      data: Uint8Array.from([0, 0, 0, 1, 0x65])
+    });
+    expect(session.preview).toMatchObject({ width: 1920, height: 1080, frameRate: 60 });
+    await vi.waitFor(() =>
+      expect(previewFrame).toHaveBeenCalledWith(
+        expect.objectContaining({ timestampUs: 123_456, keyFrame: true })
+      )
+    );
 
     await session.stop();
 

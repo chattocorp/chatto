@@ -179,8 +179,8 @@ dir = "apps/frontend"
 run = [
     "pnpm svelte-kit sync",
     "pnpm build",
-    "touch build/.mise-build-stamp",
-    "bash ../../tools/prepare-embedded-frontend.sh build ../../cli/internal/http_server/.client",
+    "node -e \"require('fs').writeFileSync('build/.mise-build-stamp', '')\"",
+    "node ../../tools/prepare-embedded-frontend.mjs build ../../cli/internal/http_server/.client",
 ]
 sources = [
     "../../.npmrc",
@@ -193,6 +193,7 @@ sources = [
     "messages/**/*",
     "scripts/check-bundle-size.mjs",
     "../../tools/prepare-embedded-frontend.sh",
+    "../../tools/prepare-embedded-frontend.mjs",
     "src/**/*",
     "!src/**/*.spec.*",
     "!src/**/*.test.*",

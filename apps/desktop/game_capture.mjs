@@ -15,6 +15,48 @@ const sourcePreviewMaximumBytes = 512 * 1024;
 const sourcePreviewFrameMaximumBytes = 16 * 1024 * 1024;
 const sourcePreviewMaximumCount = 64;
 const sourceOfferLifetimeMilliseconds = 2 * 60 * 1000;
+const encodedPreviewFrameMaximumBytes = 16 * 1024 * 1024;
+const encodedPreviewHeaderBytes = 16;
+
+/** Parse length-delimited Annex-B H.264 frames from the helper's local preview pipe. */
+export class EncodedPreviewFrameParser {
+  #pending = Buffer.alloc(0);
+
+  push(chunk) {
+    if (!Buffer.isBuffer(chunk)) {
+      throw new Error("The capture helper returned invalid preview data.");
+    }
+    this.#pending =
+      this.#pending.length === 0 ? chunk : Buffer.concat([this.#pending, chunk]);
+    const frames = [];
+    for (;;) {
+      if (this.#pending.length < encodedPreviewHeaderBytes) break;
+      if (this.#pending.toString("ascii", 0, 4) !== "CTPV") {
+        throw new Error("The capture helper returned invalid preview data.");
+      }
+      const encodedSize = this.#pending.readUInt32LE(4);
+      const keyFrame = (encodedSize & 0x8000_0000) !== 0;
+      const size = encodedSize & 0x7fff_ffff;
+      if (size === 0 || size > encodedPreviewFrameMaximumBytes) {
+        throw new Error("The capture helper returned invalid preview data.");
+      }
+      const recordSize = encodedPreviewHeaderBytes + size;
+      if (this.#pending.length < recordSize) break;
+      frames.push({
+        timestampUs: Number(this.#pending.readBigInt64LE(8)),
+        keyFrame,
+        data: Uint8Array.from(
+          this.#pending.subarray(encodedPreviewHeaderBytes, recordSize),
+        ),
+      });
+      this.#pending = this.#pending.subarray(recordSize);
+    }
+    if (this.#pending.length > encodedPreviewFrameMaximumBytes + encodedPreviewHeaderBytes) {
+      throw new Error("The capture helper returned too much preview data.");
+    }
+    return frames;
+  }
+}
 
 /** Whether the host macOS version can launch the bundled capture helper. */
 export function supportsMacOSGameCapture(systemVersion) {
@@ -25,6 +67,20 @@ export function supportsMacOSGameCapture(systemVersion) {
   return (
     Number.isSafeInteger(majorVersion) &&
     majorVersion >= minimumMacOSGameCaptureMajorVersion
+  );
+}
+
+/** Whether Windows Graphics Capture and process-loopback audio are available. */
+export function supportsWindowsGameCapture(systemVersion) {
+  if (typeof systemVersion !== "string") return false;
+  const match = /^(\d+)\.(\d+)\.(\d+)$/.exec(systemVersion);
+  if (!match) return false;
+  const [major, minor, build] = match.slice(1).map(Number);
+  return (
+    Number.isSafeInteger(major) &&
+    Number.isSafeInteger(minor) &&
+    Number.isSafeInteger(build) &&
+    (major > 10 || (major === 10 && build >= 19041))
   );
 }
 
@@ -102,6 +158,64 @@ export function parseMacOSGameCaptureSources(output) {
   return {
     protocolVersion: 1,
     sources,
+  };
+}
+
+/** Parse the Windows helper manifest and attach Electron-owned JPEG previews. */
+export function parseWindowsGameCaptureSources(output, previews = new Map()) {
+  if (
+    !Buffer.isBuffer(output) ||
+    output.length === 0 ||
+    output.length > 1024 * 1024
+  ) {
+    throw new Error("The capture helper returned an unsupported source list.");
+  }
+  let response;
+  try {
+    response = JSON.parse(output.toString("utf8"));
+  } catch {
+    throw new Error("The capture helper returned an unsupported source list.");
+  }
+  if (
+    response?.protocolVersion !== 1 ||
+    !Array.isArray(response.sources) ||
+    response.sources.length > sourcePreviewMaximumCount
+  ) {
+    throw new Error("The capture helper returned an unsupported source list.");
+  }
+  return {
+    protocolVersion: 1,
+    sources: response.sources.map((source) => {
+      validateMacOSCaptureSource(source);
+      const preview = previews.get(source.nativeID) ?? new Uint8Array();
+      if (
+        !(preview instanceof Uint8Array) ||
+        preview.byteLength > sourcePreviewMaximumBytes
+      ) {
+        throw new Error("The capture helper returned too much preview data.");
+      }
+      if (source.kind === "display") {
+        return {
+          id: `display:${source.nativeID}`,
+          kind: "display",
+          displayIndex: source.displayIndex,
+          isMainDisplay: source.isMainDisplay,
+          width: source.width,
+          height: source.height,
+          preview: Uint8Array.from(preview),
+        };
+      }
+      return {
+        id: `window:${source.nativeID}`,
+        kind: "window",
+        applicationName: source.applicationName,
+        bundleIdentifier: source.bundleIdentifier,
+        title: source.title,
+        width: source.width,
+        height: source.height,
+        preview: Uint8Array.from(preview),
+      };
+    }),
   };
 }
 
@@ -239,7 +353,122 @@ export function parseGameCapturePublisherRequest(request) {
 /** Parse one lifecycle status line emitted by the native helper. */
 export function parseGameCapturePublisherStatus(line) {
   const value = JSON.parse(line);
-  if (value?.protocolVersion !== 1 || value?.kind !== "started") {
+  if (value?.protocolVersion !== 1) {
+    throw new Error(
+      "The capture helper returned an unsupported publisher status.",
+    );
+  }
+  if (value.kind === "metrics") {
+    const integerFields = [
+      "submittedFrames",
+      "publishedFrames",
+      "droppedFrames",
+      "sourceWidth",
+      "sourceHeight",
+      "dimensionChanges",
+      "outboundStreams",
+      "activeOutboundStreams",
+      "framesEncoded",
+      "framesSent",
+      "bytesSent",
+      "cpuLimitedStreams",
+      "bandwidthLimitedStreams",
+      "powerEfficientStreams",
+    ];
+    const numberFields = [
+      "captureFps",
+      "publishFps",
+      "averageReadbackMs",
+      "averageScaleMs",
+      "averagePublishMs",
+      "lastPublishMs",
+      "minimumActiveOutboundFps",
+      "maximumActiveOutboundFps",
+      "targetBitrate",
+      "averageEncodeMs",
+    ];
+    if (
+      !integerFields.every(
+        (field) => Number.isSafeInteger(value[field]) && value[field] >= 0,
+      ) ||
+      !numberFields.every(
+        (field) => Number.isFinite(value[field]) && value[field] >= 0,
+      ) ||
+      !["wgc-window", "wgc-monitor", "dxgi-display"].includes(
+        value.captureBackend,
+      ) ||
+      typeof value.rtcStatsAvailable !== "boolean" ||
+      !validOptionalEncoderMetrics(value) ||
+      !validOptionalHardwareEncoderMetrics(value) ||
+      !validOptionalNetworkMetrics(value)
+    ) {
+      throw new Error("The capture helper returned invalid publisher metrics.");
+    }
+    return {
+      kind: "metrics",
+      submittedFrames: value.submittedFrames,
+      publishedFrames: value.publishedFrames,
+      droppedFrames: value.droppedFrames,
+      captureFps: value.captureFps,
+      publishFps: value.publishFps,
+      averageReadbackMs: value.averageReadbackMs,
+      averageScaleMs: value.averageScaleMs,
+      averagePublishMs: value.averagePublishMs,
+      averageHardwareEncodeMs: value.averageHardwareEncodeMs ?? 0,
+      hardwareEncoderImplementation:
+        value.hardwareEncoderImplementation ?? "",
+      requestedEncoderBitrate: value.requestedEncoderBitrate ?? 0,
+      appliedEncoderBitrate: value.appliedEncoderBitrate ?? 0,
+      actualHardwareBitrate: value.actualHardwareBitrate ?? 0,
+      encoderRateControlMode: value.encoderRateControlMode ?? 0,
+      requestedEncoderFps: value.requestedEncoderFps ?? 0,
+      hardwareEncodedFrames: value.hardwareEncodedFrames ?? 0,
+      hardwareEncodedBytes: value.hardwareEncodedBytes ?? 0,
+      hardwareKeyFrames: value.hardwareKeyFrames ?? 0,
+      hardwareEncodedWidth: value.hardwareEncodedWidth ?? 0,
+      hardwareEncodedHeight: value.hardwareEncodedHeight ?? 0,
+      encoderResolutionChanges: value.encoderResolutionChanges ?? 0,
+      lastPublishMs: value.lastPublishMs,
+      sourceWidth: value.sourceWidth,
+      sourceHeight: value.sourceHeight,
+      dimensionChanges: value.dimensionChanges,
+      captureBackend: value.captureBackend,
+      rtcStatsAvailable: value.rtcStatsAvailable,
+      outboundStreams: value.outboundStreams,
+      activeOutboundStreams: value.activeOutboundStreams,
+      minimumActiveOutboundFps: value.minimumActiveOutboundFps,
+      maximumActiveOutboundFps: value.maximumActiveOutboundFps,
+      framesEncoded: value.framesEncoded,
+      framesSent: value.framesSent,
+      bytesSent: value.bytesSent,
+      retransmittedPacketsSent: value.retransmittedPacketsSent ?? 0,
+      retransmittedBytesSent: value.retransmittedBytesSent ?? 0,
+      nackCount: value.nackCount ?? 0,
+      pliCount: value.pliCount ?? 0,
+      targetBitrate: value.targetBitrate,
+      averageEncodeMs: value.averageEncodeMs,
+      encodedWidth: value.encodedWidth ?? 0,
+      encodedHeight: value.encodedHeight ?? 0,
+      averageQp: value.averageQp ?? 0,
+      encoderImplementation: value.encoderImplementation ?? "",
+      cpuLimitedStreams: value.cpuLimitedStreams,
+      bandwidthLimitedStreams: value.bandwidthLimitedStreams,
+      powerEfficientStreams: value.powerEfficientStreams,
+      remoteInboundStatsAvailable:
+        value.remoteInboundStatsAvailable ?? false,
+      remotePacketsLost: value.remotePacketsLost ?? 0,
+      remoteJitterSeconds: value.remoteJitterSeconds ?? 0,
+      remoteFractionLost: value.remoteFractionLost ?? 0,
+      remoteRoundTripTimeMs: value.remoteRoundTripTimeMs ?? 0,
+      candidatePairStatsAvailable:
+        value.candidatePairStatsAvailable ?? false,
+      availableOutgoingBitrate: value.availableOutgoingBitrate ?? 0,
+      currentRoundTripTimeMs: value.currentRoundTripTimeMs ?? 0,
+      packetsDiscardedOnSend: value.packetsDiscardedOnSend ?? 0,
+      bytesDiscardedOnSend: value.bytesDiscardedOnSend ?? 0,
+    };
+  }
+  if (value.kind !== "started") {
     throw new Error(
       "The capture helper returned an unsupported publisher status.",
     );
@@ -260,6 +489,107 @@ export function parseGameCapturePublisherStatus(line) {
     height: value.height,
     frameRate: value.frameRate,
   };
+}
+
+function validOptionalEncoderMetrics(value) {
+  const fields = [
+    value.encodedWidth,
+    value.encodedHeight,
+    value.averageQp,
+    value.encoderImplementation,
+  ];
+  if (fields.every((field) => field === undefined)) return true;
+  return (
+    Number.isSafeInteger(value.encodedWidth) &&
+    value.encodedWidth >= 0 &&
+    Number.isSafeInteger(value.encodedHeight) &&
+    value.encodedHeight >= 0 &&
+    Number.isFinite(value.averageQp) &&
+    value.averageQp >= 0 &&
+    typeof value.encoderImplementation === "string" &&
+    value.encoderImplementation.length <= 256
+  );
+}
+
+function validOptionalHardwareEncoderMetrics(value) {
+  const fields = [
+    value.averageHardwareEncodeMs,
+    value.hardwareEncoderImplementation,
+  ];
+  if (fields.every((field) => field === undefined)) return true;
+  return (
+    Number.isFinite(value.averageHardwareEncodeMs) &&
+    value.averageHardwareEncodeMs >= 0 &&
+    typeof value.hardwareEncoderImplementation === "string" &&
+    value.hardwareEncoderImplementation.length <= 256 &&
+    (value.requestedEncoderBitrate === undefined ||
+      (Number.isSafeInteger(value.requestedEncoderBitrate) &&
+        value.requestedEncoderBitrate >= 0)) &&
+    (value.appliedEncoderBitrate === undefined ||
+      (Number.isSafeInteger(value.appliedEncoderBitrate) &&
+        value.appliedEncoderBitrate >= 0)) &&
+    (value.actualHardwareBitrate === undefined ||
+      (Number.isFinite(value.actualHardwareBitrate) &&
+        value.actualHardwareBitrate >= 0)) &&
+    (value.encoderRateControlMode === undefined ||
+      (Number.isSafeInteger(value.encoderRateControlMode) &&
+        value.encoderRateControlMode >= 0)) &&
+    (value.requestedEncoderFps === undefined ||
+      (Number.isFinite(value.requestedEncoderFps) &&
+        value.requestedEncoderFps >= 0)) &&
+    (value.hardwareEncodedFrames === undefined ||
+      (Number.isSafeInteger(value.hardwareEncodedFrames) &&
+        value.hardwareEncodedFrames >= 0)) &&
+    (value.hardwareEncodedBytes === undefined ||
+      (Number.isSafeInteger(value.hardwareEncodedBytes) &&
+        value.hardwareEncodedBytes >= 0)) &&
+    (value.hardwareKeyFrames === undefined ||
+      (Number.isSafeInteger(value.hardwareKeyFrames) &&
+        value.hardwareKeyFrames >= 0)) &&
+    (value.hardwareEncodedWidth === undefined ||
+      (Number.isSafeInteger(value.hardwareEncodedWidth) &&
+        value.hardwareEncodedWidth >= 0)) &&
+    (value.hardwareEncodedHeight === undefined ||
+      (Number.isSafeInteger(value.hardwareEncodedHeight) &&
+        value.hardwareEncodedHeight >= 0)) &&
+    (value.encoderResolutionChanges === undefined ||
+      (Number.isSafeInteger(value.encoderResolutionChanges) &&
+        value.encoderResolutionChanges >= 0))
+  );
+}
+
+function validOptionalNetworkMetrics(value) {
+  const fields = [
+    value.remoteInboundStatsAvailable,
+    value.candidatePairStatsAvailable,
+  ];
+  if (fields.every((field) => field === undefined)) return true;
+  const nonNegativeIntegers = [
+    value.retransmittedPacketsSent,
+    value.retransmittedBytesSent,
+    value.nackCount,
+    value.pliCount,
+    value.packetsDiscardedOnSend,
+    value.bytesDiscardedOnSend,
+  ];
+  const nonNegativeNumbers = [
+    value.remoteJitterSeconds,
+    value.remoteFractionLost,
+    value.remoteRoundTripTimeMs,
+    value.availableOutgoingBitrate,
+    value.currentRoundTripTimeMs,
+  ];
+  return (
+    typeof value.remoteInboundStatsAvailable === "boolean" &&
+    typeof value.candidatePairStatsAvailable === "boolean" &&
+    Number.isSafeInteger(value.remotePacketsLost) &&
+    nonNegativeIntegers.every(
+      (field) => Number.isSafeInteger(field) && field >= 0,
+    ) &&
+    nonNegativeNumbers.every(
+      (field) => Number.isFinite(field) && field >= 0,
+    )
+  );
 }
 
 function validString(value, maximumLength) {

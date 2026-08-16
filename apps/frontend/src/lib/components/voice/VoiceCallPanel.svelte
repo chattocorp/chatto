@@ -26,6 +26,7 @@ Room sidebar panel for voice/video calls.
 
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import VideoThumbnail from './VideoThumbnail.svelte';
+  import NativeScreenSharePreview from './NativeScreenSharePreview.svelte';
   import AudioDeviceMenu from './AudioDeviceMenu.svelte';
   import VoiceCallControlButton from './VoiceCallControlButton.svelte';
   import ScreenShareControlButton from './ScreenShareControlButton.svelte';
@@ -35,6 +36,7 @@ Room sidebar panel for voice/video calls.
   import { getVoiceCallJoinErrorMessage } from '$lib/state/server/voiceCall.svelte';
   import type { Track } from 'livekit-client';
   import type { Attachment } from 'svelte/attachments';
+  import type { NativeScreenSharePreview as NativeScreenSharePreviewSource } from '$lib/desktop/nativeScreenSharePublisher';
   import { startDMWith } from '$lib/dm/startDM';
   import { toast } from '$lib/ui/toast';
 
@@ -74,6 +76,8 @@ Room sidebar panel for voice/video calls.
     videoTrack: Track | null;
     isScreenShareEnabled: boolean;
     screenShareTrack: Track | null;
+    nativeScreenSharePreview: NativeScreenSharePreviewSource | null;
+    screenShareSimulcasted: boolean;
   };
 
   let participants: DisplayParticipant[] = $derived.by(() => {
@@ -95,7 +99,9 @@ Room sidebar panel for voice/video calls.
         isCameraEnabled: p.isCameraEnabled,
         videoTrack: p.videoTrack,
         isScreenShareEnabled: p.isScreenShareEnabled,
-        screenShareTrack: p.screenShareTrack
+        screenShareTrack: p.screenShareTrack,
+        nativeScreenSharePreview: p.nativeScreenSharePreview,
+        screenShareSimulcasted: p.screenShareSimulcasted
       }));
     }
 
@@ -116,7 +122,9 @@ Room sidebar panel for voice/video calls.
       isCameraEnabled: false,
       videoTrack: null,
       isScreenShareEnabled: false,
-      screenShareTrack: null
+      screenShareTrack: null,
+      nativeScreenSharePreview: null,
+      screenShareSimulcasted: false
     }));
   });
 
@@ -128,7 +136,9 @@ Room sidebar panel for voice/video calls.
     })
   );
   let screenShareParticipants = $derived(
-    sortedParticipants.filter((p) => p.isScreenShareEnabled && p.screenShareTrack)
+    sortedParticipants.filter(
+      (p) => p.isScreenShareEnabled && (p.screenShareTrack || p.nativeScreenSharePreview)
+    )
   );
   let videoParticipants = $derived(
     sortedParticipants.filter((p) => p.isCameraEnabled && p.videoTrack)
@@ -183,7 +193,10 @@ Room sidebar panel for voice/video calls.
   }
 
   function hasScreenShare(participant: DisplayParticipant) {
-    return participant.isScreenShareEnabled && participant.screenShareTrack;
+    return (
+      participant.isScreenShareEnabled &&
+      (participant.screenShareTrack || participant.nativeScreenSharePreview)
+    );
   }
 
   function hasConnectionWarning(participant: DisplayParticipant) {
@@ -492,13 +505,21 @@ Room sidebar panel for voice/video calls.
       class={callTileMediaButtonClass}
       onclick={(e) => showUserMenu(participant, e)}
     >
-      <VideoThumbnail
-        track={participant.screenShareTrack!}
-        name={m('voice.screen_title', { name: participant.displayName })}
-        user={participant.avatarUser}
-        showIdentityOverlay={false}
-        fit="contain"
-      />
+      {#if participant.nativeScreenSharePreview}
+        <NativeScreenSharePreview
+          preview={participant.nativeScreenSharePreview}
+          name={m('voice.screen_title', { name: participant.displayName })}
+        />
+      {:else}
+        <VideoThumbnail
+          track={participant.screenShareTrack!}
+          name={m('voice.screen_title', { name: participant.displayName })}
+          user={participant.avatarUser}
+          showIdentityOverlay={false}
+          fit="contain"
+          preferFullQuality={!participant.screenShareSimulcasted}
+        />
+      {/if}
     </button>
   </div>
 {/snippet}
@@ -535,14 +556,23 @@ Room sidebar panel for voice/video calls.
       onclick={(e) => showUserMenu(participant, e)}
     >
       {#if isScreen}
-        <VideoThumbnail
-          track={participant.screenShareTrack!}
-          name={m('voice.screen_title', { name: participant.displayName })}
-          user={participant.avatarUser}
-          showIdentityOverlay={false}
-          fit="contain"
-          fill
-        />
+        {#if participant.nativeScreenSharePreview}
+          <NativeScreenSharePreview
+            preview={participant.nativeScreenSharePreview}
+            name={m('voice.screen_title', { name: participant.displayName })}
+            fill
+          />
+        {:else}
+          <VideoThumbnail
+            track={participant.screenShareTrack!}
+            name={m('voice.screen_title', { name: participant.displayName })}
+            user={participant.avatarUser}
+            showIdentityOverlay={false}
+            fit="contain"
+            fill
+            preferFullQuality={!participant.screenShareSimulcasted}
+          />
+        {/if}
       {:else if isVideo}
         <VideoThumbnail
           track={participant.videoTrack!}
