@@ -50,6 +50,9 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureTarget(t *testi
 	if err != nil || len(visible) != 0 {
 		t.Fatalf("visible future occurrences = (%v, %v), want empty without error", visible, err)
 	}
+	if err := requireSupportedNotificationTargets(stored, future); connect.CodeOf(err) != connect.CodeUnimplemented {
+		t.Fatalf("mixed supported targets code = %v, want unimplemented", connect.CodeOf(err))
+	}
 	if deleted, err := env.notifications.deleteVisibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*corev1.NotificationOccurrence{future}); connect.CodeOf(err) != connect.CodeUnimplemented || deleted != 0 {
 		t.Fatalf("delete future occurrence = (%d, %v), want zero and unimplemented", deleted, err)
 	}

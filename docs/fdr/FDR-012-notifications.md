@@ -69,9 +69,10 @@ using binary protobuf retain unsupported variants as generic, non-navigating
 rows with exact triage identity while still advancing through the server page;
 ProtoJSON clients need unknown-field-tolerant decoding for that fallback. Older
 servers preserve unknown occurrences and prepared work rather than treating
-version skew as visibility loss, and reject deletes they cannot validate rather
-than reporting false success. This extension point does not itself implement
-room invitations or make notifications authoritative for invitation state.
+version skew as visibility loss, and explicitly reject exact reads, read
+mutations, or deletes they cannot validate rather than reporting absence or
+false success. This extension point does not itself implement room invitations
+or make notifications authoritative for invitation state.
 
 The bundled frontend derives temporary groups as follows:
 

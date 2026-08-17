@@ -65,15 +65,19 @@ const (
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
 type NotificationServiceClient interface {
 	// Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-	// deleted, expired, or no longer visible to the authenticated viewer.
+	// deleted, expired, or no longer visible to the authenticated viewer, and
+	// UNIMPLEMENTED when this server cannot validate its target kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
-	// inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+	// UNIMPLEMENTED rather than partially answering when this server cannot
+	// validate one requested target kind.
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
-	// Marks one occurrence read. Repeating the call is safe.
+	// Marks one occurrence read. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
 	// tombstone through the original expiry. Repeating the call is safe. Returns
@@ -234,15 +238,19 @@ func (c *notificationServiceClient) SetNotificationPolicyPreference(ctx context.
 // NotificationServiceHandler is an implementation of the chatto.api.v1.NotificationService service.
 type NotificationServiceHandler interface {
 	// Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-	// deleted, expired, or no longer visible to the authenticated viewer.
+	// deleted, expired, or no longer visible to the authenticated viewer, and
+	// UNIMPLEMENTED when this server cannot validate its target kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
-	// inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+	// UNIMPLEMENTED rather than partially answering when this server cannot
+	// validate one requested target kind.
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
-	// Marks one occurrence read. Repeating the call is safe.
+	// Marks one occurrence read. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
 	// tombstone through the original expiry. Repeating the call is safe. Returns

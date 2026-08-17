@@ -51,8 +51,8 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
-		return nil, connectError(core.ErrNotFound)
+	if err := requireSupportedNotificationTargets(occurrence); err != nil {
+		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, occurrence)
 	if err != nil {
@@ -83,6 +83,9 @@ func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Contex
 	occurrences, err := s.notificationOccurrencesByID(ctx, caller.UserID, req.Msg.GetNotificationIds())
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if err := requireSupportedNotificationTargets(occurrences...); err != nil {
+		return nil, err
 	}
 	visible, err := s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
@@ -217,13 +220,8 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 }
 
 func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) (int, error) {
-	for _, occurrence := range occurrences {
-		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
-			return 0, connect.NewError(
-				connect.CodeUnimplemented,
-				errors.New("notification target is not supported by this server version"),
-			)
-		}
+	if err := requireSupportedNotificationTargets(occurrences...); err != nil {
+		return 0, err
 	}
 	visible, err := s.visibleNotificationOccurrences(ctx, userID, occurrences)
 	if err != nil {
@@ -234,6 +232,18 @@ func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.C
 		ids = append(ids, occurrence.GetId())
 	}
 	return s.api.core.NotificationOccurrences().DeleteMany(ctx, userID, ids)
+}
+
+func requireSupportedNotificationTargets(occurrences ...*corev1.NotificationOccurrence) error {
+	for _, occurrence := range occurrences {
+		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+			return connect.NewError(
+				connect.CodeUnimplemented,
+				errors.New("notification target is not supported by this server version"),
+			)
+		}
+	}
+	return nil
 }
 
 func (s *notificationService) notificationOccurrencesByID(ctx context.Context, userID string, occurrenceIDs []string) ([]*corev1.NotificationOccurrence, error) {
@@ -268,8 +278,8 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if core.NotificationOccurrenceHasUnsupportedTarget(existing) {
-		return nil, connectError(core.ErrNotFound)
+	if err := requireSupportedNotificationTargets(existing); err != nil {
+		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, existing)
 	if err != nil {

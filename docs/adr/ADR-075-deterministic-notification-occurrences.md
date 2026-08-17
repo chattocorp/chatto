@@ -362,8 +362,11 @@ fallback when their decoder ignores unknown fields; strict JSON clients must
 regenerate before receiving a new variant, or a future rollout must add target
 capability negotiation before exposing it. Servers must not create or expose a
 target variant until they implement its authorization and lifecycle rules.
-An older server returns `UNIMPLEMENTED` instead of silently accepting a delete
-that includes a target kind whose visibility it cannot validate.
+An older server returns `UNIMPLEMENTED` for singular reads, read mutations,
+explicit batch reads, and deletes that include a target kind whose visibility
+it cannot validate. List pagination may omit that preserved row because its
+contract remains exhaustive only for target kinds the serving version can
+authorize and assemble.
 
 The shared materializer is also forward-safe during a rolling upgrade. Its
 durable consumer name and filter set form one immutable capability generation;

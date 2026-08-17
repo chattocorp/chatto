@@ -16,7 +16,8 @@ export const NotificationService = {
   methods: {
     /**
      * Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-     * deleted, expired, or no longer visible to the authenticated viewer.
+     * deleted, expired, or no longer visible to the authenticated viewer, and
+     * UNIMPLEMENTED when this server cannot validate its target kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
      */
@@ -28,7 +29,9 @@ export const NotificationService = {
     },
     /**
      * Gets an explicit bounded set of visible occurrences. Missing or
-     * inaccessible IDs are omitted and duplicate IDs are de-duplicated.
+     * inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
+     * UNIMPLEMENTED rather than partially answering when this server cannot
+     * validate one requested target kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotificationOccurrences
      */
@@ -51,7 +54,8 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Marks one occurrence read. Repeating the call is safe.
+     * Marks one occurrence read. Repeating the call is safe. Returns
+     * UNIMPLEMENTED when this server cannot validate the occurrence target kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.MarkNotificationRead
      */
