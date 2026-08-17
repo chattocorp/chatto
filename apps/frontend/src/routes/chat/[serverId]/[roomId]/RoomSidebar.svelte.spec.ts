@@ -226,6 +226,14 @@ function roomFileGroupHeadings(container: Element): string[] {
   );
 }
 
+function roomFileGroupHeading(container: Element, label: string): HTMLButtonElement {
+  const heading = Array.from(
+    container.querySelectorAll<HTMLButtonElement>('[data-testid="room-file-group-heading"]')
+  ).find((button) => button.textContent?.trim() === label);
+  if (!heading) throw new Error(`Missing room file group heading: ${label}`);
+  return heading;
+}
+
 function roomFileRowLabels(container: Element): string[] {
   return Array.from(container.querySelectorAll('[data-testid="room-file-row"]')).map(
     (element) => element.textContent?.trim() ?? ''
@@ -1569,6 +1577,9 @@ describe('RoomSidebar', () => {
 
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
+    expect(
+      container.querySelectorAll('[data-testid="room-group-section"].border-t')
+    ).toHaveLength(1);
   });
 
   it('coalesces a burst of presence-driven member group movement', async () => {
@@ -1954,9 +1965,20 @@ describe('RoomSidebar', () => {
 
     await flushRoomFilesPanel();
     expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
+    expect(
+      container.querySelectorAll('[data-testid="room-group-section"].border-t')
+    ).toHaveLength(1);
     expect(roomFileRowLabels(container)).toHaveLength(2);
     expect(roomFileRowLabels(container)[0]).toContain('today.txt');
     expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
+
+    const yesterdayHeading = roomFileGroupHeading(container, 'Yesterday');
+    await expect.element(yesterdayHeading).toHaveAttribute('aria-expanded', 'true');
+    yesterdayHeading?.click();
+    await expect.element(yesterdayHeading).toHaveAttribute('aria-expanded', 'false');
+    await vi.waitFor(() => expect(roomFileRowLabels(container)).toHaveLength(1));
+    yesterdayHeading?.click();
+    await expect.element(yesterdayHeading).toHaveAttribute('aria-expanded', 'true');
 
     MockIntersectionObserver.instances[0].trigger();
     await flushRoomFilesPanel();
@@ -1968,6 +1990,9 @@ describe('RoomSidebar', () => {
       'This month',
       'May 2026'
     ]);
+    expect(
+      container.querySelectorAll('[data-testid="room-group-section"].border-t')
+    ).toHaveLength(4);
     const labels = roomFileRowLabels(container);
     expect(labels).toHaveLength(5);
     expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);

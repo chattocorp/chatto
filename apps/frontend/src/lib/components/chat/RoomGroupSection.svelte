@@ -1,10 +1,9 @@
 <!--
 @component
 
-A persistent, collapsible room-group section for the server sidebar. Collapsing
-a section hides ordinary entries while keeping caller-identified attention rows
-visible, so active rooms, calls, unread rooms, and notifications remain
-reachable.
+A persistent, collapsible section for Chatto sidebars. It provides the shared
+heading, full-width divider, item spacing, and disclosure behaviour used by room
+navigation, member presence groups, and attachment date groups.
 -->
 <script module lang="ts">
   import { SvelteMap } from 'svelte/reactivity';
@@ -43,6 +42,8 @@ reachable.
     /** Collapsed state when no preference is stored. */
     defaultCollapsed?: boolean;
     keepVisibleWhenCollapsed?: (item: T) => boolean;
+    /** Optional stable selector for the disclosure button. */
+    testid?: string;
   }
 
   let {
@@ -53,7 +54,8 @@ reachable.
     contextMenuTrigger,
     persistKey,
     defaultCollapsed = false,
-    keepVisibleWhenCollapsed
+    keepVisibleWhenCollapsed,
+    testid
   }: Props = $props();
 
   const collapsed = $derived(loadCollapsed(persistKey, defaultCollapsed));
@@ -75,6 +77,7 @@ reachable.
       type="button"
       onclick={toggle}
       aria-expanded={!collapsed}
+      data-testid={testid}
       class="flex min-h-8 w-full min-w-0 cursor-pointer items-center gap-2 rounded-md px-1 py-1 text-start text-xs font-semibold tracking-wider text-muted uppercase transition-colors hover:text-text"
       {@attach contextMenuTrigger}
     >

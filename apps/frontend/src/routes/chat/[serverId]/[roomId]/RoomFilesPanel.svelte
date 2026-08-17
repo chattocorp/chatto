@@ -11,21 +11,30 @@ Room-scoped file list for the room sidebar.
   import { fileDateGroup, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
+
+  type RoomFileListItem = {
+    id: string;
+    file: RoomFileItem;
+  };
 
   type RoomFileGroup = {
-    key: string;
+    id: string;
     label: string;
-    items: RoomFileItem[];
+    items: RoomFileListItem[];
   };
 
   let {
     store,
     serverId,
+    roomId,
     fileGroupingNow,
     onOpenFile
   }: {
     store: RoomFilesStore;
     serverId: string;
+    roomId: string;
     fileGroupingNow?: Date;
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
@@ -38,6 +47,16 @@ Room-scoped file list for the room sidebar.
 
   const files = $derived(store.items);
   const fileGroups = $derived.by(() => groupFiles(files));
+  const fileSections = $derived(
+    fileGroups.map((group) => ({
+      ...group,
+      persistKey: serverStorageKey(
+        serverId,
+        `collapsible:room-files:${roomId}:${group.id}`
+      ),
+      testid: 'room-file-group-heading'
+    }))
+  );
   const loading = $derived(store.isInitialLoading);
   let failedThumbnailUrls = $state.raw(new Set<string>());
 
@@ -48,12 +67,15 @@ Room-scoped file list for the room sidebar.
       const group = fileGroupingNow
         ? fileDateGroup(item.createdAt, userSettings, fileGroupingNow, activeLocale)
         : fileDateGroup(item.createdAt, userSettings, undefined, activeLocale);
-      let existing = groups.find((candidate) => candidate.key === group.key);
+      let existing = groups.find((candidate) => candidate.id === group.key);
       if (!existing) {
-        existing = { ...group, items: [] };
+        existing = { id: group.key, label: group.label, items: [] };
         groups.push(existing);
       }
-      existing.items.push(item);
+      existing.items.push({
+        id: `${item.messageEventId}:${item.attachment.id}`,
+        file: item
+      });
     }
 
     return groups;
@@ -122,9 +144,44 @@ Room-scoped file list for the room sidebar.
   });
 </script>
 
-<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto p-2" aria-label={m('room.sidebar.files')}>
+{#snippet fileRow(entry: RoomFileListItem)}
+  {@const item = entry.file}
+  {@const thumb = usableThumbnailUrl(thumbnailUrl(item))}
+  <button
+    type="button"
+    class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-start"
+    onclick={() => openFile(item)}
+    title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
+    data-testid="room-file-row"
+  >
+    <span
+      class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
+    >
+      {#if thumb}
+        <img
+          class="h-full w-full object-cover"
+          src={thumb}
+          alt=""
+          loading="lazy"
+          onerror={() => handleThumbnailError(item, thumb)}
+        />
+      {:else}
+        <span
+          class={['iconify sidebar-icon text-xl', fileIcon(item.attachment.contentType)]}
+          aria-hidden="true"
+        ></span>
+      {/if}
+    </span>
+    <span class="min-w-0 flex-1">
+      <bdi class="block truncate text-sm">{item.attachment.filename}</bdi>
+      <span class="block truncate text-xs text-muted">{formatTimestamp(item.createdAt)}</span>
+    </span>
+  </button>
+{/snippet}
+
+<nav class="flex min-h-0 flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.files')}>
   {#if loading}
-    <ul role="list" class="space-y-1">
+    <ul role="list" class="space-y-1 p-2">
       {#each Array(8) as _, i (i)}
         <li class="flex items-center gap-3 rounded-md px-2 py-2">
           <div class="skeleton h-10 w-10 shrink-0 rounded-md"></div>
@@ -142,61 +199,16 @@ Room-scoped file list for the room sidebar.
       {m('room.sidebar.no_files')}
     </div>
   {:else}
-    <div class="space-y-4">
-      {#each fileGroups as group (group.key)}
-        <section aria-labelledby={`room-file-group-${group.key}`}>
-          <h2
-            id={`room-file-group-${group.key}`}
-            class="px-2 pb-1 text-xs font-medium tracking-wide text-muted uppercase"
-            data-testid="room-file-group-heading"
-          >
-            {group.label}
-          </h2>
-          <ul role="list" class="space-y-1">
-            {#each group.items as item (item.messageEventId + ':' + item.attachment.id)}
-              {@const thumb = usableThumbnailUrl(thumbnailUrl(item))}
-              <li>
-                <button
-                  type="button"
-                  class="sidebar-item min-h-14 w-full cursor-pointer gap-3 text-start"
-                  onclick={() => openFile(item)}
-                  title={m('room.sidebar.jump_to_file', { filename: item.attachment.filename })}
-                  data-testid="room-file-row"
-                >
-                  <span
-                    class="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-md border border-border bg-surface text-muted"
-                  >
-                    {#if thumb}
-                      <img
-                        class="h-full w-full object-cover"
-                        src={thumb}
-                        alt=""
-                        loading="lazy"
-                        onerror={() => handleThumbnailError(item, thumb)}
-                      />
-                    {:else}
-                      <span
-                        class={[
-                          'iconify sidebar-icon text-xl',
-                          fileIcon(item.attachment.contentType)
-                        ]}
-                        aria-hidden="true"
-                      ></span>
-                    {/if}
-                  </span>
-                  <span class="min-w-0 flex-1">
-                    <bdi class="block truncate text-sm">{item.attachment.filename}</bdi>
-                    <span class="block truncate text-xs text-muted"
-                      >{formatTimestamp(item.createdAt)}</span
-                    >
-                  </span>
-                </button>
-              </li>
-            {/each}
-          </ul>
-        </section>
-      {/each}
-    </div>
+    {#each fileSections as section, i (section.id)}
+      <RoomGroupSection
+        label={section.label}
+        items={section.items}
+        item={fileRow}
+        persistKey={section.persistKey}
+        testid={section.testid}
+        separated={i > 0}
+      />
+    {/each}
 
     {#if store.hasMore}
       <div

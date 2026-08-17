@@ -37,7 +37,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
     getLiveLogin
   } from '$lib/state/userProfiles.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import CollapsibleGroup from '$lib/ui/CollapsibleGroup.svelte';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import ResizeHandle from '$lib/components/ResizeHandle.svelte';
   import { roomSidebarWidth } from '$lib/state/roomSidebarWidth.svelte';
@@ -244,6 +244,38 @@ calls, and similar room-specific panels can plug into the same shell. See the
   });
   const onlineMembers = $derived(groupedMembers.online);
   const offlineMembers = $derived(groupedMembers.offline);
+  const memberGroups = $derived.by(() => {
+    const groups: Array<{
+      id: string;
+      label: string;
+      items: RoomMember[];
+      persistKey: string;
+      defaultCollapsed?: boolean;
+      testid: string;
+    }> = [];
+
+    if (onlineMembers.length > 0) {
+      groups.push({
+        id: 'online',
+        label: m('room.sidebar.online', { count: onlineMembers.length }),
+        items: onlineMembers,
+        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:online'),
+        testid: 'room-member-group-heading'
+      });
+    }
+    if (offlineMembers.length > 0) {
+      groups.push({
+        id: 'offline',
+        label: m('room.sidebar.offline', { count: offlineMembers.length }),
+        items: offlineMembers,
+        persistKey: serverStorageKey(activeServerId, 'collapsible:room-members:offline'),
+        defaultCollapsed: true,
+        testid: 'room-member-group-heading'
+      });
+    }
+
+    return groups;
+  });
 
   // Look up the selected member for the popover (rendered outside the {#each} loop
   // to avoid Svelte reactivity cycles between the popover's $effect and onlineMembers' $derived)
@@ -375,8 +407,8 @@ calls, and similar room-specific panels can plug into the same shell. See the
   </PaneHeader>
 
   {#if activePanel === 'members'}
-    <nav class="flex flex-1 flex-col overflow-y-auto p-2" aria-label={m('room.sidebar.members')}>
-      <div class="sticky top-0 z-10 bg-background pb-2">
+    <nav class="flex flex-1 flex-col overflow-y-auto" aria-label={m('room.sidebar.members')}>
+      <div class="sticky top-0 z-10 bg-background p-2">
         <label class="sr-only" for="room-member-search">{m('room.sidebar.search_members')}</label>
         <div class="relative">
           <span
@@ -411,7 +443,7 @@ calls, and similar room-specific panels can plug into the same shell. See the
       </div>
 
       {#if (loading || membersStore.isInitialLoading) && !membersStore.hasFirstPage}
-        <ul role="list">
+        <ul role="list" class="px-2">
           {#each Array(8) as _, i (i)}
             <li class="flex items-center gap-2 rounded-md px-2 py-1.5">
               <div class="skeleton h-8 w-8 shrink-0 rounded-full"></div>
@@ -427,24 +459,18 @@ calls, and similar room-specific panels can plug into the same shell. See the
           <div class="px-2 py-8 text-center text-sm text-muted">
             {m('room.sidebar.no_members')}
           </div>
-        {:else if onlineMembers.length > 0}
-          <CollapsibleGroup
-            label={m('room.sidebar.online', { count: onlineMembers.length })}
-            items={onlineMembers}
-            item={memberRow}
-            persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:online')}
-          />
-        {/if}
-
-        {#if offlineMembers.length > 0}
-          <CollapsibleGroup
-            label={m('room.sidebar.offline', { count: offlineMembers.length })}
-            items={offlineMembers}
-            item={memberRow}
-            persistKey={serverStorageKey(activeServerId, 'collapsible:room-members:offline')}
-            defaultCollapsed
-            class="mt-4"
-          />
+        {:else}
+          {#each memberGroups as group, i (group.id)}
+            <RoomGroupSection
+              label={group.label}
+              items={group.items}
+              item={memberRow}
+              persistKey={group.persistKey}
+              defaultCollapsed={group.defaultCollapsed}
+              testid={group.testid}
+              separated={i > 0}
+            />
+          {/each}
         {/if}
       {/if}
 
@@ -467,7 +493,13 @@ calls, and similar room-specific panels can plug into the same shell. See the
     {/if}
   {:else if activePanel === 'files'}
     {#if filesStore}
-      <RoomFilesPanel store={filesStore} serverId={activeServerId} {fileGroupingNow} {onOpenFile} />
+      <RoomFilesPanel
+        store={filesStore}
+        serverId={activeServerId}
+        {roomId}
+        {fileGroupingNow}
+        {onOpenFile}
+      />
     {:else}
       <div class="flex min-h-0 flex-1 items-center justify-center p-4 text-sm text-muted">
         {m('room.sidebar.no_files')}

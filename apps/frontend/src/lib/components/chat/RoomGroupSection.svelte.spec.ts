@@ -16,11 +16,12 @@ describe('RoomGroupSection', () => {
         items,
         item: testSnippet('<span data-testid="room-group-entry">Room</span>'),
         persistKey,
+        testid: 'room-group-heading',
         keepVisibleWhenCollapsed: (entry) => entry.id === 'announcements'
       }
     });
 
-    const toggle = q(container, 'button');
+    const toggle = q(container, '[data-testid="room-group-heading"]');
     await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
     expect(container.querySelectorAll('[data-testid="room-group-entry"]')).toHaveLength(2);
 
