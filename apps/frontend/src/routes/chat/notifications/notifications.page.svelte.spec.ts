@@ -182,6 +182,39 @@ describe('notifications page', () => {
     expect(row.textContent).not.toContain('Mark done');
   });
 
+  it('renders an unsupported future target as non-navigating but dismissible activity', async () => {
+    const unsupported = {
+      ...mocks.occurrence,
+      id: 'future-target-1',
+      targetSupported: false,
+      room: null,
+      eventId: ''
+    } as NotificationOccurrenceItem;
+    mocks.store.notifications.fetchPage.mockResolvedValue(page([unsupported]));
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+    const rowTarget = q(row, ':scope > button') as HTMLButtonElement;
+    const deleteButton = q(row, 'button[aria-label="Delete"]') as HTMLButtonElement;
+
+    expect(rowTarget.disabled).toBe(true);
+    expect(row.textContent).toContain('New activity');
+    deleteButton.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledWith(
+        ['future-target-1'],
+        { unread: 1, importantUnread: 1, roomId: null }
+      );
+      expect(q(container, '[data-testid="notification-group"]')).toBeNull();
+    });
+    expect(mocks.goto).not.toHaveBeenCalled();
+  });
+
   it('renders read and unread notifications in one list', async () => {
     const readOccurrence = {
       ...mocks.occurrence,

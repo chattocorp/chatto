@@ -662,8 +662,9 @@ export class NotificationStore {
         totalCount += matches.length;
         if (!matchedOccurrence && matches.length > 0) matchedOccurrence = matches[0]!;
         hasMore = page.hasMore;
-        if (!hasMore || page.occurrences.length === 0) break;
-        offset += page.occurrences.length;
+        const consumedCount = page.consumedCount ?? page.occurrences.length;
+        if (!hasMore || consumedCount === 0) break;
+        offset += consumedCount;
       } while (hasMore);
       if (this.revokedRoomIds.has(roomId)) {
         return { ok: true, totalCount: 0, notification: null };
@@ -945,6 +946,8 @@ function redactedNotificationSummary(kind: NotificationItemKind): string {
       return 'New reply to your message';
     case NotificationItemKind.RoomMessage:
       return 'New message';
+    case NotificationItemKind.Unsupported:
+      return 'New activity';
   }
 }
 

@@ -150,20 +150,36 @@ describe('notification occurrence presentation mapping', () => {
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
   });
 
-  it('ignores unsupported targets without losing the server pagination position', () => {
+  it('keeps unsupported targets as safe generic rows with authoritative counts', () => {
     const page = mapNotificationOccurrencePage(
       new ListNotificationOccurrencesResponse({
+        unreadCount: 1,
+        importantUnreadCount: 1,
         occurrences: [
           new NotificationOccurrence({
             id: 'future-target',
             sourceEventId: 'future-source',
-            target: { kind: { case: undefined } }
+            target: { kind: { case: undefined } },
+            unread: true
           })
         ]
       })
     );
 
-    expect(page.occurrences).toEqual([]);
+    expect(page.occurrences).toHaveLength(1);
+    expect(page.occurrences[0]).toMatchObject({
+      id: 'future-target',
+      targetSupported: false,
+      room: null,
+      eventId: '',
+      unread: true
+    });
+    expect(occurrenceAsNotificationItem(page.occurrences[0]!)).toMatchObject({
+      kind: NotificationItemKind.Unsupported,
+      id: 'future-target'
+    });
+    expect(page.unreadCount).toBe(1);
+    expect(page.importantUnreadCount).toBe(1);
     expect(page.consumedCount).toBe(1);
   });
 });
@@ -182,7 +198,5 @@ function roomMessageTarget(eventId: string, threadRootEventId?: string) {
 }
 
 function requireNotificationOccurrence(item: NotificationOccurrence) {
-  const occurrence = notificationOccurrence(item);
-  if (!occurrence) throw new Error('expected a supported room-message notification');
-  return occurrence;
+  return notificationOccurrence(item);
 }

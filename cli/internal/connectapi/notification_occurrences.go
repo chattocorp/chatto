@@ -51,6 +51,9 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+		return nil, connectError(core.ErrNotFound)
+	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, occurrence)
 	if err != nil {
 		return nil, connectError(err)
@@ -195,6 +198,9 @@ func (s *notificationService) visibleNotificationOccurrences(ctx context.Context
 	visible := make([]*corev1.NotificationOccurrence, 0, len(allowedOccurrences))
 	for _, occurrence := range occurrences {
 		if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
+			if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+				continue
+			}
 			if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
 				return nil, err
 			}
@@ -253,6 +259,9 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	existing, err := s.api.core.NotificationOccurrences().Get(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if core.NotificationOccurrenceHasUnsupportedTarget(existing) {
+		return nil, connectError(core.ErrNotFound)
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, existing)
 	if err != nil {

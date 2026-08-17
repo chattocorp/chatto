@@ -568,6 +568,52 @@ func TestStoreWorkClearsStaleRecipientsWhenRetryNowProducesNoWork(t *testing.T) 
 	}
 }
 
+func TestNotificationMaterializerPreservesUnsupportedFutureWork(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	source := newEvent("U-future-actor", &corev1.Event{Event: &corev1.Event_ReactionAdded{
+		ReactionAdded: &corev1.ReactionAddedEvent{RoomId: "R-future", MessageEventId: "E-target", Emoji: "thumbsup"},
+	}})
+	work := newNotificationOccurrenceWork(
+		source,
+		testUnsupportedNotificationTarget(),
+		[]notificationRecipientDecision{{
+			recipientID: "U-future-recipient",
+			reasons: []*corev1.NotificationReasonMatch{{
+				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			}},
+		}},
+	)
+	if err := chattoCore.notificationMaterializer.StoreWork(ctx, source, work); err != nil {
+		t.Fatalf("StoreWork: %v", err)
+	}
+
+	hadWork, err := chattoCore.notificationMaterializer.materializeWork(ctx, source, 42, true)
+	if !hadWork || !errors.Is(err, ErrUnsupportedNotificationTarget) {
+		t.Fatalf("materializeWork = (%v, %v), want work and unsupported-target error", hadWork, err)
+	}
+	for _, key := range []string{
+		notificationWorkMarkerKey(source.GetId()),
+		notificationWorkKey(source.GetId(), "U-future-recipient"),
+	} {
+		if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, key); err != nil {
+			t.Fatalf("future work key %q was not preserved: %v", key, err)
+		}
+	}
+}
+
+func TestNotificationMaterializerRetriesUnsupportedFutureEvent(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	event := &corev1.Event{}
+	// Length-delimited field 999 models a future Event oneof branch.
+	event.ProtoReflect().SetUnknown([]byte{0xba, 0x3e, 0x00})
+
+	if err := chattoCore.notificationMaterializer.materializeEvent(testContext(t), event, 42, true); !errors.Is(err, errUnsupportedNotificationEvent) {
+		t.Fatalf("materializeEvent error = %v, want unsupported-event error", err)
+	}
+}
+
 func TestNotificationMaterializerConsumerStartsAtCreationBoundary(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -582,6 +628,16 @@ func TestNotificationMaterializerConsumerStartsAtCreationBoundary(t *testing.T) 
 	}
 	if info.Config.DeliverPolicy != jetstream.DeliverNewPolicy {
 		t.Fatalf("deliver policy = %v, want DeliverNewPolicy", info.Config.DeliverPolicy)
+	}
+}
+
+func TestNotificationMaterializerFilterContractRequiresNewGeneration(t *testing.T) {
+	current := []string{"evt.room.*.message_posted", "evt.room.*.reaction_added"}
+	if !sameNotificationWorkerFilterSubjects(current, slices.Clone(current)) {
+		t.Fatal("identical filter contract was rejected")
+	}
+	if sameNotificationWorkerFilterSubjects(current, append(slices.Clone(current), "evt.room.*.future_notification_source")) {
+		t.Fatal("new source filter did not require a new consumer generation")
 	}
 }
 

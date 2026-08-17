@@ -33,6 +33,16 @@ func TestNotificationAlertQueueConfigurationIsDurableAndBackedUp(t *testing.T) {
 	}
 }
 
+func TestNotificationAlertEligibleRetriesUnsupportedFutureTarget(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	eligible, err := chattoCore.NotificationAlertEligible(testContext(t), &corev1.NotificationOccurrence{
+		Target: testUnsupportedNotificationTarget(),
+	})
+	if eligible || !errors.Is(err, ErrUnsupportedNotificationTarget) {
+		t.Fatalf("NotificationAlertEligible = (%v, %v), want false and unsupported-target error", eligible, err)
+	}
+}
+
 func TestNotificationAlertQueueDeliversMaterializedOccurrence(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

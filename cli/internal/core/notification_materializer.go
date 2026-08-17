@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"slices"
 	"sync"
 	"time"
 
@@ -19,11 +20,14 @@ import (
 
 const (
 	notificationMaterializerPollEvery = 250 * time.Millisecond
-	notificationWorkerConsumerName    = "chatto-notification-materializer-v2"
-	notificationWorkerAckWait         = time.Minute
-	notificationWorkerHeartbeat       = 15 * time.Second
-	notificationWorkerRetryDelay      = 10 * time.Second
-	notificationWorkerAckTimeout      = 5 * time.Second
+	// The durable name and its filter set form one schema-capability
+	// generation. Adding a source event that older binaries cannot decode must
+	// use a new consumer name so those binaries cannot acknowledge its work.
+	notificationWorkerConsumerName = "chatto-notification-materializer-v2"
+	notificationWorkerAckWait      = time.Minute
+	notificationWorkerHeartbeat    = 15 * time.Second
+	notificationWorkerRetryDelay   = 10 * time.Second
+	notificationWorkerAckTimeout   = 5 * time.Second
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
@@ -32,6 +36,8 @@ const (
 	notificationReadFenceKey        = "notification_v2.read_fence"
 	maxNotificationWorkWriteRetries = 8
 )
+
+var errUnsupportedNotificationEvent = errors.New("unsupported notification event")
 
 // NotificationMaterializer consumes existing domain facts and applies their
 // notification effects. Exact source-time recipient decisions are staged as
@@ -318,6 +324,19 @@ func notificationWorkerFilterSubjects() []string {
 }
 
 func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstream.Consumer, error) {
+	filterSubjects := notificationWorkerFilterSubjects()
+	existing, err := m.core.storage.serverEvtStream.Consumer(ctx, notificationWorkerConsumerName)
+	if err == nil {
+		info, infoErr := existing.Info(ctx)
+		if infoErr != nil {
+			return nil, fmt.Errorf("read existing notification materializer consumer: %w", infoErr)
+		}
+		if !sameNotificationWorkerFilterSubjects(filterSubjects, info.Config.FilterSubjects) {
+			return nil, fmt.Errorf("notification materializer filter contract changed without a new consumer generation")
+		}
+	} else if !errors.Is(err, jetstream.ErrConsumerNotFound) {
+		return nil, fmt.Errorf("read notification materializer consumer: %w", err)
+	}
 	consumer, err := m.core.storage.serverEvtStream.CreateOrUpdateConsumer(ctx, jetstream.ConsumerConfig{
 		Name:        notificationWorkerConsumerName,
 		Durable:     notificationWorkerConsumerName,
@@ -329,7 +348,7 @@ func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstrea
 		AckPolicy:       jetstream.AckExplicitPolicy,
 		AckWait:         notificationWorkerAckWait,
 		MaxDeliver:      -1,
-		FilterSubjects:  notificationWorkerFilterSubjects(),
+		FilterSubjects:  filterSubjects,
 		ReplayPolicy:    jetstream.ReplayInstantPolicy,
 		MaxAckPending:   notificationWorkerMaxPending,
 		MaxRequestBatch: notificationWorkerMaxPending,
@@ -338,6 +357,14 @@ func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstrea
 		return nil, fmt.Errorf("create notification materializer consumer: %w", err)
 	}
 	return consumer, nil
+}
+
+func sameNotificationWorkerFilterSubjects(left, right []string) bool {
+	left = slices.Clone(left)
+	right = slices.Clone(right)
+	slices.Sort(left)
+	slices.Sort(right)
+	return slices.Equal(left, right)
 }
 
 func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery events.DurableDelivery) error {
@@ -586,6 +613,9 @@ func notificationWorkFilter(triggerEventID string) string {
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64, durableDelivery bool) error {
 	if event == nil {
 		return nil
+	}
+	if event.GetEvent() == nil && len(event.ProtoReflect().GetUnknown()) > 0 {
+		return errUnsupportedNotificationEvent
 	}
 	visibilityAt := time.Now().UTC()
 	if event.GetCreatedAt() != nil {
@@ -885,6 +915,9 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 		return err
 	}
 	roomMessageTarget := occurrence.GetTarget().GetRoomMessage()
+	if NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+		return ErrUnsupportedNotificationTarget
+	}
 	if roomMessageTarget == nil || len(occurrence.GetReasons()) == 0 {
 		return nil
 	}

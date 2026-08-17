@@ -36,7 +36,8 @@ export const NotificationItemKind = {
   DirectMessage: 'directMessage',
   Mention: 'mention',
   Reply: 'reply',
-  RoomMessage: 'roomMessage'
+  RoomMessage: 'roomMessage',
+  Unsupported: 'unsupported'
 } as const;
 
 export type NotificationItemKind = (typeof NotificationItemKind)[keyof typeof NotificationItemKind];
@@ -85,17 +86,28 @@ export type RoomMessageNotificationItem = {
   roomMsgThreadRootId?: string | null;
 };
 
+export type UnsupportedNotificationItem = {
+  kind: typeof NotificationItemKind.Unsupported;
+  id: string;
+  createdAt: string;
+  actor?: NotificationActor | null;
+  summary: string;
+};
+
 export type NotificationItem =
   | DirectMessageNotificationItem
   | MentionNotificationItem
   | ReplyNotificationItem
-  | RoomMessageNotificationItem;
+  | RoomMessageNotificationItem
+  | UnsupportedNotificationItem;
 
 export type NotificationOccurrenceItem = {
   id: string;
   sourceEventId: string;
   createdAt: string;
   actor: NotificationActor | null;
+  /** Whether this client understands the target well enough to navigate it. */
+  targetSupported?: boolean;
   room: { id: string; name: string } | null;
   eventId: string;
   threadRootId: string | null;
@@ -164,9 +176,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         { headers: headers() }
       );
       if (!response.notification) throw new Error('Read notification was not returned');
-      const notification = notificationOccurrence(response.notification);
-      if (!notification) throw new Error('Read notification has an unsupported target');
-      return notification;
+      return notificationOccurrence(response.notification);
     },
 
     async deleteNotificationOccurrence(notificationId: string): Promise<boolean> {
@@ -231,10 +241,7 @@ export function mapNotificationOccurrencePage(
   response: ListNotificationOccurrencesResponse
 ): NotificationOccurrencePage {
   return {
-    occurrences: response.occurrences.flatMap((item) => {
-      const occurrence = notificationOccurrence(item);
-      return occurrence ? [occurrence] : [];
-    }),
+    occurrences: response.occurrences.map(notificationOccurrence),
     consumedCount: response.occurrences.length,
     unreadCount: Number(response.unreadCount),
     // An absent optional field identifies an older Notifications 2.0 server.
@@ -257,12 +264,8 @@ export function mapNotificationOccurrencePage(
 
 export function notificationOccurrence(
   item: APINotificationOccurrence
-): NotificationOccurrenceItem | null {
+): NotificationOccurrenceItem {
   const target = item.target?.kind.case === 'roomMessage' ? item.target.kind.value : null;
-  // Notification targets are additive. Older clients must not accidentally
-  // render or navigate a newly introduced target as though it were a message.
-  if (!target) return null;
-
   const actor = notificationActor(item.actor);
   const reasonMatches = item.reasons.map((match) => ({
     reason: match.reason,
@@ -274,10 +277,11 @@ export function notificationOccurrence(
     sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
-    room: target.room ? { id: target.room.id, name: target.room.name } : null,
-    eventId: target.eventId,
-    threadRootId: target.threadRootEventId ?? null,
-    parentEventId: target.parentEventId ?? null,
+    targetSupported: target !== null,
+    room: target?.room ? { id: target.room.id, name: target.room.name } : null,
+    eventId: target?.eventId ?? '',
+    threadRootId: target?.threadRootEventId ?? null,
+    parentEventId: target?.parentEventId ?? null,
     reasons,
     reasonMatches,
     attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),
@@ -345,6 +349,7 @@ export function effectiveNotificationAttentionLevel(
 }
 
 function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {
+  if (occurrence.targetSupported === false) return `occurrence:${occurrence.id}`;
   const roomId = occurrence.room?.id ?? '';
   if (occurrence.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
     return `dm:${roomId}`;
@@ -381,6 +386,9 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     // notification centre renders structured reasons through the active locale.
     summary: ''
   };
+  if (item.targetSupported === false) {
+    return { kind: NotificationItemKind.Unsupported, ...base };
+  }
   if (item.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
     return {
       kind: NotificationItemKind.DirectMessage,

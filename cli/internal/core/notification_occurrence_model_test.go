@@ -147,6 +147,24 @@ func TestNotificationOccurrenceCreateRejectsUnsupportedTarget(t *testing.T) {
 	}
 }
 
+func TestNotificationOccurrenceDetectsFutureTargetWireData(t *testing.T) {
+	occurrence := &corev1.NotificationOccurrence{Target: testUnsupportedNotificationTarget()}
+	if !NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+		t.Fatal("future target wire data was not detected as unsupported")
+	}
+	if NotificationOccurrenceHasUnsupportedTarget(&corev1.NotificationOccurrence{Target: &corev1.NotificationTarget{}}) {
+		t.Fatal("empty malformed target was classified as a future target")
+	}
+}
+
+func testUnsupportedNotificationTarget() *corev1.NotificationTarget {
+	target := &corev1.NotificationTarget{}
+	// Length-delimited field 2 models a future oneof message branch. An older
+	// generated binary retains it in the target's unknown protobuf fields.
+	target.ProtoReflect().SetUnknown([]byte{0x12, 0x00})
+	return target
+}
+
 func TestNotificationOccurrenceAttentionLevel(t *testing.T) {
 	reaction := &corev1.NotificationReasonMatch{Reason: corev1.NotificationReason_NOTIFICATION_REASON_REACTION}
 	mention := &corev1.NotificationReasonMatch{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION}

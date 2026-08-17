@@ -505,7 +505,7 @@
     const key = mutationKey(item);
     if (pendingMutationKeys.has(key)) return;
     const occurrence = item.group.openTarget;
-    if (!occurrence) return;
+    if (!occurrence || occurrence.targetSupported === false) return;
     setMutationPending(key, true);
     try {
       const stores = serverRegistry.getStore(item.serverId);
@@ -632,6 +632,7 @@
             />
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
+              {@const targetSupported = occurrence?.targetSupported !== false}
               {@const isReaction =
                 occurrence?.reasons.includes(NotificationReason.REACTION) ?? false}
               {@const actor = occurrence?.actor ?? null}
@@ -639,7 +640,8 @@
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
               <div
                 class={[
-                  'group flex w-full cursor-pointer items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+                  'group flex w-full items-center gap-3 selectable-list-item px-3 py-2.5 transition-colors',
+                  targetSupported ? 'cursor-pointer' : 'cursor-default',
                   item.group.unread &&
                     item.group.attentionLevel === NotificationAttentionLevel.IMPORTANT &&
                     'bg-attention/5'
@@ -655,10 +657,12 @@
                 <button
                   type="button"
                   class={[
-                    'flex min-w-0 flex-1 cursor-pointer items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action disabled:cursor-wait',
+                    'flex min-w-0 flex-1 items-center gap-3 rounded-md text-start focus-visible:outline-2 focus-visible:outline-action',
+                    targetSupported ? 'cursor-pointer' : 'cursor-default',
+                    mutationPending && 'cursor-wait',
                     !item.group.unread && 'opacity-60'
                   ]}
-                  disabled={mutationPending}
+                  disabled={mutationPending || !targetSupported}
                   onclick={() => openGroup(item)}
                 >
                   <span class="flex shrink-0">
@@ -668,7 +672,11 @@
                         data-testid="notification-actor-stack"
                       >
                         {#each actors as groupedActor (groupedActor.id)}
-                          <UserAvatar user={groupedActor} size="md" class="ring-2 ring-background" />
+                          <UserAvatar
+                            user={groupedActor}
+                            size="md"
+                            class="ring-2 ring-background"
+                          />
                         {/each}
                       </span>
                     {:else if actor}<UserAvatar user={actor} size="md" />{/if}

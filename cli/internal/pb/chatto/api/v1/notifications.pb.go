@@ -345,7 +345,8 @@ func (x *NotificationRoomMessageTarget) GetParentEventId() string {
 }
 
 // Typed resource or activity represented by one notification occurrence.
-// Clients must ignore occurrences whose target variant they do not support.
+// Clients must not infer navigation semantics for unsupported variants; they
+// may retain the occurrence as a generic, non-navigating triage row.
 type NotificationTarget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:

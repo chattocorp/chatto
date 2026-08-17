@@ -292,7 +292,8 @@ export class NotificationRoomMessageTarget extends Message<NotificationRoomMessa
 
 /**
  * Typed resource or activity represented by one notification occurrence.
- * Clients must ignore occurrences whose target variant they do not support.
+ * Clients must not infer navigation semantics for unsupported variants; they
+ * may retain the occurrence as a generic, non-navigating triage row.
  *
  * @generated from message chatto.api.v1.NotificationTarget
  */

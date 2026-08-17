@@ -122,7 +122,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   regenerate their clients and move to the new occurrence and policy methods on
   `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
   `NotificationOccurrence.target` is a typed oneof whose initial variant is `room_message`;
-  clients should ignore target variants they do not support.
+  clients must not infer navigation for unsupported variants and may show them as generic,
+  dismissible activity.
   Upgrade all replicas and bundled clients together.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,

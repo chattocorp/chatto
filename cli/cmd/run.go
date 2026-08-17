@@ -461,6 +461,9 @@ type notificationPushSender interface {
 // testable while ChattoCore owns durable queueing and terminal occurrence state.
 func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, sender notificationPushSender, logger *log.Logger) func(context.Context, *corev1.NotificationOccurrence) error {
 	return func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
+		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+			return core.ErrUnsupportedNotificationTarget
+		}
 		if occurrence.GetTarget().GetRoomMessage() == nil {
 			return core.ErrNotificationAlertSuppressed
 		}

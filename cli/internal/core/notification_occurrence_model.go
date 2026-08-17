@@ -141,6 +141,14 @@ func newNotificationRoomMessageTarget(roomID, eventID string) *corev1.Notificati
 	}
 }
 
+// NotificationOccurrenceHasUnsupportedTarget reports a target oneof branch
+// retained as unknown protobuf data by this binary. Callers may omit it from
+// responses, but must not mistake version skew for proven visibility loss.
+func NotificationOccurrenceHasUnsupportedTarget(occurrence *corev1.NotificationOccurrence) bool {
+	target := occurrence.GetTarget()
+	return target != nil && target.GetRoomMessage() == nil && len(target.ProtoReflect().GetUnknown()) > 0
+}
+
 func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, bool, error) {
 	if strings.TrimSpace(input.RecipientID) == "" || strings.TrimSpace(input.SourceEventID) == "" {
 		return nil, false, invalidArgument("recipient_id and source_event_id are required")

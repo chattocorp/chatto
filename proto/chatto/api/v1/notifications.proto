@@ -77,7 +77,8 @@ message NotificationRoomMessageTarget {
 }
 
 // Typed resource or activity represented by one notification occurrence.
-// Clients must ignore occurrences whose target variant they do not support.
+// Clients must not infer navigation semantics for unsupported variants; they
+// may retain the occurrence as a generic, non-navigating triage row.
 message NotificationTarget {
   oneof kind {
     // Exact room-message destination.

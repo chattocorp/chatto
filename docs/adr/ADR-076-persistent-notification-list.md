@@ -62,8 +62,9 @@ through listing or realtime without scanning pages.
 
 Each occurrence carries a typed exact target and cause data, including reaction
 emoji. The current target variant identifies a room message. New resource
-targets can be added as protobuf oneof branches; clients omit unsupported
-variants instead of guessing navigation or rendering them as messages. Each new
+targets can be added as protobuf oneof branches. Older clients retain an
+unsupported occurrence as a generic, non-navigating row with exact read/delete
+identity instead of guessing message navigation or hiding its badge. Each new
 variant requires its own visibility and lifecycle behavior. The API does not
 hydrate or return message excerpts; clients render concise descriptions from
 target, actor, room, cause, and reaction metadata.

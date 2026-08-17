@@ -188,11 +188,13 @@ loses visibility, the occurrence cannot preserve stale copied content.
 record. A future domain feature such as a room invitation can add its own target
 variant and reason without overloading message identifiers. Each variant must
 define its own current-visibility checks, lifecycle cleanup, navigation, and
-delivery hydration before the server creates it. Readers that do not understand
-a variant omit it rather than treating it as a room message. This is an
-extensibility boundary only: room-invitation notifications are not implemented
-by this decision, and an invitation would remain an authoritative domain fact
-outside the notification runtime state.
+delivery hydration before the server creates it. A server that does not
+understand a variant preserves its occurrence and prepared work instead of
+treating version skew as visibility loss; a client can retain it as an exact,
+generic, non-navigating triage row. This is an extensibility boundary only:
+room-invitation notifications are not implemented by this decision, and an
+invitation would remain an authoritative domain fact outside the notification
+runtime state.
 
 ### Attention-state and lifecycle convergence
 
@@ -354,8 +356,17 @@ this unreleased change, so the initial room-message target is encoded as the
 first `NotificationTarget` oneof branch rather than preserving the flat shape
 from development drafts. After release, additional target variants are
 additive. Clients ignore unsupported variants while still consuming their list
-rows, and servers must not create or expose a target variant until they
-implement its authorization and lifecycle rules.
+rows as generic non-navigating items, and servers must not create or expose a
+target variant until they implement its authorization and lifecycle rules.
+
+The shared materializer is also forward-safe during a rolling upgrade. Its
+durable consumer name and filter set form one immutable capability generation;
+adding a source event that needs a newer schema requires a new consumer
+generation, and startup fails closed if a filter set changes under an existing
+name. An older worker retries rather than acknowledging an unknown source-event
+or prepared-target oneof branch. JetStream can then redeliver the same work to
+a capable replica. Unknown occurrences are omitted by older server assemblers
+but are never tombstoned merely because their target is unsupported.
 
 Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
 deployment can therefore briefly contain an older replica that still writes

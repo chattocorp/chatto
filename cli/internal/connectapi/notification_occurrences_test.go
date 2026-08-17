@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
+	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -17,6 +19,38 @@ func TestNotificationAssemblerIgnoresUnsupportedTarget(t *testing.T) {
 	)
 	if err != nil || got != nil {
 		t.Fatalf("occurrenceWithPresentation = (%v, %v), want nil, nil", got, err)
+	}
+}
+
+func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureTarget(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("future-target-room")
+	posted := env.post(room.GetId(), env.viewer.GetId(), "future target", "")
+	stored, created, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
+		RecipientID:   env.viewer.GetId(),
+		SourceEventID: posted.GetId(),
+		SourceCreated: posted.GetCreatedAt().AsTime(),
+		ActorID:       env.viewer.GetId(),
+		Target:        testNotificationRoomMessageTarget(room.GetId(), posted.GetId()),
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}},
+		SkipReadLookup: true,
+	})
+	if err != nil || !created {
+		t.Fatalf("Create occurrence = (%v, %v, %v), want created", stored, created, err)
+	}
+	future := proto.Clone(stored).(*corev1.NotificationOccurrence)
+	future.Target = &corev1.NotificationTarget{}
+	future.Target.ProtoReflect().SetUnknown([]byte{0x12, 0x00})
+
+	visible, err := env.notifications.visibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*corev1.NotificationOccurrence{future})
+	if err != nil || len(visible) != 0 {
+		t.Fatalf("visible future occurrences = (%v, %v), want empty without error", visible, err)
+	}
+	if current, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.GetId(), stored.GetId()); err != nil || current.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED {
+		t.Fatalf("stored future occurrence was mutated = (%v, %v)", current, err)
 	}
 }
 

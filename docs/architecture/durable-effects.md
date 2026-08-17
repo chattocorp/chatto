@@ -61,6 +61,13 @@ including while a non-boundary worker fact is pending, preserving the
 repository's last generation that restart can safely accept. Idle-tail
 advancement is reconstructed after restart as the full-EVT prefix immediately
 before the earliest fact following the filtered consumer's sparse raw AckFloor.
+During a rolling feature upgrade, the materializer consumer name and filter set
+act as an immutable capability generation. A new source-event schema uses a new
+consumer generation; changing filters under an existing name fails startup
+closed. Unknown source-event and prepared-target protobuf branches fail
+retryably rather than acknowledging or deleting their work, allowing JetStream
+to hand the delivery to a capable replica without adding notification-only EVT
+facts.
 
 Observability is currently domain-specific. Call reconciliation records its
 consecutive LiveKit listing failures in `MEMORY_CACHE`. Owner-only asset-cleanup

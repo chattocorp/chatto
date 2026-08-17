@@ -18,6 +18,10 @@ import (
 // transport check intentionally suppressed delivery and should be terminal.
 var ErrNotificationAlertSuppressed = errors.New("notification alert suppressed")
 
+// ErrUnsupportedNotificationTarget preserves work created by a newer replica
+// until a binary that understands the target can process it.
+var ErrUnsupportedNotificationTarget = errors.New("unsupported notification target")
+
 const (
 	notificationQueueStreamName   = "NOTIFICATIONS_QUEUE"
 	notificationAlertSubject      = "notifications.alert"
@@ -222,6 +226,9 @@ func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error 
 func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
 	if occurrence == nil {
 		return false, nil
+	}
+	if NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+		return false, ErrUnsupportedNotificationTarget
 	}
 	if err := c.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		return false, fmt.Errorf("fence notification materializer before alert: %w", err)

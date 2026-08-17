@@ -388,6 +388,39 @@ describe('NotificationStore', () => {
     expect(store.occurrences.map((occurrence) => occurrence.id)).toEqual(['room-mention']);
   });
 
+  it('fetchRoomNotification advances by raw rows past unsupported targets', async () => {
+    const api = makeAPI();
+    const later = occurrencePage(page([mention('later')]));
+    const unsupported: NotificationOccurrenceItem = {
+      ...later.occurrences[0]!,
+      id: 'future-target',
+      targetSupported: false,
+      room: null,
+      eventId: ''
+    };
+    api.listNotificationOccurrences.mockImplementation(async (_limit: number, offset: number) =>
+      offset === 0
+        ? {
+            ...later,
+            occurrences: [unsupported],
+            consumedCount: 50,
+            hasMore: true
+          }
+        : later
+    );
+    const store = new NotificationStore(api);
+
+    const result = await store.fetchRoomNotification('r1');
+
+    expect(api.listNotificationOccurrences).toHaveBeenNthCalledWith(1, 50, 0);
+    expect(api.listNotificationOccurrences).toHaveBeenNthCalledWith(2, 50, 50);
+    expect(result).toMatchObject({
+      ok: true,
+      totalCount: 1,
+      notification: { id: 'later' }
+    });
+  });
+
   it('does not cache or return a room lookup completed after authorization loss', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
