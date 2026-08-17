@@ -44,16 +44,12 @@ describe('notification occurrence presentation mapping', () => {
   });
 
   it('keeps followed-thread targets as reply notifications', () => {
-    const occurrence = notificationOccurrence(
+    const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-notification',
         sourceEventId: 'reply-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: {
-          room: { id: 'room-1', name: 'general' },
-          eventId: 'reply-1',
-          threadRootEventId: 'root-1'
-        },
+        target: roomMessageTarget('reply-1', 'root-1'),
         reasons: [
           {
             reason: NotificationReason.FOLLOWED_THREAD,
@@ -73,16 +69,12 @@ describe('notification occurrence presentation mapping', () => {
   });
 
   it('keeps a direct mention ahead of badge-only followed-thread activity', () => {
-    const occurrence = notificationOccurrence(
+    const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-mention',
         sourceEventId: 'reply-2',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: {
-          room: { id: 'room-1', name: 'general' },
-          eventId: 'reply-2',
-          threadRootEventId: 'root-1'
-        },
+        target: roomMessageTarget('reply-2', 'root-1'),
         reasons: [
           {
             reason: NotificationReason.DIRECT_MENTION,
@@ -110,12 +102,12 @@ describe('notification occurrence presentation mapping', () => {
   });
 
   it('describes followed-room occurrences as messages', () => {
-    const occurrence = notificationOccurrence(
+    const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'room-notification',
         sourceEventId: 'message-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: { room: { id: 'room-1', name: 'general' }, eventId: 'message-1' },
+        target: roomMessageTarget('message-1'),
         reasons: [
           {
             reason: NotificationReason.FOLLOWED_ROOM,
@@ -134,16 +126,12 @@ describe('notification occurrence presentation mapping', () => {
   });
 
   it('preserves a threaded reaction target in the flattened room-message shape', () => {
-    const occurrence = notificationOccurrence(
+    const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'reaction-notification',
         sourceEventId: 'reaction-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: {
-          room: { id: 'room-1', name: 'general' },
-          eventId: 'message-1',
-          threadRootEventId: 'thread-root-1'
-        },
+        target: roomMessageTarget('message-1', 'thread-root-1'),
         reasons: [
           {
             reason: NotificationReason.REACTION,
@@ -161,4 +149,40 @@ describe('notification occurrence presentation mapping', () => {
     });
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
   });
+
+  it('ignores unsupported targets without losing the server pagination position', () => {
+    const page = mapNotificationOccurrencePage(
+      new ListNotificationOccurrencesResponse({
+        occurrences: [
+          new NotificationOccurrence({
+            id: 'future-target',
+            sourceEventId: 'future-source',
+            target: { kind: { case: undefined } }
+          })
+        ]
+      })
+    );
+
+    expect(page.occurrences).toEqual([]);
+    expect(page.consumedCount).toBe(1);
+  });
 });
+
+function roomMessageTarget(eventId: string, threadRootEventId?: string) {
+  return {
+    kind: {
+      case: 'roomMessage' as const,
+      value: {
+        room: { id: 'room-1', name: 'general' },
+        eventId,
+        threadRootEventId
+      }
+    }
+  };
+}
+
+function requireNotificationOccurrence(item: NotificationOccurrence) {
+  const occurrence = notificationOccurrence(item);
+  if (!occurrence) throw new Error('expected a supported room-message notification');
+  return occurrence;
+}

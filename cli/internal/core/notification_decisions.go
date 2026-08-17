@@ -187,9 +187,10 @@ func (c *ChattoCore) buildReactionNotificationWork(source, target *corev1.Event,
 	if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
 		return nil
 	}
-	notificationTarget := &corev1.NotificationTarget{RoomId: roomID, EventId: messageEventID}
+	notificationTarget := newNotificationRoomMessageTarget(roomID, messageEventID)
+	roomMessageTarget := notificationTarget.GetRoomMessage()
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
-		notificationTarget.ThreadRootEventId = &threadRootEventID
+		roomMessageTarget.ThreadRootEventId = &threadRootEventID
 	}
 	work := newNotificationOccurrenceWork(source, notificationTarget, []notificationRecipientDecision{{
 		recipientID: target.GetActorId(),

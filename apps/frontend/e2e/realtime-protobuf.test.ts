@@ -274,8 +274,11 @@ test.describe('protobuf realtime stream', () => {
       );
       expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
       expect(mention?.actor?.id).toBeTruthy();
-      expect(mention?.target?.room?.name).toBe('general');
-      expect(mention?.target?.room?.id).toBeTruthy();
+      expect(mention?.target?.kind.case).toBe('roomMessage');
+      const mentionTarget =
+        mention?.target?.kind.case === 'roomMessage' ? mention.target.kind.value : null;
+      expect(mentionTarget?.room?.name).toBe('general');
+      expect(mentionTarget?.room?.id).toBeTruthy();
 
       let dmSenderDisplayName = '';
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
@@ -312,7 +315,9 @@ test.describe('protobuf realtime stream', () => {
       );
       expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
       expect(dm?.actor?.id).toBeTruthy();
-      expect(dm?.target?.room?.id).toBeTruthy();
+      expect(dm?.target?.kind.case).toBe('roomMessage');
+      const dmTarget = dm?.target?.kind.case === 'roomMessage' ? dm.target.kind.value : null;
+      expect(dmTarget?.room?.id).toBeTruthy();
     } finally {
       realtime.close();
     }

@@ -61,21 +61,28 @@ func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, 
 	if occurrence == nil {
 		return nil, nil
 	}
+	roomMessage := occurrence.GetTarget().GetRoomMessage()
+	if roomMessage == nil {
+		// Target variants are independently extensible. A server that does not
+		// understand one must not misrepresent it as a room-message target.
+		return nil, nil
+	}
 	actor, err := a.actor(ctx, occurrence.GetActorId(), presence)
 	if err != nil {
 		return nil, err
 	}
-	room, err := a.room(ctx, occurrence.GetTarget().GetRoomId())
+	room, err := a.room(ctx, roomMessage.GetRoomId())
 	if err != nil {
 		return nil, err
 	}
-	target := &apiv1.NotificationTarget{Room: room, EventId: occurrence.GetTarget().GetEventId()}
-	if value := occurrence.GetTarget().GetThreadRootEventId(); value != "" {
-		target.ThreadRootEventId = &value
+	apiRoomMessage := &apiv1.NotificationRoomMessageTarget{Room: room, EventId: roomMessage.GetEventId()}
+	if value := roomMessage.GetThreadRootEventId(); value != "" {
+		apiRoomMessage.ThreadRootEventId = &value
 	}
-	if value := occurrence.GetTarget().GetParentEventId(); value != "" {
-		target.ParentEventId = &value
+	if value := roomMessage.GetParentEventId(); value != "" {
+		apiRoomMessage.ParentEventId = &value
 	}
+	target := &apiv1.NotificationTarget{Kind: &apiv1.NotificationTarget_RoomMessage{RoomMessage: apiRoomMessage}}
 	reasons := make([]*apiv1.NotificationReasonMatch, 0, len(occurrence.GetReasons()))
 	for _, match := range occurrence.GetReasons() {
 		reasons = append(reasons, &apiv1.NotificationReasonMatch{

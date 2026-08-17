@@ -42,10 +42,7 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 		SourceEventID: "E-notification-source",
 		SourceCreated: now.Add(-24 * time.Hour),
 		ActorID:       "U-notification-actor",
-		Target: &corev1.NotificationTarget{
-			RoomId:  "R-notification-room",
-			EventId: "E-notification-source",
-		},
+		Target:        newNotificationRoomMessageTarget("R-notification-room", "E-notification-source"),
 		Reasons: []*corev1.NotificationReasonMatch{
 			{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
@@ -112,7 +109,7 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	secondInput.SourceEventID = "E-notification-source-2"
 	secondInput.SourceCreated = input.SourceCreated.Add(time.Minute)
 	secondInput.Target = proto.Clone(input.Target).(*corev1.NotificationTarget)
-	secondInput.Target.EventId = secondInput.SourceEventID
+	secondInput.Target.GetRoomMessage().EventId = secondInput.SourceEventID
 	if second, wasCreated, err := model.Create(ctx, secondInput); err != nil || !wasCreated || second == nil {
 		t.Fatalf("Create second grouped occurrence = (%v, %v, %v), want occurrence, true, nil", second, wasCreated, err)
 	}
@@ -129,6 +126,24 @@ func TestNotificationOccurrenceLifecycleAndDeterministicIdentity(t *testing.T) {
 	}
 	if recreated, wasCreated, err := model.Create(ctx, input); err != nil || wasCreated || recreated != nil {
 		t.Fatalf("Create after tombstone = (%v, %v, %v), want nil, false, nil", recreated, wasCreated, err)
+	}
+}
+
+func TestNotificationOccurrenceCreateRejectsUnsupportedTarget(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	input := CreateNotificationOccurrenceInput{
+		RecipientID:   "U-notification-recipient",
+		SourceEventID: "E-notification-source",
+		SourceCreated: time.Now().UTC(),
+		Target:        &corev1.NotificationTarget{},
+		Reasons: []*corev1.NotificationReasonMatch{{
+			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+		}},
+		SkipReadLookup: true,
+	}
+
+	if _, _, err := chattoCore.NotificationOccurrences().Create(testContext(t), input); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("Create with unsupported target error = %v, want ErrInvalidArgument", err)
 	}
 }
 
@@ -185,7 +200,7 @@ func TestNotificationOccurrenceReadCancelsPendingAlert(t *testing.T) {
 		RecipientID:   "U-read-alert-recipient",
 		SourceEventID: "E-read-alert-source",
 		SourceCreated: now,
-		Target:        &corev1.NotificationTarget{RoomId: "R-read-alert", EventId: "E-read-alert-source"},
+		Target:        newNotificationRoomMessageTarget("R-read-alert", "E-read-alert-source"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -289,7 +304,7 @@ func TestVisibleOccurrencesWaitsForGroupAndRBACProjectionTails(t *testing.T) {
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: recipient.Id, SourceEventID: "visible-fence-source", SourceCreated: posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence, ActorID: author.Id,
-		Target:         &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:         newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons:        []*corev1.NotificationReasonMatch{{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE}},
 		SkipReadLookup: true,
 	})
@@ -385,10 +400,7 @@ func TestNotificationOccurrenceIndexConvergesAcrossReplicas(t *testing.T) {
 		RecipientID:   "U-replica-recipient",
 		SourceEventID: "E-replica-source",
 		SourceCreated: sourceTime,
-		Target: &corev1.NotificationTarget{
-			RoomId:  "R-replica-room",
-			EventId: "E-replica-source",
-		},
+		Target:        newNotificationRoomMessageTarget("R-replica-room", "E-replica-source"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -419,7 +431,7 @@ func TestCurrentCreationSignalRejectsNewerAuthoritativeStateWithStaleReplicaInde
 		RecipientID:   "U-stale-creation-signal",
 		SourceEventID: "E-stale-creation-signal",
 		SourceCreated: time.Now().UTC(),
-		Target:        &corev1.NotificationTarget{RoomId: "R-stale-creation-signal", EventId: "E-stale-creation-signal"},
+		Target:        newNotificationRoomMessageTarget("R-stale-creation-signal", "E-stale-creation-signal"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		}},
@@ -468,7 +480,7 @@ func TestNotificationOccurrenceIndexStagesReplacementBeforeAtomicInstall(t *test
 		RecipientID:   "U-index-old",
 		SourceEventID: "E-index-old",
 		SourceCreated: now,
-		Target:        &corev1.NotificationTarget{RoomId: "R-index", EventId: "E-index-old"},
+		Target:        newNotificationRoomMessageTarget("R-index", "E-index-old"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason: corev1.NotificationReason_NOTIFICATION_REASON_REPLY, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		}},
@@ -482,7 +494,7 @@ func TestNotificationOccurrenceIndexStagesReplacementBeforeAtomicInstall(t *test
 	newOccurrence.Id = notificationOccurrenceID("U-index-new", "E-index-new")
 	newOccurrence.RecipientId = "U-index-new"
 	newOccurrence.SourceEventId = "E-index-new"
-	newOccurrence.Target.EventId = "E-index-new"
+	newOccurrence.Target.GetRoomMessage().EventId = "E-index-new"
 	data, err := proto.Marshal(newOccurrence)
 	if err != nil {
 		t.Fatalf("Marshal replacement occurrence: %v", err)
@@ -518,7 +530,7 @@ func TestNotificationAlertCompletionUsesAuthoritativeStoreWhenIndexMisses(t *tes
 		RecipientID:   "U-alert-index-miss",
 		SourceEventID: "E-alert-index-miss",
 		SourceCreated: time.Now().UTC(),
-		Target:        &corev1.NotificationTarget{RoomId: "R-alert-index-miss", EventId: "E-alert-index-miss"},
+		Target:        newNotificationRoomMessageTarget("R-alert-index-miss", "E-alert-index-miss"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		}},
@@ -564,7 +576,7 @@ func TestNotificationOccurrenceListHasDeterministicTotalOrderForEqualTimestamps(
 	} {
 		if _, _, err := model.Create(ctx, CreateNotificationOccurrenceInput{
 			RecipientID: "U-total-order", SourceEventID: item.sourceID, SourceCreated: createdAt, SourceStreamSequence: item.sequence,
-			Target: &corev1.NotificationTarget{RoomId: "R-total-order", EventId: item.sourceID},
+			Target: newNotificationRoomMessageTarget("R-total-order", item.sourceID),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason: corev1.NotificationReason_NOTIFICATION_REASON_REPLY, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 			}},
@@ -624,7 +636,7 @@ func TestNotificationOccurrenceConcurrentReadAndAlertCompletionConvergeAcrossMod
 			RecipientID:   "U-concurrent-read-alert",
 			SourceEventID: sourceID,
 			SourceCreated: time.Now().UTC(),
-			Target:        &corev1.NotificationTarget{RoomId: "R-concurrent-read-alert", EventId: sourceID},
+			Target:        newNotificationRoomMessageTarget("R-concurrent-read-alert", sourceID),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -697,7 +709,7 @@ func TestNotificationOccurrenceConcurrentDeletionReasonsPreserveTombstone(t *tes
 		RecipientID:   "U-concurrent-delete",
 		SourceEventID: "E-concurrent-delete",
 		SourceCreated: time.Now().UTC(),
-		Target:        &corev1.NotificationTarget{RoomId: "R-concurrent-delete", EventId: "E-concurrent-delete"},
+		Target:        newNotificationRoomMessageTarget("R-concurrent-delete", "E-concurrent-delete"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -772,7 +784,7 @@ func TestNotificationOccurrenceIndexPrunesExpiredRecordsWithoutKVDeleteEvent(t *
 		RecipientID:   "U-expired-recipient",
 		SourceEventID: "E-expired-source",
 		SourceCreated: now,
-		Target:        &corev1.NotificationTarget{RoomId: "R-expired-room", EventId: "E-expired-source"},
+		Target:        newNotificationRoomMessageTarget("R-expired-room", "E-expired-source"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,

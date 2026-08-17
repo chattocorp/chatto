@@ -11,9 +11,6 @@ import "google/protobuf/timestamp.proto";
 
 // Why source activity matched the authenticated viewer's notification policy.
 enum NotificationReason {
-  reserved 10;
-  reserved "NOTIFICATION_REASON_ROOM_INVITATION";
-
   // No cause was specified. This value is not valid in preference writes.
   NOTIFICATION_REASON_UNSPECIFIED = 0;
   // A message was posted in a direct-message conversation.
@@ -67,8 +64,8 @@ message NotificationReasonMatch {
   NotificationDeliveryIntensity intensity = 2;
 }
 
-// Exact visible destination of one notification occurrence.
-message NotificationTarget {
+// Exact visible message destination of one notification occurrence.
+message NotificationRoomMessageTarget {
   // Room containing the source activity.
   RoomSummary room = 1;
   // Exact source or reacted-to message event to reveal.
@@ -77,6 +74,15 @@ message NotificationTarget {
   optional string thread_root_event_id = 3;
   // Direct reply target when the occurrence was caused by a reply.
   optional string parent_event_id = 4;
+}
+
+// Typed resource or activity represented by one notification occurrence.
+// Clients must ignore occurrences whose target variant they do not support.
+message NotificationTarget {
+  oneof kind {
+    // Exact room-message destination.
+    NotificationRoomMessageTarget room_message = 1;
+  }
 }
 
 // One exact Notifications 2.0 source occurrence.
@@ -92,7 +98,7 @@ message NotificationOccurrence {
   google.protobuf.Timestamp created_at = 3;
   // User who caused the source activity, when still visible.
   User actor = 4;
-  // Exact current destination for navigation.
+  // Typed resource or activity represented by this occurrence.
   NotificationTarget target = 5;
   // Every cause that matched when the source activity occurred.
   repeated NotificationReasonMatch reasons = 6;

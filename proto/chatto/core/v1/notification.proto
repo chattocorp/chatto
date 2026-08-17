@@ -105,9 +105,6 @@ message RoomMessageNotification {
 // NotificationReason identifies why one source activity qualified for a
 // recipient's notification list. One occurrence can retain several reasons.
 enum NotificationReason {
-  reserved 10;
-  reserved "NOTIFICATION_REASON_ROOM_INVITATION";
-
   NOTIFICATION_REASON_UNSPECIFIED = 0;
   NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
   NOTIFICATION_REASON_DIRECT_MENTION = 2;
@@ -177,13 +174,22 @@ message NotificationReasonMatch {
   NotificationDeliveryIntensity intensity = 2;
 }
 
-// NotificationTarget identifies the exact activity destination without
-// copying message, room, or user presentation data.
-message NotificationTarget {
+// NotificationRoomMessageTarget identifies one exact message destination
+// without copying message, room, or user presentation data.
+message NotificationRoomMessageTarget {
   string room_id = 1;
   optional string thread_root_event_id = 2;
   string event_id = 3;
   optional string parent_event_id = 4;
+}
+
+// NotificationTarget identifies the typed resource or activity represented by
+// an occurrence. New target variants are additive oneof branches with their
+// own authorization and lifecycle rules.
+message NotificationTarget {
+  oneof kind {
+    NotificationRoomMessageTarget room_message = 1;
+  }
 }
 
 // NotificationOccurrence is recipient-specific bounded runtime state derived

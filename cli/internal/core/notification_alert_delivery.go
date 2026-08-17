@@ -248,7 +248,7 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
-	roomID := occurrence.GetTarget().GetRoomId()
+	roomID := occurrence.GetTarget().GetRoomMessage().GetRoomId()
 	for _, match := range occurrence.GetReasons() {
 		if d.core.GetEffectiveNotificationIntensity(occurrence.GetRecipientId(), roomID, match.GetReason()) == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
 			return true

@@ -713,7 +713,7 @@ One exact Notifications 2.0 source occurrence.
 | `source_event_id` | `string` | Durable source event from which this occurrence was derived. |
 | `created_at` | `google.protobuf.Timestamp` | Time of the source activity. |
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
-| `target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Exact current destination for navigation. |
+| `target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Typed resource or activity represented by this occurrence. |
 | `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
 | `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
@@ -745,6 +745,19 @@ One cause that matched an occurrence and its evaluated delivery intensity.
 | `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Cause that matched the viewer. |
 | `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity when the source activity occurred. |
 
+<a id="chatto-api-v1-NotificationRoomMessageTarget"></a>
+
+### NotificationRoomMessageTarget
+
+Exact visible message destination of one notification occurrence.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
+| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
+| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
+| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
+
 <a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
 ### NotificationRoomUnreadCount
@@ -761,14 +774,12 @@ Unread notification occurrences currently targeting one room.
 
 ### NotificationTarget
 
-Exact visible destination of one notification occurrence.
+Typed resource or activity represented by one notification occurrence.
+Clients must ignore occurrences whose target variant they do not support.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
-| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
-| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
-| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
+| `kind.room_message` | [`NotificationRoomMessageTarget`](#chatto-api-v1-NotificationRoomMessageTarget) | Exact room-message destination. |
 
 <a id="chatto-api-v1-Role"></a>
 

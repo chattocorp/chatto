@@ -164,7 +164,9 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         { headers: headers() }
       );
       if (!response.notification) throw new Error('Read notification was not returned');
-      return notificationOccurrence(response.notification);
+      const notification = notificationOccurrence(response.notification);
+      if (!notification) throw new Error('Read notification has an unsupported target');
+      return notification;
     },
 
     async deleteNotificationOccurrence(notificationId: string): Promise<boolean> {
@@ -229,7 +231,10 @@ export function mapNotificationOccurrencePage(
   response: ListNotificationOccurrencesResponse
 ): NotificationOccurrencePage {
   return {
-    occurrences: response.occurrences.map(notificationOccurrence),
+    occurrences: response.occurrences.flatMap((item) => {
+      const occurrence = notificationOccurrence(item);
+      return occurrence ? [occurrence] : [];
+    }),
     consumedCount: response.occurrences.length,
     unreadCount: Number(response.unreadCount),
     // An absent optional field identifies an older Notifications 2.0 server.
@@ -252,7 +257,12 @@ export function mapNotificationOccurrencePage(
 
 export function notificationOccurrence(
   item: APINotificationOccurrence
-): NotificationOccurrenceItem {
+): NotificationOccurrenceItem | null {
+  const target = item.target?.kind.case === 'roomMessage' ? item.target.kind.value : null;
+  // Notification targets are additive. Older clients must not accidentally
+  // render or navigate a newly introduced target as though it were a message.
+  if (!target) return null;
+
   const actor = notificationActor(item.actor);
   const reasonMatches = item.reasons.map((match) => ({
     reason: match.reason,
@@ -264,10 +274,10 @@ export function notificationOccurrence(
     sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
-    room: item.target?.room ? { id: item.target.room.id, name: item.target.room.name } : null,
-    eventId: item.target?.eventId ?? '',
-    threadRootId: item.target?.threadRootEventId ?? null,
-    parentEventId: item.target?.parentEventId ?? null,
+    room: target.room ? { id: target.room.id, name: target.room.name } : null,
+    eventId: target.eventId,
+    threadRootId: target.threadRootEventId ?? null,
+    parentEventId: target.parentEventId ?? null,
     reasons,
     reasonMatches,
     attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),

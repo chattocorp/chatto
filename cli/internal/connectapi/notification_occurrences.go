@@ -63,6 +63,9 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	if err != nil {
 		return nil, connectError(err)
 	}
+	if hydrated == nil {
+		return nil, connectError(core.ErrNotFound)
+	}
 	return connect.NewResponse(&apiv1.GetNotificationOccurrenceResponse{Notification: hydrated}), nil
 }
 
@@ -153,7 +156,7 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 			if important {
 				summary.importantUnreadCount++
 			}
-			if roomID := occurrence.GetTarget().GetRoomId(); roomID != "" {
+			if roomID := occurrence.GetTarget().GetRoomMessage().GetRoomId(); roomID != "" {
 				room := roomCounts[roomID]
 				room.unreadCount++
 				if important {
@@ -265,6 +268,9 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	item, err := s.hydratedOccurrence(ctx, existing)
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if item == nil {
+		return nil, connectError(core.ErrNotFound)
 	}
 	_, err = s.api.core.NotificationOccurrences().MarkRead(ctx, caller.UserID, req.Msg.GetNotificationId())
 	if err != nil {

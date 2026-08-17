@@ -1004,12 +1004,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		},
 	})
-	notificationTarget := &corev1.NotificationTarget{RoomId: room_id, EventId: eventID}
+	notificationTarget := newNotificationRoomMessageTarget(room_id, eventID)
+	roomMessageTarget := notificationTarget.GetRoomMessage()
 	if inThread != "" {
-		notificationTarget.ThreadRootEventId = &inThread
+		roomMessageTarget.ThreadRootEventId = &inThread
 	}
 	if inReplyTo != "" {
-		notificationTarget.ParentEventId = &inReplyTo
+		roomMessageTarget.ParentEventId = &inReplyTo
 	}
 	var notificationDecisions []notificationRecipientDecision
 	prepareNotificationWork := func(attemptCtx context.Context) error {

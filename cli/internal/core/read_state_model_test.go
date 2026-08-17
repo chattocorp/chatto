@@ -156,7 +156,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		SourceEventID: first.Id,
 		SourceCreated: first.GetCreatedAt().AsTime(),
 		ActorID:       poster.Id,
-		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: first.Id},
+		Target:        newNotificationRoomMessageTarget(room.Id, first.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,

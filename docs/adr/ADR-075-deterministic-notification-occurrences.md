@@ -171,7 +171,8 @@ it:
 
 - recipient, canonical source event ID, actor ID, source time, and an internal
   EVT stream sequence used for causal cleanup and read-boundary reconciliation;
-- exact destination: room, optional thread root, and target event;
+- a typed target; the current room-message variant contains the room, optional
+  thread root, target event, and optional direct-reply parent;
 - all matched reasons and their evaluated intensities;
 - strongest effective intensity and policy-evaluation time;
 - resolved Ambient or Important visual attention level;
@@ -182,6 +183,16 @@ It does not copy message bodies, room names, avatars, display names, or other
 presentation data. Public assemblers hydrate current visible resources from
 their authoritative projections. If the target is retracted or the recipient
 loses visibility, the occurrence cannot preserve stale copied content.
+
+`NotificationTarget` is a protobuf `oneof`, not a permanently message-shaped
+record. A future domain feature such as a room invitation can add its own target
+variant and reason without overloading message identifiers. Each variant must
+define its own current-visibility checks, lifecycle cleanup, navigation, and
+delivery hydration before the server creates it. Readers that do not understand
+a variant omit it rather than treating it as a room message. This is an
+extensibility boundary only: room-invitation notifications are not implemented
+by this decision, and an invitation would remain an authoritative domain fact
+outside the notification runtime state.
 
 ### Attention-state and lifecycle convergence
 
@@ -337,6 +348,14 @@ with an upgraded server for notifications, and the 0.5 client requires a 0.5
 server through the bundled client's minimum-supported-server check. This intentional breaking
 change avoids maintaining a second API, compatibility projection, or preset
 translation layer.
+
+Notifications 2.0 and its persisted core messages are introduced together by
+this unreleased change, so the initial room-message target is encoded as the
+first `NotificationTarget` oneof branch rather than preserving the flat shape
+from development drafts. After release, additional target variants are
+additive. Clients ignore unsupported variants while still consuming their list
+rows, and servers must not create or expose a target variant until they
+implement its authorization and lifecycle rules.
 
 Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
 deployment can therefore briefly contain an older replica that still writes

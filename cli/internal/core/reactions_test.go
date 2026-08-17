@@ -153,7 +153,7 @@ func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
 	if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
 		t.Fatalf("reaction occurrences = %+v, want one reaction occurrence", occurrences)
 	}
-	if occurrences[0].GetTarget().GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id {
+	if occurrences[0].GetTarget().GetRoomMessage().GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id {
 		t.Fatalf("reaction occurrence = %+v, want message %q and actor %q", occurrences[0], message.Id, reactor.Id)
 	}
 	if got := occurrences[0].GetAttentionLevel(); got != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT {

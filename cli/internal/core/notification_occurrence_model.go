@@ -134,12 +134,19 @@ func notificationOccurrenceID(recipientID, sourceEventID string) string {
 	return "ntf_" + base64.RawURLEncoding.EncodeToString(digest[:20])
 }
 
+func newNotificationRoomMessageTarget(roomID, eventID string) *corev1.NotificationTarget {
+	roomMessage := &corev1.NotificationRoomMessageTarget{RoomId: roomID, EventId: eventID}
+	return &corev1.NotificationTarget{
+		Kind: &corev1.NotificationTarget_RoomMessage{RoomMessage: roomMessage},
+	}
+}
+
 func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, bool, error) {
 	if strings.TrimSpace(input.RecipientID) == "" || strings.TrimSpace(input.SourceEventID) == "" {
 		return nil, false, invalidArgument("recipient_id and source_event_id are required")
 	}
-	if input.Target == nil || input.Target.GetRoomId() == "" || input.Target.GetEventId() == "" {
-		return nil, false, invalidArgument("notification target room_id and event_id are required")
+	if input.Target == nil || input.Target.GetRoomMessage().GetRoomId() == "" || input.Target.GetRoomMessage().GetEventId() == "" {
+		return nil, false, invalidArgument("notification room-message target room_id and event_id are required")
 	}
 	if input.SourceCreated.IsZero() {
 		return nil, false, invalidArgument("source_created_at is required")
@@ -573,8 +580,8 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 		occurrence := entry.occurrence
 		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
 			occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD ||
-			occurrence.GetTarget().GetRoomId() != roomID ||
-			occurrence.GetTarget().GetThreadRootEventId() != threadRootEventID {
+			occurrence.GetTarget().GetRoomMessage().GetRoomId() != roomID ||
+			occurrence.GetTarget().GetRoomMessage().GetThreadRootEventId() != threadRootEventID {
 			continue
 		}
 		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
@@ -694,7 +701,11 @@ func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, re
 }
 
 func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx context.Context, recipientID string, occurrence *corev1.NotificationOccurrence) (bool, error) {
-	if occurrence == nil || occurrence.GetRecipientId() != recipientID || occurrence.GetTarget().GetRoomId() == "" {
+	if occurrence == nil || occurrence.GetRecipientId() != recipientID {
+		return false, nil
+	}
+	roomMessage := occurrence.GetTarget().GetRoomMessage()
+	if roomMessage.GetRoomId() == "" {
 		return false, nil
 	}
 	if _, err := m.core.GetUser(ctx, recipientID); errors.Is(err, ErrNotFound) {
@@ -702,7 +713,7 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	} else if err != nil {
 		return false, err
 	}
-	room, err := m.core.FindRoomByID(ctx, occurrence.GetTarget().GetRoomId())
+	room, err := m.core.FindRoomByID(ctx, roomMessage.GetRoomId())
 	if errors.Is(err, ErrNotFound) {
 		return false, nil
 	}
@@ -713,7 +724,7 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	if err != nil || !member {
 		return member, err
 	}
-	target := occurrence.GetTarget()
+	target := roomMessage
 	messageVisible := func(eventID string) bool {
 		entry, ok := m.core.roomModel.timelineEntry(eventID)
 		if !ok || entry.Event == nil || roomIDOfEvent(entry.Event) != room.GetId() {
@@ -747,7 +758,7 @@ func (m *NotificationOccurrenceModel) RemoveTarget(ctx context.Context, roomID, 
 	}
 	removed := 0
 	for _, entry := range entries {
-		target := entry.occurrence.GetTarget()
+		target := entry.occurrence.GetTarget().GetRoomMessage()
 		if target.GetRoomId() != roomID || (target.GetEventId() != eventID && target.GetThreadRootEventId() != eventID) {
 			continue
 		}
@@ -779,7 +790,7 @@ func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipi
 	removed := 0
 	for _, entry := range entries {
 		occurrence := entry.occurrence
-		target := occurrence.GetTarget()
+		target := occurrence.GetTarget().GetRoomMessage()
 		if occurrence.GetActorId() != actorID || occurrence.GetReactionEmoji() != emoji ||
 			target.GetRoomId() != roomID || target.GetEventId() != messageEventID ||
 			!notificationOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
@@ -816,7 +827,7 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 	}
 	removed := 0
 	for _, entry := range entries {
-		if entry.occurrence.GetTarget().GetRoomId() != roomID {
+		if entry.occurrence.GetTarget().GetRoomMessage().GetRoomId() != roomID {
 			continue
 		}
 		if removedThroughSequence != 0 && entry.occurrence.GetSourceStreamSequence() >= removedThroughSequence {
@@ -841,7 +852,7 @@ func (m *NotificationOccurrenceModel) RemoveRoom(ctx context.Context, roomID str
 	}
 	removed := 0
 	for _, entry := range entries {
-		if entry.occurrence.GetTarget().GetRoomId() != roomID {
+		if entry.occurrence.GetTarget().GetRoomMessage().GetRoomId() != roomID {
 			continue
 		}
 		written, ok, err := m.deleteStoredOccurrence(ctx, entry.occurrence.GetRecipientId(), entry.occurrence.GetSourceEventId(), reason)

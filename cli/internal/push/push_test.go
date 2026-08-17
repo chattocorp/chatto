@@ -256,9 +256,13 @@ func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, th
 		RecipientId: recipientID,
 		ActorId:     actorID,
 		Target: &corev1.NotificationTarget{
-			RoomId:            roomID,
-			EventId:           eventID,
-			ThreadRootEventId: optionalString(threadRootID),
+			Kind: &corev1.NotificationTarget_RoomMessage{
+				RoomMessage: &corev1.NotificationRoomMessageTarget{
+					RoomId:            roomID,
+					EventId:           eventID,
+					ThreadRootEventId: optionalString(threadRootID),
+				},
+			},
 		},
 	}
 	for _, reason := range reasons {

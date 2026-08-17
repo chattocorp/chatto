@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-14
+**Last reviewed:** 2026-08-17
 
 > **Implementation status:** Implemented for the upcoming 0.5.0 release by
 > [#1556](https://github.com/chattocorp/chatto/issues/1556), with a clean
@@ -60,6 +60,14 @@ are exact and independent of pagination or presentation grouping:
   count that selects orange rather than the neutral Ambient treatment;
 - each unread occurrence contributes one to its room's notification count;
 - two unread DMs consolidated into one row still display a badge count of two.
+
+An occurrence's target is a typed protobuf union. Notifications 2.0 initially
+supports the room-message target used by every current cause. Future resource
+targets can be added without overloading message fields, but each must define
+its own authorization, lifecycle, navigation, and delivery behavior. Clients
+ignore target variants they do not support while still advancing through the
+server page. This extension point does not itself implement room invitations or
+make notifications authoritative for invitation state.
 
 The bundled frontend derives temporary groups as follows:
 
@@ -182,6 +190,8 @@ Legacy records and coarse Muted/Normal/All Messages preferences are not
 migrated or interpreted. Historical persisted event variants remain
 replay-decodable, but new code adds no notification facts to `EVT`. Older
 clients cannot use the replacement notification API on an upgraded server.
+The initial typed target replaces an unreleased development-only flat target;
+after the 0.5.0 contract ships, new oneof target variants are additive.
 
 ## Permissions
 

@@ -1503,7 +1503,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("room unread-occurrence counts = %+v, want one group for %s", counts, dm.Id)
 	}
 	occurrence := list.Msg.GetOccurrences()[0]
-	if occurrence.GetTarget().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetEventId() != posted.Id ||
+	if occurrence.GetTarget().GetRoomMessage().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetRoomMessage().GetEventId() != posted.Id ||
 		!occurrence.GetUnread() || occurrence.GetAttentionLevel() != apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
 	}
@@ -1643,7 +1643,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceCreated:        posted.GetCreatedAt().AsTime(),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               &corev1.NotificationTarget{RoomId: dm.Id, EventId: posted.Id},
+			Target:               testNotificationRoomMessageTarget(dm.Id, posted.Id),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1779,7 +1779,7 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1840,7 +1840,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceCreated:        baseTime.Add(-time.Duration(index) * time.Second),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+			Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1897,7 +1897,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceCreated:        sourceCreated,
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+			Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,

@@ -1647,7 +1647,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		if !testOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
 			t.Errorf("expected reply reason, got %+v", occurrence.GetReasons())
 		}
-		if occurrence.GetTarget().GetRoomId() != room.Id || occurrence.GetTarget().GetParentEventId() != aliceMsg.Id || occurrence.GetTarget().GetThreadRootEventId() != "" {
+		roomMessageTarget := occurrence.GetTarget().GetRoomMessage()
+		if roomMessageTarget.GetRoomId() != room.Id || roomMessageTarget.GetParentEventId() != aliceMsg.Id || roomMessageTarget.GetThreadRootEventId() != "" {
 			t.Errorf("occurrence target = %+v, want room %q and parent %q without thread", occurrence.GetTarget(), room.Id, aliceMsg.Id)
 		}
 		if occurrence.GetActorId() != bob.Id {
@@ -1758,8 +1759,8 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
 			t.Fatalf("expected one followed-thread occurrence, got %+v", occurrences)
 		}
-		if occurrences[0].GetTarget().GetThreadRootEventId() != rootMsg.Id {
-			t.Errorf("thread target = %q, want %q", occurrences[0].GetTarget().GetThreadRootEventId(), rootMsg.Id)
+		if occurrences[0].GetTarget().GetRoomMessage().GetThreadRootEventId() != rootMsg.Id {
+			t.Errorf("thread target = %q, want %q", occurrences[0].GetTarget().GetRoomMessage().GetThreadRootEventId(), rootMsg.Id)
 		}
 	})
 
@@ -1823,7 +1824,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		if len(bobOccurrences) != 1 || !testOccurrenceHasReason(bobOccurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
 			t.Fatalf("expected Bob to get one reply occurrence, got %+v", bobOccurrences)
 		}
-		target := bobOccurrences[0].GetTarget()
+		target := bobOccurrences[0].GetTarget().GetRoomMessage()
 		if target.GetParentEventId() != bobMsg.Id || target.GetThreadRootEventId() != rootMsg.Id {
 			t.Errorf("occurrence target = %+v, want parent %q and thread %q", target, bobMsg.Id, rootMsg.Id)
 		}

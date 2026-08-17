@@ -226,11 +226,11 @@ export class NotificationReasonMatch extends Message<NotificationReasonMatch> {
 }
 
 /**
- * Exact visible destination of one notification occurrence.
+ * Exact visible message destination of one notification occurrence.
  *
- * @generated from message chatto.api.v1.NotificationTarget
+ * @generated from message chatto.api.v1.NotificationRoomMessageTarget
  */
-export class NotificationTarget extends Message<NotificationTarget> {
+export class NotificationRoomMessageTarget extends Message<NotificationRoomMessageTarget> {
   /**
    * Room containing the source activity.
    *
@@ -259,6 +259,57 @@ export class NotificationTarget extends Message<NotificationTarget> {
    */
   parentEventId?: string;
 
+  constructor(data?: PartialMessage<NotificationRoomMessageTarget>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationRoomMessageTarget";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: RoomSummary },
+    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 4, name: "parent_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationRoomMessageTarget {
+    return new NotificationRoomMessageTarget().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationRoomMessageTarget {
+    return new NotificationRoomMessageTarget().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationRoomMessageTarget {
+    return new NotificationRoomMessageTarget().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationRoomMessageTarget | PlainMessage<NotificationRoomMessageTarget> | undefined, b: NotificationRoomMessageTarget | PlainMessage<NotificationRoomMessageTarget> | undefined): boolean {
+    return proto3.util.equals(NotificationRoomMessageTarget, a, b);
+  }
+}
+
+/**
+ * Typed resource or activity represented by one notification occurrence.
+ * Clients must ignore occurrences whose target variant they do not support.
+ *
+ * @generated from message chatto.api.v1.NotificationTarget
+ */
+export class NotificationTarget extends Message<NotificationTarget> {
+  /**
+   * @generated from oneof chatto.api.v1.NotificationTarget.kind
+   */
+  kind: {
+    /**
+     * Exact room-message destination.
+     *
+     * @generated from field: chatto.api.v1.NotificationRoomMessageTarget room_message = 1;
+     */
+    value: NotificationRoomMessageTarget;
+    case: "roomMessage";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
   constructor(data?: PartialMessage<NotificationTarget>) {
     super();
     proto3.util.initPartial(data, this);
@@ -267,10 +318,7 @@ export class NotificationTarget extends Message<NotificationTarget> {
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.NotificationTarget";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room", kind: "message", T: RoomSummary },
-    { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "parent_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 1, name: "room_message", kind: "message", T: NotificationRoomMessageTarget, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationTarget {
@@ -325,7 +373,7 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   actor?: User;
 
   /**
-   * Exact current destination for navigation.
+   * Typed resource or activity represented by this occurrence.
    *
    * @generated from field: chatto.api.v1.NotificationTarget target = 5;
    */

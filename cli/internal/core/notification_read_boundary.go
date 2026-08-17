@@ -116,10 +116,10 @@ func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Conte
 }
 
 func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
-	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 || occurrence.GetTarget() == nil {
+	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 || occurrence.GetTarget().GetRoomMessage() == nil {
 		return false, nil
 	}
-	target := occurrence.GetTarget()
+	target := occurrence.GetTarget().GetRoomMessage()
 	boundary, exists, err := m.notificationReadBoundary(ctx, occurrence.GetRecipientId(), target.GetRoomId(), target.GetThreadRootEventId())
 	if err != nil || !exists {
 		return false, err

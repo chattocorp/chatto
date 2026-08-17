@@ -394,7 +394,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		roomName = payloadCtx.RoomName
 	}
 
-	target := occurrence.GetTarget()
+	target := occurrence.GetTarget().GetRoomMessage()
 	if target == nil {
 		payload.Title = "New notification"
 		payload.Body = "You have a new notification"
@@ -460,7 +460,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 
 // OccurrenceTag returns the stable native-notification tag for an occurrence.
 func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
-	eventID := occurrence.GetTarget().GetEventId()
+	eventID := occurrence.GetTarget().GetRoomMessage().GetEventId()
 	switch {
 	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
 		return "dm-" + eventID
@@ -470,7 +470,7 @@ func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
 		return "reply-" + eventID
 	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION):
 		return "reaction-" + eventID
-	case occurrence.GetTarget() != nil:
+	case occurrence.GetTarget().GetRoomMessage() != nil:
 		return "room-message-" + eventID
 	default:
 		return ""

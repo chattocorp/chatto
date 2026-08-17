@@ -60,9 +60,13 @@ stable IDs, preserves first-seen request order, de-duplicates repeats, and omits
 missing or inaccessible rows. Integrations can therefore hydrate IDs received
 through listing or realtime without scanning pages.
 
-Each occurrence carries its exact target and cause data, including reaction
-emoji. The API does not hydrate or return message excerpts; clients render
-concise descriptions from target, actor, room, cause, and reaction metadata.
+Each occurrence carries a typed exact target and cause data, including reaction
+emoji. The current target variant identifies a room message. New resource
+targets can be added as protobuf oneof branches; clients omit unsupported
+variants instead of guessing navigation or rendering them as messages. Each new
+variant requires its own visibility and lifecycle behavior. The API does not
+hydrate or return message excerpts; clients render concise descriptions from
+target, actor, room, cause, and reaction metadata.
 
 The realtime projection replaces the same finite occurrence page and totals.
 Realtime transitions accelerate convergence; list/reconnect state remains

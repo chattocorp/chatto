@@ -121,7 +121,7 @@ func TestNotificationAlertDeliveryFencesMaterializerBeforeOccurrenceLookup(t *te
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence,
 		ActorID:              author.Id,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:               newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -180,7 +180,7 @@ func TestNotificationAlertQueueSilencesExpiredWorkWithoutCallingProvider(t *test
 		RecipientID:   "U-expired-alert",
 		SourceEventID: "E-expired-alert",
 		SourceCreated: sourceCreated,
-		Target:        &corev1.NotificationTarget{RoomId: "R-expired-alert", EventId: "E-expired-alert"},
+		Target:        newNotificationRoomMessageTarget("R-expired-alert", "E-expired-alert"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -247,7 +247,7 @@ func TestNotificationAlertQueueDoesNotExtendOrShortenDeadlineFromPublishTime(t *
 		SourceEventID: posted.Id,
 		SourceCreated: now.Add(-time.Minute),
 		ActorID:       author.Id,
-		Target:        &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:        newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,

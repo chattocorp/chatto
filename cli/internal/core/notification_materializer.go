@@ -727,7 +727,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	entriesByPair := make(map[recipientRoom][]notificationOccurrenceIndexEntry)
 	for _, entry := range entries {
 		occurrence := entry.occurrence
-		targetRoomID := occurrence.GetTarget().GetRoomId()
+		targetRoomID := occurrence.GetTarget().GetRoomMessage().GetRoomId()
 		if occurrence.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED ||
 			targetRoomID == "" || (roomID != "" && targetRoomID != roomID) ||
 			(streamSequence != 0 && occurrence.GetSourceStreamSequence() >= streamSequence) {
@@ -884,7 +884,8 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 		_, err := m.core.notificationOccurrences.RemoveSource(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId(), occurrence.GetRemovalReason())
 		return err
 	}
-	if occurrence.GetTarget() == nil || len(occurrence.GetReasons()) == 0 {
+	roomMessageTarget := occurrence.GetTarget().GetRoomMessage()
+	if roomMessageTarget == nil || len(occurrence.GetReasons()) == 0 {
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
@@ -901,14 +902,14 @@ func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, ev
 	default:
 		return nil
 	}
-	visible, err := m.activeVisibleRecipient(ctx, occurrence.GetRecipientId(), occurrence.GetTarget().GetRoomId())
+	visible, err := m.activeVisibleRecipient(ctx, occurrence.GetRecipientId(), roomMessageTarget.GetRoomId())
 	if err != nil {
 		return err
 	}
 	if !visible {
 		return nil
 	}
-	afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, occurrence.GetRecipientId(), occurrence.GetTarget().GetRoomId(), streamSequence)
+	afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, occurrence.GetRecipientId(), roomMessageTarget.GetRoomId(), streamSequence)
 	if err != nil {
 		return err
 	}

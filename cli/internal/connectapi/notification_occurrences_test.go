@@ -1,6 +1,7 @@
 package connectapi
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -8,11 +9,22 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+func TestNotificationAssemblerIgnoresUnsupportedTarget(t *testing.T) {
+	got, err := (&notificationAssembler{}).occurrenceWithPresentation(
+		context.Background(),
+		&corev1.NotificationOccurrence{Target: &corev1.NotificationTarget{}},
+		"",
+	)
+	if err != nil || got != nil {
+		t.Fatalf("occurrenceWithPresentation = (%v, %v), want nil, nil", got, err)
+	}
+}
+
 func TestNotificationSummaryCountsAttentionAcrossCompleteOccurrenceSet(t *testing.T) {
 	expires := timestamppb.New(time.Now().Add(time.Hour))
 	occurrence := func(roomID string, state corev1.NotificationInboxState, level corev1.NotificationAttentionLevel, reason corev1.NotificationReason) *corev1.NotificationOccurrence {
 		return &corev1.NotificationOccurrence{
-			Target:         &corev1.NotificationTarget{RoomId: roomID},
+			Target:         testNotificationRoomMessageTarget(roomID, "event"),
 			InboxState:     state,
 			AttentionLevel: level,
 			Reasons:        []*corev1.NotificationReasonMatch{{Reason: reason}},
@@ -38,5 +50,16 @@ func TestNotificationSummaryCountsAttentionAcrossCompleteOccurrenceSet(t *testin
 	}
 	if got := summary.roomCounts[1]; got.GetRoomId() != "room-b" || got.GetUnreadCount() != 1 || got.GetImportantUnreadCount() != 1 {
 		t.Fatalf("room-b summary = %+v, want unread=1 important=1", got)
+	}
+}
+
+func testNotificationRoomMessageTarget(roomID, eventID string) *corev1.NotificationTarget {
+	return &corev1.NotificationTarget{
+		Kind: &corev1.NotificationTarget_RoomMessage{
+			RoomMessage: &corev1.NotificationRoomMessageTarget{
+				RoomId:  roomID,
+				EventId: eventID,
+			},
+		},
 	}
 }

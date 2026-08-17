@@ -224,7 +224,7 @@ func TestMessageNotificationMaterializationMergesReasonsAndReconcilesReadState(t
 		t.Fatalf("occurrences = %d, want one merged occurrence", len(occurrences))
 	}
 	occurrence := occurrences[0]
-	if occurrence.GetSourceEventId() != reply.Id || occurrence.GetTarget().GetEventId() != reply.Id || occurrence.GetTarget().GetParentEventId() != root.Id {
+	if occurrence.GetSourceEventId() != reply.Id || occurrence.GetTarget().GetRoomMessage().GetEventId() != reply.Id || occurrence.GetTarget().GetRoomMessage().GetParentEventId() != root.Id {
 		t.Fatalf("occurrence target = %+v, source = %q", occurrence.GetTarget(), occurrence.GetSourceEventId())
 	}
 	wantReasons := map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity{
@@ -301,7 +301,7 @@ func TestNotificationVisibilityBoundarySurvivesSuccessfulHandlerUntilAckFloor(t 
 	if _, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: member.Id, SourceEventID: "ack-boundary-source", SourceCreated: time.Now().UTC(),
 		SourceStreamSequence: postedSequence, ActorID: owner.Id,
-		Target:         &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:         newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons:        []*corev1.NotificationReasonMatch{{Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE}},
 		SkipReadLookup: true,
 	}); err != nil || !created {
@@ -491,7 +491,7 @@ func TestNotificationDurableWorkerMaterializesPreparedRuntimeWork(t *testing.T) 
 	}})
 	work := newNotificationOccurrenceWork(
 		source,
-		&corev1.NotificationTarget{RoomId: room.Id, EventId: source.Id},
+		newNotificationRoomMessageTarget(room.Id, source.Id),
 		[]notificationRecipientDecision{{
 			recipientID: recipient.Id,
 			reasons: []*corev1.NotificationReasonMatch{{
@@ -543,7 +543,7 @@ func TestStoreWorkClearsStaleRecipientsWhenRetryNowProducesNoWork(t *testing.T) 
 	}})
 	work := newNotificationOccurrenceWork(
 		source,
-		&corev1.NotificationTarget{RoomId: "R-work", EventId: "E-target"},
+		newNotificationRoomMessageTarget("R-work", "E-target"),
 		[]notificationRecipientDecision{{
 			recipientID: "U-work-recipient",
 			reasons: []*corev1.NotificationReasonMatch{{
@@ -655,7 +655,7 @@ func TestNotificationLifecycleCleanupWaitsForLaggingOccurrenceIndex(t *testing.T
 		RecipientID:   recipientID,
 		SourceEventID: "E-lagging-lifecycle-source",
 		SourceCreated: time.Now().UTC(),
-		Target:        &corev1.NotificationTarget{RoomId: roomID, EventId: eventID},
+		Target:        newNotificationRoomMessageTarget(roomID, eventID),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason: corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		}},
@@ -715,7 +715,7 @@ func TestNotificationMaterializerPurgesAllUserNotificationStateOnAccountDeletion
 		SourceCreated:        time.Now().UTC(),
 		ActorID:              "U-notification-account-deleted-actor",
 		SourceStreamSequence: 10,
-		Target:               &corev1.NotificationTarget{RoomId: roomID, EventId: "E-notification-account-deleted-target"},
+		Target:               newNotificationRoomMessageTarget(roomID, "E-notification-account-deleted-target"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1036,7 +1036,7 @@ func TestNotificationVisibilityReconciliationUsesEventBoundaryWhenProjectionIsAh
 			SourceCreated:        time.Now().UTC(),
 			SourceStreamSequence: sequence,
 			ActorID:              author.Id,
-			Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: targetID},
+			Target:               newNotificationRoomMessageTarget(room.Id, targetID),
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1197,7 +1197,7 @@ func TestLateNotificationOccurrenceStartsReadWhenCursorAlreadyCoversTarget(t *te
 		SourceCreated:        posted.GetCreatedAt().AsTime().Add(time.Hour),
 		SourceStreamSequence: postedEntry.StreamSeq,
 		ActorID:              author.Id,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:               newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -1248,7 +1248,7 @@ func TestDuplicateMaterializationPreservesReadState(t *testing.T) {
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: postedEntry.StreamSeq,
 		ActorID:              author.Id,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		Target:               newNotificationRoomMessageTarget(room.Id, posted.Id),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -1287,7 +1287,7 @@ func TestReactionRemovalPreservesCausallyLaterReadd(t *testing.T) {
 			SourceCreated:        now,
 			SourceStreamSequence: sequence,
 			ActorID:              "U-reaction-actor",
-			Target:               &corev1.NotificationTarget{RoomId: "R-reaction", EventId: "E-message"},
+			Target:               newNotificationRoomMessageTarget("R-reaction", "E-message"),
 			ReactionEmoji:        "thumbsup",
 			Reasons: []*corev1.NotificationReasonMatch{{
 				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
@@ -1364,7 +1364,7 @@ func TestVisibilityBoundaryRejectsDelayedSourceAfterRejoin(t *testing.T) {
 		source.Id = id
 		work := newNotificationOccurrenceWork(
 			source,
-			&corev1.NotificationTarget{RoomId: room.Id, EventId: source.Id},
+			newNotificationRoomMessageTarget(room.Id, source.Id),
 			[]notificationRecipientDecision{{
 				recipientID: member.Id,
 				reasons: []*corev1.NotificationReasonMatch{{
@@ -1423,7 +1423,7 @@ func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T
 		SourceCreated:        leftAt.Add(-time.Second),
 		ActorID:              owner.Id,
 		SourceStreamSequence: 100,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-before-leave"},
+		Target:               newNotificationRoomMessageTarget(room.Id, "E-before-leave"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1439,7 +1439,7 @@ func TestHistoricalLeaveReplayDoesNotRemoveNotificationsAfterRejoin(t *testing.T
 		SourceCreated:        leftAt.Add(time.Second),
 		ActorID:              owner.Id,
 		SourceStreamSequence: 300,
-		Target:               &corev1.NotificationTarget{RoomId: room.Id, EventId: "E-after-rejoin"},
+		Target:               newNotificationRoomMessageTarget(room.Id, "E-after-rejoin"),
 		Reasons: []*corev1.NotificationReasonMatch{{
 			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
 			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
@@ -1500,7 +1500,7 @@ func TestHistoricalNotificationReplaySkipsDeletedRecipient(t *testing.T) {
 	}
 	work := newNotificationOccurrenceWork(
 		source,
-		&corev1.NotificationTarget{RoomId: "R-deleted-recipient", EventId: source.GetId()},
+		newNotificationRoomMessageTarget("R-deleted-recipient", source.GetId()),
 		[]notificationRecipientDecision{{
 			recipientID: recipient.Id,
 			reasons: []*corev1.NotificationReasonMatch{{
@@ -1547,7 +1547,7 @@ func TestHistoricalNotificationReplaySkipsDeletedRoom(t *testing.T) {
 	}
 	work := newNotificationOccurrenceWork(
 		source,
-		&corev1.NotificationTarget{RoomId: "R-already-deleted", EventId: source.GetId()},
+		newNotificationRoomMessageTarget("R-already-deleted", source.GetId()),
 		[]notificationRecipientDecision{{
 			recipientID: recipient.Id,
 			reasons: []*corev1.NotificationReasonMatch{{
@@ -1598,7 +1598,7 @@ func TestDelayedMessageNotificationRetryDoesNotOutrunRetraction(t *testing.T) {
 	}
 	work := newNotificationOccurrenceWork(
 		posted,
-		&corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		newNotificationRoomMessageTarget(room.Id, posted.Id),
 		[]notificationRecipientDecision{{
 			recipientID: recipient.Id,
 			reasons: []*corev1.NotificationReasonMatch{{
@@ -1672,7 +1672,7 @@ func TestDelayedReactionNotificationRetryDoesNotOutrunRemoval(t *testing.T) {
 	}
 	work := newNotificationOccurrenceWork(
 		addEvent,
-		&corev1.NotificationTarget{RoomId: room.Id, EventId: posted.Id},
+		newNotificationRoomMessageTarget(room.Id, posted.Id),
 		[]notificationRecipientDecision{decision},
 	)
 	if err := chattoCore.notificationMaterializer.StoreWork(ctx, addEvent, work); err != nil {

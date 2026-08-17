@@ -845,9 +845,9 @@ func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID,
 	if err != nil {
 		t.Fatalf("GetEventSequence: %v", err)
 	}
-	target := &corev1.NotificationTarget{RoomId: roomID, EventId: event.GetId()}
+	target := testNotificationRoomMessageTarget(roomID, event.GetId())
 	if threadRootID != "" {
-		target.ThreadRootEventId = &threadRootID
+		target.GetRoomMessage().ThreadRootEventId = &threadRootID
 	}
 	occurrence, _, err := env.core.NotificationOccurrences().Create(env.ctx, core.CreateNotificationOccurrenceInput{
 		RecipientID:          recipientID,
