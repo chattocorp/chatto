@@ -128,7 +128,7 @@ func initializeCoreProjections(
 		registrar,
 		notificationVisibility,
 		projectionsnapshot.ProjectionNotificationVisibilityKey,
-		"Notification Visibility",
+		"Notification Decisions",
 		notificationVisibility.adminProjectionEstimate,
 		sharedSnapshots,
 	)

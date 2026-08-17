@@ -59,10 +59,11 @@ Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
-- Bounded `notification_work.{sourceEventId}`, notification read-boundary, and
-  visibility-boundary records used to coordinate notification derivation with
-  `EVT` and the separate `NOTIFICATIONS` event stream. Occurrences and their
-  lifecycle facts do not live in `RUNTIME_STATE`; see ADR-075.
+- Bounded notification read-boundary and visibility-boundary records used to
+  coordinate read reconciliation and persistent privacy boundaries between
+  `EVT` and the separate `NOTIFICATIONS` event stream. Notification derivation
+  work, occurrences, and lifecycle facts do not live in `RUNTIME_STATE`; see
+  ADR-075.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Runtime credential verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry. Values include credential kind

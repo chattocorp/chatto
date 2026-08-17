@@ -68,7 +68,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 		next.observedSequence = next.targetSequence
 	}
 	key := notificationReadBoundaryKey(userID, roomID, threadRootEventID)
-	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
+	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
 		current, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			if _, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {
@@ -100,7 +100,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 			return notificationReadBoundary{}, fmt.Errorf("update notification read boundary: %w", err)
 		}
 	}
-	return notificationReadBoundary{}, fmt.Errorf("write notification read boundary after %d attempts", maxNotificationWorkWriteRetries)
+	return notificationReadBoundary{}, fmt.Errorf("write notification read boundary after %d attempts", maxNotificationStateWriteRetries)
 }
 
 func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Context, userID, roomID, threadRootEventID string) (notificationReadBoundary, bool, error) {

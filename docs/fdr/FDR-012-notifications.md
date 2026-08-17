@@ -68,8 +68,8 @@ must define its own authorization, lifecycle, navigation, and delivery
 behavior. Clients using binary protobuf retain unsupported variants as generic,
 non-navigating rows with exact triage identity while still advancing through
 the server page; ProtoJSON clients need unknown-field-tolerant decoding for that
-fallback. Older servers preserve unknown occurrences and prepared work rather
-than treating version skew as visibility loss, and explicitly reject exact
+fallback. Older servers preserve unknown occurrences rather than treating
+version skew as visibility loss, and explicitly reject exact
 reads, read mutations, or deletes they cannot validate rather than reporting
 absence or false success. This extension point does not itself implement room
 invitations or make notifications authoritative for invitation state.
@@ -125,20 +125,24 @@ an occurrence is visually Ambient or Important.
 
 ## Durable derivation and push delivery
 
-Source-command OCC attempts recompute recipients, mention expansion, thread
-followers, and policy after waiting the relevant Thread and Config projection
-tails. They replace one exact temporary work value in `RUNTIME_STATE` before
-appending the existing message or reaction fact. No notification-only fact is
-added to `EVT`.
+Source-command OCC attempts resolve and retain mention recipients and mention
+kinds with the message fact. Other recipients and policy are derived
+asynchronously from a compact projection of accounts, rooms, authorization,
+preferences, and thread state at the source event's exact position. Later
+membership, preference, or follow changes cannot rewrite that source-time
+decision. No notification-only fact is added to `EVT`.
 
-The shared `chatto-notification-materializer-v2` durable consumer appends rich
+The shared `chatto-notification-materializer-v3` durable consumer appends rich
 `NotificationSignalled` facts to the bounded `NOTIFICATIONS` stream and applies
-lifecycle cleanup in source order. It handles retraction, reaction removal,
-explicit and implicit visibility loss, room deletion, and account deletion.
-The Notification Visibility projection retains the event-time room/group/RBAC
-boundary needed to prevent a quick regain from preserving pre-loss content.
-The current list is a replayable in-memory projection of `NOTIFICATIONS` with
-encrypted snapshots, not a per-occurrence KV index.
+lifecycle cleanup in source order. It acknowledges a source only after the
+idempotent output succeeds, so a crash or partial write is retried without a
+separate notification queue or prepared-work record. It handles retraction,
+reaction removal, explicit and implicit visibility loss, room deletion, and
+account deletion. The Notification Decisions projection retains exact
+event-time decision and visibility boundaries; persistent visibility-loss
+markers prevent a quick regain from preserving pre-loss content. The current
+list is a replayable in-memory projection of `NOTIFICATIONS` with encrypted
+snapshots, not a per-occurrence KV index.
 
 The `chatto-notification-alert-delivery-v2` durable consumer reads
 `notifications.signalled` from that same stream. Before provider delivery it

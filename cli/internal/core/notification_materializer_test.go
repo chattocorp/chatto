@@ -2,19 +2,13 @@ package core
 
 import (
 	"context"
-	"errors"
 	"slices"
 	"testing"
-	"time"
-
-	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func TestMessageNotificationWorkRecomputesAfterOCCConflict(t *testing.T) {
+func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	author, err := chattoCore.CreateUser(ctx, SystemActorID, "notify-retry-author", "Notify Retry Author", "password")
@@ -38,7 +32,7 @@ func TestMessageNotificationWorkRecomputesAfterOCCConflict(t *testing.T) {
 
 	preparedAttempts := 0
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all retry recipients", nil, "", "", nil, false,
-		withPostMessageNotificationAttemptPrepared(func(attemptCtx context.Context) error {
+		withPostMessageAttemptPrepared(func(attemptCtx context.Context) error {
 			preparedAttempts++
 			if preparedAttempts != 1 {
 				return nil
@@ -52,6 +46,15 @@ func TestMessageNotificationWorkRecomputesAfterOCCConflict(t *testing.T) {
 	}
 	if preparedAttempts < 2 || !slices.Contains(posted.GetMessagePosted().GetMentionedUserIds(), lateMember.Id) {
 		t.Fatalf("retry attempts/recipients = (%d, %v)", preparedAttempts, posted.GetMessagePosted().GetMentionedUserIds())
+	}
+	foundLateMember := false
+	for _, mention := range posted.GetMessagePosted().GetMentions() {
+		if mention.GetUserId() == lateMember.Id && mention.GetKind() == corev1.MessageMentionKind_MESSAGE_MENTION_KIND_ALL {
+			foundLateMember = true
+		}
+	}
+	if !foundLateMember {
+		t.Fatalf("resolved mention facts = %+v, want @all fact for late member", posted.GetMessagePosted().GetMentions())
 	}
 	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
 		t.Fatalf("WaitCurrent: %v", err)
@@ -139,41 +142,5 @@ func TestDirectMessagesRemainExactOccurrences(t *testing.T) {
 	occurrences := testNotificationOccurrences(t, chattoCore, alice.Id)
 	if len(occurrences) != 2 || occurrences[0].GetSourceEventId() != second.GetId() || occurrences[1].GetSourceEventId() != first.GetId() {
 		t.Fatalf("DM occurrences = %+v, want one per message", occurrences)
-	}
-}
-
-func TestPreparedWorkUsesOneReplaceableKeyPerSourceFact(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	now := time.Now().UTC()
-	trigger := &corev1.Event{Id: "E-work", ActorId: "U-author", CreatedAt: timestamppb.New(now)}
-	work := func(recipient, eventID string, kind corev1.NotificationPolicyKind) *corev1.NotificationOccurrence {
-		return &corev1.NotificationOccurrence{
-			RecipientId: recipient, SourceEventId: trigger.GetId(), SourceCreatedAt: trigger.GetCreatedAt(), ActorId: trigger.GetActorId(),
-			Signal: testNotificationSignal(kind, "R-work", eventID), Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		}
-	}
-	if err := chattoCore.notificationMaterializer.StoreWork(ctx, trigger, &corev1.NotificationMaterializationWork{Notifications: []*corev1.NotificationOccurrence{work("U1", "E1", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)}}); err != nil {
-		t.Fatal(err)
-	}
-	if err := chattoCore.notificationMaterializer.StoreWork(ctx, trigger, &corev1.NotificationMaterializationWork{Notifications: []*corev1.NotificationOccurrence{
-		work("U1", "E1", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY),
-		work("U2", "E1", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION),
-	}}); err != nil {
-		t.Fatal(err)
-	}
-	entry, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkKey(trigger.GetId()))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var stored corev1.NotificationMaterializationWork
-	if err := proto.Unmarshal(entry.Value(), &stored); err != nil || len(stored.GetNotifications()) != 2 {
-		t.Fatalf("stored work = (%+v, %v)", &stored, err)
-	}
-	if err := chattoCore.notificationMaterializer.StoreWork(ctx, trigger, nil); err != nil {
-		t.Fatal(err)
-	}
-	if _, err := chattoCore.storage.runtimeStateKV.Get(ctx, notificationWorkKey(trigger.GetId())); !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
-		t.Fatalf("work remained after empty replacement: %v", err)
 	}
 }

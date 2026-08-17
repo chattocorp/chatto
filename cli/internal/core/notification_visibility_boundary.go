@@ -12,6 +12,7 @@ import (
 )
 
 const notificationVisibilityKeyPrefix = "notification_visibility_boundary."
+const maxNotificationStateWriteRetries = 8
 
 func notificationVisibilityBoundaryKey(userID, roomID string) string {
 	return notificationVisibilityKeyPrefix + userID + "." + roomID
@@ -28,7 +29,7 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 	key := notificationVisibilityBoundaryKey(userID, roomID)
 	value := make([]byte, 8)
 	binary.BigEndian.PutUint64(value, sequence)
-	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
+	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
@@ -53,7 +54,7 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 			return fmt.Errorf("update notification visibility boundary: %w", err)
 		}
 	}
-	return fmt.Errorf("write notification visibility boundary after %d attempts", maxNotificationWorkWriteRetries)
+	return fmt.Errorf("write notification visibility boundary after %d attempts", maxNotificationStateWriteRetries)
 }
 
 func (m *NotificationMaterializer) sourceAfterVisibilityBoundary(ctx context.Context, userID, roomID string, sequence uint64) (bool, error) {
@@ -87,4 +88,24 @@ func (m *NotificationMaterializer) purgeVisibilityBoundaries(ctx context.Context
 		}
 	}
 	return nil
+}
+
+func (m *NotificationMaterializer) deleteRuntimeStateKey(ctx context.Context, key string) error {
+	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		if err != nil {
+			return fmt.Errorf("read runtime-state key for deletion: %w", err)
+		}
+		err = m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		if !jetstreamutil.IsSequenceConflict(err) {
+			return fmt.Errorf("delete runtime-state key: %w", err)
+		}
+	}
+	return fmt.Errorf("delete runtime-state key after %d attempts", maxNotificationStateWriteRetries)
 }

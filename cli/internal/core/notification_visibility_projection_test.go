@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"slices"
 	"testing"
 	"time"
 
@@ -45,6 +46,82 @@ func TestNotificationVisibilityProjectionRetainsExactBoundaryWhenCurrentStateAdv
 	regainRoom, ok := regainState.rooms.Catalog.Get("R1")
 	if !ok || !regainRoom.GetUniversal() {
 		t.Fatalf("regain boundary room = (%+v, %v), want universal", regainRoom, ok)
+	}
+}
+
+func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	roomID := "R1"
+	userID := "U1"
+	roomScope := roomID
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "badge", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
+			UserId: userID, RoomId: &roomScope, Kind: corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		}}},
+		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+		{Id: "off", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
+			UserId: userID, RoomId: &roomScope, Kind: corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+		}}},
+		{Id: "later-source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+	}
+	for i, event := range events {
+		if err := p.Apply(event, uint64(i+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", i+1, err)
+		}
+	}
+
+	atSource, err := p.Boundary(5, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary source: %v", err)
+	}
+	if got := atSource.effectiveNotificationIntensity(userID, roomID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE {
+		t.Fatalf("source policy = %v, want BADGE", got)
+	}
+	atLaterSource, err := p.Boundary(7, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary later source: %v", err)
+	}
+	if got := atLaterSource.effectiveNotificationIntensity(userID, roomID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+		t.Fatalf("later source policy = %v, want OFF", got)
+	}
+}
+
+func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	roomID := "R1"
+	threadRootID := "ROOT"
+	userID := "U1"
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "follow", Event: &corev1.Event_ThreadFollowed{ThreadFollowed: &corev1.ThreadFollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
+		{Id: "reply", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
+		{Id: "unfollow", Event: &corev1.Event_ThreadUnfollowed{ThreadUnfollowed: &corev1.ThreadUnfollowedEvent{UserId: userID, RoomId: roomID, ThreadRootEventId: threadRootID}}},
+		{Id: "later-reply", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID, InThread: threadRootID}}},
+	}
+	for i, event := range events {
+		if err := p.Apply(event, uint64(i+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", i+1, err)
+		}
+	}
+
+	atReply, err := p.Boundary(5, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary reply: %v", err)
+	}
+	if got := atReply.threadFollowerIDs(roomID, threadRootID); !slices.Equal(got, []string{userID}) {
+		t.Fatalf("reply followers = %v, want [%s]", got, userID)
+	}
+	atLaterReply, err := p.Boundary(7, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary later reply: %v", err)
+	}
+	if got := atLaterReply.threadFollowerIDs(roomID, threadRootID); len(got) != 0 {
+		t.Fatalf("later reply followers = %v, want none", got)
 	}
 }
 

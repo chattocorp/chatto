@@ -267,23 +267,6 @@ message NotificationOccurrence {
   uint64 notification_stream_sequence = 21;
 }
 
-// NotificationMaterializationWork is the exact source-time notification work
-// staged before one EVT fact commits. It is temporary RUNTIME_STATE data, not
-// a domain event, and lets the durable materializer replay the committed fact
-// without re-evaluating recipients or policy against newer state.
-message NotificationMaterializationWork {
-  repeated NotificationOccurrence notifications = 1;
-  repeated NotificationMaterializationRevocation revocations = 2;
-}
-
-// NotificationMaterializationRevocation removes all signal occurrences
-// derived from one earlier source fact.
-message NotificationMaterializationRevocation {
-  string recipient_id = 1;
-  string source_event_id = 2;
-  NotificationRemovalReason reason = 3;
-}
-
 // NotificationSignalled is the immutable source-time fact from which the
 // current NotificationOccurrence is projected.
 message NotificationSignalled {

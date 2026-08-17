@@ -315,8 +315,10 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 }
 
 // orderBackupStreams preserves notification materialization across independently
-// captured snapshots. EVT establishes the replay floor, RUNTIME_STATE captures
-// exact prepared work, and NOTIFICATIONS captures the derived lifecycle last.
+// captured snapshots. EVT captures the durable consumer floor first,
+// RUNTIME_STATE captures read/visibility boundaries, and NOTIFICATIONS captures
+// deterministic derived lifecycle facts last. A handoff racing the snapshots
+// is therefore either present or replayable after restore.
 func orderBackupStreams(names []string) {
 	priority := func(name string) int {
 		switch name {

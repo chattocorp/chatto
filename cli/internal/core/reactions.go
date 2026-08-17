@@ -73,7 +73,7 @@ func (s *ReactionModel) addReaction(ctx context.Context, kind RoomKind, roomID, 
 		return false, ErrNotFound
 	}
 	event := newReactionAddedEvent(userID, roomID, messageEventID, emojiName)
-	added, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, target, "")
+	added, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to add reaction: %w", err)
 	}
@@ -117,11 +117,7 @@ func (s *ReactionModel) removeReaction(ctx context.Context, kind RoomKind, roomI
 		return false, ErrNotFound
 	}
 	event := newReactionRemovedEvent(userID, roomID, messageEventID, emojiName)
-	notificationRecipientID := ""
-	if target.GetActorId() != userID {
-		notificationRecipientID = target.GetActorId()
-	}
-	removed, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event, nil, notificationRecipientID)
+	removed, sequence, err := s.publishReactionMutation(ctx, kind, roomID, messageEventID, emojiName, userID, event)
 	if err != nil {
 		return false, fmt.Errorf("failed to remove reaction: %w", err)
 	}
@@ -362,26 +358,6 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 		if target == nil {
 			return nil, ErrNotFound
 		}
-		recipientID := target.GetActorId()
-		var notificationWork *corev1.NotificationMaterializationWork
-		if recipientID != "" && recipientID != input.ActorID {
-			if add {
-				if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
-					return nil, err
-				}
-				notificationWork = s.core.buildReactionNotificationWork(event, target, input.RoomID, messageEventID)
-			} else {
-				notificationWork = newNotificationRevocationWork(
-					event,
-					recipientID,
-					snapshot.SourceEventID,
-					corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED,
-				)
-			}
-		}
-		if err := s.core.notificationMaterializer.StoreWork(ctx, event, notificationWork); err != nil {
-			return nil, fmt.Errorf("prepare reaction notification work: %w", err)
-		}
 		return entries, nil
 	})
 	if err != nil {
@@ -464,7 +440,7 @@ func (s *ReactionModel) prepareAuthorizedReactionAttempt(ctx context.Context, in
 	return s.authorizeReaction(ctx, input)
 }
 
-func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event, notificationTarget *corev1.Event, notificationRecipientID string) (bool, uint64, error) {
+func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKind, roomID, messageEventID, emoji, userID string, event *corev1.Event) (bool, uint64, error) {
 	add := event.GetReactionAdded() != nil
 	remove := event.GetReactionRemoved() != nil
 	if !add && !remove {
@@ -492,26 +468,7 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 		} else if !snapshot.Exists {
 			return nil, nil
 		}
-		entries := []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}
-		var work *corev1.NotificationMaterializationWork
-		if add && notificationTarget != nil {
-			if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
-				return nil, err
-			}
-			work = s.core.buildReactionNotificationWork(event, notificationTarget, roomID, messageEventID)
-		} else if remove {
-			work = newNotificationRevocationWork(
-				event,
-				notificationRecipientID,
-				snapshot.SourceEventID,
-				corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED,
-			)
-		}
-		if err := s.core.notificationMaterializer.StoreWork(ctx, event, work); err != nil {
-			return nil, fmt.Errorf("prepare reaction notification work: %w", err)
-		}
-
-		return entries, nil
+		return []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}, nil
 	})
 	if err != nil {
 		return false, 0, err

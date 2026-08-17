@@ -124,12 +124,23 @@ message RoomGroupStateSnapshot {
   RoomGroup group = 1;
 }
 
-// NotificationVisibilityProjectionSnapshot combines the exact authorization
-// state needed to enforce persistent notification visibility boundaries.
+// NotificationVisibilityProjectionSnapshot combines the exact event-time
+// state needed to derive notifications and enforce persistent visibility
+// boundaries. The historical name is retained because snapshots are internal,
+// disposable projection caches.
 message NotificationVisibilityProjectionSnapshot {
   RoomDirectoryProjectionSnapshot room_directory = 1;
   RoomGroupLayoutProjectionSnapshot room_group_layout = 2;
   RBACProjectionSnapshot rbac = 3;
+  ConfigProjectionSnapshot config = 4;
+  repeated string active_user_ids = 5;
+  repeated ThreadFollowSnapshot thread_follows = 6;
+  repeated NotificationThreadStateSnapshot threads = 7;
+}
+
+message NotificationThreadStateSnapshot {
+  string thread_root_event_id = 1;
+  uint64 reply_count = 2;
 }
 
 message CallStateProjectionSnapshot {

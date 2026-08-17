@@ -12,7 +12,6 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -22,7 +21,7 @@ const (
 	// The durable name and its filter set form one schema-capability
 	// generation. Adding a source event that older binaries cannot decode must
 	// use a new consumer name so those binaries cannot acknowledge its work.
-	notificationWorkerConsumerName = "chatto-notification-materializer-v2"
+	notificationWorkerConsumerName = "chatto-notification-materializer-v3"
 	notificationWorkerAckWait      = time.Minute
 	notificationWorkerHeartbeat    = 15 * time.Second
 	notificationWorkerRetryDelay   = 10 * time.Second
@@ -30,17 +29,15 @@ const (
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
-	notificationWorkerMaxPending    = 1
-	notificationWorkKeyPrefix       = "notification_work."
-	maxNotificationWorkWriteRetries = 8
+	notificationWorkerMaxPending = 1
 )
 
 var errUnsupportedNotificationEvent = errors.New("unsupported notification event")
 
 // NotificationMaterializer consumes existing domain facts and applies their
-// notification effects. Exact source-time recipient decisions are staged as
-// short-lived RUNTIME_STATE work records before the source fact commits; EVT
-// contains no notification-only planning events.
+// notification effects. Its sequence-faithful projection reconstructs exact
+// event-time recipient and policy decisions; EVT contains no notification-only
+// planning events and RUNTIME_STATE contains no notification work queue.
 type NotificationMaterializer struct {
 	core                      *ChattoCore
 	visibility                events.ProjectionHandle[*NotificationVisibilityProjection]
@@ -310,6 +307,8 @@ func notificationWorkerFilterSubjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomUniversalChanged),
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 		evtstream.GroupEventTypeFilter(evtstream.EventRoomAddedToGroup),
+		evtstream.GroupEventTypeFilter(evtstream.EventRoomRemovedFromGroup),
+		evtstream.GroupEventTypeFilter(evtstream.EventRoomGroupDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserVerifiedEmailAdded),
 		evtstream.RBACEventTypeFilter(evtstream.EventRBACRoleDeleted),
@@ -372,10 +371,10 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return events.TerminateDelivery("invalid Chatto event envelope", err)
 	}
 	position := events.SubjectPosition(delivery.Subject, delivery.StreamSequence)
-	hasVisibilityBoundary := notificationVisibilityBoundaryEvent(&event)
-	if hasVisibilityBoundary {
+	hasDecisionBoundary := notificationDecisionBoundaryEvent(&event)
+	if hasDecisionBoundary {
 		if err := m.visibility.Projector().WaitFor(ctx, position); err != nil {
-			return fmt.Errorf("wait for notification visibility projection: %w", err)
+			return fmt.Errorf("wait for notification decision projection: %w", err)
 		}
 	}
 	switch event.GetEvent().(type) {
@@ -392,7 +391,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		if err := m.core.rbacModel.waitFor(ctx, position); err != nil {
 			return fmt.Errorf("wait for RBAC projection: %w", err)
 		}
-	case *corev1.Event_RoomAddedToGroup:
+	case *corev1.Event_RoomAddedToGroup, *corev1.Event_RoomRemovedFromGroup, *corev1.Event_RoomGroupDeleted:
 		if err := m.core.roomModel.waitForGroupLayout(ctx, position); err != nil {
 			return fmt.Errorf("wait for room group projection: %w", err)
 		}
@@ -407,99 +406,6 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	return nil
 }
 
-// StoreWork writes exact prepared occurrences before their triggering domain
-// event is appended. Orphans from a failed append expire at the same absolute
-// 90-day boundary as the occurrence they would have created.
-func (m *NotificationMaterializer) StoreWork(ctx context.Context, trigger *corev1.Event, work *corev1.NotificationMaterializationWork) error {
-	if m == nil {
-		if work == nil || (len(work.GetNotifications()) == 0 && len(work.GetRevocations()) == 0) {
-			return nil
-		}
-		return errors.New("notification materializer is not configured")
-	}
-	if trigger == nil || trigger.GetId() == "" || trigger.GetCreatedAt() == nil {
-		return nil
-	}
-	ttl := trigger.GetCreatedAt().AsTime().UTC().Add(notificationTTL).Sub(time.Now().UTC())
-	if ttl <= 0 {
-		return nil
-	}
-	for _, occurrence := range work.GetNotifications() {
-		if occurrence == nil || occurrence.GetRecipientId() == "" || occurrence.GetSourceEventId() == "" {
-			return invalidArgument("notification work requires recipient_id and source_event_id")
-		}
-	}
-	key := notificationWorkKey(trigger.GetId())
-	for _, revocation := range work.GetRevocations() {
-		if revocation == nil || revocation.GetRecipientId() == "" || revocation.GetSourceEventId() == "" || revocation.GetReason() == corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED {
-			return invalidArgument("notification revocation work requires recipient_id, source_event_id, and reason")
-		}
-	}
-	if work == nil || (len(work.GetNotifications()) == 0 && len(work.GetRevocations()) == 0) {
-		return m.deleteRuntimeStateKey(ctx, key)
-	}
-	data, err := proto.Marshal(work)
-	if err != nil {
-		return fmt.Errorf("marshal notification work: %w", err)
-	}
-	return m.putWorkWithTTL(ctx, key, data, ttl)
-}
-
-func (m *NotificationMaterializer) deleteRuntimeStateKey(ctx context.Context, key string) error {
-	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
-		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			return nil
-		}
-		if err != nil {
-			return fmt.Errorf("read runtime-state key for deletion: %w", err)
-		}
-		err = m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err == nil || errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			return nil
-		}
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("delete runtime-state key: %w", err)
-		}
-	}
-	return fmt.Errorf("delete runtime-state key after %d attempts", maxNotificationWorkWriteRetries)
-}
-
-func (m *NotificationMaterializer) putWorkWithTTL(ctx context.Context, key string, data []byte, ttl time.Duration) error {
-	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
-		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(ttl)); err == nil {
-				return nil
-			} else if !jetstreamutil.IsSequenceConflict(err) {
-				return fmt.Errorf("create notification work: %w", err)
-			}
-			continue
-		}
-		if err != nil {
-			return fmt.Errorf("read notification work: %w", err)
-		}
-		_, err = m.core.js.Publish(
-			ctx,
-			"$KV.RUNTIME_STATE."+key,
-			data,
-			jetstream.WithExpectLastSequencePerSubject(entry.Revision()),
-			jetstream.WithMsgTTL(ttl),
-		)
-		if err == nil {
-			return nil
-		}
-		if !jetstreamutil.IsSequenceConflict(err) {
-			return fmt.Errorf("update notification work: %w", err)
-		}
-	}
-	return fmt.Errorf("write notification work after %d attempts", maxNotificationWorkWriteRetries)
-}
-
-func notificationWorkKey(triggerEventID string) string {
-	return notificationWorkKeyPrefix + triggerEventID
-}
-
 func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *corev1.Event, streamSequence uint64) error {
 	if event == nil {
 		return nil
@@ -512,16 +418,19 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		visibilityAt = event.GetCreatedAt().AsTime()
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted, *corev1.Event_ReactionAdded:
+	case *corev1.Event_MessagePosted:
 		if streamSequence == 0 {
 			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
-		_, err := m.materializeWork(ctx, event, streamSequence)
-		return err
+		return m.materializeMessage(ctx, event, streamSequence, visibilityAt)
+	case *corev1.Event_ReactionAdded:
+		if streamSequence == 0 {
+			return invalidArgument("notification materialization requires an EVT stream sequence")
+		}
+		return m.materializeReaction(ctx, event, payload.ReactionAdded, streamSequence, visibilityAt)
 	case *corev1.Event_ReactionRemoved:
-		hadWork, err := m.materializeWork(ctx, event, streamSequence)
-		if err != nil || hadWork || streamSequence == 0 {
-			return err
+		if streamSequence == 0 {
+			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
 		return m.removeReactionWithoutPreparedWork(ctx, event, payload.ReactionRemoved, streamSequence)
 	case *corev1.Event_MessageRetracted:
@@ -545,6 +454,10 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomUniversalChanged.GetRoomId(), streamSequence, visibilityAt)
 	case *corev1.Event_RoomAddedToGroup:
 		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomAddedToGroup.GetRoomId(), streamSequence, visibilityAt)
+	case *corev1.Event_RoomRemovedFromGroup:
+		return m.reconcileOccurrenceVisibility(ctx, "", payload.RoomRemovedFromGroup.GetRoomId(), streamSequence, visibilityAt)
+	case *corev1.Event_RoomGroupDeleted:
+		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
 	case *corev1.Event_RoomDeleted:
 		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
 		return err
@@ -701,119 +614,108 @@ func (m *NotificationMaterializer) removeReactionWithoutPreparedWork(ctx context
 	return err
 }
 
-func (m *NotificationMaterializer) materializeWork(ctx context.Context, event *corev1.Event, streamSequence uint64) (bool, error) {
-	// StoreWork uses the same absolute retention boundary, so an event older
-	// than the notification TTL cannot have live prepared work. This also keeps
-	// a lagging consumer from spending KV operations on already-expired facts.
+func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event *corev1.Event, streamSequence uint64, evaluatedAt time.Time) error {
 	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
-		return false, nil
-	}
-
-	key := notificationWorkKey(event.GetId())
-	entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("read notification work: %w", err)
-	}
-	var work corev1.NotificationMaterializationWork
-	if err := proto.Unmarshal(entry.Value(), &work); err != nil {
-		m.core.logger.Error("Discarding invalid notification work", "key", key, "error", err)
-		return true, m.deleteRuntimeStateKey(ctx, key)
-	}
-	for _, occurrence := range work.GetNotifications() {
-		if err := m.materializeOccurrence(ctx, event, occurrence, streamSequence); err != nil {
-			return true, err
-		}
-	}
-	for _, revocation := range work.GetRevocations() {
-		if revocation == nil {
-			continue
-		}
-		if _, err := m.core.notificationOccurrences.RemoveSource(ctx, revocation.GetRecipientId(), revocation.GetSourceEventId(), revocation.GetReason()); err != nil {
-			return true, err
-		}
-	}
-	return true, m.deleteRuntimeStateKey(ctx, key)
-}
-
-func (m *NotificationMaterializer) materializeOccurrence(ctx context.Context, event *corev1.Event, occurrence *corev1.NotificationOccurrence, streamSequence uint64) error {
-	message := notificationSignalMessage(occurrence.GetSignal())
-	if NotificationOccurrenceHasUnsupportedSignal(occurrence) {
-		return ErrUnsupportedNotificationSignal
-	}
-	if message == nil || notificationSignalPolicyKind(occurrence.GetSignal()) == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED {
 		return nil
 	}
-	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_MessagePosted:
-		if _, retracted, known := m.core.roomModel.latestBody(event.GetId()); known && retracted {
-			return nil
-		}
-	case *corev1.Event_ReactionAdded:
-		reaction := payload.ReactionAdded
-		snapshot := m.core.roomModel.reactionMutationSnapshot(reaction.GetRoomId(), reaction.GetMessageEventId(), reaction.GetEmoji(), event.GetActorId())
-		if !snapshot.Exists || snapshot.SourceEventID != event.GetId() {
-			return nil
-		}
-	default:
+	message := event.GetMessagePosted()
+	if message == nil || message.GetEchoOfEventId() != "" {
 		return nil
 	}
-	visible, err := m.activeVisibleRecipient(ctx, occurrence.GetRecipientId(), message.GetRoomId())
+	if _, retracted, known := m.core.roomModel.latestBody(event.GetId()); known && retracted {
+		return nil
+	}
+	snapshot, err := m.visibility.Projection().Boundary(streamSequence, evaluatedAt)
 	if err != nil {
 		return err
 	}
-	if !visible {
+	decisions, err := m.core.buildMessageNotificationDecisionsAt(ctx, snapshot, event)
+	if err != nil {
+		return fmt.Errorf("derive message notification decisions: %w", err)
+	}
+	reference := newNotificationMessageReference(message.GetRoomId(), event.GetId())
+	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
+		reference.ThreadRootEventId = &threadRootEventID
+	}
+	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
+		reference.ParentEventId = &parentEventID
+	}
+	for _, input := range newNotificationOccurrenceInputs(event, reference, decisions) {
+		if err := m.materializeInput(ctx, input, streamSequence); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
+	if createdAt := event.GetCreatedAt(); createdAt != nil && !createdAt.AsTime().UTC().Add(notificationTTL).After(time.Now().UTC()) {
 		return nil
 	}
-	afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, occurrence.GetRecipientId(), message.GetRoomId(), streamSequence)
+	current := m.core.roomModel.reactionMutationSnapshot(reaction.GetRoomId(), reaction.GetMessageEventId(), reaction.GetEmoji(), event.GetActorId())
+	if !current.Exists || current.SourceEventID != event.GetId() {
+		return nil
+	}
+	snapshot, err := m.visibility.Projection().Boundary(streamSequence, evaluatedAt)
+	if err != nil {
+		return err
+	}
+	roomKind, exists := snapshot.roomKind(reaction.GetRoomId())
+	if !exists {
+		return nil
+	}
+	target, err := m.core.GetRoomEventByEventID(ctx, roomKind, reaction.GetRoomId(), reaction.GetMessageEventId())
+	if err != nil {
+		return fmt.Errorf("resolve reaction notification target: %w", err)
+	}
+	if target == nil {
+		return nil
+	}
+	recipientID := target.GetActorId()
+	_, active := snapshot.activeUsers[recipientID]
+	if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.membershipExists(recipientID, reaction.GetRoomId()) {
+		return nil
+	}
+	intensity := snapshot.effectiveNotificationIntensity(recipientID, reaction.GetRoomId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION)
+	if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+		return nil
+	}
+	reference := newNotificationMessageReference(reaction.GetRoomId(), reaction.GetMessageEventId())
+	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
+		reference.ThreadRootEventId = &threadRootEventID
+	}
+	inputs := newNotificationOccurrenceInputs(event, reference, []notificationRecipientDecision{{
+		recipientID: recipientID,
+		kind:        corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
+		intensity:   intensity,
+	}})
+	for _, input := range inputs {
+		if reactionSignal := input.Signal.GetReactionReceived(); reactionSignal != nil {
+			reactionSignal.Emoji = reaction.GetEmoji()
+		}
+		if err := m.materializeInput(ctx, input, streamSequence); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (m *NotificationMaterializer) materializeInput(ctx context.Context, input CreateNotificationOccurrenceInput, streamSequence uint64) error {
+	message := notificationSignalMessage(input.Signal)
+	if message == nil {
+		return nil
+	}
+	afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, input.RecipientID, message.GetRoomId(), streamSequence)
 	if err != nil {
 		return err
 	}
 	if !afterBoundary {
 		return nil
 	}
-	_, _, err = m.core.notificationOccurrences.Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:          occurrence.GetRecipientId(),
-		SourceEventID:        occurrence.GetSourceEventId(),
-		SourceCreated:        occurrence.GetSourceCreatedAt().AsTime(),
-		ActorID:              occurrence.GetActorId(),
-		Signal:               occurrence.GetSignal(),
-		Intensity:            occurrence.GetIntensity(),
-		AttentionLevel:       occurrence.GetAttentionLevel(),
-		SourceStreamSequence: streamSequence,
-		EvaluatedAt:          occurrence.GetEvaluatedAt().AsTime(),
-	})
+	input.SourceStreamSequence = streamSequence
+	_, _, err = m.core.notificationOccurrences.Create(ctx, input)
 	if err != nil {
-		return fmt.Errorf("create occurrence for recipient %s: %w", occurrence.GetRecipientId(), err)
+		return fmt.Errorf("create occurrence for recipient %s: %w", input.RecipientID, err)
 	}
 	return nil
-}
-
-func (m *NotificationMaterializer) activeVisibleRecipient(ctx context.Context, userID, roomID string) (bool, error) {
-	active, err := m.activeRecipient(ctx, userID)
-	if err != nil || !active {
-		return active, err
-	}
-	room, err := m.core.FindRoomByID(ctx, roomID)
-	if errors.Is(err, ErrNotFound) {
-		return false, nil
-	}
-	if err != nil {
-		return false, fmt.Errorf("verify notification room: %w", err)
-	}
-	member, err := m.core.RoomMembershipExists(ctx, KindOfRoom(room), userID, roomID)
-	if err != nil {
-		return false, fmt.Errorf("verify notification room membership: %w", err)
-	}
-	return member, nil
-}
-
-func (m *NotificationMaterializer) activeRecipient(ctx context.Context, userID string) (bool, error) {
-	_, err := m.core.GetUser(ctx, userID)
-	if errors.Is(err, ErrNotFound) {
-		return false, nil
-	}
-	return err == nil, err
 }

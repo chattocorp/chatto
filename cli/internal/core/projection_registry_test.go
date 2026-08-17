@@ -78,8 +78,8 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	if _, ok := registryNames["Room Group Layout"]; !ok {
 		t.Fatal("Room Group Layout projection is not registered")
 	}
-	if _, ok := registryNames["Notification Visibility"]; !ok {
-		t.Fatal("Notification Visibility projection is not registered")
+	if _, ok := registryNames["Notification Decisions"]; !ok {
+		t.Fatal("Notification Decisions projection is not registered")
 	}
 	if _, ok := registryNames["Notifications"]; !ok {
 		t.Fatal("Notifications projection is not registered")

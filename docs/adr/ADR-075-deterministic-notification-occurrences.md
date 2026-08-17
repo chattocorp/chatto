@@ -76,25 +76,36 @@ reactions are currently Ambient and other current signals are Important.
 
 ### Source derivation remains outside EVT
 
-Message and reaction commands evaluate recipients and notification policy on
-every source-command OCC attempt. They replace one temporary
-`notification_work.{sourceEventId}` value in `RUNTIME_STATE` before committing
-the existing source fact. The value contains the complete exact work set for
-that attempt. A conflicting retry therefore cannot retain stale recipients.
+Message commands resolve mention handles on every room-OCC attempt and persist
+the resulting user-and-mention-kind facts on the existing `MessagePostedEvent`.
+This is durable message semantics: it preserves otherwise transient `@here`,
+role, and `@all` expansion without recording a notification plan. A conflicting
+retry therefore cannot retain stale mention recipients.
 
-The shared `chatto-notification-materializer-v2` durable consumer reads only
-existing domain-changing `EVT` facts. After the source fact commits it loads the
-prepared work, appends deterministic `NotificationSignalled` facts to
-`NOTIFICATIONS`, and removes the temporary value. Retraction, reaction removal,
-visibility loss, room deletion, and account deletion use their existing EVT
-facts to append notification dismissals. No notification-only event is added
-to `EVT`.
+The Notification Decisions projection consumes the compact EVT state needed
+for notification derivation: active accounts, room membership and kind,
+universal-room authorization, room-group layout, RBAC, notification policy,
+thread followers, and reply counts. When a message, reaction, or visibility
+boundary is still unacknowledged, the projection retains one checkpoint plus
+ordered deltas. The materializer can therefore reconstruct state at that exact
+EVT sequence even if the live projections have advanced through later policy,
+membership, or follow changes. Its snapshots cannot restore or publish past
+the durable consumer's confirmed EVT floor.
 
-The materializer also maintains the event-time visibility boundary required
-for universal rooms, room-group moves, and RBAC changes. Current list and alert
-reads fence the user, room, room-group-layout, and RBAC projections before
-treating a target as visible or absent. A quick access loss and regain cannot
-allow an older private signal to survive or be pushed.
+The shared `chatto-notification-materializer-v3` durable consumer reads only
+existing domain-changing `EVT` facts. It derives deterministic occurrences at
+the delivered sequence, appends `NotificationSignalled` facts to
+`NOTIFICATIONS`, and acknowledges the EVT delivery only after those writes
+succeed. A crash before the confirmed acknowledgement redelivers the source;
+deterministic occurrence IDs make partial or repeated output idempotent.
+Retraction, reaction removal, visibility loss, room deletion, and account
+deletion use their existing EVT facts to append notification dismissals. No
+notification-only event is added to `EVT`, and there is no notification work
+record in `RUNTIME_STATE`.
+
+Current list and alert reads still fence the user, room, room-group-layout, and
+RBAC projections before treating a target as visible or absent. Persistent
+visibility-loss boundaries suppress older source facts after a quick regain.
 
 ### Projected current state
 
@@ -173,7 +184,7 @@ unsupported variants rather than guessing their visibility or deleting them.
   backed up without becoming permanent domain history.
 - Fixed subjects avoid the RAM cost of indexing one subject per notification.
 - The same stream powers projections and durable Alert delivery; there is no
-  second queue or occurrence KV to reconcile.
+  second queue, prepared-work KV, or occurrence KV to reconcile.
 - Exact per-signal-class identities let clients group presentation without losing
   jump targets, unread counts, or triage semantics.
 - Dismissal physically removes rich content while a minimal retained fact keeps
