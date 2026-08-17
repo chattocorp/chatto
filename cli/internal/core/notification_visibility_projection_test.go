@@ -89,7 +89,7 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	}
 }
 
-func TestLegacyMessageMentionIDsRetainReleasedDirectMentionMeaning(t *testing.T) {
+func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	p := NewNotificationVisibilityProjection()
 	roomID := "R1"
 	recipientID := "U1"
@@ -118,8 +118,8 @@ func TestLegacyMessageMentionIDsRetainReleasedDirectMentionMeaning(t *testing.T)
 	if err != nil {
 		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
 	}
-	if len(decisions) != 1 || decisions[0].recipientID != recipientID || decisions[0].kind != corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION {
-		t.Fatalf("legacy decisions = %+v, want one direct mention for %s", decisions, recipientID)
+	if len(decisions) != 0 {
+		t.Fatalf("legacy decisions = %+v, want no guessed mention cause for %s", decisions, recipientID)
 	}
 }
 

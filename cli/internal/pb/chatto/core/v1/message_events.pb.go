@@ -87,10 +87,10 @@ type MessagePostedEvent struct {
 	// For direct replies to a root, in_thread == in_reply_to.
 	// For nested replies, in_thread references the original root.
 	InThread string `protobuf:"bytes,5,opt,name=in_thread,json=inThread,proto3" json:"in_thread,omitempty"`
-	// User IDs selected by valid resolved mentions. Writers predating mentions
-	// populated this field only for direct @username mentions; current writers
-	// retain it as a flattened compatibility view of all resolved kinds. Use
-	// mentions whenever policy or cause depends on mention provenance.
+	// User IDs selected by valid resolved mentions. This is a flattened view of
+	// direct, role, @here, and @all recipients and does not identify which cause
+	// selected a user. Use mentions whenever policy or cause depends on mention
+	// provenance; older events may have only mentioned_user_ids.
 	MentionedUserIds []string `protobuf:"bytes,6,rep,name=mentioned_user_ids,json=mentionedUserIds,proto3" json:"mentioned_user_ids,omitempty"`
 	// Event ID of the original thread reply this echoes (empty = not an echo)
 	EchoOfEventId string `protobuf:"bytes,7,opt,name=echo_of_event_id,json=echoOfEventId,proto3" json:"echo_of_event_id,omitempty"`

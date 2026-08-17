@@ -108,11 +108,10 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			add(mention.GetUserId(), notificationPolicyKindForMention(mention.GetKind()))
 		}
 	} else {
-		// Compatibility for source events written before mention provenance was
-		// added. Those events only recorded direct mention recipients.
-		for _, userID := range message.GetMentionedUserIds() {
-			add(userID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
-		}
+		// Writers predating rich provenance flattened direct, role, @here, and
+		// @all recipients into mentioned_user_ids. Inferring one cause would
+		// apply the wrong policy and persist a false signal, so mixed-version
+		// deliveries conservatively omit only the ambiguous mention reason.
 	}
 
 	if roomKind == KindDM {

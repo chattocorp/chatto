@@ -82,10 +82,13 @@ This is durable message semantics: it preserves otherwise transient `@here`,
 role, and `@all` expansion without recording a notification plan. A conflicting
 retry therefore cannot retain stale mention recipients.
 
-For compatibility, `MessagePostedEvent.mentioned_user_ids` keeps its released
-pre-provenance meaning when `mentions` is absent: those IDs are direct
-`@username` mentions. Current writers populate `mentions` with every rich cause
-and retain `mentioned_user_ids` only as a flattened compatibility view.
+For compatibility, `MessagePostedEvent.mentioned_user_ids` remains a flattened
+view of recipients selected by direct, role, `@here`, and `@all` handles. It
+cannot recover which cause selected a user. During a mixed-version rollout, a
+source event without rich `mentions` therefore omits only the ambiguous mention
+signal instead of applying the wrong policy or persisting a false cause; DM,
+reply, and follow reasons that remain independently knowable are still derived.
+Current writers populate `mentions` with every rich cause.
 
 The Notification Decisions projection consumes the compact EVT state needed
 for notification derivation: active accounts, room membership and kind,
