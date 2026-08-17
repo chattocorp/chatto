@@ -83,7 +83,8 @@ const categories = [
         name: 'NotificationService',
         slug: 'notifications',
         title: 'Notifications',
-        description: 'Exact notification occurrence listing, read, deletion, and per-cause policy RPCs.'
+        description:
+          'Exact notification occurrence listing, read, deletion, and per-signal-class policy RPCs.'
       },
       {
         name: 'PushNotificationService',
