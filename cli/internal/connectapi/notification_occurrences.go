@@ -217,6 +217,14 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 }
 
 func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) (int, error) {
+	for _, occurrence := range occurrences {
+		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+			return 0, connect.NewError(
+				connect.CodeUnimplemented,
+				errors.New("notification target is not supported by this server version"),
+			)
+		}
+	}
 	visible, err := s.visibleNotificationOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return 0, err

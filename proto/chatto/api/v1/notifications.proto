@@ -77,8 +77,9 @@ message NotificationRoomMessageTarget {
 }
 
 // Typed resource or activity represented by one notification occurrence.
-// Clients must not infer navigation semantics for unsupported variants; they
-// may retain the occurrence as a generic, non-navigating triage row.
+// Clients must not infer navigation semantics for unsupported variants.
+// Binary protobuf clients may retain them as generic, non-navigating triage
+// rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
 message NotificationTarget {
   oneof kind {
     // Exact room-message destination.
@@ -300,18 +301,23 @@ service NotificationService {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes one occurrence while retaining its anti-recreation
-  // tombstone through the original expiry. Repeating the call is safe.
+  // tombstone through the original expiry. Repeating the call is safe. Returns
+  // UNIMPLEMENTED when this server cannot validate the occurrence target kind.
   rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes an exact set of occurrences. Repeating the call is
-  // safe because later activity receives different occurrence IDs.
+  // safe because later activity receives different occurrence IDs. Returns
+  // UNIMPLEMENTED rather than partially deleting a target kind this server
+  // cannot validate.
   rpc BatchDeleteNotificationOccurrences(BatchDeleteNotificationOccurrencesRequest) returns (BatchDeleteNotificationOccurrencesResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes every visible occurrence current at the server's
   // authoritative mutation boundary. Callers must not retry this mutation
   // automatically because later activity may arrive after that boundary.
+  // Returns UNIMPLEMENTED rather than partially deleting a target kind this
+  // server cannot validate.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
   // Gets every supported cause and its effective inherited delivery intensity.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);

@@ -6,6 +6,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
+  import { NotificationItemKind } from '$lib/api-client/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
@@ -155,7 +156,7 @@
   async function handleServerNotificationClick() {
     const notification =
       notificationStore.getNonDMNotification() ?? notificationStore.getDMNotification();
-    if (!notification) {
+    if (!notification || notification.kind === NotificationItemKind.Unsupported) {
       await goto(resolve('/chat/notifications'));
       return;
     }
@@ -237,7 +238,8 @@
       {/if}
       <div class="mt-1 flex items-center gap-1.5 text-muted">
         {#if serverUnavailable}
-          <span class="iconify icon-[uil--wifi-slash] shrink-0 text-warning" aria-hidden="true"></span>
+          <span class="iconify icon-[uil--wifi-slash] shrink-0 text-warning" aria-hidden="true"
+          ></span>
           <span class="text-warning">{m('chat.server_gutter.unreachable')}</span>
         {:else}
           <span>

@@ -65,11 +65,13 @@ An occurrence's target is a typed protobuf union. Notifications 2.0 initially
 supports the room-message target used by every current cause. Future resource
 targets can be added without overloading message fields, but each must define
 its own authorization, lifecycle, navigation, and delivery behavior. Clients
-retain unsupported variants as generic, non-navigating rows with exact triage
-identity while still advancing through the server page. Older servers preserve
-unknown occurrences and prepared work rather than treating version skew as
-visibility loss. This extension point does not itself implement room
-invitations or make notifications authoritative for invitation state.
+using binary protobuf retain unsupported variants as generic, non-navigating
+rows with exact triage identity while still advancing through the server page;
+ProtoJSON clients need unknown-field-tolerant decoding for that fallback. Older
+servers preserve unknown occurrences and prepared work rather than treating
+version skew as visibility loss, and reject deletes they cannot validate rather
+than reporting false success. This extension point does not itself implement
+room invitations or make notifications authoritative for invitation state.
 
 The bundled frontend derives temporary groups as follows:
 

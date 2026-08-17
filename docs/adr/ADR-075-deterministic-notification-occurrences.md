@@ -355,18 +355,24 @@ Notifications 2.0 and its persisted core messages are introduced together by
 this unreleased change, so the initial room-message target is encoded as the
 first `NotificationTarget` oneof branch rather than preserving the flat shape
 from development drafts. After release, additional target variants are
-additive. Clients ignore unsupported variants while still consuming their list
-rows as generic non-navigating items, and servers must not create or expose a
+wire-additive in binary protobuf. The bundled client uses binary ConnectRPC and
+retains unsupported variants while consuming their list rows as generic
+non-navigating items. ProtoJSON integrations only get that forward-compatible
+fallback when their decoder ignores unknown fields; strict JSON clients must
+regenerate before receiving a new variant, or a future rollout must add target
+capability negotiation before exposing it. Servers must not create or expose a
 target variant until they implement its authorization and lifecycle rules.
+An older server returns `UNIMPLEMENTED` instead of silently accepting a delete
+that includes a target kind whose visibility it cannot validate.
 
 The shared materializer is also forward-safe during a rolling upgrade. Its
 durable consumer name and filter set form one immutable capability generation;
-adding a source event that needs a newer schema requires a new consumer
-generation, and startup fails closed if a filter set changes under an existing
-name. An older worker retries rather than acknowledging an unknown source-event
-or prepared-target oneof branch. JetStream can then redeliver the same work to
-a capable replica. Unknown occurrences are omitted by older server assemblers
-but are never tombstoned merely because their target is unsupported.
+adding a source event or target behavior that needs a newer schema requires a
+new consumer generation, and startup fails closed if a filter set changes under
+an existing name. An older worker retries rather than acknowledging an unknown
+source-event or prepared-target oneof branch. JetStream can then redeliver the
+same work to a capable replica. Unknown occurrences are omitted by older server
+assemblers but are never tombstoned merely because their target is unsupported.
 
 Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
 deployment can therefore briefly contain an older replica that still writes

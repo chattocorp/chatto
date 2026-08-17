@@ -292,8 +292,9 @@ export class NotificationRoomMessageTarget extends Message<NotificationRoomMessa
 
 /**
  * Typed resource or activity represented by one notification occurrence.
- * Clients must not infer navigation semantics for unsupported variants; they
- * may retain the occurrence as a generic, non-navigating triage row.
+ * Clients must not infer navigation semantics for unsupported variants.
+ * Binary protobuf clients may retain them as generic, non-navigating triage
+ * rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
  *
  * @generated from message chatto.api.v1.NotificationTarget
  */

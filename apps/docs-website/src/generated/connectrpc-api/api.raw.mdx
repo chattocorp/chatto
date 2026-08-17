@@ -2303,7 +2303,8 @@ Notification occurrence after marking it read.
 ### DeleteNotificationOccurrence
 
 Permanently deletes one occurrence while retaining its anti-recreation
-tombstone through the original expiry. Repeating the call is safe.
+tombstone through the original expiry. Repeating the call is safe. Returns
+UNIMPLEMENTED when this server cannot validate the occurrence target kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
@@ -2336,7 +2337,9 @@ Result of deleting one notification occurrence.
 ### BatchDeleteNotificationOccurrences
 
 Permanently deletes an exact set of occurrences. Repeating the call is
-safe because later activity receives different occurrence IDs.
+safe because later activity receives different occurrence IDs. Returns
+UNIMPLEMENTED rather than partially deleting a target kind this server
+cannot validate.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/BatchDeleteNotificationOccurrences
@@ -2371,6 +2374,8 @@ Result of deleting exact notification occurrences.
 Permanently deletes every visible occurrence current at the server's
 authoritative mutation boundary. Callers must not retry this mutation
 automatically because later activity may arrive after that boundary.
+Returns UNIMPLEMENTED rather than partially deleting a target kind this
+server cannot validate.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/DeleteAllNotificationOccurrences
@@ -4312,8 +4317,9 @@ Unread notification occurrences currently targeting one room.
 ### NotificationTarget
 
 Typed resource or activity represented by one notification occurrence.
-Clients must not infer navigation semantics for unsupported variants; they
-may retain the occurrence as a generic, non-navigating triage row.
+Clients must not infer navigation semantics for unsupported variants.
+Binary protobuf clients may retain them as generic, non-navigating triage
+rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
 
 | Field | Type | Description |
 | --- | --- | --- |

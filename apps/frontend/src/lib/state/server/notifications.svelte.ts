@@ -364,7 +364,9 @@ export class NotificationStore {
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
   getNonDMNotification(): NotificationItem | undefined {
-    return this.notifications.find((n) => !notificationTarget(n).isDM);
+    return this.notifications.find(
+      (n) => n.kind !== NotificationItemKind.Unsupported && !notificationTarget(n).isDM
+    );
   }
 
   /**

@@ -630,6 +630,34 @@ describe('ServerSidebarEntry', () => {
     });
   });
 
+  it('opens notifications instead of navigating an unsupported future target', async () => {
+    mocks.store.serverIndicator.mockReturnValue('notification');
+    mocks.store.notifications.unreadNotificationCount = 1;
+    mocks.store.notifications.importantUnreadNotificationCount = 1;
+    mocks.store.notifications.getNonDMNotification.mockReturnValue({
+      id: 'future-target',
+      kind: NotificationItemKind.Unsupported,
+      createdAt: new Date().toISOString(),
+      actor: null,
+      summary: 'New activity'
+    });
+
+    const { container } = render(ServerSidebarEntry, {
+      props: {
+        serverId: 'remote',
+        currentUserId: 'user-1'
+      }
+    });
+
+    const badge = q(container, '[data-testid="server-notification-badge"]');
+    (badge?.closest('button') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.goto).toHaveBeenCalledWith('/chat/notifications');
+    });
+    expect(mocks.appUi.disableRoomCallWideFor).not.toHaveBeenCalled();
+  });
+
   it('uses a neutral server badge when only ambient notifications are unread', async () => {
     mocks.store.serverIndicator.mockReturnValue('notification');
     mocks.store.notifications.unreadNotificationCount = 2;

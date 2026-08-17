@@ -64,7 +64,8 @@ export const NotificationService = {
     },
     /**
      * Permanently deletes one occurrence while retaining its anti-recreation
-     * tombstone through the original expiry. Repeating the call is safe.
+     * tombstone through the original expiry. Repeating the call is safe. Returns
+     * UNIMPLEMENTED when this server cannot validate the occurrence target kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationOccurrence
      */
@@ -77,7 +78,9 @@ export const NotificationService = {
     },
     /**
      * Permanently deletes an exact set of occurrences. Repeating the call is
-     * safe because later activity receives different occurrence IDs.
+     * safe because later activity receives different occurrence IDs. Returns
+     * UNIMPLEMENTED rather than partially deleting a target kind this server
+     * cannot validate.
      *
      * @generated from rpc chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences
      */
@@ -92,6 +95,8 @@ export const NotificationService = {
      * Permanently deletes every visible occurrence current at the server's
      * authoritative mutation boundary. Callers must not retry this mutation
      * automatically because later activity may arrive after that boundary.
+     * Returns UNIMPLEMENTED rather than partially deleting a target kind this
+     * server cannot validate.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences
      */

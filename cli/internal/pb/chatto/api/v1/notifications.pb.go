@@ -345,8 +345,9 @@ func (x *NotificationRoomMessageTarget) GetParentEventId() string {
 }
 
 // Typed resource or activity represented by one notification occurrence.
-// Clients must not infer navigation semantics for unsupported variants; they
-// may retain the occurrence as a generic, non-navigating triage row.
+// Clients must not infer navigation semantics for unsupported variants.
+// Binary protobuf clients may retain them as generic, non-navigating triage
+// rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
 type NotificationTarget struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Kind:

@@ -76,14 +76,19 @@ type NotificationServiceClient interface {
 	// Marks one occurrence read. Repeating the call is safe.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
-	// tombstone through the original expiry. Repeating the call is safe.
+	// tombstone through the original expiry. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Permanently deletes an exact set of occurrences. Repeating the call is
-	// safe because later activity receives different occurrence IDs.
+	// safe because later activity receives different occurrence IDs. Returns
+	// UNIMPLEMENTED rather than partially deleting a target kind this server
+	// cannot validate.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
 	// Permanently deletes every visible occurrence current at the server's
 	// authoritative mutation boundary. Callers must not retry this mutation
 	// automatically because later activity may arrive after that boundary.
+	// Returns UNIMPLEMENTED rather than partially deleting a target kind this
+	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
@@ -240,14 +245,19 @@ type NotificationServiceHandler interface {
 	// Marks one occurrence read. Repeating the call is safe.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
-	// tombstone through the original expiry. Repeating the call is safe.
+	// tombstone through the original expiry. Repeating the call is safe. Returns
+	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Permanently deletes an exact set of occurrences. Repeating the call is
-	// safe because later activity receives different occurrence IDs.
+	// safe because later activity receives different occurrence IDs. Returns
+	// UNIMPLEMENTED rather than partially deleting a target kind this server
+	// cannot validate.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
 	// Permanently deletes every visible occurrence current at the server's
 	// authoritative mutation boundary. Callers must not retry this mutation
 	// automatically because later activity may arrive after that boundary.
+	// Returns UNIMPLEMENTED rather than partially deleting a target kind this
+	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets every supported cause and its effective inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)

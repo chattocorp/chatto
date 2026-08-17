@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
@@ -48,6 +49,9 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureTarget(t *testi
 	visible, err := env.notifications.visibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*corev1.NotificationOccurrence{future})
 	if err != nil || len(visible) != 0 {
 		t.Fatalf("visible future occurrences = (%v, %v), want empty without error", visible, err)
+	}
+	if deleted, err := env.notifications.deleteVisibleNotificationOccurrences(env.ctx, env.viewer.GetId(), []*corev1.NotificationOccurrence{future}); connect.CodeOf(err) != connect.CodeUnimplemented || deleted != 0 {
+		t.Fatalf("delete future occurrence = (%d, %v), want zero and unimplemented", deleted, err)
 	}
 	if current, err := env.core.NotificationOccurrences().Get(env.ctx, env.viewer.GetId(), stored.GetId()); err != nil || current.GetRemovalReason() != corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED {
 		t.Fatalf("stored future occurrence was mutated = (%v, %v)", current, err)

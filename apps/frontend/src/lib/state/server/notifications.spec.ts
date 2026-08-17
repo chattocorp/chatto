@@ -1197,6 +1197,24 @@ describe('NotificationStore', () => {
     expect(store.hasDMRoomNotification('dm-room')).toBe(true);
   });
 
+  it('does not choose an unsupported future target as a server-badge destination', () => {
+    const unsupported = {
+      kind: NotificationItemKind.Unsupported,
+      id: 'future-target',
+      createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
+      actor: null,
+      summary: 'New activity'
+    } as NotificationItem;
+    const supported = mention('supported-mention');
+    const store = new NotificationStore(makeAPI());
+
+    store.notifications = [unsupported, supported];
+    expect(store.getNonDMNotification()).toBe(supported);
+
+    store.notifications = [unsupported];
+    expect(store.getNonDMNotification()).toBeUndefined();
+  });
+
   it('retains existing notifications when the server returns an API error', async () => {
     const store = new NotificationStore(
       makeAPI({

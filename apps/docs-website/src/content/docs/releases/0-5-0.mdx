@@ -123,7 +123,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
   `NotificationOccurrence.target` is a typed oneof whose initial variant is `room_message`;
   clients must not infer navigation for unsupported variants and may show them as generic,
-  dismissible activity.
+  dismissible activity. The bundled client uses binary protobuf for this forward-compatible
+  fallback. ProtoJSON integrations must ignore unknown fields or regenerate before a future
+  target variant is exposed.
   Upgrade all replicas and bundled clients together.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,
