@@ -82,15 +82,22 @@ This is durable message semantics: it preserves otherwise transient `@here`,
 role, and `@all` expansion without recording a notification plan. A conflicting
 retry therefore cannot retain stale mention recipients.
 
+For compatibility, `MessagePostedEvent.mentioned_user_ids` keeps its released
+pre-provenance meaning when `mentions` is absent: those IDs are direct
+`@username` mentions. Current writers populate `mentions` with every rich cause
+and retain `mentioned_user_ids` only as a flattened compatibility view.
+
 The Notification Decisions projection consumes the compact EVT state needed
 for notification derivation: active accounts, room membership and kind,
 universal-room authorization, room-group layout, RBAC, notification policy,
-thread followers, and reply counts. When a message, reaction, or visibility
-boundary is still unacknowledged, the projection retains one checkpoint plus
-ordered deltas. The materializer can therefore reconstruct state at that exact
-EVT sequence even if the live projections have advanced through later policy,
-membership, or follow changes. Its snapshots cannot restore or publish past
-the durable consumer's confirmed EVT floor.
+thread followers, and reply counts. Alongside its current read model it keeps a
+second in-memory evaluator at the durable worker's ordered position. Events
+above that position are retained as compact deltas and applied as the worker
+advances, so an exact boundary costs only the intervening facts rather than a
+copy of total server state. The materializer can therefore reconstruct state at
+the delivered EVT sequence even if live projections have advanced through
+later policy, membership, or follow changes. Persisted snapshots cannot restore
+or publish past the durable consumer's confirmed EVT floor.
 
 The shared `chatto-notification-materializer-v3` durable consumer reads only
 existing domain-changing `EVT` facts. It derives deterministic occurrences at

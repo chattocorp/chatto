@@ -89,6 +89,40 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	}
 }
 
+func TestLegacyMessageMentionIDsRetainReleasedDirectMentionMeaning(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	roomID := "R1"
+	recipientID := "U1"
+	source := &corev1.Event{
+		Id: "source", ActorId: "U2", CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{
+			RoomId: roomID, MentionedUserIds: []string{recipientID},
+		}},
+	}
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+		source,
+	}
+	for i, event := range events {
+		if err := p.Apply(event, uint64(i+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", i+1, err)
+		}
+	}
+	snapshot, err := p.Boundary(4, source.GetCreatedAt().AsTime())
+	if err != nil {
+		t.Fatalf("Boundary: %v", err)
+	}
+	decisions, err := (&ChattoCore{}).buildMessageNotificationDecisionsAt(context.Background(), snapshot, source)
+	if err != nil {
+		t.Fatalf("buildMessageNotificationDecisionsAt: %v", err)
+	}
+	if len(decisions) != 1 || decisions[0].recipientID != recipientID || decisions[0].kind != corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION {
+		t.Fatalf("legacy decisions = %+v, want one direct mention for %s", decisions, recipientID)
+	}
+}
+
 func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.T) {
 	p := NewNotificationVisibilityProjection()
 	roomID := "R1"
@@ -125,15 +159,19 @@ func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.
 	}
 }
 
-func TestNotificationVisibilityProjectionCompactsManyPendingBoundariesOverLargeState(t *testing.T) {
+func TestNotificationVisibilityProjectionRetainsOnlyIncrementalEventsOverLargeState(t *testing.T) {
 	p := NewNotificationVisibilityProjection()
+	const members = 2_000
+	// Model startup with all existing state covered by the durable worker floor.
+	// Applying that history builds both the current and lagging projections
+	// without retaining a serialized server-wide checkpoint.
+	p.SetAcknowledgedThrough(members + 1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
 	}
-	const members = 2_000
 	for i := 0; i < members; i++ {
 		userID := fmt.Sprintf("U%04d", i)
 		joined := &corev1.Event{Id: "join-" + userID, ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
@@ -154,7 +192,6 @@ func TestNotificationVisibilityProjectionCompactsManyPendingBoundariesOverLargeS
 	}
 
 	p.mu.RLock()
-	checkpointBytes := len(p.checkpoint)
 	deltaCount := len(p.deltas)
 	boundaryCount := len(p.boundaries)
 	deltaBytes := 0
@@ -162,11 +199,11 @@ func TestNotificationVisibilityProjectionCompactsManyPendingBoundariesOverLargeS
 		deltaBytes += proto.Size(delta.event)
 	}
 	p.mu.RUnlock()
-	if checkpointBytes == 0 || boundaryCount != pendingBoundaries || deltaCount != pendingBoundaries-1 {
-		t.Fatalf("retained state = checkpoint %d bytes, %d boundaries, %d deltas", checkpointBytes, boundaryCount, deltaCount)
+	if boundaryCount != pendingBoundaries || deltaCount != pendingBoundaries {
+		t.Fatalf("retained state = %d boundaries, %d deltas; want %d of each", boundaryCount, deltaCount, pendingBoundaries)
 	}
-	if total := checkpointBytes + deltaBytes; total >= checkpointBytes*4 {
-		t.Fatalf("compact journal = %d bytes for %d boundaries over %d-byte state; appears to retain repeated full snapshots", total, pendingBoundaries, checkpointBytes)
+	if deltaBytes > pendingBoundaries*256 {
+		t.Fatalf("incremental journal = %d bytes for %d small boundary facts; appears to retain more than source events", deltaBytes, pendingBoundaries)
 	}
 
 	lastSequence := firstBoundary + pendingBoundaries - 1
@@ -182,13 +219,14 @@ func TestNotificationVisibilityProjectionCompactsManyPendingBoundariesOverLargeS
 
 func TestNotificationVisibilityProjectionBoundaryWorkDoesNotGrowWithMembershipHistory(t *testing.T) {
 	p := NewNotificationVisibilityProjection()
+	const historyEvents = 10_000
+	p.SetAcknowledgedThrough(historyEvents + 1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
 	if err := p.Apply(created, 1); err != nil {
 		t.Fatalf("Apply room create: %v", err)
 	}
-	const historyEvents = 10_000
 	for i := 0; i < historyEvents/2; i++ {
 		userID := fmt.Sprintf("U%d", i)
 		joined := &corev1.Event{Id: fmt.Sprintf("join-%d", i), ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}
@@ -214,6 +252,39 @@ func TestNotificationVisibilityProjectionBoundaryWorkDoesNotGrowWithMembershipHi
 	}
 	if _, err := p.Boundary(lossSequence, time.Now()); err != nil {
 		t.Fatalf("Boundary after membership history: %v", err)
+	}
+}
+
+func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.B) {
+	p := NewNotificationVisibilityProjection()
+	const members = 10_000
+	p.SetAcknowledgedThrough(members + 1)
+	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	}}}, 1); err != nil {
+		b.Fatal(err)
+	}
+	for i := 0; i < members; i++ {
+		userID := fmt.Sprintf("U%d", i)
+		if err := p.Apply(&corev1.Event{Id: "join-" + userID, ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}}, uint64(i+2)); err != nil {
+			b.Fatal(err)
+		}
+	}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		sequence := uint64(members + 2 + i)
+		event := &corev1.Event{Id: fmt.Sprintf("message-%d", i), ActorId: "author", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1"}}}
+		if err := p.Apply(event, sequence); err != nil {
+			b.Fatal(err)
+		}
+		if _, err := p.Boundary(sequence, time.Now()); err != nil {
+			b.Fatal(err)
+		}
+		if err := p.ReleaseThrough(sequence); err != nil {
+			b.Fatal(err)
+		}
 	}
 }
 
@@ -295,5 +366,64 @@ func TestNotificationVisibilitySnapshotPublicationUsesFullWorkerFloor(t *testing
 	}
 	if !p.AllowSnapshotPublication(2) {
 		t.Fatal("snapshot remained blocked after worker floor advanced")
+	}
+}
+
+func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	p.SetAcknowledgedThrough(1)
+	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	}}}, 1); err != nil {
+		t.Fatalf("Apply room: %v", err)
+	}
+	if err := p.Apply(&corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+		RoomId: "R1",
+	}}}, 2); err != nil {
+		t.Fatalf("Apply join: %v", err)
+	}
+	if err := p.AdvanceThrough(2); err != nil {
+		t.Fatalf("AdvanceThrough: %v", err)
+	}
+	if !p.evaluator.membershipExists("U1", "R1") {
+		t.Fatal("lagging evaluator did not apply state-only membership delta")
+	}
+	if err := p.ReleaseThrough(2); err != nil {
+		t.Fatalf("ReleaseThrough: %v", err)
+	}
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	if len(p.deltas) != 0 {
+		t.Fatalf("retained deltas = %d, want none after worker acknowledgement", len(p.deltas))
+	}
+}
+
+func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOfProjector(t *testing.T) {
+	p := NewNotificationVisibilityProjection()
+	p.SetAcknowledgedThrough(1)
+	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
+		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
+	}}}, 1); err != nil {
+		t.Fatalf("Apply room: %v", err)
+	}
+	if err := p.Apply(&corev1.Event{Id: "join", ActorId: "U1", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{
+		RoomId: "R1",
+	}}}, 2); err != nil {
+		t.Fatalf("Apply pending join: %v", err)
+	}
+
+	// Model ReleaseThrough observing an idle filtered consumer at EVT 3 before
+	// this projection applies the state-only fact at that sequence.
+	p.acknowledgedThrough.Store(3)
+	if err := p.Apply(&corev1.Event{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{
+		UserId: "U1",
+	}}}, 3); err != nil {
+		t.Fatalf("Apply acknowledged user: %v", err)
+	}
+	if !p.evaluator.membershipExists("U1", "R1") {
+		t.Fatal("worker-position evaluator skipped the older pending membership delta")
+	}
+	if _, active := p.evaluator.activeUsers["U1"]; !active {
+		t.Fatal("worker-position evaluator did not apply the current acknowledged fact")
 	}
 }

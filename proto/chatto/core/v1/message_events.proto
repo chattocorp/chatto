@@ -32,9 +32,10 @@ message MessagePostedEvent {
   // For nested replies, in_thread references the original root.
   string in_thread = 5;
 
-  // User IDs selected by valid resolved mentions. Retained as the
-  // compatibility view for consumers that do not need mention provenance;
-  // use mentions to distinguish direct, role, @here, and @all semantics.
+  // User IDs selected by valid resolved mentions. Writers predating mentions
+  // populated this field only for direct @username mentions; current writers
+  // retain it as a flattened compatibility view of all resolved kinds. Use
+  // mentions whenever policy or cause depends on mention provenance.
   repeated string mentioned_user_ids = 6;
 
   // Echo fields (empty for regular messages, set for "also send to channel" echoes).

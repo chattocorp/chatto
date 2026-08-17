@@ -338,9 +338,9 @@ func (m *NotificationMaterializer) createConsumer(ctx context.Context) (jetstrea
 		Name:        notificationWorkerConsumerName,
 		Durable:     notificationWorkerConsumerName,
 		Description: "Shared durable worker for Chatto notification materialization",
-		// Prepared work exists only for events committed after Notifications
-		// 2.0 starts. Beginning at the consumer's creation boundary avoids
-		// replaying the server's entire message history on first rollout.
+		// Notification derivation starts with Notifications 2.0. Beginning at
+		// the consumer's creation boundary avoids manufacturing occurrences for
+		// the server's pre-upgrade message history on first rollout.
 		DeliverPolicy:   jetstream.DeliverNewPolicy,
 		AckPolicy:       jetstream.AckExplicitPolicy,
 		AckWait:         notificationWorkerAckWait,
@@ -371,11 +371,12 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 		return events.TerminateDelivery("invalid Chatto event envelope", err)
 	}
 	position := events.SubjectPosition(delivery.Subject, delivery.StreamSequence)
-	hasDecisionBoundary := notificationDecisionBoundaryEvent(&event)
-	if hasDecisionBoundary {
-		if err := m.visibility.Projector().WaitFor(ctx, position); err != nil {
-			return fmt.Errorf("wait for notification decision projection: %w", err)
-		}
+	// Every worker subject is also a logical Notification Decisions subject.
+	// Waiting for all deliveries means AdvanceThrough can consume every
+	// intervening policy/membership/thread delta before moving its lagging
+	// evaluator to this exact EVT sequence.
+	if err := m.visibility.Projector().WaitFor(ctx, position); err != nil {
+		return fmt.Errorf("wait for notification decision projection: %w", err)
 	}
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountDeleted, *corev1.Event_UserVerifiedEmailAdded:
@@ -402,6 +403,9 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	}
 	if err := m.materializeEvent(ctx, &event, delivery.StreamSequence); err != nil {
 		return err
+	}
+	if err := m.visibility.Projection().AdvanceThrough(delivery.StreamSequence); err != nil {
+		return fmt.Errorf("advance notification decision evaluator: %w", err)
 	}
 	return nil
 }

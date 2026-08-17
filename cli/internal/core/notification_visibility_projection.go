@@ -34,17 +34,13 @@ type NotificationVisibilityProjection struct {
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
 
-	// A pending run keeps one full checkpoint at its earliest boundary and a
-	// compact event journal after it. This makes projector-ahead replay cost
-	// O(state + events), rather than copying all visibility state once per
-	// administrative fact.
-	checkpointSequence uint64
-	checkpoint         []byte
-	deltas             []notificationVisibilityDelta
-	boundaries         map[uint64]struct{}
-	// Boundary calls are serialized by the single-lane durable worker. Keep a
-	// decoded cursor so processing P pending facts replays each compact delta at
-	// most once instead of repeatedly decoding the full checkpoint.
+	// The main projection may run ahead of the single-lane durable worker. A
+	// second in-memory evaluator follows the worker instead: Apply journals each
+	// relevant event above the confirmed worker floor, and the worker advances
+	// the evaluator through deliveries in order. This keeps ordinary boundary
+	// work proportional to new EVT facts, never to total server state.
+	deltas              []notificationVisibilityDelta
+	boundaries          map[uint64]struct{}
 	evaluatorSequence   uint64
 	evaluator           *notificationVisibilitySnapshot
 	acknowledgedThrough atomic.Uint64
@@ -63,7 +59,7 @@ type notificationThreadFollow struct {
 }
 
 func NewNotificationVisibilityProjection() *NotificationVisibilityProjection {
-	return &NotificationVisibilityProjection{
+	p := &NotificationVisibilityProjection{
 		rooms:         NewRoomDirectoryProjection(),
 		groups:        NewRoomGroupLayoutProjection(),
 		rbac:          NewRBACProjection(),
@@ -74,6 +70,8 @@ func NewNotificationVisibilityProjection() *NotificationVisibilityProjection {
 		replyCounts:   make(map[string]uint64),
 		boundaries:    make(map[uint64]struct{}),
 	}
+	p.evaluator = newNotificationVisibilitySnapshot()
+	return p
 }
 
 func (*NotificationVisibilityProjection) Subjects() []string {
@@ -100,6 +98,8 @@ func notificationVisibilityProjectionSubjects() []string {
 		evtstream.RoomEventTypeFilter(evtstream.EventRoomMemberRemoved),
 		evtstream.RoomEventTypeFilter(evtstream.EventMessagePosted),
 		evtstream.RoomEventTypeFilter(evtstream.EventReactionAdded),
+		evtstream.RoomEventTypeFilter(evtstream.EventReactionRemoved),
+		evtstream.RoomEventTypeFilter(evtstream.EventMessageRetracted),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 		evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),
 		evtstream.GroupEventTypeFilter(evtstream.EventRoomGroupCreated),
@@ -110,6 +110,7 @@ func notificationVisibilityProjectionSubjects() []string {
 		evtstream.ConfigSubjectFilter(),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountCreated),
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
+		evtstream.UserEventTypeFilter(evtstream.EventUserVerifiedEmailAdded),
 	}
 }
 
@@ -128,27 +129,34 @@ func (p *NotificationVisibilityProjection) Apply(event *corev1.Event, seq uint64
 	if err := applyNotificationDecisionState(p.config, p.activeUsers, p.threadFollows, p.followers, p.replyCounts, event, seq); err != nil {
 		return err
 	}
-	boundary := seq > p.acknowledgedThrough.Load() && notificationDecisionBoundaryEvent(event)
-	if len(p.checkpoint) == 0 {
-		if !boundary {
-			return nil
+	if seq <= p.acknowledgedThrough.Load() {
+		// Idle consumer progress can advance the acknowledged floor across
+		// state-only facts while this projector is catching up. Apply any older
+		// journaled deltas first; advancing the new fact directly would otherwise
+		// skip them and make the worker-position evaluator order-dependent.
+		if seq > 0 && p.evaluatorSequence < seq-1 {
+			if err := p.advanceEvaluatorThrough(seq - 1); err != nil {
+				return fmt.Errorf("advance acknowledged notification decision history before %d: %w", seq, err)
+			}
 		}
-		payload, err := encodeNotificationVisibilityState(p.rooms, p.groups, p.rbac, p.config, p.activeUsers, p.threadFollows, p.replyCounts)
-		if err != nil {
-			return fmt.Errorf("capture notification visibility checkpoint %d: %w", seq, err)
+		if seq <= p.evaluatorSequence {
+			return fmt.Errorf("notification decision event %d does not advance evaluator at %d", seq, p.evaluatorSequence)
 		}
-		p.checkpointSequence = seq
-		p.checkpoint = payload
-		p.boundaries[seq] = struct{}{}
+		if err := applyNotificationVisibilityDeltas(p.evaluator, []notificationVisibilityDelta{{sequence: seq, event: event}}); err != nil {
+			return fmt.Errorf("advance acknowledged notification decision state through %d: %w", seq, err)
+		}
+		p.evaluatorSequence = seq
+		firstRetained := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > seq })
+		if firstRetained > 0 {
+			p.deltas = append([]notificationVisibilityDelta(nil), p.deltas[firstRetained:]...)
+		}
 		return nil
 	}
-	if seq > p.checkpointSequence {
-		p.deltas = append(p.deltas, notificationVisibilityDelta{
-			sequence: seq,
-			event:    proto.Clone(event).(*corev1.Event),
-		})
-	}
-	if boundary {
+	p.deltas = append(p.deltas, notificationVisibilityDelta{
+		sequence: seq,
+		event:    proto.Clone(event).(*corev1.Event),
+	})
+	if notificationDecisionBoundaryEvent(event) {
 		p.boundaries[seq] = struct{}{}
 	}
 	return nil
@@ -206,15 +214,20 @@ func (p *NotificationVisibilityProjection) Restore(data []byte) error {
 	if err != nil {
 		return err
 	}
+	evaluatorRooms, evaluatorGroups, evaluatorRBAC, evaluatorConfig, evaluatorActiveUsers, evaluatorThreadFollows, evaluatorFollowers, evaluatorReplyCounts, err := decodeNotificationVisibilityState(data)
+	if err != nil {
+		return fmt.Errorf("restore notification decision evaluator: %w", err)
+	}
 	p.mu.Lock()
 	p.rooms, p.groups, p.rbac, p.config = rooms, groups, rbac, config
 	p.activeUsers, p.threadFollows, p.followers, p.replyCounts = activeUsers, threadFollows, followers, replyCounts
-	p.checkpointSequence = 0
-	p.checkpoint = nil
 	p.deltas = nil
 	p.boundaries = make(map[uint64]struct{})
 	p.evaluatorSequence = 0
-	p.evaluator = nil
+	p.evaluator = &notificationVisibilitySnapshot{
+		rooms: evaluatorRooms, groups: evaluatorGroups, rbac: evaluatorRBAC, config: evaluatorConfig,
+		activeUsers: evaluatorActiveUsers, threadFollows: evaluatorThreadFollows, followers: evaluatorFollowers, replyCounts: evaluatorReplyCounts,
+	}
 	p.mu.Unlock()
 	return nil
 }
@@ -222,6 +235,7 @@ func (p *NotificationVisibilityProjection) Restore(data []byte) error {
 func (p *NotificationVisibilityProjection) CompleteStartupReplay() {
 	p.mu.Lock()
 	p.rbac.CompleteStartupReplay()
+	p.evaluator.rbac.CompleteStartupReplay()
 	p.mu.Unlock()
 }
 
@@ -432,34 +446,41 @@ func (p *NotificationVisibilityProjection) Boundary(sequence uint64, at time.Tim
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	_, retained := p.boundaries[sequence]
-	if !retained || len(p.checkpoint) == 0 || sequence < p.checkpointSequence {
+	if !retained || p.evaluator == nil || sequence < p.evaluatorSequence {
 		return nil, fmt.Errorf("notification visibility boundary %d is unavailable", sequence)
 	}
-	if p.evaluator == nil || sequence < p.evaluatorSequence {
-		rooms, groups, rbac, config, activeUsers, threadFollows, followers, replyCounts, err := decodeNotificationVisibilityState(p.checkpoint)
-		if err != nil {
-			return nil, fmt.Errorf("restore notification visibility boundary %d: %w", sequence, err)
-		}
-		p.evaluator = &notificationVisibilitySnapshot{
-			rooms: rooms, groups: groups, rbac: rbac, config: config,
-			activeUsers: activeUsers, threadFollows: threadFollows, followers: followers, replyCounts: replyCounts,
-		}
-		p.evaluatorSequence = p.checkpointSequence
+	if err := p.advanceEvaluatorThrough(sequence); err != nil {
+		return nil, fmt.Errorf("advance notification visibility boundary %d: %w", sequence, err)
 	}
-	start := 0
-	for start < len(p.deltas) && p.deltas[start].sequence <= p.evaluatorSequence {
-		start++
-	}
-	end := start
-	for end < len(p.deltas) && p.deltas[end].sequence <= sequence {
-		end++
-	}
-	if err := applyNotificationVisibilityDeltas(p.evaluator, p.deltas[start:end]); err != nil {
-		return nil, fmt.Errorf("replay notification visibility boundary %d: %w", sequence, err)
-	}
-	p.evaluatorSequence = sequence
 	p.evaluator.at = at
 	return p.evaluator, nil
+}
+
+// AdvanceThrough advances the lagging evaluator after a worker delivery has
+// completed. Boundary deliveries have already advanced it; this method also
+// accounts for policy, membership, and other state-only deliveries so they do
+// not accumulate while notification traffic is idle. It intentionally runs
+// before DoubleAck: redelivery at the same sequence is safe and idempotent.
+func (p *NotificationVisibilityProjection) AdvanceThrough(sequence uint64) error {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.advanceEvaluatorThrough(sequence)
+}
+
+func (p *NotificationVisibilityProjection) advanceEvaluatorThrough(sequence uint64) error {
+	if p.evaluator == nil {
+		return fmt.Errorf("notification decision evaluator is unavailable")
+	}
+	if sequence < p.evaluatorSequence {
+		return fmt.Errorf("notification decision evaluator is at %d, cannot move back to %d", p.evaluatorSequence, sequence)
+	}
+	start := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > p.evaluatorSequence })
+	end := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > sequence })
+	if err := applyNotificationVisibilityDeltas(p.evaluator, p.deltas[start:end]); err != nil {
+		return err
+	}
+	p.evaluatorSequence = sequence
+	return nil
 }
 
 func applyNotificationVisibilityDeltas(snapshot *notificationVisibilitySnapshot, deltas []notificationVisibilityDelta) error {
@@ -480,10 +501,10 @@ func applyNotificationVisibilityDeltas(snapshot *notificationVisibilitySnapshot,
 	return nil
 }
 
-// ReleaseThrough drops compact boundary state only through facts whose durable
-// acknowledgement has been confirmed by the shared consumer. The journal is
-// released as one run when its final pending boundary is acknowledged; keeping
-// the single checkpoint avoids re-serializing full state per acknowledgement.
+// ReleaseThrough drops event-time boundary state only through facts whose
+// durable acknowledgement has been confirmed by the shared consumer. The
+// evaluator has already advanced in the worker handler before DoubleAck, so
+// cleanup never mutates a snapshot that an active delivery is reading.
 func (p *NotificationVisibilityProjection) ReleaseThrough(sequence uint64) error {
 	for current := p.acknowledgedThrough.Load(); sequence > current; current = p.acknowledgedThrough.Load() {
 		if p.acknowledgedThrough.CompareAndSwap(current, sequence) {
@@ -492,21 +513,15 @@ func (p *NotificationVisibilityProjection) ReleaseThrough(sequence uint64) error
 	}
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	if len(p.checkpoint) == 0 || sequence < p.checkpointSequence {
-		return nil
-	}
 	for boundary := range p.boundaries {
 		if boundary <= sequence {
 			delete(p.boundaries, boundary)
 		}
 	}
-	if len(p.boundaries) == 0 {
-		p.checkpointSequence = 0
-		p.checkpoint = nil
-		p.deltas = nil
-		p.evaluatorSequence = 0
-		p.evaluator = nil
-		return nil
+	releaseThrough := min(sequence, p.evaluatorSequence)
+	firstRetained := sort.Search(len(p.deltas), func(i int) bool { return p.deltas[i].sequence > releaseThrough })
+	if firstRetained > 0 {
+		p.deltas = append([]notificationVisibilityDelta(nil), p.deltas[firstRetained:]...)
 	}
 	return nil
 }
@@ -519,26 +534,38 @@ func (p *NotificationVisibilityProjection) adminProjectionEstimate() (int64, int
 	rbacEntries, rbacBytes, rbacMetrics := p.rbac.adminProjectionEstimate()
 	metrics := append(roomMetrics, groupMetrics...)
 	metrics = append(metrics, rbacMetrics...)
-	var policyEntries int64
-	p.config.RLock()
-	for _, user := range p.config.users {
-		policyEntries += int64(len(user.serverIntensityByKind))
-		for _, room := range user.roomIntensityByRoomAndKind {
-			policyEntries += int64(len(room))
-		}
-	}
-	p.config.RUnlock()
+	policyEntries := notificationPolicyEntryCount(p.config)
 	decisionEntries := int64(len(p.activeUsers)+len(p.threadFollows)+len(p.replyCounts)) + policyEntries
+	evaluatorRoomEntries, evaluatorRoomBytes, _ := p.evaluator.rooms.adminProjectionEstimate()
+	evaluatorGroupEntries, evaluatorGroupBytes, _ := p.evaluator.groups.adminProjectionEstimate()
+	evaluatorRBACEntries, evaluatorRBACBytes, _ := p.evaluator.rbac.adminProjectionEstimate()
+	evaluatorDecisionEntries := int64(len(p.evaluator.activeUsers)+len(p.evaluator.threadFollows)+len(p.evaluator.replyCounts)) + notificationPolicyEntryCount(p.evaluator.config)
+	evaluatorEntries := evaluatorRoomEntries + evaluatorGroupEntries + evaluatorRBACEntries + evaluatorDecisionEntries
+	evaluatorBytes := evaluatorRoomBytes + evaluatorGroupBytes + evaluatorRBACBytes + evaluatorDecisionEntries*projectionMapEntryOverhead
 	var deltaBytes int64
 	for _, delta := range p.deltas {
 		deltaBytes += int64(proto.Size(delta.event))
 	}
 	metrics = append(metrics,
 		ProjectionAdminMetric{Name: "decision_state", Value: decisionEntries, Bytes: decisionEntries * projectionMapEntryOverhead},
+		ProjectionAdminMetric{Name: "worker_position_decision_state", Value: evaluatorEntries, Bytes: evaluatorBytes},
 		ProjectionAdminMetric{Name: "pending_decision_boundaries", Value: int64(len(p.boundaries))},
 		ProjectionAdminMetric{Name: "decision_boundary_deltas", Value: int64(len(p.deltas)), Bytes: deltaBytes},
 	)
-	return roomEntries + groupEntries + rbacEntries + decisionEntries + int64(len(p.boundaries)+len(p.deltas)), roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead + int64(len(p.checkpoint)) + deltaBytes, metrics
+	return roomEntries + groupEntries + rbacEntries + decisionEntries + evaluatorEntries + int64(len(p.boundaries)+len(p.deltas)), roomBytes + groupBytes + rbacBytes + decisionEntries*projectionMapEntryOverhead + evaluatorBytes + deltaBytes, metrics
+}
+
+func notificationPolicyEntryCount(config *ConfigProjection) int64 {
+	var entries int64
+	config.RLock()
+	defer config.RUnlock()
+	for _, user := range config.users {
+		entries += int64(len(user.serverIntensityByKind))
+		for _, room := range user.roomIntensityByRoomAndKind {
+			entries += int64(len(room))
+		}
+	}
+	return entries
 }
 
 // cappedNotificationVisibilitySnapshotSource prevents projection restore from
@@ -565,6 +592,19 @@ type notificationVisibilitySnapshot struct {
 	followers     map[string]map[string]struct{}
 	replyCounts   map[string]uint64
 	at            time.Time
+}
+
+func newNotificationVisibilitySnapshot() *notificationVisibilitySnapshot {
+	return &notificationVisibilitySnapshot{
+		rooms:         NewRoomDirectoryProjection(),
+		groups:        NewRoomGroupLayoutProjection(),
+		rbac:          NewRBACProjection(),
+		config:        NewConfigProjection(),
+		activeUsers:   make(map[string]struct{}),
+		threadFollows: make(map[string]notificationThreadFollow),
+		followers:     make(map[string]map[string]struct{}),
+		replyCounts:   make(map[string]uint64),
+	}
 }
 
 func (s *notificationVisibilitySnapshot) roomKind(roomID string) (RoomKind, bool) {
