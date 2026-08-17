@@ -8,7 +8,7 @@ import {
   NotificationItemKind,
   NotificationAttentionLevel,
   NotificationDeliveryIntensity,
-  NotificationReason,
+  NotificationPolicyKind,
   type NotificationAPI,
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage
@@ -49,10 +49,10 @@ function occurrencePage(source: FlatNotificationPage): NotificationOccurrencePag
       eventId: target.eventId ?? '',
       threadRootId: target.threadRootId,
       parentEventId: null,
-      reasons: [NotificationReason.DIRECT_MENTION],
+      reasons: [NotificationPolicyKind.DIRECT_MENTION],
       reasonMatches: [
         {
-          reason: NotificationReason.DIRECT_MENTION,
+          reason: NotificationPolicyKind.DIRECT_MENTION,
           intensity: NotificationDeliveryIntensity.ALERT
         }
       ],

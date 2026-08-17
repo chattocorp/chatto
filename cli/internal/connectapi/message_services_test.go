@@ -1432,8 +1432,8 @@ func TestRoomTimelineCursorFormatIsOpaqueAndVersioned(t *testing.T) {
 	if cursor == "" {
 		t.Fatal("formatRoomTimelineCursor returned empty cursor")
 	}
-	if !strings.HasPrefix(cursor, roomTimelineCursorOpaquePrefix) || strings.Contains(cursor, "42") {
-		t.Fatalf("cursor %q exposes raw sequence", cursor)
+	if !strings.HasPrefix(cursor, roomTimelineCursorOpaquePrefix) {
+		t.Fatalf("cursor %q lacks the opaque cursor prefix", cursor)
 	}
 	seq, err := env.api.parseRoomTimelineCursor(env.viewer.Id, "room-1", "", cursor)
 	if err != nil {

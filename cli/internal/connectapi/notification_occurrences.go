@@ -51,7 +51,7 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if err := requireSupportedNotificationTargets(occurrence); err != nil {
+	if err := requireSupportedNotificationSignals(occurrence); err != nil {
 		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, occurrence)
@@ -84,7 +84,7 @@ func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Contex
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if err := requireSupportedNotificationTargets(occurrences...); err != nil {
+	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return nil, err
 	}
 	visible, err := s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
@@ -162,7 +162,8 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 			if important {
 				summary.importantUnreadCount++
 			}
-			if roomID := occurrence.GetTarget().GetRoomMessage().GetRoomId(); roomID != "" {
+			if message := core.NotificationOccurrenceMessageReference(occurrence); message != nil && message.GetRoomId() != "" {
+				roomID := message.GetRoomId()
 				room := roomCounts[roomID]
 				room.unreadCount++
 				if important {
@@ -201,7 +202,7 @@ func (s *notificationService) visibleNotificationOccurrences(ctx context.Context
 	visible := make([]*corev1.NotificationOccurrence, 0, len(allowedOccurrences))
 	for _, occurrence := range occurrences {
 		if _, allowed := allowedIDs[occurrence.GetId()]; !allowed {
-			if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+			if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 				continue
 			}
 			if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
@@ -220,7 +221,7 @@ func (s *notificationService) notificationOccurrenceVisible(ctx context.Context,
 }
 
 func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.Context, userID string, occurrences []*corev1.NotificationOccurrence) (int, error) {
-	if err := requireSupportedNotificationTargets(occurrences...); err != nil {
+	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
 		return 0, err
 	}
 	visible, err := s.visibleNotificationOccurrences(ctx, userID, occurrences)
@@ -234,12 +235,12 @@ func (s *notificationService) deleteVisibleNotificationOccurrences(ctx context.C
 	return s.api.core.NotificationOccurrences().DeleteMany(ctx, userID, ids)
 }
 
-func requireSupportedNotificationTargets(occurrences ...*corev1.NotificationOccurrence) error {
+func requireSupportedNotificationSignals(occurrences ...*corev1.NotificationOccurrence) error {
 	for _, occurrence := range occurrences {
-		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
+		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 			return connect.NewError(
 				connect.CodeUnimplemented,
-				errors.New("notification target is not supported by this server version"),
+				errors.New("notification signal is not supported by this server version"),
 			)
 		}
 	}
@@ -278,7 +279,7 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 	if err != nil {
 		return nil, connectError(err)
 	}
-	if err := requireSupportedNotificationTargets(existing); err != nil {
+	if err := requireSupportedNotificationSignals(existing); err != nil {
 		return nil, err
 	}
 	visible, err := s.notificationOccurrenceVisible(ctx, caller.UserID, existing)
@@ -371,7 +372,7 @@ func apiNotificationPolicy(roomID string, policy []core.NotificationPolicyPrefer
 	preferences := make([]*apiv1.NotificationPolicyPreference, 0, len(policy))
 	for _, preference := range policy {
 		preferences = append(preferences, &apiv1.NotificationPolicyPreference{
-			Reason:             apiv1.NotificationReason(preference.Reason),
+			Kind:               apiv1.NotificationPolicyKind(preference.Kind),
 			ServerIntensity:    apiv1.NotificationDeliveryIntensity(preference.ServerIntensity),
 			RoomIntensity:      apiv1.NotificationDeliveryIntensity(preference.RoomIntensity),
 			EffectiveIntensity: apiv1.NotificationDeliveryIntensity(preference.Effective),
@@ -406,13 +407,13 @@ func (s *notificationService) SetNotificationPolicyPreference(ctx context.Contex
 		return nil, err
 	}
 	roomID := req.Msg.GetRoomId()
-	reason := corev1.NotificationReason(req.Msg.GetReason())
+	kind := corev1.NotificationPolicyKind(req.Msg.GetKind())
 	intensity := corev1.NotificationDeliveryIntensity(req.Msg.GetIntensity())
 	var policy []core.NotificationPolicyPreference
 	if roomID == "" {
-		policy, err = s.api.core.NotificationPolicy().SetServerNotificationIntensity(ctx, caller.UserID, reason, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetServerNotificationIntensity(ctx, caller.UserID, kind, intensity)
 	} else {
-		policy, err = s.api.core.NotificationPolicy().SetRoomNotificationIntensity(ctx, caller.UserID, roomID, reason, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetRoomNotificationIntensity(ctx, caller.UserID, roomID, kind, intensity)
 	}
 	if err != nil {
 		return nil, connectError(err)

@@ -29,10 +29,10 @@ type serverConfigState struct {
 }
 
 type userConfigState struct {
-	timezone                    *string
-	timeFormat                  *corev1.TimeFormat
-	serverIntensityByReason     map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity
-	roomIntensityByRoomAndCause map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity
+	timezone                   *string
+	timeFormat                 *corev1.TimeFormat
+	serverIntensityByKind      map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity
+	roomIntensityByRoomAndKind map[string]map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity
 }
 
 func NewConfigProjection() *ConfigProjection {
@@ -91,30 +91,30 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		u := p.ensureUserLocked(preference.GetUserId())
 		if preference.RoomId == nil {
 			if preference.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-				delete(u.serverIntensityByReason, preference.GetReason())
+				delete(u.serverIntensityByKind, preference.GetKind())
 				break
 			}
-			if u.serverIntensityByReason == nil {
-				u.serverIntensityByReason = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+			if u.serverIntensityByKind == nil {
+				u.serverIntensityByKind = make(map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity)
 			}
-			u.serverIntensityByReason[preference.GetReason()] = preference.GetIntensity()
+			u.serverIntensityByKind[preference.GetKind()] = preference.GetIntensity()
 			break
 		}
 		roomID := preference.GetRoomId()
 		if preference.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			delete(u.roomIntensityByRoomAndCause[roomID], preference.GetReason())
-			if len(u.roomIntensityByRoomAndCause[roomID]) == 0 {
-				delete(u.roomIntensityByRoomAndCause, roomID)
+			delete(u.roomIntensityByRoomAndKind[roomID], preference.GetKind())
+			if len(u.roomIntensityByRoomAndKind[roomID]) == 0 {
+				delete(u.roomIntensityByRoomAndKind, roomID)
 			}
 			break
 		}
-		if u.roomIntensityByRoomAndCause == nil {
-			u.roomIntensityByRoomAndCause = make(map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+		if u.roomIntensityByRoomAndKind == nil {
+			u.roomIntensityByRoomAndKind = make(map[string]map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity)
 		}
-		if u.roomIntensityByRoomAndCause[roomID] == nil {
-			u.roomIntensityByRoomAndCause[roomID] = make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+		if u.roomIntensityByRoomAndKind[roomID] == nil {
+			u.roomIntensityByRoomAndKind[roomID] = make(map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity)
 		}
-		u.roomIntensityByRoomAndCause[roomID][preference.GetReason()] = preference.GetIntensity()
+		u.roomIntensityByRoomAndKind[roomID][preference.GetKind()] = preference.GetIntensity()
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:

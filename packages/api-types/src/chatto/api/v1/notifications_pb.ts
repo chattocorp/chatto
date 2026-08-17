@@ -10,97 +10,98 @@ import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
- * Why source activity matched the authenticated viewer's notification policy.
+ * Stable preference key for one class of notification signal. Notification
+ * content uses NotificationSignal instead of this enum.
  *
- * @generated from enum chatto.api.v1.NotificationReason
+ * @generated from enum chatto.api.v1.NotificationPolicyKind
  */
-export enum NotificationReason {
+export enum NotificationPolicyKind {
   /**
    * No cause was specified. This value is not valid in preference writes.
    *
-   * @generated from enum value: NOTIFICATION_REASON_UNSPECIFIED = 0;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
    * A message was posted in a direct-message conversation.
    *
-   * @generated from enum value: NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE = 1;
    */
   DIRECT_MESSAGE = 1,
 
   /**
    * The viewer's username was mentioned directly.
    *
-   * @generated from enum value: NOTIFICATION_REASON_DIRECT_MENTION = 2;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_DIRECT_MENTION = 2;
    */
   DIRECT_MENTION = 2,
 
   /**
    * Activity replied directly to the viewer's message.
    *
-   * @generated from enum value: NOTIFICATION_REASON_REPLY = 3;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_REPLY = 3;
    */
   REPLY = 3,
 
   /**
    * A role held by the viewer was mentioned.
    *
-   * @generated from enum value: NOTIFICATION_REASON_ROLE_MENTION = 4;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_ROLE_MENTION = 4;
    */
   ROLE_MENTION = 4,
 
   /**
    * An `@here` mention included the viewer.
    *
-   * @generated from enum value: NOTIFICATION_REASON_HERE = 5;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_HERE = 5;
    */
   HERE = 5,
 
   /**
    * An `@all` mention included the viewer.
    *
-   * @generated from enum value: NOTIFICATION_REASON_ALL = 6;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_ALL = 6;
    */
   ALL = 6,
 
   /**
    * New activity appeared in a thread followed by the viewer.
    *
-   * @generated from enum value: NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD = 7;
    */
   FOLLOWED_THREAD = 7,
 
   /**
    * New activity appeared in a room followed by the viewer.
    *
-   * @generated from enum value: NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM = 8;
    */
   FOLLOWED_ROOM = 8,
 
   /**
    * Someone reacted to the viewer's message.
    *
-   * @generated from enum value: NOTIFICATION_REASON_REACTION = 9;
+   * @generated from enum value: NOTIFICATION_POLICY_KIND_REACTION = 9;
    */
   REACTION = 9,
 }
-// Retrieve enum metadata with: proto3.getEnumType(NotificationReason)
-proto3.util.setEnumType(NotificationReason, "chatto.api.v1.NotificationReason", [
-  { no: 0, name: "NOTIFICATION_REASON_UNSPECIFIED" },
-  { no: 1, name: "NOTIFICATION_REASON_DIRECT_MESSAGE" },
-  { no: 2, name: "NOTIFICATION_REASON_DIRECT_MENTION" },
-  { no: 3, name: "NOTIFICATION_REASON_REPLY" },
-  { no: 4, name: "NOTIFICATION_REASON_ROLE_MENTION" },
-  { no: 5, name: "NOTIFICATION_REASON_HERE" },
-  { no: 6, name: "NOTIFICATION_REASON_ALL" },
-  { no: 7, name: "NOTIFICATION_REASON_FOLLOWED_THREAD" },
-  { no: 8, name: "NOTIFICATION_REASON_FOLLOWED_ROOM" },
-  { no: 9, name: "NOTIFICATION_REASON_REACTION" },
+// Retrieve enum metadata with: proto3.getEnumType(NotificationPolicyKind)
+proto3.util.setEnumType(NotificationPolicyKind, "chatto.api.v1.NotificationPolicyKind", [
+  { no: 0, name: "NOTIFICATION_POLICY_KIND_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE" },
+  { no: 2, name: "NOTIFICATION_POLICY_KIND_DIRECT_MENTION" },
+  { no: 3, name: "NOTIFICATION_POLICY_KIND_REPLY" },
+  { no: 4, name: "NOTIFICATION_POLICY_KIND_ROLE_MENTION" },
+  { no: 5, name: "NOTIFICATION_POLICY_KIND_HERE" },
+  { no: 6, name: "NOTIFICATION_POLICY_KIND_ALL" },
+  { no: 7, name: "NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD" },
+  { no: 8, name: "NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM" },
+  { no: 9, name: "NOTIFICATION_POLICY_KIND_REACTION" },
 ]);
 
 /**
- * Delivery strength for one notification cause.
+ * Delivery strength for one notification signal class.
  *
  * @generated from enum chatto.api.v1.NotificationDeliveryIntensity
  */
@@ -177,60 +178,11 @@ proto3.util.setEnumType(NotificationAttentionLevel, "chatto.api.v1.NotificationA
 ]);
 
 /**
- * One cause that matched an occurrence and its evaluated delivery intensity.
+ * Exact visible message destination carried by a notification signal.
  *
- * @generated from message chatto.api.v1.NotificationReasonMatch
+ * @generated from message chatto.api.v1.NotificationMessageReference
  */
-export class NotificationReasonMatch extends Message<NotificationReasonMatch> {
-  /**
-   * Cause that matched the viewer.
-   *
-   * @generated from field: chatto.api.v1.NotificationReason reason = 1;
-   */
-  reason = NotificationReason.UNSPECIFIED;
-
-  /**
-   * Effective intensity when the source activity occurred.
-   *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 2;
-   */
-  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<NotificationReasonMatch>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationReasonMatch";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
-    { no: 2, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationReasonMatch {
-    return new NotificationReasonMatch().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationReasonMatch {
-    return new NotificationReasonMatch().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationReasonMatch {
-    return new NotificationReasonMatch().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: NotificationReasonMatch | PlainMessage<NotificationReasonMatch> | undefined, b: NotificationReasonMatch | PlainMessage<NotificationReasonMatch> | undefined): boolean {
-    return proto3.util.equals(NotificationReasonMatch, a, b);
-  }
-}
-
-/**
- * Exact visible message destination of one notification occurrence.
- *
- * @generated from message chatto.api.v1.NotificationRoomMessageTarget
- */
-export class NotificationRoomMessageTarget extends Message<NotificationRoomMessageTarget> {
+export class NotificationMessageReference extends Message<NotificationMessageReference> {
   /**
    * Room containing the source activity.
    *
@@ -259,13 +211,13 @@ export class NotificationRoomMessageTarget extends Message<NotificationRoomMessa
    */
   parentEventId?: string;
 
-  constructor(data?: PartialMessage<NotificationRoomMessageTarget>) {
+  constructor(data?: PartialMessage<NotificationMessageReference>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationRoomMessageTarget";
+  static readonly typeName = "chatto.api.v1.NotificationMessageReference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
@@ -273,70 +225,482 @@ export class NotificationRoomMessageTarget extends Message<NotificationRoomMessa
     { no: 4, name: "parent_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationRoomMessageTarget {
-    return new NotificationRoomMessageTarget().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationMessageReference {
+    return new NotificationMessageReference().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationRoomMessageTarget {
-    return new NotificationRoomMessageTarget().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationMessageReference {
+    return new NotificationMessageReference().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationRoomMessageTarget {
-    return new NotificationRoomMessageTarget().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationMessageReference {
+    return new NotificationMessageReference().fromJsonString(jsonString, options);
   }
 
-  static equals(a: NotificationRoomMessageTarget | PlainMessage<NotificationRoomMessageTarget> | undefined, b: NotificationRoomMessageTarget | PlainMessage<NotificationRoomMessageTarget> | undefined): boolean {
-    return proto3.util.equals(NotificationRoomMessageTarget, a, b);
+  static equals(a: NotificationMessageReference | PlainMessage<NotificationMessageReference> | undefined, b: NotificationMessageReference | PlainMessage<NotificationMessageReference> | undefined): boolean {
+    return proto3.util.equals(NotificationMessageReference, a, b);
   }
 }
 
 /**
- * Typed resource or activity represented by one notification occurrence.
- * Clients must not infer navigation semantics for unsupported variants.
- * Binary protobuf clients may retain them as generic, non-navigating triage
- * rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
+ * A direct message sent to the viewer.
  *
- * @generated from message chatto.api.v1.NotificationTarget
+ * @generated from message chatto.api.v1.DirectMessageReceived
  */
-export class NotificationTarget extends Message<NotificationTarget> {
+export class DirectMessageReceived extends Message<DirectMessageReceived> {
   /**
-   * @generated from oneof chatto.api.v1.NotificationTarget.kind
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
    */
-  kind: {
-    /**
-     * Exact room-message destination.
-     *
-     * @generated from field: chatto.api.v1.NotificationRoomMessageTarget room_message = 1;
-     */
-    value: NotificationRoomMessageTarget;
-    case: "roomMessage";
-  } | { case: undefined; value?: undefined } = { case: undefined };
+  message?: NotificationMessageReference;
 
-  constructor(data?: PartialMessage<NotificationTarget>) {
+  constructor(data?: PartialMessage<DirectMessageReceived>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationTarget";
+  static readonly typeName = "chatto.api.v1.DirectMessageReceived";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "room_message", kind: "message", T: NotificationRoomMessageTarget, oneof: "kind" },
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationTarget {
-    return new NotificationTarget().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DirectMessageReceived {
+    return new DirectMessageReceived().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationTarget {
-    return new NotificationTarget().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DirectMessageReceived {
+    return new DirectMessageReceived().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationTarget {
-    return new NotificationTarget().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DirectMessageReceived {
+    return new DirectMessageReceived().fromJsonString(jsonString, options);
   }
 
-  static equals(a: NotificationTarget | PlainMessage<NotificationTarget> | undefined, b: NotificationTarget | PlainMessage<NotificationTarget> | undefined): boolean {
-    return proto3.util.equals(NotificationTarget, a, b);
+  static equals(a: DirectMessageReceived | PlainMessage<DirectMessageReceived> | undefined, b: DirectMessageReceived | PlainMessage<DirectMessageReceived> | undefined): boolean {
+    return proto3.util.equals(DirectMessageReceived, a, b);
+  }
+}
+
+/**
+ * A message that mentions the viewer directly.
+ *
+ * @generated from message chatto.api.v1.DirectMentionReceived
+ */
+export class DirectMentionReceived extends Message<DirectMentionReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<DirectMentionReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DirectMentionReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DirectMentionReceived {
+    return new DirectMentionReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DirectMentionReceived {
+    return new DirectMentionReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DirectMentionReceived {
+    return new DirectMentionReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DirectMentionReceived | PlainMessage<DirectMentionReceived> | undefined, b: DirectMentionReceived | PlainMessage<DirectMentionReceived> | undefined): boolean {
+    return proto3.util.equals(DirectMentionReceived, a, b);
+  }
+}
+
+/**
+ * A reply to one of the viewer's messages.
+ *
+ * @generated from message chatto.api.v1.ReplyReceived
+ */
+export class ReplyReceived extends Message<ReplyReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<ReplyReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReplyReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReplyReceived {
+    return new ReplyReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReplyReceived {
+    return new ReplyReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReplyReceived {
+    return new ReplyReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReplyReceived | PlainMessage<ReplyReceived> | undefined, b: ReplyReceived | PlainMessage<ReplyReceived> | undefined): boolean {
+    return proto3.util.equals(ReplyReceived, a, b);
+  }
+}
+
+/**
+ * A message mentioning a role held by the viewer.
+ *
+ * @generated from message chatto.api.v1.RoleMentionReceived
+ */
+export class RoleMentionReceived extends Message<RoleMentionReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<RoleMentionReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoleMentionReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleMentionReceived {
+    return new RoleMentionReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoleMentionReceived {
+    return new RoleMentionReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoleMentionReceived {
+    return new RoleMentionReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoleMentionReceived | PlainMessage<RoleMentionReceived> | undefined, b: RoleMentionReceived | PlainMessage<RoleMentionReceived> | undefined): boolean {
+    return proto3.util.equals(RoleMentionReceived, a, b);
+  }
+}
+
+/**
+ * An `@here` message that included the viewer.
+ *
+ * @generated from message chatto.api.v1.HereMentionReceived
+ */
+export class HereMentionReceived extends Message<HereMentionReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<HereMentionReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.HereMentionReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): HereMentionReceived {
+    return new HereMentionReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): HereMentionReceived {
+    return new HereMentionReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): HereMentionReceived {
+    return new HereMentionReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: HereMentionReceived | PlainMessage<HereMentionReceived> | undefined, b: HereMentionReceived | PlainMessage<HereMentionReceived> | undefined): boolean {
+    return proto3.util.equals(HereMentionReceived, a, b);
+  }
+}
+
+/**
+ * An `@all` message that included the viewer.
+ *
+ * @generated from message chatto.api.v1.AllMentionReceived
+ */
+export class AllMentionReceived extends Message<AllMentionReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<AllMentionReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.AllMentionReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): AllMentionReceived {
+    return new AllMentionReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): AllMentionReceived {
+    return new AllMentionReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): AllMentionReceived {
+    return new AllMentionReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: AllMentionReceived | PlainMessage<AllMentionReceived> | undefined, b: AllMentionReceived | PlainMessage<AllMentionReceived> | undefined): boolean {
+    return proto3.util.equals(AllMentionReceived, a, b);
+  }
+}
+
+/**
+ * Activity in a thread followed by the viewer.
+ *
+ * @generated from message chatto.api.v1.FollowedThreadActivity
+ */
+export class FollowedThreadActivity extends Message<FollowedThreadActivity> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<FollowedThreadActivity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.FollowedThreadActivity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedThreadActivity {
+    return new FollowedThreadActivity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FollowedThreadActivity {
+    return new FollowedThreadActivity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FollowedThreadActivity {
+    return new FollowedThreadActivity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FollowedThreadActivity | PlainMessage<FollowedThreadActivity> | undefined, b: FollowedThreadActivity | PlainMessage<FollowedThreadActivity> | undefined): boolean {
+    return proto3.util.equals(FollowedThreadActivity, a, b);
+  }
+}
+
+/**
+ * Activity in a room followed by the viewer.
+ *
+ * @generated from message chatto.api.v1.FollowedRoomActivity
+ */
+export class FollowedRoomActivity extends Message<FollowedRoomActivity> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<FollowedRoomActivity>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.FollowedRoomActivity";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): FollowedRoomActivity {
+    return new FollowedRoomActivity().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): FollowedRoomActivity {
+    return new FollowedRoomActivity().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): FollowedRoomActivity {
+    return new FollowedRoomActivity().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: FollowedRoomActivity | PlainMessage<FollowedRoomActivity> | undefined, b: FollowedRoomActivity | PlainMessage<FollowedRoomActivity> | undefined): boolean {
+    return proto3.util.equals(FollowedRoomActivity, a, b);
+  }
+}
+
+/**
+ * A reaction added to one of the viewer's messages.
+ *
+ * @generated from message chatto.api.v1.ReactionReceived
+ */
+export class ReactionReceived extends Message<ReactionReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  /**
+   * Exact reaction supplied by the actor.
+   *
+   * @generated from field: string emoji = 2;
+   */
+  emoji = "";
+
+  constructor(data?: PartialMessage<ReactionReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReactionReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+    { no: 2, name: "emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReactionReceived {
+    return new ReactionReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReactionReceived {
+    return new ReactionReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReactionReceived {
+    return new ReactionReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReactionReceived | PlainMessage<ReactionReceived> | undefined, b: ReactionReceived | PlainMessage<ReactionReceived> | undefined): boolean {
+    return proto3.util.equals(ReactionReceived, a, b);
+  }
+}
+
+/**
+ * Immutable, typed cause and destination of one notification. Clients must
+ * preserve unknown variants as generic dismissible rows and must not infer
+ * navigation semantics for them.
+ *
+ * @generated from message chatto.api.v1.NotificationSignal
+ */
+export class NotificationSignal extends Message<NotificationSignal> {
+  /**
+   * @generated from oneof chatto.api.v1.NotificationSignal.kind
+   */
+  kind: {
+    /**
+     * @generated from field: chatto.api.v1.DirectMessageReceived direct_message_received = 1;
+     */
+    value: DirectMessageReceived;
+    case: "directMessageReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.DirectMentionReceived direct_mention_received = 2;
+     */
+    value: DirectMentionReceived;
+    case: "directMentionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.ReplyReceived reply_received = 3;
+     */
+    value: ReplyReceived;
+    case: "replyReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.RoleMentionReceived role_mention_received = 4;
+     */
+    value: RoleMentionReceived;
+    case: "roleMentionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.HereMentionReceived here_mention_received = 5;
+     */
+    value: HereMentionReceived;
+    case: "hereMentionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.AllMentionReceived all_mention_received = 6;
+     */
+    value: AllMentionReceived;
+    case: "allMentionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.FollowedThreadActivity followed_thread_activity = 7;
+     */
+    value: FollowedThreadActivity;
+    case: "followedThreadActivity";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.FollowedRoomActivity followed_room_activity = 8;
+     */
+    value: FollowedRoomActivity;
+    case: "followedRoomActivity";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.ReactionReceived reaction_received = 9;
+     */
+    value: ReactionReceived;
+    case: "reactionReceived";
+  } | { case: undefined; value?: undefined } = { case: undefined };
+
+  constructor(data?: PartialMessage<NotificationSignal>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationSignal";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "direct_message_received", kind: "message", T: DirectMessageReceived, oneof: "kind" },
+    { no: 2, name: "direct_mention_received", kind: "message", T: DirectMentionReceived, oneof: "kind" },
+    { no: 3, name: "reply_received", kind: "message", T: ReplyReceived, oneof: "kind" },
+    { no: 4, name: "role_mention_received", kind: "message", T: RoleMentionReceived, oneof: "kind" },
+    { no: 5, name: "here_mention_received", kind: "message", T: HereMentionReceived, oneof: "kind" },
+    { no: 6, name: "all_mention_received", kind: "message", T: AllMentionReceived, oneof: "kind" },
+    { no: 7, name: "followed_thread_activity", kind: "message", T: FollowedThreadActivity, oneof: "kind" },
+    { no: 8, name: "followed_room_activity", kind: "message", T: FollowedRoomActivity, oneof: "kind" },
+    { no: 9, name: "reaction_received", kind: "message", T: ReactionReceived, oneof: "kind" },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationSignal {
+    return new NotificationSignal().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationSignal {
+    return new NotificationSignal().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationSignal {
+    return new NotificationSignal().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationSignal | PlainMessage<NotificationSignal> | undefined, b: NotificationSignal | PlainMessage<NotificationSignal> | undefined): boolean {
+    return proto3.util.equals(NotificationSignal, a, b);
   }
 }
 
@@ -375,25 +739,18 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   actor?: User;
 
   /**
-   * Typed resource or activity represented by this occurrence.
+   * Immutable cause and destination represented by this occurrence.
    *
-   * @generated from field: chatto.api.v1.NotificationTarget target = 5;
+   * @generated from field: chatto.api.v1.NotificationSignal signal = 5;
    */
-  target?: NotificationTarget;
+  signal?: NotificationSignal;
 
   /**
-   * Every cause that matched when the source activity occurred.
+   * Effective delivery intensity when the signal was emitted.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationReasonMatch reasons = 6;
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 7;
    */
-  reasons: NotificationReasonMatch[] = [];
-
-  /**
-   * Strongest evaluated intensity across all matching causes.
-   *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity strongest_intensity = 7;
-   */
-  strongestIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
 
   /**
    * Whether this occurrence still contributes unread attention.
@@ -401,13 +758,6 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
    * @generated from field: bool unread = 8;
    */
   unread = false;
-
-  /**
-   * Exact emoji for a reaction occurrence. Empty for every other cause.
-   *
-   * @generated from field: string reaction_emoji = 9;
-   */
-  reactionEmoji = "";
 
   /**
    * Absolute expiry, 90 days after the source activity.
@@ -435,11 +785,9 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 2, name: "source_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "created_at", kind: "message", T: Timestamp },
     { no: 4, name: "actor", kind: "message", T: User },
-    { no: 5, name: "target", kind: "message", T: NotificationTarget },
-    { no: 6, name: "reasons", kind: "message", T: NotificationReasonMatch, repeated: true },
-    { no: 7, name: "strongest_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 5, name: "signal", kind: "message", T: NotificationSignal },
+    { no: 7, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
     { no: 8, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 9, name: "reaction_emoji", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 10, name: "expires_at", kind: "message", T: Timestamp },
     { no: 12, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
   ]);
@@ -1133,17 +1481,17 @@ export class DeleteAllNotificationOccurrencesResponse extends Message<DeleteAllN
 }
 
 /**
- * Explicit and effective delivery policy for one notification cause.
+ * Explicit and effective delivery policy for one notification signal class.
  *
  * @generated from message chatto.api.v1.NotificationPolicyPreference
  */
 export class NotificationPolicyPreference extends Message<NotificationPolicyPreference> {
   /**
-   * Notification cause controlled by this row.
+   * Notification signal class controlled by this row.
    *
-   * @generated from field: chatto.api.v1.NotificationReason reason = 1;
+   * @generated from field: chatto.api.v1.NotificationPolicyKind kind = 1;
    */
-  reason = NotificationReason.UNSPECIFIED;
+  kind = NotificationPolicyKind.UNSPECIFIED;
 
   /**
    * Explicit server override, or unspecified when inherited from product defaults.
@@ -1174,7 +1522,7 @@ export class NotificationPolicyPreference extends Message<NotificationPolicyPref
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.NotificationPolicyPreference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
+    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(NotificationPolicyKind) },
     { no: 2, name: "server_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
     { no: 3, name: "room_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
     { no: 4, name: "effective_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
@@ -1253,7 +1601,7 @@ export class GetNotificationPolicyResponse extends Message<GetNotificationPolicy
   roomId?: string;
 
   /**
-   * One row for every supported notification cause.
+   * One row for every supported notification signal class.
    *
    * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
    */
@@ -1302,11 +1650,11 @@ export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificat
   roomId?: string;
 
   /**
-   * Required notification cause.
+   * Required notification signal class.
    *
-   * @generated from field: chatto.api.v1.NotificationReason reason = 2;
+   * @generated from field: chatto.api.v1.NotificationPolicyKind kind = 2;
    */
-  reason = NotificationReason.UNSPECIFIED;
+  kind = NotificationPolicyKind.UNSPECIFIED;
 
   /**
    * Unspecified clears the selected server or room override.
@@ -1324,7 +1672,7 @@ export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificat
   static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "reason", kind: "enum", T: proto3.getEnumType(NotificationReason) },
+    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(NotificationPolicyKind) },
     { no: 3, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
   ]);
 
@@ -1359,7 +1707,7 @@ export class SetNotificationPolicyPreferenceResponse extends Message<SetNotifica
   roomId?: string;
 
   /**
-   * One row for every supported notification cause.
+   * One row for every supported notification signal class.
    *
    * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
    */

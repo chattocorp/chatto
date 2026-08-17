@@ -195,17 +195,14 @@ message NotificationDismissedEvent {
 
 // User-scoped invalidation for Notifications 2.0 authoritative replacement.
 message NotificationOccurrenceChangedEvent {
+  reserved 5, 6;
+  reserved "source_event_id", "runtime_state_revision";
   string notification_id = 1;
   bool created = 2;
   bool deleted = 3;
   // True only when a newly created occurrence is currently allowed to trigger
   // a one-shot local alert.
   bool alert = 4;
-  // Internal source identity used to fence the recipient's runtime-state
-  // watcher before an authoritative replacement is assembled.
-  string source_event_id = 5;
-  // RUNTIME_STATE KV revision that must be visible before replacement.
-  uint64 runtime_state_revision = 6;
 }
 
 // ============================================================================

@@ -363,7 +363,7 @@ func (s *ReactionModel) mutateAuthorizedReaction(ctx context.Context, input Reac
 			return nil, ErrNotFound
 		}
 		recipientID := target.GetActorId()
-		var notificationWork []*corev1.NotificationOccurrence
+		var notificationWork *corev1.NotificationMaterializationWork
 		if recipientID != "" && recipientID != input.ActorID {
 			if add {
 				if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
@@ -493,7 +493,7 @@ func (s *ReactionModel) publishReactionMutation(ctx context.Context, kind RoomKi
 			return nil, nil
 		}
 		entries := []evtstream.MutationEntry{{Subject: publishSubject, Event: event}}
-		var work []*corev1.NotificationOccurrence
+		var work *corev1.NotificationMaterializationWork
 		if add && notificationTarget != nil {
 			if err := s.core.waitForCurrentNotificationPolicy(ctx); err != nil {
 				return nil, err

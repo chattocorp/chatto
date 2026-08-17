@@ -12,7 +12,7 @@ import {
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage,
   type NotificationPolicyItem,
-  type NotificationReason,
+  type NotificationPolicyKind,
   type NotificationItem,
   type ReplyNotificationItem,
   type RoomMessageNotificationItem
@@ -615,7 +615,7 @@ export class NotificationStore {
   }
 
   setPolicyPreference(
-    reason: NotificationReason,
+    reason: NotificationPolicyKind,
     intensity: NotificationDeliveryIntensity,
     roomId?: string
   ): Promise<NotificationPolicyItem[]> {

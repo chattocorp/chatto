@@ -1000,14 +1000,9 @@ type NotificationOccurrenceChangedEvent struct {
 	Deleted        bool                   `protobuf:"varint,3,opt,name=deleted,proto3" json:"deleted,omitempty"`
 	// True only when a newly created occurrence is currently allowed to trigger
 	// a one-shot local alert.
-	Alert bool `protobuf:"varint,4,opt,name=alert,proto3" json:"alert,omitempty"`
-	// Internal source identity used to fence the recipient's runtime-state
-	// watcher before an authoritative replacement is assembled.
-	SourceEventId string `protobuf:"bytes,5,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	// RUNTIME_STATE KV revision that must be visible before replacement.
-	RuntimeStateRevision uint64 `protobuf:"varint,6,opt,name=runtime_state_revision,json=runtimeStateRevision,proto3" json:"runtime_state_revision,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	Alert         bool `protobuf:"varint,4,opt,name=alert,proto3" json:"alert,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrenceChangedEvent) Reset() {
@@ -1066,20 +1061,6 @@ func (x *NotificationOccurrenceChangedEvent) GetAlert() bool {
 		return x.Alert
 	}
 	return false
-}
-
-func (x *NotificationOccurrenceChangedEvent) GetSourceEventId() string {
-	if x != nil {
-		return x.SourceEventId
-	}
-	return ""
-}
-
-func (x *NotificationOccurrenceChangedEvent) GetRuntimeStateRevision() uint64 {
-	if x != nil {
-		return x.RuntimeStateRevision
-	}
-	return 0
 }
 
 // ThreadFollowChangedEvent invalidates one user's viewer-specific thread state.
@@ -1398,14 +1379,12 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x0ein_reply_to_id\x18\x05 \x01(\tR\vinReplyToId\x12\x16\n" +
 	"\x06silent\x18\x06 \x01(\bR\x06silentJ\x04\b\x02\x10\x03R\bspace_id\"E\n" +
 	"\x1aNotificationDismissedEvent\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\"\xf5\x01\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\"\xcc\x01\n" +
 	"\"NotificationOccurrenceChangedEvent\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12\x18\n" +
 	"\acreated\x18\x02 \x01(\bR\acreated\x12\x18\n" +
 	"\adeleted\x18\x03 \x01(\bR\adeleted\x12\x14\n" +
-	"\x05alert\x18\x04 \x01(\bR\x05alert\x12&\n" +
-	"\x0fsource_event_id\x18\x05 \x01(\tR\rsourceEventId\x124\n" +
-	"\x16runtime_state_revision\x18\x06 \x01(\x04R\x14runtimeStateRevision\"\x97\x01\n" +
+	"\x05alert\x18\x04 \x01(\bR\x05alertJ\x04\b\x05\x10\x06J\x04\b\x06\x10\aR\x0fsource_event_idR\x16runtime_state_revision\"\x97\x01\n" +
 	"\x18ThreadFollowChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12!\n" +

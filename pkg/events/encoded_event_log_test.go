@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 
@@ -51,6 +52,37 @@ func TestEncodedEventLogPreservesOpaqueRecord(t *testing.T) {
 	}
 	if !bytes.Equal(storedAgain.Data, data) {
 		t.Fatal("mutating returned record changed durable data")
+	}
+}
+
+func TestEncodedEventLogAppliesPerRecordTTL(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+
+	seq, err := eventLog.AppendAt(ctx, "evt.compatibility.expiring", EncodedRecord{
+		ID:   "expiring-1",
+		Data: []byte("temporary"),
+		TTL:  time.Second,
+	}, 0)
+	if err != nil {
+		t.Fatalf("AppendAt: %v", err)
+	}
+	waitFor(t, 3*time.Second, func() bool {
+		_, err := stream.GetMsg(ctx, seq)
+		return errors.Is(err, jetstream.ErrMsgNotFound)
+	})
+}
+
+func TestEncodedEventLogRejectsNegativePerRecordTTL(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	_, err := eventLog.AppendEventually(testContext(t), "evt.compatibility.expiring", EncodedRecord{
+		ID:  "invalid-expiry",
+		TTL: -time.Second,
+	})
+	if !errors.Is(err, ErrInvalidEncodedRecord) {
+		t.Fatalf("negative TTL error = %v, want ErrInvalidEncodedRecord", err)
 	}
 }
 
@@ -178,7 +210,7 @@ func TestEncodedEventLogAtomicBatchPreservesBytesAndOrder(t *testing.T) {
 		},
 		{
 			Subject: "evt.compatibility.batch.second",
-			Record:  EncodedRecord{ID: "batch-second", Data: []byte{0xfe, 0xff}},
+			Record:  EncodedRecord{ID: "batch-second", Data: []byte{0xfe, 0xff}, TTL: time.Second},
 		},
 	}
 
@@ -201,6 +233,10 @@ func TestEncodedEventLogAtomicBatchPreservesBytesAndOrder(t *testing.T) {
 			t.Fatalf("entry %d Nats-Msg-Id = %q, want %q", i, got, entries[i].Record.ID)
 		}
 	}
+	waitFor(t, 3*time.Second, func() bool {
+		_, err := stream.GetMsg(ctx, seqs[1])
+		return errors.Is(err, jetstream.ErrMsgNotFound)
+	})
 }
 
 func TestEncodedEventLogRejectsMissingRecordIDAndUnguardedBatch(t *testing.T) {

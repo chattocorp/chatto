@@ -283,12 +283,13 @@ Room/thread marker hydration reads the process-wide `ReadStateModel` index,
 which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
 realtime subscriptions do not create their own marker watchers.
 
-Notification occurrence signals also carry their written `RUNTIME_STATE`
-revision. A delayed Created signal is classified as Created, and may request a
-sound, only when it still names the current live unread occurrence after that
-revision fence. A newer
-read, deletion, or lifecycle mutation downgrades that signal to a silent update
-while the accompanying finite replacement remains authoritative.
+Notification occurrence signals carry only the opaque notification ID and
+transition hint. Before assembling a finite replacement, the serving replica
+waits for its `NOTIFICATIONS` projection to become current. A delayed Created
+signal is classified as Created, and may request a sound, only when it still
+names a current unread occurrence. A newer read, dismissal, or lifecycle
+mutation downgrades it to a silent update while the replacement remains
+authoritative.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
@@ -415,11 +416,10 @@ Notification occurrence create/update/delete signals instead assemble an
 authoritative `notifications_replace` containing occurrences plus exact total
 and Important counts. A live replacement may carry transition metadata for
 one-shot presentation effects, while replay and finite reconciliation omit it.
-The internal signal also carries its source identity and `RUNTIME_STATE`
-revision. Before emitting the replacement at that live cursor, the serving
-replica waits until its process-wide notification index has observed that
-revision, preventing a cross-replica signal from advancing the cursor with a
-stale replacement. Replacements contain at most 50 exact occurrences plus
+The internal signal carries no stream coordinate. Before emitting the
+replacement at that live cursor, the serving replica waits until the
+notification projection is current, preventing a cross-replica invalidation
+from advancing the cursor with stale state. Replacements contain at most 50 exact occurrences plus
 complete aggregate totals and the next list expiry boundary. Clients refresh
 at that boundary and use the separately paginated ConnectRPC read for older
 occurrences.

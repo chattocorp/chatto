@@ -314,9 +314,9 @@ func enumerateStreams(ctx context.Context, js jetstream.JetStream) ([]string, er
 	return names, nil
 }
 
-// orderBackupStreams preserves the notification handoff across independently
-// captured JetStream snapshots. EVT must establish the replay floor before
-// RUNTIME_STATE captures occurrences, and the work queue must be captured last.
+// orderBackupStreams preserves notification materialization across independently
+// captured snapshots. EVT establishes the replay floor, RUNTIME_STATE captures
+// exact prepared work, and NOTIFICATIONS captures the derived lifecycle last.
 func orderBackupStreams(names []string) {
 	priority := func(name string) int {
 		switch name {
@@ -324,7 +324,7 @@ func orderBackupStreams(names []string) {
 			return 0
 		case "KV_RUNTIME_STATE":
 			return 1
-		case "NOTIFICATIONS_QUEUE":
+		case "NOTIFICATIONS":
 			return 2
 		default:
 			return 1

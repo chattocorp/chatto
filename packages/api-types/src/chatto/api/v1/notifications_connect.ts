@@ -17,7 +17,7 @@ export const NotificationService = {
     /**
      * Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
      * deleted, expired, or no longer visible to the authenticated viewer, and
-     * UNIMPLEMENTED when this server cannot validate its target kind.
+     * UNIMPLEMENTED when this server cannot validate its signal kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
      */
@@ -31,7 +31,7 @@ export const NotificationService = {
      * Gets an explicit bounded set of visible occurrences. Missing or
      * inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
      * UNIMPLEMENTED rather than partially answering when this server cannot
-     * validate one requested target kind.
+     * validate one requested signal kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.BatchGetNotificationOccurrences
      */
@@ -55,7 +55,7 @@ export const NotificationService = {
     },
     /**
      * Marks one occurrence read. Repeating the call is safe. Returns
-     * UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+     * UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.MarkNotificationRead
      */
@@ -69,7 +69,7 @@ export const NotificationService = {
     /**
      * Permanently deletes one occurrence while retaining its anti-recreation
      * tombstone through the original expiry. Repeating the call is safe. Returns
-     * UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+     * UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DeleteNotificationOccurrence
      */
@@ -83,7 +83,7 @@ export const NotificationService = {
     /**
      * Permanently deletes an exact set of occurrences. Repeating the call is
      * safe because later activity receives different occurrence IDs. Returns
-     * UNIMPLEMENTED rather than partially deleting a target kind this server
+     * UNIMPLEMENTED rather than partially deleting a signal kind this server
      * cannot validate.
      *
      * @generated from rpc chatto.api.v1.NotificationService.BatchDeleteNotificationOccurrences
@@ -99,7 +99,7 @@ export const NotificationService = {
      * Permanently deletes every visible occurrence current at the server's
      * authoritative mutation boundary. Callers must not retry this mutation
      * automatically because later activity may arrive after that boundary.
-     * Returns UNIMPLEMENTED rather than partially deleting a target kind this
+     * Returns UNIMPLEMENTED rather than partially deleting a signal kind this
      * server cannot validate.
      *
      * @generated from rpc chatto.api.v1.NotificationService.DeleteAllNotificationOccurrences
@@ -111,7 +111,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets every supported cause and its effective inherited delivery intensity.
+     * Gets every supported signal class and its inherited delivery intensity.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationPolicy
      */
@@ -122,7 +122,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets or clears one server- or room-scoped cause override.
+     * Sets or clears one server- or room-scoped signal-class override.
      *
      * @generated from rpc chatto.api.v1.NotificationService.SetNotificationPolicyPreference
      */

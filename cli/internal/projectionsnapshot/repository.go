@@ -39,6 +39,7 @@ const (
 	ProjectionThreadsKey                = "threads"
 	ProjectionRoomDirectoryKey          = "room_directory"
 	ProjectionNotificationVisibilityKey = "notification_visibility"
+	ProjectionNotificationsKey          = "notifications"
 	ProjectionServerConfigKey           = "server_config"
 	ProjectionRoomGroupLayoutKey        = "room_group_layout"
 	ProjectionRoomTimelineKey           = "room_timeline"

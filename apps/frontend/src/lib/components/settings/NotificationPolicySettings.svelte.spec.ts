@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationDeliveryIntensity, NotificationReason } from '$lib/api-client/notifications';
+import { NotificationDeliveryIntensity, NotificationPolicyKind } from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -34,7 +34,7 @@ describe('NotificationPolicySettings', () => {
     setReactiveLocale('en-GB');
     mocks.notifications.getPolicy.mockResolvedValue([
       {
-        reason: NotificationReason.DIRECT_MESSAGE,
+        reason: NotificationPolicyKind.DIRECT_MESSAGE,
         serverIntensity: NotificationDeliveryIntensity.ALERT,
         roomIntensity: NotificationDeliveryIntensity.UNSPECIFIED,
         effectiveIntensity: NotificationDeliveryIntensity.ALERT
@@ -60,7 +60,7 @@ describe('NotificationPolicySettings', () => {
 
     await vi.waitFor(() => {
       expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationReason.DIRECT_MESSAGE,
+        NotificationPolicyKind.DIRECT_MESSAGE,
         NotificationDeliveryIntensity.OFF,
         undefined
       );
@@ -73,7 +73,7 @@ describe('NotificationPolicySettings', () => {
     mocks.notifications.getPolicy.mockImplementation((roomId?: string) =>
       Promise.resolve([
         {
-          reason: NotificationReason.DIRECT_MESSAGE,
+          reason: NotificationPolicyKind.DIRECT_MESSAGE,
           serverIntensity: NotificationDeliveryIntensity.ALERT,
           roomIntensity: roomId
             ? NotificationDeliveryIntensity.BADGE
@@ -108,7 +108,7 @@ describe('NotificationPolicySettings', () => {
 
     await vi.waitFor(() => {
       expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationReason.DIRECT_MESSAGE,
+        NotificationPolicyKind.DIRECT_MESSAGE,
         NotificationDeliveryIntensity.UNSPECIFIED,
         'room-1'
       );

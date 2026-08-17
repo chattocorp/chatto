@@ -4,7 +4,7 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
     NotificationDeliveryIntensity,
-    NotificationReason,
+    NotificationPolicyKind,
     type NotificationPolicyItem
   } from '$lib/api-client/notifications';
 
@@ -16,20 +16,20 @@
   let preferences = $state.raw<NotificationPolicyItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let savingReason = $state<NotificationReason | null>(null);
+  let savingReason = $state<NotificationPolicyKind | null>(null);
   let selectedRoomId = $state('');
   let loadGeneration = 0;
 
   const reasons = [
-    NotificationReason.DIRECT_MESSAGE,
-    NotificationReason.DIRECT_MENTION,
-    NotificationReason.REPLY,
-    NotificationReason.ROLE_MENTION,
-    NotificationReason.HERE,
-    NotificationReason.ALL,
-    NotificationReason.FOLLOWED_THREAD,
-    NotificationReason.FOLLOWED_ROOM,
-    NotificationReason.REACTION
+    NotificationPolicyKind.DIRECT_MESSAGE,
+    NotificationPolicyKind.DIRECT_MENTION,
+    NotificationPolicyKind.REPLY,
+    NotificationPolicyKind.ROLE_MENTION,
+    NotificationPolicyKind.HERE,
+    NotificationPolicyKind.ALL,
+    NotificationPolicyKind.FOLLOWED_THREAD,
+    NotificationPolicyKind.FOLLOWED_ROOM,
+    NotificationPolicyKind.REACTION
   ];
 
   $effect(() => {
@@ -58,7 +58,7 @@
     }
   }
 
-  async function change(reason: NotificationReason, event: Event) {
+  async function change(reason: NotificationPolicyKind, event: Event) {
     const select = event.currentTarget as HTMLSelectElement;
     const preference = preferences.find((candidate) => candidate.reason === reason);
     const roomId = selectedRoomId || undefined;
@@ -80,25 +80,25 @@
     }
   }
 
-  function reasonLabel(reason: NotificationReason): string {
+  function reasonLabel(reason: NotificationPolicyKind): string {
     switch (reason) {
-      case NotificationReason.DIRECT_MESSAGE:
+      case NotificationPolicyKind.DIRECT_MESSAGE:
         return m('settings.notifications.policy.reason.direct_message');
-      case NotificationReason.DIRECT_MENTION:
+      case NotificationPolicyKind.DIRECT_MENTION:
         return m('settings.notifications.policy.reason.direct_mention');
-      case NotificationReason.REPLY:
+      case NotificationPolicyKind.REPLY:
         return m('settings.notifications.policy.reason.reply');
-      case NotificationReason.ROLE_MENTION:
+      case NotificationPolicyKind.ROLE_MENTION:
         return m('settings.notifications.policy.reason.role_mention');
-      case NotificationReason.HERE:
+      case NotificationPolicyKind.HERE:
         return m('settings.notifications.policy.reason.here');
-      case NotificationReason.ALL:
+      case NotificationPolicyKind.ALL:
         return m('settings.notifications.policy.reason.all');
-      case NotificationReason.FOLLOWED_THREAD:
+      case NotificationPolicyKind.FOLLOWED_THREAD:
         return m('settings.notifications.policy.reason.followed_thread');
-      case NotificationReason.FOLLOWED_ROOM:
+      case NotificationPolicyKind.FOLLOWED_ROOM:
         return m('settings.notifications.policy.reason.followed_room');
-      case NotificationReason.REACTION:
+      case NotificationPolicyKind.REACTION:
         return m('settings.notifications.policy.reason.reaction');
       default:
         return m('settings.notifications.policy.reason.activity');

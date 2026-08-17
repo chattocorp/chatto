@@ -63,6 +63,10 @@ func (p StreamPosition) IsZero() bool {
 type EncodedRecord struct {
 	ID   string
 	Data []byte
+	// TTL requests broker-side physical expiry for this record. Zero uses the
+	// stream's retention policy. Applications remain responsible for their own
+	// semantic expiry boundary.
+	TTL time.Duration
 }
 
 // EncodedSubjectRecord preserves a durable subject alongside its opaque
@@ -225,7 +229,11 @@ func (l *EncodedEventLog) publishAt(
 	} else {
 		opt = jetstream.WithExpectLastSequenceForSubject(expectedSeq, filter)
 	}
-	ack, err := l.js.Publish(ctx, subject, record.Data, opt, jetstream.WithMsgID(record.ID))
+	publishOpts := []jetstream.PublishOpt{opt, jetstream.WithMsgID(record.ID)}
+	if record.TTL > 0 {
+		publishOpts = append(publishOpts, jetstream.WithMsgTTL(record.TTL))
+	}
+	ack, err := l.js.Publish(ctx, subject, record.Data, publishOpts...)
 	if err == nil {
 		return ack.Sequence, nil
 	}
@@ -249,13 +257,14 @@ func (l *EncodedEventLog) publishAtStreamTail(
 	if err := validateEncodedRecord(record); err != nil {
 		return 0, err
 	}
-	ack, err := l.js.Publish(
-		ctx,
-		subject,
-		record.Data,
+	publishOpts := []jetstream.PublishOpt{
 		jetstream.WithExpectLastSequence(expectedStreamSeq),
 		jetstream.WithMsgID(record.ID),
-	)
+	}
+	if record.TTL > 0 {
+		publishOpts = append(publishOpts, jetstream.WithMsgTTL(record.TTL))
+	}
+	ack, err := l.js.Publish(ctx, subject, record.Data, publishOpts...)
 	if err == nil {
 		return ack.Sequence, nil
 	}
@@ -425,6 +434,9 @@ func buildEncodedBatchMsg(
 		hdr.Set(jetstream.ExpectedLastSeqHeader, strconv.FormatUint(entry.ExpectedStreamSeq, 10))
 	}
 	hdr.Set(jetstream.MsgIDHeader, entry.Record.ID)
+	if entry.Record.TTL > 0 {
+		hdr.Set("Nats-TTL", entry.Record.TTL.String())
+	}
 	return &nats.Msg{Subject: entry.Subject, Header: hdr, Data: entry.Record.Data}
 }
 
@@ -598,6 +610,9 @@ func (l *EncodedEventLog) lastSubjectSeq(ctx context.Context, subject string) (u
 func validateEncodedRecord(record EncodedRecord) error {
 	if record.ID == "" {
 		return fmt.Errorf("%w: record id is empty", ErrInvalidEncodedRecord)
+	}
+	if record.TTL < 0 {
+		return fmt.Errorf("%w: record ttl is negative", ErrInvalidEncodedRecord)
 	}
 	return nil
 }

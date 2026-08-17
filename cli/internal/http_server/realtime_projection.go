@@ -266,26 +266,18 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
 		case *corev1.LiveEvent_NotificationOccurrenceChanged:
 			change := payload.NotificationOccurrenceChanged
-			if err := s.core.NotificationOccurrences().WaitForSourceRevision(
-				ctx,
-				viewerID,
-				change.GetSourceEventId(),
-				change.GetRuntimeStateRevision(),
-			); err != nil {
+			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
 			}
 			action := realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED
 			silent := true
 			if change.GetCreated() {
-				current, err := s.core.NotificationOccurrences().CurrentCreationSignal(
-					ctx, viewerID, change.GetSourceEventId(), change.GetNotificationId(), change.GetRuntimeStateRevision(),
-				)
-				if err != nil {
-					return nil, false, err
-				}
-				if current {
+				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, change.GetNotificationId())
+				if err == nil && current.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
 					action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
 					silent = !change.GetAlert()
+				} else if err != nil && !errors.Is(err, core.ErrNotFound) {
+					return nil, false, err
 				}
 			} else if change.GetDeleted() {
 				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED

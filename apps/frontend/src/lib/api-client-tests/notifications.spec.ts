@@ -12,7 +12,7 @@ import {
   NotificationAttentionLevel,
   NotificationDeliveryIntensity,
   NotificationItemKind,
-  NotificationReason
+  NotificationPolicyKind
 } from '$lib/api-client/notifications';
 
 describe('notification occurrence presentation mapping', () => {
@@ -49,18 +49,13 @@ describe('notification occurrence presentation mapping', () => {
         id: 'thread-notification',
         sourceEventId: 'reply-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: roomMessageTarget('reply-1', 'root-1'),
-        reasons: [
-          {
-            reason: NotificationReason.FOLLOWED_THREAD,
-            intensity: NotificationDeliveryIntensity.BADGE
-          }
-        ],
+        signal: notificationSignal('followedThreadActivity', 'reply-1', 'root-1'),
+        intensity: NotificationDeliveryIntensity.BADGE,
         unread: true
       })
     );
 
-    expect(occurrence.reasons).toEqual([NotificationReason.FOLLOWED_THREAD]);
+    expect(occurrence.reasons).toEqual([NotificationPolicyKind.FOLLOWED_THREAD]);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.Reply,
       replyEventId: 'reply-1',
@@ -68,31 +63,19 @@ describe('notification occurrence presentation mapping', () => {
     });
   });
 
-  it('keeps a direct mention ahead of badge-only followed-thread activity', () => {
+  it('maps a direct mention as its own exact signal', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-mention',
         sourceEventId: 'reply-2',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: roomMessageTarget('reply-2', 'root-1'),
-        reasons: [
-          {
-            reason: NotificationReason.DIRECT_MENTION,
-            intensity: NotificationDeliveryIntensity.ALERT
-          },
-          {
-            reason: NotificationReason.FOLLOWED_THREAD,
-            intensity: NotificationDeliveryIntensity.BADGE
-          }
-        ],
+        signal: notificationSignal('directMentionReceived', 'reply-2', 'root-1'),
+        intensity: NotificationDeliveryIntensity.ALERT,
         unread: true
       })
     );
 
-    expect(occurrence.reasons).toEqual([
-      NotificationReason.DIRECT_MENTION,
-      NotificationReason.FOLLOWED_THREAD
-    ]);
+    expect(occurrence.reasons).toEqual([NotificationPolicyKind.DIRECT_MENTION]);
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.Mention,
@@ -107,18 +90,13 @@ describe('notification occurrence presentation mapping', () => {
         id: 'room-notification',
         sourceEventId: 'message-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: roomMessageTarget('message-1'),
-        reasons: [
-          {
-            reason: NotificationReason.FOLLOWED_ROOM,
-            intensity: NotificationDeliveryIntensity.ALERT
-          }
-        ],
+        signal: notificationSignal('followedRoomActivity', 'message-1'),
+        intensity: NotificationDeliveryIntensity.ALERT,
         unread: true
       })
     );
 
-    expect(occurrence.reasons).toEqual([NotificationReason.FOLLOWED_ROOM]);
+    expect(occurrence.reasons).toEqual([NotificationPolicyKind.FOLLOWED_ROOM]);
     expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
       kind: NotificationItemKind.RoomMessage,
       roomMsgEventId: 'message-1'
@@ -131,13 +109,8 @@ describe('notification occurrence presentation mapping', () => {
         id: 'reaction-notification',
         sourceEventId: 'reaction-1',
         actor: { id: 'u1', displayName: 'Alice' },
-        target: roomMessageTarget('message-1', 'thread-root-1'),
-        reasons: [
-          {
-            reason: NotificationReason.REACTION,
-            intensity: NotificationDeliveryIntensity.BADGE
-          }
-        ],
+        signal: notificationSignal('reactionReceived', 'message-1', 'thread-root-1', 'heart'),
+        intensity: NotificationDeliveryIntensity.BADGE,
         unread: true
       })
     );
@@ -159,7 +132,7 @@ describe('notification occurrence presentation mapping', () => {
           new NotificationOccurrence({
             id: 'future-target',
             sourceEventId: 'future-source',
-            target: { kind: { case: undefined } },
+            signal: { kind: { case: undefined } },
             unread: true
           })
         ]
@@ -184,15 +157,25 @@ describe('notification occurrence presentation mapping', () => {
   });
 });
 
-function roomMessageTarget(eventId: string, threadRootEventId?: string) {
+function notificationSignal(
+  kind:
+    | 'directMentionReceived'
+    | 'followedThreadActivity'
+    | 'followedRoomActivity'
+    | 'reactionReceived',
+  eventId: string,
+  threadRootEventId?: string,
+  emoji?: string
+) {
+  const message = {
+    room: { id: 'room-1', name: 'general' },
+    eventId,
+    threadRootEventId
+  };
   return {
     kind: {
-      case: 'roomMessage' as const,
-      value: {
-        room: { id: 'room-1', name: 'general' },
-        eventId,
-        threadRootEventId
-      }
+      case: kind,
+      value: kind === 'reactionReceived' ? { message, emoji } : { message }
     }
   };
 }

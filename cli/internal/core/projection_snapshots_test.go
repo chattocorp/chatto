@@ -70,6 +70,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
 		{notificationVisibilitySnapshotContractID, "v1", &corev1.NotificationVisibilityProjectionSnapshot{}},
+		{notificationSnapshotContractID, "v1", &corev1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
@@ -208,6 +209,26 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				t.Fatal(err)
 			}
 		}},
+		{"notifications", func() snapshotProjection {
+			p := NewNotificationProjection()
+			p.now = func() time.Time { return now }
+			return p
+		}, func(raw snapshotProjection) {
+			p := raw.(*NotificationProjection)
+			expiresAt := now.Add(time.Hour)
+			occurrence := &corev1.NotificationOccurrence{
+				Id:                         "N1",
+				RecipientId:                "U1",
+				SourceEventId:              "E1",
+				SourceCreatedAt:            timestamppb.New(now),
+				Signal:                     testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, "R1", "E1"),
+				ExpiresAt:                  timestamppb.New(expiresAt),
+				NotificationStreamSequence: 41,
+			}
+			p.byID[occurrence.GetId()] = occurrence
+			p.idsByUser[occurrence.GetRecipientId()] = map[string]struct{}{occurrence.GetId(): {}}
+			p.tombstones["N2"] = notificationProjectionTombstone{recipientID: "U1", expiresAt: expiresAt, signalSequence: 42}
+		}},
 		{"room_timeline", func() snapshotProjection { return NewRoomTimelineProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomTimelineProjection)
 			bodyEvent := &corev1.Event{Id: "BODY1", CreatedAt: timestamppb.New(now), Event: &corev1.Event_MessageBody{MessageBody: &corev1.MessageBodyEvent{RoomId: "R1", EventId: "M1", Body: &corev1.MessageBody{AuthorId: "U1", BodyEventId: "BODY1", EncryptionVersion: 2, ContentKeyEpoch: 1, EncryptedBody: []byte("ciphertext"), EncryptionNonce: bytes.Repeat([]byte{1}, 24)}}}}
@@ -277,8 +298,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"notification_visibility": "v1-",
-		"room_timeline":           "v6-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"notification_visibility": "v1-", "notifications": "v1-",
+		"room_timeline": "v6-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}
 	for _, tt := range tests {

@@ -32,18 +32,18 @@ func (p *ConfigProjection) Snapshot() ([]byte, error) {
 			value := *user.timeFormat
 			row.TimeFormat = &value
 		}
-		for _, reason := range sortedNotificationReasons(user.serverIntensityByReason) {
+		for _, kind := range sortedNotificationPolicyKinds(user.serverIntensityByKind) {
 			row.ServerNotificationPreferences = append(row.ServerNotificationPreferences, &corev1.NotificationPreferenceSnapshot{
-				Reason:    reason,
-				Intensity: user.serverIntensityByReason[reason],
+				Kind:      kind,
+				Intensity: user.serverIntensityByKind[kind],
 			})
 		}
-		for _, roomID := range sortedMapKeys(user.roomIntensityByRoomAndCause) {
+		for _, roomID := range sortedMapKeys(user.roomIntensityByRoomAndKind) {
 			room := &corev1.RoomNotificationPreferenceSnapshot{RoomId: roomID}
-			for _, reason := range sortedNotificationReasons(user.roomIntensityByRoomAndCause[roomID]) {
+			for _, kind := range sortedNotificationPolicyKinds(user.roomIntensityByRoomAndKind[roomID]) {
 				room.Preferences = append(room.Preferences, &corev1.NotificationPreferenceSnapshot{
-					Reason:    reason,
-					Intensity: user.roomIntensityByRoomAndCause[roomID][reason],
+					Kind:      kind,
+					Intensity: user.roomIntensityByRoomAndKind[roomID][kind],
 				})
 			}
 			row.RoomNotificationPreferences = append(row.RoomNotificationPreferences, room)
@@ -74,8 +74,8 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			return fmt.Errorf("config snapshot repeats user %q", row.GetUserId())
 		}
 		user := &userConfigState{
-			serverIntensityByReason:     make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity),
-			roomIntensityByRoomAndCause: make(map[string]map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity),
+			serverIntensityByKind:      make(map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity),
+			roomIntensityByRoomAndKind: make(map[string]map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity),
 		}
 		if row.Timezone != nil {
 			value := row.GetTimezone()
@@ -86,26 +86,26 @@ func (p *ConfigProjection) Restore(data []byte) error {
 			user.timeFormat = &value
 		}
 		for _, preference := range row.GetServerNotificationPreferences() {
-			if _, duplicate := user.serverIntensityByReason[preference.GetReason()]; duplicate {
+			if _, duplicate := user.serverIntensityByKind[preference.GetKind()]; duplicate {
 				return fmt.Errorf("config snapshot repeats server notification preference")
 			}
-			user.serverIntensityByReason[preference.GetReason()] = preference.GetIntensity()
+			user.serverIntensityByKind[preference.GetKind()] = preference.GetIntensity()
 		}
 		for _, room := range row.GetRoomNotificationPreferences() {
 			if room.GetRoomId() == "" {
 				return fmt.Errorf("config snapshot has empty notification preference room ID")
 			}
-			if _, duplicate := user.roomIntensityByRoomAndCause[room.GetRoomId()]; duplicate {
+			if _, duplicate := user.roomIntensityByRoomAndKind[room.GetRoomId()]; duplicate {
 				return fmt.Errorf("config snapshot repeats room notification preferences")
 			}
-			preferences := make(map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity)
+			preferences := make(map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity)
 			for _, preference := range room.GetPreferences() {
-				if _, duplicate := preferences[preference.GetReason()]; duplicate {
-					return fmt.Errorf("config snapshot repeats room notification cause")
+				if _, duplicate := preferences[preference.GetKind()]; duplicate {
+					return fmt.Errorf("config snapshot repeats room notification policy kind")
 				}
-				preferences[preference.GetReason()] = preference.GetIntensity()
+				preferences[preference.GetKind()] = preference.GetIntensity()
 			}
-			user.roomIntensityByRoomAndCause[room.GetRoomId()] = preferences
+			user.roomIntensityByRoomAndKind[room.GetRoomId()] = preferences
 		}
 		users[row.GetUserId()] = user
 	}
@@ -115,10 +115,10 @@ func (p *ConfigProjection) Restore(data []byte) error {
 	return nil
 }
 
-func sortedNotificationReasons(values map[corev1.NotificationReason]corev1.NotificationDeliveryIntensity) []corev1.NotificationReason {
-	keys := make([]corev1.NotificationReason, 0, len(values))
-	for reason := range values {
-		keys = append(keys, reason)
+func sortedNotificationPolicyKinds(values map[corev1.NotificationPolicyKind]corev1.NotificationDeliveryIntensity) []corev1.NotificationPolicyKind {
+	keys := make([]corev1.NotificationPolicyKind, 0, len(values))
+	for kind := range values {
+		keys = append(keys, kind)
 	}
 	sort.Slice(keys, func(i, j int) bool { return keys[i] < keys[j] })
 	return keys

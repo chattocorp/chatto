@@ -98,7 +98,7 @@ message UserRoomNotificationLevelClearedEvent {
 // room_id selects server scope; an unspecified intensity clears the override.
 message UserNotificationPreferenceChangedEvent {
   string user_id = 1;
-  NotificationReason reason = 2;
+  NotificationPolicyKind kind = 2;
   NotificationDeliveryIntensity intensity = 3;
   optional string room_id = 4;
 }

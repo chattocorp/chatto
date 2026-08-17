@@ -59,10 +59,10 @@ Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
-- Notification occurrences and anti-recreation tombstones:
-  `notification_v2.{userId}.{sourceEventId}`, with an absolute per-key 90-day
-  TTL, plus bounded `notification_work.*` records used by the durable
-  materializer.
+- Bounded `notification_work.{sourceEventId}`, notification read-boundary, and
+  visibility-boundary records used to coordinate notification derivation with
+  `EVT` and the separate `NOTIFICATIONS` event stream. Occurrences and their
+  lifecycle facts do not live in `RUNTIME_STATE`; see ADR-075.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Runtime credential verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry. Values include credential kind

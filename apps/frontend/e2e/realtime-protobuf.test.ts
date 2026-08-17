@@ -13,7 +13,6 @@ import {
   RealtimeServerFrame,
   RealtimeSubscribeEvents
 } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { NotificationReason } from '@chatto/api-types/api/v1/notifications_pb';
 
 class RealtimeProtobufClient {
   readonly #socket: WebSocket;
@@ -128,10 +127,10 @@ class RealtimeProtobufClient {
                 if (operation.operation.case !== 'notificationsReplace') {
                   return operation.operation.case ?? 'unknown';
                 }
-                const reasons = operation.operation.value.occurrences?.occurrences.flatMap(
-                  (occurrence) => occurrence.reasons.map((match) => match.reason)
+                const signals = operation.operation.value.occurrences?.occurrences.map(
+                  (occurrence) => occurrence.signal?.kind.case ?? 'unknown'
                 );
-                return `notificationsReplace[${reasons?.join(',') ?? ''}]`;
+                return `notificationsReplace[${signals?.join(',') ?? ''}]`;
               });
               return `projectionEvent:${operations.join('+')}`;
             }
@@ -252,9 +251,7 @@ test.describe('protobuf realtime stream', () => {
           ? frame.frame.value.operations.some((operation) =>
               operation.operation.case === 'notificationsReplace'
                 ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
-                    occurrence.reasons.some(
-                      (match) => match.reason === NotificationReason.DIRECT_MENTION
-                    )
+                    occurrence.signal?.kind.case === 'directMentionReceived'
                   )
                 : false
             )
@@ -270,15 +267,17 @@ test.describe('protobuf realtime stream', () => {
         )
         .find((replacement) => replacement?.occurrences?.occurrences.length);
       const mention = mentionReplacement?.occurrences?.occurrences.find((occurrence) =>
-        occurrence.reasons.some((match) => match.reason === NotificationReason.DIRECT_MENTION)
+        occurrence.signal?.kind.case === 'directMentionReceived'
       );
       expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
       expect(mention?.actor?.id).toBeTruthy();
-      expect(mention?.target?.kind.case).toBe('roomMessage');
-      const mentionTarget =
-        mention?.target?.kind.case === 'roomMessage' ? mention.target.kind.value : null;
-      expect(mentionTarget?.room?.name).toBe('general');
-      expect(mentionTarget?.room?.id).toBeTruthy();
+      expect(mention?.signal?.kind.case).toBe('directMentionReceived');
+      const mentionMessage =
+        mention?.signal?.kind.case === 'directMentionReceived'
+          ? mention.signal.kind.value.message
+          : null;
+      expect(mentionMessage?.room?.name).toBe('general');
+      expect(mentionMessage?.room?.id).toBeTruthy();
 
       let dmSenderDisplayName = '';
       await withServerUser(browser!, serverURL, async ({ user, page: senderPage }) => {
@@ -293,9 +292,7 @@ test.describe('protobuf realtime stream', () => {
           ? frame.frame.value.operations.some((operation) =>
               operation.operation.case === 'notificationsReplace'
                 ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
-                    occurrence.reasons.some(
-                      (match) => match.reason === NotificationReason.DIRECT_MESSAGE
-                    )
+                    occurrence.signal?.kind.case === 'directMessageReceived'
                   )
                 : false
             )
@@ -311,13 +308,16 @@ test.describe('protobuf realtime stream', () => {
         )
         .find((replacement) => replacement?.occurrences?.occurrences.length);
       const dm = dmReplacement?.occurrences?.occurrences.find((occurrence) =>
-        occurrence.reasons.some((match) => match.reason === NotificationReason.DIRECT_MESSAGE)
+        occurrence.signal?.kind.case === 'directMessageReceived'
       );
       expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
       expect(dm?.actor?.id).toBeTruthy();
-      expect(dm?.target?.kind.case).toBe('roomMessage');
-      const dmTarget = dm?.target?.kind.case === 'roomMessage' ? dm.target.kind.value : null;
-      expect(dmTarget?.room?.id).toBeTruthy();
+      expect(dm?.signal?.kind.case).toBe('directMessageReceived');
+      const dmMessage =
+        dm?.signal?.kind.case === 'directMessageReceived'
+          ? dm.signal.kind.value.message
+          : null;
+      expect(dmMessage?.room?.id).toBeTruthy();
     } finally {
       realtime.close();
     }

@@ -9,31 +9,32 @@ import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
-// Why source activity matched the authenticated viewer's notification policy.
-enum NotificationReason {
+// Stable preference key for one class of notification signal. Notification
+// content uses NotificationSignal instead of this enum.
+enum NotificationPolicyKind {
   // No cause was specified. This value is not valid in preference writes.
-  NOTIFICATION_REASON_UNSPECIFIED = 0;
+  NOTIFICATION_POLICY_KIND_UNSPECIFIED = 0;
   // A message was posted in a direct-message conversation.
-  NOTIFICATION_REASON_DIRECT_MESSAGE = 1;
+  NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE = 1;
   // The viewer's username was mentioned directly.
-  NOTIFICATION_REASON_DIRECT_MENTION = 2;
+  NOTIFICATION_POLICY_KIND_DIRECT_MENTION = 2;
   // Activity replied directly to the viewer's message.
-  NOTIFICATION_REASON_REPLY = 3;
+  NOTIFICATION_POLICY_KIND_REPLY = 3;
   // A role held by the viewer was mentioned.
-  NOTIFICATION_REASON_ROLE_MENTION = 4;
+  NOTIFICATION_POLICY_KIND_ROLE_MENTION = 4;
   // An `@here` mention included the viewer.
-  NOTIFICATION_REASON_HERE = 5;
+  NOTIFICATION_POLICY_KIND_HERE = 5;
   // An `@all` mention included the viewer.
-  NOTIFICATION_REASON_ALL = 6;
+  NOTIFICATION_POLICY_KIND_ALL = 6;
   // New activity appeared in a thread followed by the viewer.
-  NOTIFICATION_REASON_FOLLOWED_THREAD = 7;
+  NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD = 7;
   // New activity appeared in a room followed by the viewer.
-  NOTIFICATION_REASON_FOLLOWED_ROOM = 8;
+  NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM = 8;
   // Someone reacted to the viewer's message.
-  NOTIFICATION_REASON_REACTION = 9;
+  NOTIFICATION_POLICY_KIND_REACTION = 9;
 }
 
-// Delivery strength for one notification cause.
+// Delivery strength for one notification signal class.
 enum NotificationDeliveryIntensity {
   // In preference writes, unspecified clears the override (Inherit).
   NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
@@ -56,16 +57,8 @@ enum NotificationAttentionLevel {
   NOTIFICATION_ATTENTION_LEVEL_IMPORTANT = 2;
 }
 
-// One cause that matched an occurrence and its evaluated delivery intensity.
-message NotificationReasonMatch {
-  // Cause that matched the viewer.
-  NotificationReason reason = 1;
-  // Effective intensity when the source activity occurred.
-  NotificationDeliveryIntensity intensity = 2;
-}
-
-// Exact visible message destination of one notification occurrence.
-message NotificationRoomMessageTarget {
+// Exact visible message destination carried by a notification signal.
+message NotificationMessageReference {
   // Room containing the source activity.
   RoomSummary room = 1;
   // Exact source or reacted-to message event to reveal.
@@ -76,21 +69,74 @@ message NotificationRoomMessageTarget {
   optional string parent_event_id = 4;
 }
 
-// Typed resource or activity represented by one notification occurrence.
-// Clients must not infer navigation semantics for unsupported variants.
-// Binary protobuf clients may retain them as generic, non-navigating triage
-// rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
-message NotificationTarget {
+// A direct message sent to the viewer.
+message DirectMessageReceived {
+  NotificationMessageReference message = 1;
+}
+
+// A message that mentions the viewer directly.
+message DirectMentionReceived {
+  NotificationMessageReference message = 1;
+}
+
+// A reply to one of the viewer's messages.
+message ReplyReceived {
+  NotificationMessageReference message = 1;
+}
+
+// A message mentioning a role held by the viewer.
+message RoleMentionReceived {
+  NotificationMessageReference message = 1;
+}
+
+// An `@here` message that included the viewer.
+message HereMentionReceived {
+  NotificationMessageReference message = 1;
+}
+
+// An `@all` message that included the viewer.
+message AllMentionReceived {
+  NotificationMessageReference message = 1;
+}
+
+// Activity in a thread followed by the viewer.
+message FollowedThreadActivity {
+  NotificationMessageReference message = 1;
+}
+
+// Activity in a room followed by the viewer.
+message FollowedRoomActivity {
+  NotificationMessageReference message = 1;
+}
+
+// A reaction added to one of the viewer's messages.
+message ReactionReceived {
+  NotificationMessageReference message = 1;
+  // Exact reaction supplied by the actor.
+  string emoji = 2;
+}
+
+// Immutable, typed cause and destination of one notification. Clients must
+// preserve unknown variants as generic dismissible rows and must not infer
+// navigation semantics for them.
+message NotificationSignal {
   oneof kind {
-    // Exact room-message destination.
-    NotificationRoomMessageTarget room_message = 1;
+    DirectMessageReceived direct_message_received = 1;
+    DirectMentionReceived direct_mention_received = 2;
+    ReplyReceived reply_received = 3;
+    RoleMentionReceived role_mention_received = 4;
+    HereMentionReceived here_mention_received = 5;
+    AllMentionReceived all_mention_received = 6;
+    FollowedThreadActivity followed_thread_activity = 7;
+    FollowedRoomActivity followed_room_activity = 8;
+    ReactionReceived reaction_received = 9;
   }
 }
 
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
-  reserved 11;
-  reserved "thread_root_message_excerpt";
+  reserved 6, 9, 11;
+  reserved "reasons", "reaction_emoji", "thread_root_message_excerpt";
 
   // Stable occurrence ID.
   string id = 1;
@@ -100,16 +146,12 @@ message NotificationOccurrence {
   google.protobuf.Timestamp created_at = 3;
   // User who caused the source activity, when still visible.
   User actor = 4;
-  // Typed resource or activity represented by this occurrence.
-  NotificationTarget target = 5;
-  // Every cause that matched when the source activity occurred.
-  repeated NotificationReasonMatch reasons = 6;
-  // Strongest evaluated intensity across all matching causes.
-  NotificationDeliveryIntensity strongest_intensity = 7;
+  // Immutable cause and destination represented by this occurrence.
+  NotificationSignal signal = 5;
+  // Effective delivery intensity when the signal was emitted.
+  NotificationDeliveryIntensity intensity = 7;
   // Whether this occurrence still contributes unread attention.
   bool unread = 8;
-  // Exact emoji for a reaction occurrence. Empty for every other cause.
-  string reaction_emoji = 9;
   // Absolute expiry, 90 days after the source activity.
   google.protobuf.Timestamp expires_at = 10;
   // Source-time visual importance of this occurrence.
@@ -237,10 +279,10 @@ message DeleteAllNotificationOccurrencesResponse {
   int32 deleted_count = 1;
 }
 
-// Explicit and effective delivery policy for one notification cause.
+// Explicit and effective delivery policy for one notification signal class.
 message NotificationPolicyPreference {
-  // Notification cause controlled by this row.
-  NotificationReason reason = 1;
+  // Notification signal class controlled by this row.
+  NotificationPolicyKind kind = 1;
   // Explicit server override, or unspecified when inherited from product defaults.
   NotificationDeliveryIntensity server_intensity = 2;
   // Explicit room override, or unspecified when inherited from server scope.
@@ -260,7 +302,7 @@ message GetNotificationPolicyRequest {
 message GetNotificationPolicyResponse {
   // Room scope when requested; absent for server scope.
   optional string room_id = 1;
-  // One row for every supported notification cause.
+  // One row for every supported notification signal class.
   repeated NotificationPolicyPreference preferences = 2;
 }
 
@@ -268,8 +310,8 @@ message GetNotificationPolicyResponse {
 message SetNotificationPolicyPreferenceRequest {
   // Room scope to change; absent changes the server scope.
   optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required notification cause.
-  NotificationReason reason = 2 [(buf.validate.field).enum = {
+  // Required notification signal class.
+  NotificationPolicyKind kind = 2 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];
@@ -281,7 +323,7 @@ message SetNotificationPolicyPreferenceRequest {
 message SetNotificationPolicyPreferenceResponse {
   // Room scope when changed; absent for server scope.
   optional string room_id = 1;
-  // One row for every supported notification cause.
+  // One row for every supported notification signal class.
   repeated NotificationPolicyPreference preferences = 2;
 }
 
@@ -289,30 +331,30 @@ message SetNotificationPolicyPreferenceResponse {
 service NotificationService {
   // Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
   // deleted, expired, or no longer visible to the authenticated viewer, and
-  // UNIMPLEMENTED when this server cannot validate its target kind.
+  // UNIMPLEMENTED when this server cannot validate its signal kind.
   rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
   // Gets an explicit bounded set of visible occurrences. Missing or
   // inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
   // UNIMPLEMENTED rather than partially answering when this server cannot
-  // validate one requested target kind.
+  // validate one requested signal kind.
   rpc BatchGetNotificationOccurrences(BatchGetNotificationOccurrencesRequest) returns (BatchGetNotificationOccurrencesResponse);
   // Lists exact Notifications 2.0 occurrences. Clients may derive temporary
   // presentation groups without changing occurrence identity or counts.
   rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
   // Marks one occurrence read. Repeating the call is safe. Returns
-  // UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+  // UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
   rpc MarkNotificationRead(MarkNotificationReadRequest) returns (MarkNotificationReadResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes one occurrence while retaining its anti-recreation
   // tombstone through the original expiry. Repeating the call is safe. Returns
-  // UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+  // UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
   rpc DeleteNotificationOccurrence(DeleteNotificationOccurrenceRequest) returns (DeleteNotificationOccurrenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }
   // Permanently deletes an exact set of occurrences. Repeating the call is
   // safe because later activity receives different occurrence IDs. Returns
-  // UNIMPLEMENTED rather than partially deleting a target kind this server
+  // UNIMPLEMENTED rather than partially deleting a signal kind this server
   // cannot validate.
   rpc BatchDeleteNotificationOccurrences(BatchDeleteNotificationOccurrencesRequest) returns (BatchDeleteNotificationOccurrencesResponse) {
     option idempotency_level = IDEMPOTENT;
@@ -320,12 +362,12 @@ service NotificationService {
   // Permanently deletes every visible occurrence current at the server's
   // authoritative mutation boundary. Callers must not retry this mutation
   // automatically because later activity may arrive after that boundary.
-  // Returns UNIMPLEMENTED rather than partially deleting a target kind this
+  // Returns UNIMPLEMENTED rather than partially deleting a signal kind this
   // server cannot validate.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
-  // Gets every supported cause and its effective inherited delivery intensity.
+  // Gets every supported signal class and its inherited delivery intensity.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
-  // Sets or clears one server- or room-scoped cause override.
+  // Sets or clears one server- or room-scoped signal-class override.
   rpc SetNotificationPolicyPreference(SetNotificationPolicyPreferenceRequest) returns (SetNotificationPolicyPreferenceResponse) {
     option idempotency_level = IDEMPOTENT;
   }

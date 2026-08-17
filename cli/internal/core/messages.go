@@ -1004,13 +1004,12 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			},
 		},
 	})
-	notificationTarget := newNotificationRoomMessageTarget(room_id, eventID)
-	roomMessageTarget := notificationTarget.GetRoomMessage()
+	notificationMessage := newNotificationMessageReference(room_id, eventID)
 	if inThread != "" {
-		roomMessageTarget.ThreadRootEventId = &inThread
+		notificationMessage.ThreadRootEventId = &inThread
 	}
 	if inReplyTo != "" {
-		roomMessageTarget.ParentEventId = &inReplyTo
+		notificationMessage.ParentEventId = &inReplyTo
 	}
 	var notificationDecisions []notificationRecipientDecision
 	prepareNotificationWork := func(attemptCtx context.Context) error {
@@ -1032,7 +1031,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if err != nil {
 			return fmt.Errorf("evaluate notification decisions: %w", err)
 		}
-		notificationWork := newNotificationOccurrenceWork(event, notificationTarget, nextNotificationDecisions)
+		notificationWork := newNotificationOccurrenceWork(event, notificationMessage, nextNotificationDecisions)
 		if err := c.notificationMaterializer.StoreWork(attemptCtx, event, notificationWork); err != nil {
 			return fmt.Errorf("prepare notification work: %w", err)
 		}

@@ -1763,7 +1763,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil {
 		t.Fatalf("PostMessage root: %v", err)
 	}
-	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "@rt-notification-v2-viewer hello", nil, root.Id, "", nil, false)
+	_, err = env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "hello", nil, root.Id, "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
@@ -1772,6 +1772,9 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
 	}
 	occurrence := occurrences[0]
+	if occurrence.GetIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE {
+		t.Fatalf("followed-thread occurrence intensity = %v, want Badge", occurrence.GetIntensity())
+	}
 	var createdChange *corev1.NotificationOccurrenceChangedEvent
 	deadline := time.After(5 * time.Second)
 	for createdChange == nil {
@@ -1781,26 +1784,20 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 				continue
 			}
 			change := envelope.LiveEvent().GetNotificationOccurrenceChanged()
-			if change.GetCreated() && change.GetSourceEventId() == reply.GetId() {
+			if change.GetCreated() && change.GetNotificationId() == occurrence.GetId() {
 				createdChange = proto.Clone(change).(*corev1.NotificationOccurrenceChangedEvent)
 			}
 		case <-deadline:
 			t.Fatal("timed out waiting for authoritative notification creation signal")
 		}
 	}
-	if createdChange.GetRuntimeStateRevision() == 0 {
-		t.Fatal("creation signal has no runtime-state revision fence")
-	}
-
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-created",
 		ActorId: author.Id,
 		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-			NotificationId:       createdChange.GetNotificationId(),
-			Created:              true,
-			Alert:                createdChange.GetAlert(),
-			SourceEventId:        createdChange.GetSourceEventId(),
-			RuntimeStateRevision: createdChange.GetRuntimeStateRevision(),
+			NotificationId: createdChange.GetNotificationId(),
+			Created:        true,
+			Alert:          createdChange.GetAlert(),
 		}},
 	}))
 	if err != nil || !handled {
@@ -1813,7 +1810,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if counts := replacement.GetOccurrences().GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != room.Id || counts[0].GetUnreadCount() != 1 {
 		t.Fatalf("created room unread-occurrence counts = %+v, want one group for %s", counts, room.Id)
 	}
-	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != occurrence.GetId() || change.GetSilent() {
+	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
 		t.Fatalf("created change = %+v", change)
 	}
 	operations := frame.GetProjectionEvent().GetOperations()
@@ -2331,7 +2328,7 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 		env.ctx,
 		user.Id,
 		room.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 	); err != nil {
 		t.Fatalf("SetRoomNotificationIntensity: %v", err)

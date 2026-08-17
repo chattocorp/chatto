@@ -43,14 +43,14 @@ test.describe('Notification policy', () => {
 
     await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'BADGE');
     let roomPolicy = await getNotificationPolicy(page, roomId);
-    expect(roomPolicy.find(({ reason }) => reason === 'FOLLOWED_ROOM')).toMatchObject({
+    expect(roomPolicy.find(({ kind }) => kind === 'FOLLOWED_ROOM')).toMatchObject({
       serverIntensity: 'BADGE',
       roomIntensity: 'UNSPECIFIED',
       effectiveIntensity: 'BADGE'
     });
 
     roomPolicy = await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', roomId);
-    expect(roomPolicy.find(({ reason }) => reason === 'FOLLOWED_ROOM')).toMatchObject({
+    expect(roomPolicy.find(({ kind }) => kind === 'FOLLOWED_ROOM')).toMatchObject({
       serverIntensity: 'BADGE',
       roomIntensity: 'ALERT',
       effectiveIntensity: 'ALERT'

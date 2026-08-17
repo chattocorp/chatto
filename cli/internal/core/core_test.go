@@ -33,6 +33,15 @@ func testContext(t *testing.T) context.Context {
 // JetStream resources.
 func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	t.Helper()
+	core, nc := newTestCore(t)
+	startCoreServices(t, core)
+	return core, nc
+}
+
+// newTestCore constructs but does not start a core, allowing tests to install
+// startup-only provider seams before background workers begin.
+func newTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
+	t.Helper()
 
 	_, nc := testutil.StartNATS(t)
 
@@ -49,8 +58,6 @@ func setupTestCore(t *testing.T) (*ChattoCore, *nats.Conn) {
 	if err != nil {
 		t.Fatalf("Failed to create ChattoCore: %v", err)
 	}
-
-	startCoreServices(t, core)
 
 	return core, nc
 }

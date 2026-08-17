@@ -10,9 +10,7 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-type notificationAssembler struct {
-	api *API
-}
+type notificationAssembler struct{ api *API }
 
 func newNotificationAssembler(api *API) *notificationAssembler {
 	return &notificationAssembler{api: api}
@@ -57,51 +55,99 @@ func (a *notificationAssembler) occurrence(ctx context.Context, occurrence *core
 	return a.occurrenceWithPresentation(ctx, occurrence, presence)
 }
 
-func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, occurrence *corev1.NotificationOccurrence, presence string) (*apiv1.NotificationOccurrence, error) {
-	if occurrence == nil {
+func (a *notificationAssembler) messageReference(ctx context.Context, message *corev1.NotificationMessageReference) (*apiv1.NotificationMessageReference, error) {
+	if message == nil {
 		return nil, nil
 	}
-	roomMessage := occurrence.GetTarget().GetRoomMessage()
-	if roomMessage == nil {
-		// Target variants are independently extensible. A server that does not
-		// understand one must not misrepresent it as a room-message target.
+	room, err := a.room(ctx, message.GetRoomId())
+	if err != nil {
+		return nil, err
+	}
+	return &apiv1.NotificationMessageReference{
+		Room:              room,
+		EventId:           message.GetEventId(),
+		ThreadRootEventId: message.ThreadRootEventId,
+		ParentEventId:     message.ParentEventId,
+	}, nil
+}
+
+func (a *notificationAssembler) signal(ctx context.Context, signal *corev1.NotificationSignal) (*apiv1.NotificationSignal, error) {
+	if signal == nil {
+		return nil, nil
+	}
+	var message *corev1.NotificationMessageReference
+	switch payload := signal.GetKind().(type) {
+	case *corev1.NotificationSignal_DirectMessageReceived:
+		message = payload.DirectMessageReceived.GetMessage()
+	case *corev1.NotificationSignal_DirectMentionReceived:
+		message = payload.DirectMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_ReplyReceived:
+		message = payload.ReplyReceived.GetMessage()
+	case *corev1.NotificationSignal_RoleMentionReceived:
+		message = payload.RoleMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_HereMentionReceived:
+		message = payload.HereMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_AllMentionReceived:
+		message = payload.AllMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_FollowedThreadActivity:
+		message = payload.FollowedThreadActivity.GetMessage()
+	case *corev1.NotificationSignal_FollowedRoomActivity:
+		message = payload.FollowedRoomActivity.GetMessage()
+	case *corev1.NotificationSignal_ReactionReceived:
+		message = payload.ReactionReceived.GetMessage()
+	default:
+		return nil, nil
+	}
+	apiMessage, err := a.messageReference(ctx, message)
+	if err != nil {
+		return nil, err
+	}
+	result := &apiv1.NotificationSignal{}
+	switch payload := signal.GetKind().(type) {
+	case *corev1.NotificationSignal_DirectMessageReceived:
+		result.Kind = &apiv1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &apiv1.DirectMessageReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_DirectMentionReceived:
+		result.Kind = &apiv1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &apiv1.DirectMentionReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_ReplyReceived:
+		result.Kind = &apiv1.NotificationSignal_ReplyReceived{ReplyReceived: &apiv1.ReplyReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_RoleMentionReceived:
+		result.Kind = &apiv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &apiv1.RoleMentionReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_HereMentionReceived:
+		result.Kind = &apiv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &apiv1.HereMentionReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_AllMentionReceived:
+		result.Kind = &apiv1.NotificationSignal_AllMentionReceived{AllMentionReceived: &apiv1.AllMentionReceived{Message: apiMessage}}
+	case *corev1.NotificationSignal_FollowedThreadActivity:
+		result.Kind = &apiv1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &apiv1.FollowedThreadActivity{Message: apiMessage}}
+	case *corev1.NotificationSignal_FollowedRoomActivity:
+		result.Kind = &apiv1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &apiv1.FollowedRoomActivity{Message: apiMessage}}
+	case *corev1.NotificationSignal_ReactionReceived:
+		result.Kind = &apiv1.NotificationSignal_ReactionReceived{ReactionReceived: &apiv1.ReactionReceived{Message: apiMessage, Emoji: payload.ReactionReceived.GetEmoji()}}
+	}
+	return result, nil
+}
+
+func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, occurrence *corev1.NotificationOccurrence, presence string) (*apiv1.NotificationOccurrence, error) {
+	if occurrence == nil {
 		return nil, nil
 	}
 	actor, err := a.actor(ctx, occurrence.GetActorId(), presence)
 	if err != nil {
 		return nil, err
 	}
-	room, err := a.room(ctx, roomMessage.GetRoomId())
-	if err != nil {
+	signal, err := a.signal(ctx, occurrence.GetSignal())
+	if err != nil || signal == nil {
 		return nil, err
 	}
-	apiRoomMessage := &apiv1.NotificationRoomMessageTarget{Room: room, EventId: roomMessage.GetEventId()}
-	if value := roomMessage.GetThreadRootEventId(); value != "" {
-		apiRoomMessage.ThreadRootEventId = &value
-	}
-	if value := roomMessage.GetParentEventId(); value != "" {
-		apiRoomMessage.ParentEventId = &value
-	}
-	target := &apiv1.NotificationTarget{Kind: &apiv1.NotificationTarget_RoomMessage{RoomMessage: apiRoomMessage}}
-	reasons := make([]*apiv1.NotificationReasonMatch, 0, len(occurrence.GetReasons()))
-	for _, match := range occurrence.GetReasons() {
-		reasons = append(reasons, &apiv1.NotificationReasonMatch{
-			Reason:    apiv1.NotificationReason(match.GetReason()),
-			Intensity: apiv1.NotificationDeliveryIntensity(match.GetIntensity()),
-		})
-	}
 	return &apiv1.NotificationOccurrence{
-		Id:                 occurrence.GetId(),
-		SourceEventId:      occurrence.GetSourceEventId(),
-		CreatedAt:          occurrence.GetSourceCreatedAt(),
-		Actor:              actor,
-		Target:             target,
-		Reasons:            reasons,
-		StrongestIntensity: apiv1.NotificationDeliveryIntensity(occurrence.GetStrongestIntensity()),
-		AttentionLevel:     apiv1.NotificationAttentionLevel(core.NotificationOccurrenceAttentionLevel(occurrence)),
-		Unread:             occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
-		ReactionEmoji:      occurrence.GetReactionEmoji(),
-		ExpiresAt:          occurrence.GetExpiresAt(),
+		Id:             occurrence.GetId(),
+		SourceEventId:  occurrence.GetSourceEventId(),
+		CreatedAt:      occurrence.GetSourceCreatedAt(),
+		Actor:          actor,
+		Signal:         signal,
+		Intensity:      apiv1.NotificationDeliveryIntensity(occurrence.GetIntensity()),
+		AttentionLevel: apiv1.NotificationAttentionLevel(core.NotificationOccurrenceAttentionLevel(occurrence)),
+		Unread:         occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		ExpiresAt:      occurrence.GetExpiresAt(),
 	}, nil
 }
 
@@ -117,10 +163,6 @@ func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*
 		return nil, err
 	}
 	return parallel.MapNonNil(ctx, maxConnectAPIHydrationConcurrency, occurrences, func(ctx context.Context, _ int, occurrence *corev1.NotificationOccurrence) (*apiv1.NotificationOccurrence, error) {
-		return a.occurrenceWithPresentation(
-			ctx,
-			occurrence,
-			presences[occurrence.GetActorId()],
-		)
+		return a.occurrenceWithPresentation(ctx, occurrence, presences[occurrence.GetActorId()])
 	})
 }

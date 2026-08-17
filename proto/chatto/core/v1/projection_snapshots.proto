@@ -207,13 +207,25 @@ message UserConfigSnapshot {
 }
 
 message NotificationPreferenceSnapshot {
-  NotificationReason reason = 1;
+  NotificationPolicyKind kind = 1;
   NotificationDeliveryIntensity intensity = 2;
 }
 
 message RoomNotificationPreferenceSnapshot {
   string room_id = 1;
   repeated NotificationPreferenceSnapshot preferences = 2;
+}
+
+message NotificationProjectionSnapshot {
+  repeated NotificationOccurrence notifications = 1;
+  repeated NotificationProjectionTombstone tombstones = 2;
+}
+
+message NotificationProjectionTombstone {
+  string notification_id = 1;
+  string recipient_id = 2;
+  google.protobuf.Timestamp expires_at = 3;
+  uint64 signal_stream_sequence = 4;
 }
 
 message AssetProjectionSnapshot {

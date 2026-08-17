@@ -811,7 +811,7 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 type UserNotificationPreferenceChangedEvent struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	UserId        string                        `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Reason        NotificationReason            `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.core.v1.NotificationReason" json:"reason,omitempty"`
+	Kind          NotificationPolicyKind        `protobuf:"varint,2,opt,name=kind,proto3,enum=chatto.core.v1.NotificationPolicyKind" json:"kind,omitempty"`
 	Intensity     NotificationDeliveryIntensity `protobuf:"varint,3,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
 	RoomId        *string                       `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -855,11 +855,11 @@ func (x *UserNotificationPreferenceChangedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetReason() NotificationReason {
+func (x *UserNotificationPreferenceChangedEvent) GetKind() NotificationPolicyKind {
 	if x != nil {
-		return x.Reason
+		return x.Kind
 	}
-	return NotificationReason_NOTIFICATION_REASON_UNSPECIFIED
+	return NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
 }
 
 func (x *UserNotificationPreferenceChangedEvent) GetIntensity() NotificationDeliveryIntensity {
@@ -922,7 +922,7 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xf4\x01\n" +
 	"&UserNotificationPreferenceChangedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12:\n" +
-	"\x06reason\x18\x02 \x01(\x0e2\".chatto.core.v1.NotificationReasonR\x06reason\x12K\n" +
+	"\x04kind\x18\x02 \x01(\x0e2&.chatto.core.v1.NotificationPolicyKindR\x04kind\x12K\n" +
 	"\tintensity\x18\x03 \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12\x1c\n" +
 	"\aroom_id\x18\x04 \x01(\tH\x00R\x06roomId\x88\x01\x01B\n" +
 	"\n" +
@@ -964,7 +964,7 @@ var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*AssetRecord)(nil),                             // 18: chatto.core.v1.AssetRecord
 	(TimeFormat)(0),                                 // 19: chatto.core.v1.TimeFormat
 	(NotificationLevel)(0),                          // 20: chatto.core.v1.NotificationLevel
-	(NotificationReason)(0),                         // 21: chatto.core.v1.NotificationReason
+	(NotificationPolicyKind)(0),                     // 21: chatto.core.v1.NotificationPolicyKind
 	(NotificationDeliveryIntensity)(0),              // 22: chatto.core.v1.NotificationDeliveryIntensity
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
@@ -973,7 +973,7 @@ var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
 	19, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	20, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
 	20, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	21, // 5: chatto.core.v1.UserNotificationPreferenceChangedEvent.reason:type_name -> chatto.core.v1.NotificationReason
+	21, // 5: chatto.core.v1.UserNotificationPreferenceChangedEvent.kind:type_name -> chatto.core.v1.NotificationPolicyKind
 	22, // 6: chatto.core.v1.UserNotificationPreferenceChangedEvent.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
 	7,  // [7:7] is the sub-list for method output_type
 	7,  // [7:7] is the sub-list for method input_type

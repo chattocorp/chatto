@@ -13,19 +13,21 @@ import (
 	"hmans.de/chatto/internal/dekstore"
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/kms"
+	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
 )
 
 // coreInfrastructure contains the storage and event-sourcing primitives that
 // must exist before projections and domain services can be constructed.
 type coreInfrastructure struct {
-	js                 jetstream.JetStream
-	storage            *storage
-	encryption         *encryptionManager
-	dekResolver        *unwrappedDEKResolver
-	s3Client           *S3Client
-	eventPublisher     *evtstream.Publisher
-	snapshotRepository *projectionsnapshot.Repository
+	js                    jetstream.JetStream
+	storage               *storage
+	encryption            *encryptionManager
+	dekResolver           *unwrappedDEKResolver
+	s3Client              *S3Client
+	eventPublisher        *evtstream.Publisher
+	notificationPublisher *notificationstream.Publisher
+	snapshotRepository    *projectionsnapshot.Repository
 }
 
 func initializeCoreInfrastructure(
@@ -68,13 +70,14 @@ func initializeCoreInfrastructure(
 	dekResolver := newUnwrappedDEKResolver(encryption.keyWrapper, encryption.contentKeys)
 
 	return &coreInfrastructure{
-		js:                 js,
-		storage:            storage,
-		encryption:         encryption,
-		dekResolver:        dekResolver,
-		s3Client:           s3Client,
-		eventPublisher:     evtstream.NewPublisher(js, storage.serverEvtStream, logger),
-		snapshotRepository: snapshotRepository,
+		js:                    js,
+		storage:               storage,
+		encryption:            encryption,
+		dekResolver:           dekResolver,
+		s3Client:              s3Client,
+		eventPublisher:        evtstream.NewPublisher(js, storage.serverEvtStream, logger),
+		notificationPublisher: notificationstream.NewPublisher(js, storage.notificationStream, notificationPhysicalCleanupGrace, logger.WithPrefix("core.NotificationStream")),
+		snapshotRepository:    snapshotRepository,
 	}, nil
 }
 

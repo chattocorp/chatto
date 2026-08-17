@@ -15,6 +15,7 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/notificationstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -78,11 +79,7 @@ type ChattoCore struct {
 	// independently; the main process does not hand work to a local callback.
 	VideoUploadsEnabled bool
 
-	// notificationAlertsEnabled makes materialization enqueue interruptive
-	// delivery work. The queue and occurrence remain durable across replicas;
-	// the configured transport handler performs only the provider side effect.
-	notificationAlertsEnabled bool
-	notificationAlertHandler  func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
+	notificationAlertHandler func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error
 
 	// OnPushTestRequested sends a test notification to a user's push subscriptions.
 	OnPushTestRequested func(ctx context.Context, userID string) error
@@ -101,6 +98,8 @@ type ChattoCore struct {
 	// future aggregate cutovers; domain code accesses it through
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *evtstream.Publisher
+	// NotificationPublisher writes the bounded Notifications 2.0 lifecycle log.
+	NotificationPublisher *notificationstream.Publisher
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus

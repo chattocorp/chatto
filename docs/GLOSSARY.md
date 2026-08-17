@@ -156,7 +156,9 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
-**Notification Occurrence** — Recipient-specific runtime record derived from one canonical source event, retaining every matched notification reason and its exact destination. See [ADR-075](adr/ADR-075-deterministic-notification-occurrences.md).
+**Notification Occurrence** — Projected current state of one exact recipient-specific notification signal and its Read, Dismissed, and alert-delivery lifecycle. Identity is deterministic per recipient, source event, and policy kind. See [ADR-075](adr/ADR-075-deterministic-notification-occurrences.md).
+
+**Notification Signal** — Immutable event-shaped notification cause whose protobuf variant owns its exact destination and cause-specific data. Signals live in the bounded `NOTIFICATIONS` event stream rather than permanent `EVT`. See [ADR-075](adr/ADR-075-deterministic-notification-occurrences.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

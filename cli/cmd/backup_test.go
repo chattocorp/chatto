@@ -250,7 +250,7 @@ func TestSkipReason(t *testing.T) {
 		{"KV_INSTANCE_RBAC", false, false, ""},
 		{"KV_INSTANCE_CONFIG", false, false, ""},
 		{"KV_RUNTIME_STATE", false, false, ""},
-		{"NOTIFICATIONS_QUEUE", false, false, ""},
+		{"NOTIFICATIONS", false, false, ""},
 		{"OBJ_INSTANCE_ASSETS", false, false, ""},
 		{"OBJ_PROJECTION_SNAPSHOTS", false, false, ""},
 		{"OBJ_SERVER_ASSETS", false, false, ""},
@@ -285,7 +285,7 @@ func TestSkipReason(t *testing.T) {
 
 func TestOrderBackupStreamsPreservesNotificationCausality(t *testing.T) {
 	names := []string{
-		"NOTIFICATIONS_QUEUE",
+		"NOTIFICATIONS",
 		"KV_INSTANCE",
 		"KV_RUNTIME_STATE",
 		"EVT",
@@ -299,8 +299,8 @@ func TestOrderBackupStreamsPreservesNotificationCausality(t *testing.T) {
 		positions[name] = i
 	}
 	if !(positions["EVT"] < positions["KV_RUNTIME_STATE"] &&
-		positions["KV_RUNTIME_STATE"] < positions["NOTIFICATIONS_QUEUE"]) {
-		t.Fatalf("notification backup order = %v, want EVT before runtime state before queue", names)
+		positions["KV_RUNTIME_STATE"] < positions["NOTIFICATIONS"]) {
+		t.Fatalf("notification backup order = %v, want EVT before runtime state before notifications", names)
 	}
 	if positions["KV_INSTANCE"] > positions["OBJ_SERVER_ASSETS"] {
 		t.Fatalf("unconstrained stream order changed: %v", names)
@@ -481,31 +481,30 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		}
 	}
 
-	// Pending notification alerts and their durable acknowledgement position
-	// cross the same backup boundary as the occurrence they reference.
-	notificationQueue, err := srcJS.CreateStream(ctx, jetstream.StreamConfig{
-		Name: "NOTIFICATIONS_QUEUE", Subjects: []string{"notifications.alert"},
-		Storage: jetstream.FileStorage, Retention: jetstream.WorkQueuePolicy,
-		MaxAge: 2 * time.Minute,
+	// Notification history and its durable Alert-consumer position cross the
+	// backup boundary together.
+	notifications, err := srcJS.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS", Subjects: []string{"notifications.signalled", "notifications.read", "notifications.dismissed", "notifications.alert_resolved"},
+		Storage: jetstream.FileStorage, MaxAge: 91 * 24 * time.Hour, AllowMsgTTL: true,
 	})
 	if err != nil {
-		t.Fatal("Failed to create notification queue:", err)
+		t.Fatal("Failed to create notification stream:", err)
 	}
-	if _, err := notificationQueue.CreateConsumer(ctx, jetstream.ConsumerConfig{
-		Name: "chatto-notification-alert-delivery-v1", Durable: "chatto-notification-alert-delivery-v1",
-		FilterSubject: "notifications.alert", AckPolicy: jetstream.AckExplicitPolicy,
+	if _, err := notifications.CreateConsumer(ctx, jetstream.ConsumerConfig{
+		Name: "chatto-notification-alert-delivery-v2", Durable: "chatto-notification-alert-delivery-v2",
+		FilterSubject: "notifications.signalled", AckPolicy: jetstream.AckExplicitPolicy,
 	}); err != nil {
-		t.Fatal("Failed to create notification queue consumer:", err)
+		t.Fatal("Failed to create notification consumer:", err)
 	}
-	notificationAck, err := srcJS.Publish(ctx, "notifications.alert", []byte("pending-alert"))
+	notificationAck, err := srcJS.Publish(ctx, "notifications.signalled", []byte("pending-signal"), jetstream.WithMsgTTL(90*24*time.Hour))
 	if err != nil {
-		t.Fatal("Failed to publish pending notification alert:", err)
+		t.Fatal("Failed to publish pending notification signal:", err)
 	}
-	sourceAlert, err := notificationQueue.GetMsg(ctx, notificationAck.Sequence)
+	sourceSignal, err := notifications.GetMsg(ctx, notificationAck.Sequence)
 	if err != nil {
-		t.Fatal("Failed to inspect pending notification alert:", err)
+		t.Fatal("Failed to inspect pending notification signal:", err)
 	}
-	sourceAlertPublishedAt := sourceAlert.Time
+	sourceSignalPublishedAt := sourceSignal.Time
 
 	// NATS-backed projection snapshots use a dedicated Object Store and an
 	// encrypted OCC pointer in RUNTIME_STATE. Save a real snapshot so the test
@@ -703,27 +702,27 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		t.Errorf("Restored EVT stream identity = %q", got)
 	}
 
-	restoredNotificationQueue, err := dstJS.Stream(ctx, "NOTIFICATIONS_QUEUE")
+	restoredNotifications, err := dstJS.Stream(ctx, "NOTIFICATIONS")
 	if err != nil {
-		t.Fatal("Failed to open restored notification queue:", err)
+		t.Fatal("Failed to open restored notification stream:", err)
 	}
-	restoredNotificationConsumer, err := restoredNotificationQueue.Consumer(ctx, "chatto-notification-alert-delivery-v1")
+	restoredNotificationConsumer, err := restoredNotifications.Consumer(ctx, "chatto-notification-alert-delivery-v2")
 	if err != nil {
-		t.Fatal("Failed to open restored notification queue consumer:", err)
+		t.Fatal("Failed to open restored notification consumer:", err)
 	}
 	alert, err := restoredNotificationConsumer.Next()
 	if err != nil {
 		t.Fatal("Failed to fetch restored pending notification alert:", err)
 	}
-	if string(alert.Data()) != "pending-alert" {
-		t.Fatalf("Restored notification alert = %q, want pending-alert", alert.Data())
+	if string(alert.Data()) != "pending-signal" {
+		t.Fatalf("Restored notification signal = %q, want pending-signal", alert.Data())
 	}
 	metadata, err := alert.Metadata()
 	if err != nil {
 		t.Fatal("Failed to inspect restored notification alert metadata:", err)
 	}
-	if !metadata.Timestamp.Equal(sourceAlertPublishedAt) {
-		t.Fatalf("Restored notification published at = %v, want original %v", metadata.Timestamp, sourceAlertPublishedAt)
+	if !metadata.Timestamp.Equal(sourceSignalPublishedAt) {
+		t.Fatalf("Restored notification published at = %v, want original %v", metadata.Timestamp, sourceSignalPublishedAt)
 	}
 
 	restoredSnapshotStore, err := dstJS.ObjectStore(ctx, "PROJECTION_SNAPSHOTS")

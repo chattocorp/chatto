@@ -11,23 +11,23 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-var notificationPolicyReasons = []corev1.NotificationReason{
-	corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
-	corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-	corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
-	corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION,
-	corev1.NotificationReason_NOTIFICATION_REASON_HERE,
-	corev1.NotificationReason_NOTIFICATION_REASON_ALL,
-	corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
-	corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
-	corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+var notificationPolicyKinds = []corev1.NotificationPolicyKind{
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
+	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 }
 
-// NotificationPolicyPreference is one cause's explicit and effective policy
+// NotificationPolicyPreference is one signal kind's explicit and effective policy
 // at server scope and, when RoomID is non-empty, room scope.
 type NotificationPolicyPreference struct {
 	RoomID          string
-	Reason          corev1.NotificationReason
+	Kind            corev1.NotificationPolicyKind
 	ServerIntensity corev1.NotificationDeliveryIntensity
 	RoomIntensity   corev1.NotificationDeliveryIntensity
 	Effective       corev1.NotificationDeliveryIntensity
@@ -45,27 +45,27 @@ func (c *ChattoCore) NotificationPolicy() *NotificationPolicyModel {
 	return c.notificationPolicy
 }
 
-func defaultNotificationIntensity(reason corev1.NotificationReason) corev1.NotificationDeliveryIntensity {
-	switch reason {
-	case corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD,
-		corev1.NotificationReason_NOTIFICATION_REASON_REACTION:
+func defaultNotificationIntensity(kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
+	switch kind {
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE
-	case corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM:
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF
-	case corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
-		corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-		corev1.NotificationReason_NOTIFICATION_REASON_REPLY,
-		corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION,
-		corev1.NotificationReason_NOTIFICATION_REASON_HERE,
-		corev1.NotificationReason_NOTIFICATION_REASON_ALL:
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
 	default:
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	}
 }
 
-func validNotificationReason(reason corev1.NotificationReason) bool {
-	return defaultNotificationIntensity(reason) != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+func validNotificationPolicyKind(kind corev1.NotificationPolicyKind) bool {
+	return defaultNotificationIntensity(kind) != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 }
 
 func validNotificationIntensity(intensity corev1.NotificationDeliveryIntensity, allowInherit bool) bool {
@@ -76,7 +76,7 @@ func validNotificationIntensity(intensity corev1.NotificationDeliveryIntensity, 
 		intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
 }
 
-func (cm *ConfigModel) notificationServerIntensity(userID string, reason corev1.NotificationReason) corev1.NotificationDeliveryIntensity {
+func (cm *ConfigModel) notificationServerIntensity(userID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
 	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	}
@@ -86,10 +86,10 @@ func (cm *ConfigModel) notificationServerIntensity(userID string, reason corev1.
 	if u == nil {
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	}
-	return u.serverIntensityByReason[reason]
+	return u.serverIntensityByKind[kind]
 }
 
-func (cm *ConfigModel) notificationRoomIntensity(userID, roomID string, reason corev1.NotificationReason) corev1.NotificationDeliveryIntensity {
+func (cm *ConfigModel) notificationRoomIntensity(userID, roomID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
 	if cm == nil || cm.config.Projection() == nil {
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	}
@@ -99,21 +99,21 @@ func (cm *ConfigModel) notificationRoomIntensity(userID, roomID string, reason c
 	if u == nil {
 		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 	}
-	return u.roomIntensityByRoomAndCause[roomID][reason]
+	return u.roomIntensityByRoomAndKind[roomID][kind]
 }
 
 // GetEffectiveNotificationIntensity resolves room override, then server
-// override, then the product default for one cause.
-func (c *ChattoCore) GetEffectiveNotificationIntensity(userID, roomID string, reason corev1.NotificationReason) corev1.NotificationDeliveryIntensity {
+// override, then the product default for one signal class.
+func (c *ChattoCore) GetEffectiveNotificationIntensity(userID, roomID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
 	if roomID != "" {
-		if intensity := c.configModel.notificationRoomIntensity(userID, roomID, reason); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+		if intensity := c.configModel.notificationRoomIntensity(userID, roomID, kind); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 			return intensity
 		}
 	}
-	if intensity := c.configModel.notificationServerIntensity(userID, reason); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+	if intensity := c.configModel.notificationServerIntensity(userID, kind); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 		return intensity
 	}
-	return defaultNotificationIntensity(reason)
+	return defaultNotificationIntensity(kind)
 }
 
 // waitForCurrentNotificationPolicy makes source-time policy evaluation observe
@@ -134,21 +134,21 @@ func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error
 	return nil
 }
 
-func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) error {
-	if !validNotificationReason(reason) || !validNotificationIntensity(intensity, true) {
-		return invalidArgument("invalid notification reason or delivery intensity")
+func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) error {
+	if !validNotificationPolicyKind(kind) || !validNotificationIntensity(intensity, true) {
+		return invalidArgument("invalid notification policy kind or delivery intensity")
 	}
 	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		if c.configModel.notificationServerIntensity(userID, reason) == intensity {
+		if c.configModel.notificationServerIntensity(userID, kind) == intensity {
 			return nil, nil
 		}
 		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
-			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Reason: reason, Intensity: intensity},
+			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Kind: kind, Intensity: intensity},
 		}})}, nil
 	})
 }
 
-// GetNotificationPolicy returns every supported cause with its explicit and
+// GetNotificationPolicy returns every supported signal class with its explicit and
 // effective values. If roomID is set, the actor must be a room member.
 func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
@@ -162,35 +162,35 @@ func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, act
 			return nil, err
 		}
 	}
-	result := make([]NotificationPolicyPreference, 0, len(notificationPolicyReasons))
-	for _, reason := range notificationPolicyReasons {
+	result := make([]NotificationPolicyPreference, 0, len(notificationPolicyKinds))
+	for _, kind := range notificationPolicyKinds {
 		result = append(result, NotificationPolicyPreference{
 			RoomID:          roomID,
-			Reason:          reason,
-			ServerIntensity: s.core.configModel.notificationServerIntensity(actorID, reason),
-			RoomIntensity:   s.core.configModel.notificationRoomIntensity(actorID, roomID, reason),
-			Effective:       s.core.GetEffectiveNotificationIntensity(actorID, roomID, reason),
+			Kind:            kind,
+			ServerIntensity: s.core.configModel.notificationServerIntensity(actorID, kind),
+			RoomIntensity:   s.core.configModel.notificationRoomIntensity(actorID, roomID, kind),
+			Effective:       s.core.GetEffectiveNotificationIntensity(actorID, roomID, kind),
 		})
 	}
 	return result, nil
 }
 
-func (s *NotificationPolicyModel) SetServerNotificationIntensity(ctx context.Context, actorID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+func (s *NotificationPolicyModel) SetServerNotificationIntensity(ctx context.Context, actorID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if err := s.core.setServerNotificationIntensity(ctx, actorID, reason, intensity); err != nil {
+	if err := s.core.setServerNotificationIntensity(ctx, actorID, kind, intensity); err != nil {
 		return nil, fmt.Errorf("set server notification preference: %w", err)
 	}
 	return s.GetNotificationPolicy(ctx, actorID, "")
 }
 
-func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Context, actorID, roomID string, reason corev1.NotificationReason, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Context, actorID, roomID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if !validNotificationReason(reason) || !validNotificationIntensity(intensity, true) {
-		return nil, invalidArgument("invalid notification reason or delivery intensity")
+	if !validNotificationPolicyKind(kind) || !validNotificationIntensity(intensity, true) {
+		return nil, invalidArgument("invalid notification policy kind or delivery intensity")
 	}
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
 		authorizationSeq, err := s.prepareRoomAccess(ctx, actorID, roomID)
@@ -201,12 +201,12 @@ func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Conte
 		if err != nil {
 			return nil, fmt.Errorf("prepare room notification preference: %w", err)
 		}
-		if s.core.configModel.notificationRoomIntensity(actorID, roomID, reason) == intensity {
+		if s.core.configModel.notificationRoomIntensity(actorID, roomID, kind) == intensity {
 			return s.GetNotificationPolicy(ctx, actorID, roomID)
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
 			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-				UserId: actorID, RoomId: &roomID, Reason: reason, Intensity: intensity,
+				UserId: actorID, RoomId: &roomID, Kind: kind, Intensity: intensity,
 			},
 		}})
 		subject := agg.SubjectFor(event)

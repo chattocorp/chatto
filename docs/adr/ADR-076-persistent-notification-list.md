@@ -39,10 +39,6 @@ temporary presentation groups without a mutable server group boundary.
 the server's authoritative mutation boundary. Muting an origin remains future
 work.
 
-The persisted core enum retains the numeric development-era `DONE` and
-`CLAIMED` values because `RUNTIME_STATE` protobufs are storage contracts.
-Current code writes neither state; retained Done rows are treated as Read.
-
 ### The server exposes exact occurrences
 
 `ListNotificationOccurrences` returns a newest-first page of exact occurrences
@@ -60,14 +56,14 @@ stable IDs, preserves first-seen request order, de-duplicates repeats, and omits
 missing or inaccessible rows. Integrations can therefore hydrate IDs received
 through listing or realtime without scanning pages.
 
-Each occurrence carries a typed exact target and cause data, including reaction
-emoji. The current target variant identifies a room message. New resource
-targets can be added as protobuf oneof branches. Older clients retain an
+Each occurrence carries one rich `NotificationSignal` oneof branch, including
+its exact destination and any cause-specific data such as reaction emoji. New
+signal kinds can be added as protobuf oneof branches. Older clients retain an
 unsupported occurrence as a generic, non-navigating row with exact read/delete
-identity instead of guessing message navigation or hiding its badge. Each new
-variant requires its own visibility and lifecycle behavior. The API does not
-hydrate or return message excerpts; clients render concise descriptions from
-target, actor, room, cause, and reaction metadata.
+identity instead of guessing navigation or hiding its badge. Each new variant
+requires its own visibility and lifecycle behavior. The API does not hydrate or
+return message excerpts; clients render concise descriptions from signal,
+actor, room, and cause-specific metadata.
 
 The realtime projection replaces the same finite occurrence page and totals.
 Realtime transitions accelerate convergence; list/reconnect state remains
@@ -120,12 +116,13 @@ iteration and is not inferred from delivery intensity.
 ### Reconciliation and visibility
 
 Before list/realtime assembly and mark-read, the server fences the notification
-materializer and the recipient, room, group-layout, and RBAC projections used
-to validate current visibility. Retracted targets, removed reactions, and
-inaccessible rooms are tombstoned before they can be returned. Delete accepts
-only opaque occurrence IDs scoped to the authenticated viewer and does not
-hydrate target content. The complete retained list is validated before exact
-totals are derived, including occurrences outside the requested page.
+materializer, notification projection, and the recipient, room, group-layout,
+and RBAC projections used to validate current visibility. Retracted targets,
+removed reactions, and inaccessible rooms are dismissed before they can be
+returned. Delete accepts only opaque occurrence IDs scoped to the authenticated
+viewer and does not hydrate target content. The complete retained list is
+validated before exact totals are derived, including occurrences outside the
+requested page.
 
 ## Consequences
 

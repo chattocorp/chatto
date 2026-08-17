@@ -1,409 +1,184 @@
-# ADR-075: Derive Deterministic Notification Occurrences into Runtime State
+# ADR-075: Store Notification Lifecycle Facts in a Bounded Event Stream
 
 **Date:** 2026-08-10
 
 ## Context
 
-Chatto currently creates recipient-specific notification records directly from
-message-posting request paths. The records use random IDs, several independent
-fanout paths can match the same recipient, and creation is not recovered after
-a crash. Read-cursor advancement deletes whatever records happen to exist at
-that moment. A delayed creator can therefore add a notification after the user
-has already read the message, producing a phantom badge.
+Chatto's legacy notifications were random, recipient-specific runtime records
+created by request handlers. Their existence meant unread, deletion meant both
+read and dismissed, and Web Push was a best-effort callback. Multiple matching
+causes could race, a crash could lose materialisation, and delayed work could
+recreate activity the user had already read or dismissed.
 
-The records also mix several concerns. A notification's type stands in for why
-it was created, its existence stands in for unread state, deletion stands in
-for dismissal, and Web Push is launched from the same best-effort request
-callback. This makes it difficult to add independent preferences for direct
-mentions, role mentions, `@here`, `@all`, replies, followed conversations, and
-reactions without introducing more fanout paths and more races.
-
-The source activity and notification preferences are durable domain facts, but
-a recipient's notification list is bounded, mutable, user-runtime state. We
-need a design that preserves that boundary while making derivation recoverable,
-idempotent, and safe across replicas.
+Notifications are event-like but are not durable domain history. A direct
+mention, reply, or reaction is a recipient-specific signal derived from an
+authoritative source fact. It needs ordered lifecycle facts, replayable
+projections, recoverable alert delivery, explicit deletion, and bounded
+retention. Putting those facts in `EVT` would pollute the permanent domain log;
+putting each notification in KV would require one JetStream subject per item
+and would make lifecycle ordering and worker consumption less idiomatic.
 
 ## Decision
 
-### Authority boundaries
+### Dedicated bounded log
 
-Notification source activity and user notification preferences remain durable
-facts in `EVT`. A recipient-specific **notification occurrence** is a bounded
-latest-value record in `RUNTIME_STATE`; it is not appended to `EVT` and is not
-a second copy of the source content.
+Chatto stores Notifications 2.0 lifecycle facts in a dedicated file-backed,
+S2-compressed, replicated `NOTIFICATIONS` JetStream stream. It is a normal Loom
+event log built through the shared `events.EncodedEventLog`, decoded projector,
+projection snapshot, and `events.DurableWorker` mechanics. Chatto owns its
+protobuf envelope, subjects, retention, authorization, and delivery policy.
 
-Per-cause policy changes use one `UserNotificationPreferenceChangedEvent` for
-both server and room scope and for setting or clearing an override. The legacy
-notification-level event variants remain unchanged only as replay-decodable
-history: their tags and payloads are already persisted, but current projections
-ignore them. New writes use only the per-cause event. Removing or reusing those
-persisted oneof fields would corrupt EVT decoding.
+The stream has four fixed low-cardinality subjects:
 
-Each occurrence has one deterministic identity derived from the recipient ID
-and the canonical source event ID. One source event can therefore create at
-most one occurrence for a recipient, even when several notification reasons
-match or several replicas attempt the work. Creation uses KV `Create`; later
-state transitions use revision-based `Update` with conflict retries.
+- `notifications.signalled`
+- `notifications.read`
+- `notifications.dismissed`
+- `notifications.alert_resolved`
 
-The new key family is versioned separately from the legacy random-ID records.
-Its concrete prefix is an implementation detail, but it must preserve efficient
-recipient-scoped watching and must not place user-controlled text in keys.
+Subjects describe lifecycle fact kinds, not recipients or notification IDs.
+Recipient and notification coordinates stay in the protobuf payload. This
+avoids per-notification JetStream subject-index overhead.
 
-### Recoverable derivation from runtime work
+The stream is included in normal backups. It contains the authoritative
+90-day notification list, user triage, and pending alert work; excluding it
+would discard user-visible history and accepted delivery work at an arbitrary
+backup boundary. The stream and its durable consumer state are restored
+together.
 
-Each source-command OCC attempt evaluates notification policy against the
-authoritative projections behind that attempt. It captures the current config
-subject tail and waits for the local Config projection through that boundary
-before preparing the exact recipient/reason/intensity occurrences in
-`RUNTIME_STATE` and appending the existing message or reaction fact. A policy
-write that completed before the attempt is therefore observed; a policy write
-overlapping the source command may order on either side, and every OCC retry
-captures the boundary again. Message attempts also recompute mention expansion
-and the persisted `mentioned_user_ids`, so a retry ordered after a membership
-change cannot commit the earlier recipient set. These
-short-lived work keys use the triggering event ID and recipient ID; their value
-is the prepared `NotificationOccurrence`, not a second domain-event schema. A
-companion marker at the triggering event ID lets consumers reject events with
-no prepared recipients using one direct KV lookup rather than a filtered scan.
-Message and reaction payloads remain unchanged, and notification
-materialization does not introduce an `EVT` aggregate or event type.
+### Rich signals and exact identity
 
-Notification evaluation is part of committing the source command. If
-recipient discovery, policy evaluation, or runtime-work preparation cannot
-complete, the command fails before appending the source fact; it must not
-commit an ambiguous "nobody" decision. A failed source append can leave an
-untriggered work key, but its absolute source-time-plus-90-days TTL bounds that
-orphan. Once the source fact commits, occurrence materialization and delivery
-are recoverable effects and cannot roll back the source action.
+`NotificationSignalled` contains immutable source coordinates, source-time
+policy and attention decisions, and a rich `NotificationSignal` oneof. The
+projection constructs `NotificationOccurrence` current-state resources from
+that fact and later lifecycle facts; the event never embeds its projection.
+Current variants are direct message, direct mention, reply, role mention,
+`@here`, `@all`, followed-thread activity, followed-room activity, and reaction
+received. Each variant owns the typed data needed to authorize, render, and
+navigate that signal; reaction signals also carry their emoji. The record
+references source resources but does not copy message bodies, room names,
+avatars, or display names.
 
-An OCC command retry replaces the complete prepared recipient set for its
-trigger. It deletes recipients retained from an earlier failed attempt and
-removes the marker when the new authoritative decision has no work. Prepared
-work is therefore a latest exact decision, not an append-only union of attempts.
+`NotificationPolicyKind` remains a small enum because it is a stable preference
+key. It is not the notification payload. Future notification features, such as
+room invitations, add a rich signal branch and define their authorization,
+lifecycle, rendering, navigation, and delivery behavior.
 
-All replicas share one durable JetStream pull consumer with one globally
-in-flight delivery over the existing
-`MessagePosted`, `ReactionAdded`, `ReactionRemoved`, retraction, membership,
-room visibility, room-group placement, relevant RBAC, room-deletion, and
-account-deletion facts. Verified-email facts are also included so configured
-owner identities converge on the durable RBAC state used by notification
-visibility. A delivery waits for the projections needed by that
-fact, checks the marker, loads recipient work by the triggering event ID,
-applies it idempotently, deletes completed work and its marker, and acknowledges
-only after the effect succeeds. The consumer begins at its initial
-creation boundary because older facts cannot have Notifications 2.0 work;
-server boot readiness waits for that consumer to exist before commands may be
-served. The worker also skips facts beyond the 90-day retention boundary
-without touching KV.
-Crashes, shutdown, and transient failures therefore cause redelivery through
-the shared `events.DurableWorker` framework without replaying unrelated message
-history at rollout. The single consumer lane preserves source-before-lifecycle
-order across replicas.
+One source fact may generate several notification signals for the same user.
+For example, one message may independently be a reply and a direct mention.
+Each exact occurrence ID is derived from recipient ID, source event ID, and
+policy kind. Retries are idempotent while distinct causes retain independent
+identity and triage.
 
-The durable consumer is the sole owner of occurrence creation and lifecycle
-cleanup; request handlers do not run an overlapping prompt writer. A committing
-request may wait for the consumer's acknowledgement when read-your-writes
-matters, but all effects still pass through the shared causal lane. Delayed
-creation checks current account existence, room membership, message retraction,
-exact reaction-add state, and the recipient's latest room-visibility-loss
-sequence before writing. A leave or removal records that 90-day runtime
-boundary immediately after commit, and the durable worker repeats the write
-during ordered recovery.
+The source-time delivery intensity is `Off`, `Badge`, or `Alert`. `Off` creates
+no signal. `Badge` and `Alert` create the same durable list item; only `Alert`
+is eligible for interruptive delivery. Visual attention is independent:
+reactions are currently Ambient and other current signals are Important.
 
-Effective membership can also disappear without an explicit leave: a universal
-room can be disabled, moved across group permission scopes, or made inaccessible
-by a `room.join` RBAC or role change. The same ordered worker consumes those
-existing domain facts after a dedicated Notification Visibility projection
-captures the minimal room, membership, room-group, and RBAC state at the fact's
-exact EVT sequence. The worker scans authoritative occurrences and tombstones
-only recipient/room pairs that lacked effective membership at that boundary. A
-projection that already observed a later regain therefore cannot erase an
-intermediate visibility loss, and activity sourced after the regain is outside
-the earlier cleanup boundary. Snapshot restore is capped at the shared worker's
-acknowledged floor, so pending boundaries are replayed rather than skipped by a
-newer projection snapshot. Pending facts share one full visibility checkpoint
-plus a compact event-delta journal and an incrementally evaluated cursor; the
-projection does not copy full membership/RBAC state for every boundary or
-replay lifetime EVT history on the single notification lane. Boundary data is
-released only after the shared consumer's acknowledged floor confirms the
-delivery, so a failed acknowledgement can redeliver safely on the same replica.
-Snapshot publication uses that full floor too: a capture beyond it is deferred
-even when the pending notification-worker delivery is not itself a visibility
-boundary. On restart, the safe full-EVT prefix is reconstructed immediately
-before the earliest worker-filtered fact after the consumer's sparse AckFloor.
-The repository therefore retains a generation that restart can accept and
-needs to replay only its tail without another persisted watermark.
+### Source derivation remains outside EVT
 
-Configured `owners.emails` identities are materialized as durable owner-role
-assignments at boot and through the same retryable durable lane after email
-verification. Verification waits for that source fact to complete when the
-email is configured; live authorization recognizes only the durable role.
-While a verified email remains configured, that role cannot be revoked. The
-event-time RBAC projection and live owner authorization therefore cannot
-disagree about room visibility after a transient assignment failure.
+Message and reaction commands evaluate recipients and notification policy on
+every source-command OCC attempt. They replace one temporary
+`notification_work.{sourceEventId}` value in `RUNTIME_STATE` before committing
+the existing source fact. The value contains the complete exact work set for
+that attempt. A conflicting retry therefore cannot retain stale recipients.
 
-Prepared work contains enough immutable provenance to reproduce the recipient
-and reason decision without later policy evaluation. In particular, message
-work distinguishes direct-user, role, `@here`, and `@all` matches instead of
-relying on the message event's combined mentioned-user list. Eligibility that
-depends on transient state, such as who counted as present for `@here`, is
-resolved before source commit and retained in the prepared occurrence.
-Reaction occurrences retain the exact emoji as internal provenance, allowing
-an existing `ReactionRemoved` fact from an older replica to remove precisely
-the corresponding v2 occurrence even though that writer prepared no v2 work.
+The shared `chatto-notification-materializer-v2` durable consumer reads only
+existing domain-changing `EVT` facts. After the source fact commits it loads the
+prepared work, appends deterministic `NotificationSignalled` facts to
+`NOTIFICATIONS`, and removes the temporary value. Retraction, reaction removal,
+visibility loss, room deletion, and account deletion use their existing EVT
+facts to append notification dismissals. No notification-only event is added
+to `EVT`.
 
-The evaluator gathers every matching reason once, evaluates each reason's
-effective delivery intensity, stores the complete matched-reason set, and
-selects the strongest intensity. `Off` creates no visible occurrence; `Badge`
-and `Alert` create the same durable occurrence, while only `Alert` is eligible
-for interruptive delivery.
+The materializer also maintains the event-time visibility boundary required
+for universal rooms, room-group moves, and RBAC changes. Current list and alert
+reads fence the user, room, room-group-layout, and RBAC projections before
+treating a target as visible or absent. A quick access loss and regain cannot
+allow an older private signal to survive or be pushed.
 
-Visual attention is a separate source-time property. Reaction-only activity is
-Ambient; every other current cause is Important, and the strongest matching
-cause wins. This classification is deliberately fixed for now. Persisting the
-resolved level lets a future preference affect new activity without
-reclassifying retained history or coupling visual emphasis to push policy.
+### Projected current state
 
-### Occurrence contents
+Every Chatto process projects `NOTIFICATIONS` into one in-memory
+`NotificationProjection`. The projection is the current occurrence list and
+contains minimal dismissal tombstones. It supports shared encrypted snapshots
+whose stream incarnation and sequence are bound to `NOTIFICATIONS`, not `EVT`.
+List, mutation, realtime, and delivery paths wait for the relevant notification
+stream position or current tail before reading it.
 
-An occurrence retains the stable facts needed to explain, reconcile, and open
-it:
+Read appends `NotificationRead`. It leaves the occurrence in the list and
+silences a pending Alert. Dismissal appends `NotificationDismissed`; after the
+projection has observed that tombstone, Chatto securely deletes the original
+rich `NotificationSignalled` record by stream sequence. The tombstone prevents
+materializer redelivery from recreating the item and contains no presentation
+content. Repeating either mutation is idempotent.
 
-- recipient, canonical source event ID, actor ID, source time, and an internal
-  EVT stream sequence used for causal cleanup and read-boundary reconciliation;
-- a typed target; the current room-message variant contains the room, optional
-  thread root, target event, and optional direct-reply parent;
-- all matched reasons and their evaluated intensities;
-- strongest effective intensity and policy-evaluation time;
-- resolved Ambient or Important visual attention level;
-- attention state, alert-delivery state, lifecycle timestamps, and absolute expiry
-  time.
+Room/thread read reconciliation and visibility-loss boundaries remain bounded
+latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
+state, not notification history. They retain their existing direct-read and OCC
+handshakes.
 
-It does not copy message bodies, room names, avatars, display names, or other
-presentation data. Public assemblers hydrate current visible resources from
-their authoritative projections. If the target is retracted or the recipient
-loses visibility, the occurrence cannot preserve stale copied content.
+Realtime `NotificationOccurrenceChanged` messages are transient invalidations
+identified by opaque notification ID. They do not expose JetStream coordinates.
+The receiving replica fences the notification projection and sends an
+authoritative finite replacement, so missing or reordered invalidations cannot
+permanently corrupt client counts.
 
-`NotificationTarget` is a protobuf `oneof`, not a permanently message-shaped
-record. A future domain feature such as a room invitation can add its own target
-variant and reason without overloading message identifiers. Each variant must
-define its own current-visibility checks, lifecycle cleanup, navigation, and
-delivery hydration before the server creates it. A server that does not
-understand a variant preserves its occurrence and prepared work instead of
-treating version skew as visibility loss; a client can retain it as an exact,
-generic, non-navigating triage row. This is an extensibility boundary only:
-room-invitation notifications are not implemented by this decision, and an
-invitation would remain an authoritative domain fact outside the notification
-runtime state.
+### Retention and automatic expiry
 
-### Attention-state and lifecycle convergence
+The application expiry of every lifecycle fact is exactly 90 days after its
+source activity. The immutable `expires_at` field gives projections, APIs, and
+workers the semantic boundary even if broker cleanup is delayed. Reads and
+dismissals never extend it.
 
-Notification attention state is distinct from room and thread read cursors. A read action also
-writes a bounded notification-read record containing the target timeline EVT
-sequence and the reaction projection's applied EVT horizon. Occurrence creation
-reads that boundary directly from KV after its initial write, while the read
-action scans the recipient's authoritative occurrence keys after writing the
-boundary. This two-sided handshake converges across replicas without depending
-on either process's watcher timing. Coverage uses stream order, not protobuf
-wall-clock timestamps. Ordinary activity is covered through the target
-sequence; a reaction is covered only when both its reacted-to message and its
-source sequence were visible to the later read. A reaction arriving after a
-read therefore remains new until another read action.
+Each stream record also receives a JetStream per-message TTL ending 24 hours
+after application expiry. The stream `MaxAge` is the same 91-day upper bound.
+The grace period lets projections hide an item deterministically at 90 days
+while JetStream performs physical cleanup later. Broker expiry does not need to
+emit a synthetic event: every read prunes expired state, and a projection timer
+accelerates realtime convergence.
 
-New occurrence rows are initially persisted in an unfinalized, non-deliverable
-state. Finalization applies the read boundary and only then makes an unread
-Alert eligible for queueing. A durable redelivery finalizes an interrupted row, but never
-reconciles an already-finalized row or turns a Read occurrence back to Unread.
+### Alert delivery consumes the signal log directly
 
-User read/delete mutations, read reconciliation, retraction, reaction removal, and
-visibility changes all use KV OCC. Lifecycle cleanup fences the replica-local
-index through a same-stream marker before using it to select bounded candidates;
-each selected rewrite then checks authoritative KV state with OCC. Full-user
-purge and covered-read reconciliation retain authoritative scans where the
-operation itself must prove exhaustive state.
-Retraction, lost visibility, explicit
-deletion, and other conditions that must prevent rediscovery replace the
-visible record with a minimal tombstone. The tombstone keeps recipient, source
-identity, removal reason, and expiry only, so replay cannot recreate the
-notification and inaccessible presentation references are removed. Account
-deletion repeatedly purges the recipient's records through OCC races until no
-keys remain, and replay skips work recipients whose account no longer exists.
-A room-leave, member-removal, or implicit-visibility-loss fact removes only
-occurrences whose source EVT sequence precedes that lifecycle fact.
-Materialization requires the committed source sequence and rejects work at or
-before the latest persisted visibility boundary, even if the recipient has
-since rejoined. Replaying an old visibility loss cannot delete activity created
-after a later rejoin, regardless of replica clock skew.
+There is no notification work-queue stream. The
+`chatto-notification-alert-delivery-v2` durable pull consumer filters
+`notifications.signalled` directly and runs through `events.DurableWorker`.
+It waits for the notification projection through the delivered stream
+sequence, fences the EVT materializer, reloads current occurrence state, and
+revalidates policy, visibility, exact reaction/target existence, DND, and push
+subscription ownership.
 
-Notification policy changes affect future source activity. They do not rewrite
-or erase existing notification history; users delete retained items explicitly.
+Only unread, pending, source-time `Alert` occurrences may contact a provider.
+The immutable delivery deadline is two minutes after source time. The worker
+appends `NotificationAlertResolved` as Delivered or Silenced before
+acknowledging. Redelivery is an ack-only no-op once the projected state is
+terminal. Provider delivery remains at least once: a crash after provider
+acceptance but before the terminal fact commits can duplicate a push.
 
-### Absolute retention
+### Compatibility
 
-Every occurrence and tombstone has an absolute expiry 90 days after its source
-activity. Every KV mutation applies only the remaining lifetime. Marking an
-item read or rewriting it as a tombstone never restarts the 90-day clock.
+Notifications 2.0 replaces Notifications 1.0 at the upcoming pre-1.0 release
+boundary. Legacy notification records are neither migrated nor read. Retained
+legacy protobuf messages and old EVT variants remain decodable but current code
+does not write them.
 
-### Authoritative reads and delivery
-
-Each Chatto process owns one filtered `RUNTIME_STATE` watcher and an in-memory
-notification index. The watcher's initial latest-value delivery is a startup
-readiness barrier. KV remains authoritative; successful writes wait for their
-revision to reach the local index when read-your-writes matters. Public list,
-count, and realtime replacement assembly use dedicated index views instead of
-scanning a KV prefix per request or connection. Index reads also prune records whose
-absolute expiry has passed, so a delayed or missing KV expiry notification
-cannot leave an occurrence visible in a long-running process.
-
-Realtime messages remain convergence accelerators. A transition signal carries
-the source identity and written KV revision internally. For a creation signal,
-the serving replica first reads the source occurrence directly from authoritative
-KV, rejects a newer Read or deletion state, and waits its local index through
-that authoritative revision before assembling the replacement. Initial connection, reconnect, and
-authorization changes publish the same finite replacement. Missing a transient
-signal cannot permanently corrupt counts, and a cursor cannot advance with a
-replacement assembled from stale local notification state.
-
-Sound, Web Push, native notifications, and installed-app badges are downstream
-presentations of a committed occurrence. An unread Alert occurrence is handed
-off as an opaque coordinate to the file-backed `NOTIFICATIONS_QUEUE` work-queue
-stream. The `chatto-notification-alert-delivery-v1` durable pull consumer runs
-through `events.DurableWorker`; queue acknowledgement occurs only after a
-terminal occurrence state is persisted. The occurrence is the durable
-idempotency fence, while JetStream message-ID deduplication covers prompt
-source-worker redelivery. Current transient conditions such as Do Not Disturb
-may silence delivery without suppressing the occurrence. Provider delivery is
-at least once, so a crash after provider acceptance can produce a duplicate.
-Marking an occurrence Read silences a pending Alert.
-
-The queue is file-backed and included in normal backups together with its
-consumer state. This preserves accepted delivery work across restore instead
-of silently turning a backup boundary into alert loss. Each Alert occurrence
-persists an immutable source-time-plus-two-minutes deadline and copies it into
-the queue job. Worker eligibility and provider TTL use that deadline rather
-than queue publication time. The push sender derives the remaining provider TTL
-only after acquiring its bounded request slot, so local contention, republish,
-and restore cannot renew or overrun the window.
-An index-backed reconciler terminally silences expired Pending rows whose queue
-work was absent or evicted; it does not recreate interruptive work.
-
-Before sending, the alert worker fences occurrence materialization and the
-current notification-policy projection, reloads the exact unread occurrence,
-permits current preferences only to downgrade the source-time Alert decision,
-and revalidates account, membership, unretracted target message, exact
-reaction, subscription ownership, and DND. Before account, room, message, or
-reaction absence is treated as authoritative, the serving replica captures the
-current recipient, server-wide room-event, room-group-layout, and RBAC tails
-and waits its relevant projections through those boundaries.
-List, realtime, delivery, and mark-read paths use the same causally fenced
-target validation, so projection lag cannot tombstone a valid occurrence or
-expose a removed target. Delete paths need no target hydration: they accept
-only opaque occurrence IDs scoped to the authenticated viewer, but still wait
-for the durable notification materializer before reading occurrence state.
-Before a mutation reads occurrences, it waits that materializer
-through a fresh worker boundary and then
-fences the process-local occurrence index through the resulting KV writes.
-Before list or realtime responses derive
-exhaustive totals and notification summaries, they capture the latest sequence for
-every notification-worker EVT filter and wait for the sole durable writer to
-acknowledge that boundary. The read then appends a `RUNTIME_STATE` fence marker
-and waits its process-local occurrence watcher through that marker's KV
-revision. Because the marker follows the acknowledged worker's occurrence
-mutations in the same KV stream, a retrying lifecycle cleanup or lagging replica
-index fails or delays the read instead of leaking stale counts. List validation
-covers the complete retained occurrence set before deriving exact totals,
-including rows outside the requested page. Immediately before the provider
-call, the transport repeats eligibility, subscription ownership, and DND
-checks. Subscription storage and ownership read failures retry through the
-durable worker instead of masquerading as an empty device set. An intermediate
-visibility loss is therefore applied before an old occurrence can be
-delivered, even when current authorization already reflects a later regain.
-Delivery completes once any current device accepts the push; it retries only
-when no device accepted and at least one current endpoint failed transiently.
-This occurrence-level success rule avoids repeatedly alerting successful
-devices because another endpoint is persistently broken.
-A room deletion commits atomically with the existing generic authorization
-fence, so a concurrent room-scoped policy write retries against the deleted
-room instead of persisting an unreachable override.
-A crash after provider acceptance but before terminal delivery state is persisted can still cause
-a duplicate alert, consistent with the at-least-once contract.
-
-### Compatibility and rollout
-
-Notifications 2.0 uses a new persisted occurrence protobuf rather than
-changing the immutable `chatto.core.v1.Notification` storage message. Existing
-legacy notification records are neither migrated nor read. The cutover starts
-with an empty 2.0 list; old rows remain inert until their retention removes
-them. This is an intentional pre-1.0 product reset, not a dual-store period.
-The later visual-attention field is additive within the v2 record. A current
-reader derives it from retained reasons when an earlier v2 row omits it, which
-keeps rolling upgrades deterministic without rewriting runtime history.
-The later alert-deadline field is likewise additive; readers derive the same
-two-minute deadline from source time for an earlier v2 row that omits it.
-
-The public `chatto.api.v1` notification and coarse-preference RPCs are removed
-at the same release boundary and replaced by an exact occurrence list,
-single/batch occurrence deletion, and per-cause policy operations. Presentation
-grouping is client-owned. The bundled client contains no fallback
-to the old API or preference levels. Older clients are therefore incompatible
-with an upgraded server for notifications, and the 0.5 client requires a 0.5
-server through the bundled client's minimum-supported-server check. This intentional breaking
-change avoids maintaining a second API, compatibility projection, or preset
-translation layer.
-
-Notifications 2.0 and its persisted core messages are introduced together by
-this unreleased change, so the initial room-message target is encoded as the
-first `NotificationTarget` oneof branch rather than preserving the flat shape
-from development drafts. After release, additional target variants are
-wire-additive in binary protobuf. The bundled client uses binary ConnectRPC and
-retains unsupported variants while consuming their list rows as generic
-non-navigating items. ProtoJSON integrations only get that forward-compatible
-fallback when their decoder ignores unknown fields; strict JSON clients must
-regenerate before receiving a new variant, or a future rollout must add target
-capability negotiation before exposing it. Servers must not create or expose a
-target variant until they implement its authorization and lifecycle rules.
-An older server returns `UNIMPLEMENTED` for singular reads, read mutations,
-explicit batch reads, and deletes that include a target kind whose visibility
-it cannot validate. List pagination may omit that preserved row because its
-contract remains exhaustive only for target kinds the serving version can
-authorize and assemble.
-
-The shared materializer is also forward-safe during a rolling upgrade. Its
-durable consumer name and filter set form one immutable capability generation;
-adding a source event or target behavior that needs a newer schema requires a
-new consumer generation, and startup fails closed if a filter set changes under
-an existing name. An older worker retries rather than acknowledging an unknown
-source-event or prepared-target oneof branch. JetStream can then redeliver the
-same work to a capable replica. Unknown occurrences are omitted by older server
-assemblers but are never tombstoned merely because their target is unsupported.
-
-Every upgraded replica writes and reads only the 2.0 key and work families. A rolling
-deployment can therefore briefly contain an older replica that still writes
-legacy records and a newer replica that writes 2.0 records, but neither family
-is translated into the other. Once all replicas are upgraded, only 2.0 records
-are produced. Rolling back restores the legacy implementation and its old
-notification view; 2.0 occurrences and temporary work remain isolated and are not
-interpreted by that binary. No notification-only `EVT` variants are added, and
-message and reaction protobufs retain their existing wire shape.
+The public notification API is intentionally breaking relative to legacy and
+earlier unreleased Notifications 2.0 drafts. It exposes exact occurrences and
+rich signal oneofs; the bundled client owns presentation grouping. New signal
+branches are wire-additive after release, but a server must preserve and reject
+unsupported variants rather than guessing their visibility or deleting them.
 
 ## Consequences
 
-- Source commands fail before commit when notification policy cannot be
-  evaluated or their temporary work cannot be prepared. Failed source appends
-  can leave bounded work orphans; after commit, durable delivery makes
-  notification processing recoverable without adding domain events.
-- Recipient/source identity, KV OCC, and tombstones make retries and
-  multi-replica races idempotent.
-- Notification creation and read advancement converge in either order, closing
-  the late-notification race.
-- Exact targets and durable reason provenance support richer policy and reliable
-  navigation without copying mutable or private presentation data.
-- A process-wide index makes list, count, and realtime replacement assembly
-  proportional to the user's result set rather than repeated KV scans.
-- The notification materializer needs explicit consumer-lag, retry, and health
-  observability. Work older than the 90-day occurrence lifetime is deliberately
-  allowed to expire rather than create an already-expired notification item.
-- Interruptive effects are recoverable but not exactly once; rare duplicate
-  provider delivery remains possible.
-- The clean cutover deliberately discards legacy pending-notification history
-  from the new list and avoids a dual-read migration path.
+- Notification history and lifecycle are ordered, replayable, bounded, and
+  backed up without becoming permanent domain history.
+- Fixed subjects avoid the RAM cost of indexing one subject per notification.
+- The same stream powers projections and durable Alert delivery; there is no
+  second queue or occurrence KV to reconcile.
+- Exact per-signal-class identities let clients group presentation without losing
+  jump targets, unread counts, or triage semantics.
+- Dismissal physically removes rich content while a minimal retained fact keeps
+  redelivery idempotent.
+- Application expiry is deterministic even though JetStream cleanup is
+  asynchronous.
+- One additional replicated file-backed stream and durable consumer add bounded
+  NATS cluster overhead.

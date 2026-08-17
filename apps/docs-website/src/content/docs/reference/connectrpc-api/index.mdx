@@ -181,7 +181,7 @@ const viewer = await viewerClient.getViewer({}, {
 
 Successful unary JSON calls return the protobuf response message as JSON. Field names use protobuf JSON casing, such as `publicProfile` and `directRegistrationEnabled`.
 
-ProtoJSON integrations that need to tolerate future additive oneof variants must configure their decoder to ignore unknown fields. In particular, Notifications 2.0 may add new `NotificationTarget` variants; strict generated JSON clients must be regenerated before receiving such a variant. Binary protobuf is recommended when forward-compatible unknown-field retention is required.
+ProtoJSON integrations that need to tolerate future additive oneof variants must configure their decoder to ignore unknown fields. In particular, Notifications 2.0 may add new `NotificationSignal` variants; strict generated JSON clients must be regenerated before receiving such a variant. Binary protobuf is recommended when forward-compatible unknown-field retention is required.
 
 Successful binary protobuf calls return the serialized protobuf response message with `Content-Type: application/proto`.
 
@@ -226,7 +226,7 @@ Use the service pages below for request and response fields. Shared messages and
 - [MessageService](/reference/connectrpc-api/messages/) - Message creation, editing, deletion, composer link-preview, reaction, and attachment RPCs.
 - [MessageSearchService](/reference/connectrpc-api/message-search/) - Authorized full-text message search and provider availability RPCs.
 - [MyAccountService](/reference/connectrpc-api/account/) - Self-service account, profile, avatar, presence, status, external identity, and settings RPCs for the authenticated user.
-- [NotificationService](/reference/connectrpc-api/notifications/) - Exact notification occurrence listing, read, deletion, and per-cause policy RPCs.
+- [NotificationService](/reference/connectrpc-api/notifications/) - Exact notification occurrence listing, read, deletion, and per-signal-class policy RPCs.
 - [PushNotificationService](/reference/connectrpc-api/push-notifications/) - Web Push subscription RPCs.
 - [RoleService](/reference/connectrpc-api/roles/) - Authenticated role catalog read RPCs.
 - [RoomDirectoryService](/reference/connectrpc-api/room-directory/) - Room navigation, room group, and room viewer-state RPCs.

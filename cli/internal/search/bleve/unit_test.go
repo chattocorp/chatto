@@ -301,7 +301,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	})
 
 	startupErr := <-startupResult
-	require.ErrorContains(t, startupErr, "behind retained EVT start")
+	require.ErrorContains(t, startupErr, "behind retained stream start")
 	client := search.NewClient(nc)
 	status, err := client.GetStatus(ctx)
 	require.NoError(t, err)
@@ -314,7 +314,7 @@ func TestUnitFailsClosedWhenCheckpointPrecedesRetainedEVT(t *testing.T) {
 	release()
 	unitErr := <-done
 	finished = true
-	require.ErrorContains(t, unitErr, "behind retained EVT start")
+	require.ErrorContains(t, unitErr, "behind retained stream start")
 	require.ErrorContains(t, unitErr, "move or delete")
 	afterContext, cancelAfter := context.WithTimeout(context.Background(), time.Second)
 	defer cancelAfter()

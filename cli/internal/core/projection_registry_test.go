@@ -4,6 +4,7 @@ import (
 	"regexp"
 	"testing"
 
+	"hmans.de/chatto/internal/notificationstream"
 	"hmans.de/chatto/internal/projectionsnapshot"
 	"hmans.de/chatto/pkg/events"
 )
@@ -24,8 +25,8 @@ func registeredProjector(t *testing.T, core *ChattoCore, key string) *events.Pro
 func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	core, _ := setupTestCore(t)
 
-	if len(core.projections) != 16 {
-		t.Fatalf("registered projections = %d, want 16", len(core.projections))
+	if len(core.projections) != 17 {
+		t.Fatalf("registered projections = %d, want 17", len(core.projections))
 	}
 
 	registryNames := make(map[string]struct{}, len(core.projections))
@@ -45,6 +46,15 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 		}
 		if projection.estimate == nil {
 			t.Fatalf("projection %q has nil estimate", projection.name)
+		}
+		if projection.streamName == "" || projection.identityResolver == nil {
+			t.Fatalf("projection %q has incomplete event-log binding", projection.name)
+		}
+		if projection.key == projectionsnapshot.ProjectionNotificationsKey && projection.streamName != notificationstream.StreamName {
+			t.Fatalf("Notifications projection stream = %q, want %q", projection.streamName, notificationstream.StreamName)
+		}
+		if projection.key != projectionsnapshot.ProjectionNotificationsKey && projection.streamName != "EVT" {
+			t.Fatalf("projection %q stream = %q, want EVT", projection.name, projection.streamName)
 		}
 		if _, exists := registryNames[projection.name]; exists {
 			t.Fatalf("duplicate projection registration name %q", projection.name)
@@ -70,6 +80,9 @@ func TestProjectionRegistryDrivesAdminStates(t *testing.T) {
 	}
 	if _, ok := registryNames["Notification Visibility"]; !ok {
 		t.Fatal("Notification Visibility projection is not registered")
+	}
+	if _, ok := registryNames["Notifications"]; !ok {
+		t.Fatal("Notifications projection is not registered")
 	}
 	if _, ok := registryNames["Call State"]; !ok {
 		t.Fatal("Call State projection is not registered")
@@ -139,6 +152,7 @@ func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
 		projectionsnapshot.ProjectionThreadsKey:                {},
 		projectionsnapshot.ProjectionRoomDirectoryKey:          {},
 		projectionsnapshot.ProjectionNotificationVisibilityKey: {},
+		projectionsnapshot.ProjectionNotificationsKey:          {},
 		projectionsnapshot.ProjectionServerConfigKey:           {},
 		projectionsnapshot.ProjectionRoomGroupLayoutKey:        {},
 		projectionsnapshot.ProjectionRoomTimelineKey:           {},

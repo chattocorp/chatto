@@ -68,7 +68,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 		next.observedSequence = next.targetSequence
 	}
 	key := notificationReadBoundaryKey(userID, roomID, threadRootEventID)
-	for attempt := 0; attempt < maxNotificationUpdateRetries; attempt++ {
+	for attempt := 0; attempt < maxNotificationWorkWriteRetries; attempt++ {
 		current, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			if _, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {
@@ -100,7 +100,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 			return notificationReadBoundary{}, fmt.Errorf("update notification read boundary: %w", err)
 		}
 	}
-	return notificationReadBoundary{}, fmt.Errorf("write notification read boundary after %d attempts", maxNotificationUpdateRetries)
+	return notificationReadBoundary{}, fmt.Errorf("write notification read boundary after %d attempts", maxNotificationWorkWriteRetries)
 }
 
 func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Context, userID, roomID, threadRootEventID string) (notificationReadBoundary, bool, error) {
@@ -116,16 +116,19 @@ func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Conte
 }
 
 func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
-	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 || occurrence.GetTarget().GetRoomMessage() == nil {
+	if occurrence == nil {
 		return false, nil
 	}
-	target := occurrence.GetTarget().GetRoomMessage()
-	boundary, exists, err := m.notificationReadBoundary(ctx, occurrence.GetRecipientId(), target.GetRoomId(), target.GetThreadRootEventId())
+	message := notificationSignalMessage(occurrence.GetSignal())
+	if occurrence.GetSourceStreamSequence() == 0 || message == nil {
+		return false, nil
+	}
+	boundary, exists, err := m.notificationReadBoundary(ctx, occurrence.GetRecipientId(), message.GetRoomId(), message.GetThreadRootEventId())
 	if err != nil || !exists {
 		return false, err
 	}
-	if notificationOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION) {
-		targetEntry, ok := m.core.roomModel.timelineEntry(target.GetEventId())
+	if notificationOccurrenceHasPolicyKind(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION) {
+		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
 		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence, nil
 	}
 	return occurrence.GetSourceStreamSequence() <= boundary.targetSequence, nil

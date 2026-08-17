@@ -40,7 +40,7 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
   <ReleaseFeatureCard title="Notifications that stay useful after you read them">
     Notifications now stay in one chronological list after you read them. Delete an item whenever
-    you no longer want to retain it; per-cause controls distinguish mentions,
+    you no longer want to retain it; per-signal-class controls distinguish mentions,
     replies, followed conversations, direct messages, and reactions.
   </ReleaseFeatureCard>
 
@@ -118,14 +118,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   servers together. Pre-0.5 clients cannot use the new remote-server authorization flow.
 - Notifications 2.0 replaces the previous notification service and stored records. Existing
   pending notifications and notification-level preferences are not migrated, so every account
-  starts with an empty notification list and the new per-cause defaults. Integrations must
+  starts with an empty notification list and the new per-signal-class defaults. Integrations must
   regenerate their clients and move to the new occurrence and policy methods on
   `NotificationService`; the legacy list/get/dismiss RPCs and realtime fields no longer work.
-  `NotificationOccurrence.target` is a typed oneof whose initial variant is `room_message`;
-  clients must not infer navigation for unsupported variants and may show them as generic,
-  dismissible activity. The bundled client uses binary protobuf for this forward-compatible
-  fallback. ProtoJSON integrations must ignore unknown fields or regenerate before a future
-  target variant is exposed.
+  `NotificationOccurrence.signal` is a typed oneof that combines one cause with its exact
+  destination and cause-specific data. Clients must not infer navigation for unsupported
+  variants and may show them as generic, dismissible activity. The bundled client uses binary
+  protobuf for this forward-compatible fallback. ProtoJSON integrations must ignore unknown
+  fields or regenerate before a future signal variant is exposed.
   Upgrade all replicas and bundled clients together.
 - Realtime protocol 2 is required by both the 0.5 client and server. Upgrade every server
   replica and the bundled frontend together; a 0.5 client treats 0.4 servers as incompatible,

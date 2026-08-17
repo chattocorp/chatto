@@ -86,7 +86,7 @@ func TestPostThreadReplyWaitsForFollowProjectionBeforePlanningNotifications(t *t
 	}
 
 	occurrences := testNotificationOccurrences(t, chattoCore, alice.Id)
-	if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
+	if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD) {
 		t.Fatalf("followed-thread occurrences after delayed catch-up = %+v, want one", occurrences)
 	}
 }
@@ -1219,7 +1219,7 @@ func TestChattoCore_PostMessage_DirectMentionAutoFollowsThread(t *testing.T) {
 	}
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 }
@@ -1257,7 +1257,7 @@ func TestChattoCore_PostMessage_DirectMentionRespectsExplicitUnfollow(t *testing
 	}
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
 		t.Fatalf("expected mention notification despite explicit unfollow, got %#v", notifications)
 	}
 
@@ -1316,7 +1316,7 @@ func TestChattoCore_PostMessage_DisabledDirectMentionDoesNotAutoFollowThread(t *
 	core.JoinRoom(ctx, rootAuthor.Id, KindChannel, rootAuthor.Id, room.Id)
 	core.JoinRoom(ctx, replyAuthor.Id, KindChannel, replyAuthor.Id, room.Id)
 	core.JoinRoom(ctx, mentioned.Id, KindChannel, mentioned.Id, room.Id)
-	if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, mentioned.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
+	if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, mentioned.Id, room.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
 		t.Fatalf("SetRoomNotificationIntensity: %v", err)
 	}
 
@@ -1609,7 +1609,7 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, target.Id)
-		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) {
+		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
 			t.Errorf("Expected exactly one persistent mention occurrence, got %+v", occurrences)
 		}
 	})
@@ -1644,12 +1644,12 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 			t.Fatalf("expected exactly one occurrence for Alice, got %d", len(occurrences))
 		}
 		occurrence := occurrences[0]
-		if !testOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
-			t.Errorf("expected reply reason, got %+v", occurrence.GetReasons())
+		if !testOccurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY) {
+			t.Errorf("expected reply signal, got %+v", occurrence.GetSignal())
 		}
-		roomMessageTarget := occurrence.GetTarget().GetRoomMessage()
+		roomMessageTarget := NotificationOccurrenceMessageReference(occurrence)
 		if roomMessageTarget.GetRoomId() != room.Id || roomMessageTarget.GetParentEventId() != aliceMsg.Id || roomMessageTarget.GetThreadRootEventId() != "" {
-			t.Errorf("occurrence target = %+v, want room %q and parent %q without thread", occurrence.GetTarget(), room.Id, aliceMsg.Id)
+			t.Errorf("occurrence target = %+v, want room %q and parent %q without thread", roomMessageTarget, room.Id, aliceMsg.Id)
 		}
 		if occurrence.GetActorId() != bob.Id {
 			t.Errorf("occurrence actor = %q, want Bob %q", occurrence.GetActorId(), bob.Id)
@@ -1680,7 +1680,7 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 		// Alice should have no reply notifications
 		for _, occurrence := range testNotificationOccurrences(t, core, alice.Id) {
-			if testOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
+			if testOccurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY) {
 				t.Error("expected no reply occurrence for self-reply")
 			}
 		}
@@ -1690,9 +1690,14 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
-		if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, alice.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REPLY, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
+		if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, alice.Id, room.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF); err != nil {
 			t.Fatalf("SetRoomNotificationIntensity: %v", err)
 		}
+		defer func() {
+			if _, err := core.NotificationPolicy().SetRoomNotificationIntensity(ctx, alice.Id, room.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED); err != nil {
+				t.Errorf("restore reply notification intensity: %v", err)
+			}
+		}()
 
 		// Alice posts a message
 		aliceMsg, err := core.PostMessage(ctx, KindChannel, room.Id, alice.Id, "Muted test", nil, "", "", nil, false)
@@ -1708,13 +1713,13 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 
 		// Alice should have no reply occurrence while that cause is disabled.
 		for _, occurrence := range testNotificationOccurrences(t, core, alice.Id) {
-			if testOccurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
+			if testOccurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY) {
 				t.Error("expected no reply occurrence when the reply cause is disabled")
 			}
 		}
 	})
 
-	t.Run("mention and reply merge into one occurrence", func(t *testing.T) {
+	t.Run("mention and reply remain independent occurrences", func(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 
@@ -1731,11 +1736,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 1 {
-			t.Fatalf("expected one merged occurrence, got %d", len(occurrences))
+		if len(occurrences) != 2 {
+			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
 		}
-		if !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
-			t.Errorf("expected mention and reply reasons, got %+v", occurrences[0].GetReasons())
+		if !testOccurrencesHaveKinds(occurrences, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY) {
+			t.Errorf("expected mention and reply signals, got %+v", occurrences)
 		}
 	})
 
@@ -1756,11 +1761,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
+		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD) {
 			t.Fatalf("expected one followed-thread occurrence, got %+v", occurrences)
 		}
-		if occurrences[0].GetTarget().GetRoomMessage().GetThreadRootEventId() != rootMsg.Id {
-			t.Errorf("thread target = %q, want %q", occurrences[0].GetTarget().GetRoomMessage().GetThreadRootEventId(), rootMsg.Id)
+		if NotificationOccurrenceMessageReference(occurrences[0]).GetThreadRootEventId() != rootMsg.Id {
+			t.Errorf("thread target = %q, want %q", NotificationOccurrenceMessageReference(occurrences[0]).GetThreadRootEventId(), rootMsg.Id)
 		}
 	})
 
@@ -1781,11 +1786,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 1 {
-			t.Fatalf("expected one merged occurrence, got %d", len(occurrences))
+		if len(occurrences) != 2 {
+			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
 		}
-		if !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
-			t.Errorf("expected mention and followed-thread reasons, got %+v", occurrences[0].GetReasons())
+		if !testOccurrencesHaveKinds(occurrences, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD) {
+			t.Errorf("expected mention and followed-thread signals, got %+v", occurrences)
 		}
 	})
 
@@ -1821,16 +1826,21 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		bobOccurrences := testNotificationOccurrences(t, core, bob.Id)
-		if len(bobOccurrences) != 1 || !testOccurrenceHasReason(bobOccurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REPLY) {
-			t.Fatalf("expected Bob to get one reply occurrence, got %+v", bobOccurrences)
+		if len(bobOccurrences) != 2 || !testOccurrencesHaveKinds(bobOccurrences, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD) {
+			t.Fatalf("expected Bob to get reply and followed-thread occurrences, got %+v", bobOccurrences)
 		}
-		target := bobOccurrences[0].GetTarget().GetRoomMessage()
+		var target *corev1.NotificationMessageReference
+		for _, occurrence := range bobOccurrences {
+			if testOccurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY) {
+				target = NotificationOccurrenceMessageReference(occurrence)
+			}
+		}
 		if target.GetParentEventId() != bobMsg.Id || target.GetThreadRootEventId() != rootMsg.Id {
 			t.Errorf("occurrence target = %+v, want parent %q and thread %q", target, bobMsg.Id, rootMsg.Id)
 		}
 	})
 
-	t.Run("in-thread inReplyTo deduplicates with thread participant notification", func(t *testing.T) {
+	t.Run("in-thread inReplyTo remains independent from followed-thread activity", func(t *testing.T) {
 		// Clear existing notifications
 		testDeleteAllNotificationOccurrences(t, core, alice.Id)
 		testDeleteAllNotificationOccurrences(t, core, bob.Id)
@@ -1852,11 +1862,11 @@ func TestChattoCore_PostMessage_InReplyToNotification(t *testing.T) {
 		}
 
 		occurrences := testNotificationOccurrences(t, core, alice.Id)
-		if len(occurrences) != 1 {
-			t.Fatalf("expected exactly one merged occurrence, got %d", len(occurrences))
+		if len(occurrences) != 2 {
+			t.Fatalf("expected two exact occurrences, got %d", len(occurrences))
 		}
-		if !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_REPLY) || !testOccurrenceHasReason(occurrences[0], corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD) {
-			t.Errorf("expected reply and followed-thread reasons, got %+v", occurrences[0].GetReasons())
+		if !testOccurrencesHaveKinds(occurrences, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD) {
+			t.Errorf("expected reply and followed-thread signals, got %+v", occurrences)
 		}
 	})
 }

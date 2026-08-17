@@ -310,9 +310,9 @@ test.describe('Cross-instance dots', () => {
       const spaceIcon = page.locator('.server-gutter [data-testid="server-icon"]').first();
       const spaceBadge = spaceIcon.locator('..').getByTestId('server-notification-badge');
       await expect(spaceBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-      // The reply both mentions User A and replies to their message, but one
-      // source occurrence merges all matching reasons into one group count.
-      await expect(spaceBadge).toHaveText('1');
+      // The reply emits exact mention and reply signals. Presentation may
+      // consolidate them, but the authoritative unread badge counts both.
+      await expect(spaceBadge).toHaveText('2');
 
       // Click the badge. The mention is on a thread message, so clicking should
       // land in #general with the thread pane open and the reply highlighted.

@@ -152,15 +152,12 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		t.Fatal("first message missing from timeline")
 	}
 	notification, _, err := core.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
-		RecipientID:   reader.Id,
-		SourceEventID: first.Id,
-		SourceCreated: first.GetCreatedAt().AsTime(),
-		ActorID:       poster.Id,
-		Target:        newNotificationRoomMessageTarget(room.Id, first.Id),
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		}},
+		RecipientID:          reader.Id,
+		SourceEventID:        first.Id,
+		SourceCreated:        first.GetCreatedAt().AsTime(),
+		ActorID:              poster.Id,
+		Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, first.Id),
+		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		InitialState:         corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
 		SkipReadLookup:       true,
 		SourceStreamSequence: firstEntry.StreamSeq,

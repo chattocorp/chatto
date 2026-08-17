@@ -18,7 +18,7 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(ctx, user.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	); err != nil {
 		t.Fatalf("SetServerNotificationIntensity: %v", err)
@@ -62,7 +62,7 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 		if got.err != nil {
 			t.Fatalf("GetNotificationPolicy after catch-up: %v", got.err)
 		}
-		assertNotificationPolicyIntensity(t, got.policy, corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+		assertNotificationPolicyIntensity(t, got.policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -89,7 +89,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentMembershipLoss(t *testi
 	// Seed a config fact so replacing the config projector gives us a
 	// deterministic pause after room access has been checked but before append.
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(ctx, user.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	); err != nil {
 		t.Fatalf("SetServerNotificationIntensity: %v", err)
@@ -105,7 +105,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentMembershipLoss(t *testi
 	result := make(chan error, 1)
 	go func() {
 		_, err := chattoCore.NotificationPolicy().SetRoomNotificationIntensity(ctx, user.Id, room.Id,
-			corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+			corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 		)
 		result <- err
@@ -138,7 +138,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentMembershipLoss(t *testi
 	case <-time.After(5 * time.Second):
 		t.Fatal("SetRoomNotificationIntensity did not finish after config projection caught up")
 	}
-	if got := chattoCore.configModel.notificationRoomIntensity(user.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REACTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+	if got := chattoCore.configModel.notificationRoomIntensity(user.Id, room.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 		t.Fatalf("room preference after rejected write = %v, want unspecified", got)
 	}
 }
@@ -158,7 +158,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentRoomDeletion(t *testing
 		t.Fatalf("JoinRoom: %v", err)
 	}
 	if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(ctx, user.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	); err != nil {
 		t.Fatalf("SetServerNotificationIntensity: %v", err)
@@ -174,7 +174,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentRoomDeletion(t *testing
 	result := make(chan error, 1)
 	go func() {
 		_, err := chattoCore.NotificationPolicy().SetRoomNotificationIntensity(ctx, user.Id, room.Id,
-			corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
+			corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 		)
 		result <- err
@@ -207,7 +207,7 @@ func TestSetRoomNotificationPolicyConflictsWithConcurrentRoomDeletion(t *testing
 	case <-time.After(5 * time.Second):
 		t.Fatal("SetRoomNotificationIntensity did not finish after config projection caught up")
 	}
-	if got := chattoCore.configModel.notificationRoomIntensity(user.Id, room.Id, corev1.NotificationReason_NOTIFICATION_REASON_REACTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+	if got := chattoCore.configModel.notificationRoomIntensity(user.Id, room.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
 		t.Fatalf("room preference after rejected write = %v, want unspecified", got)
 	}
 }
@@ -233,56 +233,56 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 		t.Fatalf("GetNotificationPolicy: %v", err)
 	}
 	if _, err := preferences.SetServerNotificationIntensity(ctx, user.Id,
-		corev1.NotificationReason(10),
+		corev1.NotificationPolicyKind(10),
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	); err == nil {
-		t.Fatal("SetServerNotificationIntensity accepted reserved notification reason 10")
+		t.Fatal("SetServerNotificationIntensity accepted reserved notification policy kind 10")
 	}
-	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 	)
-	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	)
 
 	policy, err = preferences.SetServerNotificationIntensity(ctx, user.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	)
 	if err != nil {
 		t.Fatalf("SetServerNotificationIntensity: %v", err)
 	}
-	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 	)
 
 	policy, err = preferences.SetRoomNotificationIntensity(ctx, user.Id, room.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 	)
 	if err != nil {
 		t.Fatalf("SetRoomNotificationIntensity: %v", err)
 	}
-	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 	)
 
 	policy, err = preferences.SetRoomNotificationIntensity(ctx, user.Id, room.Id,
-		corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 	)
 	if err != nil {
 		t.Fatalf("clear room notification intensity: %v", err)
 	}
-	assertNotificationPolicyIntensity(t, policy, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM,
+	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED,
 		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
@@ -292,18 +292,18 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 func assertNotificationPolicyIntensity(
 	t *testing.T,
 	preferences []NotificationPolicyPreference,
-	reason corev1.NotificationReason,
+	kind corev1.NotificationPolicyKind,
 	server, room, effective corev1.NotificationDeliveryIntensity,
 ) {
 	t.Helper()
 	for _, preference := range preferences {
-		if preference.Reason != reason {
+		if preference.Kind != kind {
 			continue
 		}
 		if preference.ServerIntensity != server || preference.RoomIntensity != room || preference.Effective != effective {
-			t.Fatalf("preference %v = (%v, %v, %v), want (%v, %v, %v)", reason, preference.ServerIntensity, preference.RoomIntensity, preference.Effective, server, room, effective)
+			t.Fatalf("preference %v = (%v, %v, %v), want (%v, %v, %v)", kind, preference.ServerIntensity, preference.RoomIntensity, preference.Effective, server, room, effective)
 		}
 		return
 	}
-	t.Fatalf("preference %v not found", reason)
+	t.Fatalf("preference %v not found", kind)
 }

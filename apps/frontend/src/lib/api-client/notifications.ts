@@ -3,12 +3,13 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListNotificationOccurrencesResponse,
+  NotificationMessageReference,
   NotificationOccurrence as APINotificationOccurrence
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   NotificationAttentionLevel,
   NotificationDeliveryIntensity,
-  NotificationReason
+  NotificationPolicyKind
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
@@ -112,9 +113,9 @@ export type NotificationOccurrenceItem = {
   eventId: string;
   threadRootId: string | null;
   parentEventId: string | null;
-  reasons: NotificationReason[];
+  reasons: NotificationPolicyKind[];
   reasonMatches: Array<{
-    reason: NotificationReason;
+    reason: NotificationPolicyKind;
     intensity: NotificationDeliveryIntensity;
   }>;
   attentionLevel: NotificationAttentionLevel;
@@ -131,7 +132,7 @@ export type NotificationGroupItem = {
   attentionLevel: NotificationAttentionLevel;
   occurrenceCount: number;
   latestAt: string;
-  reasons: NotificationReason[];
+  reasons: NotificationPolicyKind[];
   nextExpiryAt?: string | null;
 };
 
@@ -148,9 +149,9 @@ export type NotificationOccurrencePage = {
   nextExpiryAt?: string | null;
 };
 
-export { NotificationAttentionLevel, NotificationDeliveryIntensity, NotificationReason };
+export { NotificationAttentionLevel, NotificationDeliveryIntensity, NotificationPolicyKind };
 export type NotificationPolicyItem = {
-  reason: NotificationReason;
+  reason: NotificationPolicyKind;
   serverIntensity: NotificationDeliveryIntensity;
   roomIntensity: NotificationDeliveryIntensity;
   effectiveIntensity: NotificationDeliveryIntensity;
@@ -209,7 +210,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
       const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
       return response.preferences.map((preference) => ({
-        reason: preference.reason,
+        reason: preference.kind,
         serverIntensity: preference.serverIntensity,
         roomIntensity: preference.roomIntensity,
         effectiveIntensity: preference.effectiveIntensity
@@ -217,16 +218,16 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     },
 
     async setNotificationPolicyPreference(
-      reason: NotificationReason,
+      reason: NotificationPolicyKind,
       intensity: NotificationDeliveryIntensity,
       roomId?: string
     ): Promise<NotificationPolicyItem[]> {
       const response = await client.setNotificationPolicyPreference(
-        { reason, intensity, roomId },
+        { kind: reason, intensity, roomId },
         { headers: headers() }
       );
       return response.preferences.map((preference) => ({
-        reason: preference.reason,
+        reason: preference.kind,
         serverIntensity: preference.serverIntensity,
         roomIntensity: preference.roomIntensity,
         effectiveIntensity: preference.effectiveIntensity
@@ -265,19 +266,20 @@ export function mapNotificationOccurrencePage(
 export function notificationOccurrence(
   item: APINotificationOccurrence
 ): NotificationOccurrenceItem {
-  const target = item.target?.kind.case === 'roomMessage' ? item.target.kind.value : null;
+  const mapped = notificationSignal(item);
+  const target = mapped.message;
   const actor = notificationActor(item.actor);
-  const reasonMatches = item.reasons.map((match) => ({
-    reason: match.reason,
-    intensity: match.intensity
-  }));
+  const reasonMatches =
+    mapped.reason === NotificationPolicyKind.UNSPECIFIED
+      ? []
+      : [{ reason: mapped.reason, intensity: item.intensity }];
   const reasons = reasonMatches.map((match) => match.reason);
   return {
     id: item.id,
     sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
-    targetSupported: target !== null,
+    targetSupported: mapped.supported,
     room: target?.room ? { id: target.room.id, name: target.room.name } : null,
     eventId: target?.eventId ?? '',
     threadRootId: target?.threadRootEventId ?? null,
@@ -286,9 +288,90 @@ export function notificationOccurrence(
     reasonMatches,
     attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),
     unread: item.unread,
-    reactionEmoji: item.reactionEmoji || null,
+    reactionEmoji: mapped.reactionEmoji,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
+}
+
+function notificationSignal(item: APINotificationOccurrence): {
+  supported: boolean;
+  reason: NotificationPolicyKind;
+  message: NotificationMessageReference | null;
+  reactionEmoji: string | null;
+} {
+  const kind = item.signal?.kind;
+  switch (kind?.case) {
+    case 'directMessageReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.DIRECT_MESSAGE,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'directMentionReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.DIRECT_MENTION,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'replyReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.REPLY,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'roleMentionReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.ROLE_MENTION,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'hereMentionReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.HERE,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'allMentionReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.ALL,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'followedThreadActivity':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.FOLLOWED_THREAD,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'followedRoomActivity':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.FOLLOWED_ROOM,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'reactionReceived':
+      return {
+        supported: true,
+        reason: NotificationPolicyKind.REACTION,
+        message: kind.value.message ?? null,
+        reactionEmoji: kind.value.emoji || null
+      };
+    default:
+      return {
+        supported: false,
+        reason: NotificationPolicyKind.UNSPECIFIED,
+        message: null,
+        reactionEmoji: null
+      };
+  }
 }
 
 /** Derive temporary presentation groups from exact server occurrences. */
@@ -335,7 +418,7 @@ export function groupNotificationOccurrences(
 /** Resolve additive attention metadata, conservatively supporting older servers. */
 export function effectiveNotificationAttentionLevel(
   stored: NotificationAttentionLevel,
-  reasons: NotificationReason[]
+  reasons: NotificationPolicyKind[]
 ): NotificationAttentionLevel {
   if (
     stored === NotificationAttentionLevel.AMBIENT ||
@@ -343,7 +426,7 @@ export function effectiveNotificationAttentionLevel(
   ) {
     return stored;
   }
-  return reasons.length > 0 && reasons.every((reason) => reason === NotificationReason.REACTION)
+  return reasons.length > 0 && reasons.every((reason) => reason === NotificationPolicyKind.REACTION)
     ? NotificationAttentionLevel.AMBIENT
     : NotificationAttentionLevel.IMPORTANT;
 }
@@ -351,25 +434,25 @@ export function effectiveNotificationAttentionLevel(
 function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {
   if (occurrence.targetSupported === false) return `occurrence:${occurrence.id}`;
   const roomId = occurrence.room?.id ?? '';
-  if (occurrence.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+  if (occurrence.reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
     return `dm:${roomId}`;
   }
   if (
-    occurrence.reasons.includes(NotificationReason.REPLY) ||
-    occurrence.reasons.includes(NotificationReason.DIRECT_MENTION) ||
-    occurrence.reasons.includes(NotificationReason.ROLE_MENTION) ||
-    occurrence.reasons.includes(NotificationReason.HERE) ||
-    occurrence.reasons.includes(NotificationReason.ALL)
+    occurrence.reasons.includes(NotificationPolicyKind.REPLY) ||
+    occurrence.reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
+    occurrence.reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
+    occurrence.reasons.includes(NotificationPolicyKind.HERE) ||
+    occurrence.reasons.includes(NotificationPolicyKind.ALL)
   ) {
     return `occurrence:${occurrence.id}`;
   }
-  if (occurrence.reasons.includes(NotificationReason.REACTION)) {
+  if (occurrence.reasons.includes(NotificationPolicyKind.REACTION)) {
     return `reaction:${roomId}:${occurrence.threadRootId ?? ''}:${occurrence.eventId}`;
   }
-  if (occurrence.reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+  if (occurrence.reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
     return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
   }
-  if (occurrence.reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
+  if (occurrence.reasons.includes(NotificationPolicyKind.FOLLOWED_ROOM)) {
     return `room:${roomId}`;
   }
   // Unknown future causes stay exact until the client deliberately chooses a
@@ -389,7 +472,7 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
   if (item.targetSupported === false) {
     return { kind: NotificationItemKind.Unsupported, ...base };
   }
-  if (item.reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+  if (item.reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
     return {
       kind: NotificationItemKind.DirectMessage,
       ...base,
@@ -397,7 +480,7 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
       eventId: item.eventId
     };
   }
-  if (item.reasons.includes(NotificationReason.REPLY)) {
+  if (item.reasons.includes(NotificationPolicyKind.REPLY)) {
     return {
       kind: NotificationItemKind.Reply,
       ...base,
@@ -408,10 +491,10 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
     };
   }
   if (
-    item.reasons.includes(NotificationReason.DIRECT_MENTION) ||
-    item.reasons.includes(NotificationReason.ROLE_MENTION) ||
-    item.reasons.includes(NotificationReason.HERE) ||
-    item.reasons.includes(NotificationReason.ALL)
+    item.reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
+    item.reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
+    item.reasons.includes(NotificationPolicyKind.HERE) ||
+    item.reasons.includes(NotificationPolicyKind.ALL)
   ) {
     return {
       kind: NotificationItemKind.Mention,
@@ -421,7 +504,7 @@ export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): 
       mentionInThread: item.threadRootId
     };
   }
-  if (item.reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+  if (item.reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
     return {
       kind: NotificationItemKind.Reply,
       ...base,

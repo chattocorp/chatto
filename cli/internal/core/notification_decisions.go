@@ -4,43 +4,39 @@ import (
 	"context"
 	"sort"
 
-	"google.golang.org/protobuf/proto"
-
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-// notificationRecipientDecision is the source-time policy result used to
-// prepare an exact occurrence. It is deliberately process-local: the prepared
-// NotificationOccurrence, not another domain event, is the temporary durable
-// work record.
+// notificationRecipientDecision is one exact source-time policy result. A
+// recipient can have several decisions for the same source fact because each
+// rich notification signal remains independently addressable.
 type notificationRecipientDecision struct {
 	recipientID string
-	reasons     []*corev1.NotificationReasonMatch
+	kind        corev1.NotificationPolicyKind
+	intensity   corev1.NotificationDeliveryIntensity
 }
 
-// buildMessageNotificationDecisions evaluates every matching cause once and
-// returns one deterministic decision per recipient for the source message.
 func (c *ChattoCore) buildMessageNotificationDecisions(
 	ctx context.Context,
 	kind RoomKind,
 	roomID, authorID, inThread, inReplyTo string,
 	mentions *RoomMentionResolution,
 ) ([]notificationRecipientDecision, error) {
-	reasonsByRecipient := make(map[string]map[corev1.NotificationReason]struct{})
-	add := func(userID string, reason corev1.NotificationReason) {
-		if userID == "" || userID == authorID {
+	kindsByRecipient := make(map[string]map[corev1.NotificationPolicyKind]struct{})
+	add := func(userID string, policyKind corev1.NotificationPolicyKind) {
+		if userID == "" || userID == authorID || policyKind == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED {
 			return
 		}
-		if reasonsByRecipient[userID] == nil {
-			reasonsByRecipient[userID] = make(map[corev1.NotificationReason]struct{})
+		if kindsByRecipient[userID] == nil {
+			kindsByRecipient[userID] = make(map[corev1.NotificationPolicyKind]struct{})
 		}
-		reasonsByRecipient[userID][reason] = struct{}{}
+		kindsByRecipient[userID][policyKind] = struct{}{}
 	}
 
 	if mentions != nil {
-		for userID, reasons := range mentions.ReasonsByUser {
-			for _, reason := range reasons {
-				add(userID, reason)
+		for userID, policyKinds := range mentions.ReasonsByUser {
+			for _, policyKind := range policyKinds {
+				add(userID, policyKind)
 			}
 		}
 	}
@@ -52,20 +48,17 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 		}
 		for _, member := range members {
 			if member != nil {
-				add(member.GetUserId(), corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+				add(member.GetUserId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 			}
 		}
 	} else if inThread == "" {
-		// Joining a channel establishes its ambient room subscription. The
-		// product default is Off, so this creates attention only when the user
-		// explicitly raises FOLLOWED_ROOM at server or room scope.
 		members, err := c.GetRoomMembersList(ctx, kind, roomID)
 		if err != nil {
 			return nil, err
 		}
 		for _, member := range members {
 			if member != nil {
-				add(member.GetUserId(), corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
+				add(member.GetUserId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM)
 			}
 		}
 	}
@@ -76,7 +69,7 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 			return nil, err
 		}
 		if original != nil {
-			add(original.GetActorId(), corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+			add(original.GetActorId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 		}
 	}
 
@@ -86,12 +79,9 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 			return nil, err
 		}
 		for _, followerID := range followers {
-			add(followerID, corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD)
+			add(followerID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD)
 		}
 
-		// The root author is automatically subscribed by the first reply. That
-		// follow event is appended after the message, so include the cause while
-		// evaluating the source instead of depending on later state.
 		metadata, err := c.GetThreadMetadata(ctx, kind, roomID, inThread)
 		if err != nil {
 			return nil, err
@@ -102,37 +92,35 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 				return nil, err
 			}
 			if root != nil && c.roomModel.threadFollowState(root.GetActorId(), roomID, inThread) == ThreadFollowStateNone {
-				add(root.GetActorId(), corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_THREAD)
+				add(root.GetActorId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD)
 			}
 		}
 	}
 
-	recipientIDs := make([]string, 0, len(reasonsByRecipient))
-	for userID := range reasonsByRecipient {
+	recipientIDs := make([]string, 0, len(kindsByRecipient))
+	for userID := range kindsByRecipient {
 		recipientIDs = append(recipientIDs, userID)
 	}
 	sort.Strings(recipientIDs)
 
-	decisions := make([]notificationRecipientDecision, 0, len(recipientIDs))
+	decisions := make([]notificationRecipientDecision, 0)
 	for _, userID := range recipientIDs {
-		reasons := make([]corev1.NotificationReason, 0, len(reasonsByRecipient[userID]))
-		for reason := range reasonsByRecipient[userID] {
-			reasons = append(reasons, reason)
+		policyKinds := make([]corev1.NotificationPolicyKind, 0, len(kindsByRecipient[userID]))
+		for policyKind := range kindsByRecipient[userID] {
+			policyKinds = append(policyKinds, policyKind)
 		}
-		sort.Slice(reasons, func(i, j int) bool { return reasons[i] < reasons[j] })
-		matches := make([]*corev1.NotificationReasonMatch, 0, len(reasons))
-		strongest := corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
-		for _, reason := range reasons {
-			intensity := c.GetEffectiveNotificationIntensity(userID, roomID, reason)
-			matches = append(matches, &corev1.NotificationReasonMatch{Reason: reason, Intensity: intensity})
-			if intensity > strongest {
-				strongest = intensity
+		sort.Slice(policyKinds, func(i, j int) bool { return policyKinds[i] < policyKinds[j] })
+		for _, policyKind := range policyKinds {
+			intensity := c.GetEffectiveNotificationIntensity(userID, roomID, policyKind)
+			if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+				continue
 			}
+			decisions = append(decisions, notificationRecipientDecision{
+				recipientID: userID,
+				kind:        policyKind,
+				intensity:   intensity,
+			})
 		}
-		if strongest <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
-			continue
-		}
-		decisions = append(decisions, notificationRecipientDecision{recipientID: userID, reasons: matches})
 	}
 	return decisions, nil
 }
@@ -140,89 +128,81 @@ func (c *ChattoCore) buildMessageNotificationDecisions(
 func directMentionRecipients(decisions []notificationRecipientDecision) []string {
 	result := make([]string, 0)
 	for _, decision := range decisions {
-		for _, match := range decision.reasons {
-			if match.GetReason() == corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION &&
-				match.GetIntensity() > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
-				result = append(result, decision.recipientID)
-				break
-			}
+		if decision.kind == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION &&
+			decision.intensity > corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+			result = append(result, decision.recipientID)
 		}
 	}
 	return result
 }
 
-// newNotificationOccurrenceWork prepares exact occurrence values for temporary
-// RUNTIME_STATE work keys. Source-time policy is therefore never re-evaluated
-// by the asynchronous materializer.
+// newNotificationOccurrenceWork prepares exact signal values for temporary
+// RUNTIME_STATE work. The asynchronous materializer never re-evaluates policy.
 func newNotificationOccurrenceWork(
 	source *corev1.Event,
-	target *corev1.NotificationTarget,
+	message *corev1.NotificationMessageReference,
 	decisions []notificationRecipientDecision,
-) []*corev1.NotificationOccurrence {
-	if source == nil || source.GetCreatedAt() == nil || target == nil || len(decisions) == 0 {
+) *corev1.NotificationMaterializationWork {
+	if source == nil || source.GetCreatedAt() == nil || message == nil || len(decisions) == 0 {
 		return nil
 	}
-	work := make([]*corev1.NotificationOccurrence, 0, len(decisions))
+	work := &corev1.NotificationMaterializationWork{}
 	for _, decision := range decisions {
-		reasons := cloneNotificationReasons(decision.reasons)
-		work = append(work, &corev1.NotificationOccurrence{
+		signal := notificationSignalForPolicyKind(decision.kind, message, "")
+		if signal == nil {
+			continue
+		}
+		attention := corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+		if decision.kind == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION {
+			attention = corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
+		}
+		work.Notifications = append(work.Notifications, &corev1.NotificationOccurrence{
 			RecipientId:     decision.recipientID,
 			SourceEventId:   source.GetId(),
 			SourceCreatedAt: source.GetCreatedAt(),
 			ActorId:         source.GetActorId(),
-			Target:          proto.Clone(target).(*corev1.NotificationTarget),
-			Reasons:         reasons,
-			AttentionLevel:  notificationAttentionLevelForReasons(reasons),
+			Signal:          signal,
+			Intensity:       decision.intensity,
+			AttentionLevel:  attention,
 			EvaluatedAt:     source.GetCreatedAt(),
 		})
 	}
+	if len(work.GetNotifications()) == 0 {
+		return nil
+	}
 	return work
 }
 
-func (c *ChattoCore) buildReactionNotificationWork(source, target *corev1.Event, roomID, messageEventID string) []*corev1.NotificationOccurrence {
+func (c *ChattoCore) buildReactionNotificationWork(source, target *corev1.Event, roomID, messageEventID string) *corev1.NotificationMaterializationWork {
 	if source == nil || target == nil || target.GetActorId() == "" || target.GetActorId() == source.GetActorId() {
 		return nil
 	}
-	intensity := c.GetEffectiveNotificationIntensity(target.GetActorId(), roomID, corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+	intensity := c.GetEffectiveNotificationIntensity(target.GetActorId(), roomID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION)
 	if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
 		return nil
 	}
-	notificationTarget := newNotificationRoomMessageTarget(roomID, messageEventID)
-	roomMessageTarget := notificationTarget.GetRoomMessage()
+	message := newNotificationMessageReference(roomID, messageEventID)
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
-		roomMessageTarget.ThreadRootEventId = &threadRootEventID
+		message.ThreadRootEventId = &threadRootEventID
 	}
-	work := newNotificationOccurrenceWork(source, notificationTarget, []notificationRecipientDecision{{
+	work := newNotificationOccurrenceWork(source, message, []notificationRecipientDecision{{
 		recipientID: target.GetActorId(),
-		reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_REACTION,
-			Intensity: intensity,
-		}},
+		kind:        corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
+		intensity:   intensity,
 	}})
-	for _, occurrence := range work {
-		occurrence.ReactionEmoji = source.GetReactionAdded().GetEmoji()
+	for _, occurrence := range work.GetNotifications() {
+		occurrence.Signal.GetReactionReceived().Emoji = source.GetReactionAdded().GetEmoji()
 	}
 	return work
 }
 
-func newNotificationRevocationWork(trigger *corev1.Event, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) []*corev1.NotificationOccurrence {
+func newNotificationRevocationWork(trigger *corev1.Event, recipientID, sourceEventID string, reason corev1.NotificationRemovalReason) *corev1.NotificationMaterializationWork {
 	if trigger == nil || recipientID == "" || sourceEventID == "" {
 		return nil
 	}
-	return []*corev1.NotificationOccurrence{{
-		RecipientId:     recipientID,
-		SourceEventId:   sourceEventID,
-		SourceCreatedAt: trigger.GetCreatedAt(),
-		RemovalReason:   reason,
-	}}
-}
-
-func cloneNotificationReasons(reasons []*corev1.NotificationReasonMatch) []*corev1.NotificationReasonMatch {
-	cloned := make([]*corev1.NotificationReasonMatch, 0, len(reasons))
-	for _, reason := range reasons {
-		if reason != nil {
-			cloned = append(cloned, proto.Clone(reason).(*corev1.NotificationReasonMatch))
-		}
-	}
-	return cloned
+	return &corev1.NotificationMaterializationWork{Revocations: []*corev1.NotificationMaterializationRevocation{{
+		RecipientId:   recipientID,
+		SourceEventId: sourceEventID,
+		Reason:        reason,
+	}}}
 }

@@ -250,28 +250,36 @@ func TestNormalizeVAPIDSubject(t *testing.T) {
 	}
 }
 
-func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...corev1.NotificationReason) *corev1.NotificationOccurrence {
+func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...corev1.NotificationPolicyKind) *corev1.NotificationOccurrence {
 	occurrence := &corev1.NotificationOccurrence{
 		Id:          id,
 		RecipientId: recipientID,
 		ActorId:     actorID,
-		Target: &corev1.NotificationTarget{
-			Kind: &corev1.NotificationTarget_RoomMessage{
-				RoomMessage: &corev1.NotificationRoomMessageTarget{
-					RoomId:            roomID,
-					EventId:           eventID,
-					ThreadRootEventId: optionalString(threadRootID),
-				},
-			},
-		},
 	}
-	for _, reason := range reasons {
-		occurrence.Reasons = append(occurrence.Reasons, &corev1.NotificationReasonMatch{Reason: reason})
-	}
-	if len(reasons) == 0 {
-		occurrence.Target = nil
+	if len(reasons) > 0 {
+		message := &corev1.NotificationMessageReference{RoomId: roomID, EventId: eventID, ThreadRootEventId: optionalString(threadRootID)}
+		occurrence.Signal = notificationSignalForTest(reasons[0], message)
 	}
 	return occurrence
+}
+
+func notificationSignalForTest(kind corev1.NotificationPolicyKind, message *corev1.NotificationMessageReference) *corev1.NotificationSignal {
+	signal := &corev1.NotificationSignal{}
+	switch kind {
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE:
+		signal.Kind = &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: message}}
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY:
+		signal.Kind = &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: message}}
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION:
+		signal.Kind = &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: message}}
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION:
+		signal.Kind = &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: message}}
+	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD:
+		signal.Kind = &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: message}}
+	default:
+		signal.Kind = &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}
+	}
+	return signal
 }
 
 func optionalString(value string) *string {
@@ -285,7 +293,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	baseURL := "https://chatto.example.com"
 
 	t.Run("builds DM message payload without context", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-123", "user-1", "user-2", "dm-room-456", "event-789", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+		notif := notificationOccurrenceForTest("notif-123", "user-1", "user-2", "dm-room-456", "event-789", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 
 		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, nil)
 
@@ -307,7 +315,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds DM message payload with preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-123", "", "", "dm-room-456", "", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+		notif := notificationOccurrenceForTest("notif-123", "", "", "dm-room-456", "", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 		ctx := &PayloadContext{MessagePreview: "Hey, how are you?"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, ctx)
@@ -321,7 +329,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds mention payload without context", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 
 		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
@@ -337,7 +345,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds mention payload with room name and preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("notif-456", "", "", "room-2", "event-3", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 		ctx := &PayloadContext{MessagePreview: "Hey @Bob check this out", RoomName: "general"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Alice", baseURL, ctx)
@@ -351,7 +359,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds mention payload without event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-789", "", "", "room-2", "", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("notif-789", "", "", "room-2", "", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 
 		payload := BuildPayloadFromOccurrence(notif, "Charlie", baseURL, nil)
 
@@ -361,7 +369,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds thread mention payload", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-thread-mention", "", "", "room-2", "mention-event", "thread-root", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("notif-thread-mention", "", "", "room-2", "mention-event", "thread-root", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 
 		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
@@ -372,7 +380,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds room-level reply payload without context", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 
 		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, nil)
 
@@ -392,7 +400,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds thread reply payload without context", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "thread-root", corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "thread-root", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 
 		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, nil)
 
@@ -407,7 +415,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds reply payload with preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 		ctx := &PayloadContext{MessagePreview: "Thanks for the update!"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
@@ -421,7 +429,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds reply payload with room name and preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+		notif := notificationOccurrenceForTest("notif-abc", "", "", "room-y", "reply-event", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 		ctx := &PayloadContext{MessagePreview: "Thanks for the update!", RoomName: "general"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
@@ -435,8 +443,8 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds reaction payload from reaction occurrence", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-reaction", "user-author", "user-reactor", "room-y", "message-event", "", corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
-		notif.ReactionEmoji = "thumbsup"
+		notif := notificationOccurrenceForTest("notif-reaction", "user-author", "user-reactor", "room-y", "message-event", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION)
+		notif.GetSignal().GetReactionReceived().Emoji = "thumbsup"
 		ctx := &PayloadContext{MessagePreview: "The message that was reacted to", RoomName: "general"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Diana", baseURL, ctx)
@@ -456,7 +464,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
+		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM)
 		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Eve", baseURL, ctx)
@@ -477,7 +485,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("escapes notification URL path segments and highlight query", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-escaped", "", "", "room with spaces", "event+plus", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("notif-escaped", "", "", "room with spaces", "event+plus", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 
 		payload := BuildPayloadFromOccurrence(notif, "Bob", baseURL, nil)
 
@@ -501,7 +509,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("sets icon and badge URLs", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-icons", "", "", "room", "", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+		notif := notificationOccurrenceForTest("notif-icons", "", "", "room", "", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 
 		payload := BuildPayloadFromOccurrence(notif, "Test", baseURL, nil)
 
@@ -515,7 +523,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("truncates long message preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-long", "", "", "room", "", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+		notif := notificationOccurrenceForTest("notif-long", "", "", "room", "", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 		// Create a preview longer than maxPreviewLength
 		longPreview := "This is a very long message that exceeds the maximum preview length and should be truncated with an ellipsis at the end to fit within the allowed characters"
 		ctx := &PayloadContext{MessagePreview: longPreview}
@@ -534,7 +542,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 
 func TestOccurrenceTag(t *testing.T) {
 	t.Run("returns DM tag with event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("", "", "", "room-123", "event-abc", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE)
+		notif := notificationOccurrenceForTest("", "", "", "room-123", "event-abc", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
 		tag := OccurrenceTag(notif)
 		if tag != "dm-event-abc" {
 			t.Errorf("Expected 'dm-event-abc', got %s", tag)
@@ -542,7 +550,7 @@ func TestOccurrenceTag(t *testing.T) {
 	})
 
 	t.Run("returns mention tag with event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("", "", "", "room-456", "event-def", "", corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		notif := notificationOccurrenceForTest("", "", "", "room-456", "event-def", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 		tag := OccurrenceTag(notif)
 		if tag != "mention-event-def" {
 			t.Errorf("Expected 'mention-event-def', got %s", tag)
@@ -550,7 +558,7 @@ func TestOccurrenceTag(t *testing.T) {
 	})
 
 	t.Run("returns reply tag with event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-ghi", "", corev1.NotificationReason_NOTIFICATION_REASON_REPLY)
+		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-ghi", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
 		tag := OccurrenceTag(notif)
 		if tag != "reply-event-ghi" {
 			t.Errorf("Expected 'reply-event-ghi', got %s", tag)
@@ -558,7 +566,7 @@ func TestOccurrenceTag(t *testing.T) {
 	})
 
 	t.Run("returns reaction tag with message event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-reacted", "", corev1.NotificationReason_NOTIFICATION_REASON_REACTION)
+		notif := notificationOccurrenceForTest("", "", "", "room-789", "event-reacted", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION)
 		tag := OccurrenceTag(notif)
 		if tag != "reaction-event-reacted" {
 			t.Errorf("Expected 'reaction-event-reacted', got %s", tag)
@@ -566,7 +574,7 @@ func TestOccurrenceTag(t *testing.T) {
 	})
 
 	t.Run("returns room message tag with event ID", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("", "", "", "room-101", "event-room", "", corev1.NotificationReason_NOTIFICATION_REASON_FOLLOWED_ROOM)
+		notif := notificationOccurrenceForTest("", "", "", "room-101", "event-room", "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM)
 		tag := OccurrenceTag(notif)
 		if tag != "room-message-event-room" {
 			t.Errorf("Expected 'room-message-event-room', got %s", tag)

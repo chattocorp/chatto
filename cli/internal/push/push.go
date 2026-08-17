@@ -394,7 +394,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		roomName = payloadCtx.RoomName
 	}
 
-	target := occurrence.GetTarget().GetRoomMessage()
+	target := occurrenceMessageReference(occurrence)
 	if target == nil {
 		payload.Title = "New notification"
 		payload.Body = "You have a new notification"
@@ -402,7 +402,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 	}
 
 	switch {
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE):
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
@@ -418,14 +418,14 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Tag = OccurrenceTag(occurrence)
 		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s reacted to your message in #%s", actorDisplayName, roomName)
 		} else {
 			payload.Title = fmt.Sprintf("@%s reacted to your message", actorDisplayName)
 		}
 		payload.Body = preview
-		if emoji := occurrence.GetReactionEmoji(); emoji != "" {
+		if emoji := occurrence.GetSignal().GetReactionReceived().GetEmoji(); emoji != "" {
 			payload.Body = ":" + emoji + ":"
 			if preview != "" {
 				payload.Body += " · " + preview
@@ -434,7 +434,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Tag = OccurrenceTag(occurrence)
 		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s replied to you in #%s", actorDisplayName, roomName)
 		} else {
@@ -460,35 +460,90 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 
 // OccurrenceTag returns the stable native-notification tag for an occurrence.
 func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
-	eventID := occurrence.GetTarget().GetRoomMessage().GetEventId()
+	target := occurrenceMessageReference(occurrence)
+	if target == nil {
+		return ""
+	}
+	eventID := target.GetEventId()
 	switch {
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE):
 		return "dm-" + eventID
 	case occurrenceHasMentionReason(occurrence):
 		return "mention-" + eventID
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REPLY):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY):
 		return "reply-" + eventID
-	case occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_REACTION):
+	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION):
 		return "reaction-" + eventID
-	case occurrence.GetTarget().GetRoomMessage() != nil:
+	case target != nil:
 		return "room-message-" + eventID
 	default:
 		return ""
 	}
 }
 
-func occurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationReason) bool {
-	for _, match := range occurrence.GetReasons() {
-		if match.GetReason() == reason {
-			return true
-		}
+func occurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationPolicyKind) bool {
+	return occurrencePolicyKind(occurrence) == reason
+}
+
+func occurrencePolicyKind(occurrence *corev1.NotificationOccurrence) corev1.NotificationPolicyKind {
+	if occurrence == nil || occurrence.GetSignal() == nil {
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
 	}
-	return false
+	switch occurrence.GetSignal().GetKind().(type) {
+	case *corev1.NotificationSignal_DirectMessageReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE
+	case *corev1.NotificationSignal_DirectMentionReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION
+	case *corev1.NotificationSignal_ReplyReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY
+	case *corev1.NotificationSignal_RoleMentionReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION
+	case *corev1.NotificationSignal_HereMentionReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE
+	case *corev1.NotificationSignal_AllMentionReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL
+	case *corev1.NotificationSignal_FollowedThreadActivity:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD
+	case *corev1.NotificationSignal_FollowedRoomActivity:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM
+	case *corev1.NotificationSignal_ReactionReceived:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION
+	default:
+		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
+	}
+}
+
+func occurrenceMessageReference(occurrence *corev1.NotificationOccurrence) *corev1.NotificationMessageReference {
+	if occurrence == nil || occurrence.GetSignal() == nil {
+		return nil
+	}
+	switch payload := occurrence.GetSignal().GetKind().(type) {
+	case *corev1.NotificationSignal_DirectMessageReceived:
+		return payload.DirectMessageReceived.GetMessage()
+	case *corev1.NotificationSignal_DirectMentionReceived:
+		return payload.DirectMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_ReplyReceived:
+		return payload.ReplyReceived.GetMessage()
+	case *corev1.NotificationSignal_RoleMentionReceived:
+		return payload.RoleMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_HereMentionReceived:
+		return payload.HereMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_AllMentionReceived:
+		return payload.AllMentionReceived.GetMessage()
+	case *corev1.NotificationSignal_FollowedThreadActivity:
+		return payload.FollowedThreadActivity.GetMessage()
+	case *corev1.NotificationSignal_FollowedRoomActivity:
+		return payload.FollowedRoomActivity.GetMessage()
+	case *corev1.NotificationSignal_ReactionReceived:
+		return payload.ReactionReceived.GetMessage()
+	default:
+		return nil
+	}
 }
 
 func occurrenceHasMentionReason(occurrence *corev1.NotificationOccurrence) bool {
-	return occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION) ||
-		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION) ||
-		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_HERE) ||
-		occurrenceHasReason(occurrence, corev1.NotificationReason_NOTIFICATION_REASON_ALL)
+	return occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL)
 }

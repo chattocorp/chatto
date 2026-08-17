@@ -66,37 +66,37 @@ const (
 type NotificationServiceClient interface {
 	// Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
 	// deleted, expired, or no longer visible to the authenticated viewer, and
-	// UNIMPLEMENTED when this server cannot validate its target kind.
+	// UNIMPLEMENTED when this server cannot validate its signal kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
 	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
 	// UNIMPLEMENTED rather than partially answering when this server cannot
-	// validate one requested target kind.
+	// validate one requested signal kind.
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Marks one occurrence read. Repeating the call is safe. Returns
-	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
 	// tombstone through the original expiry. Repeating the call is safe. Returns
-	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Permanently deletes an exact set of occurrences. Repeating the call is
 	// safe because later activity receives different occurrence IDs. Returns
-	// UNIMPLEMENTED rather than partially deleting a target kind this server
+	// UNIMPLEMENTED rather than partially deleting a signal kind this server
 	// cannot validate.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
 	// Permanently deletes every visible occurrence current at the server's
 	// authoritative mutation boundary. Callers must not retry this mutation
 	// automatically because later activity may arrive after that boundary.
-	// Returns UNIMPLEMENTED rather than partially deleting a target kind this
+	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported cause and its effective inherited delivery intensity.
+	// Gets every supported signal class and its inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
-	// Sets or clears one server- or room-scoped cause override.
+	// Sets or clears one server- or room-scoped signal-class override.
 	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)
 }
 
@@ -239,37 +239,37 @@ func (c *notificationServiceClient) SetNotificationPolicyPreference(ctx context.
 type NotificationServiceHandler interface {
 	// Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
 	// deleted, expired, or no longer visible to the authenticated viewer, and
-	// UNIMPLEMENTED when this server cannot validate its target kind.
+	// UNIMPLEMENTED when this server cannot validate its signal kind.
 	GetNotificationOccurrence(context.Context, *connect.Request[v1.GetNotificationOccurrenceRequest]) (*connect.Response[v1.GetNotificationOccurrenceResponse], error)
 	// Gets an explicit bounded set of visible occurrences. Missing or
 	// inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
 	// UNIMPLEMENTED rather than partially answering when this server cannot
-	// validate one requested target kind.
+	// validate one requested signal kind.
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Marks one occurrence read. Repeating the call is safe. Returns
-	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 	MarkNotificationRead(context.Context, *connect.Request[v1.MarkNotificationReadRequest]) (*connect.Response[v1.MarkNotificationReadResponse], error)
 	// Permanently deletes one occurrence while retaining its anti-recreation
 	// tombstone through the original expiry. Repeating the call is safe. Returns
-	// UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 	DeleteNotificationOccurrence(context.Context, *connect.Request[v1.DeleteNotificationOccurrenceRequest]) (*connect.Response[v1.DeleteNotificationOccurrenceResponse], error)
 	// Permanently deletes an exact set of occurrences. Repeating the call is
 	// safe because later activity receives different occurrence IDs. Returns
-	// UNIMPLEMENTED rather than partially deleting a target kind this server
+	// UNIMPLEMENTED rather than partially deleting a signal kind this server
 	// cannot validate.
 	BatchDeleteNotificationOccurrences(context.Context, *connect.Request[v1.BatchDeleteNotificationOccurrencesRequest]) (*connect.Response[v1.BatchDeleteNotificationOccurrencesResponse], error)
 	// Permanently deletes every visible occurrence current at the server's
 	// authoritative mutation boundary. Callers must not retry this mutation
 	// automatically because later activity may arrive after that boundary.
-	// Returns UNIMPLEMENTED rather than partially deleting a target kind this
+	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported cause and its effective inherited delivery intensity.
+	// Gets every supported signal class and its inherited delivery intensity.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
-	// Sets or clears one server- or room-scoped cause override.
+	// Sets or clears one server- or room-scoped signal-class override.
 	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)
 }
 

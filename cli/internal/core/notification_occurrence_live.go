@@ -11,23 +11,17 @@ func (c *ChattoCore) publishNotificationOccurrenceChanged(ctx context.Context, o
 	if c == nil || occurrence == nil || occurrence.GetRecipientId() == "" {
 		return
 	}
-	alert := created && occurrence.GetStrongestIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT &&
+	alert := created && occurrence.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT &&
 		occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
 		occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING &&
 		!c.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId())
-	revision := uint64(0)
-	if entry, exists, err := c.notificationOccurrences.index.occurrenceBySource(ctx, occurrence.GetRecipientId(), occurrence.GetSourceEventId()); err == nil && exists {
-		revision = entry.revision
-	}
 	event := newLiveEvent(occurrence.GetActorId(), &corev1.LiveEvent{
 		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{
 			NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-				NotificationId:       occurrence.GetId(),
-				Created:              created,
-				Deleted:              deleted,
-				Alert:                alert,
-				SourceEventId:        occurrence.GetSourceEventId(),
-				RuntimeStateRevision: revision,
+				NotificationId: occurrence.GetId(),
+				Created:        created,
+				Deleted:        deleted,
+				Alert:          alert,
 			},
 		},
 	})

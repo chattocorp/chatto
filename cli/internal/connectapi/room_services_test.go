@@ -714,7 +714,7 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 
 	_, err = env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
 		RoomId:    &roomID,
-		Reason:    apiv1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
+		Kind:      apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
 		Intensity: apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
 	}))
 	checkInaccessible("SetNotificationPolicyPreference", err)
@@ -1503,7 +1503,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("room unread-occurrence counts = %+v, want one group for %s", counts, dm.Id)
 	}
 	occurrence := list.Msg.GetOccurrences()[0]
-	if occurrence.GetTarget().GetRoomMessage().GetRoom().GetId() != dm.Id || occurrence.GetTarget().GetRoomMessage().GetEventId() != posted.Id ||
+	if occurrence.GetSignal().GetDirectMessageReceived().GetMessage().GetRoom().GetId() != dm.Id || occurrence.GetSignal().GetDirectMessageReceived().GetMessage().GetEventId() != posted.Id ||
 		!occurrence.GetUnread() || occurrence.GetAttentionLevel() != apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		t.Fatalf("occurrence = %+v, want exact unread DM target", occurrence)
 	}
@@ -1558,7 +1558,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	}
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
-		Reason:    apiv1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
+		Kind:      apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
 		Intensity: apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 	}))
 	if err != nil {
@@ -1566,7 +1566,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	}
 	found := false
 	for _, preference := range policy.Msg.GetPreferences() {
-		if preference.GetReason() == apiv1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION {
+		if preference.GetKind() == apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION {
 			found = preference.GetServerIntensity() == apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE &&
 				preference.GetEffectiveIntensity() == apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE
 		}
@@ -1643,12 +1643,9 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceCreated:        posted.GetCreatedAt().AsTime(),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               testNotificationRoomMessageTarget(dm.Id, posted.Id),
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-			}},
-			SkipReadLookup: true,
+			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, dm.Id, posted.Id),
+			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
 			t.Fatalf("Create stale occurrence = (%v, %v, %v), want created", occurrence, created, err)
@@ -1779,12 +1776,9 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
-		Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
-		Reasons: []*corev1.NotificationReasonMatch{{
-			Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-			Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		}},
-		SkipReadLookup: true,
+		Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
+		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		SkipReadLookup:       true,
 	}
 	occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, input)
 	if err != nil || !created {
@@ -1840,12 +1834,9 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceCreated:        baseTime.Add(-time.Duration(index) * time.Second),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-			}},
-			SkipReadLookup: true,
+			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
+			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			SkipReadLookup:       true,
 		})
 		if err != nil || !wasCreated {
 			t.Fatalf("Create occurrence %d = (%v, %v, %v), want created", index, occurrence, wasCreated, err)
@@ -1897,12 +1888,9 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceCreated:        sourceCreated,
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Target:               testNotificationRoomMessageTarget(room.Id, posted.Id),
-			Reasons: []*corev1.NotificationReasonMatch{{
-				Reason:    corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION,
-				Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-			}},
-			SkipReadLookup: true,
+			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
+			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
 			t.Fatalf("Create occurrence %s = (%+v, %v, %v), want created", sourceID, occurrence, created, err)

@@ -425,7 +425,8 @@ func (a *API) BuildRealtimeProjectionRoomViewerState(ctx context.Context, userID
 
 // BuildRealtimeProjectionNotifications returns the viewer's authoritative
 // Notifications 2.0 occurrences. It is emitted on every resume because
-// RUNTIME_STATE occurrence mutations have no EVT cursor.
+// notification lifecycle records have an independent stream position that is
+// not represented by the realtime EVT resume cursor.
 func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID string) (*RealtimeProjectionNotifications, error) {
 	if err := a.core.NotificationOccurrences().WaitCurrent(ctx); err != nil {
 		return nil, err

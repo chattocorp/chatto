@@ -1,6 +1,6 @@
 ---
 title: NotificationService
-description: Exact notification occurrence listing, read, deletion, and per-cause policy RPCs.
+description: Exact notification occurrence listing, read, deletion, and per-signal-class policy RPCs.
 editUrl: false
 ---
 
@@ -26,7 +26,7 @@ Reads, marks read, and deletes notifications for the authenticated viewer.
 
 Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
 deleted, expired, or no longer visible to the authenticated viewer, and
-UNIMPLEMENTED when this server cannot validate its target kind.
+UNIMPLEMENTED when this server cannot validate its signal kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
@@ -61,7 +61,7 @@ One exact notification occurrence.
 Gets an explicit bounded set of visible occurrences. Missing or
 inaccessible IDs are omitted and duplicate IDs are de-duplicated. Returns
 UNIMPLEMENTED rather than partially answering when this server cannot
-validate one requested target kind.
+validate one requested signal kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/BatchGetNotificationOccurrences
@@ -132,7 +132,7 @@ One page of exact notification occurrences.
 ### MarkNotificationRead
 
 Marks one occurrence read. Repeating the call is safe. Returns
-UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/MarkNotificationRead
@@ -166,7 +166,7 @@ Notification occurrence after marking it read.
 
 Permanently deletes one occurrence while retaining its anti-recreation
 tombstone through the original expiry. Repeating the call is safe. Returns
-UNIMPLEMENTED when this server cannot validate the occurrence target kind.
+UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/DeleteNotificationOccurrence
@@ -200,7 +200,7 @@ Result of deleting one notification occurrence.
 
 Permanently deletes an exact set of occurrences. Repeating the call is
 safe because later activity receives different occurrence IDs. Returns
-UNIMPLEMENTED rather than partially deleting a target kind this server
+UNIMPLEMENTED rather than partially deleting a signal kind this server
 cannot validate.
 
 ```http
@@ -236,7 +236,7 @@ Result of deleting exact notification occurrences.
 Permanently deletes every visible occurrence current at the server's
 authoritative mutation boundary. Callers must not retry this mutation
 automatically because later activity may arrive after that boundary.
-Returns UNIMPLEMENTED rather than partially deleting a target kind this
+Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 server cannot validate.
 
 ```http
@@ -265,7 +265,7 @@ Result of deleting every currently visible notification occurrence.
 
 ### GetNotificationPolicy
 
-Gets every supported cause and its effective inherited delivery intensity.
+Gets every supported signal class and its inherited delivery intensity.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
@@ -291,14 +291,14 @@ Complete supported notification policy for one scope.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope when requested; absent for server scope. |
-| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification cause. |
+| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification signal class. |
 
 
 <a id="chatto-api-v1-NotificationService-SetNotificationPolicyPreference"></a>
 
 ### SetNotificationPolicyPreference
 
-Sets or clears one server- or room-scoped cause override.
+Sets or clears one server- or room-scoped signal-class override.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/SetNotificationPolicyPreference
@@ -313,7 +313,7 @@ Set or clear one notification preference override.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
-| `reason` | [`NotificationReason`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationReason) | Required notification cause. |
+| `kind` | [`NotificationPolicyKind`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyKind) | Required notification signal class. |
 | `intensity` | [`NotificationDeliveryIntensity`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryIntensity) | Unspecified clears the selected server or room override. |
 
 
@@ -326,4 +326,4 @@ Complete supported notification policy after one preference change.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope when changed; absent for server scope. |
-| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification cause. |
+| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification signal class. |

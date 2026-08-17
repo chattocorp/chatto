@@ -15,13 +15,36 @@ func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID st
 	return items
 }
 
-func testOccurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationReason) bool {
-	for _, match := range occurrence.GetReasons() {
-		if match.GetReason() == reason {
-			return true
-		}
+func testOccurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationPolicyKind) bool {
+	return notificationSignalPolicyKind(occurrence.GetSignal()) == reason
+}
+
+func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kinds ...corev1.NotificationPolicyKind) bool {
+	seen := make(map[corev1.NotificationPolicyKind]int)
+	for _, occurrence := range occurrences {
+		seen[notificationSignalPolicyKind(occurrence.GetSignal())]++
 	}
-	return false
+	for _, kind := range kinds {
+		if seen[kind] == 0 {
+			return false
+		}
+		seen[kind]--
+	}
+	return true
+}
+
+func newNotificationRoomMessageTarget(roomID, eventID string) *corev1.NotificationMessageReference {
+	return newNotificationMessageReference(roomID, eventID)
+}
+
+func testNotificationSignal(kind corev1.NotificationPolicyKind, roomID, eventID string) *corev1.NotificationSignal {
+	return notificationSignalForPolicyKind(kind, newNotificationMessageReference(roomID, eventID), "")
+}
+
+func testUnsupportedNotificationSignal() *corev1.NotificationSignal {
+	signal := &corev1.NotificationSignal{}
+	signal.ProtoReflect().SetUnknown([]byte{0x80, 0x06, 0x01})
+	return signal
 }
 
 func testDeleteAllNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) {

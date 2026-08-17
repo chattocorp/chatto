@@ -45,7 +45,7 @@ export interface E2EServerRole {
   permissionDenials: string[];
 }
 
-export type E2ENotificationReason =
+export type E2ENotificationPolicyKind =
   | 'DIRECT_MESSAGE'
   | 'DIRECT_MENTION'
   | 'REPLY'
@@ -59,7 +59,7 @@ export type E2ENotificationReason =
 export type E2ENotificationIntensity = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
 
 export interface E2ENotificationPolicyPreference {
-  reason: E2ENotificationReason;
+  kind: E2ENotificationPolicyKind;
   serverIntensity: E2ENotificationIntensity;
   roomIntensity: E2ENotificationIntensity;
   effectiveIntensity: E2ENotificationIntensity;
@@ -67,7 +67,7 @@ export interface E2ENotificationPolicyPreference {
 
 interface NotificationPolicyResponse {
   preferences?: Array<{
-    reason?: unknown;
+    kind?: unknown;
     serverIntensity?: unknown;
     roomIntensity?: unknown;
     effectiveIntensity?: unknown;
@@ -105,7 +105,7 @@ interface GetUserResponse {
   user?: { profile?: { user?: { id?: string } } };
 }
 
-const notificationReasonByNumber: Record<number, E2ENotificationReason> = {
+const notificationKindByNumber: Record<number, E2ENotificationPolicyKind> = {
   1: 'DIRECT_MESSAGE',
   2: 'DIRECT_MENTION',
   3: 'REPLY',
@@ -401,7 +401,7 @@ export async function getNotificationPolicy(
 
 export async function setNotificationPolicyPreference(
   page: Page,
-  reason: E2ENotificationReason,
+  kind: E2ENotificationPolicyKind,
   intensity: E2ENotificationIntensity,
   roomId?: string
 ): Promise<E2ENotificationPolicyPreference[]> {
@@ -410,7 +410,7 @@ export async function setNotificationPolicyPreference(
     'chatto.api.v1.NotificationService/SetNotificationPolicyPreference',
     {
       ...(roomId ? { roomId } : {}),
-      reason: `NOTIFICATION_REASON_${reason}`,
+      kind: `NOTIFICATION_POLICY_KIND_${kind}`,
       intensity: `NOTIFICATION_DELIVERY_INTENSITY_${intensity}`
     }
   );
@@ -421,25 +421,25 @@ function normalizeNotificationPolicy(
   data: NotificationPolicyResponse
 ): E2ENotificationPolicyPreference[] {
   return (data.preferences ?? []).map((preference) => ({
-    reason: normalizeNotificationReason(preference.reason),
+    kind: normalizeNotificationPolicyKind(preference.kind),
     serverIntensity: normalizeNotificationIntensity(preference.serverIntensity),
     roomIntensity: normalizeNotificationIntensity(preference.roomIntensity),
     effectiveIntensity: normalizeNotificationIntensity(preference.effectiveIntensity)
   }));
 }
 
-function normalizeNotificationReason(value: unknown): E2ENotificationReason {
+function normalizeNotificationPolicyKind(value: unknown): E2ENotificationPolicyKind {
   if (typeof value === 'number' && Number.isInteger(value)) {
-    const reason = notificationReasonByNumber[value];
-    if (reason) return reason;
+    const kind = notificationKindByNumber[value];
+    if (kind) return kind;
   }
 
   if (typeof value === 'string') {
-    const compact = value.replace(/^NOTIFICATION_REASON_/, '') as E2ENotificationReason;
-    if (Object.values(notificationReasonByNumber).includes(compact)) return compact;
+    const compact = value.replace(/^NOTIFICATION_POLICY_KIND_/, '') as E2ENotificationPolicyKind;
+    if (Object.values(notificationKindByNumber).includes(compact)) return compact;
   }
 
-  throw new Error(`Unexpected notification reason: ${String(value)}`);
+  throw new Error(`Unexpected notification policy kind: ${String(value)}`);
 }
 
 function normalizeNotificationIntensity(value: unknown): E2ENotificationIntensity {

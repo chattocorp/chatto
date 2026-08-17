@@ -5,7 +5,7 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
   NotificationAttentionLevel,
-  NotificationReason,
+  NotificationPolicyKind,
   type NotificationOccurrenceItem
 } from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -282,8 +282,8 @@ describe('notifications page', () => {
     const occurrence = {
       ...mocks.occurrence,
       actor,
-      reasons: [NotificationReason.FOLLOWED_THREAD],
-      reasonMatches: [{ reason: NotificationReason.FOLLOWED_THREAD, intensity: 2 }]
+      reasons: [NotificationPolicyKind.FOLLOWED_THREAD],
+      reasonMatches: [{ reason: NotificationPolicyKind.FOLLOWED_THREAD, intensity: 2 }]
     };
     mocks.store.notifications.fetchPage.mockResolvedValue(page([occurrence]));
 
@@ -316,8 +316,8 @@ describe('notifications page', () => {
       actor,
       eventId: 'reacted-to-message',
       threadRootId: null,
-      reasons: [NotificationReason.REACTION],
-      reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
+      reasons: [NotificationPolicyKind.REACTION],
+      reasonMatches: [{ reason: NotificationPolicyKind.REACTION, intensity: 2 }],
       attentionLevel: NotificationAttentionLevel.AMBIENT,
       reactionEmoji: emoji
     });
@@ -358,8 +358,8 @@ describe('notifications page', () => {
           ...mocks.occurrence,
           id: 'reaction-bob',
           actor: bob,
-          reasons: [NotificationReason.REACTION],
-          reasonMatches: [{ reason: NotificationReason.REACTION, intensity: 2 }],
+          reasons: [NotificationPolicyKind.REACTION],
+          reasonMatches: [{ reason: NotificationPolicyKind.REACTION, intensity: 2 }],
           attentionLevel: NotificationAttentionLevel.AMBIENT,
           reactionEmoji: 'heart'
         }
@@ -875,8 +875,8 @@ describe('notifications page', () => {
         sourceEventId: `dm-source-${offset}`,
         eventId: `dm-event-${offset}`,
         threadRootId: null,
-        reasons: [NotificationReason.DIRECT_MESSAGE],
-        reasonMatches: [{ reason: NotificationReason.DIRECT_MESSAGE, intensity: 3 }],
+        reasons: [NotificationPolicyKind.DIRECT_MESSAGE],
+        reasonMatches: [{ reason: NotificationPolicyKind.DIRECT_MESSAGE, intensity: 3 }],
         createdAt: new Date(Date.UTC(2026, 7, 11, 12, 0, offset)).toISOString()
       };
       if (offset === 1) {

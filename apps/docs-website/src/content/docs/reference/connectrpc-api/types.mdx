@@ -701,6 +701,79 @@ Lightweight room reference for cross-resource rows.
 | `kind` | [`RoomKind`](#chatto-api-v1-RoomKind) | Room kind. |
 | `name` | `string` | Room name. Direct-message rooms may have an empty name because clients derive their display label from participants. |
 
+<a id="chatto-api-v1-AllMentionReceived"></a>
+
+### AllMentionReceived
+
+An `@all` message that included the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-DirectMentionReceived"></a>
+
+### DirectMentionReceived
+
+A message that mentions the viewer directly.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-DirectMessageReceived"></a>
+
+### DirectMessageReceived
+
+A direct message sent to the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-FollowedRoomActivity"></a>
+
+### FollowedRoomActivity
+
+Activity in a room followed by the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-FollowedThreadActivity"></a>
+
+### FollowedThreadActivity
+
+Activity in a thread followed by the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-HereMentionReceived"></a>
+
+### HereMentionReceived
+
+An `@here` message that included the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-NotificationMessageReference"></a>
+
+### NotificationMessageReference
+
+Exact visible message destination carried by a notification signal.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
+| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
+| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
+| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
+
 <a id="chatto-api-v1-NotificationOccurrence"></a>
 
 ### NotificationOccurrence
@@ -713,11 +786,9 @@ One exact Notifications 2.0 source occurrence.
 | `source_event_id` | `string` | Durable source event from which this occurrence was derived. |
 | `created_at` | `google.protobuf.Timestamp` | Time of the source activity. |
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
-| `target` | [`NotificationTarget`](#chatto-api-v1-NotificationTarget) | Typed resource or activity represented by this occurrence. |
-| `reasons` | repeated [`NotificationReasonMatch`](#chatto-api-v1-NotificationReasonMatch) | Every cause that matched when the source activity occurred. |
-| `strongest_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Strongest evaluated intensity across all matching causes. |
+| `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
+| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective delivery intensity when the signal was emitted. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
-| `reaction_emoji` | `string` | Exact emoji for a reaction occurrence. Empty for every other cause. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
@@ -725,38 +796,14 @@ One exact Notifications 2.0 source occurrence.
 
 ### NotificationPolicyPreference
 
-Explicit and effective delivery policy for one notification cause.
+Explicit and effective delivery policy for one notification signal class.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Notification cause controlled by this row. |
+| `kind` | [`NotificationPolicyKind`](#chatto-api-v1-NotificationPolicyKind) | Notification signal class controlled by this row. |
 | `server_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit server override, or unspecified when inherited from product defaults. |
 | `room_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit room override, or unspecified when inherited from server scope. |
 | `effective_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity after applying product, server, and room inheritance. |
-
-<a id="chatto-api-v1-NotificationReasonMatch"></a>
-
-### NotificationReasonMatch
-
-One cause that matched an occurrence and its evaluated delivery intensity.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `reason` | [`NotificationReason`](#chatto-api-v1-NotificationReason) | Cause that matched the viewer. |
-| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity when the source activity occurred. |
-
-<a id="chatto-api-v1-NotificationRoomMessageTarget"></a>
-
-### NotificationRoomMessageTarget
-
-Exact visible message destination of one notification occurrence.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
-| `event_id` | `string` | Exact source or reacted-to message event to reveal. |
-| `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
-| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
 
 <a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
@@ -770,18 +817,56 @@ Unread notification occurrences currently targeting one room.
 | `unread_count` | `int32` | Number of unread occurrences targeting this room. |
 | `important_unread_count` | `optional int32` | Unread occurrences in this room with Important attention. Absence has the same compatibility meaning as the response-level field. |
 
-<a id="chatto-api-v1-NotificationTarget"></a>
+<a id="chatto-api-v1-NotificationSignal"></a>
 
-### NotificationTarget
+### NotificationSignal
 
-Typed resource or activity represented by one notification occurrence.
-Clients must not infer navigation semantics for unsupported variants.
-Binary protobuf clients may retain them as generic, non-navigating triage
-rows; ProtoJSON clients need unknown-field-tolerant decoding to do the same.
+Immutable, typed cause and destination of one notification. Clients must
+preserve unknown variants as generic dismissible rows and must not infer
+navigation semantics for them.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `kind.room_message` | [`NotificationRoomMessageTarget`](#chatto-api-v1-NotificationRoomMessageTarget) | Exact room-message destination. |
+| `kind.direct_message_received` | [`DirectMessageReceived`](#chatto-api-v1-DirectMessageReceived) | No field description provided. |
+| `kind.direct_mention_received` | [`DirectMentionReceived`](#chatto-api-v1-DirectMentionReceived) | No field description provided. |
+| `kind.reply_received` | [`ReplyReceived`](#chatto-api-v1-ReplyReceived) | No field description provided. |
+| `kind.role_mention_received` | [`RoleMentionReceived`](#chatto-api-v1-RoleMentionReceived) | No field description provided. |
+| `kind.here_mention_received` | [`HereMentionReceived`](#chatto-api-v1-HereMentionReceived) | No field description provided. |
+| `kind.all_mention_received` | [`AllMentionReceived`](#chatto-api-v1-AllMentionReceived) | No field description provided. |
+| `kind.followed_thread_activity` | [`FollowedThreadActivity`](#chatto-api-v1-FollowedThreadActivity) | No field description provided. |
+| `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | No field description provided. |
+| `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
+
+<a id="chatto-api-v1-ReactionReceived"></a>
+
+### ReactionReceived
+
+A reaction added to one of the viewer's messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+| `emoji` | `string` | Exact reaction supplied by the actor. |
+
+<a id="chatto-api-v1-ReplyReceived"></a>
+
+### ReplyReceived
+
+A reply to one of the viewer's messages.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+
+<a id="chatto-api-v1-RoleMentionReceived"></a>
+
+### RoleMentionReceived
+
+A message mentioning a role held by the viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 <a id="chatto-api-v1-Role"></a>
 
@@ -1598,7 +1683,7 @@ whether the notification is eligible for sound or push delivery.
 
 ### NotificationDeliveryIntensity
 
-Delivery strength for one notification cause.
+Delivery strength for one notification signal class.
 
 | Name | Number | Description |
 | --- | --- | --- |
@@ -1607,24 +1692,25 @@ Delivery strength for one notification cause.
 | `NOTIFICATION_DELIVERY_INTENSITY_BADGE` | `2` | Matching activity appears in the notification list without interruptive delivery. |
 | `NOTIFICATION_DELIVERY_INTENSITY_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
 
-<a id="chatto-api-v1-NotificationReason"></a>
+<a id="chatto-api-v1-NotificationPolicyKind"></a>
 
-### NotificationReason
+### NotificationPolicyKind
 
-Why source activity matched the authenticated viewer's notification policy.
+Stable preference key for one class of notification signal. Notification
+content uses NotificationSignal instead of this enum.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `NOTIFICATION_REASON_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
-| `NOTIFICATION_REASON_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
-| `NOTIFICATION_REASON_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
-| `NOTIFICATION_REASON_REPLY` | `3` | Activity replied directly to the viewer's message. |
-| `NOTIFICATION_REASON_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
-| `NOTIFICATION_REASON_HERE` | `5` | An `@here` mention included the viewer. |
-| `NOTIFICATION_REASON_ALL` | `6` | An `@all` mention included the viewer. |
-| `NOTIFICATION_REASON_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
-| `NOTIFICATION_REASON_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
-| `NOTIFICATION_REASON_REACTION` | `9` | Someone reacted to the viewer's message. |
+| `NOTIFICATION_POLICY_KIND_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
+| `NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
+| `NOTIFICATION_POLICY_KIND_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
+| `NOTIFICATION_POLICY_KIND_REPLY` | `3` | Activity replied directly to the viewer's message. |
+| `NOTIFICATION_POLICY_KIND_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
+| `NOTIFICATION_POLICY_KIND_HERE` | `5` | An `@here` mention included the viewer. |
+| `NOTIFICATION_POLICY_KIND_ALL` | `6` | An `@all` mention included the viewer. |
+| `NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
+| `NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
+| `NOTIFICATION_POLICY_KIND_REACTION` | `9` | Someone reacted to the viewer's message. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

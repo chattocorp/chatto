@@ -232,7 +232,7 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // later by notification materialization.
 type RoomMentionResolution struct {
 	RecipientIDs  []string
-	ReasonsByUser map[string][]corev1.NotificationReason
+	ReasonsByUser map[string][]corev1.NotificationPolicyKind
 }
 
 // ResolveRoomMentionReasons resolves @handles in a message to concrete
@@ -246,7 +246,7 @@ type RoomMentionResolution struct {
 //
 // Invalid handles are silently ignored, matching existing @user behavior.
 func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKind, roomID string, handles []string) (*RoomMentionResolution, error) {
-	result := &RoomMentionResolution{ReasonsByUser: make(map[string][]corev1.NotificationReason)}
+	result := &RoomMentionResolution{ReasonsByUser: make(map[string][]corev1.NotificationPolicyKind)}
 	if len(handles) == 0 {
 		return result, nil
 	}
@@ -262,8 +262,8 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 		}
 	}
 
-	seen := make(map[string]map[corev1.NotificationReason]struct{})
-	add := func(userID string, reason corev1.NotificationReason) {
+	seen := make(map[string]map[corev1.NotificationPolicyKind]struct{})
+	add := func(userID string, reason corev1.NotificationPolicyKind) {
 		if userID == "" {
 			return
 		}
@@ -271,7 +271,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 			return
 		}
 		if seen[userID] == nil {
-			seen[userID] = make(map[corev1.NotificationReason]struct{})
+			seen[userID] = make(map[corev1.NotificationPolicyKind]struct{})
 			result.RecipientIDs = append(result.RecipientIDs, userID)
 		}
 		if _, duplicate := seen[userID][reason]; duplicate {
@@ -280,7 +280,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 		seen[userID][reason] = struct{}{}
 		result.ReasonsByUser[userID] = append(result.ReasonsByUser[userID], reason)
 	}
-	addMembers := func(candidates []string, reason corev1.NotificationReason) {
+	addMembers := func(candidates []string, reason corev1.NotificationPolicyKind) {
 		for _, userID := range candidates {
 			add(userID, reason)
 		}
@@ -292,7 +292,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 		case MentionHandleAll:
 			for _, member := range members {
 				if member != nil {
-					add(member.UserId, corev1.NotificationReason_NOTIFICATION_REASON_ALL)
+					add(member.UserId, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL)
 				}
 			}
 			continue
@@ -306,7 +306,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 					return nil, fmt.Errorf("resolve @here presence: %w", err)
 				}
 				if status != PresenceStatusOffline {
-					add(member.UserId, corev1.NotificationReason_NOTIFICATION_REASON_HERE)
+					add(member.UserId, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE)
 				}
 			}
 			continue
@@ -327,7 +327,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 				}
 				return nil, fmt.Errorf("resolve role mention: %w", err)
 			}
-			addMembers(roleUsers, corev1.NotificationReason_NOTIFICATION_REASON_ROLE_MENTION)
+			addMembers(roleUsers, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION)
 			continue
 		}
 
@@ -338,7 +338,7 @@ func (c *ChattoCore) ResolveRoomMentionReasons(ctx context.Context, kind RoomKin
 			}
 			return nil, fmt.Errorf("resolve user mention: %w", err)
 		}
-		add(user.Id, corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION)
+		add(user.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
 	}
 
 	return result, nil
@@ -364,7 +364,7 @@ func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKin
 	userIDs := make([]string, 0, len(resolved.RecipientIDs))
 	for _, userID := range resolved.RecipientIDs {
 		for _, reason := range resolved.ReasonsByUser[userID] {
-			if reason == corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MENTION {
+			if reason == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION {
 				userIDs = append(userIDs, userID)
 				break
 			}

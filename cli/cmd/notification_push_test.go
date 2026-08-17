@@ -50,6 +50,12 @@ func setupNotificationPushTestCore(t *testing.T) (*core.ChattoCore, context.Cont
 	if err != nil {
 		t.Fatalf("NewChattoCore: %v", err)
 	}
+	// Keep alert occurrences pending so these tests can exercise the production
+	// provider handler directly. The durable worker retries ordinary transport
+	// failures without resolving the occurrence.
+	chattoCore.SetNotificationAlertHandler(func(context.Context, *corev1.NotificationOccurrence) error {
+		return errors.New("hold notification alert for direct handler test")
+	})
 	runCtx, stop := context.WithCancel(context.Background())
 	done := make(chan error, 1)
 	go func() { done <- chattoCore.Run(runCtx) }()
@@ -212,7 +218,7 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 		if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(
 			ctx,
 			alice.Id,
-			corev1.NotificationReason_NOTIFICATION_REASON_DIRECT_MESSAGE,
+			corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
 			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
 		); err != nil {
 			t.Fatalf("SetServerNotificationIntensity: %v", err)

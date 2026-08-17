@@ -10,7 +10,7 @@
   import {
     groupNotificationOccurrences,
     NotificationAttentionLevel,
-    NotificationReason,
+    NotificationPolicyKind,
     type NotificationActor,
     type NotificationGroupItem,
     type NotificationOccurrenceItem
@@ -448,10 +448,10 @@
     const actor = occurrence.actor?.displayName;
     if (!actor) return m('chat.notifications.activity');
     const reasons = occurrence.reasons;
-    if (reasons.includes(NotificationReason.DIRECT_MESSAGE)) {
+    if (reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
       return m('chat.notifications.summary.direct_message', { actor });
     }
-    if (reasons.includes(NotificationReason.REACTION)) {
+    if (reasons.includes(NotificationPolicyKind.REACTION)) {
       const emojis = [
         ...new Set(
           group.occurrences
@@ -473,21 +473,21 @@
       }
       return m('chat.notifications.summary.activity', { actor });
     }
-    if (reasons.includes(NotificationReason.REPLY)) {
+    if (reasons.includes(NotificationPolicyKind.REPLY)) {
       return m('chat.notifications.summary.reply', { actor });
     }
     if (
-      reasons.includes(NotificationReason.DIRECT_MENTION) ||
-      reasons.includes(NotificationReason.ROLE_MENTION) ||
-      reasons.includes(NotificationReason.HERE) ||
-      reasons.includes(NotificationReason.ALL)
+      reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
+      reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
+      reasons.includes(NotificationPolicyKind.HERE) ||
+      reasons.includes(NotificationPolicyKind.ALL)
     ) {
       return m('chat.notifications.summary.mention', { actor });
     }
-    if (reasons.includes(NotificationReason.FOLLOWED_THREAD)) {
+    if (reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
       return m('chat.notifications.summary.followed_thread', { actor });
     }
-    if (reasons.includes(NotificationReason.FOLLOWED_ROOM)) {
+    if (reasons.includes(NotificationPolicyKind.FOLLOWED_ROOM)) {
       return m('chat.notifications.summary.new_message', { actor });
     }
     return m('chat.notifications.summary.activity', { actor });
@@ -634,7 +634,7 @@
               {@const occurrence = item.group.openTarget}
               {@const targetSupported = occurrence?.targetSupported !== false}
               {@const isReaction =
-                occurrence?.reasons.includes(NotificationReason.REACTION) ?? false}
+                occurrence?.reasons.includes(NotificationPolicyKind.REACTION) ?? false}
               {@const actor = occurrence?.actor ?? null}
               {@const actors = notificationActors(item.group)}
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}

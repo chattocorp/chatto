@@ -69,6 +69,7 @@ func setupTestStream(t *testing.T) (jetstream.JetStream, jetstream.Stream) {
 		Name:               "EVENTS_TEST",
 		Subjects:           []string{"evt.>"},
 		Storage:            jetstream.FileStorage,
+		AllowMsgTTL:        true,
 		AllowAtomicPublish: true,
 	})
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/notificationstream"
 )
 
 const projectionSnapshotObjectStoreName = "PROJECTION_SNAPSHOTS"
@@ -24,9 +25,9 @@ type storage struct {
 	encryptionKV   jetstream.KeyValue // ENCRYPTION_KEYS - KMS KEKs (excluded from backups)
 	runtimeStateKV jetstream.KeyValue // RUNTIME_STATE  - persisted latest-value runtime/user state + wrapped app DEKs
 
-	serverAssets      jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
-	serverEvtStream   jetstream.Stream      // EVT       - event-sourcing log (ADR-033/034).
-	notificationQueue jetstream.Stream      // NOTIFICATIONS_QUEUE - short-lived interruptive delivery work.
+	serverAssets       jetstream.ObjectStore // SERVER_ASSETS - all NATS-backed asset binaries
+	serverEvtStream    jetstream.Stream      // EVT - authoritative domain event log (ADR-033/034).
+	notificationStream jetstream.Stream      // NOTIFICATIONS - bounded notification lifecycle event log.
 
 	memoryCacheKV   jetstream.KeyValue    // MEMORY_CACHE - volatile, memory-backed runtime cache state
 	imageCacheStore jetstream.ObjectStore // Optional: cached resized images (nil if disabled)
@@ -155,32 +156,86 @@ func newStorage(js jetstream.JetStream, ctx context.Context, cfg config.CoreConf
 		}
 	}
 
-	notificationQueue, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
-		return js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
-			Name:        notificationQueueStreamName,
-			Description: "Short-lived notification alert delivery work",
-			Subjects:    []string{notificationAlertSubject},
-			Retention:   jetstream.WorkQueuePolicy,
-			Storage:     jetstream.FileStorage,
-			Compression: jetstream.S2Compression,
-			Replicas:    cfg.Replicas,
-			MaxAge:      notificationAlertDeliveryTTL,
-			Duplicates:  notificationAlertDeliveryTTL,
-		})
+	notificationMetadata, err := prepareNotificationStreamMetadata(ctx, js)
+	if err != nil {
+		return nil, fmt.Errorf("prepare NOTIFICATIONS stream metadata: %w", err)
+	}
+	notificationConfig := jetstream.StreamConfig{
+		Name:               notificationstream.StreamName,
+		Description:        "Bounded notification lifecycle event log",
+		Subjects:           notificationstream.Subjects(),
+		Storage:            jetstream.FileStorage,
+		Compression:        jetstream.S2Compression,
+		Replicas:           cfg.Replicas,
+		MaxAge:             notificationTTL + notificationPhysicalCleanupGrace,
+		Duplicates:         notificationAlertDeliveryTTL,
+		AllowMsgTTL:        true,
+		AllowAtomicPublish: true,
+		Metadata:           notificationMetadata,
+	}
+	notificationStream, err := createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+		return js.CreateOrUpdateStream(ctx, notificationConfig)
 	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to create %s stream: %w", notificationQueueStreamName, err)
+		return nil, fmt.Errorf("failed to create %s stream: %w", notificationstream.StreamName, err)
+	}
+	if !notificationstream.ValidIdentity(notificationConfig.Metadata[notificationstream.IdentityMetadataKey]) {
+		info := notificationStream.CachedInfo()
+		if info == nil {
+			return nil, fmt.Errorf("created NOTIFICATIONS stream info is unavailable")
+		}
+		identity, identityErr := notificationstream.NewIdentity(info.Created)
+		if identityErr != nil {
+			return nil, identityErr
+		}
+		notificationConfig.Metadata[notificationstream.IdentityMetadataKey] = identity
+		notificationStream, err = createJetStreamResourceWithRetry(ctx, func(ctx context.Context) (jetstream.Stream, error) {
+			return js.CreateOrUpdateStream(ctx, notificationConfig)
+		})
+		if err != nil {
+			return nil, fmt.Errorf("persist NOTIFICATIONS stream identity: %w", err)
+		}
 	}
 
 	return &storage{
-		encryptionKV:      encryptionKV,
-		runtimeStateKV:    runtimeStateKV,
-		serverAssets:      serverAssets,
-		serverEvtStream:   serverEvtStream,
-		notificationQueue: notificationQueue,
-		memoryCacheKV:     memoryCacheKV,
-		imageCacheStore:   imageCacheStore,
+		encryptionKV:       encryptionKV,
+		runtimeStateKV:     runtimeStateKV,
+		serverAssets:       serverAssets,
+		serverEvtStream:    serverEvtStream,
+		notificationStream: notificationStream,
+		memoryCacheKV:      memoryCacheKV,
+		imageCacheStore:    imageCacheStore,
 	}, nil
+}
+
+func prepareNotificationStreamMetadata(ctx context.Context, js jetstream.JetStream) (map[string]string, error) {
+	metadata := make(map[string]string)
+	stream, err := js.Stream(ctx, notificationstream.StreamName)
+	switch {
+	case err == nil:
+		info, infoErr := stream.Info(ctx)
+		if infoErr != nil {
+			return nil, fmt.Errorf("read existing NOTIFICATIONS stream info: %w", infoErr)
+		}
+		for key, value := range info.Config.Metadata {
+			metadata[key] = value
+		}
+	case errors.Is(err, jetstream.ErrStreamNotFound):
+	case err != nil:
+		return nil, fmt.Errorf("open existing NOTIFICATIONS stream: %w", err)
+	}
+	if notificationstream.ValidIdentity(metadata[notificationstream.IdentityMetadataKey]) {
+		return metadata, nil
+	}
+	if stream == nil || stream.CachedInfo() == nil {
+		return metadata, nil
+	}
+	identity, err := notificationstream.NewIdentity(stream.CachedInfo().Created)
+	if err != nil {
+		return nil, err
+	}
+	metadata[notificationstream.IdentityMetadataKey] = identity
+	return metadata, nil
 }
 
 func memoryCacheConfig(cfg config.CoreConfig) jetstream.KeyValueConfig {

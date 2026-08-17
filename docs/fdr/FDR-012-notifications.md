@@ -61,18 +61,18 @@ are exact and independent of pagination or presentation grouping:
 - each unread occurrence contributes one to its room's notification count;
 - two unread DMs consolidated into one row still display a badge count of two.
 
-An occurrence's target is a typed protobuf union. Notifications 2.0 initially
-supports the room-message target used by every current cause. Future resource
-targets can be added without overloading message fields, but each must define
-its own authorization, lifecycle, navigation, and delivery behavior. Clients
-using binary protobuf retain unsupported variants as generic, non-navigating
-rows with exact triage identity while still advancing through the server page;
-ProtoJSON clients need unknown-field-tolerant decoding for that fallback. Older
-servers preserve unknown occurrences and prepared work rather than treating
-version skew as visibility loss, and explicitly reject exact reads, read
-mutations, or deletes they cannot validate rather than reporting absence or
-false success. This extension point does not itself implement room invitations
-or make notifications authoritative for invitation state.
+An occurrence's `NotificationSignal` is a typed protobuf union that combines
+one event-shaped cause with its exact destination and cause-specific data.
+Future signal kinds can be added without overloading message fields, but each
+must define its own authorization, lifecycle, navigation, and delivery
+behavior. Clients using binary protobuf retain unsupported variants as generic,
+non-navigating rows with exact triage identity while still advancing through
+the server page; ProtoJSON clients need unknown-field-tolerant decoding for that
+fallback. Older servers preserve unknown occurrences and prepared work rather
+than treating version skew as visibility loss, and explicitly reject exact
+reads, read mutations, or deletes they cannot validate rather than reporting
+absence or false success. This extension point does not itself implement room
+invitations or make notifications authoritative for invitation state.
 
 The bundled frontend derives temporary groups as follows:
 
@@ -116,9 +116,9 @@ default, user/server override, and optional room override:
 | Followed room activity | Off |
 | Reaction to the user's message | Badge |
 
-One source event produces at most one occurrence per recipient, even when it
-matches several causes. The occurrence records all matches and uses the
-strongest source-time intensity. A user's own activity does not notify them.
+One source event produces at most one occurrence per recipient and cause. If a
+message is both a reply and a direct mention, those are two exact signals with
+independent identity and triage. A user's own activity does not notify them.
 Policy changes affect future activity and never rewrite existing history.
 Delivery intensity controls interruption only; it does not determine whether
 an occurrence is visually Ambient or Important.
@@ -127,56 +127,53 @@ an occurrence is visually Ambient or Important.
 
 Source-command OCC attempts recompute recipients, mention expansion, thread
 followers, and policy after waiting the relevant Thread and Config projection
-tails. They stage exact temporary
-work in `RUNTIME_STATE` before appending the existing message or reaction fact.
-No notification-only fact is added to `EVT`.
+tails. They replace one exact temporary work value in `RUNTIME_STATE` before
+appending the existing message or reaction fact. No notification-only fact is
+added to `EVT`.
 
-The shared `chatto-notification-materializer-v2` durable consumer applies
-occurrence creation and lifecycle cleanup in source order. It handles
-retraction, reaction removal, explicit and implicit visibility loss, room
-deletion, and account deletion. The Notification Visibility projection retains
-the event-time room/group/RBAC boundary needed to prevent a quick regain from
-preserving pre-loss notification content. Before index-backed lifecycle cleanup,
-the worker writes a same-stream marker and waits the local occurrence watcher
-through it; candidate selection cannot acknowledge from a stale replica index.
+The shared `chatto-notification-materializer-v2` durable consumer appends rich
+`NotificationSignalled` facts to the bounded `NOTIFICATIONS` stream and applies
+lifecycle cleanup in source order. It handles retraction, reaction removal,
+explicit and implicit visibility loss, room deletion, and account deletion.
+The Notification Visibility projection retains the event-time room/group/RBAC
+boundary needed to prevent a quick regain from preserving pre-loss content.
+The current list is a replayable in-memory projection of `NOTIFICATIONS` with
+encrypted snapshots, not a per-occurrence KV index.
 
-An eligible Alert is published as an opaque occurrence coordinate to the
-file-backed `NOTIFICATIONS_QUEUE`. The
-`chatto-notification-alert-delivery-v1` consumer uses the shared durable-worker
-runtime. Before provider delivery it fences materialization and current policy,
-then revalidates unread state, target/reaction visibility, subscription
-ownership, and DND. A current preference may downgrade an already queued Alert
-but never upgrades an occurrence that was source-time Badge.
+The `chatto-notification-alert-delivery-v2` durable consumer reads
+`notifications.signalled` from that same stream. Before provider delivery it
+waits for the notification projection, fences materialization and current
+policy, then revalidates unread state, target/reaction visibility, subscription
+ownership, and DND. A current preference may downgrade an existing Alert but
+never upgrades an occurrence that was source-time Badge.
 
-The queue and its consumer are included in normal backups. This preserves
-accepted work across restore; excluding it would silently drop valid alerts at
-an arbitrary backup boundary. Every Alert occurrence and queue job carries an
-immutable deadline derived from source time. The worker, provider TTL, and an
-expired-Pending reconciler all enforce that deadline, so redelivery, republish,
-queue eviction, restore, or time spent waiting for a provider request slot cannot
-restart or overrun the two-minute window. Delivery is at
-least once, so a crash after provider acceptance can still duplicate a push.
+`NOTIFICATIONS` and its consumer are included in normal backups. This preserves
+the authoritative list, triage history, and accepted alert work across restore.
+Every Alert occurrence carries an immutable deadline derived from source time.
+The worker, provider TTL, and an expired-Pending reconciler all enforce that
+deadline, so redelivery, restore, or time spent waiting for a provider request
+slot cannot restart or overrun the two-minute window. Delivery is at least once,
+so a crash after provider acceptance can still duplicate a push.
 
 ## Visibility and consistency
 
-List, realtime, mark-read, and delivery paths fence the materializer plus
-current user, room, room-group-layout, and RBAC projections before treating
-absence or access loss as authoritative. Delete operates only on opaque
-occurrence IDs scoped to the authenticated viewer and does not hydrate target
-content. The complete retained occurrence set is validated before exact totals
-are returned, including rows outside the requested page. A `RUNTIME_STATE` read
-fence then makes replica-local occurrence-index lag fail or wait instead of
-exposing stale state.
+List, realtime, mark-read, and delivery paths fence the materializer and
+notification projection plus current user, room, room-group-layout, and RBAC
+projections before treating absence or access loss as authoritative. Delete
+operates only on opaque occurrence IDs scoped to the authenticated viewer and
+does not hydrate target content. The complete retained occurrence set is
+validated before exact totals are returned, including rows outside the
+requested page.
 
-Creation-triggered realtime replacement reads the source occurrence directly
-from authoritative KV and fences the local index through that latest revision.
-A newer Read or deletion therefore wins over a delayed creation signal. Room
+Creation-triggered realtime replacement waits for the notification projection
+and rebuilds current state by opaque notification ID. A newer Read or dismissal
+therefore wins over a delayed creation invalidation. Room
 deletion advances the existing generic authorization fence atomically, making a
 concurrent room-policy write retry and reject the now-missing room.
 
-Occurrences retain references and cause provenance, not copied room names,
+Signals retain references and cause-specific data, not copied room names,
 profiles, or message bodies. Public assembly hydrates current visible data.
-Retracted targets, removed reactions, and inaccessible rooms are tombstoned
+Retracted targets, removed reactions, and inaccessible rooms are dismissed
 instead of leaking stale presentation.
 
 ## Conversation subscriptions
@@ -195,8 +192,8 @@ Legacy records and coarse Muted/Normal/All Messages preferences are not
 migrated or interpreted. Historical persisted event variants remain
 replay-decodable, but new code adds no notification facts to `EVT`. Older
 clients cannot use the replacement notification API on an upgraded server.
-The initial typed target replaces an unreleased development-only flat target;
-after the 0.5.0 contract ships, new oneof target variants are additive.
+The rich signal oneof replaces unreleased development-only reason and target
+shapes; after the 0.5.0 contract ships, new signal variants are additive.
 
 ## Permissions
 

@@ -458,13 +458,13 @@ type notificationPushSender interface {
 }
 
 // notificationAlertHandler keeps the production provider seam independently
-// testable while ChattoCore owns durable queueing and terminal occurrence state.
+// testable while ChattoCore owns durable signal consumption and terminal occurrence state.
 func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConfig, sender notificationPushSender, logger *log.Logger) func(context.Context, *corev1.NotificationOccurrence) error {
 	return func(ctx context.Context, occurrence *corev1.NotificationOccurrence) error {
-		if core.NotificationOccurrenceHasUnsupportedTarget(occurrence) {
-			return core.ErrUnsupportedNotificationTarget
+		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
+			return core.ErrUnsupportedNotificationSignal
 		}
-		if occurrence.GetTarget().GetRoomMessage() == nil {
+		if core.NotificationOccurrenceMessageReference(occurrence) == nil {
 			return core.ErrNotificationAlertSuppressed
 		}
 		subscriptions, err := chattoCore.GetUserPushSubscriptions(ctx, occurrence.GetRecipientId())
@@ -570,7 +570,7 @@ func filterOwnedPushSubscriptions(
 // fetchOccurrencePayloadContext builds a best-effort message preview and room
 // name for an occurrence-backed push payload.
 func fetchOccurrencePayloadContext(ctx context.Context, chattoCore *core.ChattoCore, occurrence *corev1.NotificationOccurrence, logger *log.Logger) *push.PayloadContext {
-	target := occurrence.GetTarget().GetRoomMessage()
+	target := core.NotificationOccurrenceMessageReference(occurrence)
 	if target == nil {
 		return nil
 	}
