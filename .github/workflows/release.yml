@@ -427,6 +427,11 @@ jobs:
             Write-Error "The Windows bundle contains no executable files to verify."
             exit 1
           }
+          $application = Join-Path $bundle "chatto-desktop.exe"
+          if (-not (Test-Path -LiteralPath $application -PathType Leaf)) {
+            Write-Error "The Windows bundle does not contain chatto-desktop.exe."
+            exit 1
+          }
 
           $failed = $false
           foreach ($file in $files) {
@@ -437,9 +442,14 @@ jobs:
               $env:EXPECTED_PUBLISHER,
               [System.StringComparison]::OrdinalIgnoreCase
             )
+            $requiresExpectedPublisher = [string]::Equals(
+              $file.FullName,
+              $application,
+              [System.StringComparison]::OrdinalIgnoreCase
+            )
             if (
               $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
-              -not $hasExpectedPublisher -or
+              ($requiresExpectedPublisher -and -not $hasExpectedPublisher) -or
               $null -eq $signature.TimeStamperCertificate
             ) {
               Write-Error "$($file.FullName): status=$($signature.Status), publisher='$publisher', timestamped=$($null -ne $signature.TimeStamperCertificate)"
@@ -449,7 +459,7 @@ jobs:
           if ($failed) {
             exit 1
           }
-          Write-Host "Verified $($files.Count) signed Windows executable files from '$env:EXPECTED_PUBLISHER'."
+          Write-Host "Verified $($files.Count) valid, timestamped Windows executable signatures; chatto-desktop.exe is published by '$env:EXPECTED_PUBLISHER'."
 
       - name: Package macOS release
         if: runner.os == 'macOS'

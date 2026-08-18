@@ -42,9 +42,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   capability keep the browser's ordinary source chooser.
 - macOS, Windows, and Linux bundles are built in CI. Release macOS artifacts
   are Developer ID signed and notarised. Release Windows executables and
-  libraries are signed through Microsoft Artifact Signing with ChattoCorp's
-  stable publisher identity and timestamped before CI packages them. Local,
-  pull-request, and Linux artifacts are not trusted release builds.
+  libraries are signed and timestamped through Microsoft Artifact Signing
+  before CI packages them. The main application must report ChattoCorp's stable
+  publisher identity; bundled third-party libraries may retain their original
+  valid publisher. Local, pull-request, and Linux artifacts are not trusted
+  release builds.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - Each release rebuilds and embeds the official frontend from the Desktop tag's
@@ -124,9 +126,10 @@ version from the bundled Chatto client version.
 **Decision:** CI checks and builds macOS, Windows, and Linux bundles. The
 protected release workflow Developer ID signs and notarises macOS, and uses
 Microsoft Artifact Signing with GitHub OpenID Connect to sign Windows PE files.
-It validates macOS acceptance and every Windows signature, timestamp, and
-publisher subject before packaging. Linux remains unsigned until its
-update-capable package and trust model are selected.
+It validates macOS acceptance, every Windows signature and timestamp, and the
+main application's publisher subject before packaging. Bundled third-party
+libraries may retain their original valid publisher. Linux remains unsigned
+until its update-capable package and trust model are selected.
 **Why:** Cross-platform builds catch packaging drift and let contributors test
 the application before release credentials are available. Managed Windows
 signing keeps the private key out of GitHub while a protected environment and

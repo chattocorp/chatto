@@ -60,12 +60,12 @@ server release component.
 Merging a Chatto Desktop release PR creates a draft GitHub release and the
 component tag. The release workflow checks and builds macOS, Windows, and Linux
 bundles from that tag, signs and notarises the macOS bundle, signs and verifies
-every Windows executable against the expected ChattoCorp publisher identity,
-uploads archives and SHA-256 checksums, then publishes the release. Linux and
-ordinary CI artifacts remain unsigned experimental builds. Windows and macOS
-use separate protected signing environments. Signing-service provisioning,
-protected-environment settings, renewal, and emergency revocation are
-documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
+every Windows executable, requires the expected ChattoCorp publisher on the
+main application, uploads archives and SHA-256 checksums, then publishes the
+release. Linux and ordinary CI artifacts remain unsigned experimental builds.
+Windows and macOS use separate protected signing environments. Signing-service
+provisioning, protected-environment settings, renewal, and emergency revocation
+are documented in [`apps/desktop/README.md`](../apps/desktop/README.md).
 
 The desktop shell version and the bundled Chatto frontend version answer
 different questions. The desktop version identifies packaging and runtime

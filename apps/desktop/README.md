@@ -47,8 +47,9 @@ helper, and validates platform signatures. Ordinary local and pull-request macOS
 builds use ad-hoc signing; ordinary Windows and Linux builds remain unsigned.
 Release builds use Developer ID signing and Apple notarisation on macOS and
 Microsoft Artifact Signing on Windows. CI verifies every shipped Windows
-executable and library against ChattoCorp's expected publisher identity and
-requires an RFC 3161 timestamp before creating the release archive.
+executable and library has a valid RFC 3161-timestamped signature, and verifies
+`chatto-desktop.exe` against ChattoCorp's expected publisher identity before
+creating the release archive.
 
 ### Configure macOS release signing
 
@@ -171,8 +172,10 @@ releases impossible. The release workflow fails before building when any
 setting is missing or when the repository is not using the documented default
 immutable OIDC subject. After building, it signs every `.exe`, `.dll`, and
 native `.node` module recursively with SHA-256 and an RFC 3161 timestamp, then
-rejects missing, invalid, untimestamped, or unexpectedly published signatures
-before packaging the ZIP.
+rejects missing, invalid, or untimestamped signatures before packaging the ZIP.
+The main `chatto-desktop.exe` must also report the expected ChattoCorp publisher;
+bundled third-party libraries may retain their original valid publisher, such
+as Microsoft.
 
 Before the first tagged release, manually run the `release` workflow with the
 `desktop` target on `main`, approve the protected environment, and inspect the
