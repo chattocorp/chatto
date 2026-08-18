@@ -41,11 +41,14 @@ mise desktop-build
 
 The build task first produces the frontend, then packages the host-platform
 bundle beneath `apps/desktop/dist/`. macOS builds include the native
-ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. CI
-checks and packages macOS, Windows, and Linux bundles, verifies the nested macOS
-helper, and validates the complete app signature. The current release archives
-use ad-hoc signing, so macOS may warn about or block them until production
-Developer ID signing and notarisation are added.
+ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. Windows
+x64 builds include the Windows Graphics Capture/WASAPI helper and pinned
+LiveKit C++ runtime plus its required Visual C++ redistributable DLLs. CI
+checks and packages macOS, Windows, and Linux bundles
+and tests the native helpers. The current release archives are not
+production-signed: macOS may warn or block them, and Windows Smart App Control
+may block a newly built helper, until trusted signing and macOS notarisation are
+added.
 
 Electron handles camera, microphone, and notification permission requests only
 for the fixed app origin. Screen sharing presents a native source picker.

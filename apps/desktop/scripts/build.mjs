@@ -6,6 +6,7 @@ import packageJson from "../package.json" with { type: "json" };
 import { pruneElectronLocales } from "./locales.mjs";
 import { embedMacOSCaptureHelper } from "./macos-capture-helper.mjs";
 import { macOSVersions, releaseBuildVersion } from "./version.mjs";
+import { embedWindowsCaptureHelper } from "./windows-capture-helper.mjs";
 
 const desktopRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -17,7 +18,7 @@ const packagerOut = path.join(distRoot, ".packager");
 const platform = process.platform;
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
 const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
-const embedCaptureHelper = platform === "darwin";
+const embedCaptureHelper = platform === "darwin" || platform === "win32";
 const macOSSignIdentity =
   platform === "darwin"
     ? (process.env.CHATTO_MACOS_SIGN_IDENTITY ?? "-")
@@ -72,8 +73,12 @@ const [bundleRoot] = await packager({
   afterPrune: embedCaptureHelper
     ? [
         async ({ buildPath }) => {
-          const appBundle = path.resolve(buildPath, "../../..");
-          await embedMacOSCaptureHelper(appBundle, macVersions);
+          if (platform === "darwin") {
+            const appBundle = path.resolve(buildPath, "../../..");
+            await embedMacOSCaptureHelper(appBundle, macVersions);
+          } else {
+            await embedWindowsCaptureHelper(path.dirname(buildPath));
+          }
         },
       ]
     : undefined,

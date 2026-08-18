@@ -24,11 +24,14 @@ import {
   gameCaptureListSourcesChannel,
   gameCapturePublisherChannel,
   gameCaptureStartChannel,
+  EncodedPreviewFrameParser,
   MacOSGameCaptureSourceOffers,
   parseGameCapturePublisherRequest,
   parseGameCapturePublisherStatus,
   parseMacOSGameCaptureSources,
+  parseWindowsGameCaptureSources,
   supportsMacOSGameCapture,
+  supportsWindowsGameCapture,
 } from "./game_capture.mjs";
 import { hasAppOrigin, isDesktopPermissionAllowed } from "./security.mjs";
 
@@ -43,6 +46,7 @@ let activeGameCaptureSourceList;
 const gameCaptureSourceOffers = new MacOSGameCaptureSourceOffers();
 const macOSCaptureProbeListFlag = "--chatto-macos-capture-probe-list";
 const macOSCapturePocFlag = "--chatto-macos-capture-poc";
+const windowsCaptureProbeListFlag = "--chatto-windows-capture-probe-list";
 
 protocol.registerSchemesAsPrivileged([
   {
@@ -72,6 +76,24 @@ if (!app.requestSingleInstanceLock()) {
 
 async function start() {
   await app.whenReady();
+
+  if (process.argv.includes(windowsCaptureProbeListFlag)) {
+    if (process.platform !== "win32" || !app.isPackaged) {
+      throw new Error("The Windows capture probe requires a packaged Windows app.");
+    }
+    const response = await listNativeGameCaptureSources();
+    console.log(
+      JSON.stringify({
+        protocolVersion: response.protocolVersion,
+        sourceCount: response.sources.length,
+        previewCount: response.sources.filter(
+          (source) => source.preview.byteLength > 0,
+        ).length,
+      }),
+    );
+    app.quit();
+    return;
+  }
 
   if (process.argv.includes(macOSCapturePocFlag)) {
     try {
@@ -294,9 +316,9 @@ function runMacOSCaptureHelper(arguments_) {
   });
 }
 
-function runMacOSCaptureHelperBinary(arguments_) {
+function runNativeCaptureHelperBinary(arguments_) {
   cancelActiveGameCaptureSourceList();
-  const executable = macOSCaptureHelperExecutable();
+  const executable = nativeCaptureHelperExecutable();
   return new Promise((resolve, reject) => {
     const child = spawn(executable, arguments_, {
       stdio: ["ignore", "pipe", "pipe"],
@@ -342,19 +364,19 @@ function runMacOSCaptureHelperBinary(arguments_) {
         if (timedOut) {
           reject(
             new Error(
-              "The macOS capture helper timed out while listing sources.",
+              "The native capture helper timed out while listing sources.",
             ),
           );
           return;
         }
         if (stdoutTooLarge) {
-          reject(new Error("The macOS capture helper returned too much data."));
+          reject(new Error("The native capture helper returned too much data."));
           return;
         }
         if (stderrTooLarge) {
           reject(
             new Error(
-              "The macOS capture helper produced too much diagnostic output.",
+              "The native capture helper produced too much diagnostic output.",
             ),
           );
           return;
@@ -367,8 +389,8 @@ function runMacOSCaptureHelperBinary(arguments_) {
           new Error(
             stderr.trim() ||
               (signal
-                ? `The macOS capture helper exited after signal ${signal}.`
-                : `The macOS capture helper exited with status ${code}.`),
+                ? `The native capture helper exited after signal ${signal}.`
+                : `The native capture helper exited with status ${code}.`),
           ),
         );
       });
@@ -408,6 +430,20 @@ function macOSCaptureHelperExecutable() {
     process.resourcesPath,
     "../Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe",
   );
+}
+
+function windowsCaptureHelperExecutable() {
+  return path.join(
+    process.resourcesPath,
+    "windows-capture",
+    "chatto-windows-capture-probe.exe",
+  );
+}
+
+function nativeCaptureHelperExecutable() {
+  return process.platform === "win32"
+    ? windowsCaptureHelperExecutable()
+    : macOSCaptureHelperExecutable();
 }
 
 async function runMacOSCaptureProbeList() {
@@ -481,9 +517,8 @@ function configureGameCaptureIPC() {
       );
     }
 
-    const output = await runMacOSCaptureHelperBinary(["list-previews"]);
     return gameCaptureSourceOffers.replace(
-      parseMacOSGameCaptureSources(output),
+      await listNativeGameCaptureSources(),
     );
   });
 
@@ -548,7 +583,7 @@ function startGameCaptureSession(source, publisherRequest, port) {
     );
   }
   const child = spawn(
-    macOSCaptureHelperExecutable(),
+    nativeCaptureHelperExecutable(),
     [
       "publish",
       ...sourceArguments,
@@ -559,10 +594,12 @@ function startGameCaptureSession(source, publisherRequest, port) {
       "--max-height",
       "1080",
     ],
-    { stdio: ["pipe", "pipe", "pipe"] },
+    { stdio: ["pipe", "pipe", "pipe", "pipe"] },
   );
   let stdout = "";
   let stderr = "";
+  let diagnosticStderr = "";
+  const captureDiagnostics = [];
   let stopping = false;
   let forceStopTimer;
   const session = { child, port, stop };
@@ -585,7 +622,20 @@ function startGameCaptureSession(source, publisherRequest, port) {
         if (lineEnd < 0) break;
         const line = stdout.slice(0, lineEnd).trim();
         stdout = stdout.slice(lineEnd + 1);
-        if (line) port.postMessage(parseGameCapturePublisherStatus(line));
+        if (line) {
+          const status = parseGameCapturePublisherStatus(line);
+          if (status.kind === "metrics") {
+            console.info(
+              "[Chatto Desktop] Native screen-share publisher metrics",
+              status,
+            );
+          }
+          port.postMessage(
+            status.kind === "started"
+              ? { ...status, localPreviewAvailable: process.platform === "win32" }
+              : status,
+          );
+        }
       }
     } catch {
       port.postMessage({
@@ -595,11 +645,40 @@ function startGameCaptureSession(source, publisherRequest, port) {
       stop();
     }
   });
+  const previewParser = new EncodedPreviewFrameParser();
+  child.stdio[3].on("data", (chunk) => {
+    try {
+      for (const frame of previewParser.push(chunk)) {
+        port.postMessage({ kind: "preview-frame", ...frame });
+      }
+    } catch {
+      port.postMessage({
+        kind: "error",
+        message: "The native screen-share helper returned invalid preview data.",
+      });
+      stop();
+    }
+  });
   child.stderr.setEncoding("utf8");
   child.stderr.on("data", (chunk) => {
     stderr += chunk;
     if (stderr.length > 64 * 1024) stderr = stderr.slice(-64 * 1024);
+    diagnosticStderr += chunk;
+    for (;;) {
+      const lineEnd = diagnosticStderr.indexOf("\n");
+      if (lineEnd < 0) break;
+      const line = diagnosticStderr.slice(0, lineEnd).trim();
+      diagnosticStderr = diagnosticStderr.slice(lineEnd + 1);
+      if (line.startsWith("[Chatto Desktop capture]")) {
+        captureDiagnostics.push(line);
+        if (captureDiagnostics.length > 100) captureDiagnostics.shift();
+        console.warn(line);
+      }
+    }
   });
+  // The helper can finish naturally while Desktop is writing a cooperative
+  // stop command. Its exit handler owns the renderer-visible lifecycle.
+  child.stdin.on("error", () => {});
   child.once("error", () => {
     port.postMessage({
       kind: "error",
@@ -610,10 +689,17 @@ function startGameCaptureSession(source, publisherRequest, port) {
     clearTimeout(forceStopTimer);
     if (activeGameCaptureSession === session)
       activeGameCaptureSession = undefined;
-    if (!stopping && (code !== 0 || signal)) {
+    console.warn("[Chatto Desktop] Native screen-share helper exited", {
+      code,
+      signal,
+      stopping,
+      captureDiagnostics,
+    });
+    if (!stopping) {
       port.postMessage({
         kind: "error",
         message:
+          captureDiagnostics.at(-1) ||
           stderr.trim() ||
           "The native screen-share helper stopped unexpectedly.",
       });
@@ -622,19 +708,25 @@ function startGameCaptureSession(source, publisherRequest, port) {
     port.close();
   });
   port.on("message", (event) => {
-    if (event.data?.kind === "stop") stop();
+    if (event.data?.kind === "stop") {
+      port.postMessage({ kind: "stopping" });
+      stop();
+    }
   });
   port.on("close", stop);
   port.start();
 
-  child.stdin.end(
-    JSON.stringify({
-      protocolVersion: 1,
-      livekitURL: publisherRequest.livekitUrl,
-      token: publisherRequest.token,
-      e2eeKey: publisherRequest.e2eeKey,
-    }),
-  );
+  const credential = JSON.stringify({
+    protocolVersion: 1,
+    livekitURL: publisherRequest.livekitUrl,
+    token: publisherRequest.token,
+    e2eeKey: publisherRequest.e2eeKey,
+  });
+  if (process.platform === "win32") {
+    child.stdin.write(`${credential}\n`);
+  } else {
+    child.stdin.end(credential);
+  }
 
   function stop() {
     if (stopping) return;
@@ -642,7 +734,11 @@ function startGameCaptureSession(source, publisherRequest, port) {
     if (activeGameCaptureSession === session)
       activeGameCaptureSession = undefined;
     if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGTERM");
+      if (process.platform === "win32" && child.stdin.writable) {
+        child.stdin.end("stop\n");
+      } else {
+        child.kill("SIGTERM");
+      }
       forceStopTimer = setTimeout(() => {
         if (child.exitCode === null && child.signalCode === null)
           child.kill("SIGKILL");
@@ -658,12 +754,47 @@ function stopActiveGameCaptureSession() {
 }
 
 function isGameCaptureAvailable() {
+  if (!app.isPackaged) return false;
+  if (process.platform === "darwin") {
+    return (
+      supportsMacOSGameCapture(process.getSystemVersion()) &&
+      existsSync(macOSCaptureHelperExecutable())
+    );
+  }
   return (
-    process.platform === "darwin" &&
-    app.isPackaged &&
-    supportsMacOSGameCapture(process.getSystemVersion()) &&
-    existsSync(macOSCaptureHelperExecutable())
+    process.platform === "win32" &&
+    supportsWindowsGameCapture(process.getSystemVersion()) &&
+    existsSync(windowsCaptureHelperExecutable())
   );
+}
+
+async function windowsCapturePreviews() {
+  const previews = new Map();
+  const sources = await desktopCapturer.getSources({
+    types: ["window"],
+    thumbnailSize: { width: 480, height: 270 },
+    fetchWindowIcons: false,
+  });
+  for (const source of sources) {
+    const match = /^window:([1-9][0-9]*):/.exec(source.id);
+    if (!match || source.thumbnail.isEmpty()) continue;
+    const nativeId = Number(match[1]);
+    if (!Number.isSafeInteger(nativeId)) continue;
+    const preview = source.thumbnail.toJPEG(80);
+    if (preview.length <= 512 * 1024) previews.set(nativeId, preview);
+  }
+  return previews;
+}
+
+async function listNativeGameCaptureSources() {
+  const output = await runNativeCaptureHelperBinary(
+    process.platform === "win32"
+      ? ["list-json", "--exclude-process", String(process.pid)]
+      : ["list-previews"],
+  );
+  return process.platform === "win32"
+    ? parseWindowsGameCaptureSources(output, await windowsCapturePreviews())
+    : parseMacOSGameCaptureSources(output);
 }
 
 function secureWebPreferences() {

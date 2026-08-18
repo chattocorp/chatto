@@ -106,8 +106,9 @@ to the browser's `getDisplayMedia` picker through LiveKit.
           : m('voice.display_number', { number: source.displayIndex });
     try {
       await voiceCallState.startNativeScreenShare(source.id, sourceName);
-    } catch {
+    } catch (error) {
       if (!serverScope.isCurrent()) return;
+      console.error('Failed to start native screen sharing:', error);
       toast.error(m('voice.screen_share_failed'));
     }
   }

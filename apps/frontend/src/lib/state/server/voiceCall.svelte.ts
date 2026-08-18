@@ -19,6 +19,7 @@ import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
+import type { NativeScreenSharePreview } from '$lib/desktop/nativeScreenSharePublisher';
 
 export type CallParticipantInfo = {
   identity: string;
@@ -32,6 +33,8 @@ export type CallParticipantInfo = {
   videoTrack: Track | null;
   isScreenShareEnabled: boolean;
   screenShareTrack: Track | null;
+  nativeScreenSharePreview: NativeScreenSharePreview | null;
+  screenShareSimulcasted: boolean;
   isLocallyMuted: boolean;
 };
 
@@ -55,6 +58,8 @@ type LiveKitModule = typeof import('livekit-client');
 
 const RECENTLY_DISCONNECTED_CALL_SOUND_MS = 5_000;
 const MEDIA_DEVICE_TOAST_DEDUPLICATION_MS = 1_500;
+const NATIVE_SCREEN_SHARE_STATS_INTERVAL_MS = 2_000;
+const NATIVE_SCREEN_SHARE_MAX_RECEIVE_FPS = 60;
 let liveKitModule: LiveKitModule | null = null;
 let liveKitModulePromise: Promise<LiveKitModule> | null = null;
 
@@ -240,6 +245,12 @@ export class VoiceCallState {
   private nativeScreenShareSession: NativeScreenSharePublisherSession | null = null;
   private e2eeWorker: Worker | null = null;
   private audioLevelInterval: ReturnType<typeof setInterval> | null = null;
+  private nativeScreenShareStatsInterval: ReturnType<typeof setInterval> | null = null;
+  private nativeScreenShareStatsReportInFlight = false;
+  private nativeScreenSharePreviousStats = new Map<
+    string,
+    { timestamp: number; framesReceived: number; framesDecoded: number; bytesReceived: number }
+  >();
   private suppressDisconnectToast = false;
   private explicitMediaDeviceOperationDepth = 0;
   private lastMediaDeviceToast: {
@@ -780,6 +791,7 @@ export class VoiceCallState {
     this.isNativeScreenShareEnabled = true;
     this.nativeScreenShareSourceName = sourceName;
     this.isScreenShareEnabled = true;
+    this.suppressLocalCompanionSubscriptions();
     this.updateParticipants();
   }
 
@@ -963,6 +975,7 @@ export class VoiceCallState {
     const { RoomEvent, Track } = getLoadedLiveKit();
 
     this.room.on(RoomEvent.ParticipantConnected, () => {
+      this.suppressLocalCompanionSubscriptions();
       this.updateParticipants();
     });
 
@@ -1007,12 +1020,32 @@ export class VoiceCallState {
       RoomEvent.TrackSubscribed,
       (
         track: RemoteTrack,
-        _publication: RemoteTrackPublication,
+        publication: RemoteTrackPublication,
         participant: RemoteParticipant
       ) => {
+        const isLocalCompanion = this.isLocalCompanionPublisher(participant);
+        if (
+          isLocalCompanion &&
+          (this.hasLocalNativePreview() || track.kind === Track.Kind.Audio)
+        ) {
+          track.detach();
+          publication.setSubscribed(false);
+          this.updateParticipants();
+          return;
+        }
         if (track.kind === Track.Kind.Audio) {
-          if (!this.isLocalCompanionPublisher(participant)) track.attach();
+          track.attach();
           this.applyAllParticipantAudioVolumes();
+        }
+        if (
+          track.source === Track.Source.ScreenShare &&
+          isCompanionPublisher(participant) &&
+          publication.simulcasted !== true
+        ) {
+          // The native helper publishes one full-cadence layer. Request a high
+          // receive ceiling explicitly so LiveKit does not treat a compact UI
+          // tile like a conventional 30 fps browser screen share.
+          publication.setVideoFPS(NATIVE_SCREEN_SHARE_MAX_RECEIVE_FPS);
         }
         this.updateParticipants();
       }
@@ -1028,6 +1061,7 @@ export class VoiceCallState {
 
     // Track published/unpublished — catches camera enable/disable by remote participants
     this.room.on(RoomEvent.TrackPublished, () => {
+      this.suppressLocalCompanionSubscriptions();
       this.updateParticipants();
     });
 
@@ -1048,6 +1082,98 @@ export class VoiceCallState {
     this.audioLevelInterval = setInterval(() => {
       this.updateAudioLevels();
     }, 60);
+    this.nativeScreenShareStatsInterval = setInterval(() => {
+      void this.reportNativeScreenShareReceiverStats();
+    }, NATIVE_SCREEN_SHARE_STATS_INTERVAL_MS);
+  }
+
+  private async reportNativeScreenShareReceiverStats(): Promise<void> {
+    if (!this.room || this.nativeScreenShareStatsReportInFlight) return;
+    this.nativeScreenShareStatsReportInFlight = true;
+    try {
+      const { Track } = getLoadedLiveKit();
+      for (const participant of this.room.remoteParticipants.values()) {
+        if (!isCompanionPublisher(participant)) continue;
+        for (const publication of participant.trackPublications.values()) {
+          const track = publication.track;
+          if (
+            publication.source !== Track.Source.ScreenShare ||
+            !track ||
+            track.kind !== Track.Kind.Video
+          ) {
+            continue;
+          }
+          const report = await (track as RemoteTrack).getRTCStatsReport();
+          if (!report) continue;
+          report.forEach((entry) => {
+            if (entry.type !== 'inbound-rtp' || entry.kind !== 'video') return;
+            const stats = entry as RTCInboundRtpStreamStats & {
+              decoderImplementation?: string;
+              framesDecoded?: number;
+              framesDropped?: number;
+              framesPerSecond?: number;
+              framesReceived?: number;
+              freezeCount?: number;
+              jitterBufferDelay?: number;
+              jitterBufferEmittedCount?: number;
+              keyFramesDecoded?: number;
+              totalDecodeTime?: number;
+              totalFreezesDuration?: number;
+            };
+            const framesReceived = stats.framesReceived ?? 0;
+            const framesDecoded = stats.framesDecoded ?? 0;
+            const bytesReceived = stats.bytesReceived ?? 0;
+            const previous = this.nativeScreenSharePreviousStats.get(entry.id);
+            const elapsedSeconds = previous ? (stats.timestamp - previous.timestamp) / 1_000 : 0;
+            const intervalReceiveFps =
+              previous && elapsedSeconds > 0
+                ? (framesReceived - previous.framesReceived) / elapsedSeconds
+                : 0;
+            const intervalDecodeFps =
+              previous && elapsedSeconds > 0
+                ? (framesDecoded - previous.framesDecoded) / elapsedSeconds
+                : 0;
+            const intervalBitrate =
+              previous && elapsedSeconds > 0
+                ? ((bytesReceived - previous.bytesReceived) * 8) / elapsedSeconds
+                : 0;
+            this.nativeScreenSharePreviousStats.set(entry.id, {
+              timestamp: stats.timestamp,
+              framesReceived,
+              framesDecoded,
+              bytesReceived
+            });
+            console.info('[Chatto] Native screen-share receiver metrics', {
+              intervalReceiveFps,
+              intervalDecodeFps,
+              intervalBitrate,
+              browserFramesPerSecond: stats.framesPerSecond ?? 0,
+              framesReceived,
+              framesDecoded,
+              framesDropped: stats.framesDropped ?? 0,
+              keyFramesDecoded: stats.keyFramesDecoded ?? 0,
+              packetsLost: stats.packetsLost ?? 0,
+              jitterSeconds: stats.jitter ?? 0,
+              averageJitterBufferMs:
+                stats.jitterBufferDelay && stats.jitterBufferEmittedCount
+                  ? (stats.jitterBufferDelay / stats.jitterBufferEmittedCount) * 1_000
+                  : 0,
+              averageDecodeMs:
+                stats.totalDecodeTime && framesDecoded
+                  ? (stats.totalDecodeTime / framesDecoded) * 1_000
+                  : 0,
+              freezeCount: stats.freezeCount ?? 0,
+              totalFreezesDuration: stats.totalFreezesDuration ?? 0,
+              decoderImplementation: stats.decoderImplementation ?? ''
+            });
+          });
+        }
+      }
+    } catch (error) {
+      console.warn('[Chatto] Could not read native screen-share receiver metrics', error);
+    } finally {
+      this.nativeScreenShareStatsReportInFlight = false;
+    }
   }
 
   private updateParticipants(): void {
@@ -1077,9 +1203,12 @@ export class VoiceCallState {
       const companion = companionPublishers.find(
         (candidate) => parseParticipantMetadata(candidate.metadata).ownerIdentity === p.identity
       );
-      const screenShareTrack =
-        getParticipantScreenShareTrack(p) ??
-        (companion ? getParticipantScreenShareTrack(companion) : null);
+      const useLocalNativePreview =
+        isLocal && this.nativeScreenShareSession?.preview != null;
+      const screenSharePublication =
+        getParticipantScreenSharePublication(p) ??
+        (!useLocalNativePreview && companion ? getParticipantScreenSharePublication(companion) : null);
+      const screenShareTrack = screenSharePublication?.track ?? null;
       return {
         identity: p.identity,
         name: p.name ?? p.identity,
@@ -1093,9 +1222,27 @@ export class VoiceCallState {
         isScreenShareEnabled:
           screenShareTrack !== null || (isLocal && this.isNativeScreenShareEnabled),
         screenShareTrack,
+        nativeScreenSharePreview: useLocalNativePreview
+          ? this.nativeScreenShareSession?.preview ?? null
+          : null,
+        screenShareSimulcasted: screenSharePublication?.simulcasted === true,
         isLocallyMuted: !isLocal && this.isParticipantLocallyMuted(p.identity)
       };
     });
+  }
+
+  private suppressLocalCompanionSubscriptions(): void {
+    if (!this.room || !this.hasLocalNativePreview()) return;
+    for (const participant of this.room.remoteParticipants.values()) {
+      if (!this.isLocalCompanionPublisher(participant)) continue;
+      for (const publication of participant.trackPublications.values()) {
+        publication.setSubscribed(false);
+      }
+    }
+  }
+
+  private hasLocalNativePreview(): boolean {
+    return this.nativeScreenShareSession?.preview != null;
   }
 
   private applyAllParticipantAudioVolumes(): void {
@@ -1231,6 +1378,12 @@ export class VoiceCallState {
       clearInterval(this.audioLevelInterval);
       this.audioLevelInterval = null;
     }
+    if (this.nativeScreenShareStatsInterval) {
+      clearInterval(this.nativeScreenShareStatsInterval);
+      this.nativeScreenShareStatsInterval = null;
+    }
+    this.nativeScreenShareStatsReportInFlight = false;
+    this.nativeScreenSharePreviousStats.clear();
     this.teardownLocalAudioAnalyser();
     if (this.room) {
       // Detach all remote audio tracks to clean up <audio> elements
@@ -1400,10 +1553,16 @@ function hasParticipantScreenSharePublication(participant: Participant): boolean
 }
 
 function getParticipantScreenShareTrack(participant: Participant): Track | null {
+  return getParticipantScreenSharePublication(participant)?.track ?? null;
+}
+
+function getParticipantScreenSharePublication(
+  participant: Participant
+): { track: Track; simulcasted?: boolean } | null {
   const { Track } = getLoadedLiveKit();
   for (const pub of participant.getTrackPublications()) {
     if (pub.track?.source === Track.Source.ScreenShare && !pub.isMuted) {
-      return pub.track;
+      return { track: pub.track, simulcasted: pub.simulcasted };
     }
   }
   return null;

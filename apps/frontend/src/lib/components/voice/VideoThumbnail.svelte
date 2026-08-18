@@ -19,10 +19,11 @@ resolution to request for sidebar-width tiles.
 - `showIdentityOverlay` - Whether to show the avatar overlay
 - `fit` - How the video track should fit the tile. Camera thumbnails default to `cover`; screen shares should use `contain` to avoid cropping shared content.
 - `fill` - Whether the video should fill its parent's height instead of using thumbnail aspect-ratio sizing.
+- `preferFullQuality` - Render a single-layer screen share without adaptive-stream tile sizing.
 -->
 <script lang="ts">
 	import { onDestroy } from 'svelte';
-	import type { Track } from 'livekit-client';
+	import type { RemoteVideoTrack, Track } from 'livekit-client';
 	import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
 
@@ -32,7 +33,8 @@ resolution to request for sidebar-width tiles.
 		user,
 		showIdentityOverlay = true,
 		fit = 'cover',
-		fill = false
+		fill = false,
+		preferFullQuality = false
 	}: {
 		track: Track;
 		name: string;
@@ -46,6 +48,7 @@ resolution to request for sidebar-width tiles.
 		showIdentityOverlay?: boolean;
 		fit?: 'cover' | 'contain';
 		fill?: boolean;
+		preferFullQuality?: boolean;
 	} = $props();
 
 	let videoEl = $state<HTMLVideoElement | null>(null);
@@ -55,31 +58,89 @@ resolution to request for sidebar-width tiles.
 	// pass the same Track reference — we must not detach/reattach on those no-ops.
 	let attachedTrack: Track | null = null;
 	let attachedEl: HTMLVideoElement | null = null;
+	let attachedDirectly = false;
+	let videoFrameCallbackId: number | null = null;
+	let presentationIntervalStartedAt = 0;
+	let presentationIntervalStartedFrames = 0;
+
+	function stopPresentationMetrics() {
+		if (videoFrameCallbackId !== null && attachedEl) {
+			attachedEl.cancelVideoFrameCallback(videoFrameCallbackId);
+		}
+		videoFrameCallbackId = null;
+		presentationIntervalStartedAt = 0;
+		presentationIntervalStartedFrames = 0;
+	}
+
+	function startPresentationMetrics(el: HTMLVideoElement) {
+		if (typeof el.requestVideoFrameCallback !== 'function') return;
+
+		const handleFrame: VideoFrameRequestCallback = (now, metadata) => {
+			if (presentationIntervalStartedAt === 0) {
+				presentationIntervalStartedAt = now;
+				presentationIntervalStartedFrames = metadata.presentedFrames;
+			} else if (now - presentationIntervalStartedAt >= 2_000) {
+				const elapsedSeconds = (now - presentationIntervalStartedAt) / 1_000;
+				console.info('[Chatto] Native screen-share presentation metrics', {
+					presentedFps:
+						(metadata.presentedFrames - presentationIntervalStartedFrames) / elapsedSeconds,
+					presentedFrames: metadata.presentedFrames,
+					mediaWidth: metadata.width,
+					mediaHeight: metadata.height,
+					elementWidth: el.clientWidth,
+					elementHeight: el.clientHeight,
+					documentVisible: document.visibilityState === 'visible'
+				});
+				presentationIntervalStartedAt = now;
+				presentationIntervalStartedFrames = metadata.presentedFrames;
+			}
+
+			videoFrameCallbackId = el.requestVideoFrameCallback(handleFrame);
+		};
+
+		videoFrameCallbackId = el.requestVideoFrameCallback(handleFrame);
+	}
+
+	function detachCurrentTrack() {
+		stopPresentationMetrics();
+		if (!attachedTrack || !attachedEl) return;
+		if (attachedDirectly) {
+			attachedEl.srcObject = null;
+		} else {
+			attachedTrack.detach(attachedEl);
+		}
+		attachedDirectly = false;
+	}
 
 	$effect(() => {
 		const t = track;
 		const el = videoEl;
 
-		if (t === attachedTrack && el === attachedEl) return;
+		const direct = preferFullQuality && !!t && 'mediaStreamTrack' in t;
+		if (t === attachedTrack && el === attachedEl && direct === attachedDirectly) return;
 
-		if (attachedTrack && attachedEl) {
-			attachedTrack.detach(attachedEl);
-		}
-
-		if (t && el) {
-			t.attach(el);
-		}
+		detachCurrentTrack();
 
 		attachedTrack = t ?? null;
 		attachedEl = el ?? null;
+		attachedDirectly = direct;
+
+		if (t && el) {
+			if (direct) {
+				const remoteTrack = t as RemoteVideoTrack;
+				el.srcObject = new MediaStream([remoteTrack.mediaStreamTrack]);
+				void el.play().catch(() => undefined);
+				startPresentationMetrics(el);
+			} else {
+				t.attach(el);
+			}
+		}
 	});
 
 	onDestroy(() => {
-		if (attachedTrack && attachedEl) {
-			attachedTrack.detach(attachedEl);
-			attachedTrack = null;
-			attachedEl = null;
-		}
+		detachCurrentTrack();
+		attachedTrack = null;
+		attachedEl = null;
 	});
 </script>
 

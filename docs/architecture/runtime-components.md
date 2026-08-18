@@ -1,6 +1,6 @@
 # Runtime Component Inventory
 
-Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/preload.cjs`](../../apps/desktop/preload.cjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/desktop/native/macos-capture-probe`](../../apps/desktop/native/macos-capture-probe), [`apps/frontend/src/lib/desktop/nativeScreenShare.ts`](../../apps/frontend/src/lib/desktop/nativeScreenShare.ts), [`apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte`](../../apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
+Key files: [`cli/cmd/run.go`](../../cli/cmd/run.go), [`cli/internal/embedded_nats/nats_server.go`](../../cli/internal/embedded_nats/nats_server.go), [`pkg/natsruntime/server.go`](../../pkg/natsruntime/server.go), [`cli/internal/runtimeunit/runtimeunit.go`](../../cli/internal/runtimeunit/runtimeunit.go), [`cli/internal/core/core.go`](../../cli/internal/core/core.go), [`cli/internal/core/nats_recovery.go`](../../cli/internal/core/nats_recovery.go), [`cli/internal/core/core_infrastructure.go`](../../cli/internal/core/core_infrastructure.go), [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go), [`cli/internal/core/core_services.go`](../../cli/internal/core/core_services.go), [`apps/desktop/main.mjs`](../../apps/desktop/main.mjs), [`apps/desktop/preload.cjs`](../../apps/desktop/preload.cjs), [`apps/desktop/frontend_protocol.mjs`](../../apps/desktop/frontend_protocol.mjs), [`apps/desktop/native/macos-capture-probe`](../../apps/desktop/native/macos-capture-probe), [`apps/desktop/native/windows-capture-probe`](../../apps/desktop/native/windows-capture-probe), [`apps/frontend/src/lib/desktop/nativeScreenShare.ts`](../../apps/frontend/src/lib/desktop/nativeScreenShare.ts), [`apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte`](../../apps/frontend/src/lib/components/voice/ScreenShareControlButton.svelte), [`apps/frontend/src/lib/oauth/authorizationWindow.ts`](../../apps/frontend/src/lib/oauth/authorizationWindow.ts)
 
 The core runtime is process-local but must be safe under multiple Chatto replicas connected to the same NATS account. Correctness comes from JetStream/KV atomicity and projection catch-up, not in-process serialization.
 
@@ -35,17 +35,73 @@ user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
 
 The shell owns no Chatto backend, NATS resources, projections, or durable
-domain state. Every macOS build adds a narrow optional `screenShare` renderer
-capability and a nested ScreenCaptureKit helper. The bridge lists bounded,
-temporary opaque window/display sources with static JPEG previews and controls
-a publish-only native LiveKit companion. Preview bytes cross Electron as
-structured-clone data and remain in memory; captured media stays in the
-helper's native WebRTC path, so only credentials and acknowledged lifecycle
-control cross IPC during publication. Window capture includes isolated
-owning-application audio. Display capture is video-only because system audio
-would include remote call playback. The companion publishes an H.264 simulcast
-ladder and enables dynacast so LiveKit can select receiver-appropriate
-qualities and pause unused layers.
+domain state. Every macOS and Windows x64 build adds a narrow optional
+`screenShare` renderer capability and a nested native helper. macOS uses
+ScreenCaptureKit and offers windows and displays. Windows also offers windows
+and displays, using Windows Graphics Capture plus WASAPI process-tree loopback
+for application sources.
+
+The bridge lists bounded, temporary opaque sources with static JPEG previews
+and controls a native LiveKit companion. Source-preview bytes cross Electron as
+structured-clone data and remain in memory. During Windows publication, the
+helper also sends a framed local copy of its encoded H.264 access units over a
+private child-process pipe; the renderer decodes these for the sender tile and
+does not subscribe to its own companion tracks. Raw video and captured audio
+remain outside Electron IPC. Credentials, acknowledged lifecycle control, and
+aggregate non-content performance diagnostics use the existing control path.
+Window capture includes isolated owning-application audio. Display
+capture is video-only because system audio would include remote call playback.
+
+The macOS companion publishes an H.264 simulcast ladder and enables dynacast so
+unused qualities pause. Windows prefers direct NVIDIA NVENC H.264 and retains
+Media Foundation hardware H.264 as a runtime fallback. The direct NVIDIA path
+loads NVENC from the installed display driver and uses registered D3D11 input
+textures, a low-latency P5 preset, quarter-resolution multipass, and spatial
+adaptive quantisation. A pinned public LiveKit C++/Rust fork forwards encoded
+access units into WebRTC and returns keyframe and rate-control requests to the
+helper.
+
+Windows publishes one full-cadence layer because the SDK does not expose custom
+screen-share simulcast layers and its default low layer is capped at 3 fps. It
+disables dynacast for that layer, allowing receivers to unsubscribe without
+suspending the independent native publisher. The sender's preview uses the
+local encoded-frame pipe rather than a server-routed subscription.
+The capture callback hands CPU-backed frames to a bounded, freshness-first
+worker. That worker scales BGRA, converts it to NV12, hardware-encodes it, and
+synchronously submits the access unit; slow work drops superseded frames
+instead of blocking capture or growing latency without bound.
+
+When WGC changes texture dimensions during a window/fullscreen transition, the
+worker scales each frame from its current dimensions into the LiveKit track's
+stable output size rather than renegotiating or discarding resized frames.
+
+The Windows helper watches both source-window validity and frame cadence. It
+reattaches the existing publisher to a same-application replacement window—or
+restarts capture on the same valid window—after a temporary closure or stall;
+without a replacement it disconnects. When the stalled window owns its complete
+foreground monitor, the helper immediately switches from window WGC to monitor
+WGC; it does not wait for sparse window-WGC heartbeat frames to stop.
+
+If monitor WGC also stalls, it tries DXGI Desktop Duplication and crops frames
+to the window bounds. Direct-presentation exit returns capture to window WGC. A
+fallback setup failure is non-fatal and retried after a cooldown. Expected DXGI
+access loss during a presentation-producer transition recreates the duplication
+interface instead of failing the fallback. Metrics identify the active capture
+backend.
+
+A line-delimited stdin control command provides cooperative stop, with Desktop
+retaining a bounded process-termination fallback. Aggregate publisher
+diagnostics continue on a fixed heartbeat even
+when no frame publishes; they include the latest non-content source dimensions
+and resize count so capture stalls can be distinguished from downstream WebRTC
+stalls. Desktop also acknowledges receipt of a stop request on the renderer
+control port before waiting for helper exit.
+
+An explicitly selected Windows display uses monitor WGC directly and remains
+bound to that monitor until the user stops sharing or the monitor disappears.
+It does not enter the window replacement or presentation-fallback state
+machine, and it publishes no audio so remote call playback cannot echo into the
+room.
 
 The shared frontend feature-detects the capability through its focused desktop
 adapter. One screen-share control opens Chatto's source chooser when the
@@ -55,8 +111,8 @@ including the browser's own chooser. This is the host-capability pattern from
 the frontend does not branch on Electron, macOS, the app origin, or user-agent
 identity.
 
-macOS CI builds and smoke-tests the helper inside the complete app
-bundle. The shell restricts navigation and browser
+macOS and Windows CI build and test their helpers; each complete platform bundle
+embeds its helper and pinned native LiveKit runtime. The shell restricts navigation and browser
 permissions at the Electron boundary, while OAuth behavior remains specified by
 [FDR-023](../fdr/FDR-023-authentication-and-sessions.md).
 

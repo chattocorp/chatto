@@ -145,6 +145,15 @@ jobs:
         if: runner.os == 'macOS'
         run: mise test-desktop-macos-capture
 
+      - name: Test Windows game-capture helper
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $probe = "apps/desktop/native/windows-capture-probe"
+          cmake -S $probe -B "$probe/build" -A x64
+          cmake --build "$probe/build" --config RelWithDebInfo
+          ctest --test-dir "$probe/build" -C RelWithDebInfo --output-on-failure
+
       - name: Build desktop bundle
         run: mise desktop-build
 

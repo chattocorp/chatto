@@ -114,6 +114,8 @@
 			videoTrack: null,
 			isScreenShareEnabled: false,
 			screenShareTrack: null,
+			nativeScreenSharePreview: null,
+			screenShareSimulcasted: false,
 			isLocallyMuted: false,
 			...overrides
 		};
