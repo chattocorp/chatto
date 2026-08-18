@@ -89,3 +89,4 @@ replace part of their original design.
 | [ADR-072](ADR-072-optional-host-capabilities-in-the-shared-frontend.md) | Optional Host Capabilities in the Shared Frontend | Accepted | 2026-08-13 |
 | [ADR-073](ADR-073-define-the-loom-architecture.md) | Define the Loom Architecture | Accepted | 2026-08-14 |
 | [ADR-074](ADR-074-keep-server-catalogue-device-local.md) | Keep the Frontend Server Catalogue Device-Local | Accepted | 2026-08-14 |
+| [ADR-075](ADR-075-native-pitchfork-development-stack.md) | Run the Complete Development Stack Natively with Pitchfork | Accepted | 2026-08-17 |

@@ -31,7 +31,9 @@ the origin and listener are loopback; every other deployment must configure an
 Requests with another `Host` are rejected, and unsafe browser requests must
 carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
-at a reverse proxy. HTTPS deployments use a host-bound `__Host-` session cookie;
+at a reverse proxy. An explicit configuration switch lets canonical-origin
+checks consume proxy-overwritten `X-Forwarded-Host` and `X-Forwarded-Proto`;
+the direct listener must remain trusted-only in that mode. HTTPS deployments use a host-bound `__Host-` session cookie;
 the unprefixed cookie name exists only for loopback development.
 
 `authentication.password_minimum_length` sets the local signup password
@@ -49,9 +51,10 @@ Each `[[oidc.clients]]` table declares a conventional OIDC client with `id`,
 public client; a secret of at least 32 characters enables
 `client_secret_basic`. URL client IDs are reserved for CIMD and need no local
 configuration. HTTPS redirects are mandatory outside loopback development.
-`oidc.cimd_trusted_private_hosts` is an explicit development-network exception
-that permits named CIMD hosts to resolve to private, but no other special-use,
-addresses.
+`oidc.cimd_trusted_private_hosts` and `oidc.cimd_trusted_loopback_hosts` are
+separate, exact-host development exceptions. They permit named CIMD hosts to
+resolve only to private or loopback addresses respectively; neither permits
+other special-use destinations.
 
 Operators must select exactly one NATS mode:
 

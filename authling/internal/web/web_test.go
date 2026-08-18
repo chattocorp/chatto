@@ -161,3 +161,63 @@ func TestHandlerAcceptsCanonicalHostWithImplicitDefaultPort(t *testing.T) {
 		})
 	}
 }
+
+func TestHandlerUsesForwardedOriginOnlyWhenExplicitlyTrusted(t *testing.T) {
+	for _, test := range []struct {
+		name  string
+		trust bool
+		want  int
+	}{
+		{name: "disabled", want: http.StatusMisdirectedRequest},
+		{name: "enabled", trust: true, want: http.StatusOK},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "http://localhost:8080/", nil)
+			request.Header.Set("X-Forwarded-Host", "auth.example:42443")
+			request.Header.Set("X-Forwarded-Proto", "https")
+			response := httptest.NewRecorder()
+
+			Handler(Dependencies{
+				PublicURL: "https://auth.example:42443", TrustProxyHeaders: test.trust,
+			}).ServeHTTP(response, request)
+
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d", response.Code, test.want)
+			}
+		})
+	}
+}
+
+func TestHandlerRejectsMalformedTrustedProxyOrigins(t *testing.T) {
+	tests := []struct {
+		name   string
+		hosts  []string
+		protos []string
+	}{
+		{name: "missing host", protos: []string{"https"}},
+		{name: "missing protocol", hosts: []string{"auth.example:42443"}},
+		{name: "unsupported protocol", hosts: []string{"auth.example:42443"}, protos: []string{"ftp"}},
+		{name: "forwarded host chain", hosts: []string{"attacker.example", "auth.example:42443"}, protos: []string{"https"}},
+		{name: "forwarded protocol chain", hosts: []string{"auth.example:42443"}, protos: []string{"http", "https"}},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "http://localhost:8080/", nil)
+			for _, host := range test.hosts {
+				request.Header.Add("X-Forwarded-Host", host)
+			}
+			for _, protocol := range test.protos {
+				request.Header.Add("X-Forwarded-Proto", protocol)
+			}
+			response := httptest.NewRecorder()
+
+			Handler(Dependencies{
+				PublicURL: "https://auth.example:42443", TrustProxyHeaders: true,
+			}).ServeHTTP(response, request)
+
+			if response.Code != http.StatusBadRequest {
+				t.Fatalf("status = %d, want %d", response.Code, http.StatusBadRequest)
+			}
+		})
+	}
+}

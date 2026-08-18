@@ -1,44 +1,39 @@
 "$schema" = "https://conductor.build/schemas/settings.repo.schema.json"
 
 [[preview_urls]]
-name = "Compose: Chatto"
-url = "https://chatto.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "Chatto"
+url = "https://chatto-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [[preview_urls]]
-name = "Compose: Authling"
-url = "https://authling.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "Authling"
+url = "https://authling-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [[preview_urls]]
-name = "Compose: Mailpit"
-url = "https://mailpit.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "Mailpit"
+url = "https://mailpit-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [[preview_urls]]
-name = "Compose: LiveKit"
-url = "https://livekit.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "LiveKit"
+url = "https://livekit-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [[preview_urls]]
-name = "Compose: Storybook"
-url = "https://storybook.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "Storybook"
+url = "https://storybook-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [[preview_urls]]
-name = "Compose: Docs website"
-url = "https://docs-website.$CONDUCTOR_WORKSPACE_NAME.orb.local"
+name = "Docs website"
+url = "https://docs-$CONDUCTOR_WORKSPACE_NAME.localhost:42443"
 
 [scripts]
-setup = "mise trust && mise setup"
-archive = "docker compose down -v"
+setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+archive = "mise dev-archive"
 run_mode = "concurrent"
 
-[scripts.run.compose]
-command = "exec docker compose up --build"
+[scripts.run.dev]
+command = "exec mise dev"
 available_in = [ "local" ]
 default = true
-icon = "boxes"
-
-[scripts.run.compose-watch]
-command = "exec docker compose up --build --watch"
-available_in = [ "local" ]
-icon = "refresh-cw"
+icon = "git-fork"
 
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."

@@ -14,7 +14,6 @@ path = [
   "apps/desktop/**",
   "apps/frontend/**",
   "CHANGELOG.md",
-  "compose.yml",
   "CONTRIBUTING.md",
   "docs/**",
   "docker/Dockerfile.frontend.prebuilt",

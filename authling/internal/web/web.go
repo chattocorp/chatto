@@ -3,6 +3,7 @@
 package web
 
 import (
+	"crypto/tls"
 	"embed"
 	"errors"
 	"fmt"
@@ -40,6 +41,9 @@ type Dependencies struct {
 	OIDC           *oidcprovider.Service
 	SecureCookies  bool
 	PublicURL      string
+	// TrustProxyHeaders treats X-Forwarded-Host and X-Forwarded-Proto as the
+	// browser-facing origin. Enable it only behind a proxy that overwrites them.
+	TrustProxyHeaders bool
 }
 
 // Handler returns Authling's public HTTP handler. Its pages are rendered on
@@ -286,7 +290,39 @@ func Handler(dependencies ...Dependencies) http.Handler {
 	if deps.OIDC != nil {
 		mux.Handle("/", deps.OIDC)
 	}
-	return securityHeaders(requireCanonicalHost(mux, publicOrigin))
+	handler := requireCanonicalHost(mux, publicOrigin)
+	if deps.TrustProxyHeaders {
+		handler = useTrustedProxyOrigin(handler)
+	}
+	return securityHeaders(handler)
+}
+
+func useTrustedProxyOrigin(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		forwardedHosts := r.Header.Values("X-Forwarded-Host")
+		forwardedProtos := r.Header.Values("X-Forwarded-Proto")
+		forwardedHost := strings.Join(forwardedHosts, ",")
+		forwardedProto := strings.Join(forwardedProtos, ",")
+		if forwardedHost == "" && forwardedProto == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		forwardedOrigin, err := url.Parse(forwardedProto + "://" + forwardedHost)
+		if len(forwardedHosts) != 1 || len(forwardedProtos) != 1 ||
+			err != nil || (forwardedProto != "http" && forwardedProto != "https") ||
+			forwardedOrigin.Host == "" || forwardedOrigin.User != nil ||
+			forwardedOrigin.Path != "" || forwardedOrigin.RawQuery != "" || forwardedOrigin.Fragment != "" {
+			http.Error(w, "invalid trusted proxy origin", http.StatusBadRequest)
+			return
+		}
+		r.Host = forwardedOrigin.Host
+		if forwardedProto == "https" {
+			r.TLS = &tls.ConnectionState{}
+		} else {
+			r.TLS = nil
+		}
+		next.ServeHTTP(w, r)
+	})
 }
 
 func validConsentRequest(r *http.Request, service *oidcprovider.Service, id string) bool {

@@ -1,7 +1,6 @@
 # Docker Assets
 
-This directory contains Docker build assets used by development, CI, and release
-automation.
+This directory contains Docker build assets used by CI and release automation.
 
 ## Files
 
@@ -21,13 +20,6 @@ automation.
   explicit operator overrides.
 - `Dockerfile.frontend.prebuilt` packages the already-built frontend static
   files into the release-only `ghcr.io/chattocorp/chatto-client` image.
-- `Dockerfile.dev` is the Go, Node.js, and file-watching toolchain image used by
-  the root Compose development stack. Compose bind-mounts the checkout instead
-  of baking project source into this image.
-- `compose-dev-entrypoint.sh` installs container-native workspace dependencies
-  and starts Chatto, Authling, or Storybook with polling live reloads.
-- `Dockerfile.frontend.dev` is the frontend development image used by
-  containerized local or cluster development.
 - `*.dockerignore` files are scoped to individual root-context Dockerfiles.
   Keep them next to the Dockerfile they apply to instead of recreating a broad
   root `.dockerignore`.
