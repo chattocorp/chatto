@@ -27,20 +27,25 @@ func TestSequenceConflictErrorTranslatesWrongLastSequenceVariants(t *testing.T) 
 			want: true,
 		},
 		{
+			name: "nats.go revision mismatch sentinel",
+			err:  jetstream.ErrKeyRevisionMismatch,
+			want: true,
+		},
+		{
 			name: "detailed wrong last sequence",
-			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10071)},
+			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequence},
 			want: true,
 		},
 		{
 			name: "constant wrong last sequence",
-			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10164)},
+			err:  &jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequenceConstant},
 			want: true,
 		},
 		{
 			name: "wrapped constant wrong last sequence",
 			err: fmt.Errorf(
 				"publish: %w",
-				&jetstream.APIError{Code: 400, ErrorCode: jetstream.ErrorCode(10164)},
+				&jetstream.APIError{Code: 400, ErrorCode: jetstream.JSErrCodeStreamWrongLastSequenceConstant},
 			),
 			want: true,
 		},
@@ -71,8 +76,8 @@ func TestSequenceConflictErrorTranslatesWrongLastSequenceVariants(t *testing.T) 
 
 func TestDecodeBatchAckTranslatesWrongLastSequenceVariants(t *testing.T) {
 	for _, code := range []jetstream.ErrorCode{
-		jetstream.ErrorCode(10071),
-		jetstream.ErrorCode(10164),
+		jetstream.JSErrCodeStreamWrongLastSequence,
+		jetstream.JSErrCodeStreamWrongLastSequenceConstant,
 	} {
 		t.Run(fmt.Sprintf("error code %d", code), func(t *testing.T) {
 			msg := &nats.Msg{Data: []byte(fmt.Sprintf(
