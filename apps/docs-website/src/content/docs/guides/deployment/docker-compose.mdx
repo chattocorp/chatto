@@ -63,6 +63,9 @@ hostname.
    docker compose up -d
    ```
 
+   All services use the `unless-stopped` restart policy, so Docker restarts
+   them after a failure or host reboot unless you stopped them manually.
+
    Caddy will automatically obtain TLS certificates for both domains. Visit `https://chat.example.com` to create your first account with the email address from `CHATTO_OWNERS_EMAILS`.
 
 </Steps>
