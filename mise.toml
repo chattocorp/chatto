@@ -320,12 +320,18 @@ fi
 if ! pitchfork supervisor status >/dev/null 2>&1; then
     pitchfork supervisor start >/dev/null
 fi
+if [ -z "${TMPDIR:-}" ]; then
+    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
+    exit 2
+fi
+proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
 
-# Pitchfork proxy routes are machine-global. Keep the ownership check and all
-# updates in one transaction so concurrently starting workspaces cannot race.
+# Pitchfork proxy routes are shared by every workspace using this user's
+# supervisor. Keep the ownership check and all updates in one transaction so
+# concurrently starting workspaces cannot race.
 (
 if ! lockf -s -t 5 9; then
-    echo "timed out waiting to update the machine-wide Pitchfork proxy routes; retry mise dev" >&2
+    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev" >&2
     exit 2
 fi
 
@@ -374,7 +380,7 @@ for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:liv
     slug="$service-$workspace_slug"
     pitchfork proxy add "$slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
 done
-) 9>/tmp/chatto-pitchfork-proxy-routes.lock
+) 9>>"$proxy_lock_file"
 
 mise setup-frontend
 trap 'pitchfork stop --local >/dev/null 2>&1 || true' EXIT INT TERM
@@ -395,11 +401,16 @@ if [ -s .context/dev/workspace-slug ]; then
 fi
 
 pitchfork stop --local >/dev/null 2>&1 || true
+if [ -z "${TMPDIR:-}" ]; then
+    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
+    exit 2
+fi
+proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
 
 # Serialize cleanup with route registration by other Chatto workspaces.
 (
 if ! lockf -s -t 5 9; then
-    echo "timed out waiting to update the machine-wide Pitchfork proxy routes; retry mise dev-archive" >&2
+    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev-archive" >&2
     exit 2
 fi
 
@@ -415,7 +426,7 @@ process.stdout.write(route?.dir ?? "")
         pitchfork proxy remove "$slug" >/dev/null 2>&1 || true
     fi
 done
-) 9>/tmp/chatto-pitchfork-proxy-routes.lock
+) 9>>"$proxy_lock_file"
 """
 
 [tasks.dev-docs-website]

@@ -59,8 +59,8 @@ HTTPS origins:
 - Storybook: `https://storybook-<workspace>.localhost:42443`
 - Docs website: `https://docs-<workspace>.localhost:42443`
 
-Workspace names share Pitchfork's machine-wide slug registry. `mise dev`
-serializes route updates and refuses to overwrite a route owned by another
+Workspace names share the slug registry of their user's Pitchfork supervisor.
+`mise dev` serializes route updates and refuses to overwrite a route owned by another
 checkout; rename or archive the conflicting workspace if that happens. It also
 stops with recovery instructions if an existing Pitchfork supervisor uses
 proxy settings other than the trusted HTTPS endpoint above.
