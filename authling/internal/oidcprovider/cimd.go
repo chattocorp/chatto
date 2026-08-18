@@ -54,7 +54,8 @@ type CIMDResolver struct {
 }
 
 // NewCIMDResolver constructs a resolver for one issuer. Loopback destinations
-// are allowed only when the issuer itself is loopback development.
+// are allowed when the issuer is loopback development or for explicitly
+// trusted development hostnames.
 func NewCIMDResolver(issuer string, client *http.Client, trustedPrivateHosts, trustedLoopbackHosts []string) (*CIMDResolver, error) {
 	parsed, err := url.Parse(issuer)
 	if err != nil {

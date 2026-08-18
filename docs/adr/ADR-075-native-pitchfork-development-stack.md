@@ -33,7 +33,8 @@ orders service startup, watches the Go services, and exposes Chatto, Authling,
 Mailpit, LiveKit, Storybook, and the documentation website through one trusted
 HTTPS proxy on port `42443`.
 
-Each worktree registers globally unique `*-<workspace>.localhost` proxy slugs.
+Each worktree registers workspace-specific `*-<workspace>.localhost` proxy
+slugs, whose workspace portion must be unique among active local workspaces.
 Conductor's workspace name is the public slug; outside Conductor the checkout
 directory name is used. Chatto and Authling retain separate embedded-NATS and
 search state beneath a matching gitignored `.context/dev/<workspace>/`
