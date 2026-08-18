@@ -160,6 +160,7 @@ jobs:
   build-desktop-release:
     if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
+    environment: desktop-signing
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -225,10 +226,86 @@ jobs:
         if: runner.os == 'macOS'
         run: mise test-desktop-macos-capture
 
+      - name: Configure macOS signing
+        if: runner.os == 'macOS'
+        shell: bash
+        env:
+          CERTIFICATE_BASE64: ${{ secrets.CHATTO_MACOS_CERTIFICATE_BASE64 }}
+          CERTIFICATE_PASSWORD: ${{ secrets.CHATTO_MACOS_CERTIFICATE_PASSWORD }}
+          NOTARY_API_KEY_BASE64: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_BASE64 }}
+          NOTARY_API_KEY_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_KEY_ID }}
+          NOTARY_API_ISSUER_ID: ${{ secrets.CHATTO_MACOS_NOTARY_API_ISSUER_ID }}
+        run: |
+          set -euo pipefail
+
+          for variable in \
+            CERTIFICATE_BASE64 \
+            CERTIFICATE_PASSWORD \
+            NOTARY_API_KEY_BASE64 \
+            NOTARY_API_KEY_ID \
+            NOTARY_API_ISSUER_ID; do
+            if [[ -z "${!variable}" ]]; then
+              echo "::error::The ${variable} macOS release secret is not configured."
+              exit 1
+            fi
+          done
+
+          certificate_path="$RUNNER_TEMP/chatto-developer-id.p12"
+          api_key_path="$RUNNER_TEMP/AuthKey_${NOTARY_API_KEY_ID}.p8"
+          keychain_path="$RUNNER_TEMP/chatto-signing.keychain-db"
+          keychain_password="$(openssl rand -hex 24)"
+
+          {
+            echo "CHATTO_MACOS_NOTARY_API_KEY=${api_key_path}"
+            echo "CHATTO_MACOS_SIGNING_KEYCHAIN=${keychain_path}"
+            echo "CHATTO_MACOS_SIGNING_CERTIFICATE=${certificate_path}"
+          } >> "$GITHUB_ENV"
+
+          printf '%s' "$CERTIFICATE_BASE64" | base64 --decode > "$certificate_path"
+          printf '%s' "$NOTARY_API_KEY_BASE64" | base64 --decode > "$api_key_path"
+          chmod 600 "$certificate_path" "$api_key_path"
+
+          security create-keychain -p "$keychain_password" "$keychain_path"
+          security set-keychain-settings -lut 21600 "$keychain_path"
+          security unlock-keychain -p "$keychain_password" "$keychain_path"
+          security import "$certificate_path" \
+            -k "$keychain_path" \
+            -P "$CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/security
+          security set-key-partition-list \
+            -S apple-tool:,apple: \
+            -s \
+            -k "$keychain_password" \
+            "$keychain_path"
+          security list-keychains -d user -s "$keychain_path"
+
+          signing_identity="$(
+            security find-identity -v -p codesigning "$keychain_path" |
+              awk '/Developer ID Application:/ { print $2; exit }'
+          )"
+          if [[ -z "$signing_identity" ]]; then
+            echo "::error::The certificate does not contain a Developer ID Application identity."
+            exit 1
+          fi
+
+          {
+            echo "CHATTO_MACOS_SIGN_IDENTITY=${signing_identity}"
+            echo "CHATTO_MACOS_NOTARY_API_KEY_ID=${NOTARY_API_KEY_ID}"
+            echo "CHATTO_MACOS_NOTARY_API_ISSUER_ID=${NOTARY_API_ISSUER_ID}"
+          } >> "$GITHUB_ENV"
+
       - name: Build desktop bundle
-        run: mise desktop-build
+        shell: bash
         env:
           CHATTO_BUILD_VERSION: ${{ steps.version.outputs.frontend_version }}
+          DEBUG: ${{ runner.os == 'macOS' && 'electron-notarize*' || '' }}
+        run: |
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            mise desktop-build 2>&1 | tee "$RUNNER_TEMP/chatto-macos-notarization.log"
+          else
+            mise desktop-build
+          fi
 
       - name: Verify bundled frontend version
         shell: bash
@@ -248,10 +325,32 @@ jobs:
           helper="apps/desktop/dist/Chatto Desktop.app/Contents/Helpers/Chatto Capture Helper.app/Contents/MacOS/chatto-macos-capture-probe"
           test -x "$helper"
           codesign --verify --deep --strict --verbose=2 "apps/desktop/dist/Chatto Desktop.app"
+          xcrun stapler validate "apps/desktop/dist/Chatto Desktop.app"
+          spctl --assess --type execute --verbose=4 "apps/desktop/dist/Chatto Desktop.app"
           mkdir -p .context/desktop-release
           ditto -c -k --sequesterRsrc --keepParent \
             "apps/desktop/dist/Chatto Desktop.app" \
             ".context/desktop-release/chatto-desktop_${VERSION}_macOS_${RUNNER_ARCH}.zip"
+
+      - name: Upload macOS notarisation log
+        if: runner.os == 'macOS' && always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: desktop-notarisation-log-${{ github.run_id }}-${{ runner.arch }}
+          path: ${{ runner.temp }}/chatto-macos-notarization.log
+          if-no-files-found: warn
+          retention-days: 90
+
+      - name: Remove macOS signing credentials
+        if: runner.os == 'macOS' && always()
+        shell: bash
+        run: |
+          if [[ -n "${CHATTO_MACOS_SIGNING_KEYCHAIN:-}" ]]; then
+            security delete-keychain "$CHATTO_MACOS_SIGNING_KEYCHAIN" || true
+          fi
+          rm -f \
+            "${CHATTO_MACOS_SIGNING_CERTIFICATE:-$RUNNER_TEMP/chatto-developer-id.p12}" \
+            "${CHATTO_MACOS_NOTARY_API_KEY:-$RUNNER_TEMP/chatto-notary-api-key.p8}"
 
       - name: Package Linux release
         if: runner.os == 'Linux'
