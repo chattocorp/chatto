@@ -69,7 +69,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{configSnapshotContractID, "v1", &corev1.ConfigProjectionSnapshot{}},
 		{contentKeySnapshotContractID, "v1", &corev1.ContentKeyProjectionSnapshot{}},
 		{mentionablesSnapshotContractID, "v2", &corev1.MentionablesProjectionSnapshot{}},
-		{notificationVisibilitySnapshotContractID, "v1", &corev1.NotificationVisibilityProjectionSnapshot{}},
+		{notificationDecisionSnapshotContractID, "v1", &corev1.NotificationDecisionProjectionSnapshot{}},
 		{notificationSnapshotContractID, "v1", &corev1.NotificationProjectionSnapshot{}},
 		{rbacSnapshotContractID, "v1", &corev1.RBACProjectionSnapshot{}},
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
@@ -202,8 +202,8 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.Groups.seq = 42
 			p.Layout.groupIDs = []string{"G1"}
 		}},
-		{"notification_visibility", func() snapshotProjection { return NewNotificationVisibilityProjection() }, func(raw snapshotProjection) {
-			p := raw.(*NotificationVisibilityProjection)
+		{"notification_decisions", func() snapshotProjection { return NewNotificationDecisionProjection() }, func(raw snapshotProjection) {
+			p := raw.(*NotificationDecisionProjection)
 			event := &corev1.Event{Id: "R1-created", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true}}}
 			if err := p.Apply(event, 41); err != nil {
 				t.Fatal(err)
@@ -298,7 +298,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
-		"notification_visibility": "v1-", "notifications": "v1-",
+		"notification_decisions": "v1-", "notifications": "v1-",
 		"room_timeline": "v6-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v3-",
 	}

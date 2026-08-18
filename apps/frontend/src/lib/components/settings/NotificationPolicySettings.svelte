@@ -16,11 +16,11 @@
   let preferences = $state.raw<NotificationPolicyItem[]>([]);
   let loading = $state(true);
   let error = $state<string | null>(null);
-  let savingReason = $state<NotificationPolicyKind | null>(null);
+  let savingKind = $state<NotificationPolicyKind | null>(null);
   let selectedRoomId = $state('');
   let loadGeneration = 0;
 
-  const reasons = [
+  const kinds = [
     NotificationPolicyKind.DIRECT_MESSAGE,
     NotificationPolicyKind.DIRECT_MENTION,
     NotificationPolicyKind.REPLY,
@@ -58,30 +58,30 @@
     }
   }
 
-  async function change(reason: NotificationPolicyKind, event: Event) {
+  async function change(kind: NotificationPolicyKind, event: Event) {
     const select = event.currentTarget as HTMLSelectElement;
-    const preference = preferences.find((candidate) => candidate.reason === reason);
+    const preference = preferences.find((candidate) => candidate.kind === kind);
     const roomId = selectedRoomId || undefined;
     const previousIntensity = roomId
       ? (preference?.roomIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
       : (preference?.serverIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED);
     const intensity = Number(select.value) as NotificationDeliveryIntensity;
-    savingReason = reason;
+    savingKind = kind;
     error = null;
     try {
-      preferences = await notificationStore.setPolicyPreference(reason, intensity, roomId);
+      preferences = await notificationStore.setPolicyPreference(kind, intensity, roomId);
     } catch (cause) {
       select.value = String(previousIntensity);
       preferences = [...preferences];
       error =
         cause instanceof Error ? cause.message : m('settings.notifications.policy.save_failed');
     } finally {
-      savingReason = null;
+      savingKind = null;
     }
   }
 
-  function reasonLabel(reason: NotificationPolicyKind): string {
-    switch (reason) {
+  function kindLabel(kind: NotificationPolicyKind): string {
+    switch (kind) {
       case NotificationPolicyKind.DIRECT_MESSAGE:
         return m('settings.notifications.policy.reason.direct_message');
       case NotificationPolicyKind.DIRECT_MENTION:
@@ -125,7 +125,7 @@
     class="input mb-3 w-full text-sm"
     aria-label={m('settings.notifications.policy.title')}
     value={selectedRoomId}
-    disabled={savingReason !== null}
+    disabled={savingKind !== null}
     onchange={(event) => {
       selectedRoomId = event.currentTarget.value;
     }}
@@ -140,11 +140,11 @@
     <p class="py-3 text-sm text-muted">{m('common.loading')}</p>
   {:else}
     <div class="flex flex-col divide-y divide-border rounded-lg border border-border">
-      {#each reasons as reason (reason)}
-        {@const preference = preferences.find((candidate) => candidate.reason === reason)}
+      {#each kinds as kind (kind)}
+        {@const preference = preferences.find((candidate) => candidate.kind === kind)}
         <label class="flex items-center justify-between gap-4 px-3 py-3">
           <span class="min-w-0">
-            <span class="block font-medium">{reasonLabel(reason)}</span>
+            <span class="block font-medium">{kindLabel(kind)}</span>
             <span class="block text-xs text-muted">
               {m('settings.notifications.policy.effective', {
                 intensity: intensityLabel(
@@ -155,14 +155,14 @@
           </span>
           <select
             class="input w-auto min-w-[120px] text-sm"
-            aria-label={reasonLabel(reason)}
+            aria-label={kindLabel(kind)}
             value={String(
               selectedRoomId
                 ? (preference?.roomIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
                 : (preference?.serverIntensity ?? NotificationDeliveryIntensity.UNSPECIFIED)
             )}
-            disabled={savingReason !== null}
-            onchange={(event) => change(reason, event)}
+            disabled={savingKind !== null}
+            onchange={(event) => change(kind, event)}
           >
             <option value={String(NotificationDeliveryIntensity.UNSPECIFIED)}
               >{intensityLabel(NotificationDeliveryIntensity.UNSPECIFIED)}</option

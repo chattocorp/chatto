@@ -548,7 +548,7 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 
@@ -659,7 +659,7 @@ func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
 	requireUserIDs(t, event.GetMessagePosted().GetMentionedUserIds(), mentioned.Id)
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasReason(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 }

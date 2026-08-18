@@ -124,7 +124,7 @@ func initializeCoreServices(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationOccurrences"),
 	)
-	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationVisibility)
+	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationDecisions)
 	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}

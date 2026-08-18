@@ -153,7 +153,7 @@
   }}
 >
   <div class="flex items-center gap-2">
-    <Button variant="secondary" size="sm" label="Mark done" title="Mark done">
+    <Button variant="secondary" size="sm" label="Mark read" title="Mark read">
       <span class="iconify icon-[uil--check]" aria-hidden="true"></span>
     </Button>
     <Button variant="danger-secondary" size="sm" label="Delete" title="Delete">

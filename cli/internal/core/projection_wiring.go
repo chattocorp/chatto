@@ -20,23 +20,23 @@ type coreProjections struct {
 	registrations []projectionRegistration
 	snapshotJobs  []projectionSnapshotJob
 
-	roomDirectory          events.ProjectionHandle[*RoomDirectoryProjection]
-	notificationVisibility events.ProjectionHandle[*NotificationVisibilityProjection]
-	notifications          events.ProjectionHandle[*NotificationProjection]
-	serverConfig           events.ProjectionHandle[*ConfigProjection]
-	roomGroupLayout        events.ProjectionHandle[*RoomGroupLayoutProjection]
-	roomTimeline           events.ProjectionHandle[*RoomTimelineProjection]
-	callState              events.ProjectionHandle[*CallStateProjection]
-	assets                 events.ProjectionHandle[*AssetProjection]
-	threads                events.ProjectionHandle[*ThreadProjection]
-	reactions              events.ProjectionHandle[*ReactionProjection]
-	users                  events.ProjectionHandle[*UserProjection]
-	userAuth               events.ProjectionHandle[*UserAuthProjection]
-	contentKeys            events.ProjectionHandle[*ContentKeyProjection]
-	rbac                   events.ProjectionHandle[*RBACProjection]
-	mentionables           events.ProjectionHandle[*MentionablesProjection]
-	invitations            events.ProjectionHandle[*InvitationProjection]
-	oauthClients           events.ProjectionHandle[*OAuthClientProjection]
+	roomDirectory         events.ProjectionHandle[*RoomDirectoryProjection]
+	notificationDecisions events.ProjectionHandle[*NotificationDecisionProjection]
+	notifications         events.ProjectionHandle[*NotificationProjection]
+	serverConfig          events.ProjectionHandle[*ConfigProjection]
+	roomGroupLayout       events.ProjectionHandle[*RoomGroupLayoutProjection]
+	roomTimeline          events.ProjectionHandle[*RoomTimelineProjection]
+	callState             events.ProjectionHandle[*CallStateProjection]
+	assets                events.ProjectionHandle[*AssetProjection]
+	threads               events.ProjectionHandle[*ThreadProjection]
+	reactions             events.ProjectionHandle[*ReactionProjection]
+	users                 events.ProjectionHandle[*UserProjection]
+	userAuth              events.ProjectionHandle[*UserAuthProjection]
+	contentKeys           events.ProjectionHandle[*ContentKeyProjection]
+	rbac                  events.ProjectionHandle[*RBACProjection]
+	mentionables          events.ProjectionHandle[*MentionablesProjection]
+	invitations           events.ProjectionHandle[*InvitationProjection]
+	oauthClients          events.ProjectionHandle[*OAuthClientProjection]
 }
 
 type projectionSnapshotPolicy bool
@@ -123,13 +123,13 @@ func initializeCoreProjections(
 		sharedSnapshots,
 	)
 
-	notificationVisibility := NewNotificationVisibilityProjection()
-	projections.notificationVisibility = registerProjection(
+	notificationDecisions := NewNotificationDecisionProjection()
+	projections.notificationDecisions = registerProjection(
 		registrar,
-		notificationVisibility,
-		projectionsnapshot.ProjectionNotificationVisibilityKey,
+		notificationDecisions,
+		projectionsnapshot.ProjectionNotificationDecisionsKey,
 		"Notification Decisions",
-		notificationVisibility.adminProjectionEstimate,
+		notificationDecisions.adminProjectionEstimate,
 		sharedSnapshots,
 	)
 
@@ -312,10 +312,10 @@ func configureProjectionSnapshots(
 			continue
 		}
 		source := events.ProjectionSnapshotSource(projectionSnapshotSource{repository: infra.snapshotRepository})
-		if registration.key == projectionsnapshot.ProjectionNotificationVisibilityKey {
-			source = cappedNotificationVisibilitySnapshotSource{
+		if registration.key == projectionsnapshot.ProjectionNotificationDecisionsKey {
+			source = cappedNotificationDecisionSnapshotSource{
 				source:     source,
-				projection: projections.notificationVisibility.Projection(),
+				projection: projections.notificationDecisions.Projection(),
 			}
 		}
 		if err := registration.projector.ConfigureSnapshots(
@@ -331,8 +331,8 @@ func configureProjectionSnapshots(
 			projectionKey: registration.key,
 			streamName:    registration.streamName,
 		}
-		if registration.key == projectionsnapshot.ProjectionNotificationVisibilityKey {
-			job.allowPublication = projections.notificationVisibility.Projection().AllowSnapshotPublication
+		if registration.key == projectionsnapshot.ProjectionNotificationDecisionsKey {
+			job.allowPublication = projections.notificationDecisions.Projection().AllowSnapshotPublication
 		}
 		projections.snapshotJobs = append(projections.snapshotJobs, job)
 		registration.snapshotEnabled = true

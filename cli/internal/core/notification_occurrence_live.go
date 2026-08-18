@@ -12,7 +12,7 @@ func (c *ChattoCore) publishNotificationOccurrenceChanged(ctx context.Context, o
 		return
 	}
 	alert := created && occurrence.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT &&
-		occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD &&
+		occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD &&
 		occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING &&
 		!c.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId())
 	event := newLiveEvent(occurrence.GetActorId(), &corev1.LiveEvent{

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-17
+**Last reviewed:** 2026-08-18
 
 > **Implementation status:** Implemented for the upcoming 0.5.0 release by
 > [#1556](https://github.com/chattocorp/chatto/issues/1556), with a clean
@@ -132,7 +132,7 @@ preferences, and thread state at the source event's exact position. Later
 membership, preference, or follow changes cannot rewrite that source-time
 decision. No notification-only fact is added to `EVT`.
 
-The shared `chatto-notification-materializer-v3` durable consumer appends rich
+The shared `chatto-notification-materializer-v1` durable consumer appends rich
 `NotificationSignalled` facts to the bounded `NOTIFICATIONS` stream and applies
 lifecycle cleanup in source order. It acknowledges a source only after the
 idempotent output succeeds, so a crash or partial write is retried without a
@@ -144,7 +144,7 @@ markers prevent a quick regain from preserving pre-loss content. The current
 list is a replayable in-memory projection of `NOTIFICATIONS` with encrypted
 snapshots, not a per-occurrence KV index.
 
-The `chatto-notification-alert-delivery-v2` durable consumer reads
+The `chatto-notification-alert-delivery-v1` durable consumer reads
 `notifications.signalled` from that same stream. Before provider delivery it
 waits for the notification projection, fences materialization and current
 policy, then revalidates unread state, target/reaction visibility, subscription

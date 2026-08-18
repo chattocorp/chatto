@@ -820,7 +820,7 @@ func TestDMNotifications(t *testing.T) {
 			t.Error("Expected to receive DM notification for user2")
 		}
 		occurrences := testNotificationOccurrences(t, core, user2.Id)
-		if len(occurrences) != 1 || !testOccurrenceHasReason(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE) {
+		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE) {
 			t.Fatalf("DM occurrences = %+v, want one direct-message occurrence", occurrences)
 		}
 	})

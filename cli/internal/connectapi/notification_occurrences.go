@@ -156,7 +156,7 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 		if summary.nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(summary.nextExpiryAt.AsTime()) {
 			summary.nextExpiryAt = occurrence.GetExpiresAt()
 		}
-		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		if occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 			summary.unreadCount++
 			important := core.NotificationOccurrenceAttentionLevel(occurrence) == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
 			if important {

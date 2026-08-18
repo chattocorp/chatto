@@ -146,7 +146,7 @@ func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, 
 		Signal:         signal,
 		Intensity:      apiv1.NotificationDeliveryIntensity(occurrence.GetIntensity()),
 		AttentionLevel: apiv1.NotificationAttentionLevel(core.NotificationOccurrenceAttentionLevel(occurrence)),
-		Unread:         occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		Unread:         occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
 		ExpiresAt:      occurrence.GetExpiresAt(),
 	}, nil
 }

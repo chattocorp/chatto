@@ -21,7 +21,7 @@ const (
 	// The durable name and its filter set form one schema-capability
 	// generation. Adding a source event that older binaries cannot decode must
 	// use a new consumer name so those binaries cannot acknowledge its work.
-	notificationWorkerConsumerName = "chatto-notification-materializer-v3"
+	notificationWorkerConsumerName = "chatto-notification-materializer-v1"
 	notificationWorkerAckWait      = time.Minute
 	notificationWorkerHeartbeat    = 15 * time.Second
 	notificationWorkerRetryDelay   = 10 * time.Second
@@ -40,7 +40,7 @@ var errUnsupportedNotificationEvent = errors.New("unsupported notification event
 // planning events and RUNTIME_STATE contains no notification work queue.
 type NotificationMaterializer struct {
 	core                      *ChattoCore
-	visibility                events.ProjectionHandle[*NotificationVisibilityProjection]
+	decisions                 events.ProjectionHandle[*NotificationDecisionProjection]
 	assignConfiguredOwnerRole func(context.Context, string) error
 	pollEvery                 time.Duration
 	ready                     chan struct{}
@@ -48,10 +48,10 @@ type NotificationMaterializer struct {
 	consumerInfoMu            sync.Mutex
 }
 
-func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionHandle[*NotificationVisibilityProjection]) *NotificationMaterializer {
+func NewNotificationMaterializer(core *ChattoCore, decisions events.ProjectionHandle[*NotificationDecisionProjection]) *NotificationMaterializer {
 	materializer := &NotificationMaterializer{
-		core:       core,
-		visibility: visibility,
+		core:      core,
+		decisions: decisions,
 		assignConfiguredOwnerRole: func(ctx context.Context, userID string) error {
 			return core.AssignServerRoleToExistingUser(ctx, SystemActorID, userID, RoleOwner)
 		},
@@ -62,7 +62,7 @@ func NewNotificationMaterializer(core *ChattoCore, visibility events.ProjectionH
 }
 
 // Initialize creates the DeliverNew consumer before projectors start. Its
-// acknowledged floor caps visibility snapshot restore, ensuring every pending
+// acknowledged floor caps decision-state snapshot restore, ensuring every pending
 // administrative fact is replayed into an exact event-time boundary.
 func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	consumer, err := m.createConsumer(ctx)
@@ -84,7 +84,7 @@ func (m *NotificationMaterializer) Initialize(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("reconstruct notification consumer initialization floor: %w", err)
 	}
-	m.visibility.Projection().SetAcknowledgedThrough(processed)
+	m.decisions.Projection().SetAcknowledgedThrough(processed)
 	m.consumer = consumer
 	close(m.ready)
 	return nil
@@ -129,27 +129,27 @@ func (m *NotificationMaterializer) Run(ctx context.Context) error {
 		case <-ctx.Done():
 			return <-workerDone
 		case <-ticker.C:
-			m.releaseAcknowledgedVisibilityBoundaries(ctx)
+			m.releaseAcknowledgedDecisionBoundaries(ctx)
 		}
 	}
 }
 
-func (m *NotificationMaterializer) releaseAcknowledgedVisibilityBoundaries(ctx context.Context) {
+func (m *NotificationMaterializer) releaseAcknowledgedDecisionBoundaries(ctx context.Context) {
 	// Capture the tail before consumer state, matching initialization. If the
 	// later consumer read is idle, every worker fact through this earlier tail
 	// is confirmed; a fact racing after the tail remains beyond the safe floor.
 	tail, err := m.eventStreamTail(ctx)
 	if err != nil {
-		m.core.logger.Warn("Failed to read EVT tail for visibility cleanup", "error", err)
+		m.core.logger.Warn("Failed to read EVT tail for notification decision cleanup", "error", err)
 		return
 	}
 	info, err := m.consumerInfo(ctx)
 	if err != nil {
-		m.core.logger.Warn("Failed to read notification worker floor for visibility cleanup", "error", err)
+		m.core.logger.Warn("Failed to read notification worker floor for decision cleanup", "error", err)
 		return
 	}
-	if err := m.visibility.Projection().ReleaseThrough(notificationAcknowledgedThrough(tail, info)); err != nil {
-		m.core.logger.Warn("Failed to compact acknowledged notification visibility boundaries", "error", err)
+	if err := m.decisions.Projection().ReleaseThrough(notificationAcknowledgedThrough(tail, info)); err != nil {
+		m.core.logger.Warn("Failed to compact acknowledged notification decision boundaries", "error", err)
 	}
 }
 
@@ -182,7 +182,7 @@ func (m *NotificationMaterializer) eventStreamTail(ctx context.Context) (uint64,
 // notificationAcknowledgedThrough returns a race-safe full-EVT floor for the
 // filtered consumer. When the later consumer read is idle, no matching fact at
 // or below the earlier tail can still be outstanding. Otherwise AckFloor is the
-// only confirmed bound, including when the pending fact is not a visibility
+// only confirmed bound, including when the pending fact is not a decision
 // boundary itself.
 func notificationAcknowledgedThrough(tail uint64, info *jetstream.ConsumerInfo) uint64 {
 	if info.NumPending == 0 && info.NumAckPending == 0 {
@@ -375,7 +375,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	// Waiting for all deliveries means AdvanceThrough can consume every
 	// intervening policy/membership/thread delta before moving its lagging
 	// evaluator to this exact EVT sequence.
-	if err := m.visibility.Projector().WaitFor(ctx, position); err != nil {
+	if err := m.decisions.Projector().WaitFor(ctx, position); err != nil {
 		return fmt.Errorf("wait for notification decision projection: %w", err)
 	}
 	switch event.GetEvent().(type) {
@@ -404,7 +404,7 @@ func (m *NotificationMaterializer) processDelivery(ctx context.Context, delivery
 	if err := m.materializeEvent(ctx, &event, delivery.StreamSequence); err != nil {
 		return err
 	}
-	if err := m.visibility.Projection().AdvanceThrough(delivery.StreamSequence); err != nil {
+	if err := m.decisions.Projection().AdvanceThrough(delivery.StreamSequence); err != nil {
 		return fmt.Errorf("advance notification decision evaluator: %w", err)
 	}
 	return nil
@@ -436,7 +436,7 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		if streamSequence == 0 {
 			return invalidArgument("notification materialization requires an EVT stream sequence")
 		}
-		return m.removeReactionWithoutPreparedWork(ctx, event, payload.ReactionRemoved, streamSequence)
+		return m.removeReaction(ctx, event, payload.ReactionRemoved, streamSequence)
 	case *corev1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED)
 		return err
@@ -568,7 +568,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	if len(entriesByPair) == 0 {
 		return nil
 	}
-	snapshot, err := m.visibility.Projection().Boundary(streamSequence, visibilityAt)
+	snapshot, err := m.decisions.Projection().Boundary(streamSequence, visibilityAt)
 	if err != nil {
 		return err
 	}
@@ -591,7 +591,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 	return nil
 }
 
-func (m *NotificationMaterializer) removeReactionWithoutPreparedWork(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionRemovedEvent, streamSequence uint64) error {
+func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionRemovedEvent, streamSequence uint64) error {
 	room, err := m.core.FindRoomByID(ctx, reaction.GetRoomId())
 	if errors.Is(err, ErrNotFound) {
 		return nil
@@ -629,7 +629,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if _, retracted, known := m.core.roomModel.latestBody(event.GetId()); known && retracted {
 		return nil
 	}
-	snapshot, err := m.visibility.Projection().Boundary(streamSequence, evaluatedAt)
+	snapshot, err := m.decisions.Projection().Boundary(streamSequence, evaluatedAt)
 	if err != nil {
 		return err
 	}
@@ -660,7 +660,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	if !current.Exists || current.SourceEventID != event.GetId() {
 		return nil
 	}
-	snapshot, err := m.visibility.Projection().Boundary(streamSequence, evaluatedAt)
+	snapshot, err := m.decisions.Projection().Boundary(streamSequence, evaluatedAt)
 	if err != nil {
 		return err
 	}

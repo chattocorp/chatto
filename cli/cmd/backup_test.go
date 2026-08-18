@@ -491,7 +491,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 		t.Fatal("Failed to create notification stream:", err)
 	}
 	if _, err := notifications.CreateConsumer(ctx, jetstream.ConsumerConfig{
-		Name: "chatto-notification-alert-delivery-v2", Durable: "chatto-notification-alert-delivery-v2",
+		Name: "chatto-notification-alert-delivery-v1", Durable: "chatto-notification-alert-delivery-v1",
 		FilterSubject: "notifications.signalled", AckPolicy: jetstream.AckExplicitPolicy,
 	}); err != nil {
 		t.Fatal("Failed to create notification consumer:", err)
@@ -706,7 +706,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatal("Failed to open restored notification stream:", err)
 	}
-	restoredNotificationConsumer, err := restoredNotifications.Consumer(ctx, "chatto-notification-alert-delivery-v2")
+	restoredNotificationConsumer, err := restoredNotifications.Consumer(ctx, "chatto-notification-alert-delivery-v1")
 	if err != nil {
 		t.Fatal("Failed to open restored notification consumer:", err)
 	}

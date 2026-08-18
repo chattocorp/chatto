@@ -32,8 +32,8 @@ function occurrence(
     eventId: `event-${id}`,
     threadRootId: null,
     parentEventId: null,
-    reasons: [reason],
-    reasonMatches: [],
+    signalKind: reason,
+    targetSupported: true,
     attentionLevel:
       reason === NotificationPolicyKind.REACTION
         ? NotificationAttentionLevel.AMBIENT
@@ -48,9 +48,7 @@ describe('groupNotificationOccurrences', () => {
   it('keeps separate message jump targets separate while grouping direct messages by room', () => {
     const groups = groupNotificationOccurrences([
       occurrence('mention-a', NotificationPolicyKind.DIRECT_MENTION),
-      occurrence('mention-b', NotificationPolicyKind.DIRECT_MENTION, {
-        reasons: [NotificationPolicyKind.DIRECT_MENTION, NotificationPolicyKind.FOLLOWED_ROOM]
-      }),
+      occurrence('mention-b', NotificationPolicyKind.DIRECT_MENTION),
       occurrence('dm-a', NotificationPolicyKind.DIRECT_MESSAGE),
       occurrence('dm-b', NotificationPolicyKind.DIRECT_MESSAGE)
     ]);
@@ -92,7 +90,6 @@ describe('groupNotificationOccurrences', () => {
   it('keeps replies exact even when followed-thread policy also matched', () => {
     const replies = ['reply-a', 'reply-b'].map((id) =>
       occurrence(id, NotificationPolicyKind.REPLY, {
-        reasons: [NotificationPolicyKind.REPLY, NotificationPolicyKind.FOLLOWED_THREAD],
         threadRootId: 'thread'
       })
     );

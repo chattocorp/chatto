@@ -60,20 +60,20 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureSignal(t *testi
 
 func TestNotificationSummaryCountsAttentionAcrossCompleteOccurrenceSet(t *testing.T) {
 	expires := timestamppb.New(time.Now().Add(time.Hour))
-	occurrence := func(roomID string, state corev1.NotificationInboxState, level corev1.NotificationAttentionLevel, reason corev1.NotificationPolicyKind) *corev1.NotificationOccurrence {
+	occurrence := func(roomID string, state corev1.NotificationReadState, level corev1.NotificationAttentionLevel, reason corev1.NotificationPolicyKind) *corev1.NotificationOccurrence {
 		return &corev1.NotificationOccurrence{
 			Signal:         testNotificationSignal(reason, roomID, "event"),
-			InboxState:     state,
+			ReadState:      state,
 			AttentionLevel: level,
 			ExpiresAt:      expires,
 		}
 	}
 
 	summary := notificationSummary([]*corev1.NotificationOccurrence{
-		occurrence("room-a", corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION),
-		occurrence("room-a", corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION),
-		occurrence("room-b", corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY),
-		occurrence("room-b", corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY),
+		occurrence("room-a", corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION),
+		occurrence("room-a", corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION),
+		occurrence("room-b", corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY),
+		occurrence("room-b", corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ, corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY),
 	})
 
 	if summary.unreadCount != 3 || summary.importantUnreadCount != 2 {

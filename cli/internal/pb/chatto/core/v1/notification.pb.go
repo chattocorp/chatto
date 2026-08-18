@@ -201,53 +201,53 @@ func (NotificationAttentionLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{2}
 }
 
-// NotificationInboxState is the projected attention state.
-type NotificationInboxState int32
+// NotificationReadState is the projected read state.
+type NotificationReadState int32
 
 const (
-	NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED NotificationInboxState = 0
-	NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD      NotificationInboxState = 1
-	NotificationInboxState_NOTIFICATION_INBOX_STATE_READ        NotificationInboxState = 2
+	NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED NotificationReadState = 0
+	NotificationReadState_NOTIFICATION_READ_STATE_UNREAD      NotificationReadState = 1
+	NotificationReadState_NOTIFICATION_READ_STATE_READ        NotificationReadState = 2
 )
 
-// Enum value maps for NotificationInboxState.
+// Enum value maps for NotificationReadState.
 var (
-	NotificationInboxState_name = map[int32]string{
-		0: "NOTIFICATION_INBOX_STATE_UNSPECIFIED",
-		1: "NOTIFICATION_INBOX_STATE_UNREAD",
-		2: "NOTIFICATION_INBOX_STATE_READ",
+	NotificationReadState_name = map[int32]string{
+		0: "NOTIFICATION_READ_STATE_UNSPECIFIED",
+		1: "NOTIFICATION_READ_STATE_UNREAD",
+		2: "NOTIFICATION_READ_STATE_READ",
 	}
-	NotificationInboxState_value = map[string]int32{
-		"NOTIFICATION_INBOX_STATE_UNSPECIFIED": 0,
-		"NOTIFICATION_INBOX_STATE_UNREAD":      1,
-		"NOTIFICATION_INBOX_STATE_READ":        2,
+	NotificationReadState_value = map[string]int32{
+		"NOTIFICATION_READ_STATE_UNSPECIFIED": 0,
+		"NOTIFICATION_READ_STATE_UNREAD":      1,
+		"NOTIFICATION_READ_STATE_READ":        2,
 	}
 )
 
-func (x NotificationInboxState) Enum() *NotificationInboxState {
-	p := new(NotificationInboxState)
+func (x NotificationReadState) Enum() *NotificationReadState {
+	p := new(NotificationReadState)
 	*p = x
 	return p
 }
 
-func (x NotificationInboxState) String() string {
+func (x NotificationReadState) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (NotificationInboxState) Descriptor() protoreflect.EnumDescriptor {
+func (NotificationReadState) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_core_v1_notification_proto_enumTypes[3].Descriptor()
 }
 
-func (NotificationInboxState) Type() protoreflect.EnumType {
+func (NotificationReadState) Type() protoreflect.EnumType {
 	return &file_chatto_core_v1_notification_proto_enumTypes[3]
 }
 
-func (x NotificationInboxState) Number() protoreflect.EnumNumber {
+func (x NotificationReadState) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use NotificationInboxState.Descriptor instead.
-func (NotificationInboxState) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use NotificationReadState.Descriptor instead.
+func (NotificationReadState) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{3}
 }
 
@@ -319,8 +319,8 @@ const (
 	NotificationAlertState_NOTIFICATION_ALERT_STATE_UNSPECIFIED    NotificationAlertState = 0
 	NotificationAlertState_NOTIFICATION_ALERT_STATE_NOT_APPLICABLE NotificationAlertState = 1
 	NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING        NotificationAlertState = 2
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED      NotificationAlertState = 4
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED       NotificationAlertState = 5
+	NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED      NotificationAlertState = 3
+	NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED       NotificationAlertState = 4
 )
 
 // Enum value maps for NotificationAlertState.
@@ -329,15 +329,15 @@ var (
 		0: "NOTIFICATION_ALERT_STATE_UNSPECIFIED",
 		1: "NOTIFICATION_ALERT_STATE_NOT_APPLICABLE",
 		2: "NOTIFICATION_ALERT_STATE_PENDING",
-		4: "NOTIFICATION_ALERT_STATE_DELIVERED",
-		5: "NOTIFICATION_ALERT_STATE_SILENCED",
+		3: "NOTIFICATION_ALERT_STATE_DELIVERED",
+		4: "NOTIFICATION_ALERT_STATE_SILENCED",
 	}
 	NotificationAlertState_value = map[string]int32{
 		"NOTIFICATION_ALERT_STATE_UNSPECIFIED":    0,
 		"NOTIFICATION_ALERT_STATE_NOT_APPLICABLE": 1,
 		"NOTIFICATION_ALERT_STATE_PENDING":        2,
-		"NOTIFICATION_ALERT_STATE_DELIVERED":      4,
-		"NOTIFICATION_ALERT_STATE_SILENCED":       5,
+		"NOTIFICATION_ALERT_STATE_DELIVERED":      3,
+		"NOTIFICATION_ALERT_STATE_SILENCED":       4,
 	}
 )
 
@@ -1468,24 +1468,24 @@ type NotificationOccurrence struct {
 	SourceCreatedAt *timestamppb.Timestamp        `protobuf:"bytes,4,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
 	ActorId         string                        `protobuf:"bytes,5,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
 	Signal          *NotificationSignal           `protobuf:"bytes,6,opt,name=signal,proto3" json:"signal,omitempty"`
-	Intensity       NotificationDeliveryIntensity `protobuf:"varint,8,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
-	InboxState      NotificationInboxState        `protobuf:"varint,9,opt,name=inbox_state,json=inboxState,proto3,enum=chatto.core.v1.NotificationInboxState" json:"inbox_state,omitempty"`
-	EvaluatedAt     *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
-	UpdatedAt       *timestamppb.Timestamp        `protobuf:"bytes,12,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	ExpiresAt       *timestamppb.Timestamp        `protobuf:"bytes,13,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	AlertState      NotificationAlertState        `protobuf:"varint,16,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
+	Intensity       NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
+	ReadState       NotificationReadState         `protobuf:"varint,8,opt,name=read_state,json=readState,proto3,enum=chatto.core.v1.NotificationReadState" json:"read_state,omitempty"`
+	EvaluatedAt     *timestamppb.Timestamp        `protobuf:"bytes,9,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	UpdatedAt       *timestamppb.Timestamp        `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
+	ExpiresAt       *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	AlertState      NotificationAlertState        `protobuf:"varint,12,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
 	// Internal EVT stream position of the source fact. Used for causal lifecycle
 	// cleanup and read-boundary reconciliation; never exposed through the public
 	// API.
-	SourceStreamSequence uint64 `protobuf:"varint,18,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	SourceStreamSequence uint64 `protobuf:"varint,13,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
 	// Source-time visual importance.
-	AttentionLevel NotificationAttentionLevel `protobuf:"varint,19,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	AttentionLevel NotificationAttentionLevel `protobuf:"varint,14,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	// Immutable interruptive-delivery deadline derived from source_created_at.
-	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,20,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
+	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	// Sequence of the NotificationSignalled record in NOTIFICATIONS. This is
 	// retained only by projections so explicit dismissal can remove the rich
 	// source record after the dismissal event becomes visible.
-	NotificationStreamSequence uint64 `protobuf:"varint,21,opt,name=notification_stream_sequence,json=notificationStreamSequence,proto3" json:"notification_stream_sequence,omitempty"`
+	NotificationStreamSequence uint64 `protobuf:"varint,16,opt,name=notification_stream_sequence,json=notificationStreamSequence,proto3" json:"notification_stream_sequence,omitempty"`
 	unknownFields              protoimpl.UnknownFields
 	sizeCache                  protoimpl.SizeCache
 }
@@ -1569,11 +1569,11 @@ func (x *NotificationOccurrence) GetIntensity() NotificationDeliveryIntensity {
 	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 }
 
-func (x *NotificationOccurrence) GetInboxState() NotificationInboxState {
+func (x *NotificationOccurrence) GetReadState() NotificationReadState {
 	if x != nil {
-		return x.InboxState
+		return x.ReadState
 	}
-	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
+	return NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED
 }
 
 func (x *NotificationOccurrence) GetEvaluatedAt() *timestamppb.Timestamp {
@@ -1635,19 +1635,19 @@ func (x *NotificationOccurrence) GetNotificationStreamSequence() uint64 {
 // NotificationSignalled is the immutable source-time fact from which the
 // current NotificationOccurrence is projected.
 type NotificationSignalled struct {
-	state             protoimpl.MessageState        `protogen:"open.v1"`
-	NotificationId    string                        `protobuf:"bytes,2,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	SourceEventId     string                        `protobuf:"bytes,3,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	SourceCreatedAt   *timestamppb.Timestamp        `protobuf:"bytes,4,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
-	ActorId           string                        `protobuf:"bytes,5,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	Signal            *NotificationSignal           `protobuf:"bytes,6,opt,name=signal,proto3" json:"signal,omitempty"`
-	Intensity         NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
-	InitialInboxState NotificationInboxState        `protobuf:"varint,8,opt,name=initial_inbox_state,json=initialInboxState,proto3,enum=chatto.core.v1.NotificationInboxState" json:"initial_inbox_state,omitempty"`
-	EvaluatedAt       *timestamppb.Timestamp        `protobuf:"bytes,9,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	state            protoimpl.MessageState        `protogen:"open.v1"`
+	NotificationId   string                        `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	SourceEventId    string                        `protobuf:"bytes,2,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	SourceCreatedAt  *timestamppb.Timestamp        `protobuf:"bytes,3,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
+	ActorId          string                        `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Signal           *NotificationSignal           `protobuf:"bytes,5,opt,name=signal,proto3" json:"signal,omitempty"`
+	Intensity        NotificationDeliveryIntensity `protobuf:"varint,6,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
+	InitialReadState NotificationReadState         `protobuf:"varint,7,opt,name=initial_read_state,json=initialReadState,proto3,enum=chatto.core.v1.NotificationReadState" json:"initial_read_state,omitempty"`
+	EvaluatedAt      *timestamppb.Timestamp        `protobuf:"bytes,8,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
 	// Internal EVT position used only for causal visibility reconciliation.
-	SourceStreamSequence uint64                     `protobuf:"varint,10,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
-	AttentionLevel       NotificationAttentionLevel `protobuf:"varint,11,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
-	AlertExpiresAt       *timestamppb.Timestamp     `protobuf:"bytes,12,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
+	SourceStreamSequence uint64                     `protobuf:"varint,9,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	AttentionLevel       NotificationAttentionLevel `protobuf:"varint,10,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	AlertExpiresAt       *timestamppb.Timestamp     `protobuf:"bytes,11,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1724,11 +1724,11 @@ func (x *NotificationSignalled) GetIntensity() NotificationDeliveryIntensity {
 	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
 }
 
-func (x *NotificationSignalled) GetInitialInboxState() NotificationInboxState {
+func (x *NotificationSignalled) GetInitialReadState() NotificationReadState {
 	if x != nil {
-		return x.InitialInboxState
+		return x.InitialReadState
 	}
-	return NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED
+	return NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED
 }
 
 func (x *NotificationSignalled) GetEvaluatedAt() *timestamppb.Timestamp {
@@ -2156,7 +2156,7 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x18followed_thread_activity\x18\a \x01(\v2&.chatto.core.v1.FollowedThreadActivityH\x00R\x16followedThreadActivity\x12\\\n" +
 	"\x16followed_room_activity\x18\b \x01(\v2$.chatto.core.v1.FollowedRoomActivityH\x00R\x14followedRoomActivity\x12O\n" +
 	"\x11reaction_received\x18\t \x01(\v2 .chatto.core.v1.ReactionReceivedH\x00R\x10reactionReceivedB\x06\n" +
-	"\x04kind\"\xa1\b\n" +
+	"\x04kind\"\xb6\a\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
@@ -2164,35 +2164,34 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x11source_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
 	"\bactor_id\x18\x05 \x01(\tR\aactorId\x12:\n" +
 	"\x06signal\x18\x06 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12K\n" +
-	"\tintensity\x18\b \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12G\n" +
-	"\vinbox_state\x18\t \x01(\x0e2&.chatto.core.v1.NotificationInboxStateR\n" +
-	"inboxState\x12=\n" +
-	"\fevaluated_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x129\n" +
+	"\tintensity\x18\a \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12D\n" +
 	"\n" +
-	"updated_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
+	"read_state\x18\b \x01(\x0e2%.chatto.core.v1.NotificationReadStateR\treadState\x12=\n" +
+	"\fevaluated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x129\n" +
 	"\n" +
-	"expires_at\x18\r \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12G\n" +
-	"\valert_state\x18\x10 \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\n" +
+	"updated_at\x18\n" +
+	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
+	"\n" +
+	"expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12G\n" +
+	"\valert_state\x18\f \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\n" +
 	"alertState\x124\n" +
-	"\x16source_stream_sequence\x18\x12 \x01(\x04R\x14sourceStreamSequence\x12S\n" +
-	"\x0fattention_level\x18\x13 \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
-	"\x10alert_expires_at\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\x12@\n" +
-	"\x1cnotification_stream_sequence\x18\x15 \x01(\x04R\x1anotificationStreamSequenceJ\x04\b\a\x10\bJ\x04\b\n" +
-	"\x10\vJ\x04\b\x0e\x10\x0fJ\x04\b\x0f\x10\x10J\x04\b\x11\x10\x12R\areasonsR\x0ereaction_emojiR\x0eremoval_reasonR\n" +
-	"removed_atR\x13alert_claimed_until\"\xd0\x05\n" +
+	"\x16source_stream_sequence\x18\r \x01(\x04R\x14sourceStreamSequence\x12S\n" +
+	"\x0fattention_level\x18\x0e \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
+	"\x10alert_expires_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\x12@\n" +
+	"\x1cnotification_stream_sequence\x18\x10 \x01(\x04R\x1anotificationStreamSequence\"\xb9\x05\n" +
 	"\x15NotificationSignalled\x12'\n" +
-	"\x0fnotification_id\x18\x02 \x01(\tR\x0enotificationId\x12&\n" +
-	"\x0fsource_event_id\x18\x03 \x01(\tR\rsourceEventId\x12F\n" +
-	"\x11source_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
-	"\bactor_id\x18\x05 \x01(\tR\aactorId\x12:\n" +
-	"\x06signal\x18\x06 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12K\n" +
-	"\tintensity\x18\a \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12V\n" +
-	"\x13initial_inbox_state\x18\b \x01(\x0e2&.chatto.core.v1.NotificationInboxStateR\x11initialInboxState\x12=\n" +
-	"\fevaluated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x124\n" +
-	"\x16source_stream_sequence\x18\n" +
-	" \x01(\x04R\x14sourceStreamSequence\x12S\n" +
-	"\x0fattention_level\x18\v \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
-	"\x10alert_expires_at\x18\f \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAtJ\x04\b\x01\x10\x02R\fnotification\"p\n" +
+	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12&\n" +
+	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x12F\n" +
+	"\x11source_created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
+	"\bactor_id\x18\x04 \x01(\tR\aactorId\x12:\n" +
+	"\x06signal\x18\x05 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12K\n" +
+	"\tintensity\x18\x06 \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12S\n" +
+	"\x12initial_read_state\x18\a \x01(\x0e2%.chatto.core.v1.NotificationReadStateR\x10initialReadState\x12=\n" +
+	"\fevaluated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x124\n" +
+	"\x16source_stream_sequence\x18\t \x01(\x04R\x14sourceStreamSequence\x12S\n" +
+	"\x0fattention_level\x18\n" +
+	" \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
+	"\x10alert_expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\"p\n" +
 	"\x10NotificationRead\x12'\n" +
 	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x123\n" +
 	"\aread_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\"\xf8\x01\n" +
@@ -2237,24 +2236,24 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +
-	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02*\xaf\x01\n" +
-	"\x16NotificationInboxState\x12(\n" +
-	"$NOTIFICATION_INBOX_STATE_UNSPECIFIED\x10\x00\x12#\n" +
-	"\x1fNOTIFICATION_INBOX_STATE_UNREAD\x10\x01\x12!\n" +
-	"\x1dNOTIFICATION_INBOX_STATE_READ\x10\x02\"\x04\b\x03\x10\x03*\x1dNOTIFICATION_INBOX_STATE_DONE*\xb7\x02\n" +
+	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02*\x86\x01\n" +
+	"\x15NotificationReadState\x12'\n" +
+	"#NOTIFICATION_READ_STATE_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eNOTIFICATION_READ_STATE_UNREAD\x10\x01\x12 \n" +
+	"\x1cNOTIFICATION_READ_STATE_READ\x10\x02*\xb7\x02\n" +
 	"\x19NotificationRemovalReason\x12+\n" +
 	"'NOTIFICATION_REMOVAL_REASON_UNSPECIFIED\x10\x00\x12'\n" +
 	"#NOTIFICATION_REMOVAL_REASON_DELETED\x10\x01\x120\n" +
 	",NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED\x10\x02\x120\n" +
 	",NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED\x10\x03\x12/\n" +
 	"+NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST\x10\x04\x12/\n" +
-	"+NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED\x10\x05*\x8c\x02\n" +
+	"+NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED\x10\x05*\xe4\x01\n" +
 	"\x16NotificationAlertState\x12(\n" +
 	"$NOTIFICATION_ALERT_STATE_UNSPECIFIED\x10\x00\x12+\n" +
 	"'NOTIFICATION_ALERT_STATE_NOT_APPLICABLE\x10\x01\x12$\n" +
 	" NOTIFICATION_ALERT_STATE_PENDING\x10\x02\x12&\n" +
-	"\"NOTIFICATION_ALERT_STATE_DELIVERED\x10\x04\x12%\n" +
-	"!NOTIFICATION_ALERT_STATE_SILENCED\x10\x05\"\x04\b\x03\x10\x03* NOTIFICATION_ALERT_STATE_CLAIMEDB\xb4\x01\n" +
+	"\"NOTIFICATION_ALERT_STATE_DELIVERED\x10\x03\x12%\n" +
+	"!NOTIFICATION_ALERT_STATE_SILENCED\x10\x04B\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11NotificationProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -2275,7 +2274,7 @@ var file_chatto_core_v1_notification_proto_goTypes = []any{
 	(NotificationPolicyKind)(0),          // 0: chatto.core.v1.NotificationPolicyKind
 	(NotificationDeliveryIntensity)(0),   // 1: chatto.core.v1.NotificationDeliveryIntensity
 	(NotificationAttentionLevel)(0),      // 2: chatto.core.v1.NotificationAttentionLevel
-	(NotificationInboxState)(0),          // 3: chatto.core.v1.NotificationInboxState
+	(NotificationReadState)(0),           // 3: chatto.core.v1.NotificationReadState
 	(NotificationRemovalReason)(0),       // 4: chatto.core.v1.NotificationRemovalReason
 	(NotificationAlertState)(0),          // 5: chatto.core.v1.NotificationAlertState
 	(*Notification)(nil),                 // 6: chatto.core.v1.Notification
@@ -2329,7 +2328,7 @@ var file_chatto_core_v1_notification_proto_depIdxs = []int32{
 	28, // 23: chatto.core.v1.NotificationOccurrence.source_created_at:type_name -> google.protobuf.Timestamp
 	21, // 24: chatto.core.v1.NotificationOccurrence.signal:type_name -> chatto.core.v1.NotificationSignal
 	1,  // 25: chatto.core.v1.NotificationOccurrence.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
-	3,  // 26: chatto.core.v1.NotificationOccurrence.inbox_state:type_name -> chatto.core.v1.NotificationInboxState
+	3,  // 26: chatto.core.v1.NotificationOccurrence.read_state:type_name -> chatto.core.v1.NotificationReadState
 	28, // 27: chatto.core.v1.NotificationOccurrence.evaluated_at:type_name -> google.protobuf.Timestamp
 	28, // 28: chatto.core.v1.NotificationOccurrence.updated_at:type_name -> google.protobuf.Timestamp
 	28, // 29: chatto.core.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
@@ -2339,7 +2338,7 @@ var file_chatto_core_v1_notification_proto_depIdxs = []int32{
 	28, // 33: chatto.core.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
 	21, // 34: chatto.core.v1.NotificationSignalled.signal:type_name -> chatto.core.v1.NotificationSignal
 	1,  // 35: chatto.core.v1.NotificationSignalled.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
-	3,  // 36: chatto.core.v1.NotificationSignalled.initial_inbox_state:type_name -> chatto.core.v1.NotificationInboxState
+	3,  // 36: chatto.core.v1.NotificationSignalled.initial_read_state:type_name -> chatto.core.v1.NotificationReadState
 	28, // 37: chatto.core.v1.NotificationSignalled.evaluated_at:type_name -> google.protobuf.Timestamp
 	2,  // 38: chatto.core.v1.NotificationSignalled.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
 	28, // 39: chatto.core.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp

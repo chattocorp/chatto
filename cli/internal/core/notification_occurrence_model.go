@@ -34,7 +34,7 @@ type CreateNotificationOccurrenceInput struct {
 	AttentionLevel       corev1.NotificationAttentionLevel
 	SourceStreamSequence uint64
 	EvaluatedAt          time.Time
-	InitialState         corev1.NotificationInboxState
+	InitialReadState     corev1.NotificationReadState
 	SkipReadLookup       bool
 }
 
@@ -358,9 +358,9 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		return nil, false, err
 	}
 
-	state := input.InitialState
-	if state == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED {
-		state = corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD
+	state := input.InitialReadState
+	if state == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED {
+		state = corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD
 	}
 	attention := input.AttentionLevel
 	if attention == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED {
@@ -388,7 +388,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		ActorId:              input.ActorID,
 		Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
 		Intensity:            input.Intensity,
-		InboxState:           state,
+		ReadState:            state,
 		EvaluatedAt:          timestamppb.New(evaluatedAt),
 		UpdatedAt:            timestamppb.New(evaluatedAt),
 		ExpiresAt:            timestamppb.New(expiresAt),
@@ -397,13 +397,13 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 		AttentionLevel:       attention,
 		AlertExpiresAt:       alertExpiresAt,
 	}
-	if !input.SkipReadLookup && occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+	if !input.SkipReadLookup && occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
 		if err != nil {
 			return nil, false, err
 		}
 		if covered {
-			occurrence.InboxState = corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
+			occurrence.ReadState = corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ
 			occurrence.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
 		}
 	}
@@ -419,7 +419,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 			ActorId:              occurrence.GetActorId(),
 			Signal:               occurrence.GetSignal(),
 			Intensity:            occurrence.GetIntensity(),
-			InitialInboxState:    occurrence.GetInboxState(),
+			InitialReadState:     occurrence.GetReadState(),
 			EvaluatedAt:          occurrence.GetEvaluatedAt(),
 			SourceStreamSequence: occurrence.GetSourceStreamSequence(),
 			AttentionLevel:       occurrence.GetAttentionLevel(),
@@ -436,7 +436,7 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 	if err != nil {
 		return nil, false, err
 	}
-	if !input.SkipReadLookup && stored.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+	if !input.SkipReadLookup && stored.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 		covered, err := m.occurrenceCoveredByReadBoundary(ctx, stored)
 		if err != nil {
 			return nil, true, err
@@ -483,7 +483,7 @@ func (m *NotificationOccurrenceModel) UnreadCount(ctx context.Context, userID st
 	}
 	count := 0
 	for _, occurrence := range occurrences {
-		if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		if occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 			count++
 		}
 	}
@@ -495,7 +495,7 @@ func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, noti
 	if err != nil {
 		return nil, err
 	}
-	if occurrence.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
+	if occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ {
 		return occurrence, nil
 	}
 	now := m.now().UTC()
@@ -582,7 +582,7 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	updated := 0
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
-		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 			continue
 		}
 		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
@@ -702,25 +702,6 @@ func (m *NotificationOccurrenceModel) RemoveTarget(ctx context.Context, roomID, 
 	}, reason)
 }
 
-func (m *NotificationOccurrenceModel) RemoveSource(ctx context.Context, userID, sourceEventID string, reason corev1.NotificationRemovalReason) (bool, error) {
-	occurrences, err := m.List(ctx, userID)
-	if err != nil {
-		return false, err
-	}
-	removed := false
-	for _, occurrence := range occurrences {
-		if occurrence.GetSourceEventId() != sourceEventID {
-			continue
-		}
-		ok, err := m.Delete(ctx, userID, occurrence.GetId(), reason)
-		if err != nil {
-			return removed, err
-		}
-		removed = removed || ok
-	}
-	return removed, nil
-}
-
 func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipientID, roomID, messageEventID, actorID, emoji string, removedAtSequence uint64) (int, error) {
 	occurrences, err := m.List(ctx, recipientID)
 	if err != nil {
@@ -827,7 +808,7 @@ func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, 
 	if err != nil {
 		return false, err
 	}
-	return current.GetSourceEventId() == expected.GetSourceEventId() && current.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD && current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING, nil
+	return current.GetSourceEventId() == expected.GetSourceEventId() && current.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD && current.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING, nil
 }
 
 func (m *NotificationOccurrenceModel) completeAlertDelivery(ctx context.Context, occurrence *corev1.NotificationOccurrence, state corev1.NotificationAlertState) error {

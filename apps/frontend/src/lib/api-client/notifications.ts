@@ -33,91 +33,19 @@ export type NotificationActor = {
   } | null;
 };
 
-export const NotificationItemKind = {
-  DirectMessage: 'directMessage',
-  Mention: 'mention',
-  Reply: 'reply',
-  RoomMessage: 'roomMessage',
-  Unsupported: 'unsupported'
-} as const;
-
-export type NotificationItemKind = (typeof NotificationItemKind)[keyof typeof NotificationItemKind];
-
-export type DirectMessageNotificationItem = {
-  kind: typeof NotificationItemKind.DirectMessage;
-  id: string;
-  createdAt: string;
-  actor?: NotificationActor | null;
-  summary: string;
-  room: { id: string };
-  eventId?: string | null;
-};
-
-export type MentionNotificationItem = {
-  kind: typeof NotificationItemKind.Mention;
-  id: string;
-  createdAt: string;
-  actor?: NotificationActor | null;
-  summary: string;
-  mentionRoom: { id: string; name: string } | null;
-  mentionEventId: string;
-  mentionInThread?: string | null;
-};
-
-export type ReplyNotificationItem = {
-  kind: typeof NotificationItemKind.Reply;
-  id: string;
-  createdAt: string;
-  actor?: NotificationActor | null;
-  summary: string;
-  replyRoom: { id: string; name: string } | null;
-  replyEventId: string;
-  inReplyToId: string;
-  replyInThread?: string | null;
-};
-
-export type RoomMessageNotificationItem = {
-  kind: typeof NotificationItemKind.RoomMessage;
-  id: string;
-  createdAt: string;
-  actor?: NotificationActor | null;
-  summary: string;
-  roomMsgRoom: { id: string; name: string } | null;
-  roomMsgEventId: string;
-  roomMsgThreadRootId?: string | null;
-};
-
-export type UnsupportedNotificationItem = {
-  kind: typeof NotificationItemKind.Unsupported;
-  id: string;
-  createdAt: string;
-  actor?: NotificationActor | null;
-  summary: string;
-};
-
-export type NotificationItem =
-  | DirectMessageNotificationItem
-  | MentionNotificationItem
-  | ReplyNotificationItem
-  | RoomMessageNotificationItem
-  | UnsupportedNotificationItem;
-
 export type NotificationOccurrenceItem = {
   id: string;
   sourceEventId: string;
   createdAt: string;
   actor: NotificationActor | null;
-  /** Whether this client understands the target well enough to navigate it. */
-  targetSupported?: boolean;
+  /** Signal class understood by this client, or Unspecified for an additive future signal. */
+  signalKind: NotificationPolicyKind;
+  /** Whether this client understands the signal well enough to navigate it. */
+  targetSupported: boolean;
   room: { id: string; name: string } | null;
   eventId: string;
   threadRootId: string | null;
   parentEventId: string | null;
-  reasons: NotificationPolicyKind[];
-  reasonMatches: Array<{
-    reason: NotificationPolicyKind;
-    intensity: NotificationDeliveryIntensity;
-  }>;
   attentionLevel: NotificationAttentionLevel;
   unread: boolean;
   reactionEmoji?: string | null;
@@ -130,9 +58,7 @@ export type NotificationGroupItem = {
   openTarget: NotificationOccurrenceItem | null;
   unread: boolean;
   attentionLevel: NotificationAttentionLevel;
-  occurrenceCount: number;
   latestAt: string;
-  reasons: NotificationPolicyKind[];
   nextExpiryAt?: string | null;
 };
 
@@ -151,7 +77,7 @@ export type NotificationOccurrencePage = {
 
 export { NotificationAttentionLevel, NotificationDeliveryIntensity, NotificationPolicyKind };
 export type NotificationPolicyItem = {
-  reason: NotificationPolicyKind;
+  kind: NotificationPolicyKind;
   serverIntensity: NotificationDeliveryIntensity;
   roomIntensity: NotificationDeliveryIntensity;
   effectiveIntensity: NotificationDeliveryIntensity;
@@ -180,14 +106,6 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       return notificationOccurrence(response.notification);
     },
 
-    async deleteNotificationOccurrence(notificationId: string): Promise<boolean> {
-      const response = await client.deleteNotificationOccurrence(
-        { notificationId },
-        { headers: headers() }
-      );
-      return response.deleted;
-    },
-
     async batchDeleteNotificationOccurrences(notificationIds: string[]): Promise<number> {
       const uniqueIds = [...new Set(notificationIds)];
       let deletedCount = 0;
@@ -210,7 +128,7 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
       const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
       return response.preferences.map((preference) => ({
-        reason: preference.kind,
+        kind: preference.kind,
         serverIntensity: preference.serverIntensity,
         roomIntensity: preference.roomIntensity,
         effectiveIntensity: preference.effectiveIntensity
@@ -218,16 +136,16 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     },
 
     async setNotificationPolicyPreference(
-      reason: NotificationPolicyKind,
+      kind: NotificationPolicyKind,
       intensity: NotificationDeliveryIntensity,
       roomId?: string
     ): Promise<NotificationPolicyItem[]> {
       const response = await client.setNotificationPolicyPreference(
-        { kind: reason, intensity, roomId },
+        { kind, intensity, roomId },
         { headers: headers() }
       );
       return response.preferences.map((preference) => ({
-        reason: preference.kind,
+        kind: preference.kind,
         serverIntensity: preference.serverIntensity,
         roomIntensity: preference.roomIntensity,
         effectiveIntensity: preference.effectiveIntensity
@@ -269,24 +187,18 @@ export function notificationOccurrence(
   const mapped = notificationSignal(item);
   const target = mapped.message;
   const actor = notificationActor(item.actor);
-  const reasonMatches =
-    mapped.reason === NotificationPolicyKind.UNSPECIFIED
-      ? []
-      : [{ reason: mapped.reason, intensity: item.intensity }];
-  const reasons = reasonMatches.map((match) => match.reason);
   return {
     id: item.id,
     sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
+    signalKind: mapped.kind,
     targetSupported: mapped.supported,
     room: target?.room ? { id: target.room.id, name: target.room.name } : null,
     eventId: target?.eventId ?? '',
     threadRootId: target?.threadRootEventId ?? null,
     parentEventId: target?.parentEventId ?? null,
-    reasons,
-    reasonMatches,
-    attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, reasons),
+    attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, mapped.kind),
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
@@ -295,7 +207,7 @@ export function notificationOccurrence(
 
 function notificationSignal(item: APINotificationOccurrence): {
   supported: boolean;
-  reason: NotificationPolicyKind;
+  kind: NotificationPolicyKind;
   message: NotificationMessageReference | null;
   reactionEmoji: string | null;
 } {
@@ -304,70 +216,70 @@ function notificationSignal(item: APINotificationOccurrence): {
     case 'directMessageReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.DIRECT_MESSAGE,
+        kind: NotificationPolicyKind.DIRECT_MESSAGE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'directMentionReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.DIRECT_MENTION,
+        kind: NotificationPolicyKind.DIRECT_MENTION,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'replyReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.REPLY,
+        kind: NotificationPolicyKind.REPLY,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'roleMentionReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.ROLE_MENTION,
+        kind: NotificationPolicyKind.ROLE_MENTION,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'hereMentionReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.HERE,
+        kind: NotificationPolicyKind.HERE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'allMentionReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.ALL,
+        kind: NotificationPolicyKind.ALL,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'followedThreadActivity':
       return {
         supported: true,
-        reason: NotificationPolicyKind.FOLLOWED_THREAD,
+        kind: NotificationPolicyKind.FOLLOWED_THREAD,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'followedRoomActivity':
       return {
         supported: true,
-        reason: NotificationPolicyKind.FOLLOWED_ROOM,
+        kind: NotificationPolicyKind.FOLLOWED_ROOM,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'reactionReceived':
       return {
         supported: true,
-        reason: NotificationPolicyKind.REACTION,
+        kind: NotificationPolicyKind.REACTION,
         message: kind.value.message ?? null,
         reactionEmoji: kind.value.emoji || null
       };
     default:
       return {
         supported: false,
-        reason: NotificationPolicyKind.UNSPECIFIED,
+        kind: NotificationPolicyKind.UNSPECIFIED,
         message: null,
         reactionEmoji: null
       };
@@ -390,7 +302,6 @@ export function groupNotificationOccurrences(
       const occurrences = [...unsorted].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       const openTarget =
         occurrences.find((occurrence) => occurrence.unread) ?? occurrences[0] ?? null;
-      const reasons = [...new Set(occurrences.flatMap((occurrence) => occurrence.reasons))].sort();
       const attentionLevel = occurrences
         .filter((occurrence) => occurrence.unread)
         .reduce(
@@ -406,9 +317,7 @@ export function groupNotificationOccurrences(
         openTarget,
         unread: occurrences.some((occurrence) => occurrence.unread),
         attentionLevel,
-        occurrenceCount: occurrences.length,
         latestAt: occurrences[0]?.createdAt ?? new Date(0).toISOString(),
-        reasons,
         nextExpiryAt: expiries.sort()[0] ?? null
       };
     })
@@ -418,7 +327,7 @@ export function groupNotificationOccurrences(
 /** Resolve additive attention metadata, conservatively supporting older servers. */
 export function effectiveNotificationAttentionLevel(
   stored: NotificationAttentionLevel,
-  reasons: NotificationPolicyKind[]
+  signalKind: NotificationPolicyKind
 ): NotificationAttentionLevel {
   if (
     stored === NotificationAttentionLevel.AMBIENT ||
@@ -426,7 +335,7 @@ export function effectiveNotificationAttentionLevel(
   ) {
     return stored;
   }
-  return reasons.length > 0 && reasons.every((reason) => reason === NotificationPolicyKind.REACTION)
+  return signalKind === NotificationPolicyKind.REACTION
     ? NotificationAttentionLevel.AMBIENT
     : NotificationAttentionLevel.IMPORTANT;
 }
@@ -434,93 +343,30 @@ export function effectiveNotificationAttentionLevel(
 function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {
   if (occurrence.targetSupported === false) return `occurrence:${occurrence.id}`;
   const roomId = occurrence.room?.id ?? '';
-  if (occurrence.reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
+  if (occurrence.signalKind === NotificationPolicyKind.DIRECT_MESSAGE) {
     return `dm:${roomId}`;
   }
   if (
-    occurrence.reasons.includes(NotificationPolicyKind.REPLY) ||
-    occurrence.reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
-    occurrence.reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
-    occurrence.reasons.includes(NotificationPolicyKind.HERE) ||
-    occurrence.reasons.includes(NotificationPolicyKind.ALL)
+    occurrence.signalKind === NotificationPolicyKind.REPLY ||
+    occurrence.signalKind === NotificationPolicyKind.DIRECT_MENTION ||
+    occurrence.signalKind === NotificationPolicyKind.ROLE_MENTION ||
+    occurrence.signalKind === NotificationPolicyKind.HERE ||
+    occurrence.signalKind === NotificationPolicyKind.ALL
   ) {
     return `occurrence:${occurrence.id}`;
   }
-  if (occurrence.reasons.includes(NotificationPolicyKind.REACTION)) {
+  if (occurrence.signalKind === NotificationPolicyKind.REACTION) {
     return `reaction:${roomId}:${occurrence.threadRootId ?? ''}:${occurrence.eventId}`;
   }
-  if (occurrence.reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
+  if (occurrence.signalKind === NotificationPolicyKind.FOLLOWED_THREAD) {
     return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
   }
-  if (occurrence.reasons.includes(NotificationPolicyKind.FOLLOWED_ROOM)) {
+  if (occurrence.signalKind === NotificationPolicyKind.FOLLOWED_ROOM) {
     return `room:${roomId}`;
   }
   // Unknown future causes stay exact until the client deliberately chooses a
   // safe presentation boundary for them.
   return `occurrence:${occurrence.id}`;
-}
-
-export function occurrenceAsNotificationItem(item: NotificationOccurrenceItem): NotificationItem {
-  const base = {
-    id: item.id,
-    createdAt: item.createdAt,
-    actor: item.actor,
-    // Compact sidebar presentation consumers require this field, while the
-    // notification centre renders structured reasons through the active locale.
-    summary: ''
-  };
-  if (item.targetSupported === false) {
-    return { kind: NotificationItemKind.Unsupported, ...base };
-  }
-  if (item.reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
-    return {
-      kind: NotificationItemKind.DirectMessage,
-      ...base,
-      room: { id: item.room?.id ?? '' },
-      eventId: item.eventId
-    };
-  }
-  if (item.reasons.includes(NotificationPolicyKind.REPLY)) {
-    return {
-      kind: NotificationItemKind.Reply,
-      ...base,
-      replyRoom: item.room,
-      replyEventId: item.eventId,
-      inReplyToId: item.parentEventId ?? '',
-      replyInThread: item.threadRootId
-    };
-  }
-  if (
-    item.reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
-    item.reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
-    item.reasons.includes(NotificationPolicyKind.HERE) ||
-    item.reasons.includes(NotificationPolicyKind.ALL)
-  ) {
-    return {
-      kind: NotificationItemKind.Mention,
-      ...base,
-      mentionRoom: item.room,
-      mentionEventId: item.eventId,
-      mentionInThread: item.threadRootId
-    };
-  }
-  if (item.reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
-    return {
-      kind: NotificationItemKind.Reply,
-      ...base,
-      replyRoom: item.room,
-      replyEventId: item.eventId,
-      inReplyToId: item.parentEventId ?? '',
-      replyInThread: item.threadRootId
-    };
-  }
-  return {
-    kind: NotificationItemKind.RoomMessage,
-    ...base,
-    roomMsgRoom: item.room,
-    roomMsgEventId: item.eventId,
-    roomMsgThreadRootId: item.threadRootId
-  };
 }
 
 function notificationActor(actor: APIUser | undefined): NotificationActor | null {

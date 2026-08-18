@@ -2,24 +2,14 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
-  NotificationItemKind,
   NotificationAttentionLevel,
   NotificationDeliveryIntensity,
-  occurrenceAsNotificationItem,
-  type DirectMessageNotificationItem,
-  type MentionNotificationItem,
   type NotificationAPI,
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage,
   type NotificationPolicyItem,
-  type NotificationPolicyKind,
-  type NotificationItem,
-  type ReplyNotificationItem,
-  type RoomMessageNotificationItem
+  NotificationPolicyKind
 } from '$lib/api-client/notifications';
-
-// Union type for all notification types
-export type { NotificationItem };
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -37,84 +27,28 @@ export type NotificationTarget = {
 export type RoomNotificationLookup = {
   ok: boolean;
   totalCount: number | null;
-  notification: NotificationItem | null;
+  notification: NotificationOccurrenceItem | null;
 };
 
 export type RoomNotificationResolveOptions = {
   isDM?: boolean;
 };
 
-function isDMNotification(
-  notification: NotificationItem
-): notification is DirectMessageNotificationItem {
-  return notification.kind === NotificationItemKind.DirectMessage;
-}
-
-function isMentionNotification(
-  notification: NotificationItem
-): notification is MentionNotificationItem {
-  return notification.kind === NotificationItemKind.Mention;
-}
-
-function isReplyNotification(
-  notification: NotificationItem
-): notification is ReplyNotificationItem {
-  return notification.kind === NotificationItemKind.Reply;
-}
-
-function isRoomMessageNotification(
-  notification: NotificationItem
-): notification is RoomMessageNotificationItem {
-  return notification.kind === NotificationItemKind.RoomMessage;
+function isDMNotification(notification: NotificationOccurrenceItem): boolean {
+  return notification.signalKind === NotificationPolicyKind.DIRECT_MESSAGE;
 }
 
 /**
  * Extract the target a notification points to. Adding a new notification type
  * means updating this single function instead of every read site.
  */
-export function notificationTarget(n: NotificationItem): NotificationTarget {
-  if (isDMNotification(n)) {
-    return {
-      isDM: true,
-      roomId: n.room.id,
-      roomName: null,
-      eventId: n.eventId ?? null,
-      threadRootId: null
-    };
-  }
-  if (isMentionNotification(n)) {
-    return {
-      isDM: false,
-      roomId: n.mentionRoom?.id ?? null,
-      roomName: n.mentionRoom?.name ?? null,
-      eventId: n.mentionEventId ?? null,
-      threadRootId: n.mentionInThread ?? null
-    };
-  }
-  if (isReplyNotification(n)) {
-    return {
-      isDM: false,
-      roomId: n.replyRoom?.id ?? null,
-      roomName: n.replyRoom?.name ?? null,
-      eventId: n.replyEventId ?? null,
-      threadRootId: n.replyInThread ?? null
-    };
-  }
-  if (isRoomMessageNotification(n)) {
-    return {
-      isDM: false,
-      roomId: n.roomMsgRoom?.id ?? null,
-      roomName: n.roomMsgRoom?.name ?? null,
-      eventId: n.roomMsgEventId ?? null,
-      threadRootId: n.roomMsgThreadRootId ?? null
-    };
-  }
+export function notificationTarget(n: NotificationOccurrenceItem): NotificationTarget {
   return {
-    isDM: false,
-    roomId: null,
-    roomName: null,
-    eventId: null,
-    threadRootId: null
+    isDM: isDMNotification(n),
+    roomId: n.room?.id ?? null,
+    roomName: n.room?.name ?? null,
+    eventId: n.eventId || null,
+    threadRootId: n.threadRootId
   };
 }
 
@@ -137,7 +71,6 @@ export class NotificationStore {
   #mutationIdleWaiters = new SvelteSet<() => void>();
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
-  notifications = $state<NotificationItem[]>([]);
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
   unreadNotificationCount = $state(0);
   importantUnreadNotificationCount = $state(0);
@@ -159,7 +92,15 @@ export class NotificationStore {
   }
 
   get count() {
-    return this.notifications.length;
+    return this.unreadOccurrences.length;
+  }
+
+  /** Loaded unread occurrences, newest first, for navigation indicators. */
+  get unreadOccurrences(): NotificationOccurrenceItem[] {
+    return this.occurrences
+      .filter((occurrence) => occurrence.unread)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+      .slice(0, 50);
   }
 
   setUnreadNotificationCount(count: number, importantCount = count): void {
@@ -186,11 +127,6 @@ export class NotificationStore {
       0
     );
     this.occurrences = occurrences;
-    this.notifications = occurrences
-      .filter((occurrence) => occurrence.unread)
-      .map(occurrenceAsNotificationItem)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 50);
     this.unreadNotificationCount = Math.max(0, page.unreadCount - revokedUnreadCount);
     this.importantUnreadNotificationCount = Math.max(
       0,
@@ -221,7 +157,6 @@ export class NotificationStore {
     this.#pendingDeletionById.clear();
     this.#pendingReadById.clear();
     this.#pendingReadRequestById.clear();
-    this.notifications = [];
     this.occurrences = [];
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
@@ -241,18 +176,6 @@ export class NotificationStore {
   /** Remove copied profile data for an account deleted from the projection. */
   scrubUser(userId: string): void {
     this.scrubbedUserIds.add(userId);
-    let changed = false;
-    const notifications = this.notifications.map((notification) => {
-      if (notification.actor?.id !== userId) return notification;
-      changed = true;
-      return {
-        ...notification,
-        actor: null,
-        summary: redactedNotificationSummary(notification.kind)
-      };
-    });
-    if (changed) this.notifications = notifications;
-
     const occurrences = this.occurrences.map((occurrence) =>
       occurrence.actor?.id === userId ? { ...occurrence, actor: null } : occurrence
     );
@@ -270,10 +193,6 @@ export class NotificationStore {
         .filter((occurrence) => occurrence.room?.id === roomId)
         .map((occurrence) => occurrence.id)
     );
-    for (const notification of this.notifications) {
-      if (notificationTarget(notification).roomId === roomId)
-        roomOccurrenceIds.add(notification.id);
-    }
     for (const id of roomOccurrenceIds) {
       this.#pendingDeletionById.delete(id);
       this.#pendingReadById.delete(id);
@@ -294,11 +213,6 @@ export class NotificationStore {
       ).length;
     this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
 
-    const notifications = this.notifications.filter(
-      (notification) => notificationTarget(notification).roomId !== roomId
-    );
-    const removed = this.notifications.length - notifications.length;
-    if (removed > 0) this.notifications = notifications;
     if (removedUnreadOccurrences > 0) {
       this.unreadNotificationCount = Math.max(
         0,
@@ -330,7 +244,7 @@ export class NotificationStore {
    */
   get threadsWithNotifications(): SvelteSet<string> {
     const threadIds = new SvelteSet<string>();
-    for (const n of this.notifications) {
+    for (const n of this.unreadOccurrences) {
       const threadRootId = notificationTarget(n).threadRootId;
       if (threadRootId) threadIds.add(threadRootId);
     }
@@ -341,14 +255,14 @@ export class NotificationStore {
    * Check if a specific thread has unread notification occurrences.
    */
   hasThreadNotification(threadRootId: string): boolean {
-    return this.notifications.some((n) => notificationTarget(n).threadRootId === threadRootId);
+    return this.unreadOccurrences.some((n) => notificationTarget(n).threadRootId === threadRootId);
   }
 
   /**
    * Check if a specific room has pending non-DM notifications.
    */
   hasRoomNotification(roomId: string): boolean {
-    return this.notifications.some((n) => {
+    return this.unreadOccurrences.some((n) => {
       const t = notificationTarget(n);
       return !t.isDM && t.roomId === roomId;
     });
@@ -356,24 +270,24 @@ export class NotificationStore {
 
   /** Check if the server has any pending non-DM notifications. */
   hasNonDMNotifications(): boolean {
-    return this.notifications.some((n) => !notificationTarget(n).isDM);
+    return this.unreadOccurrences.some((n) => !notificationTarget(n).isDM);
   }
 
   /**
    * Get the most recent non-DM notification.
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
-  getNonDMNotification(): NotificationItem | undefined {
-    return this.notifications.find(
-      (n) => n.kind !== NotificationItemKind.Unsupported && !notificationTarget(n).isDM
+  getNonDMNotification(): NotificationOccurrenceItem | undefined {
+    return this.unreadOccurrences.find(
+      (n) => n.targetSupported && !notificationTarget(n).isDM
     );
   }
 
   /**
    * Get the most recent non-DM notification for a room.
    */
-  getRoomNotification(roomId: string): NotificationItem | undefined {
-    return this.notifications.find((n) => {
+  getRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
+    return this.unreadOccurrences.find((n) => {
       const t = notificationTarget(n);
       return !t.isDM && t.roomId === roomId;
     });
@@ -383,15 +297,15 @@ export class NotificationStore {
    * Check if there are any pending DM notifications.
    */
   hasDMNotifications(): boolean {
-    return this.notifications.some((n) => isDMNotification(n));
+    return this.unreadOccurrences.some((n) => isDMNotification(n));
   }
 
   /**
    * Get the most recent DM notification.
    * Returns undefined if no DM notifications exist.
    */
-  getDMNotification(): NotificationItem | undefined {
-    return this.notifications.find((n) => isDMNotification(n));
+  getDMNotification(): NotificationOccurrenceItem | undefined {
+    return this.unreadOccurrences.find((n) => isDMNotification(n));
   }
 
   /**
@@ -399,20 +313,22 @@ export class NotificationStore {
    * Counterpart to {@link hasRoomNotification}, which excludes DMs.
    */
   hasDMRoomNotification(roomId: string): boolean {
-    return this.notifications.some((n) => isDMNotification(n) && n.room.id === roomId);
+    return this.unreadOccurrences.some(
+      (n) => isDMNotification(n) && n.room?.id === roomId
+    );
   }
 
   /**
    * Get the most recent notification for a DM conversation.
    */
-  getDMRoomNotification(roomId: string): NotificationItem | undefined {
-    return this.notifications.find((n) => isDMNotification(n) && n.room.id === roomId);
+  getDMRoomNotification(roomId: string): NotificationOccurrenceItem | undefined {
+    return this.unreadOccurrences.find((n) => isDMNotification(n) && n.room?.id === roomId);
   }
 
   getCachedRoomNotification(
     roomId: string,
     options: RoomNotificationResolveOptions = {}
-  ): NotificationItem | undefined {
+  ): NotificationOccurrenceItem | undefined {
     return options.isDM ? this.getDMRoomNotification(roomId) : this.getRoomNotification(roomId);
   }
 
@@ -422,7 +338,7 @@ export class NotificationStore {
    * Resilience contract: a server-side error (e.g. a schema mismatch on a
    * remote instance running an older backend, network failure, transient
    * 500) records the error message and logs it, but leaves
-   * `this.notifications` at its previous value. This matters in
+   * `this.occurrences` at its previous value. This matters in
    * multi-instance setups — the bell, DM dot, etc. aggregate across
    * NotificationStore instances, and one bad response on one instance
    * must not erase already-loaded notifications on others.
@@ -534,9 +450,6 @@ export class NotificationStore {
     this.#fetchGeneration++;
     this.loading = false;
     this.occurrences = this.occurrences.filter((occurrence) => !removedIds.has(occurrence.id));
-    this.notifications = this.notifications.filter(
-      (notification) => !removedIds.has(notification.id)
-    );
     const removedUnreadCount =
       knownCounts?.unread ?? removedOccurrences.filter((occurrence) => occurrence.unread).length;
     const removedImportantUnreadCount =
@@ -587,7 +500,6 @@ export class NotificationStore {
     this.#pendingDeletionById.clear();
     this.loading = false;
     this.occurrences = [];
-    this.notifications = [];
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
     this.roomUnreadCounts = {};
@@ -615,11 +527,11 @@ export class NotificationStore {
   }
 
   setPolicyPreference(
-    reason: NotificationPolicyKind,
+    kind: NotificationPolicyKind,
     intensity: NotificationDeliveryIntensity,
     roomId?: string
   ): Promise<NotificationPolicyItem[]> {
-    return this.#api.setNotificationPolicyPreference(reason, intensity, roomId);
+    return this.#api.setNotificationPolicyPreference(kind, intensity, roomId);
   }
 
   /**
@@ -657,10 +569,9 @@ export class NotificationStore {
         }
         const matches = page.occurrences
           .filter((occurrence) => occurrence.unread && occurrence.room?.id === roomId)
-          .filter((occurrence) => {
-            const item = occurrenceAsNotificationItem(occurrence);
-            return options.isDM ? isDMNotification(item) : !isDMNotification(item);
-          });
+          .filter((occurrence) =>
+            options.isDM ? isDMNotification(occurrence) : !isDMNotification(occurrence)
+          );
         totalCount += matches.length;
         if (!matchedOccurrence && matches.length > 0) matchedOccurrence = matches[0]!;
         hasMore = page.hasMore;
@@ -672,15 +583,12 @@ export class NotificationStore {
         return { ok: true, totalCount: 0, notification: null };
       }
       const notification = matchedOccurrence
-        ? this.#privacySafeNotification(
-            occurrenceAsNotificationItem(this.#privacySafeOccurrence(matchedOccurrence))
-          )
+        ? this.#privacySafeOccurrence(matchedOccurrence)
         : null;
       if (matchedOccurrence && notification) {
         this.occurrences = mergeNotificationOccurrences(this.occurrences, [
           this.#privacySafeOccurrence(matchedOccurrence)
         ]);
-        this.#upsertNotification(this.#privacySafeNotification(notification));
       }
 
       return {
@@ -708,9 +616,8 @@ export class NotificationStore {
 
   /** Mark one occurrence read optimistically, then reconcile authoritative state. */
   async markRead(notificationId: string): Promise<boolean> {
-    const removed = this.notifications.find((n) => n.id === notificationId);
     const occurrence = this.occurrences.find((candidate) => candidate.id === notificationId);
-    if (!removed && !occurrence) {
+    if (!occurrence) {
       this.#fetchGeneration++;
       this.#beginMutation();
       let mutationFailed = false;
@@ -738,13 +645,12 @@ export class NotificationStore {
     this.loading = false;
     const mutation = ++this.#readSequence;
     this.#pendingReadById.set(notificationId, mutation);
-    const unreadDelta = occurrence?.unread || removed ? 1 : 0;
+    const unreadDelta = occurrence.unread ? 1 : 0;
     const importantDelta =
       occurrence?.attentionLevel === NotificationAttentionLevel.IMPORTANT ? 1 : 0;
     const roomAdjustments = occurrence
       ? notificationRoomAdjustments([occurrence])
       : new SvelteMap<string, { unread: number; importantUnread: number }>();
-    this.notifications = this.notifications.filter((n) => n.id !== notificationId);
     this.occurrences = this.occurrences.map((occurrence) =>
       occurrence.id === notificationId ? { ...occurrence, unread: false } : occurrence
     );
@@ -838,16 +744,6 @@ export class NotificationStore {
       : occurrence;
   }
 
-  #privacySafeNotification(notification: NotificationItem): NotificationItem {
-    return notification.actor && this.scrubbedUserIds.has(notification.actor.id)
-      ? {
-          ...notification,
-          actor: null,
-          summary: redactedNotificationSummary(notification.kind)
-        }
-      : notification;
-  }
-
   async #runFailedMutationReconciliation(): Promise<void> {
     while (true) {
       if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
@@ -865,39 +761,16 @@ export class NotificationStore {
     }
   }
 
-  #upsertNotification(notification: NotificationItem): boolean {
-    const existed = this.notifications.some((candidate) => candidate.id === notification.id);
-    this.#invalidateFetch();
-    this.notifications = [
-      ...this.notifications.filter((n) => n.id !== notification.id),
-      notification
-    ]
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-      .slice(0, 50);
-    return !existed;
-  }
-
-  #invalidateFetch(): void {
-    const shouldRestart = this.loading;
-    this.#fetchGeneration++;
-    this.loading = false;
-    if (shouldRestart) {
-      const invalidatedGeneration = this.#fetchGeneration;
-      queueMicrotask(() => {
-        if (this.#fetchGeneration === invalidatedGeneration && !this.loading) {
-          void this.fetch();
-        }
-      });
-    }
-  }
-
   /**
    * Get location string for a notification (e.g., "#general in My Server").
    * Returns null for DM notifications and any notification missing names.
    * The "in <name>" suffix uses the connected instance display name supplied
    * by the caller.
    */
-  getLocationString(notification: NotificationItem, serverName?: string | null): string | null {
+  getLocationString(
+    notification: NotificationOccurrenceItem,
+    serverName?: string | null
+  ): string | null {
     const t = notificationTarget(notification);
     if (t.isDM || !t.roomName) return null;
     if (!serverName) return `#${t.roomName}`;
@@ -909,7 +782,7 @@ export class NotificationStore {
    * Use this with `PendingHighlightStore.set()` to deliver the highlight
    * intent without polluting the URL.
    */
-  getCleanPath(serverId: string, notification: NotificationItem): string {
+  getCleanPath(serverId: string, notification: NotificationOccurrenceItem): string {
     const seg = serverIdToSegment(serverId);
     const t = notificationTarget(notification);
 
@@ -935,21 +808,6 @@ export class NotificationStore {
       serverId: seg,
       roomId: t.roomId
     });
-  }
-}
-
-function redactedNotificationSummary(kind: NotificationItemKind): string {
-  switch (kind) {
-    case NotificationItemKind.DirectMessage:
-      return 'New message';
-    case NotificationItemKind.Mention:
-      return 'You were mentioned';
-    case NotificationItemKind.Reply:
-      return 'New reply to your message';
-    case NotificationItemKind.RoomMessage:
-      return 'New message';
-    case NotificationItemKind.Unsupported:
-      return 'New activity';
   }
 }
 

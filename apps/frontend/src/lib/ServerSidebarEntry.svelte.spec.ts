@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
-import { NotificationItemKind } from '$lib/api-client/notifications';
+import { NotificationPolicyKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 
 const { mocks } = vi.hoisted(() => {
@@ -589,10 +589,11 @@ describe('ServerSidebarEntry', () => {
   it('reveals the target room before navigating from a server notification indicator', async () => {
     const notification = {
       id: 'mention-1',
-      kind: NotificationItemKind.Mention,
-      mentionRoom: { id: 'room-1', name: 'general' },
-      mentionEventId: 'event-1',
-      mentionInThread: 'thread-1'
+      signalKind: NotificationPolicyKind.DIRECT_MENTION,
+      targetSupported: true,
+      room: { id: 'room-1', name: 'general' },
+      eventId: 'event-1',
+      threadRootId: 'thread-1'
     };
     mocks.store.serverIndicator.mockReturnValue('notification');
     mocks.store.notifications.unreadNotificationCount = 1;
@@ -636,10 +637,10 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.importantUnreadNotificationCount = 1;
     mocks.store.notifications.getNonDMNotification.mockReturnValue({
       id: 'future-target',
-      kind: NotificationItemKind.Unsupported,
+      signalKind: NotificationPolicyKind.UNSPECIFIED,
+      targetSupported: false,
       createdAt: new Date().toISOString(),
-      actor: null,
-      summary: 'New activity'
+      actor: null
     });
 
     const { container } = render(ServerSidebarEntry, {

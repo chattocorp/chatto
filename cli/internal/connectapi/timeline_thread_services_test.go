@@ -857,7 +857,7 @@ func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID,
 		ActorID:              actorID,
 		Signal:               testNotificationSignalWithMessage(reason, target),
 		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		InitialState:         corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		InitialReadState:     corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
 		SkipReadLookup:       true,
 	})
 	if err != nil {

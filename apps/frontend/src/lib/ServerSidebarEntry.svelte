@@ -6,7 +6,6 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
-  import { NotificationItemKind } from '$lib/api-client/notifications';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
   import { getAppUiState } from '$lib/state/appUi.svelte';
   import ServerIcon from './ServerIcon.svelte';
@@ -156,7 +155,7 @@
   async function handleServerNotificationClick() {
     const notification =
       notificationStore.getNonDMNotification() ?? notificationStore.getDMNotification();
-    if (!notification || notification.kind === NotificationItemKind.Unsupported) {
+    if (!notification || !notification.targetSupported) {
       await goto(resolve('/chat/notifications'));
       return;
     }

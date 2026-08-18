@@ -105,7 +105,7 @@ func TestProjectionSnapshotsPersistAndRestoreCohort(t *testing.T) {
 			// therefore do not publish or restore a zero-cutoff generation.
 			continue
 		}
-		if registration.key == projectionsnapshot.ProjectionNotificationVisibilityKey && !status.SnapshotRestored {
+		if registration.key == projectionsnapshot.ProjectionNotificationDecisionsKey && !status.SnapshotRestored {
 			// A generation newer than the durable notification worker's
 			// acknowledged floor is intentionally rejected so pending exact
 			// visibility boundaries replay.

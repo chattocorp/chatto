@@ -290,8 +290,8 @@ func TestProjectionSnapshotWorkerDefersBeforeRepositoryWrite(t *testing.T) {
 	guardCalls := 0
 	worker := &projectionSnapshotWorker{lease: &fakeSnapshotWorkerLease{}, logger: testCoreLogger()}
 	job := projectionSnapshotJob{
-		projector:     core.notificationMaterializer.visibility.Projector(),
-		projectionKey: projectionsnapshot.ProjectionNotificationVisibilityKey,
+		projector:     core.notificationMaterializer.decisions.Projector(),
+		projectionKey: projectionsnapshot.ProjectionNotificationDecisionsKey,
 		allowPublication: func(uint64) bool {
 			guardCalls++
 			return false

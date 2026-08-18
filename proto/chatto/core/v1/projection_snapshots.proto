@@ -124,11 +124,10 @@ message RoomGroupStateSnapshot {
   RoomGroup group = 1;
 }
 
-// NotificationVisibilityProjectionSnapshot combines the exact event-time
+// NotificationDecisionProjectionSnapshot combines the exact event-time
 // state needed to derive notifications and enforce persistent visibility
-// boundaries. The historical name is retained because snapshots are internal,
-// disposable projection caches.
-message NotificationVisibilityProjectionSnapshot {
+// boundaries.
+message NotificationDecisionProjectionSnapshot {
   RoomDirectoryProjectionSnapshot room_directory = 1;
   RoomGroupLayoutProjectionSnapshot room_group_layout = 2;
   RBACProjectionSnapshot rbac = 3;

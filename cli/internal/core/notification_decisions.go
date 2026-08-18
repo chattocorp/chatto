@@ -52,7 +52,7 @@ func resolvedMessageMentions(resolution *RoomMentionResolution) []*corev1.Messag
 	}
 	result := make([]*corev1.MessageMention, 0)
 	for _, userID := range resolution.RecipientIDs {
-		for _, policyKind := range resolution.ReasonsByUser[userID] {
+		for _, policyKind := range resolution.PolicyKindsByUser[userID] {
 			kind := messageMentionKindForPolicy(policyKind)
 			if kind != corev1.MessageMentionKind_MESSAGE_MENTION_KIND_UNSPECIFIED {
 				result = append(result, &corev1.MessageMention{UserId: userID, Kind: kind})
@@ -79,7 +79,7 @@ func directMentionRecipients(mentions []*corev1.MessageMention) []string {
 
 func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	ctx context.Context,
-	snapshot *notificationVisibilitySnapshot,
+	snapshot *notificationDecisionSnapshot,
 	source *corev1.Event,
 ) ([]notificationRecipientDecision, error) {
 	message := source.GetMessagePosted()
@@ -111,7 +111,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 		// Writers predating rich provenance flattened direct, role, @here, and
 		// @all recipients into mentioned_user_ids. Inferring one cause would
 		// apply the wrong policy and persist a false signal, so mixed-version
-		// deliveries conservatively omit only the ambiguous mention reason.
+		// deliveries conservatively omit only the ambiguous mention kind.
 	}
 
 	if roomKind == KindDM {

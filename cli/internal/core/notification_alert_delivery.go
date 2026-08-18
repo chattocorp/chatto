@@ -24,7 +24,7 @@ var ErrNotificationAlertSuppressed = errors.New("notification alert suppressed")
 var ErrUnsupportedNotificationSignal = errors.New("unsupported notification signal")
 
 const (
-	notificationAlertConsumerName = "chatto-notification-alert-delivery-v2"
+	notificationAlertConsumerName = "chatto-notification-alert-delivery-v1"
 	notificationAlertMaxPending   = 16
 	notificationAlertAckWait      = time.Minute
 	notificationAlertRetryDelay   = 30 * time.Second

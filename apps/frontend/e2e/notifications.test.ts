@@ -148,8 +148,8 @@ test.describe('Mention Notifications', () => {
   });
 });
 
-test.describe('All Messages Notifications', () => {
-  test('plain room messages show room and server notification badges for ALL_MESSAGES subscribers', async ({
+test.describe('Followed room notifications', () => {
+  test('plain room messages show room and server notification badges for followed-room subscribers', async ({
     page,
     chatPage,
     notificationsPage,
@@ -174,7 +174,7 @@ test.describe('All Messages Notifications', () => {
 
     await withServerUser(browser!, serverURL, async ({ chatPage, roomPage }) => {
       await chatPage.enterRoom('general');
-      await roomPage.sendMessage(`plain all-messages notification ${Date.now()}`);
+      await roomPage.sendMessage(`plain followed-room notification ${Date.now()}`);
     });
 
     await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
@@ -343,7 +343,6 @@ test.describe('Notification Page Display', () => {
     // User A: Create account
     const userA = await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('announcements');
 
     // User B: Mention User A
@@ -356,8 +355,8 @@ test.describe('Notification Page Display', () => {
     const notification = notificationsPage.getNotificationBySummary('mentioned you.');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Verify location is shown (room and server name)
-    await notificationsPage.expectNotificationWithLocation(notification, 'general', serverName);
+    // Verify the room location is shown.
+    await notificationsPage.expectNotificationWithLocation(notification, 'general');
 
     // Verify the notification row and its dismissal action are visible.
     await notificationsPage.expectUnreadNotEmpty();
@@ -374,7 +373,6 @@ test.describe('Notification Page Display', () => {
     // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
     const rootMessage = `Reply notification test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
@@ -399,8 +397,8 @@ test.describe('Notification Page Display', () => {
     );
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-    // Verify location is shown (room and server name)
-    await notificationsPage.expectNotificationWithLocation(notification, 'general', serverName);
+    // Verify the room location is shown.
+    await notificationsPage.expectNotificationWithLocation(notification, 'general');
   });
 
   test('multiple notifications show in list with correct count', async ({
@@ -795,7 +793,7 @@ test.describe('Cross-Tab Sync', () => {
       await page1b.goto(routes.space());
       await notificationsPage1b.expectBellIndicatorNotVisible();
 
-      // Second tab: the handled notification remains in the combined list.
+      // Second tab: the dismissed notification is absent too.
       await notificationsPage1b.goto();
       await notificationsPage1b.expectUnreadEmpty();
       await notificationsPage1b.expectEmptyState();
@@ -1276,7 +1274,6 @@ test.describe('Room Reply Notifications', () => {
     // User A: Create account and post a message
     await createAndLoginTestUser(page);
     await chatPage.goto();
-    const serverName = await chatPage.getServerName();
     await chatPage.enterRoom('general');
     const rootMessage = `Room reply notify test ${Date.now()}`;
     await roomPage.sendMessage(rootMessage);
@@ -1310,7 +1307,7 @@ test.describe('Room Reply Notifications', () => {
     await notificationsPage.goto();
     const notification = notificationsPage.getNotificationBySummary('replied to your message.');
     await expect(notification).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-    await notificationsPage.expectNotificationWithLocation(notification, 'general', serverName);
+    await notificationsPage.expectNotificationWithLocation(notification, 'general');
   });
 
   test('clicking room reply notification navigates to room with highlight', async ({

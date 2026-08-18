@@ -87,7 +87,7 @@ view of recipients selected by direct, role, `@here`, and `@all` handles. It
 cannot recover which cause selected a user. During a mixed-version rollout, a
 source event without rich `mentions` therefore omits only the ambiguous mention
 signal instead of applying the wrong policy or persisting a false cause; DM,
-reply, and follow reasons that remain independently knowable are still derived.
+reply, and follow signal kinds that remain independently knowable are still derived.
 Current writers populate `mentions` with every rich cause.
 
 The Notification Decisions projection consumes the compact EVT state needed
@@ -102,7 +102,7 @@ the delivered EVT sequence even if live projections have advanced through
 later policy, membership, or follow changes. Persisted snapshots cannot restore
 or publish past the durable consumer's confirmed EVT floor.
 
-The shared `chatto-notification-materializer-v3` durable consumer reads only
+The shared `chatto-notification-materializer-v1` durable consumer reads only
 existing domain-changing `EVT` facts. It derives deterministic occurrences at
 the delivered sequence, appends `NotificationSignalled` facts to
 `NOTIFICATIONS`, and acknowledges the EVT delivery only after those writes
@@ -161,7 +161,7 @@ accelerates realtime convergence.
 ### Alert delivery consumes the signal log directly
 
 There is no notification work-queue stream. The
-`chatto-notification-alert-delivery-v2` durable pull consumer filters
+`chatto-notification-alert-delivery-v1` durable pull consumer filters
 `notifications.signalled` directly and runs through `events.DurableWorker`.
 It waits for the notification projection through the delivered stream
 sequence, fences the EVT materializer, reloads current occurrence state, and

@@ -158,7 +158,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		ActorID:              poster.Id,
 		Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, first.Id),
 		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		InitialState:         corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+		InitialReadState:     corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
 		SkipReadLookup:       true,
 		SourceStreamSequence: firstEntry.StreamSeq,
 	})
@@ -177,8 +177,8 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		t.Fatalf("List occurrences: %v", err)
 	}
 	for _, item := range remaining {
-		if item.GetId() == notification.GetId() && item.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
-			t.Fatalf("notification %s state = %v, want read", notification.GetId(), item.GetInboxState())
+		if item.GetId() == notification.GetId() && item.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ {
+			t.Fatalf("notification %s state = %v, want read", notification.GetId(), item.GetReadState())
 		}
 	}
 }
@@ -216,8 +216,8 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 	if err != nil || len(occurrences) != 1 {
 		t.Fatalf("List reaction occurrences = (%d, %v), want one", len(occurrences), err)
 	}
-	if occurrences[0].GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
-		t.Fatalf("reaction occurrence starts %v, want UNREAD", occurrences[0].GetInboxState())
+	if occurrences[0].GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
+		t.Fatalf("reaction occurrence starts %v, want UNREAD", occurrences[0].GetReadState())
 	}
 
 	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, author.Id, room.Id, posted.Id); err != nil {
@@ -227,7 +227,7 @@ func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) 
 	if err != nil {
 		t.Fatalf("Get reaction occurrence: %v", err)
 	}
-	if updated.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
-		t.Fatalf("reaction occurrence state = %v, want READ", updated.GetInboxState())
+	if updated.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ {
+		t.Fatalf("reaction occurrence state = %v, want READ", updated.GetReadState())
 	}
 }

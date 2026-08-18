@@ -112,7 +112,7 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 
 // realtimeProjectionReconciliationFrame captures latest-value viewer state
 // that is not fully represented by an EVT gap: room/thread read markers,
-// notification Inbox state, and presence. Viewer config is included as a cheap
+// notification list state, and presence. Viewer config is included as a cheap
 // authoritative replacement so all self-only fields converge together.
 // Room viewer state is needed after incremental replay. A compacted reset
 // supplies it in snapshot room upserts and repairs only markers that changed
@@ -273,7 +273,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			silent := true
 			if change.GetCreated() {
 				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, change.GetNotificationId())
-				if err == nil && current.GetInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
+				if err == nil && current.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
 					action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
 					silent = !change.GetAlert()
 				} else if err != nil && !errors.Is(err, core.ErrNotFound) {

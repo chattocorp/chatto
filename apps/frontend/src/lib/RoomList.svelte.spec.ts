@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
-import { NotificationItemKind } from '$lib/api-client/notifications';
+import { NotificationPolicyKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -144,27 +144,17 @@ vi.mock('$lib/navigation/readActions', () => ({
 import RoomList from './RoomList.svelte';
 
 function notification(id: string, roomId: string, isDM = false) {
-  if (isDM) {
-    return {
-      kind: NotificationItemKind.DirectMessage,
-      id,
-      createdAt: '2026-06-18T10:00:00Z',
-      actor: null,
-      summary: 'new direct message',
-      room: { id: roomId },
-      eventId: 'event-1'
-    };
-  }
-
   return {
-    kind: NotificationItemKind.Mention,
     id,
     createdAt: '2026-06-18T10:00:00Z',
     actor: null,
-    summary: 'mentioned you',
-    mentionRoom: { id: roomId, name: 'general' },
-    mentionEventId: 'event-1',
-    mentionInThread: 'thread-1'
+    signalKind: isDM
+      ? NotificationPolicyKind.DIRECT_MESSAGE
+      : NotificationPolicyKind.DIRECT_MENTION,
+    targetSupported: true,
+    room: { id: roomId, name: 'general' },
+    eventId: 'event-1',
+    threadRootId: isDM ? null : 'thread-1'
   };
 }
 

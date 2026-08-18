@@ -714,7 +714,7 @@ describe('ServerStateStore live server updates', () => {
       );
     }
 
-    expect(store.notifications.notifications).toEqual([]);
+    expect(store.notifications.occurrences).toEqual([]);
     expect(store.notifications.unreadNotificationCount).toBe(0);
     expect(store.notifications.hasLoaded).toBe(true);
     expect(store.activeCallRooms.has('R1')).toBe(false);

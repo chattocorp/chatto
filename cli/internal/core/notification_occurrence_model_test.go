@@ -62,7 +62,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 		t.Fatalf("duplicate Create = (%+v, %v, %v)", duplicate, wasCreated, err)
 	}
 	read, err := model.MarkRead(ctx, input.RecipientID, wantID)
-	if err != nil || read.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ ||
+	if err != nil || read.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ ||
 		read.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
 		t.Fatalf("MarkRead = (%+v, %v)", read, err)
 	}
@@ -143,7 +143,7 @@ func notificationSignalledEvent(id string, occurrence *corev1.NotificationOccurr
 			ActorId:              occurrence.GetActorId(),
 			Signal:               occurrence.GetSignal(),
 			Intensity:            occurrence.GetIntensity(),
-			InitialInboxState:    corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD,
+			InitialReadState:     corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
 			EvaluatedAt:          occurrence.GetSourceCreatedAt(),
 			SourceStreamSequence: occurrence.GetSourceStreamSequence(),
 			AttentionLevel:       occurrence.GetAttentionLevel(),

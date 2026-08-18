@@ -135,9 +135,6 @@ message NotificationSignal {
 
 // One exact Notifications 2.0 source occurrence.
 message NotificationOccurrence {
-  reserved 6, 9, 11;
-  reserved "reasons", "reaction_emoji", "thread_root_message_excerpt";
-
   // Stable occurrence ID.
   string id = 1;
   // Durable source event from which this occurrence was derived.
@@ -149,13 +146,13 @@ message NotificationOccurrence {
   // Immutable cause and destination represented by this occurrence.
   NotificationSignal signal = 5;
   // Effective delivery intensity when the signal was emitted.
-  NotificationDeliveryIntensity intensity = 7;
+  NotificationDeliveryIntensity intensity = 6;
   // Whether this occurrence still contributes unread attention.
-  bool unread = 8;
+  bool unread = 7;
   // Absolute expiry, 90 days after the source activity.
-  google.protobuf.Timestamp expires_at = 10;
+  google.protobuf.Timestamp expires_at = 8;
   // Source-time visual importance of this occurrence.
-  NotificationAttentionLevel attention_level = 12;
+  NotificationAttentionLevel attention_level = 9;
 }
 
 // Request for one page of notification occurrences.

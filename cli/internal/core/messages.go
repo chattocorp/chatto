@@ -1018,7 +1018,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	var directMentionFollowers []string
 	prepareMessageAttempt := func(attemptCtx context.Context) error {
 		if len(mentionUsernames) > 0 {
-			resolved, err := c.ResolveRoomMentionReasons(attemptCtx, kind, room_id, mentionUsernames)
+			resolved, err := c.ResolveRoomMentionKinds(attemptCtx, kind, room_id, mentionUsernames)
 			if err != nil {
 				return fmt.Errorf("resolve notification mention recipients: %w", err)
 			}

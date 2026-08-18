@@ -17,8 +17,7 @@ const { mocks } = vi.hoisted(() => {
   const createStore = () => ({
     isAuthenticated: true,
     notifications: {
-      notifications: [] as Array<{ kind: string }>,
-      groups: [] as Array<{ unread: boolean; reasons: number[] }>,
+      occurrences: [] as Array<{ unread: boolean }>,
       count: 0,
       unreadNotificationCount: 0,
       hasLoaded: true,
@@ -120,8 +119,7 @@ describe('NotificationSync', () => {
     mocks.servers.splice(0, mocks.servers.length, { id: 'origin' });
     for (const store of Object.values(mocks.stores)) {
       store.isAuthenticated = true;
-      store.notifications.notifications = [];
-      store.notifications.groups = [];
+      store.notifications.occurrences = [];
       store.notifications.count = 0;
       store.notifications.unreadNotificationCount = 0;
       store.notifications.hasLoaded = true;
@@ -252,8 +250,8 @@ describe('NotificationSync', () => {
     await vi.waitFor(() => expect(mocks.updateAppBadge).toHaveBeenCalledWith({ kind: 'clear' }));
   });
 
-  it('clears the app badge when Inbox contains only read notifications', async () => {
-    mocks.stores.origin.notifications.notifications = [{ kind: 'directMessage' }];
+  it('clears the app badge when the notification list contains only read notifications', async () => {
+    mocks.stores.origin.notifications.occurrences = [{ unread: false }];
 
     await renderAndWaitForSubscription();
 

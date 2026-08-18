@@ -748,28 +748,28 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   /**
    * Effective delivery intensity when the signal was emitted.
    *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 7;
+   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 6;
    */
   intensity = NotificationDeliveryIntensity.UNSPECIFIED;
 
   /**
    * Whether this occurrence still contributes unread attention.
    *
-   * @generated from field: bool unread = 8;
+   * @generated from field: bool unread = 7;
    */
   unread = false;
 
   /**
    * Absolute expiry, 90 days after the source activity.
    *
-   * @generated from field: google.protobuf.Timestamp expires_at = 10;
+   * @generated from field: google.protobuf.Timestamp expires_at = 8;
    */
   expiresAt?: Timestamp;
 
   /**
    * Source-time visual importance of this occurrence.
    *
-   * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 12;
+   * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 9;
    */
   attentionLevel = NotificationAttentionLevel.UNSPECIFIED;
 
@@ -786,10 +786,10 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
     { no: 3, name: "created_at", kind: "message", T: Timestamp },
     { no: 4, name: "actor", kind: "message", T: User },
     { no: 5, name: "signal", kind: "message", T: NotificationSignal },
-    { no: 7, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
-    { no: 8, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 10, name: "expires_at", kind: "message", T: Timestamp },
-    { no: 12, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
+    { no: 6, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 7, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 8, name: "expires_at", kind: "message", T: Timestamp },
+    { no: 9, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrence {

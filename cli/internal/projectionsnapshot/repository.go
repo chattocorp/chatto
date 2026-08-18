@@ -36,20 +36,20 @@ const (
 )
 
 const (
-	ProjectionThreadsKey                = "threads"
-	ProjectionRoomDirectoryKey          = "room_directory"
-	ProjectionNotificationVisibilityKey = "notification_visibility"
-	ProjectionNotificationsKey          = "notifications"
-	ProjectionServerConfigKey           = "server_config"
-	ProjectionRoomGroupLayoutKey        = "room_group_layout"
-	ProjectionRoomTimelineKey           = "room_timeline"
-	ProjectionCallStateKey              = "call_state"
-	ProjectionAssetsKey                 = "assets"
-	ProjectionReactionsKey              = "reactions"
-	ProjectionContentKeysKey            = "content_keys"
-	ProjectionRBACKey                   = "rbac"
-	ProjectionMentionablesKey           = "mentionables"
-	ProjectionUsersKey                  = "users"
+	ProjectionThreadsKey               = "threads"
+	ProjectionRoomDirectoryKey         = "room_directory"
+	ProjectionNotificationDecisionsKey = "notification_decisions"
+	ProjectionNotificationsKey         = "notifications"
+	ProjectionServerConfigKey          = "server_config"
+	ProjectionRoomGroupLayoutKey       = "room_group_layout"
+	ProjectionRoomTimelineKey          = "room_timeline"
+	ProjectionCallStateKey             = "call_state"
+	ProjectionAssetsKey                = "assets"
+	ProjectionReactionsKey             = "reactions"
+	ProjectionContentKeysKey           = "content_keys"
+	ProjectionRBACKey                  = "rbac"
+	ProjectionMentionablesKey          = "mentionables"
+	ProjectionUsersKey                 = "users"
 )
 
 var (

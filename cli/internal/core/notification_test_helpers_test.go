@@ -15,8 +15,8 @@ func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID st
 	return items
 }
 
-func testOccurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationPolicyKind) bool {
-	return notificationSignalPolicyKind(occurrence.GetSignal()) == reason
+func testOccurrenceHasKind(occurrence *corev1.NotificationOccurrence, kind corev1.NotificationPolicyKind) bool {
+	return notificationSignalPolicyKind(occurrence.GetSignal()) == kind
 }
 
 func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kinds ...corev1.NotificationPolicyKind) bool {

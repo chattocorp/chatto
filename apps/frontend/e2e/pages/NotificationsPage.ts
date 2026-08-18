@@ -152,12 +152,7 @@ export class NotificationsPage {
   /**
    * Assert that a notification shows the correct location (e.g., "#general in My Space").
    */
-  async expectNotificationWithLocation(
-    notification: Locator,
-    roomName: string,
-    serverName: string
-  ): Promise<void> {
-    void serverName;
+  async expectNotificationWithLocation(notification: Locator, roomName: string): Promise<void> {
     await expect(notification.getByText(`#${roomName}`, { exact: false })).toBeVisible();
   }
 

@@ -149,20 +149,20 @@ func TestProjectionRegistryDefinesSnapshotEligibility(t *testing.T) {
 	core, _ := setupTestCore(t)
 
 	wantEligible := map[string]struct{}{
-		projectionsnapshot.ProjectionThreadsKey:                {},
-		projectionsnapshot.ProjectionRoomDirectoryKey:          {},
-		projectionsnapshot.ProjectionNotificationVisibilityKey: {},
-		projectionsnapshot.ProjectionNotificationsKey:          {},
-		projectionsnapshot.ProjectionServerConfigKey:           {},
-		projectionsnapshot.ProjectionRoomGroupLayoutKey:        {},
-		projectionsnapshot.ProjectionRoomTimelineKey:           {},
-		projectionsnapshot.ProjectionCallStateKey:              {},
-		projectionsnapshot.ProjectionAssetsKey:                 {},
-		projectionsnapshot.ProjectionReactionsKey:              {},
-		projectionsnapshot.ProjectionContentKeysKey:            {},
-		projectionsnapshot.ProjectionRBACKey:                   {},
-		projectionsnapshot.ProjectionMentionablesKey:           {},
-		projectionsnapshot.ProjectionUsersKey:                  {},
+		projectionsnapshot.ProjectionThreadsKey:               {},
+		projectionsnapshot.ProjectionRoomDirectoryKey:         {},
+		projectionsnapshot.ProjectionNotificationDecisionsKey: {},
+		projectionsnapshot.ProjectionNotificationsKey:         {},
+		projectionsnapshot.ProjectionServerConfigKey:          {},
+		projectionsnapshot.ProjectionRoomGroupLayoutKey:       {},
+		projectionsnapshot.ProjectionRoomTimelineKey:          {},
+		projectionsnapshot.ProjectionCallStateKey:             {},
+		projectionsnapshot.ProjectionAssetsKey:                {},
+		projectionsnapshot.ProjectionReactionsKey:             {},
+		projectionsnapshot.ProjectionContentKeysKey:           {},
+		projectionsnapshot.ProjectionRBACKey:                  {},
+		projectionsnapshot.ProjectionMentionablesKey:          {},
+		projectionsnapshot.ProjectionUsersKey:                 {},
 	}
 
 	for _, registration := range core.projections {

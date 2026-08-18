@@ -55,7 +55,6 @@
   const appUi = getAppUiState();
   let groups = $state.raw<ServerGroup[]>(notificationGroupsFromProjection());
   let loading = $state(!notificationProjectionHasLoaded());
-  let hasRenderedProjection = $state(notificationProjectionHasLoaded());
   let loadingMore = $state(false);
   let pageError = $state(false);
   let dismissingAll = $state(false);
@@ -226,7 +225,6 @@
     });
     pageError = results.some((result) => result.status === 'rejected');
     loading = false;
-    hasRenderedProjection = true;
     if (groups.length === 0 && hasMore && !pageError) void loadMore();
   }
 
@@ -447,11 +445,11 @@
     if (!occurrence) return m('chat.notifications.activity');
     const actor = occurrence.actor?.displayName;
     if (!actor) return m('chat.notifications.activity');
-    const reasons = occurrence.reasons;
-    if (reasons.includes(NotificationPolicyKind.DIRECT_MESSAGE)) {
+    const signalKind = occurrence.signalKind;
+    if (signalKind === NotificationPolicyKind.DIRECT_MESSAGE) {
       return m('chat.notifications.summary.direct_message', { actor });
     }
-    if (reasons.includes(NotificationPolicyKind.REACTION)) {
+    if (signalKind === NotificationPolicyKind.REACTION) {
       const emojis = [
         ...new Set(
           group.occurrences
@@ -473,21 +471,21 @@
       }
       return m('chat.notifications.summary.activity', { actor });
     }
-    if (reasons.includes(NotificationPolicyKind.REPLY)) {
+    if (signalKind === NotificationPolicyKind.REPLY) {
       return m('chat.notifications.summary.reply', { actor });
     }
     if (
-      reasons.includes(NotificationPolicyKind.DIRECT_MENTION) ||
-      reasons.includes(NotificationPolicyKind.ROLE_MENTION) ||
-      reasons.includes(NotificationPolicyKind.HERE) ||
-      reasons.includes(NotificationPolicyKind.ALL)
+      signalKind === NotificationPolicyKind.DIRECT_MENTION ||
+      signalKind === NotificationPolicyKind.ROLE_MENTION ||
+      signalKind === NotificationPolicyKind.HERE ||
+      signalKind === NotificationPolicyKind.ALL
     ) {
       return m('chat.notifications.summary.mention', { actor });
     }
-    if (reasons.includes(NotificationPolicyKind.FOLLOWED_THREAD)) {
+    if (signalKind === NotificationPolicyKind.FOLLOWED_THREAD) {
       return m('chat.notifications.summary.followed_thread', { actor });
     }
-    if (reasons.includes(NotificationPolicyKind.FOLLOWED_ROOM)) {
+    if (signalKind === NotificationPolicyKind.FOLLOWED_ROOM) {
       return m('chat.notifications.summary.new_message', { actor });
     }
     return m('chat.notifications.summary.activity', { actor });
@@ -609,20 +607,14 @@
   </PaneHeader>
 
   <div class="flex flex-1 flex-col overflow-y-auto">
-    {#if loading && groups.length === 0 && !hasRenderedProjection}
-      <div class="p-6 text-muted">{m('common.loading')}</div>
-    {:else if pageError && groups.length === 0}
+    {#if pageError && groups.length === 0}
       <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
         <Button variant="secondary" label={m('common.retry')} onclick={loadNotifications}
           >{m('common.retry')}</Button
         >
       </EmptyState>
-    {:else if visibleGroups.length === 0}
-      <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
-        {m('chat.notifications.empty_body')}
-      </EmptyState>
-    {:else}
-      <div class="selectable-list pb-3">
+    {:else if visibleGroups.length > 0}
+      <div class="selectable-list pb-3" aria-busy={loadingMore}>
         {#each dateSections as section (section.key)}
           <section aria-labelledby={`notification-date-${section.key}`}>
             <DaySeparator
@@ -633,8 +625,7 @@
             {#each section.items as item (rowKey(item))}
               {@const occurrence = item.group.openTarget}
               {@const targetSupported = occurrence?.targetSupported !== false}
-              {@const isReaction =
-                occurrence?.reasons.includes(NotificationPolicyKind.REACTION) ?? false}
+              {@const isReaction = occurrence?.signalKind === NotificationPolicyKind.REACTION}
               {@const actor = occurrence?.actor ?? null}
               {@const actors = notificationActors(item.group)}
               {@const mutationPending = dismissingAll || pendingMutationKeys.has(mutationKey(item))}
@@ -726,11 +717,13 @@
             >
           </div>
         {:else if hasMore}
-          <div class="flex min-h-14 justify-center p-4 text-muted" {@attach loadMoreWhenVisible}>
-            {#if loadingMore}{m('common.loading')}{/if}
-          </div>
+          <div class="min-h-14" {@attach loadMoreWhenVisible}></div>
         {/if}
       </div>
+    {:else if !loading}
+      <EmptyState icon="icon-[uil--bell-slash]" title={m('chat.notifications.empty_title')}>
+        {m('chat.notifications.empty_body')}
+      </EmptyState>
     {/if}
   </div>
 </div>

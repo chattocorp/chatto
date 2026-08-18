@@ -135,13 +135,11 @@ enum NotificationAttentionLevel {
   NOTIFICATION_ATTENTION_LEVEL_IMPORTANT = 2;
 }
 
-// NotificationInboxState is the projected attention state.
-enum NotificationInboxState {
-  reserved 3;
-  reserved "NOTIFICATION_INBOX_STATE_DONE";
-  NOTIFICATION_INBOX_STATE_UNSPECIFIED = 0;
-  NOTIFICATION_INBOX_STATE_UNREAD = 1;
-  NOTIFICATION_INBOX_STATE_READ = 2;
+// NotificationReadState is the projected read state.
+enum NotificationReadState {
+  NOTIFICATION_READ_STATE_UNSPECIFIED = 0;
+  NOTIFICATION_READ_STATE_UNREAD = 1;
+  NOTIFICATION_READ_STATE_READ = 2;
 }
 
 // NotificationRemovalReason explains why an occurrence is represented only by
@@ -158,13 +156,11 @@ enum NotificationRemovalReason {
 // NotificationAlertState tracks recoverable interruptive delivery for an
 // occurrence. List and badge visibility do not depend on this state.
 enum NotificationAlertState {
-  reserved 3;
-  reserved "NOTIFICATION_ALERT_STATE_CLAIMED";
   NOTIFICATION_ALERT_STATE_UNSPECIFIED = 0;
   NOTIFICATION_ALERT_STATE_NOT_APPLICABLE = 1;
   NOTIFICATION_ALERT_STATE_PENDING = 2;
-  NOTIFICATION_ALERT_STATE_DELIVERED = 4;
-  NOTIFICATION_ALERT_STATE_SILENCED = 5;
+  NOTIFICATION_ALERT_STATE_DELIVERED = 3;
+  NOTIFICATION_ALERT_STATE_SILENCED = 4;
 }
 
 // NotificationMessageReference identifies one exact message destination
@@ -239,51 +235,41 @@ message NotificationOccurrence {
   google.protobuf.Timestamp source_created_at = 4;
   string actor_id = 5;
   NotificationSignal signal = 6;
-  reserved 7;
-  reserved "reasons";
-  NotificationDeliveryIntensity intensity = 8;
-  NotificationInboxState inbox_state = 9;
-  reserved 10;
-  reserved "reaction_emoji";
-  google.protobuf.Timestamp evaluated_at = 11;
-  google.protobuf.Timestamp updated_at = 12;
-  google.protobuf.Timestamp expires_at = 13;
-  reserved 14, 15;
-  reserved "removal_reason", "removed_at";
-  NotificationAlertState alert_state = 16;
-  reserved 17;
-  reserved "alert_claimed_until";
+  NotificationDeliveryIntensity intensity = 7;
+  NotificationReadState read_state = 8;
+  google.protobuf.Timestamp evaluated_at = 9;
+  google.protobuf.Timestamp updated_at = 10;
+  google.protobuf.Timestamp expires_at = 11;
+  NotificationAlertState alert_state = 12;
   // Internal EVT stream position of the source fact. Used for causal lifecycle
   // cleanup and read-boundary reconciliation; never exposed through the public
   // API.
-  uint64 source_stream_sequence = 18;
+  uint64 source_stream_sequence = 13;
   // Source-time visual importance.
-  NotificationAttentionLevel attention_level = 19;
+  NotificationAttentionLevel attention_level = 14;
   // Immutable interruptive-delivery deadline derived from source_created_at.
-  google.protobuf.Timestamp alert_expires_at = 20;
+  google.protobuf.Timestamp alert_expires_at = 15;
   // Sequence of the NotificationSignalled record in NOTIFICATIONS. This is
   // retained only by projections so explicit dismissal can remove the rich
   // source record after the dismissal event becomes visible.
-  uint64 notification_stream_sequence = 21;
+  uint64 notification_stream_sequence = 16;
 }
 
 // NotificationSignalled is the immutable source-time fact from which the
 // current NotificationOccurrence is projected.
 message NotificationSignalled {
-  reserved 1;
-  reserved "notification";
-  string notification_id = 2;
-  string source_event_id = 3;
-  google.protobuf.Timestamp source_created_at = 4;
-  string actor_id = 5;
-  NotificationSignal signal = 6;
-  NotificationDeliveryIntensity intensity = 7;
-  NotificationInboxState initial_inbox_state = 8;
-  google.protobuf.Timestamp evaluated_at = 9;
+  string notification_id = 1;
+  string source_event_id = 2;
+  google.protobuf.Timestamp source_created_at = 3;
+  string actor_id = 4;
+  NotificationSignal signal = 5;
+  NotificationDeliveryIntensity intensity = 6;
+  NotificationReadState initial_read_state = 7;
+  google.protobuf.Timestamp evaluated_at = 8;
   // Internal EVT position used only for causal visibility reconciliation.
-  uint64 source_stream_sequence = 10;
-  NotificationAttentionLevel attention_level = 11;
-  google.protobuf.Timestamp alert_expires_at = 12;
+  uint64 source_stream_sequence = 9;
+  NotificationAttentionLevel attention_level = 10;
+  google.protobuf.Timestamp alert_expires_at = 11;
 }
 
 message NotificationRead {

@@ -915,13 +915,13 @@ type NotificationOccurrence struct {
 	// Immutable cause and destination represented by this occurrence.
 	Signal *NotificationSignal `protobuf:"bytes,5,opt,name=signal,proto3" json:"signal,omitempty"`
 	// Effective delivery intensity when the signal was emitted.
-	Intensity NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=intensity,proto3,enum=chatto.api.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
+	Intensity NotificationDeliveryIntensity `protobuf:"varint,6,opt,name=intensity,proto3,enum=chatto.api.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
 	// Whether this occurrence still contributes unread attention.
-	Unread bool `protobuf:"varint,8,opt,name=unread,proto3" json:"unread,omitempty"`
+	Unread bool `protobuf:"varint,7,opt,name=unread,proto3" json:"unread,omitempty"`
 	// Absolute expiry, 90 days after the source activity.
-	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	ExpiresAt *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Source-time visual importance of this occurrence.
-	AttentionLevel NotificationAttentionLevel `protobuf:"varint,12,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.api.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	AttentionLevel NotificationAttentionLevel `protobuf:"varint,9,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.api.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -2106,7 +2106,7 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\x18followed_thread_activity\x18\a \x01(\v2%.chatto.api.v1.FollowedThreadActivityH\x00R\x16followedThreadActivity\x12[\n" +
 	"\x16followed_room_activity\x18\b \x01(\v2#.chatto.api.v1.FollowedRoomActivityH\x00R\x14followedRoomActivity\x12N\n" +
 	"\x11reaction_received\x18\t \x01(\v2\x1f.chatto.api.v1.ReactionReceivedH\x00R\x10reactionReceivedB\x06\n" +
-	"\x04kind\"\xac\x04\n" +
+	"\x04kind\"\xe4\x03\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12&\n" +
 	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x129\n" +
@@ -2114,13 +2114,11 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12)\n" +
 	"\x05actor\x18\x04 \x01(\v2\x13.chatto.api.v1.UserR\x05actor\x129\n" +
 	"\x06signal\x18\x05 \x01(\v2!.chatto.api.v1.NotificationSignalR\x06signal\x12J\n" +
-	"\tintensity\x18\a \x01(\x0e2,.chatto.api.v1.NotificationDeliveryIntensityR\tintensity\x12\x16\n" +
-	"\x06unread\x18\b \x01(\bR\x06unread\x129\n" +
+	"\tintensity\x18\x06 \x01(\x0e2,.chatto.api.v1.NotificationDeliveryIntensityR\tintensity\x12\x16\n" +
+	"\x06unread\x18\a \x01(\bR\x06unread\x129\n" +
 	"\n" +
-	"expires_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12R\n" +
-	"\x0fattention_level\x18\f \x01(\x0e2).chatto.api.v1.NotificationAttentionLevelR\x0eattentionLevelJ\x04\b\x06\x10\aJ\x04\b\t\x10\n" +
-	"J\x04\b\v\x10\fR\areasonsR\x0ereaction_emojiR\x1bthread_root_message_excerpt\"T\n" +
+	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12R\n" +
+	"\x0fattention_level\x18\t \x01(\x0e2).chatto.api.v1.NotificationAttentionLevelR\x0eattentionLevel\"T\n" +
 	"\"ListNotificationOccurrencesRequest\x12.\n" +
 	"\x04page\x18\x01 \x01(\v2\x1a.chatto.api.v1.PageRequestR\x04page\"\xb0\x03\n" +
 	"#ListNotificationOccurrencesResponse\x12G\n" +

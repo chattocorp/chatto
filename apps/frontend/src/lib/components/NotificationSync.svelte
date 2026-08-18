@@ -87,8 +87,8 @@ Include this component once in the application root so signed-out pages also cle
     return listenForAppBadgeRefresh(syncAppBadge);
   });
 
-  // KV expiry may not produce a watcher mutation. Refresh each authoritative
-  // Inbox at its next server-provided expiry boundary so long-lived tabs do
+  // Stream expiry has no per-message projection callback. Refresh each authoritative
+  // notification list at its next application expiry boundary so long-lived tabs do
   // not retain stale groups or badge counts.
   $effect(() => {
     const timers: ReturnType<typeof setTimeout>[] = [];

@@ -2036,8 +2036,8 @@ func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get occurrence after hydration failure: %v", err)
 	}
-	if stored.GetInboxState() != corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNREAD {
-		t.Fatalf("occurrence state after hydration failure = %v, want unread", stored.GetInboxState())
+	if stored.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
+		t.Fatalf("occurrence state after hydration failure = %v, want unread", stored.GetReadState())
 	}
 }
 

@@ -14,8 +14,8 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-func TestNotificationVisibilityProjectionRetainsExactBoundaryWhenCurrentStateAdvances(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+func TestNotificationDecisionProjectionRetainsExactBoundaryWhenCurrentStateAdvances(t *testing.T) {
+	p := NewNotificationDecisionProjection()
 	created := &corev1.Event{Id: "create", CreatedAt: timestamppb.Now(), Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
 	}}}
@@ -50,7 +50,7 @@ func TestNotificationVisibilityProjectionRetainsExactBoundaryWhenCurrentStateAdv
 }
 
 func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	roomID := "R1"
 	userID := "U1"
 	roomScope := roomID
@@ -90,7 +90,7 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 }
 
 func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	roomID := "R1"
 	recipientID := "U1"
 	source := &corev1.Event{
@@ -124,7 +124,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 }
 
 func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	roomID := "R1"
 	threadRootID := "ROOT"
 	userID := "U1"
@@ -159,8 +159,8 @@ func TestNotificationDecisionBoundaryRetainsEventTimeThreadFollowers(t *testing.
 	}
 }
 
-func TestNotificationVisibilityProjectionRetainsOnlyIncrementalEventsOverLargeState(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+func TestNotificationDecisionProjectionRetainsOnlyIncrementalEventsOverLargeState(t *testing.T) {
+	p := NewNotificationDecisionProjection()
 	const members = 2_000
 	// Model startup with all existing state covered by the durable worker floor.
 	// Applying that history builds both the current and lagging projections
@@ -217,8 +217,8 @@ func TestNotificationVisibilityProjectionRetainsOnlyIncrementalEventsOverLargeSt
 	}
 }
 
-func TestNotificationVisibilityProjectionBoundaryWorkDoesNotGrowWithMembershipHistory(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+func TestNotificationDecisionProjectionBoundaryWorkDoesNotGrowWithMembershipHistory(t *testing.T) {
+	p := NewNotificationDecisionProjection()
 	const historyEvents = 10_000
 	p.SetAcknowledgedThrough(historyEvents + 1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
@@ -256,7 +256,7 @@ func TestNotificationVisibilityProjectionBoundaryWorkDoesNotGrowWithMembershipHi
 }
 
 func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.B) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	const members = 10_000
 	p.SetAcknowledgedThrough(members + 1)
 	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
@@ -288,20 +288,20 @@ func BenchmarkNotificationDecisionBoundaryIncrementalAfterLargeState(b *testing.
 	}
 }
 
-type notificationVisibilityCapturingSnapshotSource struct {
+type notificationDecisionCapturingSnapshotSource struct {
 	request events.ProjectionSnapshotLoadRequest
 }
 
-func (s *notificationVisibilityCapturingSnapshotSource) LoadProjectionSnapshot(_ context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
+func (s *notificationDecisionCapturingSnapshotSource) LoadProjectionSnapshot(_ context.Context, request events.ProjectionSnapshotLoadRequest) (events.ProjectionSnapshot, error) {
 	s.request = request
 	return events.ProjectionSnapshot{}, nil
 }
 
-func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) {
-	projection := NewNotificationVisibilityProjection()
+func TestNotificationDecisionSnapshotRestoreIsCappedAtWorkerFloor(t *testing.T) {
+	projection := NewNotificationDecisionProjection()
 	projection.SetAcknowledgedThrough(41)
-	underlying := &notificationVisibilityCapturingSnapshotSource{}
-	source := cappedNotificationVisibilitySnapshotSource{source: underlying, projection: projection}
+	underlying := &notificationDecisionCapturingSnapshotSource{}
+	source := cappedNotificationDecisionSnapshotSource{source: underlying, projection: projection}
 	if _, err := source.LoadProjectionSnapshot(context.Background(), events.ProjectionSnapshotLoadRequest{MaxCutoff: 99}); err != nil {
 		t.Fatalf("LoadProjectionSnapshot: %v", err)
 	}
@@ -310,8 +310,8 @@ func TestNotificationVisibilitySnapshotRestoreIsCappedAtWorkerFloor(t *testing.T
 	}
 }
 
-func TestNotificationVisibilitySnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+func TestNotificationDecisionSnapshotPublicationPreservesSafeGenerationWhilePending(t *testing.T) {
+	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL, Universal: true,
@@ -342,8 +342,8 @@ func TestNotificationVisibilitySnapshotPublicationPreservesSafeGenerationWhilePe
 	}
 }
 
-func TestNotificationVisibilitySnapshotPublicationUsesFullWorkerFloor(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+func TestNotificationDecisionSnapshotPublicationUsesFullWorkerFloor(t *testing.T) {
+	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
 	created := &corev1.Event{Id: "create", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
@@ -370,7 +370,7 @@ func TestNotificationVisibilitySnapshotPublicationUsesFullWorkerFloor(t *testing
 }
 
 func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
 	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,
@@ -399,7 +399,7 @@ func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *test
 }
 
 func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOfProjector(t *testing.T) {
-	p := NewNotificationVisibilityProjection()
+	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
 	if err := p.Apply(&corev1.Event{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{
 		RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL,

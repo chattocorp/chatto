@@ -59,7 +59,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		signalled := payload.Signalled
 		if signalled.GetNotificationId() == "" || signalled.GetSourceEventId() == "" || signalled.GetSourceCreatedAt() == nil || !signalled.GetSourceCreatedAt().IsValid() ||
 			signalled.GetSignal() == nil || signalled.GetEvaluatedAt() == nil || !signalled.GetEvaluatedAt().IsValid() ||
-			signalled.GetInitialInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_UNSPECIFIED {
+			signalled.GetInitialReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED {
 			return fmt.Errorf("invalid notification signal event at sequence %d", sequence)
 		}
 		if !event.GetExpiresAt().AsTime().After(p.now().UTC()) {
@@ -74,7 +74,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		alertState := corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_NOT_APPLICABLE
 		if signalled.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
 			alertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING
-			if signalled.GetInitialInboxState() == corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ {
+			if signalled.GetInitialReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ {
 				alertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
 			}
 		}
@@ -86,7 +86,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 			ActorId:                    signalled.GetActorId(),
 			Signal:                     proto.Clone(signalled.GetSignal()).(*corev1.NotificationSignal),
 			Intensity:                  signalled.GetIntensity(),
-			InboxState:                 signalled.GetInitialInboxState(),
+			ReadState:                  signalled.GetInitialReadState(),
 			EvaluatedAt:                signalled.GetEvaluatedAt(),
 			UpdatedAt:                  signalled.GetEvaluatedAt(),
 			ExpiresAt:                  event.GetExpiresAt(),
@@ -106,7 +106,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
 			return nil
 		}
-		occurrence.InboxState = corev1.NotificationInboxState_NOTIFICATION_INBOX_STATE_READ
+		occurrence.ReadState = corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ
 		occurrence.UpdatedAt = payload.Read.GetReadAt()
 		if occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
 			occurrence.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED

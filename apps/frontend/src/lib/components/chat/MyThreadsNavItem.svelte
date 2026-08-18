@@ -13,7 +13,7 @@
   const notificationStore = $derived(serverScope.store.notifications);
 
   const hasUnread = $derived(
-    notificationStore.notifications.some((n) => notificationTarget(n).threadRootId !== null)
+    notificationStore.unreadOccurrences.some((n) => notificationTarget(n).threadRootId !== null)
   );
 </script>
 

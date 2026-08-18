@@ -8,10 +8,8 @@ import {
 import {
   notificationOccurrence,
   mapNotificationOccurrencePage,
-  occurrenceAsNotificationItem,
   NotificationAttentionLevel,
   NotificationDeliveryIntensity,
-  NotificationItemKind,
   NotificationPolicyKind
 } from '$lib/api-client/notifications';
 
@@ -43,7 +41,7 @@ describe('notification occurrence presentation mapping', () => {
     expect(current.roomImportantUnreadCounts).toEqual({ 'room-1': 0 });
   });
 
-  it('keeps followed-thread targets as reply notifications', () => {
+  it('keeps followed-thread targets intact', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-notification',
@@ -55,11 +53,10 @@ describe('notification occurrence presentation mapping', () => {
       })
     );
 
-    expect(occurrence.reasons).toEqual([NotificationPolicyKind.FOLLOWED_THREAD]);
-    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
-      kind: NotificationItemKind.Reply,
-      replyEventId: 'reply-1',
-      replyInThread: 'root-1'
+    expect(occurrence).toMatchObject({
+      signalKind: NotificationPolicyKind.FOLLOWED_THREAD,
+      eventId: 'reply-1',
+      threadRootId: 'root-1'
     });
   });
 
@@ -75,12 +72,11 @@ describe('notification occurrence presentation mapping', () => {
       })
     );
 
-    expect(occurrence.reasons).toEqual([NotificationPolicyKind.DIRECT_MENTION]);
+    expect(occurrence.signalKind).toBe(NotificationPolicyKind.DIRECT_MENTION);
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
-    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
-      kind: NotificationItemKind.Mention,
-      mentionEventId: 'reply-2',
-      mentionInThread: 'root-1'
+    expect(occurrence).toMatchObject({
+      eventId: 'reply-2',
+      threadRootId: 'root-1'
     });
   });
 
@@ -96,14 +92,13 @@ describe('notification occurrence presentation mapping', () => {
       })
     );
 
-    expect(occurrence.reasons).toEqual([NotificationPolicyKind.FOLLOWED_ROOM]);
-    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
-      kind: NotificationItemKind.RoomMessage,
-      roomMsgEventId: 'message-1'
+    expect(occurrence).toMatchObject({
+      signalKind: NotificationPolicyKind.FOLLOWED_ROOM,
+      eventId: 'message-1'
     });
   });
 
-  it('preserves a threaded reaction target in the flattened room-message shape', () => {
+  it('preserves a threaded reaction target', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'reaction-notification',
@@ -115,10 +110,10 @@ describe('notification occurrence presentation mapping', () => {
       })
     );
 
-    expect(occurrenceAsNotificationItem(occurrence)).toMatchObject({
-      kind: NotificationItemKind.RoomMessage,
-      roomMsgEventId: 'message-1',
-      roomMsgThreadRootId: 'thread-root-1'
+    expect(occurrence).toMatchObject({
+      signalKind: NotificationPolicyKind.REACTION,
+      eventId: 'message-1',
+      threadRootId: 'thread-root-1'
     });
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
   });
@@ -146,10 +141,6 @@ describe('notification occurrence presentation mapping', () => {
       room: null,
       eventId: '',
       unread: true
-    });
-    expect(occurrenceAsNotificationItem(page.occurrences[0]!)).toMatchObject({
-      kind: NotificationItemKind.Unsupported,
-      id: 'future-target'
     });
     expect(page.unreadCount).toBe(1);
     expect(page.importantUnreadCount).toBe(1);

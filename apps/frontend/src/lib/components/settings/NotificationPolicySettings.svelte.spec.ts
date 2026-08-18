@@ -34,7 +34,7 @@ describe('NotificationPolicySettings', () => {
     setReactiveLocale('en-GB');
     mocks.notifications.getPolicy.mockResolvedValue([
       {
-        reason: NotificationPolicyKind.DIRECT_MESSAGE,
+        kind: NotificationPolicyKind.DIRECT_MESSAGE,
         serverIntensity: NotificationDeliveryIntensity.ALERT,
         roomIntensity: NotificationDeliveryIntensity.UNSPECIFIED,
         effectiveIntensity: NotificationDeliveryIntensity.ALERT
@@ -73,7 +73,7 @@ describe('NotificationPolicySettings', () => {
     mocks.notifications.getPolicy.mockImplementation((roomId?: string) =>
       Promise.resolve([
         {
-          reason: NotificationPolicyKind.DIRECT_MESSAGE,
+          kind: NotificationPolicyKind.DIRECT_MESSAGE,
           serverIntensity: NotificationDeliveryIntensity.ALERT,
           roomIntensity: roomId
             ? NotificationDeliveryIntensity.BADGE

@@ -983,11 +983,10 @@ func (x *RoomGroupStateSnapshot) GetGroup() *RoomGroup {
 	return nil
 }
 
-// NotificationVisibilityProjectionSnapshot combines the exact event-time
+// NotificationDecisionProjectionSnapshot combines the exact event-time
 // state needed to derive notifications and enforce persistent visibility
-// boundaries. The historical name is retained because snapshots are internal,
-// disposable projection caches.
-type NotificationVisibilityProjectionSnapshot struct {
+// boundaries.
+type NotificationDecisionProjectionSnapshot struct {
 	state           protoimpl.MessageState             `protogen:"open.v1"`
 	RoomDirectory   *RoomDirectoryProjectionSnapshot   `protobuf:"bytes,1,opt,name=room_directory,json=roomDirectory,proto3" json:"room_directory,omitempty"`
 	RoomGroupLayout *RoomGroupLayoutProjectionSnapshot `protobuf:"bytes,2,opt,name=room_group_layout,json=roomGroupLayout,proto3" json:"room_group_layout,omitempty"`
@@ -1000,20 +999,20 @@ type NotificationVisibilityProjectionSnapshot struct {
 	sizeCache       protoimpl.SizeCache
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) Reset() {
-	*x = NotificationVisibilityProjectionSnapshot{}
+func (x *NotificationDecisionProjectionSnapshot) Reset() {
+	*x = NotificationDecisionProjectionSnapshot{}
 	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) String() string {
+func (x *NotificationDecisionProjectionSnapshot) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NotificationVisibilityProjectionSnapshot) ProtoMessage() {}
+func (*NotificationDecisionProjectionSnapshot) ProtoMessage() {}
 
-func (x *NotificationVisibilityProjectionSnapshot) ProtoReflect() protoreflect.Message {
+func (x *NotificationDecisionProjectionSnapshot) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_projection_snapshots_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1025,54 +1024,54 @@ func (x *NotificationVisibilityProjectionSnapshot) ProtoReflect() protoreflect.M
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NotificationVisibilityProjectionSnapshot.ProtoReflect.Descriptor instead.
-func (*NotificationVisibilityProjectionSnapshot) Descriptor() ([]byte, []int) {
+// Deprecated: Use NotificationDecisionProjectionSnapshot.ProtoReflect.Descriptor instead.
+func (*NotificationDecisionProjectionSnapshot) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{13}
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetRoomDirectory() *RoomDirectoryProjectionSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetRoomDirectory() *RoomDirectoryProjectionSnapshot {
 	if x != nil {
 		return x.RoomDirectory
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetRoomGroupLayout() *RoomGroupLayoutProjectionSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetRoomGroupLayout() *RoomGroupLayoutProjectionSnapshot {
 	if x != nil {
 		return x.RoomGroupLayout
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetRbac() *RBACProjectionSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetRbac() *RBACProjectionSnapshot {
 	if x != nil {
 		return x.Rbac
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetConfig() *ConfigProjectionSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetConfig() *ConfigProjectionSnapshot {
 	if x != nil {
 		return x.Config
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetActiveUserIds() []string {
+func (x *NotificationDecisionProjectionSnapshot) GetActiveUserIds() []string {
 	if x != nil {
 		return x.ActiveUserIds
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetThreadFollows() []*ThreadFollowSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetThreadFollows() []*ThreadFollowSnapshot {
 	if x != nil {
 		return x.ThreadFollows
 	}
 	return nil
 }
 
-func (x *NotificationVisibilityProjectionSnapshot) GetThreads() []*NotificationThreadStateSnapshot {
+func (x *NotificationDecisionProjectionSnapshot) GetThreads() []*NotificationThreadStateSnapshot {
 	if x != nil {
 		return x.Threads
 	}
@@ -3620,8 +3619,8 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\tgroup_ids\x18\x02 \x03(\tR\bgroupIds\x12\x1a\n" +
 	"\bsequence\x18\x03 \x01(\x04R\bsequence\"I\n" +
 	"\x16RoomGroupStateSnapshot\x12/\n" +
-	"\x05group\x18\x01 \x01(\v2\x19.chatto.core.v1.RoomGroupR\x05group\"\x9f\x04\n" +
-	"(NotificationVisibilityProjectionSnapshot\x12V\n" +
+	"\x05group\x18\x01 \x01(\v2\x19.chatto.core.v1.RoomGroupR\x05group\"\x9d\x04\n" +
+	"&NotificationDecisionProjectionSnapshot\x12V\n" +
 	"\x0eroom_directory\x18\x01 \x01(\v2/.chatto.core.v1.RoomDirectoryProjectionSnapshotR\rroomDirectory\x12]\n" +
 	"\x11room_group_layout\x18\x02 \x01(\v21.chatto.core.v1.RoomGroupLayoutProjectionSnapshotR\x0froomGroupLayout\x12:\n" +
 	"\x04rbac\x18\x03 \x01(\v2&.chatto.core.v1.RBACProjectionSnapshotR\x04rbac\x12@\n" +
@@ -3848,78 +3847,78 @@ func file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP() []byte {
 
 var file_chatto_core_v1_projection_snapshots_proto_msgTypes = make([]protoimpl.MessageInfo, 51)
 var file_chatto_core_v1_projection_snapshots_proto_goTypes = []any{
-	(*ProjectionSnapshotGeneration)(nil),             // 0: chatto.core.v1.ProjectionSnapshotGeneration
-	(*ProjectionSnapshotPointer)(nil),                // 1: chatto.core.v1.ProjectionSnapshotPointer
-	(*ThreadProjectionSnapshot)(nil),                 // 2: chatto.core.v1.ThreadProjectionSnapshot
-	(*ThreadSnapshot)(nil),                           // 3: chatto.core.v1.ThreadSnapshot
-	(*ThreadTimelineEntrySnapshot)(nil),              // 4: chatto.core.v1.ThreadTimelineEntrySnapshot
-	(*ThreadReplySnapshot)(nil),                      // 5: chatto.core.v1.ThreadReplySnapshot
-	(*ThreadFollowSnapshot)(nil),                     // 6: chatto.core.v1.ThreadFollowSnapshot
-	(*ProjectionReplayGuardSnapshot)(nil),            // 7: chatto.core.v1.ProjectionReplayGuardSnapshot
-	(*RoomDirectoryProjectionSnapshot)(nil),          // 8: chatto.core.v1.RoomDirectoryProjectionSnapshot
-	(*RoomMembershipSnapshot)(nil),                   // 9: chatto.core.v1.RoomMembershipSnapshot
-	(*RoomBanSnapshot)(nil),                          // 10: chatto.core.v1.RoomBanSnapshot
-	(*RoomGroupLayoutProjectionSnapshot)(nil),        // 11: chatto.core.v1.RoomGroupLayoutProjectionSnapshot
-	(*RoomGroupStateSnapshot)(nil),                   // 12: chatto.core.v1.RoomGroupStateSnapshot
-	(*NotificationVisibilityProjectionSnapshot)(nil), // 13: chatto.core.v1.NotificationVisibilityProjectionSnapshot
-	(*NotificationThreadStateSnapshot)(nil),          // 14: chatto.core.v1.NotificationThreadStateSnapshot
-	(*CallStateProjectionSnapshot)(nil),              // 15: chatto.core.v1.CallStateProjectionSnapshot
-	(*CallRoomStateSnapshot)(nil),                    // 16: chatto.core.v1.CallRoomStateSnapshot
-	(*CallSessionSnapshot)(nil),                      // 17: chatto.core.v1.CallSessionSnapshot
-	(*CallParticipantSnapshot)(nil),                  // 18: chatto.core.v1.CallParticipantSnapshot
-	(*ContentKeyProjectionSnapshot)(nil),             // 19: chatto.core.v1.ContentKeyProjectionSnapshot
-	(*RBACProjectionSnapshot)(nil),                   // 20: chatto.core.v1.RBACProjectionSnapshot
-	(*RBACAssignmentSnapshot)(nil),                   // 21: chatto.core.v1.RBACAssignmentSnapshot
-	(*RBACDecisionSnapshot)(nil),                     // 22: chatto.core.v1.RBACDecisionSnapshot
-	(*ConfigProjectionSnapshot)(nil),                 // 23: chatto.core.v1.ConfigProjectionSnapshot
-	(*UserConfigSnapshot)(nil),                       // 24: chatto.core.v1.UserConfigSnapshot
-	(*NotificationPreferenceSnapshot)(nil),           // 25: chatto.core.v1.NotificationPreferenceSnapshot
-	(*RoomNotificationPreferenceSnapshot)(nil),       // 26: chatto.core.v1.RoomNotificationPreferenceSnapshot
-	(*NotificationProjectionSnapshot)(nil),           // 27: chatto.core.v1.NotificationProjectionSnapshot
-	(*NotificationProjectionTombstone)(nil),          // 28: chatto.core.v1.NotificationProjectionTombstone
-	(*AssetProjectionSnapshot)(nil),                  // 29: chatto.core.v1.AssetProjectionSnapshot
-	(*AssetChildrenSnapshot)(nil),                    // 30: chatto.core.v1.AssetChildrenSnapshot
-	(*AssetManifestSnapshot)(nil),                    // 31: chatto.core.v1.AssetManifestSnapshot
-	(*DeletedAssetSnapshot)(nil),                     // 32: chatto.core.v1.DeletedAssetSnapshot
-	(*ReactionProjectionSnapshot)(nil),               // 33: chatto.core.v1.ReactionProjectionSnapshot
-	(*MessageReactionsSnapshot)(nil),                 // 34: chatto.core.v1.MessageReactionsSnapshot
-	(*EmojiReactionsSnapshot)(nil),                   // 35: chatto.core.v1.EmojiReactionsSnapshot
-	(*UserReactionSnapshot)(nil),                     // 36: chatto.core.v1.UserReactionSnapshot
-	(*StringUint64Snapshot)(nil),                     // 37: chatto.core.v1.StringUint64Snapshot
-	(*StringStringSnapshot)(nil),                     // 38: chatto.core.v1.StringStringSnapshot
-	(*MentionablesProjectionSnapshot)(nil),           // 39: chatto.core.v1.MentionablesProjectionSnapshot
-	(*UserProfileProjectionSnapshot)(nil),            // 40: chatto.core.v1.UserProfileProjectionSnapshot
-	(*ProjectedUserProfileSnapshot)(nil),             // 41: chatto.core.v1.ProjectedUserProfileSnapshot
-	(*ProjectedEncryptedUserStringSnapshot)(nil),     // 42: chatto.core.v1.ProjectedEncryptedUserStringSnapshot
-	(*ProjectedVerifiedEmailSnapshot)(nil),           // 43: chatto.core.v1.ProjectedVerifiedEmailSnapshot
-	(*RoomTimelineProjectionSnapshot)(nil),           // 44: chatto.core.v1.RoomTimelineProjectionSnapshot
-	(*PinnedMessageSnapshot)(nil),                    // 45: chatto.core.v1.PinnedMessageSnapshot
-	(*LatestRoomPinSnapshot)(nil),                    // 46: chatto.core.v1.LatestRoomPinSnapshot
-	(*TimelineEntrySnapshot)(nil),                    // 47: chatto.core.v1.TimelineEntrySnapshot
-	(*TimelineBodySnapshot)(nil),                     // 48: chatto.core.v1.TimelineBodySnapshot
-	(*StringTimestampSnapshot)(nil),                  // 49: chatto.core.v1.StringTimestampSnapshot
-	(*AssetMessageOwnerSnapshot)(nil),                // 50: chatto.core.v1.AssetMessageOwnerSnapshot
-	(*timestamppb.Timestamp)(nil),                    // 51: google.protobuf.Timestamp
-	(*Room)(nil),                                     // 52: chatto.core.v1.Room
-	(*RoomGroup)(nil),                                // 53: chatto.core.v1.RoomGroup
-	(CallParticipantEventSource)(0),                  // 54: chatto.core.v1.CallParticipantEventSource
-	(*UserDEKGeneratedEvent)(nil),                    // 55: chatto.core.v1.UserDEKGeneratedEvent
-	(*Role)(nil),                                     // 56: chatto.core.v1.Role
-	(RbacPermissionSubjectKind)(0),                   // 57: chatto.core.v1.RbacPermissionSubjectKind
-	(*AssetRecord)(nil),                              // 58: chatto.core.v1.AssetRecord
-	(TimeFormat)(0),                                  // 59: chatto.core.v1.TimeFormat
-	(NotificationPolicyKind)(0),                      // 60: chatto.core.v1.NotificationPolicyKind
-	(NotificationDeliveryIntensity)(0),               // 61: chatto.core.v1.NotificationDeliveryIntensity
-	(*NotificationOccurrence)(nil),                   // 62: chatto.core.v1.NotificationOccurrence
-	(*AssetCreatedEvent)(nil),                        // 63: chatto.core.v1.AssetCreatedEvent
-	(*AssetProcessingStartedEvent)(nil),              // 64: chatto.core.v1.AssetProcessingStartedEvent
-	(*AssetProcessingSucceededEvent)(nil),            // 65: chatto.core.v1.AssetProcessingSucceededEvent
-	(*AssetProcessingFailedEvent)(nil),               // 66: chatto.core.v1.AssetProcessingFailedEvent
-	(*Event)(nil),                                    // 67: chatto.core.v1.Event
-	(*User)(nil),                                     // 68: chatto.core.v1.User
-	(*ServerUserPreferences)(nil),                    // 69: chatto.core.v1.ServerUserPreferences
-	(*EncryptedUserString)(nil),                      // 70: chatto.core.v1.EncryptedUserString
-	(*MessageBody)(nil),                              // 71: chatto.core.v1.MessageBody
+	(*ProjectionSnapshotGeneration)(nil),           // 0: chatto.core.v1.ProjectionSnapshotGeneration
+	(*ProjectionSnapshotPointer)(nil),              // 1: chatto.core.v1.ProjectionSnapshotPointer
+	(*ThreadProjectionSnapshot)(nil),               // 2: chatto.core.v1.ThreadProjectionSnapshot
+	(*ThreadSnapshot)(nil),                         // 3: chatto.core.v1.ThreadSnapshot
+	(*ThreadTimelineEntrySnapshot)(nil),            // 4: chatto.core.v1.ThreadTimelineEntrySnapshot
+	(*ThreadReplySnapshot)(nil),                    // 5: chatto.core.v1.ThreadReplySnapshot
+	(*ThreadFollowSnapshot)(nil),                   // 6: chatto.core.v1.ThreadFollowSnapshot
+	(*ProjectionReplayGuardSnapshot)(nil),          // 7: chatto.core.v1.ProjectionReplayGuardSnapshot
+	(*RoomDirectoryProjectionSnapshot)(nil),        // 8: chatto.core.v1.RoomDirectoryProjectionSnapshot
+	(*RoomMembershipSnapshot)(nil),                 // 9: chatto.core.v1.RoomMembershipSnapshot
+	(*RoomBanSnapshot)(nil),                        // 10: chatto.core.v1.RoomBanSnapshot
+	(*RoomGroupLayoutProjectionSnapshot)(nil),      // 11: chatto.core.v1.RoomGroupLayoutProjectionSnapshot
+	(*RoomGroupStateSnapshot)(nil),                 // 12: chatto.core.v1.RoomGroupStateSnapshot
+	(*NotificationDecisionProjectionSnapshot)(nil), // 13: chatto.core.v1.NotificationDecisionProjectionSnapshot
+	(*NotificationThreadStateSnapshot)(nil),        // 14: chatto.core.v1.NotificationThreadStateSnapshot
+	(*CallStateProjectionSnapshot)(nil),            // 15: chatto.core.v1.CallStateProjectionSnapshot
+	(*CallRoomStateSnapshot)(nil),                  // 16: chatto.core.v1.CallRoomStateSnapshot
+	(*CallSessionSnapshot)(nil),                    // 17: chatto.core.v1.CallSessionSnapshot
+	(*CallParticipantSnapshot)(nil),                // 18: chatto.core.v1.CallParticipantSnapshot
+	(*ContentKeyProjectionSnapshot)(nil),           // 19: chatto.core.v1.ContentKeyProjectionSnapshot
+	(*RBACProjectionSnapshot)(nil),                 // 20: chatto.core.v1.RBACProjectionSnapshot
+	(*RBACAssignmentSnapshot)(nil),                 // 21: chatto.core.v1.RBACAssignmentSnapshot
+	(*RBACDecisionSnapshot)(nil),                   // 22: chatto.core.v1.RBACDecisionSnapshot
+	(*ConfigProjectionSnapshot)(nil),               // 23: chatto.core.v1.ConfigProjectionSnapshot
+	(*UserConfigSnapshot)(nil),                     // 24: chatto.core.v1.UserConfigSnapshot
+	(*NotificationPreferenceSnapshot)(nil),         // 25: chatto.core.v1.NotificationPreferenceSnapshot
+	(*RoomNotificationPreferenceSnapshot)(nil),     // 26: chatto.core.v1.RoomNotificationPreferenceSnapshot
+	(*NotificationProjectionSnapshot)(nil),         // 27: chatto.core.v1.NotificationProjectionSnapshot
+	(*NotificationProjectionTombstone)(nil),        // 28: chatto.core.v1.NotificationProjectionTombstone
+	(*AssetProjectionSnapshot)(nil),                // 29: chatto.core.v1.AssetProjectionSnapshot
+	(*AssetChildrenSnapshot)(nil),                  // 30: chatto.core.v1.AssetChildrenSnapshot
+	(*AssetManifestSnapshot)(nil),                  // 31: chatto.core.v1.AssetManifestSnapshot
+	(*DeletedAssetSnapshot)(nil),                   // 32: chatto.core.v1.DeletedAssetSnapshot
+	(*ReactionProjectionSnapshot)(nil),             // 33: chatto.core.v1.ReactionProjectionSnapshot
+	(*MessageReactionsSnapshot)(nil),               // 34: chatto.core.v1.MessageReactionsSnapshot
+	(*EmojiReactionsSnapshot)(nil),                 // 35: chatto.core.v1.EmojiReactionsSnapshot
+	(*UserReactionSnapshot)(nil),                   // 36: chatto.core.v1.UserReactionSnapshot
+	(*StringUint64Snapshot)(nil),                   // 37: chatto.core.v1.StringUint64Snapshot
+	(*StringStringSnapshot)(nil),                   // 38: chatto.core.v1.StringStringSnapshot
+	(*MentionablesProjectionSnapshot)(nil),         // 39: chatto.core.v1.MentionablesProjectionSnapshot
+	(*UserProfileProjectionSnapshot)(nil),          // 40: chatto.core.v1.UserProfileProjectionSnapshot
+	(*ProjectedUserProfileSnapshot)(nil),           // 41: chatto.core.v1.ProjectedUserProfileSnapshot
+	(*ProjectedEncryptedUserStringSnapshot)(nil),   // 42: chatto.core.v1.ProjectedEncryptedUserStringSnapshot
+	(*ProjectedVerifiedEmailSnapshot)(nil),         // 43: chatto.core.v1.ProjectedVerifiedEmailSnapshot
+	(*RoomTimelineProjectionSnapshot)(nil),         // 44: chatto.core.v1.RoomTimelineProjectionSnapshot
+	(*PinnedMessageSnapshot)(nil),                  // 45: chatto.core.v1.PinnedMessageSnapshot
+	(*LatestRoomPinSnapshot)(nil),                  // 46: chatto.core.v1.LatestRoomPinSnapshot
+	(*TimelineEntrySnapshot)(nil),                  // 47: chatto.core.v1.TimelineEntrySnapshot
+	(*TimelineBodySnapshot)(nil),                   // 48: chatto.core.v1.TimelineBodySnapshot
+	(*StringTimestampSnapshot)(nil),                // 49: chatto.core.v1.StringTimestampSnapshot
+	(*AssetMessageOwnerSnapshot)(nil),              // 50: chatto.core.v1.AssetMessageOwnerSnapshot
+	(*timestamppb.Timestamp)(nil),                  // 51: google.protobuf.Timestamp
+	(*Room)(nil),                                   // 52: chatto.core.v1.Room
+	(*RoomGroup)(nil),                              // 53: chatto.core.v1.RoomGroup
+	(CallParticipantEventSource)(0),                // 54: chatto.core.v1.CallParticipantEventSource
+	(*UserDEKGeneratedEvent)(nil),                  // 55: chatto.core.v1.UserDEKGeneratedEvent
+	(*Role)(nil),                                   // 56: chatto.core.v1.Role
+	(RbacPermissionSubjectKind)(0),                 // 57: chatto.core.v1.RbacPermissionSubjectKind
+	(*AssetRecord)(nil),                            // 58: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                                // 59: chatto.core.v1.TimeFormat
+	(NotificationPolicyKind)(0),                    // 60: chatto.core.v1.NotificationPolicyKind
+	(NotificationDeliveryIntensity)(0),             // 61: chatto.core.v1.NotificationDeliveryIntensity
+	(*NotificationOccurrence)(nil),                 // 62: chatto.core.v1.NotificationOccurrence
+	(*AssetCreatedEvent)(nil),                      // 63: chatto.core.v1.AssetCreatedEvent
+	(*AssetProcessingStartedEvent)(nil),            // 64: chatto.core.v1.AssetProcessingStartedEvent
+	(*AssetProcessingSucceededEvent)(nil),          // 65: chatto.core.v1.AssetProcessingSucceededEvent
+	(*AssetProcessingFailedEvent)(nil),             // 66: chatto.core.v1.AssetProcessingFailedEvent
+	(*Event)(nil),                                  // 67: chatto.core.v1.Event
+	(*User)(nil),                                   // 68: chatto.core.v1.User
+	(*ServerUserPreferences)(nil),                  // 69: chatto.core.v1.ServerUserPreferences
+	(*EncryptedUserString)(nil),                    // 70: chatto.core.v1.EncryptedUserString
+	(*MessageBody)(nil),                            // 71: chatto.core.v1.MessageBody
 }
 var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	51, // 0: chatto.core.v1.ProjectionSnapshotGeneration.created_at:type_name -> google.protobuf.Timestamp
@@ -3938,12 +3937,12 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	51, // 13: chatto.core.v1.RoomBanSnapshot.expires_at:type_name -> google.protobuf.Timestamp
 	12, // 14: chatto.core.v1.RoomGroupLayoutProjectionSnapshot.groups:type_name -> chatto.core.v1.RoomGroupStateSnapshot
 	53, // 15: chatto.core.v1.RoomGroupStateSnapshot.group:type_name -> chatto.core.v1.RoomGroup
-	8,  // 16: chatto.core.v1.NotificationVisibilityProjectionSnapshot.room_directory:type_name -> chatto.core.v1.RoomDirectoryProjectionSnapshot
-	11, // 17: chatto.core.v1.NotificationVisibilityProjectionSnapshot.room_group_layout:type_name -> chatto.core.v1.RoomGroupLayoutProjectionSnapshot
-	20, // 18: chatto.core.v1.NotificationVisibilityProjectionSnapshot.rbac:type_name -> chatto.core.v1.RBACProjectionSnapshot
-	23, // 19: chatto.core.v1.NotificationVisibilityProjectionSnapshot.config:type_name -> chatto.core.v1.ConfigProjectionSnapshot
-	6,  // 20: chatto.core.v1.NotificationVisibilityProjectionSnapshot.thread_follows:type_name -> chatto.core.v1.ThreadFollowSnapshot
-	14, // 21: chatto.core.v1.NotificationVisibilityProjectionSnapshot.threads:type_name -> chatto.core.v1.NotificationThreadStateSnapshot
+	8,  // 16: chatto.core.v1.NotificationDecisionProjectionSnapshot.room_directory:type_name -> chatto.core.v1.RoomDirectoryProjectionSnapshot
+	11, // 17: chatto.core.v1.NotificationDecisionProjectionSnapshot.room_group_layout:type_name -> chatto.core.v1.RoomGroupLayoutProjectionSnapshot
+	20, // 18: chatto.core.v1.NotificationDecisionProjectionSnapshot.rbac:type_name -> chatto.core.v1.RBACProjectionSnapshot
+	23, // 19: chatto.core.v1.NotificationDecisionProjectionSnapshot.config:type_name -> chatto.core.v1.ConfigProjectionSnapshot
+	6,  // 20: chatto.core.v1.NotificationDecisionProjectionSnapshot.thread_follows:type_name -> chatto.core.v1.ThreadFollowSnapshot
+	14, // 21: chatto.core.v1.NotificationDecisionProjectionSnapshot.threads:type_name -> chatto.core.v1.NotificationThreadStateSnapshot
 	16, // 22: chatto.core.v1.CallStateProjectionSnapshot.rooms:type_name -> chatto.core.v1.CallRoomStateSnapshot
 	17, // 23: chatto.core.v1.CallRoomStateSnapshot.call:type_name -> chatto.core.v1.CallSessionSnapshot
 	18, // 24: chatto.core.v1.CallRoomStateSnapshot.participants:type_name -> chatto.core.v1.CallParticipantSnapshot

@@ -27,8 +27,8 @@ const { mocks } = vi.hoisted(() => ({
       eventId: 'event-1',
       threadRootId: 'thread-1',
       parentEventId: null,
-      reasons: [2],
-      reasonMatches: [{ reason: 2, intensity: 3 }],
+      signalKind: 2,
+      targetSupported: true,
       attentionLevel: 2,
       unread: true
     },
@@ -269,6 +269,29 @@ describe('notifications page', () => {
     rendered.unmount();
   });
 
+  it('keeps initial hydration visually quiet', async () => {
+    let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
+    mocks.store.notifications.fetchPage.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveRefresh = resolve;
+        })
+    );
+
+    const rendered = render(NotificationsPage);
+    expect(rendered.container.textContent).not.toContain('Loading');
+    expect(rendered.container.textContent).not.toContain('No notifications');
+
+    await vi.waitFor(() => expect(resolveRefresh).toEqual(expect.any(Function)));
+    resolveRefresh!(page());
+    await vi.waitFor(() => {
+      expect(
+        rendered.container.querySelectorAll('[data-testid="notification-group"]')
+      ).toHaveLength(1);
+    });
+    rendered.unmount();
+  });
+
   it('renders a full-sentence summary and omits the single-occurrence counter', async () => {
     const actor = {
       id: 'alice',
@@ -282,8 +305,7 @@ describe('notifications page', () => {
     const occurrence = {
       ...mocks.occurrence,
       actor,
-      reasons: [NotificationPolicyKind.FOLLOWED_THREAD],
-      reasonMatches: [{ reason: NotificationPolicyKind.FOLLOWED_THREAD, intensity: 2 }]
+      signalKind: NotificationPolicyKind.FOLLOWED_THREAD
     };
     mocks.store.notifications.fetchPage.mockResolvedValue(page([occurrence]));
 
@@ -316,8 +338,7 @@ describe('notifications page', () => {
       actor,
       eventId: 'reacted-to-message',
       threadRootId: null,
-      reasons: [NotificationPolicyKind.REACTION],
-      reasonMatches: [{ reason: NotificationPolicyKind.REACTION, intensity: 2 }],
+      signalKind: NotificationPolicyKind.REACTION,
       attentionLevel: NotificationAttentionLevel.AMBIENT,
       reactionEmoji: emoji
     });
@@ -358,8 +379,7 @@ describe('notifications page', () => {
           ...mocks.occurrence,
           id: 'reaction-bob',
           actor: bob,
-          reasons: [NotificationPolicyKind.REACTION],
-          reasonMatches: [{ reason: NotificationPolicyKind.REACTION, intensity: 2 }],
+          signalKind: NotificationPolicyKind.REACTION,
           attentionLevel: NotificationAttentionLevel.AMBIENT,
           reactionEmoji: 'heart'
         }
@@ -875,8 +895,7 @@ describe('notifications page', () => {
         sourceEventId: `dm-source-${offset}`,
         eventId: `dm-event-${offset}`,
         threadRootId: null,
-        reasons: [NotificationPolicyKind.DIRECT_MESSAGE],
-        reasonMatches: [{ reason: NotificationPolicyKind.DIRECT_MESSAGE, intensity: 3 }],
+        signalKind: NotificationPolicyKind.DIRECT_MESSAGE,
         createdAt: new Date(Date.UTC(2026, 7, 11, 12, 0, offset)).toISOString()
       };
       if (offset === 1) {
@@ -897,11 +916,14 @@ describe('notifications page', () => {
     );
     await vi.waitFor(() => {
       expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(1);
-      expect(container.textContent).toContain('Loading');
+      expect(resolveSecondPage).toEqual(expect.any(Function));
+      expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('true');
+      expect(container.textContent).not.toContain('Loading');
     });
-    resolveSecondPage?.();
+    resolveSecondPage!();
     await vi.waitFor(() => {
       expect(container.textContent).not.toContain('Loading');
+      expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('false');
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
     });
 
