@@ -132,6 +132,70 @@ func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
 	}
 }
 
+func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	poster, err := chattoCore.CreateUser(ctx, SystemActorID, "retry-read-poster", "Retry Read Poster", "password")
+	if err != nil {
+		t.Fatalf("CreateUser poster: %v", err)
+	}
+	reader, err := chattoCore.CreateUser(ctx, SystemActorID, "retry-read-reader", "Retry Read Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, poster.Id, KindChannel, "", "retry-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{poster.Id, reader.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, poster.Id, "covered source", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	entry, ok := chattoCore.roomModel.timelineEntry(posted.GetId())
+	if !ok {
+		t.Fatal("posted message missing from timeline")
+	}
+	input := CreateNotificationOccurrenceInput{
+		RecipientID: reader.Id, SourceEventID: posted.GetId(), SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
+		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.GetId()),
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
+	}
+	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, input)
+	if err != nil || !created || occurrence.GetRead() {
+		t.Fatalf("initial Create = (%+v, %v, %v), want new unread occurrence", occurrence, created, err)
+	}
+
+	// Model the crash window where read-boundary repair already consumed this
+	// scope before the committed signal reached the projection. The materializer
+	// retry must reconcile the existing occurrence without another watcher wake.
+	scope := notificationReadBoundaryScope{userID: reader.Id, roomID: room.Id}
+	key := notificationReadBoundaryKey(reader.Id, room.Id, "")
+	index := chattoCore.notificationBoundaries
+	index.mu.Lock()
+	index.read[key] = notificationReadBoundaryEntry{
+		boundary: notificationReadBoundary{targetSequence: entry.StreamSeq, observedSequence: entry.StreamSeq},
+		revision: 1,
+	}
+	delete(index.readDirty, scope)
+	index.mu.Unlock()
+
+	input.SkipReadLookup = false
+	retried, created, err := chattoCore.NotificationOccurrences().Create(ctx, input)
+	if err != nil || created || !retried.GetRead() {
+		t.Fatalf("retry Create = (%+v, %v, %v), want existing read occurrence", retried, created, err)
+	}
+	stored, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+	if err != nil || !stored.GetRead() {
+		t.Fatalf("stored retry occurrence = (%+v, %v), want read", stored, err)
+	}
+}
+
 func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 	chattoCore, _ := newTestCore(t)
 	startCoreServices(t, chattoCore)

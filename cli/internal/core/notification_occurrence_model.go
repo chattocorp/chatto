@@ -480,6 +480,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	initialStates := m.projection.Projection().occurrenceStates(refs, now)
 	pendingByID := make(map[string]*pendingNotificationCreate)
 	pending := make([]*pendingNotificationCreate, 0, len(prepared))
+	existingReadCandidates := make([]*corev1.NotificationOccurrence, 0)
 	for _, candidate := range prepared {
 		input := candidate.input
 		ref := notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: candidate.notificationID}
@@ -489,10 +490,14 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		}
 		if state.occurrence != nil {
 			results[candidate.resultIndex].occurrence = state.occurrence
+			if !input.SkipReadLookup && !state.occurrence.GetRead() {
+				existingReadCandidates = append(existingReadCandidates, state.occurrence)
+			}
 			continue
 		}
 		if duplicate := pendingByID[candidate.notificationID]; duplicate != nil {
 			duplicate.resultIndexes = append(duplicate.resultIndexes, candidate.resultIndex)
+			duplicate.skipRead = duplicate.skipRead && input.SkipReadLookup
 			continue
 		}
 
@@ -532,6 +537,9 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		pending = append(pending, item)
 	}
 	if len(pending) == 0 {
+		if err := m.reconcileOccurrenceReadBoundaries(ctx, existingReadCandidates); err != nil {
+			return nil, err
+		}
 		return results, nil
 	}
 
@@ -559,7 +567,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		wasCreated[i] = i < len(committed) && committed[i]
 	}
 
-	covered := make([]*corev1.NotificationOccurrence, 0)
+	readCandidates := existingReadCandidates
 	for _, item := range pending {
 		if item.skipRead {
 			continue
@@ -569,25 +577,12 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		if stored == nil {
 			continue
 		}
-		if stored.GetRead() {
-			continue
-		}
-		isCovered, coverErr := m.occurrenceCoveredByReadBoundary(ctx, stored)
-		if coverErr != nil {
-			return nil, coverErr
-		}
-		if isCovered {
-			covered = append(covered, stored)
+		if !stored.GetRead() {
+			readCandidates = append(readCandidates, stored)
 		}
 	}
-	if _, err := m.markReadOccurrences(ctx, covered); err != nil {
+	if err := m.reconcileOccurrenceReadBoundaries(ctx, readCandidates); err != nil {
 		return nil, err
-	}
-	for _, occurrence := range covered {
-		occurrence.Read = true
-		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
-			occurrence.AlertDelivered = proto.Bool(false)
-		}
 	}
 	created := make([]*corev1.NotificationOccurrence, 0, len(pending))
 	for i, item := range pending {
@@ -608,6 +603,37 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		return nil, appendErr
 	}
 	return results, nil
+}
+
+// reconcileOccurrenceReadBoundaries closes both the normal post-append race
+// and the redelivery case where a signal was committed before a materializer
+// stopped. Existing unread occurrences must be checked too: a boundary repair
+// can run before the signal reaches this replica's projection and will not be
+// woken again merely because the materializer later retries the source fact.
+func (m *NotificationOccurrenceModel) reconcileOccurrenceReadBoundaries(ctx context.Context, occurrences []*corev1.NotificationOccurrence) error {
+	covered := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		if occurrence == nil || occurrence.GetRead() {
+			continue
+		}
+		isCovered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
+		if err != nil {
+			return err
+		}
+		if isCovered {
+			covered = append(covered, occurrence)
+		}
+	}
+	if _, err := m.markReadOccurrences(ctx, covered); err != nil {
+		return err
+	}
+	for _, occurrence := range covered {
+		occurrence.Read = true
+		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
+			occurrence.AlertDelivered = proto.Bool(false)
+		}
+	}
+	return nil
 }
 
 func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) error {
