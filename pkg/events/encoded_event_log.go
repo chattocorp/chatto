@@ -29,11 +29,19 @@ var ErrInvalidEncodedRecord = errors.New("invalid encoded event record")
 // accidental publish-without-OCC path through the event log.
 var ErrMissingOCC = errors.New("missing optimistic concurrency guard")
 
+// ErrDuplicateBatchMessageID reports that JetStream rejected an atomic batch
+// because at least one record ID is still inside the stream's de-duplication
+// window. Callers can safely fall back to idempotent single-record publishes.
+var ErrDuplicateBatchMessageID = errors.New("atomic batch contains duplicate message id")
+
 // ErrInvalidBatchOCC is returned when an atomic batch places a stream-tail
 // guard where JetStream cannot evaluate it. Stream-tail OCC belongs on the
 // first batch entry because it fences the committed stream state that precedes
 // the complete batch.
 var ErrInvalidBatchOCC = errors.New("invalid optimistic concurrency guard placement")
+
+// NATS does not currently expose the atomic-batch duplicate-ID server code.
+const jetStreamDuplicateBatchMessageIDErrorCode = 10201
 
 // ErrInvalidSubjectReadLimit marks a page request that cannot provide a
 // bounded result.
@@ -400,6 +408,9 @@ func decodeBatchAckWithExpectation(resp *nats.Msg, conflict conflictExpectation)
 			Code:        env.Error.Code,
 			ErrorCode:   jetstream.ErrorCode(env.Error.ErrCode),
 			Description: env.Error.Description,
+		}
+		if apiErr.ErrorCode == jetStreamDuplicateBatchMessageIDErrorCode {
+			return 0, fmt.Errorf("%w: %s", ErrDuplicateBatchMessageID, env.Error.Description)
 		}
 		if isSequenceConflict(apiErr) {
 			if conflict.exact {

@@ -434,6 +434,9 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 	if err != nil {
 		return nil, err
 	}
+	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
+		return nil, err
+	}
 	occurrences, err = (&notificationService{api: a}).visibleNotificationOccurrences(ctx, userID, occurrences)
 	if err != nil {
 		return nil, err

@@ -930,7 +930,7 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 			hasRoom = slices.Contains(upsert.GetMemberUserIds(), viewer.Id)
 		}
 		hasGroups = hasGroups || operation.GetRoomGroupsReplace() != nil
-		if notifications := operation.GetNotificationsReplace(); notifications != nil {
+		if notifications := operation.GetNotificationOccurrencesReplace(); notifications != nil {
 			hasNotifications = true
 			if notifications.GetPlayNotificationSound() {
 				t.Fatal("snapshot notification replacement requested notification sound")
@@ -1403,7 +1403,7 @@ func TestRealtimeWebSocketReplacesActiveCallsWhenViewerGainsRoomAccess(t *testin
 		if replacement := operation.GetActiveCallsReplace(); replacement != nil {
 			calls = replacement.GetCalls()
 		}
-		gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
+		gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
 	}
 	if !gotRoom || !gotTimeline || !gotNotifications {
 		t.Fatalf("room access projection room=%t timeline=%t notifications=%t; operations=%+v", gotRoom, gotTimeline, gotNotifications, projection.GetOperations())
@@ -1496,7 +1496,7 @@ func TestRealtimeWebSocketUniversalMembershipTransitionsScrubAndRestoreOnlyRetai
 				}
 			}
 			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
-			gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
+			gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
 		}
 		if !gotRoom || gotTimeline != wantTimeline || gotMessage != wantMessage {
 			t.Fatalf("%s: room=%t timeline=%t message=%t, want room=true timeline=%t message=%t; operations=%+v", name, gotRoom, gotTimeline, gotMessage, wantTimeline, wantMessage, projection.GetOperations())
@@ -1659,7 +1659,7 @@ func TestRealtimeWebSocketRestoresRetainedTimelineAfterUnarchive(t *testing.T) {
 				}
 			}
 			gotCalls = gotCalls || operation.GetActiveCallsReplace() != nil
-			gotNotifications = gotNotifications || operation.GetNotificationsReplace() != nil
+			gotNotifications = gotNotifications || operation.GetNotificationOccurrencesReplace() != nil
 		}
 		return gotMessage && gotCalls && gotNotifications
 	})
@@ -1798,7 +1798,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("created projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	replacement := frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
 	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetUnreadCount() != 1 {
 		t.Fatalf("created replacement = %+v, want one unread occurrence", replacement)
 	}
@@ -1824,7 +1824,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
 	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetOccurrences()[0].GetUnread() || replacement.GetOccurrences().GetUnreadCount() != 0 {
 		t.Fatalf("updated replacement = %+v, want one read occurrence", replacement)
 	}
@@ -1842,7 +1842,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-read frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
 	if replacement.GetPlayNotificationSound() {
 		t.Fatal("stale alert candidate played sound after the occurrence was read")
 	}
@@ -1860,7 +1860,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-delete frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
-	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
+	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationOccurrencesReplace()
 	if len(replacement.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("stale created-after-delete occurrences = %+v, want empty", replacement.GetOccurrences().GetOccurrences())
 	}
@@ -2033,7 +2033,7 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 	if replacement.GetRoomId() != room.Id || replacement.GetViewerState().GetHasUnread() {
 		t.Fatalf("room-read replacement = %+v, want room %q with has_unread=false", replacement, room.Id)
 	}
-	if notifications := operations[1].GetNotificationsReplace(); notifications == nil {
+	if notifications := operations[1].GetNotificationOccurrencesReplace(); notifications == nil {
 		t.Fatal("room-read event did not replace current notification state")
 	} else if len(notifications.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("room-read notifications = %+v, want no unread notification state", notifications)
@@ -2768,7 +2768,7 @@ func TestRealtimeWebSocketReplaysReactionAfterDisconnect(t *testing.T) {
 	foundNotifications := false
 	if ok && reconciliation.GetProjectionEvent() != nil {
 		for _, operation := range reconciliation.GetProjectionEvent().GetOperations() {
-			foundNotifications = foundNotifications || operation.GetNotificationsReplace() != nil
+			foundNotifications = foundNotifications || operation.GetNotificationOccurrencesReplace() != nil
 		}
 	}
 	if !foundNotifications {
@@ -2912,7 +2912,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 					frameHasThreadStates = frameHasThreadStates || state.GetRoomId() == room.Id && state.GetThreadRootEventId() == message.Id && state.GetViewerState().GetIsFollowing()
 				}
 			}
-			frameHasNotifications = frameHasNotifications || operation.GetNotificationsReplace() != nil
+			frameHasNotifications = frameHasNotifications || operation.GetNotificationOccurrencesReplace() != nil
 			frameHasViewer = frameHasViewer || operation.GetViewerUpsert() != nil
 			if presences := operation.GetPresencesReplace(); presences != nil {
 				framePresences = presences
@@ -3068,7 +3068,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 					}
 				}
 			}
-			if operation.GetNotificationsReplace() != nil {
+			if operation.GetNotificationOccurrencesReplace() != nil {
 				notificationReconciliations++
 			}
 			if operation.GetPresencesReplace() != nil {

@@ -233,6 +233,10 @@ func TestEncodedEventLogAtomicBatchPreservesBytesAndOrder(t *testing.T) {
 			t.Fatalf("entry %d Nats-Msg-Id = %q, want %q", i, got, entries[i].Record.ID)
 		}
 	}
+	entries[0].ExpectedSeq = seqs[0]
+	if _, err := eventLog.AppendBatch(ctx, entries); !errors.Is(err, ErrDuplicateBatchMessageID) {
+		t.Fatalf("idempotent batch retry error = %v, want ErrDuplicateBatchMessageID", err)
+	}
 	waitFor(t, 3*time.Second, func() bool {
 		_, err := stream.GetMsg(ctx, seqs[1])
 		return errors.Is(err, jetstream.ErrMsgNotFound)

@@ -172,8 +172,13 @@ validated before exact totals are returned, including rows outside the
 requested page.
 
 Creation-triggered realtime replacement waits for the notification projection
-and rebuilds current state by opaque notification ID. A newer Read or dismissal
-therefore wins over a delayed creation invalidation. Room
+and rebuilds current state by opaque notification ID. It requests a local sound
+only while that exact occurrence remains inside its alert deadline, allowed by
+current preference and DND state, visible, and present in the replacement; the
+client deduplicates the effect by projection-event ID. A newer Read or dismissal
+therefore wins over a delayed creation invalidation. A quiet once-per-minute
+first-page reconciliation bounds count staleness when a transient invalidation
+is lost. Room
 deletion advances the existing generic authorization fence atomically, making a
 concurrent room-policy write retry and reject the now-missing room.
 

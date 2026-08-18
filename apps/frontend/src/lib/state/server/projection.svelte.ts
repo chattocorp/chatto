@@ -46,7 +46,7 @@ export class ServerProjectionStore {
         case 'roomTimelineReplace':
         case 'roomTimelineEventUpsert':
         case 'roomTimelineEventRemove':
-        case 'notificationsReplace':
+        case 'notificationOccurrencesReplace':
         case 'roomViewerStateReplace':
         case 'activeCallsReplace':
         case 'presencesReplace':
@@ -128,7 +128,7 @@ export class ServerProjectionStore {
             operation.operation.value.eventId
           );
           break;
-        case 'notificationsReplace': {
+        case 'notificationOccurrencesReplace': {
           // Notification state is owned by NotificationStore. Keeping another
           // hydrated payload mirror here would make authorization scrubbing
           // and optimistic count updates race across two owners.

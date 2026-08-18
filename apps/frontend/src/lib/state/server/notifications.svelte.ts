@@ -279,9 +279,7 @@ export class NotificationStore {
    * Notifications are sorted most-recent-first, so .find returns the freshest.
    */
   getNonDMNotification(): NotificationOccurrenceItem | undefined {
-    return this.unreadOccurrences.find(
-      (n) => n.targetSupported && !notificationTarget(n).isDM
-    );
+    return this.unreadOccurrences.find((n) => n.targetSupported && !notificationTarget(n).isDM);
   }
 
   /**
@@ -314,9 +312,7 @@ export class NotificationStore {
    * Counterpart to {@link hasRoomNotification}, which excludes DMs.
    */
   hasDMRoomNotification(roomId: string): boolean {
-    return this.unreadOccurrences.some(
-      (n) => isDMNotification(n) && n.room?.id === roomId
-    );
+    return this.unreadOccurrences.some((n) => isDMNotification(n) && n.room?.id === roomId);
   }
 
   /**
@@ -345,9 +341,18 @@ export class NotificationStore {
    * must not erase already-loaded notifications on others.
    */
   async fetch() {
+    await this.#refresh(true);
+  }
+
+  /** Quietly reconcile after a potentially missed best-effort live hint. */
+  async reconcile() {
+    await this.#refresh(false);
+  }
+
+  async #refresh(showLoading: boolean) {
     if (this.#pendingMutationCount > 0) await this.#waitForPendingMutations();
     const generation = ++this.#fetchGeneration;
-    this.loading = true;
+    if (showLoading) this.loading = true;
     this.error = null;
 
     try {
@@ -360,7 +365,7 @@ export class NotificationStore {
       this.error = e instanceof Error ? e.message : 'Failed to fetch notifications';
       console.error('Failed to fetch notifications:', e);
     } finally {
-      if (generation === this.#fetchGeneration) {
+      if (showLoading && generation === this.#fetchGeneration) {
         this.loading = false;
       }
     }

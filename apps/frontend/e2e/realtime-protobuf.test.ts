@@ -124,13 +124,13 @@ class RealtimeProtobufClient {
             }
             if (frame.frame.case === 'projectionEvent') {
               const operations = frame.frame.value.operations.map((operation) => {
-                if (operation.operation.case !== 'notificationsReplace') {
+                if (operation.operation.case !== 'notificationOccurrencesReplace') {
                   return operation.operation.case ?? 'unknown';
                 }
                 const signals = operation.operation.value.occurrences?.occurrences.map(
                   (occurrence) => occurrence.signal?.kind.case ?? 'unknown'
                 );
-                return `notificationsReplace[${signals?.join(',') ?? ''}]`;
+                return `notificationOccurrencesReplace[${signals?.join(',') ?? ''}]`;
               });
               return `projectionEvent:${operations.join('+')}`;
             }
@@ -249,9 +249,9 @@ test.describe('protobuf realtime stream', () => {
       const mentionFrame = await realtime.waitForFrame((frame) =>
         frame.frame.case === 'projectionEvent'
           ? frame.frame.value.operations.some((operation) =>
-              operation.operation.case === 'notificationsReplace'
-                ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
-                    occurrence.signal?.kind.case === 'directMentionReceived'
+              operation.operation.case === 'notificationOccurrencesReplace'
+                ? operation.operation.value.occurrences?.occurrences.some(
+                    (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
                   )
                 : false
             )
@@ -263,11 +263,13 @@ test.describe('protobuf realtime stream', () => {
       }
       const mentionReplacement = mentionFrame.frame.value.operations
         .map((operation) =>
-          operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
+          operation.operation.case === 'notificationOccurrencesReplace'
+            ? operation.operation.value
+            : null
         )
         .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const mention = mentionReplacement?.occurrences?.occurrences.find((occurrence) =>
-        occurrence.signal?.kind.case === 'directMentionReceived'
+      const mention = mentionReplacement?.occurrences?.occurrences.find(
+        (occurrence) => occurrence.signal?.kind.case === 'directMentionReceived'
       );
       expect(mention?.actor?.displayName).toBe(mentionActorDisplayName);
       expect(mention?.actor?.id).toBeTruthy();
@@ -290,9 +292,9 @@ test.describe('protobuf realtime stream', () => {
       const dmFrame = await realtime.waitForFrame((frame) =>
         frame.frame.case === 'projectionEvent'
           ? frame.frame.value.operations.some((operation) =>
-              operation.operation.case === 'notificationsReplace'
-                ? operation.operation.value.occurrences?.occurrences.some((occurrence) =>
-                    occurrence.signal?.kind.case === 'directMessageReceived'
+              operation.operation.case === 'notificationOccurrencesReplace'
+                ? operation.operation.value.occurrences?.occurrences.some(
+                    (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
                   )
                 : false
             )
@@ -304,19 +306,19 @@ test.describe('protobuf realtime stream', () => {
       }
       const dmReplacement = dmFrame.frame.value.operations
         .map((operation) =>
-          operation.operation.case === 'notificationsReplace' ? operation.operation.value : null
+          operation.operation.case === 'notificationOccurrencesReplace'
+            ? operation.operation.value
+            : null
         )
         .find((replacement) => replacement?.occurrences?.occurrences.length);
-      const dm = dmReplacement?.occurrences?.occurrences.find((occurrence) =>
-        occurrence.signal?.kind.case === 'directMessageReceived'
+      const dm = dmReplacement?.occurrences?.occurrences.find(
+        (occurrence) => occurrence.signal?.kind.case === 'directMessageReceived'
       );
       expect(dm?.actor?.displayName).toBe(dmSenderDisplayName);
       expect(dm?.actor?.id).toBeTruthy();
       expect(dm?.signal?.kind.case).toBe('directMessageReceived');
       const dmMessage =
-        dm?.signal?.kind.case === 'directMessageReceived'
-          ? dm.signal.kind.value.message
-          : null;
+        dm?.signal?.kind.case === 'directMessageReceived' ? dm.signal.kind.value.message : null;
       expect(dmMessage?.room?.id).toBeTruthy();
     } finally {
       realtime.close();

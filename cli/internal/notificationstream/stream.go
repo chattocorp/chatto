@@ -65,33 +65,96 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrac
 // bounded-subject OCC conflict is safe because event IDs and state transitions
 // are idempotent.
 func (p *Publisher) AppendEventually(ctx context.Context, event *corev1.NotificationEvent) (events.StreamPosition, error) {
-	subject, err := subjectFor(event)
+	positions, err := p.AppendBatchEventually(ctx, []*corev1.NotificationEvent{event})
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	if event.GetExpiresAt() == nil || !event.GetExpiresAt().IsValid() {
-		return events.StreamPosition{}, fmt.Errorf("%w: expires_at is required", ErrInvalidEvent)
+	return positions[0], nil
+}
+
+type preparedEvent struct {
+	id             string
+	data           []byte
+	physicalExpiry time.Time
+}
+
+// AppendBatchEventually atomically publishes lifecycle facts for one fixed
+// subject. The framework mutation owns the subject-tail fence and bounded
+// conflict retries; the outer loop keeps idempotent retry alive until the
+// caller's context ends.
+func (p *Publisher) AppendBatchEventually(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]events.StreamPosition, error) {
+	if len(notificationEvents) == 0 {
+		return nil, nil
 	}
-	physicalExpiry := event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace)
-	ttl := physicalExpiry.Sub(p.now().UTC())
-	if ttl <= 0 {
-		return events.StreamPosition{}, ErrExpiredEvent
+	subject := ""
+	prepared := make([]preparedEvent, 0, len(notificationEvents))
+	for i, event := range notificationEvents {
+		eventSubject, err := subjectFor(event)
+		if err != nil {
+			return nil, fmt.Errorf("event %d: %w", i, err)
+		}
+		if subject == "" {
+			subject = eventSubject
+		} else if eventSubject != subject {
+			return nil, fmt.Errorf("%w: batch events must share one lifecycle subject", ErrInvalidEvent)
+		}
+		if event.GetExpiresAt() == nil || !event.GetExpiresAt().IsValid() {
+			return nil, fmt.Errorf("%w: expires_at is required", ErrInvalidEvent)
+		}
+		data, err := proto.Marshal(event)
+		if err != nil {
+			return nil, fmt.Errorf("marshal notification event %d: %w", i, err)
+		}
+		prepared = append(prepared, preparedEvent{
+			id:             event.GetId(),
+			data:           data,
+			physicalExpiry: event.GetExpiresAt().AsTime().UTC().Add(p.retentionGrace),
+		})
 	}
-	data, err := proto.Marshal(event)
-	if err != nil {
-		return events.StreamPosition{}, fmt.Errorf("marshal notification event: %w", err)
+	for _, event := range prepared {
+		if !p.now().UTC().Before(event.physicalExpiry) {
+			return nil, ErrExpiredEvent
+		}
 	}
-	record := events.EncodedRecord{ID: event.GetId(), Data: data, TTL: ttl}
 	for {
-		sequence, err := p.log.AppendEventually(ctx, subject, record)
+		result, err := p.log.ExecuteMutation(ctx, events.AtSubject(subject), func(context.Context, events.MutationAttempt) ([]events.EncodedMutationEntry, error) {
+			now := p.now().UTC()
+			entries := make([]events.EncodedMutationEntry, 0, len(prepared))
+			for _, event := range prepared {
+				ttl := event.physicalExpiry.Sub(now)
+				if ttl <= 0 {
+					return nil, ErrExpiredEvent
+				}
+				entries = append(entries, events.EncodedMutationEntry{
+					Subject: subject,
+					Record:  events.EncodedRecord{ID: event.id, Data: event.data, TTL: ttl},
+				})
+			}
+			return entries, nil
+		})
 		if err == nil {
-			return events.SubjectPosition(subject, sequence), nil
+			positions := make([]events.StreamPosition, len(result.Sequences))
+			for i, sequence := range result.Sequences {
+				positions[i] = events.SubjectPosition(subject, sequence)
+			}
+			return positions, nil
+		}
+		if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
+			positions := make([]events.StreamPosition, 0, len(notificationEvents))
+			for _, event := range notificationEvents {
+				position, appendErr := p.AppendEventually(ctx, event)
+				if appendErr != nil {
+					return nil, appendErr
+				}
+				positions = append(positions, position)
+			}
+			return positions, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
-			return events.StreamPosition{}, err
+			return nil, err
 		}
 		if err := ctx.Err(); err != nil {
-			return events.StreamPosition{}, err
+			return nil, err
 		}
 	}
 }

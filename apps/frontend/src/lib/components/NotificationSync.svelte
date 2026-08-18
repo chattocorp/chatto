@@ -23,6 +23,9 @@ Include this component once in the application root so signed-out pages also cle
   } from '$lib/notifications/appBadge';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
 
+  const reconciliationIntervalMs = 60_000;
+  const rememberedSoundEvents = 256;
+
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
   $effect(() => {
@@ -34,11 +37,20 @@ Include this component once in the application root so signed-out pages also cle
 
       const bus = eventBusManager.getBus(instance.id);
       if (!bus) continue;
+      const soundedEventIds: string[] = [];
 
       const handler: ProjectionHandler = (event) => {
         for (const operation of event.operations) {
-          if (operation.operation.case !== 'notificationsReplace') continue;
-          if (operation.operation.value.playNotificationSound) {
+          if (operation.operation.case !== 'notificationOccurrencesReplace') continue;
+          if (
+            event.id &&
+            operation.operation.value.playNotificationSound &&
+            !soundedEventIds.includes(event.id)
+          ) {
+            soundedEventIds.push(event.id);
+            if (soundedEventIds.length > rememberedSoundEvents) {
+              soundedEventIds.shift();
+            }
             playNotificationSound(
               userPreferences.notificationSound,
               userPreferences.notificationSoundFilters
@@ -53,6 +65,23 @@ Include this component once in the application root so signed-out pages also cle
 
     return () => {
       for (const fn of cleanups) fn();
+    };
+  });
+
+  // Core NATS invalidations are latency hints, while the notification stream
+  // is authoritative. Reconcile quietly so a lost transient hint cannot leave
+  // counts stale until a 90-day semantic expiry or reconnect.
+  $effect(() => {
+    const timers: ReturnType<typeof setInterval>[] = [];
+    for (const instance of serverRegistry.servers) {
+      const stores = serverRegistry.getStore(instance.id);
+      if (!stores.isAuthenticated) continue;
+      timers.push(
+        setInterval(() => void stores.notifications.reconcile(), reconciliationIntervalMs)
+      );
+    }
+    return () => {
+      for (const timer of timers) clearInterval(timer);
     };
   });
 

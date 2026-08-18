@@ -148,8 +148,11 @@ They may carry one opaque alert-candidate notification ID but never expose
 JetStream coordinates. The receiving replica fences the notification
 projection, revalidates any candidate, and sends an authoritative finite
 replacement plus a positive `play_notification_sound` instruction. Missing or
-reordered invalidations therefore cannot permanently corrupt client counts or
-play a sound for an occurrence that is already read or removed.
+reordered invalidations therefore cannot play a sound across the current
+deadline, policy, DND, visibility, read, or removal boundary. Clients
+deduplicate the one-shot sound by projection-event ID and quietly reconcile the
+authoritative first page once per minute, bounding stale counts when a
+best-effort invalidation is lost.
 
 ### Retention and automatic expiry
 
@@ -195,6 +198,14 @@ earlier unreleased Notifications 2.0 drafts. It exposes exact occurrences and
 rich signal oneofs; the bundled client owns presentation grouping. New signal
 branches are wire-additive after release, but a server must preserve and reject
 unsupported variants rather than guessing their visibility or deleting them.
+New top-level `NotificationEvent` lifecycle variants require a readers-first
+rollout: every serving projection must understand the variant before any writer
+appends it. An older projector stops safely on an unsupported lifecycle fact
+rather than skipping state that could affect privacy or delivery.
+Notifications 2.0 also uses a fresh realtime projection-operation tag. The
+released Notifications 1.0 operation tag is reserved rather than being reused
+with an incompatible nested payload, so mixed-version clients fail closed on an
+unknown operation instead of accepting an empty replacement and advancing.
 
 ## Consequences
 

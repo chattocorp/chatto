@@ -544,7 +544,7 @@ export class ServerStateStore {
           }
           break;
         }
-        case 'notificationsReplace': {
+        case 'notificationOccurrencesReplace': {
           const replacement = operation.operation.value;
           if (replacement.occurrences) {
             this.notifications.replaceOccurrenceProjection(

@@ -201,6 +201,7 @@ jobs:
             --exclude-path chatto/api/v1 \
             --exclude-path chatto/admin/v1 \
             --exclude-path chatto/realtime/v1 \
+            --exclude-path chatto/core/v1/live_events.proto \
             --exclude-path chatto/core/v1/projection_snapshots.proto
 
       - name: Check projection snapshot schema contracts
@@ -217,7 +218,8 @@ jobs:
             --path chatto/discovery/v1 \
             --path chatto/api/v1 \
             --path chatto/admin/v1 \
-            --path chatto/realtime/v1
+            --path chatto/realtime/v1 \
+            --path chatto/core/v1/live_events.proto
 
       - name: Check Authling persisted protobuf breaking changes
         run: |
@@ -234,7 +236,7 @@ jobs:
       - name: Acknowledge intentional public API protobuf breaking changes
         if: ${{ github.event_name == 'pull_request' && contains(github.event.pull_request.labels.*.name, 'api-breaking-change') }}
         run: |
-          echo "::notice::Skipping public API Buf breaking check because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
+          echo "::notice::Skipping public and transient-wire Buf breaking checks because this PR has the api-breaking-change label. Storage, internal, Operator, and codegen drift checks still run."
 
       - name: Lint Authling protobufs
         working-directory: authling

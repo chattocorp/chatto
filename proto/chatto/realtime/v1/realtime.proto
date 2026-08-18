@@ -162,6 +162,9 @@ message RealtimeProjectionEvent {
 
 // One mutation of a server-scoped client projection.
 message RealtimeProjectionOperation {
+  reserved 13;
+  reserved "notifications_replace";
+
   oneof operation {
     // Clears all canonical server projection state before compacted replay.
     RealtimeProjectionReset reset = 1;
@@ -190,9 +193,6 @@ message RealtimeProjectionOperation {
     // a message tombstone: projection-only channel echoes disappear when the
     // underlying thread reply is no longer echoed into the room.
     RealtimeProjectionRoomTimelineEventRemove room_timeline_event_remove = 12;
-    // Replaces the viewer's current notification-occurrence page and exact
-    // unread occurrence counts.
-    RealtimeProjectionNotificationsReplace notifications_replace = 13;
     // Replaces one room's current viewer state without
     // retransmitting room metadata or membership.
     RealtimeProjectionRoomViewerStateReplace room_viewer_state_replace = 14;
@@ -209,6 +209,10 @@ message RealtimeProjectionOperation {
     // Signals root-message activity for lightweight room ordering even when
     // that room's timeline is not retained.
     RealtimeProjectionRoomActivity room_activity = 18;
+    // Replaces the viewer's current notification-occurrence page and exact
+    // unread occurrence counts. This uses a new top-level operation tag rather
+    // than reinterpreting the released Notifications 1.0 replacement.
+    RealtimeProjectionNotificationOccurrencesReplace notification_occurrences_replace = 19;
   }
 }
 
@@ -346,14 +350,12 @@ message RealtimeProjectionRoomTimelineEventRemove {
 }
 
 // Finite current notification state emitted on bootstrap and every resume.
-message RealtimeProjectionNotificationsReplace {
-  reserved 1, 2, 3;
-  reserved "page", "room_counts", "change";
+message RealtimeProjectionNotificationOccurrencesReplace {
   // True only when this live replacement should produce a one-shot local
   // notification sound. Bootstrap and reconciliation replacements are false.
-  bool play_notification_sound = 4;
+  bool play_notification_sound = 1;
   // Authoritative Notifications 2.0 occurrences and exact unread count.
-  chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 5;
+  chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 2;
 }
 
 // Lightweight current viewer state for one projected room.

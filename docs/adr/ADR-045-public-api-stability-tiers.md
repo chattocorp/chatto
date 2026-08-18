@@ -132,8 +132,10 @@ pre-1.0 public API breaking changes can still be accepted when the PR carries
 the `api-breaking-change` label and states the compatibility plan. That label
 only suppresses public API breaking checks for `chatto/auth/v1`,
 `chatto/api/v1`, `chatto/admin/v1`, `chatto/discovery/v1`, and
-`chatto/realtime/v1`; storage and internal protobuf checks, including
-`chatto/core/v1`, still run. The local root-equivalent `chatto.operator.v1`
+`chatto/realtime/v1`, plus the explicitly transient
+`chatto/core/v1/live_events.proto` wire envelope. Storage and other internal
+protobuf checks, including persisted `chatto/core/v1` contracts, still run.
+The local root-equivalent `chatto.operator.v1`
 surface is reviewed separately and is not part of the public network API
 posture.
 

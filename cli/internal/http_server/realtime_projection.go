@@ -66,8 +66,8 @@ func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID
 	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomGroupsReplace{
 		RoomGroupsReplace: &realtimev1.RealtimeProjectionRoomGroupsReplace{Groups: snapshot.RoomGroups},
 	}})
-	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-		NotificationsReplace: realtimeProjectionNotifications(snapshot.Notifications),
+	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
+		NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(snapshot.Notifications),
 	}})
 	appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ActiveCallsReplace{
 		ActiveCallsReplace: &realtimev1.RealtimeProjectionActiveCallsReplace{Calls: snapshot.ActiveCalls},
@@ -173,8 +173,8 @@ func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, 
 		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ThreadViewerStatesReplace{
 			ThreadViewerStatesReplace: realtimeProjectionThreadViewerStates(threadStates),
 		}},
-		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-			NotificationsReplace: realtimeProjectionNotifications(notifications),
+		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
+			NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(notifications),
 		}},
 		&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_PresencesReplace{
 			PresencesReplace: &realtimev1.RealtimeProjectionPresencesReplace{Statuses: presences},
@@ -269,11 +269,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
 			}
-			playSound := false
-			if candidateID := invalidation.GetAlertCandidateNotificationId(); candidateID != "" {
+			candidateID := invalidation.GetAlertCandidateNotificationId()
+			alertEligible := false
+			if candidateID != "" {
 				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, candidateID)
 				if err == nil && core.NotificationAlertPending(current) {
-					playSound = true
+					alertEligible, err = s.core.NotificationAlertEligible(ctx, current)
+					if err != nil {
+						return nil, false, err
+					}
 				} else if err != nil && !errors.Is(err, core.ErrNotFound) {
 					return nil, false, err
 				}
@@ -282,10 +286,12 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err != nil {
 				return nil, false, err
 			}
-			replacement := realtimeProjectionNotifications(notifications)
-			replacement.PlayNotificationSound = playSound
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-				NotificationsReplace: replacement,
+			replacement := realtimeProjectionNotificationOccurrences(notifications)
+			if alertEligible && notificationReplacementContains(replacement, candidateID) {
+				replacement.PlayNotificationSound = true
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
+				NotificationOccurrencesReplace: replacement,
 			}})
 		case *corev1.LiveEvent_RoomMarkedAsRead:
 			roomID := payload.RoomMarkedAsRead.GetRoomId()
@@ -302,8 +308,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err != nil {
 				return nil, false, err
 			}
-			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-				NotificationsReplace: realtimeProjectionNotifications(notifications),
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
+				NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(notifications),
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged
@@ -465,8 +471,8 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err != nil {
 			return fmt.Errorf("assemble notifications after room access change: %w", err)
 		}
-		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
-			NotificationsReplace: realtimeProjectionNotifications(notifications),
+		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
+			NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(notifications),
 		}})
 		return nil
 	}
@@ -883,13 +889,25 @@ func realtimeProjectionRoom(room *connectapi.RealtimeProjectionRoom) *realtimev1
 	}
 }
 
-func realtimeProjectionNotifications(notifications *connectapi.RealtimeProjectionNotifications) *realtimev1.RealtimeProjectionNotificationsReplace {
+func realtimeProjectionNotificationOccurrences(notifications *connectapi.RealtimeProjectionNotifications) *realtimev1.RealtimeProjectionNotificationOccurrencesReplace {
 	if notifications == nil {
-		return &realtimev1.RealtimeProjectionNotificationsReplace{}
+		return &realtimev1.RealtimeProjectionNotificationOccurrencesReplace{}
 	}
-	return &realtimev1.RealtimeProjectionNotificationsReplace{
+	return &realtimev1.RealtimeProjectionNotificationOccurrencesReplace{
 		Occurrences: notifications.Occurrences,
 	}
+}
+
+func notificationReplacementContains(replacement *realtimev1.RealtimeProjectionNotificationOccurrencesReplace, notificationID string) bool {
+	if replacement == nil || notificationID == "" || replacement.GetOccurrences() == nil {
+		return false
+	}
+	for _, occurrence := range replacement.GetOccurrences().GetOccurrences() {
+		if occurrence.GetId() == notificationID {
+			return true
+		}
+	}
+	return false
 }
 
 func realtimeProjectionThreadViewerStates(states []*connectapi.RealtimeProjectionThreadViewerState) *realtimev1.RealtimeProjectionThreadViewerStatesReplace {

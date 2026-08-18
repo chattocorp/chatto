@@ -105,6 +105,19 @@ describe('notification occurrence presentation mapping', () => {
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.AMBIENT);
   });
 
+  it('maps unknown future attention levels conservatively to Important', () => {
+    const occurrence = requireNotificationOccurrence(
+      new NotificationOccurrence({
+        id: 'future-attention',
+        signal: notificationSignal('directMentionReceived', 'message-1'),
+        attentionLevel: 99 as NotificationAttentionLevel,
+        unread: true
+      })
+    );
+
+    expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
+  });
+
   it('keeps unsupported targets as safe generic rows with authoritative counts', () => {
     const page = mapNotificationOccurrencePage(
       new ListNotificationOccurrencesResponse({

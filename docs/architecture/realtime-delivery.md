@@ -288,8 +288,11 @@ one opaque alert candidate. Before assembling a finite replacement, the
 serving replica waits for its `NOTIFICATIONS` projection to become current and
 revalidates that candidate. It sends only the authoritative replacement and a
 positive `play_notification_sound` instruction when the occurrence is still
-unread and alert-pending. A newer read, removal, or lifecycle mutation therefore
-prevents sound while the replacement remains authoritative.
+unread, inside its alert deadline, allowed by current policy and DND state,
+currently visible, and present in that same finite replacement. A newer read,
+removal, policy/access change, or lifecycle mutation therefore prevents sound
+while the replacement remains authoritative. The client deduplicates this
+one-shot effect by the stable enclosing projection-event ID.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
@@ -413,7 +416,7 @@ reloaded during reset.
 Typing, presence transitions, mention/new-DM attention hints, and session
 termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
 Notification occurrence create/update/delete signals instead assemble an
-authoritative `notifications_replace` containing occurrences plus exact total
+authoritative `notification_occurrences_replace` containing occurrences plus exact total
 and Important counts. A live replacement may carry transition metadata for
 one-shot presentation effects, while replay and finite reconciliation omit it.
 The internal signal carries no stream coordinate. Before emitting the
@@ -422,7 +425,9 @@ notification projection is current, preventing a cross-replica invalidation
 from advancing the cursor with stale state. Replacements contain at most 50 exact occurrences plus
 complete aggregate totals and the next list expiry boundary. Clients refresh
 at that boundary and use the separately paginated ConnectRPC read for older
-occurrences.
+occurrences. They also quietly reconcile the first page once per minute, which
+bounds count staleness if a best-effort Core NATS invalidation is lost while a
+tab remains connected.
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the

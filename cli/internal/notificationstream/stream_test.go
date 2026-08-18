@@ -153,6 +153,57 @@ func TestPublisherSurvivesSharedSubjectContention(t *testing.T) {
 	}
 }
 
+func TestPublisherAppendsLifecycleBatchAtomically(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS_BATCH_TEST", Subjects: Subjects(), Storage: jetstream.MemoryStorage, AllowMsgTTL: true, AllowAtomicPublish: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := NewPublisher(js, stream, time.Hour, nil)
+	now := time.Now().UTC()
+	eventsToAppend := make([]*corev1.NotificationEvent, 3)
+	for i := range eventsToAppend {
+		id := fmt.Sprintf("NE-batch-%d", i)
+		eventsToAppend[i] = &corev1.NotificationEvent{
+			Id: id, RecipientId: "U1", NotificationId: id, OccurredAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			Event: &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
+		}
+	}
+
+	positions, err := publisher.AppendBatchEventually(ctx, eventsToAppend)
+	if err != nil {
+		t.Fatalf("AppendBatchEventually: %v", err)
+	}
+	if len(positions) != 3 || positions[1].Seq != positions[0].Seq+1 || positions[2].Seq != positions[1].Seq+1 {
+		t.Fatalf("batch positions = %+v, want three adjacent records", positions)
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State.Msgs != 3 {
+		t.Fatalf("stored batch messages = %d, want 3", info.State.Msgs)
+	}
+	if _, err := publisher.AppendBatchEventually(ctx, eventsToAppend); err != nil {
+		t.Fatalf("idempotent AppendBatchEventually retry: %v", err)
+	}
+	info, err = stream.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.State.Msgs != 3 {
+		t.Fatalf("stored messages after idempotent retry = %d, want 3", info.State.Msgs)
+	}
+}
+
 func TestAlertResolutionEventIDMakesTerminalOutcomeSingleWinner(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)

@@ -121,7 +121,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		}
 	case *corev1.NotificationEvent_AlertResolved:
 		occurrence := p.byID[event.GetNotificationId()]
-		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
+		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() || occurrence.AlertDelivered != nil {
 			return nil
 		}
 		occurrence.AlertDelivered = proto.Bool(payload.AlertResolved.GetDelivered())

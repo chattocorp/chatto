@@ -22,7 +22,10 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-const notificationPhysicalDeleteRetry = time.Minute
+const (
+	notificationPhysicalDeleteRetry = time.Minute
+	notificationLifecycleBatchSize  = 100
+)
 
 type CreateNotificationOccurrenceInput struct {
 	RecipientID          string
@@ -499,23 +502,10 @@ func (m *NotificationOccurrenceModel) MarkRead(ctx context.Context, userID, noti
 	if occurrence.GetRead() {
 		return occurrence, nil
 	}
-	now := m.now().UTC()
-	event := &corev1.NotificationEvent{
-		Id:             notificationLifecycleEventID("read", notificationID),
-		RecipientId:    userID,
-		NotificationId: notificationID,
-		OccurredAt:     timestamppb.New(now),
-		ExpiresAt:      occurrence.GetExpiresAt(),
-		Event:          &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
-	}
-	if err := m.appendAndWait(ctx, event); err != nil {
+	if _, err := m.markReadOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence}); err != nil {
 		return nil, err
 	}
-	updated, err := m.Get(ctx, userID, notificationID)
-	if err == nil {
-		m.core.publishNotificationOccurrencesInvalidated(ctx, updated, false)
-	}
-	return updated, err
+	return m.Get(ctx, userID, notificationID)
 }
 
 func (m *NotificationOccurrenceModel) Delete(ctx context.Context, userID, notificationID string) (bool, error) {
@@ -527,40 +517,129 @@ func (m *NotificationOccurrenceModel) Delete(ctx context.Context, userID, notifi
 	if err != nil {
 		return false, err
 	}
-	now := m.now().UTC()
-	event := &corev1.NotificationEvent{
-		Id:             notificationLifecycleEventID("remove", notificationID),
-		RecipientId:    userID,
-		NotificationId: notificationID,
-		OccurredAt:     timestamppb.New(now),
-		ExpiresAt:      occurrence.GetExpiresAt(),
-		Event:          &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{}},
-	}
-	if err := m.appendAndWait(ctx, event); err != nil {
-		return false, err
-	}
-	m.core.publishNotificationOccurrencesInvalidated(ctx, occurrence, false)
-	m.cleanupDismissedSignals(ctx, now)
-	return true, nil
+	deleted, err := m.deleteOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence})
+	return deleted == 1, err
 }
 
 func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID string, notificationIDs []string) (int, error) {
 	seen := make(map[string]struct{}, len(notificationIDs))
-	deleted := 0
+	occurrences := make([]*corev1.NotificationOccurrence, 0, len(notificationIDs))
 	for _, id := range notificationIDs {
 		if _, duplicate := seen[id]; duplicate {
 			continue
 		}
 		seen[id] = struct{}{}
-		ok, err := m.Delete(ctx, userID, id)
-		if err != nil {
-			return deleted, err
+		occurrence, err := m.Get(ctx, userID, id)
+		if errors.Is(err, ErrNotFound) {
+			continue
 		}
-		if ok {
-			deleted++
+		if err != nil {
+			return 0, err
+		}
+		occurrences = append(occurrences, occurrence)
+	}
+	return m.deleteOccurrences(ctx, occurrences)
+}
+
+// deleteOccurrences appends exact removal facts, waits once through the last
+// committed position, emits one replacement invalidation per recipient, and
+// performs one secure-delete sweep. This keeps bulk privacy cleanup linear in
+// the number of occurrences instead of repeatedly rescanning all tombstones.
+func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) (int, error) {
+	now := m.now().UTC()
+	seen := make(map[string]struct{}, len(occurrences))
+	unique := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	eventsToAppend := make([]*corev1.NotificationEvent, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		if occurrence == nil || occurrence.GetRecipientId() == "" || occurrence.GetId() == "" {
+			continue
+		}
+		key := occurrence.GetRecipientId() + "\x00" + occurrence.GetId()
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+		seen[key] = struct{}{}
+		unique = append(unique, occurrence)
+		eventsToAppend = append(eventsToAppend, &corev1.NotificationEvent{
+			Id:             notificationLifecycleEventID("remove", occurrence.GetId()),
+			RecipientId:    occurrence.GetRecipientId(),
+			NotificationId: occurrence.GetId(),
+			OccurredAt:     timestamppb.New(now),
+			ExpiresAt:      occurrence.GetExpiresAt(),
+			Event:          &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{}},
+		})
+	}
+	deleted, err := m.appendLifecycleEventsAndWait(ctx, eventsToAppend)
+	m.publishNotificationInvalidations(ctx, unique[:deleted])
+	m.cleanupDismissedSignals(ctx, now)
+	return deleted, err
+}
+
+func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) (int, error) {
+	now := m.now().UTC()
+	unique := make([]*corev1.NotificationOccurrence, 0, len(occurrences))
+	seen := make(map[string]struct{}, len(occurrences))
+	eventsToAppend := make([]*corev1.NotificationEvent, 0, len(occurrences))
+	for _, occurrence := range occurrences {
+		if occurrence == nil || occurrence.GetRead() || occurrence.GetRecipientId() == "" || occurrence.GetId() == "" {
+			continue
+		}
+		key := occurrence.GetRecipientId() + "\x00" + occurrence.GetId()
+		if _, duplicate := seen[key]; duplicate {
+			continue
+		}
+		seen[key] = struct{}{}
+		unique = append(unique, occurrence)
+		eventsToAppend = append(eventsToAppend, &corev1.NotificationEvent{
+			Id:             notificationLifecycleEventID("read", occurrence.GetId()),
+			RecipientId:    occurrence.GetRecipientId(),
+			NotificationId: occurrence.GetId(),
+			OccurredAt:     timestamppb.New(now),
+			ExpiresAt:      occurrence.GetExpiresAt(),
+			Event:          &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
+		})
+	}
+	updated, err := m.appendLifecycleEventsAndWait(ctx, eventsToAppend)
+	m.publishNotificationInvalidations(ctx, unique[:updated])
+	return updated, err
+}
+
+func (m *NotificationOccurrenceModel) appendLifecycleEventsAndWait(ctx context.Context, lifecycleEvents []*corev1.NotificationEvent) (int, error) {
+	committed := 0
+	var lastPosition events.StreamPosition
+	var appendErr error
+	for start := 0; start < len(lifecycleEvents); start += notificationLifecycleBatchSize {
+		end := min(start+notificationLifecycleBatchSize, len(lifecycleEvents))
+		positions, err := m.publisher.AppendBatchEventually(ctx, lifecycleEvents[start:end])
+		if err != nil {
+			appendErr = err
+			break
+		}
+		committed += len(positions)
+		for _, position := range positions {
+			if position.Seq > lastPosition.Seq {
+				lastPosition = position
+			}
 		}
 	}
-	return deleted, nil
+	if !lastPosition.IsZero() {
+		if err := m.projection.Projector().WaitFor(ctx, lastPosition); err != nil {
+			return committed, err
+		}
+	}
+	return committed, appendErr
+}
+
+func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx context.Context, occurrences []*corev1.NotificationOccurrence) {
+	byRecipient := make(map[string]*corev1.NotificationOccurrence)
+	for _, occurrence := range occurrences {
+		if occurrence != nil && occurrence.GetRecipientId() != "" {
+			byRecipient[occurrence.GetRecipientId()] = occurrence
+		}
+	}
+	for _, occurrence := range byRecipient {
+		m.core.publishNotificationOccurrencesInvalidated(ctx, occurrence, false)
+	}
 }
 
 func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (int, error) {
@@ -571,7 +650,7 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 	if err != nil {
 		return 0, err
 	}
-	updated := 0
+	matches := make([]*corev1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetRead() {
@@ -579,17 +658,14 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 		}
 		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
 		if err != nil {
-			return updated, err
+			return 0, err
 		}
 		if !covered {
 			continue
 		}
-		if _, err := m.MarkRead(ctx, userID, occurrence.GetId()); err != nil && !errors.Is(err, ErrNotFound) {
-			return updated, err
-		}
-		updated++
+		matches = append(matches, occurrence)
 	}
-	return updated, nil
+	return m.markReadOccurrences(ctx, matches)
 }
 
 func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
@@ -699,22 +775,16 @@ func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipi
 	if err != nil {
 		return 0, err
 	}
-	removed := 0
+	matches := make([]*corev1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		reaction := occurrence.GetSignal().GetReactionReceived()
 		if message == nil || reaction == nil || occurrence.GetActorId() != actorID || reaction.GetEmoji() != emoji || message.GetRoomId() != roomID || message.GetEventId() != messageEventID || occurrence.GetSourceStreamSequence() >= removedAtSequence {
 			continue
 		}
-		ok, err := m.Delete(ctx, recipientID, occurrence.GetId())
-		if err != nil {
-			return removed, err
-		}
-		if ok {
-			removed++
-		}
+		matches = append(matches, occurrence)
 	}
-	return removed, nil
+	return m.deleteOccurrences(ctx, matches)
 }
 
 func notificationOccurrenceHasPreferenceCategory(occurrence *corev1.NotificationOccurrence, category corev1.NotificationPreferenceCategory) bool {
@@ -726,21 +796,15 @@ func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, use
 	if err != nil {
 		return 0, err
 	}
-	removed := 0
+	matches := make([]*corev1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		message := notificationSignalMessage(occurrence.GetSignal())
 		if message == nil || message.GetRoomId() != roomID || (removedThroughSequence != 0 && occurrence.GetSourceStreamSequence() >= removedThroughSequence) {
 			continue
 		}
-		ok, err := m.Delete(ctx, userID, occurrence.GetId())
-		if err != nil {
-			return removed, err
-		}
-		if ok {
-			removed++
-		}
+		matches = append(matches, occurrence)
 	}
-	return removed, nil
+	return m.deleteOccurrences(ctx, matches)
 }
 
 func (m *NotificationOccurrenceModel) RemoveRoom(ctx context.Context, roomID string) (int, error) {
@@ -755,35 +819,19 @@ func (m *NotificationOccurrenceModel) PurgeUser(ctx context.Context, userID stri
 	if err != nil {
 		return 0, err
 	}
-	removed := 0
-	for _, occurrence := range occurrences {
-		ok, err := m.Delete(ctx, userID, occurrence.GetId())
-		if err != nil {
-			return removed, err
-		}
-		if ok {
-			removed++
-		}
-	}
-	return removed, nil
+	return m.deleteOccurrences(ctx, occurrences)
 }
 
 func (m *NotificationOccurrenceModel) removeMatching(ctx context.Context, match func(*corev1.NotificationOccurrence) bool) (int, error) {
 	occurrences := m.projection.Projection().allOccurrences(m.now().UTC())
-	removed := 0
+	matches := make([]*corev1.NotificationOccurrence, 0)
 	for _, occurrence := range occurrences {
 		if !match(occurrence) {
 			continue
 		}
-		ok, err := m.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId())
-		if err != nil {
-			return removed, err
-		}
-		if ok {
-			removed++
-		}
+		matches = append(matches, occurrence)
 	}
-	return removed, nil
+	return m.deleteOccurrences(ctx, matches)
 }
 
 func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {

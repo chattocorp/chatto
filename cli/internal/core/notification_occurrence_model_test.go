@@ -132,6 +132,36 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	}
 }
 
+func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
+	p := NewNotificationProjection()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	p.now = func() time.Time { return now }
+	occurrence := &corev1.NotificationOccurrence{
+		Id: "N1", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now),
+		Signal:    testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, "R1", "E1"),
+		ExpiresAt: timestamp(now.Add(time.Hour)), AlertExpiresAt: timestamp(now.Add(time.Minute)),
+	}
+	if err := p.Apply(notificationSignalledEvent("signal", occurrence, now.Add(time.Hour)), 1); err != nil {
+		t.Fatal(err)
+	}
+	resolved := func(id string, delivered bool) *corev1.NotificationEvent {
+		return &corev1.NotificationEvent{
+			Id: id, RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Hour)),
+			Event: &corev1.NotificationEvent_AlertResolved{AlertResolved: &corev1.NotificationAlertResolved{Delivered: delivered}},
+		}
+	}
+	if err := p.Apply(resolved("first", true), 2); err != nil {
+		t.Fatal(err)
+	}
+	if err := p.Apply(resolved("late-contradiction", false), 3); err != nil {
+		t.Fatal(err)
+	}
+	got, ok := p.occurrence("U1", "N1", now)
+	if !ok || got.AlertDelivered == nil || !got.GetAlertDelivered() {
+		t.Fatalf("terminal alert state = %+v, want first Delivered outcome", got)
+	}
+}
+
 func notificationSignalledEvent(id string, occurrence *corev1.NotificationOccurrence, expires time.Time) *corev1.NotificationEvent {
 	return &corev1.NotificationEvent{
 		Id: id, RecipientId: occurrence.GetRecipientId(), NotificationId: occurrence.GetId(), OccurredAt: occurrence.GetSourceCreatedAt(), ExpiresAt: timestamp(expires),

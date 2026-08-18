@@ -4,7 +4,7 @@ import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import {
   RealtimeProjectionEvent,
-  RealtimeProjectionNotificationsReplace,
+  RealtimeProjectionNotificationOccurrencesReplace,
   RealtimeProjectionOperation
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
@@ -20,7 +20,8 @@ const { mocks } = vi.hoisted(() => {
       unreadNotificationCount: 0,
       hasLoaded: true,
       nextExpiryAt: null as string | null,
-      fetch: vi.fn(async () => {})
+      fetch: vi.fn(async () => {}),
+      reconcile: vi.fn(async () => {})
     }
   });
   const stores = {
@@ -81,14 +82,14 @@ vi.mock('$lib/notifications/appBadge', () => ({
   updateAppBadge: mocks.updateAppBadge
 }));
 
-function dispatch(playNotificationSound = false) {
+function dispatch(playNotificationSound = false, eventId = 'event-id') {
   const event = new RealtimeProjectionEvent({
-    id: 'event-id',
+    id: eventId,
     operations: [
       new RealtimeProjectionOperation({
         operation: {
-          case: 'notificationsReplace',
-          value: new RealtimeProjectionNotificationsReplace({ playNotificationSound })
+          case: 'notificationOccurrencesReplace',
+          value: new RealtimeProjectionNotificationOccurrencesReplace({ playNotificationSound })
         }
       })
     ]
@@ -123,6 +124,7 @@ describe('NotificationSync', () => {
       store.notifications.hasLoaded = true;
       store.notifications.nextExpiryAt = null;
       store.notifications.fetch.mockClear();
+      store.notifications.reconcile.mockClear();
     }
   });
 
@@ -132,6 +134,26 @@ describe('NotificationSync', () => {
     dispatch(true);
 
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+  });
+
+  it('plays a repeated projection event only once', async () => {
+    await renderAndWaitForSubscription();
+
+    dispatch(true, 'duplicate-sound-event');
+    dispatch(true, 'duplicate-sound-event');
+
+    expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+  });
+
+  it('periodically reconciles notification state after missed live hints', async () => {
+    vi.useFakeTimers();
+    try {
+      await renderAndWaitForSubscription();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(mocks.stores.origin.notifications.reconcile).toHaveBeenCalledOnce();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('does not play a sound when the replacement does not request one', async () => {

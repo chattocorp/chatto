@@ -180,10 +180,7 @@ export function mapNotificationOccurrencePage(
       response.roomUnreadCounts.map((count) => [count.roomId, Number(count.unreadCount)])
     ),
     roomImportantUnreadCounts: Object.fromEntries(
-      response.roomUnreadCounts.map((count) => [
-        count.roomId,
-        Number(count.importantUnreadCount)
-      ])
+      response.roomUnreadCounts.map((count) => [count.roomId, Number(count.importantUnreadCount)])
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
     hasMore: response.page?.hasMore ?? false,
@@ -206,11 +203,19 @@ export function notificationOccurrence(
     room: target?.room ? { id: target.room.id, name: target.room.name } : null,
     eventId: target?.eventId ?? '',
     threadRootId: target?.threadRootEventId ?? null,
-    attentionLevel: item.attentionLevel,
+    attentionLevel: notificationAttentionLevel(item.attentionLevel),
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
   };
+}
+
+function notificationAttentionLevel(level: NotificationAttentionLevel): NotificationAttentionLevel {
+  // Ambient is the only low-attention value. Unknown future levels must retain
+  // the stronger badge/highlight behavior in an older client.
+  return level === NotificationAttentionLevel.AMBIENT
+    ? NotificationAttentionLevel.AMBIENT
+    : NotificationAttentionLevel.IMPORTANT;
 }
 
 function notificationSignal(item: APINotificationOccurrence): {

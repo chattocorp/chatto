@@ -2001,6 +2001,23 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	if _, err := live.NextMsg(200 * time.Millisecond); err == nil {
 		t.Fatal("mark read published more than one notification invalidation")
 	}
+	allOccurrences, err := env.core.NotificationOccurrences().List(env.ctx, env.viewer.Id)
+	if err != nil {
+		t.Fatalf("List occurrences before bulk delete: %v", err)
+	}
+	ids := make([]string, 0, len(allOccurrences))
+	for _, occurrence := range allOccurrences {
+		ids = append(ids, occurrence.GetId())
+	}
+	if deleted, err := env.core.NotificationOccurrences().DeleteMany(env.ctx, env.viewer.Id, ids); err != nil || deleted != len(ids) {
+		t.Fatalf("DeleteMany = (%d, %v), want (%d, nil)", deleted, err, len(ids))
+	}
+	if _, err := live.NextMsg(2 * time.Second); err != nil {
+		t.Fatalf("wait for coalesced bulk-delete invalidation: %v", err)
+	}
+	if _, err := live.NextMsg(200 * time.Millisecond); err == nil {
+		t.Fatal("bulk delete published more than one notification invalidation")
+	}
 }
 
 func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {

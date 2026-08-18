@@ -775,15 +775,6 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     case: "roomTimelineEventRemove";
   } | {
     /**
-     * Replaces the viewer's current notification-occurrence page and exact
-     * unread occurrence counts.
-     *
-     * @generated from field: chatto.realtime.v1.RealtimeProjectionNotificationsReplace notifications_replace = 13;
-     */
-    value: RealtimeProjectionNotificationsReplace;
-    case: "notificationsReplace";
-  } | {
-    /**
      * Replaces one room's current viewer state without
      * retransmitting room metadata or membership.
      *
@@ -828,6 +819,16 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
      */
     value: RealtimeProjectionRoomActivity;
     case: "roomActivity";
+  } | {
+    /**
+     * Replaces the viewer's current notification-occurrence page and exact
+     * unread occurrence counts. This uses a new top-level operation tag rather
+     * than reinterpreting the released Notifications 1.0 replacement.
+     *
+     * @generated from field: chatto.realtime.v1.RealtimeProjectionNotificationOccurrencesReplace notification_occurrences_replace = 19;
+     */
+    value: RealtimeProjectionNotificationOccurrencesReplace;
+    case: "notificationOccurrencesReplace";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<RealtimeProjectionOperation>) {
@@ -850,12 +851,12 @@ export class RealtimeProjectionOperation extends Message<RealtimeProjectionOpera
     { no: 10, name: "room_timeline_event_upsert", kind: "message", T: RealtimeProjectionRoomTimelineEventUpsert, oneof: "operation" },
     { no: 11, name: "server_state_upsert", kind: "message", T: RealtimeProjectionServerState, oneof: "operation" },
     { no: 12, name: "room_timeline_event_remove", kind: "message", T: RealtimeProjectionRoomTimelineEventRemove, oneof: "operation" },
-    { no: 13, name: "notifications_replace", kind: "message", T: RealtimeProjectionNotificationsReplace, oneof: "operation" },
     { no: 14, name: "room_viewer_state_replace", kind: "message", T: RealtimeProjectionRoomViewerStateReplace, oneof: "operation" },
     { no: 15, name: "active_calls_replace", kind: "message", T: RealtimeProjectionActiveCallsReplace, oneof: "operation" },
     { no: 16, name: "presences_replace", kind: "message", T: RealtimeProjectionPresencesReplace, oneof: "operation" },
     { no: 17, name: "thread_viewer_states_replace", kind: "message", T: RealtimeProjectionThreadViewerStatesReplace, oneof: "operation" },
     { no: 18, name: "room_activity", kind: "message", T: RealtimeProjectionRoomActivity, oneof: "operation" },
+    { no: 19, name: "notification_occurrences_replace", kind: "message", T: RealtimeProjectionNotificationOccurrencesReplace, oneof: "operation" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionOperation {
@@ -1575,50 +1576,50 @@ export class RealtimeProjectionRoomTimelineEventRemove extends Message<RealtimeP
 /**
  * Finite current notification state emitted on bootstrap and every resume.
  *
- * @generated from message chatto.realtime.v1.RealtimeProjectionNotificationsReplace
+ * @generated from message chatto.realtime.v1.RealtimeProjectionNotificationOccurrencesReplace
  */
-export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProjectionNotificationsReplace> {
+export class RealtimeProjectionNotificationOccurrencesReplace extends Message<RealtimeProjectionNotificationOccurrencesReplace> {
   /**
    * True only when this live replacement should produce a one-shot local
    * notification sound. Bootstrap and reconciliation replacements are false.
    *
-   * @generated from field: bool play_notification_sound = 4;
+   * @generated from field: bool play_notification_sound = 1;
    */
   playNotificationSound = false;
 
   /**
    * Authoritative Notifications 2.0 occurrences and exact unread count.
    *
-   * @generated from field: chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 5;
+   * @generated from field: chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 2;
    */
   occurrences?: ListNotificationOccurrencesResponse;
 
-  constructor(data?: PartialMessage<RealtimeProjectionNotificationsReplace>) {
+  constructor(data?: PartialMessage<RealtimeProjectionNotificationOccurrencesReplace>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationsReplace";
+  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationOccurrencesReplace";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 4, name: "play_notification_sound", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 5, name: "occurrences", kind: "message", T: ListNotificationOccurrencesResponse },
+    { no: 1, name: "play_notification_sound", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "occurrences", kind: "message", T: ListNotificationOccurrencesResponse },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationsReplace {
-    return new RealtimeProjectionNotificationsReplace().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationOccurrencesReplace {
+    return new RealtimeProjectionNotificationOccurrencesReplace().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationsReplace {
-    return new RealtimeProjectionNotificationsReplace().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationOccurrencesReplace {
+    return new RealtimeProjectionNotificationOccurrencesReplace().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationsReplace {
-    return new RealtimeProjectionNotificationsReplace().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationOccurrencesReplace {
+    return new RealtimeProjectionNotificationOccurrencesReplace().fromJsonString(jsonString, options);
   }
 
-  static equals(a: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined, b: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined): boolean {
-    return proto3.util.equals(RealtimeProjectionNotificationsReplace, a, b);
+  static equals(a: RealtimeProjectionNotificationOccurrencesReplace | PlainMessage<RealtimeProjectionNotificationOccurrencesReplace> | undefined, b: RealtimeProjectionNotificationOccurrencesReplace | PlainMessage<RealtimeProjectionNotificationOccurrencesReplace> | undefined): boolean {
+    return proto3.util.equals(RealtimeProjectionNotificationOccurrencesReplace, a, b);
   }
 }
 

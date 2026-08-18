@@ -132,7 +132,7 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 	if err != nil {
 		return err
 	}
-	if !eligible || d.core.suppressesNotificationAlertsForPresence(ctx, current.GetRecipientId()) || d.core.notificationAlertHandler == nil {
+	if !eligible || d.core.notificationAlertHandler == nil {
 		return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, false)
 	}
 	if err := d.core.notificationAlertHandler(ctx, current); err != nil {
@@ -191,18 +191,25 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 	if err != nil || !current {
 		return false, err
 	}
+	deadline := NotificationAlertDeadline(occurrence)
+	if deadline.IsZero() || !c.notificationOccurrences.now().UTC().Before(deadline) {
+		return false, nil
+	}
 	if !c.notificationAlertDelivery.currentPolicyAllowsAlert(occurrence) {
+		return false, nil
+	}
+	presence, err := c.GetUserPresence(ctx, occurrence.GetRecipientId())
+	if err != nil {
+		return false, fmt.Errorf("read notification recipient presence: %w", err)
+	}
+	if presence == PresenceStatusDoNotDisturb {
 		return false, nil
 	}
 	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, occurrence.GetRecipientId(), []*corev1.NotificationOccurrence{occurrence})
 	if err != nil {
 		return false, fmt.Errorf("revalidate notification visibility: %w", err)
 	}
-	if len(visible) == 0 {
-		_, err := c.notificationOccurrences.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId())
-		return false, err
-	}
-	return true, nil
+	return len(visible) == 1, nil
 }
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
