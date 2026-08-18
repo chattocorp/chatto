@@ -153,10 +153,10 @@ watch = [
 
 [daemons.chatto]
 dir = "apps/frontend"
-run = "exec ./node_modules/.bin/vite dev --host 127.0.0.1 --port $PORT"
+run = "mise setup-frontend && exec ./node_modules/.bin/vite dev --host 127.0.0.1 --port $PORT"
 port = { expect = [4000], bump = true }
 ready_output = "Local:"
-depends = ["chatto-backend"]
+depends = ["chatto-backend", "api-types", "lingua"]
 env = {
   CHATTO_BACKEND_URL = "http://127.0.0.1:{{ daemons['chatto-backend'].port }}",
   CHATTO_WEBSERVER_PORT = "{{ daemons['chatto-backend'].port }}",
@@ -170,13 +170,34 @@ watch = [
   "packages/lingua/package.json",
 ]
 
+[daemons.api-types]
+run = "mise setup-frontend && exec pnpm --filter @chatto/api-types exec tsc -p tsconfig.json --watch --preserveWatchOutput"
+ready_output = "Watching for file changes"
+watch = [
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "packages/api-types/package.json",
+]
+
+[daemons.lingua]
+run = "mise setup-frontend && exec pnpm --filter @chatto/lingua exec tsc -p tsconfig.json --watch --preserveWatchOutput"
+ready_output = "Watching for file changes"
+watch = [
+  "package.json",
+  "pnpm-lock.yaml",
+  "pnpm-workspace.yaml",
+  "packages/lingua/package.json",
+]
+
 [daemons.storybook-server]
 dir = "apps/frontend"
-run = "exec pnpm exec storybook dev --host 127.0.0.1 --port $PORT --no-open"
+run = "mise setup-frontend && exec pnpm exec storybook dev --host 127.0.0.1 --port $PORT --no-open"
 port = { expect = [6006], bump = true }
 # Storybook briefly opens internal ports while booting. Waiting a moment keeps
 # Pitchfork's descendant-aware proxy detection on the stable HTTP listener.
 ready_delay = 3
+depends = ["api-types", "lingua"]
 watch = [
   "package.json",
   "pnpm-lock.yaml",
@@ -194,7 +215,7 @@ depends = ["storybook-server"]
 
 [daemons.docs-server]
 dir = "apps/docs-website"
-run = "workspace_slug=$(cat ../../.context/dev/workspace-slug) && export CHATTO_DOCS_SITE_URL=https://docs-$workspace_slug.localhost:42443 && exec pnpm astro dev --host 127.0.0.1 --port $PORT"
+run = "mise setup-frontend && workspace_slug=$(cat ../../.context/dev/workspace-slug) && export CHATTO_DOCS_SITE_URL=https://docs-$workspace_slug.localhost:42443 && exec pnpm astro dev --host 127.0.0.1 --port $PORT"
 port = { expect = [4322], bump = true }
 ready_output = "Local"
 watch = [

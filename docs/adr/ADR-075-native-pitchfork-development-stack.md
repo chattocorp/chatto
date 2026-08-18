@@ -28,10 +28,10 @@ and stop without affecting another worktree.
 
 The complete repository development stack runs as native processes supervised
 by Pitchfork. `mise` pins and installs Pitchfork, Caddy, Mailpit, LiveKit, Go,
-Node.js, and the existing project toolchains. Pitchfork allocates worktree-local ports,
-orders service startup, watches the Go services, and exposes Chatto, Authling,
-Mailpit, LiveKit, Storybook, and the documentation website through one trusted
-HTTPS proxy on port `42443`.
+Node.js, and the existing project toolchains. Pitchfork allocates
+worktree-local ports, orders service startup, watches the Go services, and
+exposes Chatto, Authling, Mailpit, LiveKit, Storybook, and the documentation
+website through one trusted HTTPS proxy on port `42443`.
 
 Each worktree registers workspace-specific `*-<workspace>.localhost` proxy
 slugs, whose workspace portion must be unique among active local workspaces.
@@ -41,6 +41,8 @@ search state beneath a matching gitignored `.context/dev/<workspace>/`
 directory, preventing an Authling issuer created under one public workspace
 identity from being reused under another. Vite, Storybook, and Astro consume
 the one root pnpm installation rather than maintaining per-container stores.
+Pitchfork also supervises TypeScript watch builds for the shared API types and
+Lingua packages, so their `dist` outputs stay current for Vite and Storybook.
 Mailpit and LiveKit run from their mise-managed native binaries.
 
 Pitchfork discovers a proxy target by inspecting a daemon's listening ports.
@@ -53,12 +55,16 @@ public route deterministic while internal dependencies continue to use the
 underlying service's allocated ports directly.
 
 `mise dev`, the default Conductor run command, and Paseo's `dev` command all use
-the same Pitchfork stack. The `mise dev` task registers the workspace's proxy
-routes, attaches to Pitchfork's logs, and stops only that workspace's daemons
-when the command exits; Pitchfork owns port allocation, readiness, dependencies,
-watching, and process supervision. Pitchfork starts its machine-wide supervisor
-automatically. The `mise dev-archive` task removes only that worktree's processes
-and routes.
+the same Pitchfork stack. The `mise dev` task verifies that Pitchfork's
+already-running machine-wide proxy matches the required trusted
+`https://*.localhost:42443` endpoint and that every requested global slug is
+either unclaimed or already owned by this checkout. It refuses to overwrite
+another checkout's route. It then registers the routes, attaches to
+Pitchfork's logs, and stops only this workspace's daemons when the command
+exits; Pitchfork owns port allocation, readiness, dependencies, watching, and
+process supervision. Pitchfork starts its machine-wide supervisor automatically
+when needed. The `mise dev-archive` task removes only routes whose recorded
+owner is this checkout.
 
 The obsolete root `compose.yml` and its development-only Docker build helpers
 are removed. The independently maintained `examples/dockercompose/` deployment

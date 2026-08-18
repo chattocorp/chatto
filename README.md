@@ -45,7 +45,8 @@ mise dev
 
 Conductor and Paseo perform setup and proxy registration automatically. Vite,
 Astro, and Storybook reload their own source changes; Pitchfork rebuilds and
-restarts the Go services when their sources change. Chatto and Authling keep
+restarts the Go services when their sources change and keeps the shared API
+types and Lingua packages compiled in watch mode. Chatto and Authling keep
 separate embedded-NATS state beneath `.context/dev/`.
 
 For a checkout in a directory named `<workspace>`, open these Pitchfork-managed
@@ -57,6 +58,12 @@ HTTPS origins:
 - LiveKit signaling: `https://livekit-<workspace>.localhost:42443`
 - Storybook: `https://storybook-<workspace>.localhost:42443`
 - Docs website: `https://docs-<workspace>.localhost:42443`
+
+Workspace names share Pitchfork's machine-wide slug registry. `mise dev`
+refuses to overwrite a route owned by another checkout; rename or archive the
+conflicting workspace if that happens. It also stops with recovery
+instructions if an existing Pitchfork supervisor uses proxy settings other
+than the trusted HTTPS endpoint above.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first

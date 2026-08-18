@@ -317,24 +317,59 @@ if [ -z "$workspace_slug" ]; then
     exit 2
 fi
 
+if ! pitchfork supervisor status >/dev/null 2>&1; then
+    pitchfork supervisor start >/dev/null
+fi
+proxy_status=$(pitchfork proxy status --json)
+PITCHFORK_PROXY_STATUS="$proxy_status" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+if (!status.enabled || status.scheme !== "https" || status.tld !== "localhost" || status.port !== 42443 || !status.trusted) {
+  console.error(`Pitchfork proxy mismatch: expected trusted https://*.localhost:42443, got ${status.scheme}://*.${status.tld}:${status.port} (enabled=${status.enabled}, trusted=${status.trusted}).`)
+  console.error("Stop other Pitchfork projects, run `pitchfork supervisor stop`, then retry `mise dev` so this project can start it with the required settings.")
+  process.exit(1)
+}
+'
+
+proxy_slug_owner() {
+    PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$1" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
+process.stdout.write(route?.dir ?? "")
+'
+}
+
 mkdir -p .context/dev
 previous_workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
 if [ -n "$previous_workspace_slug" ] && [ "$previous_workspace_slug" != "$workspace_slug" ]; then
     for service in chatto authling mailpit livekit storybook docs; do
-        pitchfork proxy remove "$service-$previous_workspace_slug" >/dev/null 2>&1 || true
+        slug="$service-$previous_workspace_slug"
+        if [ "$(proxy_slug_owner "$slug")" = "$project_dir" ]; then
+            pitchfork proxy remove "$slug" >/dev/null
+        fi
     done
 fi
 printf '%s\n' "$workspace_slug" >.context/dev/workspace-slug
 
 for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
     service=${mapping%%:*}
+    slug="$service-$workspace_slug"
+    owner=$(proxy_slug_owner "$slug")
+    if [ -n "$owner" ] && [ "$owner" != "$project_dir" ]; then
+        echo "Pitchfork proxy slug '$slug' already belongs to $owner; rename this workspace or archive the conflicting one." >&2
+        exit 2
+    fi
+done
+for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
+    service=${mapping%%:*}
     daemon=${mapping#*:}
-    pitchfork proxy add "$service-$workspace_slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
+    slug="$service-$workspace_slug"
+    pitchfork proxy add "$slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
 done
 
+mise setup-frontend
 trap 'pitchfork stop --local >/dev/null 2>&1 || true' EXIT INT TERM
 pitchfork start --group dev
-pitchfork logs mailpit-server mailpit-proxy livekit-server livekit-proxy authling chatto-backend chatto storybook-server storybook-proxy docs-server docs-proxy --tail --since 2min --no-pager
+pitchfork logs mailpit-server mailpit-proxy livekit-server livekit-proxy authling chatto-backend api-types lingua chatto storybook-server storybook-proxy docs-server docs-proxy --tail --since 2min --no-pager
 """
 
 [tasks.dev-archive]
@@ -350,8 +385,17 @@ if [ -s .context/dev/workspace-slug ]; then
 fi
 
 pitchfork stop --local >/dev/null 2>&1 || true
+proxy_status=$(pitchfork proxy status --json 2>/dev/null || printf '{"slugs":[]}')
 for service in chatto authling mailpit livekit storybook docs; do
-    pitchfork proxy remove "$service-$workspace_slug" >/dev/null 2>&1 || true
+    slug="$service-$workspace_slug"
+    owner=$(PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$slug" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
+process.stdout.write(route?.dir ?? "")
+')
+    if [ "$owner" = "$project_dir" ]; then
+        pitchfork proxy remove "$slug" >/dev/null 2>&1 || true
+    fi
 done
 """
 
