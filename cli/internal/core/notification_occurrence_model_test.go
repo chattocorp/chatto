@@ -205,6 +205,18 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	if _, ok := p.occurrence("U1", "N1", now); ok {
 		t.Fatal("dismissed occurrence remained visible")
 	}
+	ref := notificationOccurrenceRef{recipientID: "U1", notificationID: "N1"}
+	states := p.occurrenceStates([]notificationOccurrenceRef{
+		ref,
+		{recipientID: "U2", notificationID: "N1"},
+		{recipientID: "U1", notificationID: "missing"},
+	}, now)
+	if state := states[ref]; state.occurrence != nil || !state.tombstoned {
+		t.Fatalf("dismissed occurrence state = %+v, want tombstone only", state)
+	}
+	if state := states[notificationOccurrenceRef{recipientID: "U2", notificationID: "N1"}]; state.occurrence != nil || state.tombstoned {
+		t.Fatalf("cross-recipient occurrence state = %+v, want empty", state)
+	}
 	if got := p.scopeOccurrences(scope, now); len(got) != 0 {
 		t.Fatalf("dismissed scope occurrences = %+v, want none", got)
 	}
@@ -212,7 +224,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		t.Fatalf("pending physical delete sequence = %d, want 7", got)
 	}
 	now = now.Add(2 * time.Minute)
-	if p.tombstoned("U1", "N1", now) {
+	if p.occurrenceStates([]notificationOccurrenceRef{ref}, now)[ref].tombstoned {
 		t.Fatal("application-expired tombstone still suppressed semantic state")
 	}
 	if got := p.pendingPhysicalDeletes(now)["N1"].signalSequence; got != 7 {

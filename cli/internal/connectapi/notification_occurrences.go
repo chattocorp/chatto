@@ -251,6 +251,14 @@ func requireSupportedNotificationSignals(occurrences ...*corev1.NotificationOccu
 }
 
 func (s *notificationService) notificationOccurrencesByID(ctx context.Context, userID string, occurrenceIDs []string) ([]*corev1.NotificationOccurrence, error) {
+	all, err := s.api.core.NotificationOccurrences().List(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	byID := make(map[string]*corev1.NotificationOccurrence, len(all))
+	for _, occurrence := range all {
+		byID[occurrence.GetId()] = occurrence
+	}
 	occurrences := make([]*corev1.NotificationOccurrence, 0, len(occurrenceIDs))
 	seen := make(map[string]struct{}, len(occurrenceIDs))
 	for _, occurrenceID := range occurrenceIDs {
@@ -258,14 +266,9 @@ func (s *notificationService) notificationOccurrencesByID(ctx context.Context, u
 			continue
 		}
 		seen[occurrenceID] = struct{}{}
-		occurrence, err := s.api.core.NotificationOccurrences().Get(ctx, userID, occurrenceID)
-		if errors.Is(err, core.ErrNotFound) {
-			continue
+		if occurrence := byID[occurrenceID]; occurrence != nil {
+			occurrences = append(occurrences, occurrence)
 		}
-		if err != nil {
-			return nil, err
-		}
-		occurrences = append(occurrences, occurrence)
 	}
 	return occurrences, nil
 }

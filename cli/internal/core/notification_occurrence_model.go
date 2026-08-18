@@ -429,6 +429,13 @@ type pendingNotificationCreate struct {
 	skipRead      bool
 }
 
+type preparedNotificationCreateInput struct {
+	resultIndex    int
+	input          CreateNotificationOccurrenceInput
+	notificationID string
+	expiresAt      time.Time
+}
+
 // CreateMany materializes one source fact's complete recipient fanout with
 // bounded atomic writes, one projection wait, and one live invalidation per
 // recipient. It is intentionally internal to the ordered materializer.
@@ -454,29 +461,38 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	}
 
 	now := m.now().UTC()
-	pendingByID := make(map[string]*pendingNotificationCreate)
-	pending := make([]*pendingNotificationCreate, 0, len(inputs))
+	prepared := make([]preparedNotificationCreateInput, 0, len(inputs))
+	refs := make([]notificationOccurrenceRef, 0, len(inputs))
 	for i, input := range inputs {
 		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED || input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 			continue
 		}
-		signalKind := notificationSignalIdentity(input.Signal)
 		expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
 		if !expiresAt.After(now) {
 			continue
 		}
-		notificationID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, signalKind)
-		if m.projection.Projection().tombstoned(input.RecipientID, notificationID, now) {
+		notificationID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, notificationSignalIdentity(input.Signal))
+		prepared = append(prepared, preparedNotificationCreateInput{
+			resultIndex: i, input: input, notificationID: notificationID, expiresAt: expiresAt,
+		})
+		refs = append(refs, notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: notificationID})
+	}
+	initialStates := m.projection.Projection().occurrenceStates(refs, now)
+	pendingByID := make(map[string]*pendingNotificationCreate)
+	pending := make([]*pendingNotificationCreate, 0, len(prepared))
+	for _, candidate := range prepared {
+		input := candidate.input
+		ref := notificationOccurrenceRef{recipientID: input.RecipientID, notificationID: candidate.notificationID}
+		state := initialStates[ref]
+		if state.tombstoned {
 			continue
 		}
-		if existing, err := m.Get(ctx, input.RecipientID, notificationID); err == nil {
-			results[i].occurrence = existing
+		if state.occurrence != nil {
+			results[candidate.resultIndex].occurrence = state.occurrence
 			continue
-		} else if !errors.Is(err, ErrNotFound) {
-			return nil, err
 		}
-		if duplicate := pendingByID[notificationID]; duplicate != nil {
-			duplicate.resultIndexes = append(duplicate.resultIndexes, i)
+		if duplicate := pendingByID[candidate.notificationID]; duplicate != nil {
+			duplicate.resultIndexes = append(duplicate.resultIndexes, candidate.resultIndex)
 			continue
 		}
 
@@ -485,14 +501,14 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 			alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
 		}
 		occurrence := &corev1.NotificationOccurrence{
-			Id:                   notificationID,
+			Id:                   candidate.notificationID,
 			RecipientId:          input.RecipientID,
 			SourceEventId:        input.SourceEventID,
 			SourceCreatedAt:      timestamppb.New(input.SourceCreated.UTC()),
 			ActorId:              input.ActorID,
 			Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
 			Read:                 input.InitiallyRead,
-			ExpiresAt:            timestamppb.New(expiresAt),
+			ExpiresAt:            timestamppb.New(candidate.expiresAt),
 			SourceStreamSequence: input.SourceStreamSequence,
 			AttentionLevel:       input.AttentionLevel,
 			AlertExpiresAt:       alertExpiresAt,
@@ -508,11 +524,11 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		}
 		item := &pendingNotificationCreate{
 			occurrence:    occurrence,
-			resultIndexes: []int{i},
+			resultIndexes: []int{candidate.resultIndex},
 			skipRead:      input.SkipReadLookup,
 		}
 		item.event = newNotificationSignalledLifecycleEvent(now, occurrence)
-		pendingByID[notificationID] = item
+		pendingByID[candidate.notificationID] = item
 		pending = append(pending, item)
 	}
 	if len(pending) == 0 {
@@ -527,14 +543,18 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	if appendErr != nil && len(committed) == 0 {
 		return nil, appendErr
 	}
+	pendingRefs := make([]notificationOccurrenceRef, 0, len(pending))
+	for _, item := range pending {
+		pendingRefs = append(pendingRefs, notificationOccurrenceRef{
+			recipientID: item.occurrence.GetRecipientId(), notificationID: item.occurrence.GetId(),
+		})
+	}
+	storedStates := m.projection.Projection().occurrenceStates(pendingRefs, m.now().UTC())
 	wasCreated := make([]bool, len(pending))
 	for i, item := range pending {
-		_, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
-		if errors.Is(getErr, ErrNotFound) {
+		ref := notificationOccurrenceRef{recipientID: item.occurrence.GetRecipientId(), notificationID: item.occurrence.GetId()}
+		if storedStates[ref].occurrence == nil {
 			continue
-		}
-		if getErr != nil {
-			return nil, getErr
 		}
 		wasCreated[i] = i < len(committed) && committed[i]
 	}
@@ -544,12 +564,10 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		if item.skipRead {
 			continue
 		}
-		stored, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
-		if errors.Is(getErr, ErrNotFound) {
+		ref := notificationOccurrenceRef{recipientID: item.occurrence.GetRecipientId(), notificationID: item.occurrence.GetId()}
+		stored := storedStates[ref].occurrence
+		if stored == nil {
 			continue
-		}
-		if getErr != nil {
-			return nil, getErr
 		}
 		if stored.GetRead() {
 			continue
@@ -565,14 +583,18 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	if _, err := m.markReadOccurrences(ctx, covered); err != nil {
 		return nil, err
 	}
+	for _, occurrence := range covered {
+		occurrence.Read = true
+		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
+			occurrence.AlertDelivered = proto.Bool(false)
+		}
+	}
 	created := make([]*corev1.NotificationOccurrence, 0, len(pending))
 	for i, item := range pending {
-		stored, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
-		if errors.Is(getErr, ErrNotFound) {
+		ref := notificationOccurrenceRef{recipientID: item.occurrence.GetRecipientId(), notificationID: item.occurrence.GetId()}
+		stored := storedStates[ref].occurrence
+		if stored == nil {
 			continue
-		}
-		if getErr != nil {
-			return nil, getErr
 		}
 		for _, resultIndex := range item.resultIndexes {
 			results[resultIndex] = createNotificationOccurrenceResult{occurrence: stored, created: wasCreated[i]}
@@ -716,20 +738,20 @@ func (m *NotificationOccurrenceModel) Delete(ctx context.Context, userID, notifi
 
 func (m *NotificationOccurrenceModel) DeleteMany(ctx context.Context, userID string, notificationIDs []string) (int, error) {
 	seen := make(map[string]struct{}, len(notificationIDs))
-	occurrences := make([]*corev1.NotificationOccurrence, 0, len(notificationIDs))
+	refs := make([]notificationOccurrenceRef, 0, len(notificationIDs))
 	for _, id := range notificationIDs {
 		if _, duplicate := seen[id]; duplicate {
 			continue
 		}
 		seen[id] = struct{}{}
-		occurrence, err := m.Get(ctx, userID, id)
-		if errors.Is(err, ErrNotFound) {
-			continue
+		refs = append(refs, notificationOccurrenceRef{recipientID: userID, notificationID: id})
+	}
+	states := m.projection.Projection().occurrenceStates(refs, m.now().UTC())
+	occurrences := make([]*corev1.NotificationOccurrence, 0, len(refs))
+	for _, ref := range refs {
+		if occurrence := states[ref].occurrence; occurrence != nil {
+			occurrences = append(occurrences, occurrence)
 		}
-		if err != nil {
-			return 0, err
-		}
-		occurrences = append(occurrences, occurrence)
 	}
 	return m.deleteOccurrences(ctx, occurrences)
 }

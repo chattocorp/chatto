@@ -19,6 +19,16 @@ type notificationProjectionTombstone struct {
 	signalSequence uint64
 }
 
+type notificationOccurrenceRef struct {
+	recipientID    string
+	notificationID string
+}
+
+type notificationOccurrenceState struct {
+	occurrence *corev1.NotificationOccurrence
+	tombstoned bool
+}
+
 // NotificationProjection materializes the current, bounded notification list
 // from the NOTIFICATIONS lifecycle log. Its expiry scheduler is an acceleration
 // only: every read also applies the immutable expires_at boundary.
@@ -184,12 +194,25 @@ func (p *NotificationProjection) occurrence(userID, notificationID string, now t
 	return proto.Clone(occurrence).(*corev1.NotificationOccurrence), true
 }
 
-func (p *NotificationProjection) tombstoned(userID, notificationID string, now time.Time) bool {
+// occurrenceStates prunes once and resolves a complete set of point lookups
+// under one projection lock. High-fanout materialization must use this instead
+// of turning each recipient into another full expiry scan.
+func (p *NotificationProjection) occurrenceStates(refs []notificationOccurrenceRef, now time.Time) map[notificationOccurrenceRef]notificationOccurrenceState {
 	p.Lock()
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
-	tombstone, exists := p.tombstones[notificationID]
-	return exists && tombstone.recipientID == userID && tombstone.expiresAt.After(now)
+	states := make(map[notificationOccurrenceRef]notificationOccurrenceState, len(refs))
+	for _, ref := range refs {
+		state := notificationOccurrenceState{}
+		if occurrence := p.byID[ref.notificationID]; occurrence != nil && occurrence.GetRecipientId() == ref.recipientID {
+			state.occurrence = proto.Clone(occurrence).(*corev1.NotificationOccurrence)
+		}
+		if tombstone, exists := p.tombstones[ref.notificationID]; exists && tombstone.recipientID == ref.recipientID && tombstone.expiresAt.After(now) {
+			state.tombstoned = true
+		}
+		states[ref] = state
+	}
+	return states
 }
 
 func (p *NotificationProjection) userOccurrences(userID string, now time.Time) []*corev1.NotificationOccurrence {

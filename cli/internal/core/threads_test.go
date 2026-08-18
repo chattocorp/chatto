@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"fmt"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1578,9 +1579,9 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 
 	t.Run("echo with mention produces exactly one notification", func(t *testing.T) {
 		// Subscribe to occurrence invalidations for the target user.
-		mentionCount := 0
+		var mentionCount atomic.Int64
 		sub, err := nc.Subscribe(subjects.LiveSyncUserEvent(target.Id, "notification_v2"), func(msg *nats.Msg) {
-			mentionCount++
+			mentionCount.Add(1)
 		})
 		if err != nil {
 			t.Fatalf("Failed to subscribe: %v", err)
@@ -1604,8 +1605,8 @@ func TestChattoCore_PostMessage_EchoMentionNotification(t *testing.T) {
 		time.Sleep(500 * time.Millisecond)
 
 		// Should have received exactly one occurrence creation (not one per echo).
-		if mentionCount != 1 {
-			t.Errorf("Expected exactly 1 live mention event, got %d", mentionCount)
+		if got := mentionCount.Load(); got != 1 {
+			t.Errorf("Expected exactly 1 live mention event, got %d", got)
 		}
 
 		occurrences := testNotificationOccurrences(t, core, target.Id)
