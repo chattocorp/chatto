@@ -35,8 +35,8 @@ int main(const int argument_count, char **arguments) {
   assert(rejected_odd_dimensions);
 
   const std::vector<std::uint8_t> idr{
-      0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0xe0, 0x1f,
-      0x00, 0x00, 0x01, 0x65, 0xaa,
+      0x00, 0x00, 0x00, 0x01, 0x67, 0x42, 0xe0,
+      0x1f, 0x00, 0x00, 0x01, 0x65, 0xaa,
   };
   assert(h264_access_unit_is_key_frame(idr));
   assert(h264_access_unit_is_annex_b(idr));
@@ -52,25 +52,36 @@ int main(const int argument_count, char **arguments) {
   assert(!h264_access_unit_is_key_frame(delta));
   assert(h264_access_unit_is_annex_b(delta));
 
-  if (argument_count > 1 &&
-      std::string_view(arguments[1]) == "--hardware") {
-    constexpr std::uint32_t width = 1280;
-    constexpr std::uint32_t height = 720;
-    auto encoder = chatto::capture::create_hardware_h264_encoder(
-        width, height, 60, 8'000'000);
-    std::vector<std::uint8_t> frame(
-        static_cast<std::size_t>(width) * height * 4, 0);
-    std::size_t access_units = 0;
-    std::size_t key_frames = 0;
-    std::size_t annex_b_access_units = 0;
-    std::optional<chatto::capture::H264ProfileLevel> hardware_profile_level;
-    for (std::int64_t index = 0; index < 10; ++index) {
-      if (index == 5) {
-        encoder->set_target_bitrate(4'000'000);
-        assert(encoder->target_bitrate_bps() == 4'000'000);
+  if (argument_count > 1 && std::string_view(arguments[1]) == "--hardware") {
+    try {
+      constexpr std::uint32_t width = 1280;
+      constexpr std::uint32_t height = 720;
+      auto encoder = chatto::capture::create_hardware_h264_encoder(
+          width, height, 60, 8'000'000);
+      std::vector<std::uint8_t> frame(
+          static_cast<std::size_t>(width) * height * 4, 0);
+      std::size_t access_units = 0;
+      std::size_t key_frames = 0;
+      std::size_t annex_b_access_units = 0;
+      std::optional<chatto::capture::H264ProfileLevel> hardware_profile_level;
+      for (std::int64_t index = 0; index < 10; ++index) {
+        if (index == 5) {
+          encoder->set_target_bitrate(4'000'000);
+          assert(encoder->target_bitrate_bps() == 4'000'000);
+        }
+        for (auto &access_unit :
+             encoder->encode(frame, index * 1'000'000 / 60, index == 0)) {
+          ++access_units;
+          key_frames += access_unit.key_frame ? 1U : 0U;
+          annex_b_access_units +=
+              h264_access_unit_is_annex_b(access_unit.data) ? 1U : 0U;
+          if (!hardware_profile_level.has_value()) {
+            hardware_profile_level =
+                h264_access_unit_profile_level(access_unit.data);
+          }
+        }
       }
-      for (auto &access_unit :
-           encoder->encode(frame, index * 1'000'000 / 60, index == 0)) {
+      for (auto &access_unit : encoder->finish()) {
         ++access_units;
         key_frames += access_unit.key_frame ? 1U : 0U;
         annex_b_access_units +=
@@ -80,33 +91,27 @@ int main(const int argument_count, char **arguments) {
               h264_access_unit_profile_level(access_unit.data);
         }
       }
-    }
-    for (auto &access_unit : encoder->finish()) {
-      ++access_units;
-      key_frames += access_unit.key_frame ? 1U : 0U;
-      annex_b_access_units +=
-          h264_access_unit_is_annex_b(access_unit.data) ? 1U : 0U;
-      if (!hardware_profile_level.has_value()) {
-        hardware_profile_level =
-            h264_access_unit_profile_level(access_unit.data);
+      std::cout << "hardware_encoder=" << encoder->implementation_name()
+                << " access_units=" << access_units
+                << " key_frames=" << key_frames
+                << " annex_b_access_units=" << annex_b_access_units;
+      if (hardware_profile_level.has_value()) {
+        std::cout << " profile_idc="
+                  << static_cast<unsigned>(hardware_profile_level->profile_idc)
+                  << " profile_iop="
+                  << static_cast<unsigned>(hardware_profile_level->profile_iop)
+                  << " level_idc="
+                  << static_cast<unsigned>(hardware_profile_level->level_idc);
       }
+      std::cout << '\n';
+      assert(access_units > 0);
+      assert(key_frames > 0);
+      assert(annex_b_access_units == access_units);
+    } catch (const std::exception &error) {
+      std::cerr << "hardware encoder smoke test failed: " << error.what()
+                << '\n';
+      return 1;
     }
-    std::cout << "hardware_encoder=" << encoder->implementation_name()
-              << " access_units=" << access_units
-              << " key_frames=" << key_frames
-              << " annex_b_access_units=" << annex_b_access_units;
-    if (hardware_profile_level.has_value()) {
-      std::cout << " profile_idc="
-                << static_cast<unsigned>(hardware_profile_level->profile_idc)
-                << " profile_iop="
-                << static_cast<unsigned>(hardware_profile_level->profile_iop)
-                << " level_idc="
-                << static_cast<unsigned>(hardware_profile_level->level_idc);
-    }
-    std::cout << '\n';
-    assert(access_units > 0);
-    assert(key_frames > 0);
-    assert(annex_b_access_units == access_units);
   }
   return 0;
 }

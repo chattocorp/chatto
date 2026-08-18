@@ -6,14 +6,14 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
+#include <memory>
 #include <stop_token>
 #include <string>
-#include <vector>
-
-#include <memory>
 #include <utility>
 
+#include <d3d11.h>
 #include <windows.h>
+#include <winrt/base.h>
 
 namespace chatto::capture {
 
@@ -23,8 +23,8 @@ struct VideoFrameData {
   std::uint32_t width;
   std::uint32_t height;
   std::int64_t timestamp_100ns;
-  double readback_duration_ms;
-  std::vector<std::uint8_t> bgra;
+  double gpu_copy_submit_duration_ms;
+  winrt::com_ptr<ID3D11Texture2D> bgra_texture;
 };
 
 using VideoFrameHandler = std::function<void(VideoFrameData)>;
@@ -85,11 +85,12 @@ struct VideoCaptureMetrics {
     std::chrono::milliseconds frame_stall_timeout = {});
 
 /** Capture an explicitly selected monitor through Windows Graphics Capture. */
-[[nodiscard]] VideoCaptureMetrics capture_monitor_wgc_video(
-    HMONITOR monitor, std::chrono::seconds duration,
-    std::uint32_t requested_frames_per_second,
-    VideoFrameHandler frame_handler = {}, std::stop_token stop_token = {},
-    std::chrono::milliseconds frame_stall_timeout = {});
+[[nodiscard]] VideoCaptureMetrics
+capture_monitor_wgc_video(HMONITOR monitor, std::chrono::seconds duration,
+                          std::uint32_t requested_frames_per_second,
+                          VideoFrameHandler frame_handler = {},
+                          std::stop_token stop_token = {},
+                          std::chrono::milliseconds frame_stall_timeout = {});
 
 /** Capture a foreground monitor-covering window through Desktop Duplication. */
 [[nodiscard]] VideoCaptureMetrics capture_monitor_covering_window_dxgi_video(

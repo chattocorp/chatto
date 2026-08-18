@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <d3d11.h>
+
 namespace chatto::capture {
 
 struct EncodedH264AccessUnit {
@@ -32,10 +34,25 @@ public:
   [[nodiscard]] virtual std::vector<EncodedH264AccessUnit>
   encode(std::span<const std::uint8_t> bgra, std::int64_t timestamp_us,
          bool force_key_frame) = 0;
+  /** Scale/convert a GPU BGRA texture and encode it without CPU pixel copies.
+   */
+  [[nodiscard]] virtual std::vector<EncodedH264AccessUnit>
+  encode_gpu(ID3D11Texture2D &bgra_texture, std::uint32_t source_width,
+             std::uint32_t source_height, std::int64_t timestamp_us,
+             bool force_key_frame) = 0;
   virtual void set_target_bitrate(std::uint32_t target_bitrate_bps) = 0;
   [[nodiscard]] virtual std::uint32_t target_bitrate_bps() const noexcept = 0;
   [[nodiscard]] virtual std::uint32_t rate_control_mode() const noexcept = 0;
   [[nodiscard]] virtual std::vector<EncodedH264AccessUnit> finish() = 0;
+  [[nodiscard]] virtual double last_gpu_conversion_submit_ms() const noexcept {
+    return 0;
+  }
+  [[nodiscard]] virtual double last_encoder_submit_ms() const noexcept {
+    return 0;
+  }
+  [[nodiscard]] virtual double last_bitstream_wait_ms() const noexcept {
+    return 0;
+  }
   [[nodiscard]] virtual const std::string &
   implementation_name() const noexcept = 0;
 };
@@ -73,6 +90,11 @@ public:
   [[nodiscard]] std::vector<EncodedH264AccessUnit>
   encode(std::span<const std::uint8_t> bgra, std::int64_t timestamp_us,
          bool force_key_frame) override;
+
+  [[nodiscard]] std::vector<EncodedH264AccessUnit>
+  encode_gpu(ID3D11Texture2D &bgra_texture, std::uint32_t source_width,
+             std::uint32_t source_height, std::int64_t timestamp_us,
+             bool force_key_frame) override;
 
   /** Apply the latest WebRTC target bitrate when the encoder supports it. */
   void set_target_bitrate(std::uint32_t target_bitrate_bps) override;

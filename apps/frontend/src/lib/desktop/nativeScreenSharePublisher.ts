@@ -27,6 +27,10 @@ type PublisherMessage =
       averageScaleMs: number;
       averagePublishMs: number;
       averageHardwareEncodeMs: number;
+      averageGpuCopySubmitMs: number;
+      averageGpuConversionSubmitMs: number;
+      averageEncoderSubmitMs: number;
+      averageBitstreamWaitMs: number;
       hardwareEncoderImplementation: string;
       requestedEncoderBitrate: number;
       appliedEncoderBitrate: number;

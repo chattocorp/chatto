@@ -173,6 +173,26 @@ struct DuplicationResources {
   DXGI_OUTPUT_DESC output_description{};
 };
 
+[[nodiscard]] winrt::com_ptr<IDXGIAdapter1> find_nvidia_adapter() {
+  winrt::com_ptr<IDXGIFactory1> factory;
+  winrt::check_hresult(
+      CreateDXGIFactory1(__uuidof(IDXGIFactory1), factory.put_void()));
+  for (UINT index = 0;; ++index) {
+    winrt::com_ptr<IDXGIAdapter1> adapter;
+    const HRESULT result = factory->EnumAdapters1(index, adapter.put());
+    if (result == DXGI_ERROR_NOT_FOUND) {
+      return nullptr;
+    }
+    winrt::check_hresult(result);
+    DXGI_ADAPTER_DESC1 description{};
+    winrt::check_hresult(adapter->GetDesc1(&description));
+    if (description.VendorId == 0x10de &&
+        (description.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) == 0) {
+      return adapter;
+    }
+  }
+}
+
 [[nodiscard]] DeviceResources create_device() {
   DeviceResources resources;
   constexpr D3D_FEATURE_LEVEL feature_levels[] = {
@@ -181,12 +201,15 @@ struct DuplicationResources {
   };
   D3D_FEATURE_LEVEL selected_feature_level{};
 
-  winrt::check_hresult(
-      D3D11CreateDevice(nullptr, D3D_DRIVER_TYPE_HARDWARE, nullptr,
-                        D3D11_CREATE_DEVICE_BGRA_SUPPORT, feature_levels,
-                        static_cast<UINT>(std::size(feature_levels)),
-                        D3D11_SDK_VERSION, resources.d3d_device.put(),
-                        &selected_feature_level, resources.d3d_context.put()));
+  const auto nvidia_adapter = find_nvidia_adapter();
+  winrt::check_hresult(D3D11CreateDevice(
+      nvidia_adapter.get(),
+      nvidia_adapter ? D3D_DRIVER_TYPE_UNKNOWN : D3D_DRIVER_TYPE_HARDWARE,
+      nullptr,
+      D3D11_CREATE_DEVICE_BGRA_SUPPORT | D3D11_CREATE_DEVICE_VIDEO_SUPPORT,
+      feature_levels, static_cast<UINT>(std::size(feature_levels)),
+      D3D11_SDK_VERSION, resources.d3d_device.put(), &selected_feature_level,
+      resources.d3d_context.put()));
 
   const auto multithread = resources.d3d_context.as<ID3D11Multithread>();
   multithread->SetMultithreadProtected(TRUE);
@@ -315,109 +338,48 @@ sample_texture(ID3D11Device &device, ID3D11DeviceContext &context,
 }
 
 [[nodiscard]] VideoFrameData
-copy_texture(ID3D11Device &device, ID3D11DeviceContext &context,
-             ID3D11Texture2D &texture, const D3D11_TEXTURE2D_DESC &description,
-             const std::int64_t timestamp_100ns,
-             winrt::com_ptr<ID3D11Texture2D> &staging_texture) {
-  const auto readback_start = std::chrono::steady_clock::now();
-  D3D11_TEXTURE2D_DESC staging_description{};
-  if (staging_texture) {
-    staging_texture->GetDesc(&staging_description);
-  }
-  if (!staging_texture || staging_description.Width != description.Width ||
-      staging_description.Height != description.Height ||
-      staging_description.Format != description.Format) {
-    staging_description = description;
-    staging_description.BindFlags = 0;
-    staging_description.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    staging_description.MiscFlags = 0;
-    staging_description.Usage = D3D11_USAGE_STAGING;
-    staging_texture = nullptr;
-    winrt::check_hresult(device.CreateTexture2D(&staging_description, nullptr,
-                                                staging_texture.put()));
-  }
-
-  context.CopyResource(staging_texture.get(), &texture);
-  D3D11_MAPPED_SUBRESOURCE mapped{};
+copy_texture_gpu(ID3D11Device &device, ID3D11DeviceContext &context,
+                 ID3D11Texture2D &texture,
+                 const D3D11_TEXTURE2D_DESC &description,
+                 const std::int64_t timestamp_100ns,
+                 const std::optional<D3D11_BOX> region = std::nullopt) {
+  const auto copy_start = std::chrono::steady_clock::now();
+  const std::uint32_t width =
+      region ? region->right - region->left : description.Width;
+  const std::uint32_t height =
+      region ? region->bottom - region->top : description.Height;
+  D3D11_TEXTURE2D_DESC copy_description{};
+  copy_description.Width = width;
+  copy_description.Height = height;
+  copy_description.MipLevels = 1;
+  copy_description.ArraySize = 1;
+  copy_description.Format = description.Format;
+  copy_description.SampleDesc.Count = 1;
+  copy_description.Usage = D3D11_USAGE_DEFAULT;
+  copy_description.BindFlags = 0;
+  copy_description.MiscFlags = D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+  winrt::com_ptr<ID3D11Texture2D> copy;
   winrt::check_hresult(
-      context.Map(staging_texture.get(), 0, D3D11_MAP_READ, 0, &mapped));
-  VideoFrameData result{
-      .width = description.Width,
-      .height = description.Height,
-      .timestamp_100ns = timestamp_100ns,
-      .readback_duration_ms = 0,
-      .bgra = std::vector<std::uint8_t>(
-          static_cast<std::size_t>(description.Width) * description.Height * 4),
-  };
-  const auto row_bytes = static_cast<std::size_t>(description.Width) * 4;
-  for (std::uint32_t row = 0; row < description.Height; ++row) {
-    std::memcpy(result.bgra.data() + static_cast<std::size_t>(row) * row_bytes,
-                static_cast<const std::uint8_t *>(mapped.pData) +
-                    static_cast<std::size_t>(row) * mapped.RowPitch,
-                row_bytes);
+      device.CreateTexture2D(&copy_description, nullptr, copy.put()));
+  const auto keyed_mutex = copy.as<IDXGIKeyedMutex>();
+  winrt::check_hresult(keyed_mutex->AcquireSync(0, INFINITE));
+  if (region) {
+    context.CopySubresourceRegion(copy.get(), 0, 0, 0, 0, &texture, 0,
+                                  &*region);
+  } else {
+    context.CopyResource(copy.get(), &texture);
   }
-  context.Unmap(staging_texture.get(), 0);
-  result.readback_duration_ms =
-      std::chrono::duration<double, std::milli>(
-          std::chrono::steady_clock::now() - readback_start)
-          .count();
-  return result;
-}
-
-[[nodiscard]] VideoFrameData
-copy_texture_region(ID3D11Device &device, ID3D11DeviceContext &context,
-                    ID3D11Texture2D &texture,
-                    const D3D11_TEXTURE2D_DESC &description,
-                    const D3D11_BOX &region, const std::int64_t timestamp_100ns,
-                    winrt::com_ptr<ID3D11Texture2D> &staging_texture) {
-  const auto readback_start = std::chrono::steady_clock::now();
-  const auto width = region.right - region.left;
-  const auto height = region.bottom - region.top;
-  D3D11_TEXTURE2D_DESC staging_description{};
-  if (staging_texture) {
-    staging_texture->GetDesc(&staging_description);
-  }
-  if (!staging_texture || staging_description.Width != width ||
-      staging_description.Height != height ||
-      staging_description.Format != description.Format) {
-    staging_description = description;
-    staging_description.Width = width;
-    staging_description.Height = height;
-    staging_description.BindFlags = 0;
-    staging_description.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
-    staging_description.MiscFlags = 0;
-    staging_description.Usage = D3D11_USAGE_STAGING;
-    staging_texture = nullptr;
-    winrt::check_hresult(device.CreateTexture2D(&staging_description, nullptr,
-                                                staging_texture.put()));
-  }
-
-  context.CopySubresourceRegion(staging_texture.get(), 0, 0, 0, 0, &texture, 0,
-                                &region);
-  D3D11_MAPPED_SUBRESOURCE mapped{};
-  winrt::check_hresult(
-      context.Map(staging_texture.get(), 0, D3D11_MAP_READ, 0, &mapped));
-  VideoFrameData result{
+  winrt::check_hresult(keyed_mutex->ReleaseSync(1));
+  return {
       .width = width,
       .height = height,
       .timestamp_100ns = timestamp_100ns,
-      .readback_duration_ms = 0,
-      .bgra = std::vector<std::uint8_t>(static_cast<std::size_t>(width) *
-                                        height * 4),
+      .gpu_copy_submit_duration_ms =
+          std::chrono::duration<double, std::milli>(
+              std::chrono::steady_clock::now() - copy_start)
+              .count(),
+      .bgra_texture = std::move(copy),
   };
-  const auto row_bytes = static_cast<std::size_t>(width) * 4;
-  for (std::uint32_t row = 0; row < height; ++row) {
-    std::memcpy(result.bgra.data() + static_cast<std::size_t>(row) * row_bytes,
-                static_cast<const std::uint8_t *>(mapped.pData) +
-                    static_cast<std::size_t>(row) * mapped.RowPitch,
-                row_bytes);
-  }
-  context.Unmap(staging_texture.get(), 0);
-  result.readback_duration_ms =
-      std::chrono::duration<double, std::milli>(
-          std::chrono::steady_clock::now() - readback_start)
-          .count();
-  return result;
 }
 
 [[nodiscard]] std::optional<D3D11_BOX>
@@ -648,7 +610,6 @@ VideoCaptureMetrics capture_window_video(
        d3d_device = device.d3d_device, d3d_context = device.d3d_context,
        preview, frame_handler = std::move(frame_handler),
        staging_texture = winrt::com_ptr<ID3D11Texture2D>{},
-       publish_staging_texture = winrt::com_ptr<ID3D11Texture2D>{},
        frames_seen = std::uint64_t{0}](const Direct3D11CaptureFramePool &sender,
                                        const auto &) mutable noexcept {
         CaptureCallbackLease callback(state);
@@ -669,7 +630,7 @@ VideoCaptureMetrics capture_window_video(
             texture->GetDesc(&texture_description);
             frames_seen += 1;
             std::optional<FrameSample> sample;
-            if (frames_seen == 1 || frames_seen % 12 == 0) {
+            if (preview && (frames_seen == 1 || frames_seen % 12 == 0)) {
               sample = sample_texture(*d3d_device, *d3d_context, *texture,
                                       texture_description, staging_texture);
             }
@@ -677,9 +638,9 @@ VideoCaptureMetrics capture_window_video(
               preview->present(*texture);
             }
             if (frame_handler) {
-              frame_handler(copy_texture(
+              frame_handler(copy_texture_gpu(
                   *d3d_device, *d3d_context, *texture, texture_description,
-                  frame.SystemRelativeTime().count(), publish_staging_texture));
+                  frame.SystemRelativeTime().count()));
             }
             const bool resized =
                 record_frame(*state, frame, texture_description, sample);
@@ -829,10 +790,9 @@ VideoCaptureMetrics capture_monitor_wgc_video_impl(
   const auto frame_token = frame_pool.FrameArrived(
       [state, winrt_device = device.winrt_device,
        d3d_device = device.d3d_device, d3d_context = device.d3d_context,
-       frame_handler = std::move(frame_handler),
-       staging_texture = winrt::com_ptr<ID3D11Texture2D>{}](
-          const Direct3D11CaptureFramePool &sender,
-          const auto &) mutable noexcept {
+       frame_handler =
+           std::move(frame_handler)](const Direct3D11CaptureFramePool &sender,
+                                     const auto &) mutable noexcept {
         CaptureCallbackLease callback(state);
         if (!callback) {
           return;
@@ -852,9 +812,9 @@ VideoCaptureMetrics capture_monitor_wgc_video_impl(
           D3D11_TEXTURE2D_DESC texture_description{};
           texture->GetDesc(&texture_description);
           if (frame_handler) {
-            frame_handler(copy_texture(
-                *d3d_device, *d3d_context, *texture, texture_description,
-                frame.SystemRelativeTime().count(), staging_texture));
+            frame_handler(copy_texture_gpu(*d3d_device, *d3d_context, *texture,
+                                           texture_description,
+                                           frame.SystemRelativeTime().count()));
           }
           const bool resized =
               record_frame(*state, frame, texture_description, std::nullopt);
@@ -931,11 +891,12 @@ VideoCaptureMetrics capture_monitor_wgc_video_impl(
   return state->metrics;
 }
 
-VideoCaptureMetrics capture_monitor_wgc_video(
-    HMONITOR monitor, const std::chrono::seconds duration,
-    const std::uint32_t requested_frames_per_second,
-    VideoFrameHandler frame_handler, const std::stop_token stop_token,
-    const std::chrono::milliseconds frame_stall_timeout) {
+VideoCaptureMetrics
+capture_monitor_wgc_video(HMONITOR monitor, const std::chrono::seconds duration,
+                          const std::uint32_t requested_frames_per_second,
+                          VideoFrameHandler frame_handler,
+                          const std::stop_token stop_token,
+                          const std::chrono::milliseconds frame_stall_timeout) {
   return capture_monitor_wgc_video_impl(
       monitor, nullptr, duration, requested_frames_per_second,
       std::move(frame_handler), stop_token, frame_stall_timeout);
@@ -987,7 +948,6 @@ VideoCaptureMetrics capture_monitor_covering_window_dxgi_video(
           "The monitor-covering window is not attached to a monitor");
     }
     auto resources = create_duplication_resources(monitor);
-    winrt::com_ptr<ID3D11Texture2D> staging_texture;
     const auto deadline = wall_start + duration;
 
     while (std::chrono::steady_clock::now() < deadline) {
@@ -1035,9 +995,9 @@ VideoCaptureMetrics capture_monitor_covering_window_dxgi_video(
                     std::int64_t, std::ratio<1, 10'000'000>>>(
                     now.time_since_epoch())
                     .count();
-            auto frame = copy_texture_region(
+            auto frame = copy_texture_gpu(
                 *resources.d3d_device, *resources.d3d_context, *texture,
-                texture_description, *region, timestamp_100ns, staging_texture);
+                texture_description, timestamp_100ns, *region);
             metrics.frames += 1;
             metrics.width = frame.width;
             metrics.height = frame.height;

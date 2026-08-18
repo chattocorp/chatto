@@ -7,7 +7,6 @@
 #include "h264_encoder.h"
 #include "latest_frame_queue.h"
 #include "video_capture.h"
-#include "video_frame_scaler.h"
 #include "window_sources.h"
 
 #include <algorithm>
@@ -148,8 +147,7 @@ public:
         preview_callback_(std::move(preview_callback)),
         requested_encoder_bitrate_bps_(target_bitrate_bps),
         requested_encoder_fps_(static_cast<double>(frames_per_second)),
-        worker_([this] { run(); }),
-        reporter_([this] { report(); }) {}
+        worker_([this] { run(); }), reporter_([this] { report(); }) {}
 
   ~LiveKitVideoPump() {
     queue_.close();
@@ -172,8 +170,8 @@ public:
     if (previous_dimensions != 0 && previous_dimensions != dimensions) {
       dimension_changes_.fetch_add(1, std::memory_order_relaxed);
     }
-    readback_microseconds_.fetch_add(
-        static_cast<std::uint64_t>(frame.readback_duration_ms * 1'000.0),
+    gpu_copy_submit_microseconds_.fetch_add(
+        static_cast<std::uint64_t>(frame.gpu_copy_submit_duration_ms * 1'000.0),
         std::memory_order_relaxed);
     if (queue_.push(std::move(frame))) {
       dropped_.fetch_add(1, std::memory_order_relaxed);
@@ -204,9 +202,9 @@ private:
       winrt::init_apartment(winrt::apartment_type::multi_threaded);
       const auto encoder_width = output_width_;
       const auto encoder_height = output_height_;
-      auto encoder = create_hardware_h264_encoder(
-          output_width_, output_height_, frames_per_second_,
-          target_bitrate_bps_);
+      auto encoder =
+          create_hardware_h264_encoder(output_width_, output_height_,
+                                       frames_per_second_, target_bitrate_bps_);
       {
         std::scoped_lock lock(encoder_metrics_mutex_);
         hardware_encoder_implementation_ = encoder->implementation_name();
@@ -223,9 +221,10 @@ private:
         const auto feedback = video_source_->takeFeedback();
         if (feedback.rate_control &&
             feedback.rate_control->target_bitrate_bps > 0) {
-          const auto target = static_cast<std::uint32_t>(std::min<std::uint64_t>(
-              feedback.rate_control->target_bitrate_bps,
-              std::numeric_limits<std::uint32_t>::max()));
+          const auto target =
+              static_cast<std::uint32_t>(std::min<std::uint64_t>(
+                  feedback.rate_control->target_bitrate_bps,
+                  std::numeric_limits<std::uint32_t>::max()));
           requested_encoder_bitrate_bps_.store(target,
                                                std::memory_order_relaxed);
           requested_encoder_fps_.store(feedback.rate_control->framerate_fps,
@@ -234,14 +233,6 @@ private:
           applied_encoder_bitrate_bps_.store(encoder->target_bitrate_bps(),
                                              std::memory_order_relaxed);
         }
-        const auto scale_start = std::chrono::steady_clock::now();
-        // WGC changes texture dimensions when a window enters or leaves
-        // fullscreen. Scale every delivered frame from its actual dimensions
-        // into the track's stable encoder size.
-        auto scaled = scale_bgra_frame(std::move(frame->bgra), frame->width,
-                                       frame->height, encoder_width,
-                                       encoder_height);
-        const auto scale_end = std::chrono::steady_clock::now();
         const auto encode_start = std::chrono::steady_clock::now();
         // WebRTC repeats its keyframe request until the requested IDR reaches
         // the RTP sender. An asynchronous MFT can have several frames in
@@ -250,8 +241,9 @@ private:
         const bool force_key_frame =
             feedback.keyframe_requested && !keyframe_request_in_flight;
         keyframe_request_in_flight |= force_key_frame;
-        auto access_units = encoder->encode(scaled, timestamp_100ns / 10,
-                                            force_key_frame);
+        auto access_units = encoder->encode_gpu(
+            *frame->bgra_texture, frame->width, frame->height,
+            timestamp_100ns / 10, force_key_frame);
         if (std::any_of(access_units.begin(), access_units.end(),
                         [](const auto &access_unit) {
                           return access_unit.key_frame;
@@ -259,11 +251,17 @@ private:
           keyframe_request_in_flight = false;
         }
         const auto encode_end = std::chrono::steady_clock::now();
-        scale_microseconds_.fetch_add(
+        gpu_conversion_submit_microseconds_.fetch_add(
             static_cast<std::uint64_t>(
-                std::chrono::duration<double, std::micro>(scale_end -
-                                                          scale_start)
-                    .count()),
+                encoder->last_gpu_conversion_submit_ms() * 1'000.0),
+            std::memory_order_relaxed);
+        encoder_submit_microseconds_.fetch_add(
+            static_cast<std::uint64_t>(encoder->last_encoder_submit_ms() *
+                                       1'000.0),
+            std::memory_order_relaxed);
+        bitstream_wait_microseconds_.fetch_add(
+            static_cast<std::uint64_t>(encoder->last_bitstream_wait_ms() *
+                                       1'000.0),
             std::memory_order_relaxed);
         encode_microseconds_.fetch_add(
             static_cast<std::uint64_t>(
@@ -371,16 +369,11 @@ private:
     const auto published = published_.load(std::memory_order_relaxed);
     const double elapsed_seconds =
         std::chrono::duration<double>(now - started_).count();
-    const double average_readback_ms =
+    const double average_gpu_copy_submit_ms =
         submitted == 0 ? 0
-                       : static_cast<double>(readback_microseconds_.load(
+                       : static_cast<double>(gpu_copy_submit_microseconds_.load(
                              std::memory_order_relaxed)) /
                              static_cast<double>(submitted) / 1'000.0;
-    const double average_scale_ms =
-        published == 0 ? 0
-                       : static_cast<double>(scale_microseconds_.load(
-                             std::memory_order_relaxed)) /
-                             static_cast<double>(published) / 1'000.0;
     const double average_publish_ms =
         published == 0 ? 0
                        : static_cast<double>(publish_microseconds_.load(
@@ -388,11 +381,26 @@ private:
                              static_cast<double>(published) / 1'000.0;
     const auto encoded = encoded_.load(std::memory_order_relaxed);
     const double average_hardware_encode_ms =
+        encoded == 0 ? 0
+                     : static_cast<double>(encode_microseconds_.load(
+                           std::memory_order_relaxed)) /
+                           static_cast<double>(encoded) / 1'000.0;
+    const double average_gpu_conversion_submit_ms =
         encoded == 0
             ? 0
-            : static_cast<double>(
-                  encode_microseconds_.load(std::memory_order_relaxed)) /
+            : static_cast<double>(gpu_conversion_submit_microseconds_.load(
+                  std::memory_order_relaxed)) /
                   static_cast<double>(encoded) / 1'000.0;
+    const double average_encoder_submit_ms =
+        encoded == 0 ? 0
+                     : static_cast<double>(encoder_submit_microseconds_.load(
+                           std::memory_order_relaxed)) /
+                           static_cast<double>(encoded) / 1'000.0;
+    const double average_bitstream_wait_ms =
+        encoded == 0 ? 0
+                     : static_cast<double>(bitstream_wait_microseconds_.load(
+                           std::memory_order_relaxed)) /
+                           static_cast<double>(encoded) / 1'000.0;
     const auto dimensions = latest_dimensions_.load(std::memory_order_relaxed);
     std::string hardware_encoder;
     {
@@ -400,105 +408,103 @@ private:
       hardware_encoder = hardware_encoder_implementation_;
     }
     std::scoped_lock rtc_lock(rtc_metrics_->mutex);
-    std::cout << std::fixed << std::setprecision(3)
-              << "{\"protocolVersion\":1,\"kind\":\"metrics\""
-              << ",\"submittedFrames\":" << submitted
-              << ",\"publishedFrames\":" << published << ",\"droppedFrames\":"
-              << dropped_.load(std::memory_order_relaxed) << ",\"captureFps\":"
-              << (elapsed_seconds > 0 ? submitted / elapsed_seconds : 0)
-              << ",\"publishFps\":"
-              << (elapsed_seconds > 0 ? published / elapsed_seconds : 0)
-              << ",\"averageReadbackMs\":" << average_readback_ms
-              << ",\"averageScaleMs\":" << average_scale_ms
-              << ",\"averagePublishMs\":" << average_publish_ms
-              << ",\"averageHardwareEncodeMs\":"
-              << average_hardware_encode_ms
-              << ",\"hardwareEncoderImplementation\":"
-              << std::quoted(hardware_encoder)
-              << ",\"requestedEncoderBitrate\":"
-              << requested_encoder_bitrate_bps_.load(
-                     std::memory_order_relaxed)
-              << ",\"appliedEncoderBitrate\":"
-              << applied_encoder_bitrate_bps_.load(std::memory_order_relaxed)
-              << ",\"actualHardwareBitrate\":" << actual_hardware_bitrate
-              << ",\"encoderRateControlMode\":"
-              << encoder_rate_control_mode_.load(std::memory_order_relaxed)
-              << ",\"requestedEncoderFps\":"
-              << requested_encoder_fps_.load(std::memory_order_relaxed)
-              << ",\"hardwareEncodedFrames\":"
-              << hardware_encoded_frames_.load(std::memory_order_relaxed)
-              << ",\"hardwareEncodedBytes\":"
-              << hardware_encoded_bytes_.load(std::memory_order_relaxed)
-              << ",\"hardwareKeyFrames\":"
-              << hardware_key_frames_.load(std::memory_order_relaxed)
-              << ",\"hardwareEncodedWidth\":"
-              << encoder_width_.load(std::memory_order_relaxed)
-              << ",\"hardwareEncodedHeight\":"
-              << encoder_height_.load(std::memory_order_relaxed)
-              << ",\"encoderResolutionChanges\":"
-              << encoder_resolution_changes_.load(std::memory_order_relaxed)
-              << ",\"lastPublishMs\":"
-              << static_cast<double>(last_publish_microseconds) / 1'000.0
-              << ",\"sourceWidth\":" << (dimensions >> 32U)
-              << ",\"sourceHeight\":"
-              << (dimensions & std::numeric_limits<std::uint32_t>::max())
-              << ",\"dimensionChanges\":"
-              << dimension_changes_.load(std::memory_order_relaxed)
-              << ",\"captureBackend\":\""
-              << capture_backend_name(
-                     capture_backend_.load(std::memory_order_relaxed))
-              << "\""
-              << ",\"rtcStatsAvailable\":"
-              << (rtc_metrics_->available ? "true" : "false")
-              << ",\"outboundStreams\":" << rtc_metrics_->outbound_streams
-              << ",\"activeOutboundStreams\":"
-              << rtc_metrics_->active_outbound_streams
-              << ",\"minimumActiveOutboundFps\":"
-              << rtc_metrics_->minimum_active_fps
-              << ",\"maximumActiveOutboundFps\":"
-              << rtc_metrics_->maximum_active_fps
-              << ",\"framesEncoded\":" << rtc_metrics_->frames_encoded
-              << ",\"framesSent\":" << rtc_metrics_->frames_sent
-              << ",\"bytesSent\":" << rtc_metrics_->bytes_sent
-              << ",\"retransmittedPacketsSent\":"
-              << rtc_metrics_->retransmitted_packets_sent
-              << ",\"retransmittedBytesSent\":"
-              << rtc_metrics_->retransmitted_bytes_sent
-              << ",\"nackCount\":" << rtc_metrics_->nack_count
-              << ",\"pliCount\":" << rtc_metrics_->pli_count
-              << ",\"targetBitrate\":" << rtc_metrics_->target_bitrate
-              << ",\"averageEncodeMs\":" << rtc_metrics_->average_encode_ms
-              << ",\"encodedWidth\":" << rtc_metrics_->encoded_width
-              << ",\"encodedHeight\":" << rtc_metrics_->encoded_height
-              << ",\"averageQp\":" << rtc_metrics_->average_qp
-              << ",\"encoderImplementation\":"
-              << std::quoted(rtc_metrics_->encoder_implementation)
-              << ",\"cpuLimitedStreams\":" << rtc_metrics_->cpu_limited_streams
-              << ",\"bandwidthLimitedStreams\":"
-              << rtc_metrics_->bandwidth_limited_streams
-              << ",\"powerEfficientStreams\":"
-              << rtc_metrics_->power_efficient_streams
-              << ",\"remoteInboundStatsAvailable\":"
-              << (rtc_metrics_->remote_inbound_available ? "true" : "false")
-              << ",\"remotePacketsLost\":"
-              << rtc_metrics_->remote_packets_lost
-              << ",\"remoteJitterSeconds\":"
-              << rtc_metrics_->remote_jitter_seconds
-              << ",\"remoteFractionLost\":"
-              << rtc_metrics_->remote_fraction_lost
-              << ",\"remoteRoundTripTimeMs\":"
-              << rtc_metrics_->remote_round_trip_time_ms
-              << ",\"candidatePairStatsAvailable\":"
-              << (rtc_metrics_->candidate_pair_available ? "true" : "false")
-              << ",\"availableOutgoingBitrate\":"
-              << rtc_metrics_->available_outgoing_bitrate
-              << ",\"currentRoundTripTimeMs\":"
-              << rtc_metrics_->current_round_trip_time_ms
-              << ",\"packetsDiscardedOnSend\":"
-              << rtc_metrics_->packets_discarded_on_send
-              << ",\"bytesDiscardedOnSend\":"
-              << rtc_metrics_->bytes_discarded_on_send << "}\n"
-              << std::flush;
+    std::cout
+        << std::fixed << std::setprecision(3)
+        << "{\"protocolVersion\":1,\"kind\":\"metrics\""
+        << ",\"submittedFrames\":" << submitted
+        << ",\"publishedFrames\":" << published
+        << ",\"droppedFrames\":" << dropped_.load(std::memory_order_relaxed)
+        << ",\"captureFps\":"
+        << (elapsed_seconds > 0 ? submitted / elapsed_seconds : 0)
+        << ",\"publishFps\":"
+        << (elapsed_seconds > 0 ? published / elapsed_seconds : 0)
+        << ",\"averageReadbackMs\":0"
+        << ",\"averageScaleMs\":0"
+        << ",\"averageGpuCopySubmitMs\":" << average_gpu_copy_submit_ms
+        << ",\"averageGpuConversionSubmitMs\":"
+        << average_gpu_conversion_submit_ms
+        << ",\"averageEncoderSubmitMs\":" << average_encoder_submit_ms
+        << ",\"averageBitstreamWaitMs\":" << average_bitstream_wait_ms
+        << ",\"averagePublishMs\":" << average_publish_ms
+        << ",\"averageHardwareEncodeMs\":" << average_hardware_encode_ms
+        << ",\"hardwareEncoderImplementation\":"
+        << std::quoted(hardware_encoder) << ",\"requestedEncoderBitrate\":"
+        << requested_encoder_bitrate_bps_.load(std::memory_order_relaxed)
+        << ",\"appliedEncoderBitrate\":"
+        << applied_encoder_bitrate_bps_.load(std::memory_order_relaxed)
+        << ",\"actualHardwareBitrate\":" << actual_hardware_bitrate
+        << ",\"encoderRateControlMode\":"
+        << encoder_rate_control_mode_.load(std::memory_order_relaxed)
+        << ",\"requestedEncoderFps\":"
+        << requested_encoder_fps_.load(std::memory_order_relaxed)
+        << ",\"hardwareEncodedFrames\":"
+        << hardware_encoded_frames_.load(std::memory_order_relaxed)
+        << ",\"hardwareEncodedBytes\":"
+        << hardware_encoded_bytes_.load(std::memory_order_relaxed)
+        << ",\"hardwareKeyFrames\":"
+        << hardware_key_frames_.load(std::memory_order_relaxed)
+        << ",\"hardwareEncodedWidth\":"
+        << encoder_width_.load(std::memory_order_relaxed)
+        << ",\"hardwareEncodedHeight\":"
+        << encoder_height_.load(std::memory_order_relaxed)
+        << ",\"encoderResolutionChanges\":"
+        << encoder_resolution_changes_.load(std::memory_order_relaxed)
+        << ",\"lastPublishMs\":"
+        << static_cast<double>(last_publish_microseconds) / 1'000.0
+        << ",\"sourceWidth\":" << (dimensions >> 32U) << ",\"sourceHeight\":"
+        << (dimensions & std::numeric_limits<std::uint32_t>::max())
+        << ",\"dimensionChanges\":"
+        << dimension_changes_.load(std::memory_order_relaxed)
+        << ",\"captureBackend\":\""
+        << capture_backend_name(
+               capture_backend_.load(std::memory_order_relaxed))
+        << "\""
+        << ",\"rtcStatsAvailable\":"
+        << (rtc_metrics_->available ? "true" : "false")
+        << ",\"outboundStreams\":" << rtc_metrics_->outbound_streams
+        << ",\"activeOutboundStreams\":"
+        << rtc_metrics_->active_outbound_streams
+        << ",\"minimumActiveOutboundFps\":" << rtc_metrics_->minimum_active_fps
+        << ",\"maximumActiveOutboundFps\":" << rtc_metrics_->maximum_active_fps
+        << ",\"framesEncoded\":" << rtc_metrics_->frames_encoded
+        << ",\"framesSent\":" << rtc_metrics_->frames_sent
+        << ",\"bytesSent\":" << rtc_metrics_->bytes_sent
+        << ",\"retransmittedPacketsSent\":"
+        << rtc_metrics_->retransmitted_packets_sent
+        << ",\"retransmittedBytesSent\":"
+        << rtc_metrics_->retransmitted_bytes_sent
+        << ",\"nackCount\":" << rtc_metrics_->nack_count
+        << ",\"pliCount\":" << rtc_metrics_->pli_count
+        << ",\"targetBitrate\":" << rtc_metrics_->target_bitrate
+        << ",\"averageEncodeMs\":" << rtc_metrics_->average_encode_ms
+        << ",\"encodedWidth\":" << rtc_metrics_->encoded_width
+        << ",\"encodedHeight\":" << rtc_metrics_->encoded_height
+        << ",\"averageQp\":" << rtc_metrics_->average_qp
+        << ",\"encoderImplementation\":"
+        << std::quoted(rtc_metrics_->encoder_implementation)
+        << ",\"cpuLimitedStreams\":" << rtc_metrics_->cpu_limited_streams
+        << ",\"bandwidthLimitedStreams\":"
+        << rtc_metrics_->bandwidth_limited_streams
+        << ",\"powerEfficientStreams\":"
+        << rtc_metrics_->power_efficient_streams
+        << ",\"remoteInboundStatsAvailable\":"
+        << (rtc_metrics_->remote_inbound_available ? "true" : "false")
+        << ",\"remotePacketsLost\":" << rtc_metrics_->remote_packets_lost
+        << ",\"remoteJitterSeconds\":" << rtc_metrics_->remote_jitter_seconds
+        << ",\"remoteFractionLost\":" << rtc_metrics_->remote_fraction_lost
+        << ",\"remoteRoundTripTimeMs\":"
+        << rtc_metrics_->remote_round_trip_time_ms
+        << ",\"candidatePairStatsAvailable\":"
+        << (rtc_metrics_->candidate_pair_available ? "true" : "false")
+        << ",\"availableOutgoingBitrate\":"
+        << rtc_metrics_->available_outgoing_bitrate
+        << ",\"currentRoundTripTimeMs\":"
+        << rtc_metrics_->current_round_trip_time_ms
+        << ",\"packetsDiscardedOnSend\":"
+        << rtc_metrics_->packets_discarded_on_send
+        << ",\"bytesDiscardedOnSend\":" << rtc_metrics_->bytes_discarded_on_send
+        << "}\n"
+        << std::flush;
   }
 
   void rethrow_failure() {
@@ -534,8 +540,10 @@ private:
   std::atomic<std::uint64_t> submitted_{0};
   std::atomic<std::uint64_t> published_{0};
   std::atomic<std::uint64_t> dropped_{0};
-  std::atomic<std::uint64_t> readback_microseconds_{0};
-  std::atomic<std::uint64_t> scale_microseconds_{0};
+  std::atomic<std::uint64_t> gpu_copy_submit_microseconds_{0};
+  std::atomic<std::uint64_t> gpu_conversion_submit_microseconds_{0};
+  std::atomic<std::uint64_t> encoder_submit_microseconds_{0};
+  std::atomic<std::uint64_t> bitstream_wait_microseconds_{0};
   std::atomic<std::uint64_t> publish_microseconds_{0};
   std::atomic<std::uint64_t> encode_microseconds_{0};
   std::atomic<std::uint64_t> encoded_{0};
@@ -634,12 +642,12 @@ private:
                    pair->candidate_pair.state ==
                        livekit::IceCandidatePairState::Succeeded) {
           next.candidate_pair_available = true;
-          next.available_outgoing_bitrate = std::max(
-              next.available_outgoing_bitrate,
-              pair->candidate_pair.available_outgoing_bitrate);
-          next.current_round_trip_time_ms = std::max(
-              next.current_round_trip_time_ms,
-              pair->candidate_pair.current_round_trip_time * 1'000.0);
+          next.available_outgoing_bitrate =
+              std::max(next.available_outgoing_bitrate,
+                       pair->candidate_pair.available_outgoing_bitrate);
+          next.current_round_trip_time_ms =
+              std::max(next.current_round_trip_time_ms,
+                       pair->candidate_pair.current_round_trip_time * 1'000.0);
           next.packets_discarded_on_send +=
               pair->candidate_pair.packets_discarded_on_send;
           next.bytes_discarded_on_send +=
@@ -776,14 +784,11 @@ constexpr std::uint32_t kInitialVideoBitrateBps = 12'000'000;
 
 } // namespace
 
-int publish_window(HWND window,
-                   const std::wstring &expected_application_identifier,
-                   const std::uint32_t frames_per_second,
-                   const std::uint32_t maximum_width,
-                   const std::uint32_t maximum_height,
-                   const PublisherCredential &credential,
-                   EncodedPreviewCallback preview_callback,
-                   const std::stop_token stop_token) {
+int publish_window(
+    HWND window, const std::wstring &expected_application_identifier,
+    const std::uint32_t frames_per_second, const std::uint32_t maximum_width,
+    const std::uint32_t maximum_height, const PublisherCredential &credential,
+    EncodedPreviewCallback preview_callback, const std::stop_token stop_token) {
   if (!window_matches_application(window, expected_application_identifier)) {
     throw std::invalid_argument(
         "The selected window no longer belongs to the offered application");
@@ -1111,8 +1116,8 @@ int publish_display(HMONITOR monitor, const std::uint32_t frames_per_second,
       livekit::DegradationPreference::MaintainFramerate;
   participant->publishTrack(video_track, video_options);
 
-  std::cout << "{\"protocolVersion\":1,\"kind\":\"started\",\"width\":"
-            << width << ",\"height\":" << height
+  std::cout << "{\"protocolVersion\":1,\"kind\":\"started\",\"width\":" << width
+            << ",\"height\":" << height
             << ",\"frameRate\":" << frames_per_second << "}\n"
             << std::flush;
   auto stats_reporter =

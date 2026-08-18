@@ -66,10 +66,13 @@ screen-share simulcast layers and its default low layer is capped at 3 fps. It
 disables dynacast for that layer, allowing receivers to unsubscribe without
 suspending the independent native publisher. The sender's preview uses the
 local encoded-frame pipe rather than a server-routed subscription.
-The capture callback hands CPU-backed frames to a bounded, freshness-first
-worker. That worker scales BGRA, converts it to NV12, hardware-encodes it, and
-synchronously submits the access unit; slow work drops superseded frames
-instead of blocking capture or growing latency without bound.
+The capture callback copies frames into shareable D3D11 textures and hands them
+to a bounded, freshness-first worker. On the direct NVIDIA path, the worker uses
+the D3D11 video processor to scale BGRA and convert it to BT.709 NV12 directly
+in an NVENC-registered GPU surface, then submits the encoded access unit to
+LiveKit. Media Foundation remains a compatibility fallback and performs a CPU
+readback. Slow work drops superseded frames instead of blocking capture or
+growing latency without bound.
 
 When WGC changes texture dimensions during a window/fullscreen transition, the
 worker scales each frame from its current dimensions into the LiveKit track's

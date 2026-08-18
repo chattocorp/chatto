@@ -2,6 +2,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 #include "h264_encoder.h"
+#include "video_frame_scaler.h"
 
 #include <algorithm>
 #include <array>
@@ -11,6 +12,7 @@
 #include <utility>
 
 #include <codecapi.h>
+#include <dxgi.h>
 #include <icodecapi.h>
 #include <mfapi.h>
 #include <mferror.h>
@@ -24,15 +26,12 @@ namespace {
 using Microsoft::WRL::ComPtr;
 
 [[noreturn]] void throw_hresult(const char *message, const HRESULT result) {
-  throw std::runtime_error(std::string(message) + " (0x" +
-                           [&result] {
-                             std::array<char, 9> text{};
-                             static_cast<void>(std::snprintf(
-                                 text.data(), text.size(), "%08x",
-                                 static_cast<unsigned int>(result)));
-                             return std::string(text.data());
-                           }() +
-                           ")");
+  throw std::runtime_error(std::string(message) + " (0x" + [&result] {
+    std::array<char, 9> text{};
+    static_cast<void>(std::snprintf(text.data(), text.size(), "%08x",
+                                    static_cast<unsigned int>(result)));
+    return std::string(text.data());
+  }() + ")");
 }
 
 void check_hresult(const HRESULT result, const char *message) {
@@ -45,9 +44,9 @@ void check_hresult(const HRESULT result, const char *message) {
   return static_cast<std::uint8_t>(std::clamp(value, 0, 255));
 }
 
-[[nodiscard]] bool starts_with_start_code(
-    const std::span<const std::uint8_t> bytes, const std::size_t offset,
-    std::size_t &start_code_size) {
+[[nodiscard]] bool
+starts_with_start_code(const std::span<const std::uint8_t> bytes,
+                       const std::size_t offset, std::size_t &start_code_size) {
   if (offset + 3 <= bytes.size() && bytes[offset] == 0 &&
       bytes[offset + 1] == 0 && bytes[offset + 2] == 1) {
     start_code_size = 3;
@@ -123,8 +122,8 @@ void set_codec_bool(ICodecAPI *codec_api, const GUID &property,
   VariantClear(&setting);
 }
 
-[[nodiscard]] std::optional<std::uint32_t>
-get_codec_u32(ICodecAPI *codec_api, const GUID &property) {
+[[nodiscard]] std::optional<std::uint32_t> get_codec_u32(ICodecAPI *codec_api,
+                                                         const GUID &property) {
   if (codec_api == nullptr) {
     return std::nullopt;
   }
@@ -143,21 +142,22 @@ make_video_type(const GUID &subtype, const std::uint32_t width,
                 const std::uint32_t height,
                 const std::uint32_t frames_per_second) {
   ComPtr<IMFMediaType> type;
-  check_hresult(MFCreateMediaType(&type), "Could not create a video media type");
+  check_hresult(MFCreateMediaType(&type),
+                "Could not create a video media type");
   check_hresult(type->SetGUID(MF_MT_MAJOR_TYPE, MFMediaType_Video),
                 "Could not set the video major type");
   check_hresult(type->SetGUID(MF_MT_SUBTYPE, subtype),
                 "Could not set the video subtype");
   check_hresult(MFSetAttributeSize(type.Get(), MF_MT_FRAME_SIZE, width, height),
                 "Could not set the video frame size");
-  check_hresult(MFSetAttributeRatio(type.Get(), MF_MT_FRAME_RATE,
-                                    frames_per_second, 1),
-                "Could not set the video frame rate");
+  check_hresult(
+      MFSetAttributeRatio(type.Get(), MF_MT_FRAME_RATE, frames_per_second, 1),
+      "Could not set the video frame rate");
   check_hresult(MFSetAttributeRatio(type.Get(), MF_MT_PIXEL_ASPECT_RATIO, 1, 1),
                 "Could not set the video pixel aspect ratio");
-  check_hresult(type->SetUINT32(MF_MT_INTERLACE_MODE,
-                                MFVideoInterlace_Progressive),
-                "Could not set progressive video");
+  check_hresult(
+      type->SetUINT32(MF_MT_INTERLACE_MODE, MFVideoInterlace_Progressive),
+      "Could not set progressive video");
   return type;
 }
 
@@ -169,14 +169,14 @@ make_video_type(const GUID &subtype, const std::uint32_t width,
       wide_name == nullptr) {
     return "Media Foundation hardware H.264 encoder";
   }
-  const int byte_count = WideCharToMultiByte(
-      CP_UTF8, 0, wide_name, static_cast<int>(length), nullptr, 0, nullptr,
-      nullptr);
+  const int byte_count =
+      WideCharToMultiByte(CP_UTF8, 0, wide_name, static_cast<int>(length),
+                          nullptr, 0, nullptr, nullptr);
   std::string name(static_cast<std::size_t>(std::max(byte_count, 0)), '\0');
   if (byte_count > 0) {
-    static_cast<void>(WideCharToMultiByte(
-        CP_UTF8, 0, wide_name, static_cast<int>(length), name.data(),
-        byte_count, nullptr, nullptr));
+    static_cast<void>(WideCharToMultiByte(CP_UTF8, 0, wide_name,
+                                          static_cast<int>(length), name.data(),
+                                          byte_count, nullptr, nullptr));
   }
   CoTaskMemFree(wide_name);
   return name;
@@ -184,9 +184,9 @@ make_video_type(const GUID &subtype, const std::uint32_t width,
 
 } // namespace
 
-std::vector<std::uint8_t>
-bgra_to_nv12(const std::span<const std::uint8_t> bgra,
-             const std::uint32_t width, const std::uint32_t height) {
+std::vector<std::uint8_t> bgra_to_nv12(const std::span<const std::uint8_t> bgra,
+                                       const std::uint32_t width,
+                                       const std::uint32_t height) {
   const auto expected_size =
       static_cast<std::size_t>(width) * static_cast<std::size_t>(height) * 4;
   if (width == 0 || height == 0 || (width % 2) != 0 || (height % 2) != 0 ||
@@ -203,13 +203,12 @@ bgra_to_nv12(const std::span<const std::uint8_t> bgra,
 
   for (std::uint32_t y = 0; y < height; ++y) {
     for (std::uint32_t x = 0; x < width; ++x) {
-      const auto offset =
-          (static_cast<std::size_t>(y) * width + x) * 4;
+      const auto offset = (static_cast<std::size_t>(y) * width + x) * 4;
       const int blue = bgra[offset];
       const int green = bgra[offset + 1];
       const int red = bgra[offset + 2];
-      luma[static_cast<std::size_t>(y) * width + x] = clamp_byte(
-          16 + ((47 * red + 157 * green + 16 * blue + 128) >> 8));
+      luma[static_cast<std::size_t>(y) * width + x] =
+          clamp_byte(16 + ((47 * red + 157 * green + 16 * blue + 128) >> 8));
     }
   }
 
@@ -230,12 +229,11 @@ bgra_to_nv12(const std::span<const std::uint8_t> bgra,
       blue /= 4;
       green /= 4;
       red /= 4;
-      const auto chroma_offset =
-          static_cast<std::size_t>(y / 2) * width + x;
-      chroma[chroma_offset] = clamp_byte(
-          128 + ((-26 * red - 87 * green + 112 * blue + 128) >> 8));
-      chroma[chroma_offset + 1] = clamp_byte(
-          128 + ((112 * red - 102 * green - 10 * blue + 128) >> 8));
+      const auto chroma_offset = static_cast<std::size_t>(y / 2) * width + x;
+      chroma[chroma_offset] =
+          clamp_byte(128 + ((-26 * red - 87 * green + 112 * blue + 128) >> 8));
+      chroma[chroma_offset + 1] =
+          clamp_byte(128 + ((112 * red - 102 * green - 10 * blue + 128) >> 8));
     }
   }
   return nv12;
@@ -311,12 +309,12 @@ public:
 
   ~Implementation() {
     if (transform_) {
-      static_cast<void>(transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM,
-                                                   0));
-      static_cast<void>(transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_STREAMING,
-                                                   0));
-      static_cast<void>(transform_->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH,
-                                                   0));
+      static_cast<void>(
+          transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM, 0));
+      static_cast<void>(
+          transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_STREAMING, 0));
+      static_cast<void>(
+          transform_->ProcessMessage(MFT_MESSAGE_COMMAND_FLUSH, 0));
     }
     if (activation_) {
       static_cast<void>(activation_->ShutdownObject());
@@ -338,15 +336,18 @@ public:
     const auto nv12 = bgra_to_nv12(bgra, width_, height_);
     ComPtr<IMFSample> sample;
     ComPtr<IMFMediaBuffer> buffer;
-    check_hresult(MFCreateSample(&sample), "Could not create an encoder sample");
-    check_hresult(MFCreateMemoryBuffer(static_cast<DWORD>(nv12.size()), &buffer),
-                  "Could not create an encoder input buffer");
+    check_hresult(MFCreateSample(&sample),
+                  "Could not create an encoder sample");
+    check_hresult(
+        MFCreateMemoryBuffer(static_cast<DWORD>(nv12.size()), &buffer),
+        "Could not create an encoder input buffer");
     BYTE *destination = nullptr;
     DWORD capacity = 0;
     check_hresult(buffer->Lock(&destination, &capacity, nullptr),
                   "Could not lock the encoder input buffer");
     std::copy(nv12.begin(), nv12.end(), destination);
-    check_hresult(buffer->Unlock(), "Could not unlock the encoder input buffer");
+    check_hresult(buffer->Unlock(),
+                  "Could not unlock the encoder input buffer");
     check_hresult(buffer->SetCurrentLength(static_cast<DWORD>(nv12.size())),
                   "Could not size the encoder input buffer");
     check_hresult(sample->AddBuffer(buffer.Get()),
@@ -356,7 +357,8 @@ public:
     check_hresult(sample->SetSampleDuration(frame_duration_100ns_),
                   "Could not set the encoder input duration");
     if (first_input_) {
-      static_cast<void>(sample->SetUINT32(MFSampleExtension_Discontinuity, TRUE));
+      static_cast<void>(
+          sample->SetUINT32(MFSampleExtension_Discontinuity, TRUE));
       first_input_ = false;
     }
     check_hresult(transform_->ProcessInput(0, sample.Get(), 0),
@@ -366,16 +368,71 @@ public:
     return output;
   }
 
+  [[nodiscard]] std::vector<EncodedH264AccessUnit>
+  encode_gpu(ID3D11Texture2D &bgra_texture, const std::uint32_t source_width,
+             const std::uint32_t source_height, const std::int64_t timestamp_us,
+             const bool force_key_frame) {
+    D3D11_TEXTURE2D_DESC description{};
+    bgra_texture.GetDesc(&description);
+    if (description.Width != source_width ||
+        description.Height != source_height ||
+        description.Format != DXGI_FORMAT_B8G8R8A8_UNORM) {
+      throw std::invalid_argument(
+          "The Media Foundation fallback received an invalid GPU frame");
+    }
+    ComPtr<IDXGIKeyedMutex> keyed_mutex;
+    check_hresult(bgra_texture.QueryInterface(IID_PPV_ARGS(&keyed_mutex)),
+                  "The GPU frame has no keyed mutex");
+    check_hresult(keyed_mutex->AcquireSync(1, 5'000),
+                  "Could not acquire the GPU frame for fallback readback");
+    ComPtr<ID3D11Device> device;
+    bgra_texture.GetDevice(&device);
+    ComPtr<ID3D11DeviceContext> context;
+    device->GetImmediateContext(&context);
+    D3D11_TEXTURE2D_DESC staging_description = description;
+    staging_description.BindFlags = 0;
+    staging_description.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+    staging_description.MiscFlags = 0;
+    staging_description.Usage = D3D11_USAGE_STAGING;
+    ComPtr<ID3D11Texture2D> staging;
+    try {
+      check_hresult(
+          device->CreateTexture2D(&staging_description, nullptr, &staging),
+          "Could not create the fallback readback texture");
+      context->CopyResource(staging.Get(), &bgra_texture);
+    } catch (...) {
+      static_cast<void>(keyed_mutex->ReleaseSync(0));
+      throw;
+    }
+    check_hresult(keyed_mutex->ReleaseSync(0),
+                  "Could not release the GPU frame after fallback readback");
+    D3D11_MAPPED_SUBRESOURCE mapped{};
+    check_hresult(context->Map(staging.Get(), 0, D3D11_MAP_READ, 0, &mapped),
+                  "Could not map the fallback readback texture");
+    std::vector<std::uint8_t> bgra(static_cast<std::size_t>(source_width) *
+                                   source_height * 4);
+    const auto row_bytes = static_cast<std::size_t>(source_width) * 4;
+    for (std::uint32_t row = 0; row < source_height; ++row) {
+      std::copy_n(static_cast<const std::uint8_t *>(mapped.pData) +
+                      static_cast<std::size_t>(row) * mapped.RowPitch,
+                  row_bytes,
+                  bgra.data() + static_cast<std::size_t>(row) * row_bytes);
+    }
+    context->Unmap(staging.Get(), 0);
+    auto scaled = scale_bgra_frame(std::move(bgra), source_width, source_height,
+                                   width_, height_);
+    return encode(scaled, timestamp_us, force_key_frame);
+  }
+
   void set_target_bitrate(const std::uint32_t target_bitrate_bps) {
     if (target_bitrate_bps == 0 || target_bitrate_bps == target_bitrate_bps_) {
       return;
     }
     set_codec_u32(codec_api_.Get(), CODECAPI_AVEncCommonMeanBitRate,
                   target_bitrate_bps);
-    target_bitrate_bps_ = get_codec_u32(
-                              codec_api_.Get(),
-                              CODECAPI_AVEncCommonMeanBitRate)
-                              .value_or(target_bitrate_bps);
+    target_bitrate_bps_ =
+        get_codec_u32(codec_api_.Get(), CODECAPI_AVEncCommonMeanBitRate)
+            .value_or(target_bitrate_bps);
   }
 
   [[nodiscard]] std::uint32_t target_bitrate_bps() const noexcept {
@@ -391,9 +448,9 @@ public:
       return {};
     }
     finished_ = true;
-    check_hresult(transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM,
-                                             0),
-                  "Could not end the hardware encoder stream");
+    check_hresult(
+        transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_END_OF_STREAM, 0),
+        "Could not end the hardware encoder stream");
     check_hresult(transform_->ProcessMessage(MFT_MESSAGE_COMMAND_DRAIN, 0),
                   "Could not drain the hardware encoder");
     std::vector<EncodedH264AccessUnit> output;
@@ -415,12 +472,11 @@ private:
                                              MFVideoFormat_H264};
     IMFActivate **activations = nullptr;
     UINT32 activation_count = 0;
-    check_hresult(MFTEnumEx(MFT_CATEGORY_VIDEO_ENCODER,
-                            MFT_ENUM_FLAG_HARDWARE |
-                                MFT_ENUM_FLAG_SORTANDFILTER,
-                            &input_type, &output_type, &activations,
-                            &activation_count),
-                  "Could not enumerate hardware H.264 encoders");
+    check_hresult(
+        MFTEnumEx(MFT_CATEGORY_VIDEO_ENCODER,
+                  MFT_ENUM_FLAG_HARDWARE | MFT_ENUM_FLAG_SORTANDFILTER,
+                  &input_type, &output_type, &activations, &activation_count),
+        "Could not enumerate hardware H.264 encoders");
     if (activation_count == 0) {
       CoTaskMemFree(activations);
       throw std::runtime_error(
@@ -458,9 +514,9 @@ private:
                                   frames_per_second_);
     check_hresult(output->SetUINT32(MF_MT_AVG_BITRATE, target_bitrate_bps),
                   "Could not set the H.264 output bitrate");
-    check_hresult(output->SetUINT32(MF_MT_MPEG2_PROFILE,
-                                    eAVEncH264VProfile_Base),
-                  "Could not set the H.264 output profile");
+    check_hresult(
+        output->SetUINT32(MF_MT_MPEG2_PROFILE, eAVEncH264VProfile_Base),
+        "Could not set the H.264 output profile");
     check_hresult(transform_->SetOutputType(0, output.Get(), 0),
                   "The hardware encoder rejected the H.264 output type");
     auto input = make_video_type(MFVideoFormat_NV12, width_, height_,
@@ -481,12 +537,12 @@ private:
 
     check_hresult(transform_.As(&events_),
                   "The hardware H.264 encoder is not asynchronous");
-    check_hresult(transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING,
-                                             0),
-                  "Could not begin hardware H.264 streaming");
-    check_hresult(transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM,
-                                             0),
-                  "Could not start the hardware H.264 stream");
+    check_hresult(
+        transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_BEGIN_STREAMING, 0),
+        "Could not begin hardware H.264 streaming");
+    check_hresult(
+        transform_->ProcessMessage(MFT_MESSAGE_NOTIFY_START_OF_STREAM, 0),
+        "Could not start the hardware H.264 stream");
   }
 
   void wait_for_input(std::vector<EncodedH264AccessUnit> &output) {
@@ -545,9 +601,9 @@ private:
       ComPtr<IMFMediaBuffer> buffer;
       check_hresult(MFCreateSample(&sample),
                     "Could not create a hardware encoder output sample");
-      check_hresult(MFCreateMemoryBuffer(std::max<DWORD>(information.cbSize, 1),
-                                         &buffer),
-                    "Could not create a hardware encoder output buffer");
+      check_hresult(
+          MFCreateMemoryBuffer(std::max<DWORD>(information.cbSize, 1), &buffer),
+          "Could not create a hardware encoder output buffer");
       check_hresult(sample->AddBuffer(buffer.Get()),
                     "Could not attach a hardware encoder output buffer");
     }
@@ -593,11 +649,10 @@ private:
           "The hardware H.264 encoder returned an unsupported bitstream");
     }
     UINT32 clean_point = FALSE;
-    access_unit.key_frame =
-        (SUCCEEDED(sample->GetUINT32(MFSampleExtension_CleanPoint,
-                                    &clean_point)) &&
-         clean_point != FALSE) ||
-        h264_access_unit_is_key_frame(access_unit.data);
+    access_unit.key_frame = (SUCCEEDED(sample->GetUINT32(
+                                 MFSampleExtension_CleanPoint, &clean_point)) &&
+                             clean_point != FALSE) ||
+                            h264_access_unit_is_key_frame(access_unit.data);
     if (!access_unit.data.empty()) {
       output.push_back(std::move(access_unit));
     }
@@ -608,8 +663,7 @@ private:
   std::uint32_t frames_per_second_;
   LONGLONG frame_duration_100ns_;
   std::uint32_t target_bitrate_bps_ = 0;
-  std::uint32_t rate_control_mode_ =
-      std::numeric_limits<std::uint32_t>::max();
+  std::uint32_t rate_control_mode_ = std::numeric_limits<std::uint32_t>::max();
   bool media_foundation_started_ = false;
   bool first_input_ = true;
   bool finished_ = false;
@@ -631,10 +685,19 @@ MediaFoundationH264Encoder::MediaFoundationH264Encoder(
 
 MediaFoundationH264Encoder::~MediaFoundationH264Encoder() = default;
 
-std::vector<EncodedH264AccessUnit> MediaFoundationH264Encoder::encode(
-    const std::span<const std::uint8_t> bgra,
-    const std::int64_t timestamp_us, const bool force_key_frame) {
+std::vector<EncodedH264AccessUnit>
+MediaFoundationH264Encoder::encode(const std::span<const std::uint8_t> bgra,
+                                   const std::int64_t timestamp_us,
+                                   const bool force_key_frame) {
   return implementation_->encode(bgra, timestamp_us, force_key_frame);
+}
+
+std::vector<EncodedH264AccessUnit> MediaFoundationH264Encoder::encode_gpu(
+    ID3D11Texture2D &bgra_texture, const std::uint32_t source_width,
+    const std::uint32_t source_height, const std::int64_t timestamp_us,
+    const bool force_key_frame) {
+  return implementation_->encode_gpu(bgra_texture, source_width, source_height,
+                                     timestamp_us, force_key_frame);
 }
 
 void MediaFoundationH264Encoder::set_target_bitrate(
@@ -642,13 +705,11 @@ void MediaFoundationH264Encoder::set_target_bitrate(
   implementation_->set_target_bitrate(target_bitrate_bps);
 }
 
-std::uint32_t
-MediaFoundationH264Encoder::target_bitrate_bps() const noexcept {
+std::uint32_t MediaFoundationH264Encoder::target_bitrate_bps() const noexcept {
   return implementation_->target_bitrate_bps();
 }
 
-std::uint32_t
-MediaFoundationH264Encoder::rate_control_mode() const noexcept {
+std::uint32_t MediaFoundationH264Encoder::rate_control_mode() const noexcept {
   return implementation_->rate_control_mode();
 }
 

@@ -10,10 +10,12 @@ native verification.
 The capture stack is Windows Graphics Capture into D3D11 textures, WASAPI
 process-loopback audio, direct NVIDIA NVENC H.264 with Media Foundation
 hardware fallback, and a pinned public Chatto fork of the LiveKit C++ SDK.
-Captured textures are currently read into CPU memory, scaled, and converted
-from BGRA to NV12 before entering the encoder. The direct NVIDIA path uploads
-NV12 to registered D3D11 textures and uses the driver's low-latency P5 preset,
-quarter-resolution multipass, and spatial adaptive quantisation. The fork
+The direct NVIDIA path keeps production video frames on the GPU: capture copies
+each frame into a shareable D3D11 texture, the NVIDIA video processor scales it
+and converts BGRA to BT.709 NV12, and NVENC reads the registered NV12 surface.
+It uses the driver's low-latency P5 preset, quarter-resolution multipass, and
+spatial adaptive quantisation. Media Foundation remains a compatibility
+fallback and performs a CPU readback when direct NVENC is unavailable. The fork
 passes complete encoded access units into WebRTC without a second software
 encode and forwards keyframe and rate-control requests back to the selected
 encoder. A single-slot latest-frame handoff keeps
@@ -54,10 +56,11 @@ recoverable signal and recreates the duplication interface for the new
 producer.
 
 Non-content publisher metrics are emitted every two seconds even while capture
-or publication is stalled. Alongside capture, conversion, encoding and RTP
-counters, they report the latest WGC texture dimensions and how often those
-dimensions changed. Desktop separately acknowledges a received stop command
-before waiting for the helper to disconnect and exit.
+or publication is stalled. Alongside capture, GPU copy, GPU conversion, encoder
+submission, bitstream wait, encoding, and RTP counters, they report the latest
+WGC texture dimensions and how often those dimensions changed. Desktop
+separately acknowledges a received stop command before waiting for the helper
+to disconnect and exit.
 
 ## Requirements
 

@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-16
+**Last reviewed:** 2026-08-18
 
 ## Overview
 
@@ -212,12 +212,14 @@ latency to grow. macOS enables dynacast so unused layers pause. Windows disables
 dynacast so its independent single-layer publisher continues through temporary
 subscriber loss, including when the owning Desktop client is not subscribed.
 This can spend upload bandwidth while no receiver is consuming the track.
-The Windows helper converts BGRA to NV12 and prefers direct NVIDIA NVENC with a
+The Windows helper prefers a GPU-resident direct NVIDIA path: capture copies
+frames into shareable D3D11 textures, the NVIDIA video processor scales them
+and converts BGRA to BT.709 NV12 in NVENC-registered surfaces, and NVENC uses a
 low-latency preset, quarter-resolution multipass, and spatial adaptive
-quantisation. It falls back to a Media Foundation hardware H.264 encoder when
-direct NVENC is unavailable. The pinned SDK fork passes complete access units
-through WebRTC without software re-encoding and returns keyframe and bitrate
-requests to the helper.
+quantisation. It falls back to a Media Foundation hardware H.264 encoder with
+CPU readback when direct NVENC is unavailable. The pinned SDK fork passes
+complete access units through WebRTC without software re-encoding and returns
+keyframe and bitrate requests to the helper.
 Windows's single layer also increases receiver bandwidth for compact tiles until
 the pinned fork exposes custom layers. Simultaneously active
 macOS qualities increase native encoding and upload cost. These are explicit

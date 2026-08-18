@@ -413,6 +413,11 @@ export function parseGameCapturePublisherStatus(line) {
       publishFps: value.publishFps,
       averageReadbackMs: value.averageReadbackMs,
       averageScaleMs: value.averageScaleMs,
+      averageGpuCopySubmitMs: value.averageGpuCopySubmitMs ?? 0,
+      averageGpuConversionSubmitMs:
+        value.averageGpuConversionSubmitMs ?? 0,
+      averageEncoderSubmitMs: value.averageEncoderSubmitMs ?? 0,
+      averageBitstreamWaitMs: value.averageBitstreamWaitMs ?? 0,
       averagePublishMs: value.averagePublishMs,
       averageHardwareEncodeMs: value.averageHardwareEncodeMs ?? 0,
       hardwareEncoderImplementation:
@@ -520,6 +525,18 @@ function validOptionalHardwareEncoderMetrics(value) {
   return (
     Number.isFinite(value.averageHardwareEncodeMs) &&
     value.averageHardwareEncodeMs >= 0 &&
+    (value.averageGpuCopySubmitMs === undefined ||
+      (Number.isFinite(value.averageGpuCopySubmitMs) &&
+        value.averageGpuCopySubmitMs >= 0)) &&
+    (value.averageGpuConversionSubmitMs === undefined ||
+      (Number.isFinite(value.averageGpuConversionSubmitMs) &&
+        value.averageGpuConversionSubmitMs >= 0)) &&
+    (value.averageEncoderSubmitMs === undefined ||
+      (Number.isFinite(value.averageEncoderSubmitMs) &&
+        value.averageEncoderSubmitMs >= 0)) &&
+    (value.averageBitstreamWaitMs === undefined ||
+      (Number.isFinite(value.averageBitstreamWaitMs) &&
+        value.averageBitstreamWaitMs >= 0)) &&
     typeof value.hardwareEncoderImplementation === "string" &&
     value.hardwareEncoderImplementation.length <= 256 &&
     (value.requestedEncoderBitrate === undefined ||
