@@ -320,6 +320,15 @@ fi
 if ! pitchfork supervisor status >/dev/null 2>&1; then
     pitchfork supervisor start >/dev/null
 fi
+
+# Pitchfork proxy routes are machine-global. Keep the ownership check and all
+# updates in one transaction so concurrently starting workspaces cannot race.
+(
+if ! lockf -s -t 5 9; then
+    echo "timed out waiting to update the machine-wide Pitchfork proxy routes; retry mise dev" >&2
+    exit 2
+fi
+
 proxy_status=$(pitchfork proxy status --json)
 PITCHFORK_PROXY_STATUS="$proxy_status" node -e '
 const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
@@ -365,6 +374,7 @@ for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:liv
     slug="$service-$workspace_slug"
     pitchfork proxy add "$slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
 done
+) 9>/tmp/chatto-pitchfork-proxy-routes.lock
 
 mise setup-frontend
 trap 'pitchfork stop --local >/dev/null 2>&1 || true' EXIT INT TERM
@@ -385,6 +395,14 @@ if [ -s .context/dev/workspace-slug ]; then
 fi
 
 pitchfork stop --local >/dev/null 2>&1 || true
+
+# Serialize cleanup with route registration by other Chatto workspaces.
+(
+if ! lockf -s -t 5 9; then
+    echo "timed out waiting to update the machine-wide Pitchfork proxy routes; retry mise dev-archive" >&2
+    exit 2
+fi
+
 proxy_status=$(pitchfork proxy status --json 2>/dev/null || printf '{"slugs":[]}')
 for service in chatto authling mailpit livekit storybook docs; do
     slug="$service-$workspace_slug"
@@ -397,6 +415,7 @@ process.stdout.write(route?.dir ?? "")
         pitchfork proxy remove "$slug" >/dev/null 2>&1 || true
     fi
 done
+) 9>/tmp/chatto-pitchfork-proxy-routes.lock
 """
 
 [tasks.dev-docs-website]

@@ -60,10 +60,10 @@ HTTPS origins:
 - Docs website: `https://docs-<workspace>.localhost:42443`
 
 Workspace names share Pitchfork's machine-wide slug registry. `mise dev`
-refuses to overwrite a route owned by another checkout; rename or archive the
-conflicting workspace if that happens. It also stops with recovery
-instructions if an existing Pitchfork supervisor uses proxy settings other
-than the trusted HTTPS endpoint above.
+serializes route updates and refuses to overwrite a route owned by another
+checkout; rename or archive the conflicting workspace if that happens. It also
+stops with recovery instructions if an existing Pitchfork supervisor uses
+proxy settings other than the trusted HTTPS endpoint above.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first

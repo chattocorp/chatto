@@ -58,8 +58,10 @@ underlying service's allocated ports directly.
 the same Pitchfork stack. The `mise dev` task verifies that Pitchfork's
 already-running machine-wide proxy matches the required trusted
 `https://*.localhost:42443` endpoint and that every requested global slug is
-either unclaimed or already owned by this checkout. It refuses to overwrite
-another checkout's route. It then registers the routes, attaches to
+either unclaimed or already owned by this checkout. A machine-wide file lock
+serializes that ownership check with route registration and archive cleanup,
+so concurrent workspaces cannot both claim the same slug. It refuses to
+overwrite another checkout's route. It then registers the routes, attaches to
 Pitchfork's logs, and stops only this workspace's daemons when the command
 exits; Pitchfork owns port allocation, readiness, dependencies, watching, and
 process supervision. Pitchfork starts its machine-wide supervisor automatically
