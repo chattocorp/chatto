@@ -177,6 +177,7 @@ jobs:
             environment: desktop-windows-signing
     runs-on: ${{ matrix.os }}
     permissions:
+      actions: read
       contents: read
       id-token: write
     steps:
@@ -194,6 +195,31 @@ jobs:
           git fetch origin '+refs/heads/main:refs/remotes/origin/main'
           if ! git merge-base --is-ancestor HEAD origin/main; then
             echo "::error::Desktop signing is restricted to commits reachable from origin/main."
+            exit 1
+          fi
+
+      - name: Verify immutable GitHub OIDC subject
+        if: runner.os == 'Windows'
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXPECTED_SUBJECT_PREFIX: repo:chattocorp@261891647/chatto@1205013299
+        run: |
+          set -euo pipefail
+
+          if ! configuration="$(
+            gh api \
+              -H "X-GitHub-Api-Version: 2026-03-10" \
+              "repos/${GITHUB_REPOSITORY}/actions/oidc/customization/sub" \
+              --jq '[.use_default, .use_immutable_subject, .sub_claim_prefix] | @tsv'
+          )"; then
+            echo "::error::Could not read the repository's GitHub OIDC configuration."
+            exit 1
+          fi
+
+          expected_configuration="$(printf 'true\ttrue\t%s' "$EXPECTED_SUBJECT_PREFIX")"
+          if [[ "$configuration" != "$expected_configuration" ]]; then
+            echo "::error::Enable the repository's default immutable GitHub OIDC subject before configuring Azure federation. Expected prefix '${EXPECTED_SUBJECT_PREFIX}'."
             exit 1
           fi
 
