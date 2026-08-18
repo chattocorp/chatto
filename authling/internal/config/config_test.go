@@ -22,6 +22,7 @@ data_dir = "/var/lib/authling"
 	wantDataDir := filepath.Join(t.TempDir(), "nats")
 	t.Setenv("AUTHLING_NATS_EMBEDDED_DATA_DIR", wantDataDir)
 	t.Setenv("AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH", "12")
+	t.Setenv("AUTHLING_HTTP_TRUST_PROXY_HEADERS", "true")
 
 	cfg, err := Read(path)
 	if err != nil {
@@ -35,6 +36,9 @@ data_dir = "/var/lib/authling"
 	}
 	if got := cfg.Authentication.PasswordMinimumLengthOrDefault(); got != 12 {
 		t.Fatalf("password minimum length = %d, want 12", got)
+	}
+	if !cfg.HTTP.TrustProxyHeaders {
+		t.Fatal("trusted proxy headers are disabled, want environment override enabled")
 	}
 }
 
@@ -195,18 +199,31 @@ func TestValidateOIDCConventionalClients(t *testing.T) {
 
 func TestValidateCIMDTrustedPrivateHosts(t *testing.T) {
 	validNATS := NATSConfig{Embedded: EmbeddedNATSConfig{Enabled: true, DataDir: t.TempDir()}}
-	cfg := Config{NATS: validNATS, OIDC: OIDCConfig{CIMDTrustedPrivateHosts: []string{"Chatto.Dev.Orb.Local."}}}
+	cfg := Config{NATS: validNATS, OIDC: OIDCConfig{
+		CIMDTrustedPrivateHosts:  []string{"Chatto.Dev.Orb.Local."},
+		CIMDTrustedLoopbackHosts: []string{"Chatto-Dev.Localhost."},
+	}}
 	if err := cfg.Validate(); err != nil {
 		t.Fatalf("valid trusted private host: %v", err)
 	}
 	if got := cfg.OIDC.TrustedPrivateCIMDHosts(); len(got) != 1 || got[0] != "chatto.dev.orb.local" {
 		t.Fatalf("normalized trusted hosts = %#v", got)
 	}
+	if got := cfg.OIDC.TrustedLoopbackCIMDHosts(); len(got) != 1 || got[0] != "chatto-dev.localhost" {
+		t.Fatalf("normalized trusted loopback hosts = %#v", got)
+	}
 
 	for _, host := range []string{"https://chatto.example", "chatto.example:443", "chatto.example/path", ""} {
 		cfg.OIDC.CIMDTrustedPrivateHosts = []string{host}
+		cfg.OIDC.CIMDTrustedLoopbackHosts = nil
 		if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "cimd_trusted_private_hosts") {
 			t.Fatalf("trusted host %q validation error = %v", host, err)
 		}
+	}
+
+	cfg.OIDC.CIMDTrustedPrivateHosts = []string{"chatto-dev.localhost"}
+	cfg.OIDC.CIMDTrustedLoopbackHosts = []string{"CHATTO-DEV.LOCALHOST."}
+	if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), "cimd_trusted_loopback_hosts") {
+		t.Fatalf("cross-list duplicate validation error = %v", err)
 	}
 }

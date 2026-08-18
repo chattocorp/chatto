@@ -82,5 +82,5 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ## Related
 
-- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-075 (deterministic notification occurrences), ADR-076 (persistent notification list)
+- **ADRs:** ADR-011 (message body/event split), ADR-026 (event identity via NanoID), ADR-038 (room-owned thread state), ADR-050 (ephemeral encrypted projection snapshots), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
 - **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications)

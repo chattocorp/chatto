@@ -63,7 +63,7 @@ Current occupants include:
   coordinate read reconciliation and persistent privacy boundaries between
   `EVT` and the separate `NOTIFICATIONS` event stream. Notification derivation
   work, occurrences, and lifecycle facts do not live in `RUNTIME_STATE`; see
-  ADR-075.
+  ADR-076.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Runtime credential verifiers: `session.{hmac}`, with per-key
   `auth.token_ttl` sliding-window expiry. Values include credential kind

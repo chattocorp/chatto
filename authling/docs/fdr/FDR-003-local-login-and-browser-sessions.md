@@ -35,6 +35,9 @@ experience.
   sessions. Cross-origin login and logout submissions are rejected.
 - The configured public origin is canonical: requests for another host are
   rejected, and unsafe browser requests must carry that exact origin.
+- Deployments may explicitly trust sanitized `X-Forwarded-Host` and
+  `X-Forwarded-Proto` from their sole reverse proxy. The listener must not be
+  directly reachable by untrusted clients when that option is enabled.
 
 ## Design Decisions
 

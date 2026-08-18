@@ -1,4 +1,4 @@
-# ADR-075: Store Notification Lifecycle Facts in a Bounded Event Stream
+# ADR-076: Store Notification Lifecycle Facts in a Bounded Event Stream
 
 **Date:** 2026-08-10
 

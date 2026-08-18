@@ -88,7 +88,7 @@ activity, labels, closed/open state, and future forum-mode ordering metadata.
 
 Per-user thread read cursors stay in `RUNTIME_STATE`. Notification occurrences
 are projected from the bounded `NOTIFICATIONS` lifecycle log described by
-[ADR-075](ADR-075-deterministic-notification-occurrences.md).
+[ADR-076](ADR-076-deterministic-notification-occurrences.md).
 Follow choices use room-owned `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts so replay reconstructs current follow state together with thread history.
 

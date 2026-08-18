@@ -207,6 +207,6 @@ occurrence may be listed, opened, or delivered.
 
 ## Related
 
-- **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-075,
-  ADR-076
+- **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
+  ADR-077
 - **FDRs:** FDR-002, FDR-005, FDR-006, FDR-007, FDR-013

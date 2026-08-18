@@ -54,10 +54,10 @@ ignore proxy configuration, and have strict concurrency, response-size,
 timeout, and cache bounds. Invalid responses are never cached.
 
 Special-use destinations are rejected by default. Operators may explicitly
-trust exact CIMD hostnames that resolve to private addresses for controlled
-development networks. That exception admits only private addresses for the
-named hosts and never loopback, link-local, multicast, or other special-use
-destinations.
+trust exact CIMD hostnames that resolve to private or loopback addresses in
+controlled development environments. Private-host and loopback-host trust are
+separate exceptions, and each admits only its named address class. Neither
+permits link-local, multicast, or other special-use destinations.
 
 ## Security and Failure Behavior
 

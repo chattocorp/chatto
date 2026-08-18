@@ -1,9 +1,13 @@
 [tools]
 actionlint = "latest"
+"aqua:axllent/mailpit" = "1.30.6"
+"aqua:caddyserver/caddy" = "2.11.4"
 buf = "latest"
 go = "1.26.2"
 goreleaser = "latest"
 node = "22"
+pitchfork = "2.21.0"
+"go:github.com/livekit/livekit-server/cmd/server" = "1.13.5"
 uv = "0.11.30"
 
 [env]
@@ -300,21 +304,130 @@ env = {
 run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen \"127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT\""
 
 [tasks.dev]
-description = "Run the local backend and frontend development servers"
-depends = ["setup-cli", "build-api-types"]
-env = {
-  VITE_PORT = "{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
-  CHATTO_WEBSERVER_PORT = "{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}",
-  CHATTO_WEBSERVER_URL = "{% if env.CHATTO_WEBSERVER_URL is defined and env.CHATTO_WEBSERVER_URL != '' %}{{env.CHATTO_WEBSERVER_URL}}{% else %}http://localhost:{{env.VITE_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}{% endif %}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}",
-  CHATTO_NATS_CLIENT_URL = "{% if env.CHATTO_NATS_CLIENT_URL is defined and env.CHATTO_NATS_CLIENT_URL != '' %}{{env.CHATTO_NATS_CLIENT_URL}}{% else %}nats://localhost:{{env.CHATTO_NATS_EMBEDDED_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2)}}{% endif %}",
-  CHATTO_METRICS_PORT = "{{env.CHATTO_METRICS_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3)}}",
-  CHATTO_EXPORTER_PORT = "{{env.CHATTO_EXPORTER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 4)}}",
-  CHATTO_LIVEKIT_URL = "{% if env.CHATTO_LIVEKIT_URL is defined and env.CHATTO_LIVEKIT_URL != '' %}{{env.CHATTO_LIVEKIT_URL}}{% else %}ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}{% endif %}",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "{% if env.CHATTO_LIVEKIT_WEBHOOK_URL is defined and env.CHATTO_LIVEKIT_WEBHOOK_URL != '' %}{{env.CHATTO_LIVEKIT_WEBHOOK_URL}}{% else %}http://localhost:{{env.CHATTO_WEBSERVER_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1)}}/webhooks/livekit{% endif %}",
-  CHATTO_SMTP_PORT = "{{env.CHATTO_SMTP_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8)}}",
+description = "Run the complete local development stack with Pitchfork"
+run = """
+set -eu
+
+project_dir=$(pwd -P)
+workspace_name=${CONDUCTOR_WORKSPACE_NAME:-${PASEO_WORKSPACE_NAME:-$(basename "$project_dir")}}
+workspace_slug=$(printf '%s' "$workspace_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+
+if [ -z "$workspace_slug" ]; then
+    echo "cannot derive a URL-safe workspace name from $workspace_name" >&2
+    exit 2
+fi
+
+if ! pitchfork supervisor status >/dev/null 2>&1; then
+    pitchfork supervisor start >/dev/null
+fi
+if [ -z "${TMPDIR:-}" ]; then
+    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
+    exit 2
+fi
+proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
+
+# Pitchfork proxy routes are shared by every workspace using this user's
+# supervisor. Keep the ownership check and all updates in one transaction so
+# concurrently starting workspaces cannot race.
+(
+if ! lockf -s -t 5 9; then
+    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev" >&2
+    exit 2
+fi
+
+proxy_status=$(pitchfork proxy status --json)
+PITCHFORK_PROXY_STATUS="$proxy_status" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+if (!status.enabled || status.scheme !== "https" || status.tld !== "localhost" || status.port !== 42443 || !status.trusted) {
+  console.error(`Pitchfork proxy mismatch: expected trusted https://*.localhost:42443, got ${status.scheme}://*.${status.tld}:${status.port} (enabled=${status.enabled}, trusted=${status.trusted}).`)
+  console.error("Stop other Pitchfork projects, run `pitchfork supervisor stop`, then retry `mise dev` so this project can start it with the required settings.")
+  process.exit(1)
 }
-run = { tasks = ["dev-backend", "dev-frontend", "dev-livekit", "dev-mailpit"] }
+'
+
+proxy_slug_owner() {
+    PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$1" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
+process.stdout.write(route?.dir ?? "")
+'
+}
+
+mkdir -p .context/dev
+previous_workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
+if [ -n "$previous_workspace_slug" ] && [ "$previous_workspace_slug" != "$workspace_slug" ]; then
+    for service in chatto authling mailpit livekit storybook docs; do
+        slug="$service-$previous_workspace_slug"
+        if [ "$(proxy_slug_owner "$slug")" = "$project_dir" ]; then
+            pitchfork proxy remove "$slug" >/dev/null
+        fi
+    done
+fi
+printf '%s\n' "$workspace_slug" >.context/dev/workspace-slug
+
+for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
+    service=${mapping%%:*}
+    slug="$service-$workspace_slug"
+    owner=$(proxy_slug_owner "$slug")
+    if [ -n "$owner" ] && [ "$owner" != "$project_dir" ]; then
+        echo "Pitchfork proxy slug '$slug' already belongs to $owner; rename this workspace or archive the conflicting one." >&2
+        exit 2
+    fi
+done
+for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
+    service=${mapping%%:*}
+    daemon=${mapping#*:}
+    slug="$service-$workspace_slug"
+    pitchfork proxy add "$slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
+done
+) 9>>"$proxy_lock_file"
+
+mise setup-frontend
+trap 'pitchfork stop --local >/dev/null 2>&1 || true' EXIT INT TERM
+pitchfork start --group dev
+pitchfork logs mailpit-server mailpit-proxy livekit-server livekit-proxy authling chatto-backend api-types lingua chatto storybook-server storybook-proxy docs-server docs-proxy --tail --since 2min --no-pager
+"""
+
+[tasks.dev-archive]
+description = "Remove this workspace's Pitchfork processes and proxy routes"
+run = """
+set -eu
+
+project_dir=$(pwd -P)
+workspace_name=${CONDUCTOR_WORKSPACE_NAME:-${PASEO_WORKSPACE_NAME:-$(basename "$project_dir")}}
+workspace_slug=$(printf '%s' "$workspace_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+if [ -s .context/dev/workspace-slug ]; then
+    workspace_slug=$(sed -n '1p' .context/dev/workspace-slug)
+fi
+
+pitchfork stop --local >/dev/null 2>&1 || true
+if [ -z "${TMPDIR:-}" ]; then
+    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
+    exit 2
+fi
+proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
+
+# Serialize cleanup with route registration by other Chatto workspaces.
+(
+if ! lockf -s -t 5 9; then
+    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev-archive" >&2
+    exit 2
+fi
+
+proxy_status=$(pitchfork proxy status --json 2>/dev/null || printf '{"slugs":[]}')
+for service in chatto authling mailpit livekit storybook docs; do
+    slug="$service-$workspace_slug"
+    owner=$(PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$slug" node -e '
+const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
+const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
+process.stdout.write(route?.dir ?? "")
+')
+    if [ "$owner" = "$project_dir" ]; then
+        pitchfork proxy remove "$slug" >/dev/null 2>&1 || true
+    fi
+done
+) 9>>"$proxy_lock_file"
+"""
 
 [tasks.dev-docs-website]
 description = "Run the docs website development server with workspace-safe ports"
@@ -580,17 +693,18 @@ goreleaser check
 
 actionlint .github/workflows/*.yml
 
-docker/nats-wrapper_test.sh
-bash -n docker/compose-dev-entrypoint.sh
-docker compose config --quiet
+tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
+trap 'rm -rf "$tmp"' EXIT
 
-docker buildx build --check --build-arg TARGETARCH=amd64 -f docker/Dockerfile.dev .
-docker buildx build --check -f docker/Dockerfile.frontend.dev .
+docker/nats-wrapper_test.sh
+compose_example="$tmp/dockercompose"
+cp -R examples/dockercompose "$compose_example"
+cp "$compose_example/.env.example" "$compose_example/.env"
+docker compose --project-directory "$compose_example" --env-file "$compose_example/.env" -f "$compose_example/compose.yml" config --quiet
+
 docker buildx build --check -f docker/Dockerfile.frontend.prebuilt .
 docker buildx build --check -f apps/frontend/Dockerfile.storybook .
 
-tmp="$(mktemp -d /tmp/chatto-docker-verify.XXXXXX)"
-trap 'rm -rf "$tmp"' EXIT
 context="$tmp/linux-amd64"
 mkdir -p "$context/docker"
 cp docker/Dockerfile.goreleaser "$context/Dockerfile"

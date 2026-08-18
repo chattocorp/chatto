@@ -25,28 +25,24 @@ configuration for those.
 ## Local Development with Conductor or Paseo
 
 [Conductor](https://conductor.build) and [Paseo](https://paseo.sh) run the
-complete root [`compose.yml`](compose.yml) stack through OrbStack. Start
-Conductor's default Compose run mode or Paseo's `compose` script to build and
-launch Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs website with
-workspace-specific `*.orb.local` domains. The checkout directory is the
-Compose project name; for a worktree named `<workspace>`, Chatto is available
-at `https://chatto.<workspace>.orb.local`. The other origins follow the names
-listed in the [Complete Local Stack](README.md#complete-local-stack) section.
-Use Conductor's **Compose (watch)** run mode, Paseo's `compose-watch` script, or
-`docker compose up --build --watch` when dependency-manifest and development-
-image changes should restart or rebuild the affected services automatically.
-Ordinary Chatto, Authling, and Storybook source changes live-reload in either
-mode through the bind-mounted checkout.
+complete root [`pitchfork.toml`](pitchfork.toml) stack as native processes.
+Start the default **Dev stack** run mode or Paseo's `dev` script to launch
+Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs website with
+workspace-specific `*.localhost:42443` HTTPS origins. For a worktree named
+`<workspace>`, Chatto is available at
+`https://chatto-<workspace>.localhost:42443`; the other origins follow the
+names listed in the [Complete Local Stack](README.md#complete-local-stack)
+section. Vite, Astro, and Storybook live-reload their sources. Pitchfork
+rebuilds and restarts the Go services after relevant source changes.
 
 The repository-level Conductor settings are shared in
-`.conductor/settings.toml`, and the repository-level Paseo settings are shared
-in `paseo.json`. Both isolate concurrent workspaces. Put machine-specific
+`.conductor/settings.toml`, the root `pitchfork.toml`, and the repository-level
+Paseo settings in `paseo.json`. They isolate concurrent workspaces. Put machine-specific
 Conductor overrides in `.conductor/settings.local.toml`; that file is
 gitignored and wins over shared settings on your machine. Both tools read
 `.worktreeinclude` to copy gitignored local environment files, such as `.env`
-and `.env.*`, into new workspaces. Archiving a Paseo worktree runs
-`docker compose down -v` to remove its containers, network, and development
-volumes.
+and `.env.*`, into new workspaces. Archiving a workspace stops its Pitchfork
+daemons and removes its global proxy registrations.
 
 ## Developing Outside of Conductor
 
@@ -57,7 +53,8 @@ mise trust
 mise run setup
 ```
 
-To run the live backend and frontend development stack outside Conductor:
+To run the complete Pitchfork development stack outside Conductor after the
+setup described in the README:
 
 ```sh
 mise dev
@@ -81,7 +78,13 @@ To check SPDX/REUSE license metadata:
 mise license-check
 ```
 
-When both `CONDUCTOR_PORT` and `PASEO_PORT` are unset, `mise dev` uses `4000` for the Vite frontend, `4001` for the Chatto backend, `4002` for embedded NATS, `4003` for Prometheus metrics, and `4004` for exporter metrics. `mise dev-docs-website` uses `4000` for the docs website. `mise run chatto run` still uses the bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS, `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit CLI arguments after the task name, for example `mise chatto version`.
+`mise dev` uses Pitchfork's workspace-specific native ports and exposes the
+public services through HTTPS on port `42443`. `mise dev-docs-website` still
+uses `4000` when `CONDUCTOR_PORT`, `PASEO_PORT`, and
+`CHATTO_DOCS_WEBSITE_PORT` are unset. `mise run chatto run` uses the
+bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
+`4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
+CLI arguments after the task name, for example `mise chatto version`.
 
 ## Local Bootstrap Users
 

@@ -106,7 +106,12 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 	issuerProjection := issuer.NewProjection()
 	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault())
-	cimd, err := oidcprovider.NewCIMDResolver(cfg.HTTP.PublicURLOrDefault(), nil, cfg.OIDC.TrustedPrivateCIMDHosts()...)
+	cimd, err := oidcprovider.NewCIMDResolver(
+		cfg.HTTP.PublicURLOrDefault(),
+		nil,
+		cfg.OIDC.TrustedPrivateCIMDHosts(),
+		cfg.OIDC.TrustedLoopbackCIMDHosts(),
+	)
 	if err != nil {
 		return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
 	}
@@ -190,13 +195,14 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 	}
 	httpServer := &http.Server{
 		Handler: web.Handler(web.Dependencies{
-			Accounts:       runtime.Accounts,
-			Authentication: runtime.Authentication,
-			Registration:   runtime.Registration,
-			Sessions:       runtime.Sessions,
-			OIDC:           runtime.OIDC,
-			SecureCookies:  cfg.HTTP.SecureCookies(),
-			PublicURL:      cfg.HTTP.PublicURLOrDefault(),
+			Accounts:          runtime.Accounts,
+			Authentication:    runtime.Authentication,
+			Registration:      runtime.Registration,
+			Sessions:          runtime.Sessions,
+			OIDC:              runtime.OIDC,
+			SecureCookies:     cfg.HTTP.SecureCookies(),
+			PublicURL:         cfg.HTTP.PublicURLOrDefault(),
+			TrustProxyHeaders: cfg.HTTP.TrustProxyHeaders,
 		}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       15 * time.Second,

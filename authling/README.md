@@ -99,6 +99,10 @@ corpus.
 Authling's HTTP listener does not terminate TLS. Production deployments must
 place it behind an HTTPS reverse proxy and configure an `https://` public URL.
 Plain HTTP is supported only when both the public URL and listener are loopback.
+When the proxy overwrites `X-Forwarded-Host` and `X-Forwarded-Proto`, set
+`http.trust_proxy_headers = true` (or `AUTHLING_HTTP_TRUST_PROXY_HEADERS=true`)
+so canonical-host and same-origin checks use that browser-facing origin. Never
+enable this for a listener directly reachable by untrusted clients.
 Authling renders its user interface with templ. Vite compiles Tailwind CSS and
 locally packaged fonts and icons into assets that are embedded in the Go
 binary; Node.js is not needed to run the resulting executable.
@@ -126,11 +130,13 @@ secret = 'replace-with-a-secret-from-your-secret-store'
 ```
 
 CIMD fetches reject private and other special-use destinations by default.
-Controlled development networks such as OrbStack may explicitly list exact
-trusted hostnames with `oidc.cimd_trusted_private_hosts` or
-`AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS`. The exception permits private IP
-addresses for those hosts only; loopback, link-local, multicast, and other
-special-use destinations remain blocked.
+Controlled development environments may explicitly list exact hostnames with
+`oidc.cimd_trusted_private_hosts` or `oidc.cimd_trusted_loopback_hosts`; the
+equivalent environment variables are
+`AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS` and
+`AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS`. Each exception permits only its
+named address class. Link-local, multicast, and all other special-use
+destinations remain blocked.
 
 Redirect matching is exact. Production redirects require HTTPS; loopback HTTP
 is accepted only when Authling itself is in loopback development mode. The

@@ -28,8 +28,9 @@ type Config struct {
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
 // URL-identified CIMD clients require no configuration.
 type OIDCConfig struct {
-	Clients                 []OIDCClientConfig `toml:"clients"`
-	CIMDTrustedPrivateHosts []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
+	Clients                  []OIDCClientConfig `toml:"clients"`
+	CIMDTrustedPrivateHosts  []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
+	CIMDTrustedLoopbackHosts []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
 }
 
 // OIDCClientConfig declares one conventional OpenID Connect client. An empty
@@ -45,8 +46,19 @@ type OIDCClientConfig struct {
 // may resolve to private addresses. Other special-use destinations remain
 // forbidden even for these explicitly trusted hosts.
 func (c OIDCConfig) TrustedPrivateCIMDHosts() []string {
-	hosts := make([]string, 0, len(c.CIMDTrustedPrivateHosts))
-	for _, host := range c.CIMDTrustedPrivateHosts {
+	return normalizeCIMDHosts(c.CIMDTrustedPrivateHosts)
+}
+
+// TrustedLoopbackCIMDHosts returns normalized hostnames whose CIMD documents
+// may resolve to loopback addresses. This explicit development exception does
+// not relax restrictions for any other special-use destination.
+func (c OIDCConfig) TrustedLoopbackCIMDHosts() []string {
+	return normalizeCIMDHosts(c.CIMDTrustedLoopbackHosts)
+}
+
+func normalizeCIMDHosts(configured []string) []string {
+	hosts := make([]string, 0, len(configured))
+	for _, host := range configured {
 		hosts = append(hosts, normalizeCIMDHost(host))
 	}
 	return hosts
@@ -111,6 +123,9 @@ type HTTPConfig struct {
 	// PublicURL is the externally visible origin. It determines whether browser
 	// cookies require HTTPS and will become the basis of Authling's issuer URL.
 	PublicURL string `toml:"public_url" env:"AUTHLING_HTTP_PUBLIC_URL"`
+	// TrustProxyHeaders accepts the sanitized X-Forwarded-Host and
+	// X-Forwarded-Proto supplied by the deployment's sole reverse proxy.
+	TrustProxyHeaders bool `toml:"trust_proxy_headers" env:"AUTHLING_HTTP_TRUST_PROXY_HEADERS"`
 }
 
 // PublicURLOrDefault returns the configured browser origin. A loopback
@@ -258,20 +273,24 @@ func (c Config) Validate() error {
 			}
 		}
 	}
-	seenCIMDHosts := make(map[string]struct{}, len(c.OIDC.CIMDTrustedPrivateHosts))
-	for index, raw := range c.OIDC.CIMDTrustedPrivateHosts {
-		host := normalizeCIMDHost(raw)
-		field := fmt.Sprintf("oidc.cimd_trusted_private_hosts[%d]", index)
-		parsed, err := url.Parse("https://" + host)
-		if host == "" || err != nil || parsed.Host != host || parsed.Hostname() != host || parsed.Port() != "" {
-			problems = append(problems, field+" must be one hostname without a scheme, port, path, query, or fragment")
-			continue
+	seenCIMDHosts := make(map[string]string, len(c.OIDC.CIMDTrustedPrivateHosts)+len(c.OIDC.CIMDTrustedLoopbackHosts))
+	validateCIMDHosts := func(name string, configured []string) {
+		for index, raw := range configured {
+			host := normalizeCIMDHost(raw)
+			field := fmt.Sprintf("oidc.%s[%d]", name, index)
+			parsed, err := url.Parse("https://" + host)
+			if host == "" || err != nil || parsed.Host != host || parsed.Hostname() != host || parsed.Port() != "" {
+				problems = append(problems, field+" must be one hostname without a scheme, port, path, query, or fragment")
+				continue
+			}
+			if previous, exists := seenCIMDHosts[host]; exists {
+				problems = append(problems, field+" duplicates "+previous)
+			}
+			seenCIMDHosts[host] = field
 		}
-		if _, exists := seenCIMDHosts[host]; exists {
-			problems = append(problems, field+" is duplicated")
-		}
-		seenCIMDHosts[host] = struct{}{}
 	}
+	validateCIMDHosts("cimd_trusted_private_hosts", c.OIDC.CIMDTrustedPrivateHosts)
+	validateCIMDHosts("cimd_trusted_loopback_hosts", c.OIDC.CIMDTrustedLoopbackHosts)
 	replicas := c.NATS.ReplicasOrDefault()
 	if replicas != 1 && replicas != 3 && replicas != 5 {
 		problems = append(problems, "nats.replicas must be 1, 3, or 5")

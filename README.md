@@ -27,56 +27,61 @@ repository once it no longer needs frequent atomic changes with the shared
 
 ## Complete Local Stack
 
-The root [`compose.yml`](compose.yml) runs Chatto, Authling, Mailpit, LiveKit,
-Storybook, and the Chatto docs website together on
-[OrbStack](https://docs.orbstack.dev/docker/domains). It builds every
-repository-owned service from the current checkout. Chatto, Authling, and
-Storybook run from bind-mounted project files with container-native dependency
-volumes and live reloads. The stack gives Chatto and Authling separate
-persistent embedded-NATS storage and configures Chatto to use Authling as an
-OpenID Connect provider through Chatto's public Client ID Metadata Document,
-without preregistering Chatto in Authling. Compose derives the project name
-from the checkout directory, keeping containers and OrbStack domains isolated
-between worktrees.
+The root [`pitchfork.toml`](pitchfork.toml) runs Chatto, Authling, Mailpit,
+LiveKit, Storybook, and the Chatto docs website as native processes managed by
+[Pitchfork](https://pitchfork.jdx.dev/). `mise` installs their pinned tools and
+dependencies. Pitchfork supervises the processes, starts dependencies in
+order, restarts Go services after source changes, and gives each checkout
+workspace-specific HTTPS origins. Small Caddy adapters give multi-port and
+child-process-based services an unambiguous target for Pitchfork's proxy.
 
 ```sh
-docker compose up --build
+mise trust
+mise install
+mise setup
+(cd authling && mise trust && mise install && mise deps)
+mise dev
 ```
 
-Vite, Storybook, and the Go development processes reload ordinary source
-changes themselves. Add Compose's optional watch mode to restart services when
-dependency manifests change and rebuild the shared development image when its
-Dockerfile changes:
+Conductor and Paseo perform setup and proxy registration automatically. Vite,
+Astro, and Storybook reload their own source changes; Pitchfork rebuilds and
+restarts the Go services when their sources change and keeps the shared API
+types and Lingua packages compiled in watch mode. Chatto and Authling keep
+separate embedded-NATS state beneath `.context/dev/`.
 
-```sh
-docker compose up --build --watch
-```
-
-For a checkout in a directory named `<project>`, open these OrbStack-managed
+For a checkout in a directory named `<workspace>`, open these Pitchfork-managed
 HTTPS origins:
 
-- Chatto: `https://chatto.<project>.orb.local`
-- Authling: `https://authling.<project>.orb.local`
-- Mailpit: `https://mailpit.<project>.orb.local`
-- LiveKit signaling: `https://livekit.<project>.orb.local`
-- Storybook: `https://storybook.<project>.orb.local`
-- Docs website: `https://docs-website.<project>.orb.local`
+- Chatto: `https://chatto-<workspace>.localhost:42443`
+- Authling: `https://authling-<workspace>.localhost:42443`
+- Mailpit: `https://mailpit-<workspace>.localhost:42443`
+- LiveKit signaling: `https://livekit-<workspace>.localhost:42443`
+- Storybook: `https://storybook-<workspace>.localhost:42443`
+- Docs website: `https://docs-<workspace>.localhost:42443`
+
+Workspace names share the slug registry of their user's Pitchfork supervisor.
+`mise dev` serializes route updates and refuses to overwrite a route owned by another
+checkout; rename or archive the conflicting workspace if that happens. It also
+stops with recovery instructions if an existing Pitchfork supervisor uses
+proxy settings other than the trusted HTTPS endpoint above.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first
 login because Authling's initial OIDC profile intentionally shares only its
-stable account ID. The stack also bootstraps a Chatto owner named
-`compose-admin` with the development-only password `compose-admin`.
+stable account ID. The stack also bootstraps Chatto owner `alice` and member
+`bob`; both use the development-only password `foobar123`.
 
 Authling is configured as an ordinary OIDC provider for the development Chatto
 server. Chatto's server catalogue, login tokens, and cached user details stay
 on the current device; Authling stores identity-provider state only.
 
-The checked-in credentials and bootstrap account are for local development
-only. Stop the stack with `docker compose down`; add `--volumes` to delete both
-products' data and establish a fresh Authling issuer on the next start. The
-stack relies on OrbStack's default Compose domains, automatic HTTPS proxy, and
-container CA installation; it is not a production deployment example.
+The checked-in credentials and bootstrap accounts are for local development
+only. Stop the attached run command to stop the workspace's processes. Remove
+`.context/dev/` while the stack is stopped to delete both products' data and
+establish a fresh Authling issuer on the next start. Pitchfork installs its
+local certificate authority in the macOS login keychain so browsers and the Go
+OIDC clients trust its HTTPS origins. This is not a production deployment
+example.
 
 ## License
 

@@ -4,6 +4,7 @@ node_modules
 .DS_Store
 Thumbs.db
 .playwright-mcp
+.context/
 .conductor/settings.local.toml
 
 # Env

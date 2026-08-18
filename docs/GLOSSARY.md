@@ -74,7 +74,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Notification** — Persistent user-scoped attention created for activity such as a DM, reply, mention, followed conversation, or reaction. Unread occurrences carry an independent Ambient or Important visual level; notifications remain visible after being read and can be deleted independently of room read state. See [FDR-012](fdr/FDR-012-notifications.md).
 
-**Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-076](adr/ADR-076-persistent-notification-list.md).
+**Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
 **Delivery Intensity** — Per-cause notification preference with one of three effective values: Off, Badge, or Alert. See [FDR-012](fdr/FDR-012-notifications.md).
 
@@ -156,9 +156,9 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
-**Notification Occurrence** — Projected current state of one exact recipient-specific notification signal and its Read, Dismissed, and alert-delivery lifecycle. Identity is deterministic per recipient, source event, and policy kind. See [ADR-075](adr/ADR-075-deterministic-notification-occurrences.md).
+**Notification Occurrence** — Projected current state of one exact recipient-specific notification signal and its Read, Dismissed, and alert-delivery lifecycle. Identity is deterministic per recipient, source event, and policy kind. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
 
-**Notification Signal** — Immutable event-shaped notification cause whose protobuf variant owns its exact destination and cause-specific data. Signals live in the bounded `NOTIFICATIONS` event stream rather than permanent `EVT`. See [ADR-075](adr/ADR-075-deterministic-notification-occurrences.md).
+**Notification Signal** — Immutable event-shaped notification cause whose protobuf variant owns its exact destination and cause-specific data. Signals live in the bounded `NOTIFICATIONS` event stream rather than permanent `EVT`. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
 
 **Auth generation** — Per-user authentication epoch derived from durable user events. Cookie sessions, bearer tokens, and OAuth authorization codes are valid only when their stored generation matches the user's current generation. See [FDR-023](fdr/FDR-023-authentication-and-sessions.md).
 

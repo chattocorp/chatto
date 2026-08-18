@@ -15,7 +15,7 @@ Related decisions: [ADR-033](../adr/ADR-033-event-sourced-state-with-projections
 [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
 [ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md),
 [ADR-068](../adr/ADR-068-selectable-event-mutation-consistency-boundaries.md), and
-[ADR-075](../adr/ADR-075-deterministic-notification-occurrences.md).
+[ADR-076](../adr/ADR-076-deterministic-notification-occurrences.md).
 
 ## Event envelopes
 

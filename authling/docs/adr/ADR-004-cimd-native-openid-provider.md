@@ -51,10 +51,11 @@ Authling supports two client sources behind the same protocol boundary:
    dialing; requires the document's `client_id` to exactly equal its URL; and
    accepts only the initial public Authorization Code profile.
 
-Private-network CIMD destinations remain denied by default. An operator may
-explicitly trust exact hostnames for controlled development networks. That
-exception permits only private addresses for those names; loopback,
-link-local, multicast, and all other special-use destinations stay blocked.
+Special-use CIMD destinations remain denied by default. An operator may
+explicitly trust exact hostnames for controlled development environments.
+Private-host and loopback-host trust are separate capabilities, and each
+permits only its named address class. Link-local, multicast, and all other
+special-use destinations stay blocked.
 
 The implementation tracks
 [draft-ietf-oauth-client-id-metadata-document-02](https://datatracker.ietf.org/doc/draft-ietf-oauth-client-id-metadata-document/02/).

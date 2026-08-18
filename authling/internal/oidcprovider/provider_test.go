@@ -5,6 +5,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -83,7 +84,7 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 		requests.Add(1)
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"max-age=60"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
 	})}
-	resolver, err := NewCIMDResolver("https://auth.example", client)
+	resolver, err := NewCIMDResolver("https://auth.example", client, nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -100,7 +101,7 @@ func TestCIMDResolverFetchesBoundsAndCachesValidDocuments(t *testing.T) {
 	client.Transport = roundTripFunc(func(request *http.Request) (*http.Response, error) {
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}}, Body: io.NopCloser(bytes.NewReader(make([]byte, maxCIMDBytes+1))), Request: request}, nil
 	})
-	uncached, _ := NewCIMDResolver("https://auth.example", client)
+	uncached, _ := NewCIMDResolver("https://auth.example", client, nil, nil)
 	uncached.validateDestination = func(context.Context, string) error { return nil }
 	if _, err := uncached.Resolve(context.Background(), clientID); err == nil || !strings.Contains(err.Error(), "exceeds") {
 		t.Fatalf("oversized CIMD error = %v", err)
@@ -127,7 +128,7 @@ func TestCIMDResolverBoundsConcurrentFetches(t *testing.T) {
 		document := `{"client_id":"` + request.URL.String() + `","redirect_uris":["https://client.example/callback"],"token_endpoint_auth_method":"none"}`
 		return &http.Response{StatusCode: http.StatusOK, Header: http.Header{"Content-Type": {"application/json"}, "Cache-Control": {"no-store"}}, Body: io.NopCloser(strings.NewReader(document)), Request: request}, nil
 	})}
-	resolver, _ := NewCIMDResolver("https://auth.example", client)
+	resolver, _ := NewCIMDResolver("https://auth.example", client, nil, nil)
 	resolver.validateDestination = func(context.Context, string) error { return nil }
 	errors := make(chan error, 9)
 	for index := range 9 {
@@ -248,17 +249,60 @@ func TestCIMDRejectsSpecialUseNetworksAndUnsafeIdentifiers(t *testing.T) {
 
 func TestCIMDPrivateHostTrustAllowsOnlyPrivateAddresses(t *testing.T) {
 	private := netip.MustParseAddr("192.168.1.20")
-	if cimdAddressAllowed(private, false, false) {
+	if cimdAddressAllowed(private, false, false, false) {
 		t.Fatal("private address was allowed without explicit host trust")
 	}
-	if !cimdAddressAllowed(private, false, true) {
+	if !cimdAddressAllowed(private, false, true, false) {
 		t.Fatal("private address was rejected for an explicitly trusted host")
 	}
 	for _, raw := range []string{"127.0.0.1", "169.254.169.254", "224.0.0.1", "100.64.0.1"} {
 		address := netip.MustParseAddr(raw)
-		if cimdAddressAllowed(address, false, true) {
+		if cimdAddressAllowed(address, false, true, false) {
 			t.Fatalf("non-private special-use address %s was allowed by private-host trust", address)
 		}
+	}
+}
+
+func TestCIMDLoopbackHostTrustAllowsOnlyLoopbackAddresses(t *testing.T) {
+	for _, raw := range []string{"127.0.0.1", "::1"} {
+		address := netip.MustParseAddr(raw)
+		if !cimdAddressAllowed(address, false, false, true) {
+			t.Fatalf("loopback address %s was rejected for an explicitly trusted host", address)
+		}
+	}
+	for _, raw := range []string{"10.0.0.1", "169.254.169.254", "224.0.0.1", "100.64.0.1"} {
+		address := netip.MustParseAddr(raw)
+		if cimdAddressAllowed(address, false, false, true) {
+			t.Fatalf("non-loopback special-use address %s was allowed by loopback-host trust", address)
+		}
+	}
+}
+
+func TestCIMDDialFallsBackAcrossValidatedAddresses(t *testing.T) {
+	addresses := []netip.Addr{netip.MustParseAddr("::1"), netip.MustParseAddr("127.0.0.1")}
+	var attempts []string
+	client, server := net.Pipe()
+	t.Cleanup(func() {
+		client.Close()
+		server.Close()
+	})
+
+	connection, err := dialCIMDAddresses(t.Context(), "tcp", "42443", addresses,
+		func(_ context.Context, _, address string) (net.Conn, error) {
+			attempts = append(attempts, address)
+			if len(attempts) == 1 {
+				return nil, fmt.Errorf("IPv6 listener unavailable")
+			}
+			return client, nil
+		})
+	if err != nil {
+		t.Fatalf("dial CIMD addresses: %v", err)
+	}
+	if connection != client {
+		t.Fatal("dial returned an unexpected connection")
+	}
+	if got, want := strings.Join(attempts, ","), "[::1]:42443,127.0.0.1:42443"; got != want {
+		t.Fatalf("dial attempts = %q, want %q", got, want)
 	}
 }
 
