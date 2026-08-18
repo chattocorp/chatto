@@ -8,7 +8,6 @@ import "chatto/core/v1/authorization_events.proto";
 import "chatto/core/v1/asset_events.proto";
 import "chatto/core/v1/message_events.proto";
 import "chatto/core/v1/moderation_events.proto";
-import "chatto/core/v1/notification.proto";
 import "chatto/core/v1/rbac_events.proto";
 import "chatto/core/v1/reaction_events.proto";
 import "chatto/core/v1/room_events.proto";

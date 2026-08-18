@@ -22,7 +22,6 @@ Include this component once in the application root so signed-out pages also cle
     type AppBadgeIntent
   } from '$lib/notifications/appBadge';
   import type { ProjectionHandler } from '$lib/eventBus.svelte';
-  import { RealtimeProjectionNotificationAction } from '@chatto/api-types/realtime/v1/realtime_pb';
 
   // Subscribe to notification events on all authenticated instance buses.
   // Uses the event bus manager directly (not Svelte context) to handle all instances.
@@ -39,8 +38,7 @@ Include this component once in the application root so signed-out pages also cle
       const handler: ProjectionHandler = (event) => {
         for (const operation of event.operations) {
           if (operation.operation.case !== 'notificationsReplace') continue;
-          const change = operation.operation.value.change;
-          if (change?.action === RealtimeProjectionNotificationAction.CREATED && !change.silent) {
+          if (operation.operation.value.playNotificationSound) {
             playNotificationSound(
               userPreferences.notificationSound,
               userPreferences.notificationSoundFilters

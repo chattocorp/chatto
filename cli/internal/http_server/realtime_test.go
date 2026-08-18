@@ -524,7 +524,7 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 		name  string
 		event *corev1.LiveEvent
 	}{
-		{"notification occurrence changed", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{NotificationId: "N2"}}}},
+		{"notification occurrences invalidated", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{}}}},
 		{"thread follow", &corev1.LiveEvent{Event: &corev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{RoomId: "R1", ThreadRootEventId: "M1"}}}},
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
 		{"server updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUpdated{ServerUpdated: &corev1.ServerUpdatedEvent{}}}},
@@ -932,8 +932,8 @@ func TestRealtimeProjectionSnapshotFramesBeginWithResetAndContainCanonicalResour
 		hasGroups = hasGroups || operation.GetRoomGroupsReplace() != nil
 		if notifications := operation.GetNotificationsReplace(); notifications != nil {
 			hasNotifications = true
-			if notifications.GetChange() != nil {
-				t.Fatalf("snapshot notification replacement carried live transition metadata: %+v", notifications.GetChange())
+			if notifications.GetPlayNotificationSound() {
+				t.Fatal("snapshot notification replacement requested notification sound")
 			}
 		}
 		if timeline := operation.GetRoomTimelineReplace(); timeline.GetRoomId() == room.Id {
@@ -1772,33 +1772,28 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 		t.Fatalf("List occurrences = %+v, %v, want one", occurrences, err)
 	}
 	occurrence := occurrences[0]
-	if occurrence.GetIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE {
-		t.Fatalf("followed-thread occurrence intensity = %v, want Badge", occurrence.GetIntensity())
+	if occurrence.GetAttentionLevel() != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		t.Fatalf("followed-thread occurrence attention = %v, want important", occurrence.GetAttentionLevel())
 	}
-	var createdChange *corev1.NotificationOccurrenceChangedEvent
+	var createdInvalidation *corev1.NotificationOccurrencesInvalidatedEvent
 	deadline := time.After(5 * time.Second)
-	for createdChange == nil {
+	for createdInvalidation == nil {
 		select {
 		case envelope := <-eventStream:
 			if envelope == nil || envelope.LiveEvent() == nil {
 				continue
 			}
-			change := envelope.LiveEvent().GetNotificationOccurrenceChanged()
-			if change.GetCreated() && change.GetNotificationId() == occurrence.GetId() {
-				createdChange = proto.Clone(change).(*corev1.NotificationOccurrenceChangedEvent)
+			if invalidation := envelope.LiveEvent().GetNotificationOccurrencesInvalidated(); invalidation != nil {
+				createdInvalidation = proto.Clone(invalidation).(*corev1.NotificationOccurrencesInvalidatedEvent)
 			}
 		case <-deadline:
-			t.Fatal("timed out waiting for authoritative notification creation signal")
+			t.Fatal("timed out waiting for notification invalidation")
 		}
 	}
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-created",
 		ActorId: author.Id,
-		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-			NotificationId: createdChange.GetNotificationId(),
-			Created:        true,
-			Alert:          createdChange.GetAlert(),
-		}},
+		Event:   &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: createdInvalidation},
 	}))
 	if err != nil || !handled {
 		t.Fatalf("created projection frame = %+v, handled=%v, err=%v", frame, handled, err)
@@ -1810,8 +1805,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if counts := replacement.GetOccurrences().GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != room.Id || counts[0].GetUnreadCount() != 1 {
 		t.Fatalf("created room unread-occurrence counts = %+v, want one group for %s", counts, room.Id)
 	}
-	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
-		t.Fatalf("created change = %+v", change)
+	if replacement.GetPlayNotificationSound() {
+		t.Fatal("Badge-only followed-thread notification requested sound")
 	}
 	operations := frame.GetProjectionEvent().GetOperations()
 	if len(operations) != 1 {
@@ -1824,9 +1819,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-updated",
 		ActorId: viewer.Id,
-		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-			NotificationId: occurrence.GetId(),
-		}},
+		Event:   &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{}},
 	}))
 	if err != nil || !handled {
 		t.Fatalf("updated projection frame = %+v, handled=%v, err=%v", frame, handled, err)
@@ -1835,30 +1828,34 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if replacement == nil || len(replacement.GetOccurrences().GetOccurrences()) != 1 || replacement.GetOccurrences().GetOccurrences()[0].GetUnread() || replacement.GetOccurrences().GetUnreadCount() != 0 {
 		t.Fatalf("updated replacement = %+v, want one read occurrence", replacement)
 	}
-	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || change.GetNotificationId() != occurrence.GetId() || !change.GetSilent() {
-		t.Fatalf("updated change = %+v", change)
+	if replacement.GetPlayNotificationSound() {
+		t.Fatal("read notification replacement requested sound")
 	}
 
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-stale-created-after-read",
 		ActorId: author.Id,
-		Event:   &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: proto.Clone(createdChange).(*corev1.NotificationOccurrenceChangedEvent)},
+		Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{
+			AlertCandidateNotificationId: proto.String(occurrence.GetId()),
+		}},
 	}))
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-read frame = %+v, handled=%v, err=%v", frame, handled, err)
 	}
 	replacement = frame.GetProjectionEvent().GetOperations()[0].GetNotificationsReplace()
-	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || !change.GetSilent() {
-		t.Fatalf("stale created-after-read change = %+v, want updated and silent", change)
+	if replacement.GetPlayNotificationSound() {
+		t.Fatal("stale alert candidate played sound after the occurrence was read")
 	}
 
-	if deleted, err := env.core.NotificationOccurrences().Delete(env.ctx, viewer.Id, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED); err != nil || !deleted {
+	if deleted, err := env.core.NotificationOccurrences().Delete(env.ctx, viewer.Id, occurrence.GetId()); err != nil || !deleted {
 		t.Fatalf("Delete occurrence = (%v, %v), want true, nil", deleted, err)
 	}
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-stale-created-after-delete",
 		ActorId: author.Id,
-		Event:   &corev1.LiveEvent_NotificationOccurrenceChanged{NotificationOccurrenceChanged: proto.Clone(createdChange).(*corev1.NotificationOccurrenceChangedEvent)},
+		Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{
+			AlertCandidateNotificationId: proto.String(occurrence.GetId()),
+		}},
 	}))
 	if err != nil || !handled {
 		t.Fatalf("stale created-after-delete frame = %+v, handled=%v, err=%v", frame, handled, err)
@@ -1867,8 +1864,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if len(replacement.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("stale created-after-delete occurrences = %+v, want empty", replacement.GetOccurrences().GetOccurrences())
 	}
-	if change := replacement.GetChange(); change.GetAction() != realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED || !change.GetSilent() {
-		t.Fatalf("stale created-after-delete change = %+v, want updated and silent", change)
+	if replacement.GetPlayNotificationSound() {
+		t.Fatal("stale alert candidate played sound after the occurrence was deleted")
 	}
 }
 
@@ -2324,14 +2321,14 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if err != nil || !following {
 		t.Fatalf("IsFollowingThread after FollowThread = %v, %v, want true", following, err)
 	}
-	if _, err := env.core.NotificationPolicy().SetRoomNotificationIntensity(
+	if _, err := env.core.NotificationPolicy().SetRoomNotificationMode(
 		env.ctx,
 		user.Id,
 		room.Id,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
-		corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
 	); err != nil {
-		t.Fatalf("SetRoomNotificationIntensity: %v", err)
+		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
 	if err != nil {

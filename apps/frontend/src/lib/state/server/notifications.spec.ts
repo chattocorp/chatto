@@ -3,7 +3,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { NotificationStore, notificationTarget } from './notifications.svelte';
 import {
   NotificationAttentionLevel,
-  NotificationPolicyKind,
+  NotificationSignalKind,
   type NotificationAPI,
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage
@@ -87,7 +87,6 @@ function makeAPI(
 const mention = (id: string): NotificationOccurrenceItem =>
   ({
     id,
-    sourceEventId: id,
     createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
     actor: {
       id: 'a',
@@ -100,8 +99,7 @@ const mention = (id: string): NotificationOccurrenceItem =>
     room: { id: 'r1', name: 'general' },
     eventId: 'evt',
     threadRootId: null,
-    parentEventId: null,
-    signalKind: NotificationPolicyKind.DIRECT_MENTION,
+    signalKind: NotificationSignalKind.DIRECT_MENTION,
     targetSupported: true,
     attentionLevel: NotificationAttentionLevel.IMPORTANT,
     unread: true,
@@ -1058,15 +1056,14 @@ describe('NotificationStore', () => {
     };
     const threadReply = {
       ...mention('thread-reply'),
-      signalKind: NotificationPolicyKind.REPLY,
+      signalKind: NotificationSignalKind.REPLY,
       room: { id: 'room-2', name: 'general' },
       eventId: 'reply-event',
-      parentEventId: 'mid-thread-msg',
       threadRootId: 'thread-root'
     };
     const roomMessage = {
       ...mention('room-message'),
-      signalKind: NotificationPolicyKind.FOLLOWED_ROOM,
+      signalKind: NotificationSignalKind.FOLLOWED_ROOM,
       room: { id: 'room-news', name: 'news' },
       eventId: 'room-event',
       threadRootId: 'thread-root'
@@ -1093,16 +1090,15 @@ describe('NotificationStore', () => {
   it('routes notifications using their signal and target', () => {
     const threadReply = {
       ...mention('thread-reply-kind'),
-      signalKind: NotificationPolicyKind.REPLY,
+      signalKind: NotificationSignalKind.REPLY,
       actor: null,
       room: { id: 'room-kind', name: 'general' },
       eventId: 'reply-event',
-      parentEventId: 'parent-message',
       threadRootId: 'thread-root'
     };
     const dm = {
       ...mention('dm-kind'),
-      signalKind: NotificationPolicyKind.DIRECT_MESSAGE,
+      signalKind: NotificationSignalKind.DIRECT_MESSAGE,
       actor: null,
       room: { id: 'dm-room', name: '' }
     };
@@ -1178,13 +1174,13 @@ describe('NotificationStore', () => {
   it('hasDMRoomNotification / getDMRoomNotification scope to DM notifications by room', () => {
     const dmA = {
       ...mention('dm-a'),
-      signalKind: NotificationPolicyKind.DIRECT_MESSAGE,
+      signalKind: NotificationSignalKind.DIRECT_MESSAGE,
       createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
       room: { id: 'roomA', name: '' }
     };
     const dmB = {
       ...mention('dm-b'),
-      signalKind: NotificationPolicyKind.DIRECT_MESSAGE,
+      signalKind: NotificationSignalKind.DIRECT_MESSAGE,
       createdAt: new Date('2026-04-29T13:00:00Z').toISOString(),
       room: { id: 'roomA', name: '' }
     };

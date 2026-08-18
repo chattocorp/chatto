@@ -75,6 +75,8 @@ type NotificationServiceClient interface {
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
+	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+	// signal kind this server version cannot validate and assemble.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Marks one occurrence read. Repeating the call is safe. Returns
 	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
@@ -94,7 +96,7 @@ type NotificationServiceClient interface {
 	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported signal class and its inherited delivery intensity.
+	// Gets every supported preference category and its effective delivery mode.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped signal-class override.
 	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)
@@ -248,6 +250,8 @@ type NotificationServiceHandler interface {
 	BatchGetNotificationOccurrences(context.Context, *connect.Request[v1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[v1.BatchGetNotificationOccurrencesResponse], error)
 	// Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 	// presentation groups without changing occurrence identity or counts.
+	// Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+	// signal kind this server version cannot validate and assemble.
 	ListNotificationOccurrences(context.Context, *connect.Request[v1.ListNotificationOccurrencesRequest]) (*connect.Response[v1.ListNotificationOccurrencesResponse], error)
 	// Marks one occurrence read. Repeating the call is safe. Returns
 	// UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
@@ -267,7 +271,7 @@ type NotificationServiceHandler interface {
 	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported signal class and its inherited delivery intensity.
+	// Gets every supported preference category and its effective delivery mode.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped signal-class override.
 	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)

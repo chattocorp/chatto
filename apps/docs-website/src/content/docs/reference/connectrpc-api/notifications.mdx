@@ -51,7 +51,7 @@ One exact notification occurrence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notification` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
+| `occurrence` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
 
 
 <a id="chatto-api-v1-NotificationService-BatchGetNotificationOccurrences"></a>
@@ -86,7 +86,7 @@ Exact visible notification occurrences requested by stable ID.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notifications` | repeated [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
+| `occurrences` | repeated [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
 
 
 <a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
@@ -95,6 +95,8 @@ Exact visible notification occurrences requested by stable ID.
 
 Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
+Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+signal kind this server version cannot validate and assemble.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
@@ -124,7 +126,7 @@ One page of exact notification occurrences.
 | `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
 | `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
-| `important_unread_count` | `optional int32` | Exact unread occurrences with Important attention. Absent servers predate attention tiers, so clients should conservatively treat all unread occurrences as Important. |
+| `important_unread_count` | `int32` | Exact unread occurrences with Important attention. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
@@ -157,7 +159,7 @@ Notification occurrence after marking it read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notification` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Updated occurrence. |
+| `occurrence` | [`NotificationOccurrence`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationOccurrence) | Updated occurrence. |
 
 
 <a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
@@ -265,7 +267,7 @@ Result of deleting every currently visible notification occurrence.
 
 ### GetNotificationPolicy
 
-Gets every supported signal class and its inherited delivery intensity.
+Gets every supported preference category and its effective delivery mode.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
@@ -313,8 +315,8 @@ Set or clear one notification preference override.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
-| `kind` | [`NotificationPolicyKind`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyKind) | Required notification signal class. |
-| `intensity` | [`NotificationDeliveryIntensity`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryIntensity) | Unspecified clears the selected server or room override. |
+| `category` | [`NotificationPreferenceCategory`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreferenceCategory) | Required notification preference category. |
+| `override` | optional [`NotificationDeliveryMode`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryMode) | Override at the selected scope. Absence clears it to Inherit. |
 
 
 <a id="chatto-api-v1-SetNotificationPolicyPreferenceResponse"></a>

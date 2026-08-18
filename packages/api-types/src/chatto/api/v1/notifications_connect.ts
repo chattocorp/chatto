@@ -44,6 +44,8 @@ export const NotificationService = {
     /**
      * Lists exact Notifications 2.0 occurrences. Clients may derive temporary
      * presentation groups without changing occurrence identity or counts.
+     * Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+     * signal kind this server version cannot validate and assemble.
      *
      * @generated from rpc chatto.api.v1.NotificationService.ListNotificationOccurrences
      */
@@ -111,7 +113,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets every supported signal class and its inherited delivery intensity.
+     * Gets every supported preference category and its effective delivery mode.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationPolicy
      */

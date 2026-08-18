@@ -45,7 +45,7 @@ export interface E2EServerRole {
   permissionDenials: string[];
 }
 
-export type E2ENotificationPolicyKind =
+export type E2ENotificationPreferenceCategory =
   | 'DIRECT_MESSAGE'
   | 'DIRECT_MENTION'
   | 'REPLY'
@@ -56,21 +56,19 @@ export type E2ENotificationPolicyKind =
   | 'FOLLOWED_ROOM'
   | 'REACTION';
 
-export type E2ENotificationIntensity = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
+export type E2ENotificationMode = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
 
 export interface E2ENotificationPolicyPreference {
-  kind: E2ENotificationPolicyKind;
-  serverIntensity: E2ENotificationIntensity;
-  roomIntensity: E2ENotificationIntensity;
-  effectiveIntensity: E2ENotificationIntensity;
+  category: E2ENotificationPreferenceCategory;
+  override: E2ENotificationMode;
+  effective: E2ENotificationMode;
 }
 
 interface NotificationPolicyResponse {
   preferences?: Array<{
-    kind?: unknown;
-    serverIntensity?: unknown;
-    roomIntensity?: unknown;
-    effectiveIntensity?: unknown;
+    category?: unknown;
+    override?: unknown;
+    effective?: unknown;
   }>;
 }
 
@@ -105,7 +103,7 @@ interface GetUserResponse {
   user?: { profile?: { user?: { id?: string } } };
 }
 
-const notificationKindByNumber: Record<number, E2ENotificationPolicyKind> = {
+const notificationKindByNumber: Record<number, E2ENotificationPreferenceCategory> = {
   1: 'DIRECT_MESSAGE',
   2: 'DIRECT_MENTION',
   3: 'REPLY',
@@ -117,7 +115,7 @@ const notificationKindByNumber: Record<number, E2ENotificationPolicyKind> = {
   9: 'REACTION'
 };
 
-const notificationIntensityByNumber: Record<number, E2ENotificationIntensity> = {
+const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
   1: 'OFF',
   2: 'BADGE',
@@ -401,8 +399,8 @@ export async function getNotificationPolicy(
 
 export async function setNotificationPolicyPreference(
   page: Page,
-  kind: E2ENotificationPolicyKind,
-  intensity: E2ENotificationIntensity,
+  category: E2ENotificationPreferenceCategory,
+  mode: E2ENotificationMode,
   roomId?: string
 ): Promise<E2ENotificationPolicyPreference[]> {
   const data = await connectPost<NotificationPolicyResponse>(
@@ -410,8 +408,10 @@ export async function setNotificationPolicyPreference(
     'chatto.api.v1.NotificationService/SetNotificationPolicyPreference',
     {
       ...(roomId ? { roomId } : {}),
-      kind: `NOTIFICATION_POLICY_KIND_${kind}`,
-      intensity: `NOTIFICATION_DELIVERY_INTENSITY_${intensity}`
+      category: `NOTIFICATION_PREFERENCE_CATEGORY_${category}`,
+      ...(mode === 'UNSPECIFIED'
+        ? {}
+        : { override: `NOTIFICATION_DELIVERY_MODE_${mode}` })
     }
   );
   return normalizeNotificationPolicy(data);
@@ -421,41 +421,40 @@ function normalizeNotificationPolicy(
   data: NotificationPolicyResponse
 ): E2ENotificationPolicyPreference[] {
   return (data.preferences ?? []).map((preference) => ({
-    kind: normalizeNotificationPolicyKind(preference.kind),
-    serverIntensity: normalizeNotificationIntensity(preference.serverIntensity),
-    roomIntensity: normalizeNotificationIntensity(preference.roomIntensity),
-    effectiveIntensity: normalizeNotificationIntensity(preference.effectiveIntensity)
+    category: normalizeNotificationPreferenceCategory(preference.category),
+    override: normalizeNotificationMode(preference.override),
+    effective: normalizeNotificationMode(preference.effective)
   }));
 }
 
-function normalizeNotificationPolicyKind(value: unknown): E2ENotificationPolicyKind {
+function normalizeNotificationPreferenceCategory(value: unknown): E2ENotificationPreferenceCategory {
   if (typeof value === 'number' && Number.isInteger(value)) {
     const kind = notificationKindByNumber[value];
     if (kind) return kind;
   }
 
   if (typeof value === 'string') {
-    const compact = value.replace(/^NOTIFICATION_POLICY_KIND_/, '') as E2ENotificationPolicyKind;
+    const compact = value.replace(/^NOTIFICATION_PREFERENCE_CATEGORY_/, '') as E2ENotificationPreferenceCategory;
     if (Object.values(notificationKindByNumber).includes(compact)) return compact;
   }
 
-  throw new Error(`Unexpected notification policy kind: ${String(value)}`);
+  throw new Error(`Unexpected notification policy category: ${String(value)}`);
 }
 
-function normalizeNotificationIntensity(value: unknown): E2ENotificationIntensity {
+function normalizeNotificationMode(value: unknown): E2ENotificationMode {
   if (value === undefined || value === null) return 'UNSPECIFIED';
   if (typeof value === 'number' && Number.isInteger(value)) {
-    const intensity = notificationIntensityByNumber[value];
-    if (intensity) return intensity;
+    const mode = notificationModeByNumber[value];
+    if (mode) return mode;
   }
 
   if (typeof value === 'string') {
     const compact = value.replace(
-      /^NOTIFICATION_DELIVERY_INTENSITY_/,
+      /^NOTIFICATION_DELIVERY_MODE_/,
       ''
-    ) as E2ENotificationIntensity;
-    if (Object.values(notificationIntensityByNumber).includes(compact)) return compact;
+    ) as E2ENotificationMode;
+    if (Object.values(notificationModeByNumber).includes(compact)) return compact;
   }
 
-  throw new Error(`Unexpected notification intensity: ${String(value)}`);
+  throw new Error(`Unexpected notification delivery mode: ${String(value)}`);
 }

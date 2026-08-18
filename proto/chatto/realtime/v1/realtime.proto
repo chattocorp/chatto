@@ -347,35 +347,13 @@ message RealtimeProjectionRoomTimelineEventRemove {
 
 // Finite current notification state emitted on bootstrap and every resume.
 message RealtimeProjectionNotificationsReplace {
-  reserved 1, 2, 4;
-  reserved "page", "room_counts", "groups";
-  // Live transition that caused this replacement, when one exists. Bootstrap,
-  // replay reconciliation, and compacted reset replacements omit this field.
-  optional RealtimeProjectionNotificationChange change = 3;
+  reserved 1, 2, 3;
+  reserved "page", "room_counts", "change";
+  // True only when this live replacement should produce a one-shot local
+  // notification sound. Bootstrap and reconciliation replacements are false.
+  bool play_notification_sound = 4;
   // Authoritative Notifications 2.0 occurrences and exact unread count.
   chatto.api.v1.ListNotificationOccurrencesResponse occurrences = 5;
-}
-
-// One live notification transition accompanying authoritative current state.
-//
-// This metadata exists for one-shot presentation effects such as sounds. The
-// enclosing replacement remains the canonical notification state.
-message RealtimeProjectionNotificationChange {
-  RealtimeProjectionNotificationAction action = 1;
-  string notification_id = 2;
-  // True when a created notification must not produce an alert.
-  bool silent = 3;
-}
-
-// Kind of live notification transition.
-enum RealtimeProjectionNotificationAction {
-  reserved 2;
-  reserved "REALTIME_PROJECTION_NOTIFICATION_ACTION_DISMISSED";
-
-  REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED = 0;
-  REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED = 1;
-  REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED = 3;
-  REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED = 4;
 }
 
 // Lightweight current viewer state for one projected room.

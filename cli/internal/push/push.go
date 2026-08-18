@@ -402,7 +402,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 	}
 
 	switch {
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE):
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
@@ -418,7 +418,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Tag = OccurrenceTag(occurrence)
 		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s reacted to your message in #%s", actorDisplayName, roomName)
 		} else {
@@ -434,7 +434,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Tag = OccurrenceTag(occurrence)
 		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY):
 		if roomName != "" {
 			payload.Title = fmt.Sprintf("@%s replied to you in #%s", actorDisplayName, roomName)
 		} else {
@@ -466,13 +466,13 @@ func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
 	}
 	eventID := target.GetEventId()
 	switch {
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE):
 		return "dm-" + eventID
 	case occurrenceHasMentionReason(occurrence):
 		return "mention-" + eventID
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY):
 		return "reply-" + eventID
-	case occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION):
+	case occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION):
 		return "reaction-" + eventID
 	case target != nil:
 		return "room-message-" + eventID
@@ -481,35 +481,35 @@ func OccurrenceTag(occurrence *corev1.NotificationOccurrence) string {
 	}
 }
 
-func occurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationPolicyKind) bool {
+func occurrenceHasReason(occurrence *corev1.NotificationOccurrence, reason corev1.NotificationPreferenceCategory) bool {
 	return occurrencePolicyKind(occurrence) == reason
 }
 
-func occurrencePolicyKind(occurrence *corev1.NotificationOccurrence) corev1.NotificationPolicyKind {
+func occurrencePolicyKind(occurrence *corev1.NotificationOccurrence) corev1.NotificationPreferenceCategory {
 	if occurrence == nil || occurrence.GetSignal() == nil {
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
 	}
 	switch occurrence.GetSignal().GetKind().(type) {
 	case *corev1.NotificationSignal_DirectMessageReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE
 	case *corev1.NotificationSignal_DirectMentionReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION
 	case *corev1.NotificationSignal_ReplyReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY
 	case *corev1.NotificationSignal_RoleMentionReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION
 	case *corev1.NotificationSignal_HereMentionReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE
 	case *corev1.NotificationSignal_AllMentionReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL
 	case *corev1.NotificationSignal_FollowedThreadActivity:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD
 	case *corev1.NotificationSignal_FollowedRoomActivity:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM
 	case *corev1.NotificationSignal_ReactionReceived:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION
 	default:
-		return corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
 	}
 }
 
@@ -542,8 +542,8 @@ func occurrenceMessageReference(occurrence *corev1.NotificationOccurrence) *core
 }
 
 func occurrenceHasMentionReason(occurrence *corev1.NotificationOccurrence) bool {
-	return occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) ||
-		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION) ||
-		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE) ||
-		occurrenceHasReason(occurrence, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL)
+	return occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE) ||
+		occurrenceHasReason(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL)
 }

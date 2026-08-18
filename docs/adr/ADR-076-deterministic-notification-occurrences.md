@@ -32,7 +32,7 @@ The stream has four fixed low-cardinality subjects:
 
 - `notifications.signalled`
 - `notifications.read`
-- `notifications.dismissed`
+- `notifications.removed`
 - `notifications.alert_resolved`
 
 Subjects describe lifecycle fact kinds, not recipients or notification IDs.
@@ -47,18 +47,22 @@ together.
 
 ### Rich signals and exact identity
 
-`NotificationSignalled` contains immutable source coordinates, source-time
-policy and attention decisions, and a rich `NotificationSignal` oneof. The
+The `NotificationEvent` envelope owns notification identity, recipient,
+lifecycle time, and expiry. `NotificationSignalled` contains immutable source
+coordinates, source-time alert and attention decisions, and a rich
+`NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
 Current variants are direct message, direct mention, reply, role mention,
 `@here`, `@all`, followed-thread activity, followed-room activity, and reaction
 received. Each variant owns the typed data needed to authorize, render, and
-navigate that signal; reaction signals also carry their emoji. The record
+navigate that signal; reaction signals carry their emoji, and a consolidated
+role-mention signal carries the sorted source-time role handles that selected
+the recipient. The record
 references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
-`NotificationPolicyKind` remains a small enum because it is a stable preference
+`NotificationPreferenceCategory` remains a small enum because it is a stable preference
 key. It is not the notification payload. Future notification features, such as
 room invitations, add a rich signal branch and define their authorization,
 lifecycle, rendering, navigation, and delivery behavior.
@@ -66,10 +70,10 @@ lifecycle, rendering, navigation, and delivery behavior.
 One source fact may generate several notification signals for the same user.
 For example, one message may independently be a reply and a direct mention.
 Each exact occurrence ID is derived from recipient ID, source event ID, and
-policy kind. Retries are idempotent while distinct causes retain independent
+signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery intensity is `Off`, `Badge`, or `Alert`. `Off` creates
+The source-time delivery mode is `Off`, `Badge`, or `Alert`. `Off` creates
 no signal. `Badge` and `Alert` create the same durable list item; only `Alert`
 is eligible for interruptive delivery. Visual attention is independent:
 reactions are currently Ambient and other current signals are Important.
@@ -126,8 +130,9 @@ whose stream incarnation and sequence are bound to `NOTIFICATIONS`, not `EVT`.
 List, mutation, realtime, and delivery paths wait for the relevant notification
 stream position or current tail before reading it.
 
-Read appends `NotificationRead`. It leaves the occurrence in the list and
-silences a pending Alert. Dismissal appends `NotificationDismissed`; after the
+Read appends an empty `NotificationRead` fact. It leaves the occurrence in the
+list and suppresses a pending Alert. Dismissal appends `NotificationRemoved`;
+after the
 projection has observed that tombstone, Chatto securely deletes the original
 rich `NotificationSignalled` record by stream sequence. The tombstone prevents
 materializer redelivery from recreating the item and contains no presentation
@@ -138,11 +143,13 @@ latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
 state, not notification history. They retain their existing direct-read and OCC
 handshakes.
 
-Realtime `NotificationOccurrenceChanged` messages are transient invalidations
-identified by opaque notification ID. They do not expose JetStream coordinates.
-The receiving replica fences the notification projection and sends an
-authoritative finite replacement, so missing or reordered invalidations cannot
-permanently corrupt client counts.
+Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
+They may carry one opaque alert-candidate notification ID but never expose
+JetStream coordinates. The receiving replica fences the notification
+projection, revalidates any candidate, and sends an authoritative finite
+replacement plus a positive `play_notification_sound` instruction. Missing or
+reordered invalidations therefore cannot permanently corrupt client counts or
+play a sound for an occurrence that is already read or removed.
 
 ### Retention and automatic expiry
 
@@ -170,7 +177,8 @@ subscription ownership.
 
 Only unread, pending, source-time `Alert` occurrences may contact a provider.
 The immutable delivery deadline is two minutes after source time. The worker
-appends `NotificationAlertResolved` as Delivered or Silenced before
+appends one `NotificationAlertResolved` fact carrying the terminal outcome
+before
 acknowledging. Redelivery is an ack-only no-op once the projected state is
 terminal. Provider delivery remains at least once: a crash after provider
 acceptance but before the terminal fact commits can duplicate a push.

@@ -438,19 +438,19 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		}
 		return m.removeReaction(ctx, event, payload.ReactionRemoved, streamSequence)
 	case *corev1.Event_MessageRetracted:
-		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED)
+		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId())
 		return err
 	case *corev1.Event_UserLeftRoom:
 		if err := m.recordVisibilityBoundary(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence); err != nil {
 			return err
 		}
-		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence)
 		return err
 	case *corev1.Event_RoomMemberRemoved:
 		if err := m.recordVisibilityBoundary(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence); err != nil {
 			return err
 		}
-		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := m.core.notificationOccurrences.RemoveRoomForUser(ctx, payload.RoomMemberRemoved.GetUserId(), payload.RoomMemberRemoved.GetRoomId(), streamSequence)
 		return err
 	case *corev1.Event_RoomMemberBanned:
 		return m.reconcileOccurrenceVisibility(ctx, payload.RoomMemberBanned.GetUserId(), payload.RoomMemberBanned.GetRoomId(), streamSequence, visibilityAt)
@@ -463,7 +463,7 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 	case *corev1.Event_RoomGroupDeleted:
 		return m.reconcileOccurrenceVisibility(ctx, "", "", streamSequence, visibilityAt)
 	case *corev1.Event_RoomDeleted:
-		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := m.core.notificationOccurrences.RemoveRoom(ctx, payload.RoomDeleted.GetRoomId())
 		return err
 	case *corev1.Event_UserAccountDeleted:
 		userID := payload.UserAccountDeleted.GetUserId()
@@ -581,7 +581,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 			return err
 		}
 		for _, occurrence := range pairEntries {
-			removed, err := m.core.notificationOccurrences.Delete(ctx, pair.recipientID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+			removed, err := m.core.notificationOccurrences.Delete(ctx, pair.recipientID, occurrence.GetId())
 			if err != nil {
 				return err
 			}
@@ -641,9 +641,6 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
 		reference.ThreadRootEventId = &threadRootEventID
 	}
-	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
-		reference.ParentEventId = &parentEventID
-	}
 	for _, input := range newNotificationOccurrenceInputs(event, reference, decisions) {
 		if err := m.materializeInput(ctx, input, streamSequence); err != nil {
 			return err
@@ -680,8 +677,8 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.membershipExists(recipientID, reaction.GetRoomId()) {
 		return nil
 	}
-	intensity := snapshot.effectiveNotificationIntensity(recipientID, reaction.GetRoomId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION)
-	if intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION)
+	if mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		return nil
 	}
 	reference := newNotificationMessageReference(reaction.GetRoomId(), reaction.GetMessageEventId())
@@ -690,8 +687,8 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	}
 	inputs := newNotificationOccurrenceInputs(event, reference, []notificationRecipientDecision{{
 		recipientID: recipientID,
-		kind:        corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
-		intensity:   intensity,
+		category:    corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION,
+		mode:        mode,
 	}})
 	for _, input := range inputs {
 		if reactionSignal := input.Signal.GetReactionReceived(); reactionSignal != nil {

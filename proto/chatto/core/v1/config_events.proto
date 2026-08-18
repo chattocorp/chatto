@@ -95,11 +95,11 @@ message UserRoomNotificationLevelClearedEvent {
 }
 
 // Records one server- or room-scoped notification policy override. An absent
-// room_id selects server scope; an unspecified intensity clears the override.
+// room_id selects server scope; an absent override clears it.
 message UserNotificationPreferenceChangedEvent {
   string user_id = 1;
-  NotificationPolicyKind kind = 2;
-  NotificationDeliveryIntensity intensity = 3;
+  NotificationPreferenceCategory category = 2;
+  optional NotificationDeliveryMode override = 3;
   optional string room_id = 4;
 }
 

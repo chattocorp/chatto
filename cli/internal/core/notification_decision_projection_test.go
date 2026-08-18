@@ -59,11 +59,11 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
 		{Id: "badge", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-			UserId: userID, RoomId: &roomScope, Kind: corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE.Enum(),
 		}}},
 		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
 		{Id: "off", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-			UserId: userID, RoomId: &roomScope, Kind: corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, Intensity: corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
 		}}},
 		{Id: "later-source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
 	}
@@ -77,14 +77,14 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Boundary source: %v", err)
 	}
-	if got := atSource.effectiveNotificationIntensity(userID, roomID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE {
+	if got := atSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE {
 		t.Fatalf("source policy = %v, want BADGE", got)
 	}
 	atLaterSource, err := p.Boundary(7, time.Now())
 	if err != nil {
 		t.Fatalf("Boundary later source: %v", err)
 	}
-	if got := atLaterSource.effectiveNotificationIntensity(userID, roomID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION); got != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF {
+	if got := atLaterSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("later source policy = %v, want OFF", got)
 	}
 }
@@ -120,6 +120,24 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	}
 	if len(decisions) != 0 {
 		t.Fatalf("legacy decisions = %+v, want no guessed mention cause for %s", decisions, recipientID)
+	}
+}
+
+func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
+	source := &corev1.Event{Id: "source", ActorId: "actor", CreatedAt: timestamppb.Now()}
+	message := &corev1.NotificationMessageReference{RoomId: "room", EventId: "source"}
+	inputs := newNotificationOccurrenceInputs(source, message, []notificationRecipientDecision{{
+		recipientID: "recipient",
+		category:    corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
+		mode:        corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		roleNames:   []string{"moderator", "staff"},
+	}})
+	if len(inputs) != 1 {
+		t.Fatalf("inputs = %d, want 1", len(inputs))
+	}
+	got := inputs[0].Signal.GetRoleMentionReceived().GetRoleNames()
+	if !slices.Equal(got, []string{"moderator", "staff"}) {
+		t.Fatalf("role names = %v, want source role handles", got)
 	}
 }
 

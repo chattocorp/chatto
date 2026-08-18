@@ -22,130 +22,130 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// NotificationPolicyKind is the stable preference key for one class of
-// notification signal. Notification content is represented by the rich
+// NotificationPreferenceCategory is the stable preference key for one class
+// of notification signal. Notification content is represented by the rich
 // NotificationSignal oneof instead of this enum.
-type NotificationPolicyKind int32
+type NotificationPreferenceCategory int32
 
 const (
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED     NotificationPolicyKind = 0
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE  NotificationPolicyKind = 1
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION  NotificationPolicyKind = 2
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY           NotificationPolicyKind = 3
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION    NotificationPolicyKind = 4
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE            NotificationPolicyKind = 5
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL             NotificationPolicyKind = 6
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD NotificationPolicyKind = 7
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM   NotificationPolicyKind = 8
-	NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION        NotificationPolicyKind = 9
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED     NotificationPreferenceCategory = 0
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE  NotificationPreferenceCategory = 1
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION  NotificationPreferenceCategory = 2
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY           NotificationPreferenceCategory = 3
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION    NotificationPreferenceCategory = 4
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE            NotificationPreferenceCategory = 5
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL             NotificationPreferenceCategory = 6
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD NotificationPreferenceCategory = 7
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM   NotificationPreferenceCategory = 8
+	NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION        NotificationPreferenceCategory = 9
 )
 
-// Enum value maps for NotificationPolicyKind.
+// Enum value maps for NotificationPreferenceCategory.
 var (
-	NotificationPolicyKind_name = map[int32]string{
-		0: "NOTIFICATION_POLICY_KIND_UNSPECIFIED",
-		1: "NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE",
-		2: "NOTIFICATION_POLICY_KIND_DIRECT_MENTION",
-		3: "NOTIFICATION_POLICY_KIND_REPLY",
-		4: "NOTIFICATION_POLICY_KIND_ROLE_MENTION",
-		5: "NOTIFICATION_POLICY_KIND_HERE",
-		6: "NOTIFICATION_POLICY_KIND_ALL",
-		7: "NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD",
-		8: "NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM",
-		9: "NOTIFICATION_POLICY_KIND_REACTION",
+	NotificationPreferenceCategory_name = map[int32]string{
+		0: "NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED",
+		1: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE",
+		2: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION",
+		3: "NOTIFICATION_PREFERENCE_CATEGORY_REPLY",
+		4: "NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION",
+		5: "NOTIFICATION_PREFERENCE_CATEGORY_HERE",
+		6: "NOTIFICATION_PREFERENCE_CATEGORY_ALL",
+		7: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD",
+		8: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM",
+		9: "NOTIFICATION_PREFERENCE_CATEGORY_REACTION",
 	}
-	NotificationPolicyKind_value = map[string]int32{
-		"NOTIFICATION_POLICY_KIND_UNSPECIFIED":     0,
-		"NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE":  1,
-		"NOTIFICATION_POLICY_KIND_DIRECT_MENTION":  2,
-		"NOTIFICATION_POLICY_KIND_REPLY":           3,
-		"NOTIFICATION_POLICY_KIND_ROLE_MENTION":    4,
-		"NOTIFICATION_POLICY_KIND_HERE":            5,
-		"NOTIFICATION_POLICY_KIND_ALL":             6,
-		"NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD": 7,
-		"NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM":   8,
-		"NOTIFICATION_POLICY_KIND_REACTION":        9,
+	NotificationPreferenceCategory_value = map[string]int32{
+		"NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED":     0,
+		"NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE":  1,
+		"NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION":  2,
+		"NOTIFICATION_PREFERENCE_CATEGORY_REPLY":           3,
+		"NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION":    4,
+		"NOTIFICATION_PREFERENCE_CATEGORY_HERE":            5,
+		"NOTIFICATION_PREFERENCE_CATEGORY_ALL":             6,
+		"NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD": 7,
+		"NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM":   8,
+		"NOTIFICATION_PREFERENCE_CATEGORY_REACTION":        9,
 	}
 )
 
-func (x NotificationPolicyKind) Enum() *NotificationPolicyKind {
-	p := new(NotificationPolicyKind)
+func (x NotificationPreferenceCategory) Enum() *NotificationPreferenceCategory {
+	p := new(NotificationPreferenceCategory)
 	*p = x
 	return p
 }
 
-func (x NotificationPolicyKind) String() string {
+func (x NotificationPreferenceCategory) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (NotificationPolicyKind) Descriptor() protoreflect.EnumDescriptor {
+func (NotificationPreferenceCategory) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_core_v1_notification_proto_enumTypes[0].Descriptor()
 }
 
-func (NotificationPolicyKind) Type() protoreflect.EnumType {
+func (NotificationPreferenceCategory) Type() protoreflect.EnumType {
 	return &file_chatto_core_v1_notification_proto_enumTypes[0]
 }
 
-func (x NotificationPolicyKind) Number() protoreflect.EnumNumber {
+func (x NotificationPreferenceCategory) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use NotificationPolicyKind.Descriptor instead.
-func (NotificationPolicyKind) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use NotificationPreferenceCategory.Descriptor instead.
+func (NotificationPreferenceCategory) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{0}
 }
 
-// NotificationDeliveryIntensity controls whether qualifying activity is
+// NotificationDeliveryMode controls whether qualifying activity is
 // omitted, recorded silently, or eligible for an interruptive alert.
-type NotificationDeliveryIntensity int32
+type NotificationDeliveryMode int32
 
 const (
-	NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED NotificationDeliveryIntensity = 0
-	NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF         NotificationDeliveryIntensity = 1
-	NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE       NotificationDeliveryIntensity = 2
-	NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT       NotificationDeliveryIntensity = 3
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED NotificationDeliveryMode = 0
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF         NotificationDeliveryMode = 1
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE       NotificationDeliveryMode = 2
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT       NotificationDeliveryMode = 3
 )
 
-// Enum value maps for NotificationDeliveryIntensity.
+// Enum value maps for NotificationDeliveryMode.
 var (
-	NotificationDeliveryIntensity_name = map[int32]string{
-		0: "NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED",
-		1: "NOTIFICATION_DELIVERY_INTENSITY_OFF",
-		2: "NOTIFICATION_DELIVERY_INTENSITY_BADGE",
-		3: "NOTIFICATION_DELIVERY_INTENSITY_ALERT",
+	NotificationDeliveryMode_name = map[int32]string{
+		0: "NOTIFICATION_DELIVERY_MODE_UNSPECIFIED",
+		1: "NOTIFICATION_DELIVERY_MODE_OFF",
+		2: "NOTIFICATION_DELIVERY_MODE_BADGE",
+		3: "NOTIFICATION_DELIVERY_MODE_ALERT",
 	}
-	NotificationDeliveryIntensity_value = map[string]int32{
-		"NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED": 0,
-		"NOTIFICATION_DELIVERY_INTENSITY_OFF":         1,
-		"NOTIFICATION_DELIVERY_INTENSITY_BADGE":       2,
-		"NOTIFICATION_DELIVERY_INTENSITY_ALERT":       3,
+	NotificationDeliveryMode_value = map[string]int32{
+		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED": 0,
+		"NOTIFICATION_DELIVERY_MODE_OFF":         1,
+		"NOTIFICATION_DELIVERY_MODE_BADGE":       2,
+		"NOTIFICATION_DELIVERY_MODE_ALERT":       3,
 	}
 )
 
-func (x NotificationDeliveryIntensity) Enum() *NotificationDeliveryIntensity {
-	p := new(NotificationDeliveryIntensity)
+func (x NotificationDeliveryMode) Enum() *NotificationDeliveryMode {
+	p := new(NotificationDeliveryMode)
 	*p = x
 	return p
 }
 
-func (x NotificationDeliveryIntensity) String() string {
+func (x NotificationDeliveryMode) String() string {
 	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
 }
 
-func (NotificationDeliveryIntensity) Descriptor() protoreflect.EnumDescriptor {
+func (NotificationDeliveryMode) Descriptor() protoreflect.EnumDescriptor {
 	return file_chatto_core_v1_notification_proto_enumTypes[1].Descriptor()
 }
 
-func (NotificationDeliveryIntensity) Type() protoreflect.EnumType {
+func (NotificationDeliveryMode) Type() protoreflect.EnumType {
 	return &file_chatto_core_v1_notification_proto_enumTypes[1]
 }
 
-func (x NotificationDeliveryIntensity) Number() protoreflect.EnumNumber {
+func (x NotificationDeliveryMode) Number() protoreflect.EnumNumber {
 	return protoreflect.EnumNumber(x)
 }
 
-// Deprecated: Use NotificationDeliveryIntensity.Descriptor instead.
-func (NotificationDeliveryIntensity) EnumDescriptor() ([]byte, []int) {
+// Deprecated: Use NotificationDeliveryMode.Descriptor instead.
+func (NotificationDeliveryMode) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{1}
 }
 
@@ -199,173 +199,6 @@ func (x NotificationAttentionLevel) Number() protoreflect.EnumNumber {
 // Deprecated: Use NotificationAttentionLevel.Descriptor instead.
 func (NotificationAttentionLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{2}
-}
-
-// NotificationReadState is the projected read state.
-type NotificationReadState int32
-
-const (
-	NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED NotificationReadState = 0
-	NotificationReadState_NOTIFICATION_READ_STATE_UNREAD      NotificationReadState = 1
-	NotificationReadState_NOTIFICATION_READ_STATE_READ        NotificationReadState = 2
-)
-
-// Enum value maps for NotificationReadState.
-var (
-	NotificationReadState_name = map[int32]string{
-		0: "NOTIFICATION_READ_STATE_UNSPECIFIED",
-		1: "NOTIFICATION_READ_STATE_UNREAD",
-		2: "NOTIFICATION_READ_STATE_READ",
-	}
-	NotificationReadState_value = map[string]int32{
-		"NOTIFICATION_READ_STATE_UNSPECIFIED": 0,
-		"NOTIFICATION_READ_STATE_UNREAD":      1,
-		"NOTIFICATION_READ_STATE_READ":        2,
-	}
-)
-
-func (x NotificationReadState) Enum() *NotificationReadState {
-	p := new(NotificationReadState)
-	*p = x
-	return p
-}
-
-func (x NotificationReadState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (NotificationReadState) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_v1_notification_proto_enumTypes[3].Descriptor()
-}
-
-func (NotificationReadState) Type() protoreflect.EnumType {
-	return &file_chatto_core_v1_notification_proto_enumTypes[3]
-}
-
-func (x NotificationReadState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use NotificationReadState.Descriptor instead.
-func (NotificationReadState) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{3}
-}
-
-// NotificationRemovalReason explains why an occurrence is represented only by
-// an anti-recreation tombstone.
-type NotificationRemovalReason int32
-
-const (
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED      NotificationRemovalReason = 0
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED          NotificationRemovalReason = 1
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED NotificationRemovalReason = 2
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED NotificationRemovalReason = 3
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST  NotificationRemovalReason = 4
-	NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED  NotificationRemovalReason = 5
-)
-
-// Enum value maps for NotificationRemovalReason.
-var (
-	NotificationRemovalReason_name = map[int32]string{
-		0: "NOTIFICATION_REMOVAL_REASON_UNSPECIFIED",
-		1: "NOTIFICATION_REMOVAL_REASON_DELETED",
-		2: "NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED",
-		3: "NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED",
-		4: "NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST",
-		5: "NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED",
-	}
-	NotificationRemovalReason_value = map[string]int32{
-		"NOTIFICATION_REMOVAL_REASON_UNSPECIFIED":      0,
-		"NOTIFICATION_REMOVAL_REASON_DELETED":          1,
-		"NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED": 2,
-		"NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED": 3,
-		"NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST":  4,
-		"NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED":  5,
-	}
-)
-
-func (x NotificationRemovalReason) Enum() *NotificationRemovalReason {
-	p := new(NotificationRemovalReason)
-	*p = x
-	return p
-}
-
-func (x NotificationRemovalReason) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (NotificationRemovalReason) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_v1_notification_proto_enumTypes[4].Descriptor()
-}
-
-func (NotificationRemovalReason) Type() protoreflect.EnumType {
-	return &file_chatto_core_v1_notification_proto_enumTypes[4]
-}
-
-func (x NotificationRemovalReason) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use NotificationRemovalReason.Descriptor instead.
-func (NotificationRemovalReason) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{4}
-}
-
-// NotificationAlertState tracks recoverable interruptive delivery for an
-// occurrence. List and badge visibility do not depend on this state.
-type NotificationAlertState int32
-
-const (
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_UNSPECIFIED    NotificationAlertState = 0
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_NOT_APPLICABLE NotificationAlertState = 1
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING        NotificationAlertState = 2
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED      NotificationAlertState = 3
-	NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED       NotificationAlertState = 4
-)
-
-// Enum value maps for NotificationAlertState.
-var (
-	NotificationAlertState_name = map[int32]string{
-		0: "NOTIFICATION_ALERT_STATE_UNSPECIFIED",
-		1: "NOTIFICATION_ALERT_STATE_NOT_APPLICABLE",
-		2: "NOTIFICATION_ALERT_STATE_PENDING",
-		3: "NOTIFICATION_ALERT_STATE_DELIVERED",
-		4: "NOTIFICATION_ALERT_STATE_SILENCED",
-	}
-	NotificationAlertState_value = map[string]int32{
-		"NOTIFICATION_ALERT_STATE_UNSPECIFIED":    0,
-		"NOTIFICATION_ALERT_STATE_NOT_APPLICABLE": 1,
-		"NOTIFICATION_ALERT_STATE_PENDING":        2,
-		"NOTIFICATION_ALERT_STATE_DELIVERED":      3,
-		"NOTIFICATION_ALERT_STATE_SILENCED":       4,
-	}
-)
-
-func (x NotificationAlertState) Enum() *NotificationAlertState {
-	p := new(NotificationAlertState)
-	*p = x
-	return p
-}
-
-func (x NotificationAlertState) String() string {
-	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
-}
-
-func (NotificationAlertState) Descriptor() protoreflect.EnumDescriptor {
-	return file_chatto_core_v1_notification_proto_enumTypes[5].Descriptor()
-}
-
-func (NotificationAlertState) Type() protoreflect.EnumType {
-	return &file_chatto_core_v1_notification_proto_enumTypes[5]
-}
-
-func (x NotificationAlertState) Number() protoreflect.EnumNumber {
-	return protoreflect.EnumNumber(x)
-}
-
-// Deprecated: Use NotificationAlertState.Descriptor instead.
-func (NotificationAlertState) EnumDescriptor() ([]byte, []int) {
-	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{5}
 }
 
 // Notification is the retained Notifications 1.0 storage contract. Current
@@ -794,7 +627,6 @@ type NotificationMessageReference struct {
 	RoomId            string                 `protobuf:"bytes,1,opt,name=room_id,json=roomId,proto3" json:"room_id,omitempty"`
 	ThreadRootEventId *string                `protobuf:"bytes,2,opt,name=thread_root_event_id,json=threadRootEventId,proto3,oneof" json:"thread_root_event_id,omitempty"`
 	EventId           string                 `protobuf:"bytes,3,opt,name=event_id,json=eventId,proto3" json:"event_id,omitempty"`
-	ParentEventId     *string                `protobuf:"bytes,4,opt,name=parent_event_id,json=parentEventId,proto3,oneof" json:"parent_event_id,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
 }
@@ -846,13 +678,6 @@ func (x *NotificationMessageReference) GetThreadRootEventId() string {
 func (x *NotificationMessageReference) GetEventId() string {
 	if x != nil {
 		return x.EventId
-	}
-	return ""
-}
-
-func (x *NotificationMessageReference) GetParentEventId() string {
-	if x != nil && x.ParentEventId != nil {
-		return *x.ParentEventId
 	}
 	return ""
 }
@@ -992,6 +817,7 @@ func (x *ReplyReceived) GetMessage() *NotificationMessageReference {
 type RoleMentionReceived struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	Message       *NotificationMessageReference `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`
+	RoleNames     []string                      `protobuf:"bytes,2,rep,name=role_names,json=roleNames,proto3" json:"role_names,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1029,6 +855,13 @@ func (*RoleMentionReceived) Descriptor() ([]byte, []int) {
 func (x *RoleMentionReceived) GetMessage() *NotificationMessageReference {
 	if x != nil {
 		return x.Message
+	}
+	return nil
+}
+
+func (x *RoleMentionReceived) GetRoleNames() []string {
+	if x != nil {
+		return x.RoleNames
 	}
 	return nil
 }
@@ -1461,33 +1294,32 @@ func (*NotificationSignal_ReactionReceived) isNotificationSignal_Kind() {}
 // NotificationOccurrence is the projected current state of one immutable
 // notification signal and its monotonic lifecycle.
 type NotificationOccurrence struct {
-	state           protoimpl.MessageState        `protogen:"open.v1"`
-	Id              string                        `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	RecipientId     string                        `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
-	SourceEventId   string                        `protobuf:"bytes,3,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	SourceCreatedAt *timestamppb.Timestamp        `protobuf:"bytes,4,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
-	ActorId         string                        `protobuf:"bytes,5,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	Signal          *NotificationSignal           `protobuf:"bytes,6,opt,name=signal,proto3" json:"signal,omitempty"`
-	Intensity       NotificationDeliveryIntensity `protobuf:"varint,7,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
-	ReadState       NotificationReadState         `protobuf:"varint,8,opt,name=read_state,json=readState,proto3,enum=chatto.core.v1.NotificationReadState" json:"read_state,omitempty"`
-	EvaluatedAt     *timestamppb.Timestamp        `protobuf:"bytes,9,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
-	UpdatedAt       *timestamppb.Timestamp        `protobuf:"bytes,10,opt,name=updated_at,json=updatedAt,proto3" json:"updated_at,omitempty"`
-	ExpiresAt       *timestamppb.Timestamp        `protobuf:"bytes,11,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
-	AlertState      NotificationAlertState        `protobuf:"varint,12,opt,name=alert_state,json=alertState,proto3,enum=chatto.core.v1.NotificationAlertState" json:"alert_state,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	Id              string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RecipientId     string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	SourceEventId   string                 `protobuf:"bytes,3,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	SourceCreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
+	ActorId         string                 `protobuf:"bytes,5,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Signal          *NotificationSignal    `protobuf:"bytes,6,opt,name=signal,proto3" json:"signal,omitempty"`
+	Read            bool                   `protobuf:"varint,7,opt,name=read,proto3" json:"read,omitempty"`
+	ExpiresAt       *timestamppb.Timestamp `protobuf:"bytes,8,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Internal EVT stream position of the source fact. Used for causal lifecycle
 	// cleanup and read-boundary reconciliation; never exposed through the public
 	// API.
-	SourceStreamSequence uint64 `protobuf:"varint,13,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	SourceStreamSequence uint64 `protobuf:"varint,9,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
 	// Source-time visual importance.
-	AttentionLevel NotificationAttentionLevel `protobuf:"varint,14,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	AttentionLevel NotificationAttentionLevel `protobuf:"varint,10,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
 	// Immutable interruptive-delivery deadline derived from source_created_at.
-	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,15,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
+	AlertExpiresAt *timestamppb.Timestamp `protobuf:"bytes,11,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	// Sequence of the NotificationSignalled record in NOTIFICATIONS. This is
 	// retained only by projections so explicit dismissal can remove the rich
 	// source record after the dismissal event becomes visible.
-	NotificationStreamSequence uint64 `protobuf:"varint,16,opt,name=notification_stream_sequence,json=notificationStreamSequence,proto3" json:"notification_stream_sequence,omitempty"`
-	unknownFields              protoimpl.UnknownFields
-	sizeCache                  protoimpl.SizeCache
+	NotificationStreamSequence uint64 `protobuf:"varint,12,opt,name=notification_stream_sequence,json=notificationStreamSequence,proto3" json:"notification_stream_sequence,omitempty"`
+	// Terminal alert result. Absence means Pending when alert_expires_at is
+	// present and the occurrence is unread; false means Suppressed.
+	AlertDelivered *bool `protobuf:"varint,13,opt,name=alert_delivered,json=alertDelivered,proto3,oneof" json:"alert_delivered,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *NotificationOccurrence) Reset() {
@@ -1562,32 +1394,11 @@ func (x *NotificationOccurrence) GetSignal() *NotificationSignal {
 	return nil
 }
 
-func (x *NotificationOccurrence) GetIntensity() NotificationDeliveryIntensity {
+func (x *NotificationOccurrence) GetRead() bool {
 	if x != nil {
-		return x.Intensity
+		return x.Read
 	}
-	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
-}
-
-func (x *NotificationOccurrence) GetReadState() NotificationReadState {
-	if x != nil {
-		return x.ReadState
-	}
-	return NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED
-}
-
-func (x *NotificationOccurrence) GetEvaluatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.EvaluatedAt
-	}
-	return nil
-}
-
-func (x *NotificationOccurrence) GetUpdatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.UpdatedAt
-	}
-	return nil
+	return false
 }
 
 func (x *NotificationOccurrence) GetExpiresAt() *timestamppb.Timestamp {
@@ -1595,13 +1406,6 @@ func (x *NotificationOccurrence) GetExpiresAt() *timestamppb.Timestamp {
 		return x.ExpiresAt
 	}
 	return nil
-}
-
-func (x *NotificationOccurrence) GetAlertState() NotificationAlertState {
-	if x != nil {
-		return x.AlertState
-	}
-	return NotificationAlertState_NOTIFICATION_ALERT_STATE_UNSPECIFIED
 }
 
 func (x *NotificationOccurrence) GetSourceStreamSequence() uint64 {
@@ -1632,22 +1436,26 @@ func (x *NotificationOccurrence) GetNotificationStreamSequence() uint64 {
 	return 0
 }
 
+func (x *NotificationOccurrence) GetAlertDelivered() bool {
+	if x != nil && x.AlertDelivered != nil {
+		return *x.AlertDelivered
+	}
+	return false
+}
+
 // NotificationSignalled is the immutable source-time fact from which the
 // current NotificationOccurrence is projected.
 type NotificationSignalled struct {
-	state            protoimpl.MessageState        `protogen:"open.v1"`
-	NotificationId   string                        `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	SourceEventId    string                        `protobuf:"bytes,2,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
-	SourceCreatedAt  *timestamppb.Timestamp        `protobuf:"bytes,3,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
-	ActorId          string                        `protobuf:"bytes,4,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
-	Signal           *NotificationSignal           `protobuf:"bytes,5,opt,name=signal,proto3" json:"signal,omitempty"`
-	Intensity        NotificationDeliveryIntensity `protobuf:"varint,6,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
-	InitialReadState NotificationReadState         `protobuf:"varint,7,opt,name=initial_read_state,json=initialReadState,proto3,enum=chatto.core.v1.NotificationReadState" json:"initial_read_state,omitempty"`
-	EvaluatedAt      *timestamppb.Timestamp        `protobuf:"bytes,8,opt,name=evaluated_at,json=evaluatedAt,proto3" json:"evaluated_at,omitempty"`
+	state           protoimpl.MessageState `protogen:"open.v1"`
+	SourceEventId   string                 `protobuf:"bytes,1,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	SourceCreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=source_created_at,json=sourceCreatedAt,proto3" json:"source_created_at,omitempty"`
+	ActorId         string                 `protobuf:"bytes,3,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Signal          *NotificationSignal    `protobuf:"bytes,4,opt,name=signal,proto3" json:"signal,omitempty"`
+	InitiallyRead   bool                   `protobuf:"varint,5,opt,name=initially_read,json=initiallyRead,proto3" json:"initially_read,omitempty"`
 	// Internal EVT position used only for causal visibility reconciliation.
-	SourceStreamSequence uint64                     `protobuf:"varint,9,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
-	AttentionLevel       NotificationAttentionLevel `protobuf:"varint,10,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
-	AlertExpiresAt       *timestamppb.Timestamp     `protobuf:"bytes,11,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
+	SourceStreamSequence uint64                     `protobuf:"varint,6,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	AttentionLevel       NotificationAttentionLevel `protobuf:"varint,7,opt,name=attention_level,json=attentionLevel,proto3,enum=chatto.core.v1.NotificationAttentionLevel" json:"attention_level,omitempty"`
+	AlertExpiresAt       *timestamppb.Timestamp     `protobuf:"bytes,8,opt,name=alert_expires_at,json=alertExpiresAt,proto3" json:"alert_expires_at,omitempty"`
 	unknownFields        protoimpl.UnknownFields
 	sizeCache            protoimpl.SizeCache
 }
@@ -1682,13 +1490,6 @@ func (*NotificationSignalled) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *NotificationSignalled) GetNotificationId() string {
-	if x != nil {
-		return x.NotificationId
-	}
-	return ""
-}
-
 func (x *NotificationSignalled) GetSourceEventId() string {
 	if x != nil {
 		return x.SourceEventId
@@ -1717,25 +1518,11 @@ func (x *NotificationSignalled) GetSignal() *NotificationSignal {
 	return nil
 }
 
-func (x *NotificationSignalled) GetIntensity() NotificationDeliveryIntensity {
+func (x *NotificationSignalled) GetInitiallyRead() bool {
 	if x != nil {
-		return x.Intensity
+		return x.InitiallyRead
 	}
-	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
-}
-
-func (x *NotificationSignalled) GetInitialReadState() NotificationReadState {
-	if x != nil {
-		return x.InitialReadState
-	}
-	return NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED
-}
-
-func (x *NotificationSignalled) GetEvaluatedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.EvaluatedAt
-	}
-	return nil
+	return false
 }
 
 func (x *NotificationSignalled) GetSourceStreamSequence() uint64 {
@@ -1760,11 +1547,9 @@ func (x *NotificationSignalled) GetAlertExpiresAt() *timestamppb.Timestamp {
 }
 
 type NotificationRead struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	NotificationId string                 `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	ReadAt         *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=read_at,json=readAt,proto3" json:"read_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationRead) Reset() {
@@ -1797,44 +1582,26 @@ func (*NotificationRead) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{18}
 }
 
-func (x *NotificationRead) GetNotificationId() string {
-	if x != nil {
-		return x.NotificationId
-	}
-	return ""
+type NotificationRemoved struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
-func (x *NotificationRead) GetReadAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ReadAt
-	}
-	return nil
-}
-
-type NotificationDismissed struct {
-	state                protoimpl.MessageState    `protogen:"open.v1"`
-	NotificationId       string                    `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	Reason               NotificationRemovalReason `protobuf:"varint,2,opt,name=reason,proto3,enum=chatto.core.v1.NotificationRemovalReason" json:"reason,omitempty"`
-	DismissedAt          *timestamppb.Timestamp    `protobuf:"bytes,3,opt,name=dismissed_at,json=dismissedAt,proto3" json:"dismissed_at,omitempty"`
-	SignalStreamSequence uint64                    `protobuf:"varint,4,opt,name=signal_stream_sequence,json=signalStreamSequence,proto3" json:"signal_stream_sequence,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
-}
-
-func (x *NotificationDismissed) Reset() {
-	*x = NotificationDismissed{}
+func (x *NotificationRemoved) Reset() {
+	*x = NotificationRemoved{}
 	mi := &file_chatto_core_v1_notification_proto_msgTypes[19]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *NotificationDismissed) String() string {
+func (x *NotificationRemoved) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*NotificationDismissed) ProtoMessage() {}
+func (*NotificationRemoved) ProtoMessage() {}
 
-func (x *NotificationDismissed) ProtoReflect() protoreflect.Message {
+func (x *NotificationRemoved) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_notification_proto_msgTypes[19]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -1846,46 +1613,19 @@ func (x *NotificationDismissed) ProtoReflect() protoreflect.Message {
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use NotificationDismissed.ProtoReflect.Descriptor instead.
-func (*NotificationDismissed) Descriptor() ([]byte, []int) {
+// Deprecated: Use NotificationRemoved.ProtoReflect.Descriptor instead.
+func (*NotificationRemoved) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{19}
 }
 
-func (x *NotificationDismissed) GetNotificationId() string {
-	if x != nil {
-		return x.NotificationId
-	}
-	return ""
-}
-
-func (x *NotificationDismissed) GetReason() NotificationRemovalReason {
-	if x != nil {
-		return x.Reason
-	}
-	return NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_UNSPECIFIED
-}
-
-func (x *NotificationDismissed) GetDismissedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.DismissedAt
-	}
-	return nil
-}
-
-func (x *NotificationDismissed) GetSignalStreamSequence() uint64 {
-	if x != nil {
-		return x.SignalStreamSequence
-	}
-	return 0
-}
-
+// NotificationAlertResolved is the single terminal fact for interruptive
+// delivery. A deterministic lifecycle ID prevents competing workers from
+// recording contradictory outcomes.
 type NotificationAlertResolved struct {
-	state          protoimpl.MessageState `protogen:"open.v1"`
-	NotificationId string                 `protobuf:"bytes,1,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
-	State          NotificationAlertState `protobuf:"varint,2,opt,name=state,proto3,enum=chatto.core.v1.NotificationAlertState" json:"state,omitempty"`
-	ResolvedAt     *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=resolved_at,json=resolvedAt,proto3" json:"resolved_at,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	Delivered     bool                   `protobuf:"varint,1,opt,name=delivered,proto3" json:"delivered,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationAlertResolved) Reset() {
@@ -1918,41 +1658,28 @@ func (*NotificationAlertResolved) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{20}
 }
 
-func (x *NotificationAlertResolved) GetNotificationId() string {
+func (x *NotificationAlertResolved) GetDelivered() bool {
 	if x != nil {
-		return x.NotificationId
+		return x.Delivered
 	}
-	return ""
-}
-
-func (x *NotificationAlertResolved) GetState() NotificationAlertState {
-	if x != nil {
-		return x.State
-	}
-	return NotificationAlertState_NOTIFICATION_ALERT_STATE_UNSPECIFIED
-}
-
-func (x *NotificationAlertResolved) GetResolvedAt() *timestamppb.Timestamp {
-	if x != nil {
-		return x.ResolvedAt
-	}
-	return nil
+	return false
 }
 
 // NotificationEvent is one bounded lifecycle fact in the NOTIFICATIONS
 // stream. The envelope expiry is the notification's immutable application
 // expiry; JetStream retains each record for a small physical-cleanup grace.
 type NotificationEvent struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	Id          string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
-	RecipientId string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
-	OccurredAt  *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
-	ExpiresAt   *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
+	state          protoimpl.MessageState `protogen:"open.v1"`
+	Id             string                 `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
+	RecipientId    string                 `protobuf:"bytes,2,opt,name=recipient_id,json=recipientId,proto3" json:"recipient_id,omitempty"`
+	NotificationId string                 `protobuf:"bytes,3,opt,name=notification_id,json=notificationId,proto3" json:"notification_id,omitempty"`
+	OccurredAt     *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=occurred_at,json=occurredAt,proto3" json:"occurred_at,omitempty"`
+	ExpiresAt      *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
 	// Types that are valid to be assigned to Event:
 	//
 	//	*NotificationEvent_Signalled
 	//	*NotificationEvent_Read
-	//	*NotificationEvent_Dismissed
+	//	*NotificationEvent_Removed
 	//	*NotificationEvent_AlertResolved
 	Event         isNotificationEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
@@ -2003,6 +1730,13 @@ func (x *NotificationEvent) GetRecipientId() string {
 	return ""
 }
 
+func (x *NotificationEvent) GetNotificationId() string {
+	if x != nil {
+		return x.NotificationId
+	}
+	return ""
+}
+
 func (x *NotificationEvent) GetOccurredAt() *timestamppb.Timestamp {
 	if x != nil {
 		return x.OccurredAt
@@ -2042,10 +1776,10 @@ func (x *NotificationEvent) GetRead() *NotificationRead {
 	return nil
 }
 
-func (x *NotificationEvent) GetDismissed() *NotificationDismissed {
+func (x *NotificationEvent) GetRemoved() *NotificationRemoved {
 	if x != nil {
-		if x, ok := x.Event.(*NotificationEvent_Dismissed); ok {
-			return x.Dismissed
+		if x, ok := x.Event.(*NotificationEvent_Removed); ok {
+			return x.Removed
 		}
 	}
 	return nil
@@ -2072,8 +1806,8 @@ type NotificationEvent_Read struct {
 	Read *NotificationRead `protobuf:"bytes,101,opt,name=read,proto3,oneof"`
 }
 
-type NotificationEvent_Dismissed struct {
-	Dismissed *NotificationDismissed `protobuf:"bytes,102,opt,name=dismissed,proto3,oneof"`
+type NotificationEvent_Removed struct {
+	Removed *NotificationRemoved `protobuf:"bytes,102,opt,name=removed,proto3,oneof"`
 }
 
 type NotificationEvent_AlertResolved struct {
@@ -2084,7 +1818,7 @@ func (*NotificationEvent_Signalled) isNotificationEvent_Event() {}
 
 func (*NotificationEvent_Read) isNotificationEvent_Event() {}
 
-func (*NotificationEvent_Dismissed) isNotificationEvent_Event() {}
+func (*NotificationEvent_Removed) isNotificationEvent_Event() {}
 
 func (*NotificationEvent_AlertResolved) isNotificationEvent_Event() {}
 
@@ -2119,22 +1853,22 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\tin_thread\x18\x05 \x01(\tR\binThread:\x02\x18\x01J\x04\b\x01\x10\x02R\bspace_id\"a\n" +
 	"\x17RoomMessageNotification\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12\x19\n" +
-	"\bevent_id\x18\x03 \x01(\tR\aeventId:\x02\x18\x01J\x04\b\x01\x10\x02R\bspace_id\"\xe2\x01\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventId:\x02\x18\x01J\x04\b\x01\x10\x02R\bspace_id\"\xa1\x01\n" +
 	"\x1cNotificationMessageReference\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x124\n" +
 	"\x14thread_root_event_id\x18\x02 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01\x12\x19\n" +
-	"\bevent_id\x18\x03 \x01(\tR\aeventId\x12+\n" +
-	"\x0fparent_event_id\x18\x04 \x01(\tH\x01R\rparentEventId\x88\x01\x01B\x17\n" +
-	"\x15_thread_root_event_idB\x12\n" +
-	"\x10_parent_event_id\"_\n" +
+	"\bevent_id\x18\x03 \x01(\tR\aeventIdB\x17\n" +
+	"\x15_thread_root_event_id\"_\n" +
 	"\x15DirectMessageReceived\x12F\n" +
 	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"_\n" +
 	"\x15DirectMentionReceived\x12F\n" +
 	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"W\n" +
 	"\rReplyReceived\x12F\n" +
-	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"]\n" +
+	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"|\n" +
 	"\x13RoleMentionReceived\x12F\n" +
-	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"]\n" +
+	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\x12\x1d\n" +
+	"\n" +
+	"role_names\x18\x02 \x03(\tR\troleNames\"]\n" +
 	"\x13HereMentionReceived\x12F\n" +
 	"\amessage\x18\x01 \x01(\v2,.chatto.core.v1.NotificationMessageReferenceR\amessage\"\\\n" +
 	"\x12AllMentionReceived\x12F\n" +
@@ -2156,104 +1890,70 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x18followed_thread_activity\x18\a \x01(\v2&.chatto.core.v1.FollowedThreadActivityH\x00R\x16followedThreadActivity\x12\\\n" +
 	"\x16followed_room_activity\x18\b \x01(\v2$.chatto.core.v1.FollowedRoomActivityH\x00R\x14followedRoomActivity\x12O\n" +
 	"\x11reaction_received\x18\t \x01(\v2 .chatto.core.v1.ReactionReceivedH\x00R\x10reactionReceivedB\x06\n" +
-	"\x04kind\"\xb6\a\n" +
+	"\x04kind\"\xb6\x05\n" +
 	"\x16NotificationOccurrence\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
 	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12&\n" +
 	"\x0fsource_event_id\x18\x03 \x01(\tR\rsourceEventId\x12F\n" +
 	"\x11source_created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
 	"\bactor_id\x18\x05 \x01(\tR\aactorId\x12:\n" +
-	"\x06signal\x18\x06 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12K\n" +
-	"\tintensity\x18\a \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12D\n" +
+	"\x06signal\x18\x06 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12\x12\n" +
+	"\x04read\x18\a \x01(\bR\x04read\x129\n" +
 	"\n" +
-	"read_state\x18\b \x01(\x0e2%.chatto.core.v1.NotificationReadStateR\treadState\x12=\n" +
-	"\fevaluated_at\x18\t \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x129\n" +
-	"\n" +
-	"updated_at\x18\n" +
-	" \x01(\v2\x1a.google.protobuf.TimestampR\tupdatedAt\x129\n" +
-	"\n" +
-	"expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12G\n" +
-	"\valert_state\x18\f \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\n" +
-	"alertState\x124\n" +
-	"\x16source_stream_sequence\x18\r \x01(\x04R\x14sourceStreamSequence\x12S\n" +
-	"\x0fattention_level\x18\x0e \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
-	"\x10alert_expires_at\x18\x0f \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\x12@\n" +
-	"\x1cnotification_stream_sequence\x18\x10 \x01(\x04R\x1anotificationStreamSequence\"\xb9\x05\n" +
-	"\x15NotificationSignalled\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12&\n" +
-	"\x0fsource_event_id\x18\x02 \x01(\tR\rsourceEventId\x12F\n" +
-	"\x11source_created_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
-	"\bactor_id\x18\x04 \x01(\tR\aactorId\x12:\n" +
-	"\x06signal\x18\x05 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12K\n" +
-	"\tintensity\x18\x06 \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12S\n" +
-	"\x12initial_read_state\x18\a \x01(\x0e2%.chatto.core.v1.NotificationReadStateR\x10initialReadState\x12=\n" +
-	"\fevaluated_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\vevaluatedAt\x124\n" +
+	"expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x124\n" +
 	"\x16source_stream_sequence\x18\t \x01(\x04R\x14sourceStreamSequence\x12S\n" +
 	"\x0fattention_level\x18\n" +
 	" \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
-	"\x10alert_expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\"p\n" +
-	"\x10NotificationRead\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x123\n" +
-	"\aread_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x06readAt\"\xf8\x01\n" +
-	"\x15NotificationDismissed\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12A\n" +
-	"\x06reason\x18\x02 \x01(\x0e2).chatto.core.v1.NotificationRemovalReasonR\x06reason\x12=\n" +
-	"\fdismissed_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\vdismissedAt\x124\n" +
-	"\x16signal_stream_sequence\x18\x04 \x01(\x04R\x14signalStreamSequence\"\xbf\x01\n" +
-	"\x19NotificationAlertResolved\x12'\n" +
-	"\x0fnotification_id\x18\x01 \x01(\tR\x0enotificationId\x12<\n" +
-	"\x05state\x18\x02 \x01(\x0e2&.chatto.core.v1.NotificationAlertStateR\x05state\x12;\n" +
-	"\vresolved_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
-	"resolvedAt\"\xe1\x03\n" +
+	"\x10alert_expires_at\x18\v \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\x12@\n" +
+	"\x1cnotification_stream_sequence\x18\f \x01(\x04R\x1anotificationStreamSequence\x12,\n" +
+	"\x0falert_delivered\x18\r \x01(\bH\x00R\x0ealertDelivered\x88\x01\x01B\x12\n" +
+	"\x10_alert_delivered\"\xd6\x03\n" +
+	"\x15NotificationSignalled\x12&\n" +
+	"\x0fsource_event_id\x18\x01 \x01(\tR\rsourceEventId\x12F\n" +
+	"\x11source_created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\x0fsourceCreatedAt\x12\x19\n" +
+	"\bactor_id\x18\x03 \x01(\tR\aactorId\x12:\n" +
+	"\x06signal\x18\x04 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x12%\n" +
+	"\x0einitially_read\x18\x05 \x01(\bR\rinitiallyRead\x124\n" +
+	"\x16source_stream_sequence\x18\x06 \x01(\x04R\x14sourceStreamSequence\x12S\n" +
+	"\x0fattention_level\x18\a \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
+	"\x10alert_expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\"\x12\n" +
+	"\x10NotificationRead\"\x15\n" +
+	"\x13NotificationRemoved\"9\n" +
+	"\x19NotificationAlertResolved\x12\x1c\n" +
+	"\tdelivered\x18\x01 \x01(\bR\tdelivered\"\x84\x04\n" +
 	"\x11NotificationEvent\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12!\n" +
-	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12;\n" +
-	"\voccurred_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"\frecipient_id\x18\x02 \x01(\tR\vrecipientId\x12'\n" +
+	"\x0fnotification_id\x18\x03 \x01(\tR\x0enotificationId\x12;\n" +
+	"\voccurred_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
 	"occurredAt\x129\n" +
 	"\n" +
-	"expires_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12E\n" +
+	"expires_at\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\texpiresAt\x12E\n" +
 	"\tsignalled\x18d \x01(\v2%.chatto.core.v1.NotificationSignalledH\x00R\tsignalled\x126\n" +
-	"\x04read\x18e \x01(\v2 .chatto.core.v1.NotificationReadH\x00R\x04read\x12E\n" +
-	"\tdismissed\x18f \x01(\v2%.chatto.core.v1.NotificationDismissedH\x00R\tdismissed\x12R\n" +
+	"\x04read\x18e \x01(\v2 .chatto.core.v1.NotificationReadH\x00R\x04read\x12?\n" +
+	"\aremoved\x18f \x01(\v2#.chatto.core.v1.NotificationRemovedH\x00R\aremoved\x12R\n" +
 	"\x0ealert_resolved\x18g \x01(\v2).chatto.core.v1.NotificationAlertResolvedH\x00R\ralertResolvedB\a\n" +
-	"\x05event*\xb1\x03\n" +
-	"\x16NotificationPolicyKind\x12(\n" +
-	"$NOTIFICATION_POLICY_KIND_UNSPECIFIED\x10\x00\x12+\n" +
-	"'NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE\x10\x01\x12+\n" +
-	"'NOTIFICATION_POLICY_KIND_DIRECT_MENTION\x10\x02\x12\"\n" +
-	"\x1eNOTIFICATION_POLICY_KIND_REPLY\x10\x03\x12)\n" +
-	"%NOTIFICATION_POLICY_KIND_ROLE_MENTION\x10\x04\x12!\n" +
-	"\x1dNOTIFICATION_POLICY_KIND_HERE\x10\x05\x12 \n" +
-	"\x1cNOTIFICATION_POLICY_KIND_ALL\x10\x06\x12,\n" +
-	"(NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD\x10\a\x12*\n" +
-	"&NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM\x10\b\x12%\n" +
-	"!NOTIFICATION_POLICY_KIND_REACTION\x10\t*\xcf\x01\n" +
-	"\x1dNotificationDeliveryIntensity\x12/\n" +
-	"+NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED\x10\x00\x12'\n" +
-	"#NOTIFICATION_DELIVERY_INTENSITY_OFF\x10\x01\x12)\n" +
-	"%NOTIFICATION_DELIVERY_INTENSITY_BADGE\x10\x02\x12)\n" +
-	"%NOTIFICATION_DELIVERY_INTENSITY_ALERT\x10\x03*\xa0\x01\n" +
+	"\x05event*\x89\x04\n" +
+	"\x1eNotificationPreferenceCategory\x120\n" +
+	",NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED\x10\x00\x123\n" +
+	"/NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE\x10\x01\x123\n" +
+	"/NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION\x10\x02\x12*\n" +
+	"&NOTIFICATION_PREFERENCE_CATEGORY_REPLY\x10\x03\x121\n" +
+	"-NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION\x10\x04\x12)\n" +
+	"%NOTIFICATION_PREFERENCE_CATEGORY_HERE\x10\x05\x12(\n" +
+	"$NOTIFICATION_PREFERENCE_CATEGORY_ALL\x10\x06\x124\n" +
+	"0NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD\x10\a\x122\n" +
+	".NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM\x10\b\x12-\n" +
+	")NOTIFICATION_PREFERENCE_CATEGORY_REACTION\x10\t*\xb6\x01\n" +
+	"\x18NotificationDeliveryMode\x12*\n" +
+	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
+	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12$\n" +
+	" NOTIFICATION_DELIVERY_MODE_BADGE\x10\x02\x12$\n" +
+	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03*\xa0\x01\n" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +
-	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02*\x86\x01\n" +
-	"\x15NotificationReadState\x12'\n" +
-	"#NOTIFICATION_READ_STATE_UNSPECIFIED\x10\x00\x12\"\n" +
-	"\x1eNOTIFICATION_READ_STATE_UNREAD\x10\x01\x12 \n" +
-	"\x1cNOTIFICATION_READ_STATE_READ\x10\x02*\xb7\x02\n" +
-	"\x19NotificationRemovalReason\x12+\n" +
-	"'NOTIFICATION_REMOVAL_REASON_UNSPECIFIED\x10\x00\x12'\n" +
-	"#NOTIFICATION_REMOVAL_REASON_DELETED\x10\x01\x120\n" +
-	",NOTIFICATION_REMOVAL_REASON_TARGET_RETRACTED\x10\x02\x120\n" +
-	",NOTIFICATION_REMOVAL_REASON_REACTION_REMOVED\x10\x03\x12/\n" +
-	"+NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST\x10\x04\x12/\n" +
-	"+NOTIFICATION_REMOVAL_REASON_ACCOUNT_DELETED\x10\x05*\xe4\x01\n" +
-	"\x16NotificationAlertState\x12(\n" +
-	"$NOTIFICATION_ALERT_STATE_UNSPECIFIED\x10\x00\x12+\n" +
-	"'NOTIFICATION_ALERT_STATE_NOT_APPLICABLE\x10\x01\x12$\n" +
-	" NOTIFICATION_ALERT_STATE_PENDING\x10\x02\x12&\n" +
-	"\"NOTIFICATION_ALERT_STATE_DELIVERED\x10\x03\x12%\n" +
-	"!NOTIFICATION_ALERT_STATE_SILENCED\x10\x04B\xb4\x01\n" +
+	"&NOTIFICATION_ATTENTION_LEVEL_IMPORTANT\x10\x02B\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11NotificationProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -2268,96 +1968,80 @@ func file_chatto_core_v1_notification_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_notification_proto_rawDescData
 }
 
-var file_chatto_core_v1_notification_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
+var file_chatto_core_v1_notification_proto_enumTypes = make([]protoimpl.EnumInfo, 3)
 var file_chatto_core_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
 var file_chatto_core_v1_notification_proto_goTypes = []any{
-	(NotificationPolicyKind)(0),          // 0: chatto.core.v1.NotificationPolicyKind
-	(NotificationDeliveryIntensity)(0),   // 1: chatto.core.v1.NotificationDeliveryIntensity
+	(NotificationPreferenceCategory)(0),  // 0: chatto.core.v1.NotificationPreferenceCategory
+	(NotificationDeliveryMode)(0),        // 1: chatto.core.v1.NotificationDeliveryMode
 	(NotificationAttentionLevel)(0),      // 2: chatto.core.v1.NotificationAttentionLevel
-	(NotificationReadState)(0),           // 3: chatto.core.v1.NotificationReadState
-	(NotificationRemovalReason)(0),       // 4: chatto.core.v1.NotificationRemovalReason
-	(NotificationAlertState)(0),          // 5: chatto.core.v1.NotificationAlertState
-	(*Notification)(nil),                 // 6: chatto.core.v1.Notification
-	(*DMMessageNotification)(nil),        // 7: chatto.core.v1.DMMessageNotification
-	(*MentionNotification)(nil),          // 8: chatto.core.v1.MentionNotification
-	(*ReplyNotification)(nil),            // 9: chatto.core.v1.ReplyNotification
-	(*RoomMessageNotification)(nil),      // 10: chatto.core.v1.RoomMessageNotification
-	(*NotificationMessageReference)(nil), // 11: chatto.core.v1.NotificationMessageReference
-	(*DirectMessageReceived)(nil),        // 12: chatto.core.v1.DirectMessageReceived
-	(*DirectMentionReceived)(nil),        // 13: chatto.core.v1.DirectMentionReceived
-	(*ReplyReceived)(nil),                // 14: chatto.core.v1.ReplyReceived
-	(*RoleMentionReceived)(nil),          // 15: chatto.core.v1.RoleMentionReceived
-	(*HereMentionReceived)(nil),          // 16: chatto.core.v1.HereMentionReceived
-	(*AllMentionReceived)(nil),           // 17: chatto.core.v1.AllMentionReceived
-	(*FollowedThreadActivity)(nil),       // 18: chatto.core.v1.FollowedThreadActivity
-	(*FollowedRoomActivity)(nil),         // 19: chatto.core.v1.FollowedRoomActivity
-	(*ReactionReceived)(nil),             // 20: chatto.core.v1.ReactionReceived
-	(*NotificationSignal)(nil),           // 21: chatto.core.v1.NotificationSignal
-	(*NotificationOccurrence)(nil),       // 22: chatto.core.v1.NotificationOccurrence
-	(*NotificationSignalled)(nil),        // 23: chatto.core.v1.NotificationSignalled
-	(*NotificationRead)(nil),             // 24: chatto.core.v1.NotificationRead
-	(*NotificationDismissed)(nil),        // 25: chatto.core.v1.NotificationDismissed
-	(*NotificationAlertResolved)(nil),    // 26: chatto.core.v1.NotificationAlertResolved
-	(*NotificationEvent)(nil),            // 27: chatto.core.v1.NotificationEvent
-	(*timestamppb.Timestamp)(nil),        // 28: google.protobuf.Timestamp
+	(*Notification)(nil),                 // 3: chatto.core.v1.Notification
+	(*DMMessageNotification)(nil),        // 4: chatto.core.v1.DMMessageNotification
+	(*MentionNotification)(nil),          // 5: chatto.core.v1.MentionNotification
+	(*ReplyNotification)(nil),            // 6: chatto.core.v1.ReplyNotification
+	(*RoomMessageNotification)(nil),      // 7: chatto.core.v1.RoomMessageNotification
+	(*NotificationMessageReference)(nil), // 8: chatto.core.v1.NotificationMessageReference
+	(*DirectMessageReceived)(nil),        // 9: chatto.core.v1.DirectMessageReceived
+	(*DirectMentionReceived)(nil),        // 10: chatto.core.v1.DirectMentionReceived
+	(*ReplyReceived)(nil),                // 11: chatto.core.v1.ReplyReceived
+	(*RoleMentionReceived)(nil),          // 12: chatto.core.v1.RoleMentionReceived
+	(*HereMentionReceived)(nil),          // 13: chatto.core.v1.HereMentionReceived
+	(*AllMentionReceived)(nil),           // 14: chatto.core.v1.AllMentionReceived
+	(*FollowedThreadActivity)(nil),       // 15: chatto.core.v1.FollowedThreadActivity
+	(*FollowedRoomActivity)(nil),         // 16: chatto.core.v1.FollowedRoomActivity
+	(*ReactionReceived)(nil),             // 17: chatto.core.v1.ReactionReceived
+	(*NotificationSignal)(nil),           // 18: chatto.core.v1.NotificationSignal
+	(*NotificationOccurrence)(nil),       // 19: chatto.core.v1.NotificationOccurrence
+	(*NotificationSignalled)(nil),        // 20: chatto.core.v1.NotificationSignalled
+	(*NotificationRead)(nil),             // 21: chatto.core.v1.NotificationRead
+	(*NotificationRemoved)(nil),          // 22: chatto.core.v1.NotificationRemoved
+	(*NotificationAlertResolved)(nil),    // 23: chatto.core.v1.NotificationAlertResolved
+	(*NotificationEvent)(nil),            // 24: chatto.core.v1.NotificationEvent
+	(*timestamppb.Timestamp)(nil),        // 25: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_notification_proto_depIdxs = []int32{
-	28, // 0: chatto.core.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
-	7,  // 1: chatto.core.v1.Notification.dm_message:type_name -> chatto.core.v1.DMMessageNotification
-	8,  // 2: chatto.core.v1.Notification.mention:type_name -> chatto.core.v1.MentionNotification
-	9,  // 3: chatto.core.v1.Notification.reply:type_name -> chatto.core.v1.ReplyNotification
-	10, // 4: chatto.core.v1.Notification.room_message:type_name -> chatto.core.v1.RoomMessageNotification
-	11, // 5: chatto.core.v1.DirectMessageReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 6: chatto.core.v1.DirectMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 7: chatto.core.v1.ReplyReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 8: chatto.core.v1.RoleMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 9: chatto.core.v1.HereMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 10: chatto.core.v1.AllMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 11: chatto.core.v1.FollowedThreadActivity.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 12: chatto.core.v1.FollowedRoomActivity.message:type_name -> chatto.core.v1.NotificationMessageReference
-	11, // 13: chatto.core.v1.ReactionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
-	12, // 14: chatto.core.v1.NotificationSignal.direct_message_received:type_name -> chatto.core.v1.DirectMessageReceived
-	13, // 15: chatto.core.v1.NotificationSignal.direct_mention_received:type_name -> chatto.core.v1.DirectMentionReceived
-	14, // 16: chatto.core.v1.NotificationSignal.reply_received:type_name -> chatto.core.v1.ReplyReceived
-	15, // 17: chatto.core.v1.NotificationSignal.role_mention_received:type_name -> chatto.core.v1.RoleMentionReceived
-	16, // 18: chatto.core.v1.NotificationSignal.here_mention_received:type_name -> chatto.core.v1.HereMentionReceived
-	17, // 19: chatto.core.v1.NotificationSignal.all_mention_received:type_name -> chatto.core.v1.AllMentionReceived
-	18, // 20: chatto.core.v1.NotificationSignal.followed_thread_activity:type_name -> chatto.core.v1.FollowedThreadActivity
-	19, // 21: chatto.core.v1.NotificationSignal.followed_room_activity:type_name -> chatto.core.v1.FollowedRoomActivity
-	20, // 22: chatto.core.v1.NotificationSignal.reaction_received:type_name -> chatto.core.v1.ReactionReceived
-	28, // 23: chatto.core.v1.NotificationOccurrence.source_created_at:type_name -> google.protobuf.Timestamp
-	21, // 24: chatto.core.v1.NotificationOccurrence.signal:type_name -> chatto.core.v1.NotificationSignal
-	1,  // 25: chatto.core.v1.NotificationOccurrence.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
-	3,  // 26: chatto.core.v1.NotificationOccurrence.read_state:type_name -> chatto.core.v1.NotificationReadState
-	28, // 27: chatto.core.v1.NotificationOccurrence.evaluated_at:type_name -> google.protobuf.Timestamp
-	28, // 28: chatto.core.v1.NotificationOccurrence.updated_at:type_name -> google.protobuf.Timestamp
-	28, // 29: chatto.core.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
-	5,  // 30: chatto.core.v1.NotificationOccurrence.alert_state:type_name -> chatto.core.v1.NotificationAlertState
-	2,  // 31: chatto.core.v1.NotificationOccurrence.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
-	28, // 32: chatto.core.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
-	28, // 33: chatto.core.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
-	21, // 34: chatto.core.v1.NotificationSignalled.signal:type_name -> chatto.core.v1.NotificationSignal
-	1,  // 35: chatto.core.v1.NotificationSignalled.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
-	3,  // 36: chatto.core.v1.NotificationSignalled.initial_read_state:type_name -> chatto.core.v1.NotificationReadState
-	28, // 37: chatto.core.v1.NotificationSignalled.evaluated_at:type_name -> google.protobuf.Timestamp
-	2,  // 38: chatto.core.v1.NotificationSignalled.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
-	28, // 39: chatto.core.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
-	28, // 40: chatto.core.v1.NotificationRead.read_at:type_name -> google.protobuf.Timestamp
-	4,  // 41: chatto.core.v1.NotificationDismissed.reason:type_name -> chatto.core.v1.NotificationRemovalReason
-	28, // 42: chatto.core.v1.NotificationDismissed.dismissed_at:type_name -> google.protobuf.Timestamp
-	5,  // 43: chatto.core.v1.NotificationAlertResolved.state:type_name -> chatto.core.v1.NotificationAlertState
-	28, // 44: chatto.core.v1.NotificationAlertResolved.resolved_at:type_name -> google.protobuf.Timestamp
-	28, // 45: chatto.core.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	28, // 46: chatto.core.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
-	23, // 47: chatto.core.v1.NotificationEvent.signalled:type_name -> chatto.core.v1.NotificationSignalled
-	24, // 48: chatto.core.v1.NotificationEvent.read:type_name -> chatto.core.v1.NotificationRead
-	25, // 49: chatto.core.v1.NotificationEvent.dismissed:type_name -> chatto.core.v1.NotificationDismissed
-	26, // 50: chatto.core.v1.NotificationEvent.alert_resolved:type_name -> chatto.core.v1.NotificationAlertResolved
-	51, // [51:51] is the sub-list for method output_type
-	51, // [51:51] is the sub-list for method input_type
-	51, // [51:51] is the sub-list for extension type_name
-	51, // [51:51] is the sub-list for extension extendee
-	0,  // [0:51] is the sub-list for field type_name
+	25, // 0: chatto.core.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
+	4,  // 1: chatto.core.v1.Notification.dm_message:type_name -> chatto.core.v1.DMMessageNotification
+	5,  // 2: chatto.core.v1.Notification.mention:type_name -> chatto.core.v1.MentionNotification
+	6,  // 3: chatto.core.v1.Notification.reply:type_name -> chatto.core.v1.ReplyNotification
+	7,  // 4: chatto.core.v1.Notification.room_message:type_name -> chatto.core.v1.RoomMessageNotification
+	8,  // 5: chatto.core.v1.DirectMessageReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 6: chatto.core.v1.DirectMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 7: chatto.core.v1.ReplyReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 8: chatto.core.v1.RoleMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 9: chatto.core.v1.HereMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 10: chatto.core.v1.AllMentionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 11: chatto.core.v1.FollowedThreadActivity.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 12: chatto.core.v1.FollowedRoomActivity.message:type_name -> chatto.core.v1.NotificationMessageReference
+	8,  // 13: chatto.core.v1.ReactionReceived.message:type_name -> chatto.core.v1.NotificationMessageReference
+	9,  // 14: chatto.core.v1.NotificationSignal.direct_message_received:type_name -> chatto.core.v1.DirectMessageReceived
+	10, // 15: chatto.core.v1.NotificationSignal.direct_mention_received:type_name -> chatto.core.v1.DirectMentionReceived
+	11, // 16: chatto.core.v1.NotificationSignal.reply_received:type_name -> chatto.core.v1.ReplyReceived
+	12, // 17: chatto.core.v1.NotificationSignal.role_mention_received:type_name -> chatto.core.v1.RoleMentionReceived
+	13, // 18: chatto.core.v1.NotificationSignal.here_mention_received:type_name -> chatto.core.v1.HereMentionReceived
+	14, // 19: chatto.core.v1.NotificationSignal.all_mention_received:type_name -> chatto.core.v1.AllMentionReceived
+	15, // 20: chatto.core.v1.NotificationSignal.followed_thread_activity:type_name -> chatto.core.v1.FollowedThreadActivity
+	16, // 21: chatto.core.v1.NotificationSignal.followed_room_activity:type_name -> chatto.core.v1.FollowedRoomActivity
+	17, // 22: chatto.core.v1.NotificationSignal.reaction_received:type_name -> chatto.core.v1.ReactionReceived
+	25, // 23: chatto.core.v1.NotificationOccurrence.source_created_at:type_name -> google.protobuf.Timestamp
+	18, // 24: chatto.core.v1.NotificationOccurrence.signal:type_name -> chatto.core.v1.NotificationSignal
+	25, // 25: chatto.core.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
+	2,  // 26: chatto.core.v1.NotificationOccurrence.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
+	25, // 27: chatto.core.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
+	25, // 28: chatto.core.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
+	18, // 29: chatto.core.v1.NotificationSignalled.signal:type_name -> chatto.core.v1.NotificationSignal
+	2,  // 30: chatto.core.v1.NotificationSignalled.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
+	25, // 31: chatto.core.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
+	25, // 32: chatto.core.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	25, // 33: chatto.core.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
+	20, // 34: chatto.core.v1.NotificationEvent.signalled:type_name -> chatto.core.v1.NotificationSignalled
+	21, // 35: chatto.core.v1.NotificationEvent.read:type_name -> chatto.core.v1.NotificationRead
+	22, // 36: chatto.core.v1.NotificationEvent.removed:type_name -> chatto.core.v1.NotificationRemoved
+	23, // 37: chatto.core.v1.NotificationEvent.alert_resolved:type_name -> chatto.core.v1.NotificationAlertResolved
+	38, // [38:38] is the sub-list for method output_type
+	38, // [38:38] is the sub-list for method input_type
+	38, // [38:38] is the sub-list for extension type_name
+	38, // [38:38] is the sub-list for extension extendee
+	0,  // [0:38] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_notification_proto_init() }
@@ -2383,10 +2067,11 @@ func file_chatto_core_v1_notification_proto_init() {
 		(*NotificationSignal_FollowedRoomActivity)(nil),
 		(*NotificationSignal_ReactionReceived)(nil),
 	}
+	file_chatto_core_v1_notification_proto_msgTypes[16].OneofWrappers = []any{}
 	file_chatto_core_v1_notification_proto_msgTypes[21].OneofWrappers = []any{
 		(*NotificationEvent_Signalled)(nil),
 		(*NotificationEvent_Read)(nil),
-		(*NotificationEvent_Dismissed)(nil),
+		(*NotificationEvent_Removed)(nil),
 		(*NotificationEvent_AlertResolved)(nil),
 	}
 	type x struct{}
@@ -2394,7 +2079,7 @@ func file_chatto_core_v1_notification_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_notification_proto_rawDesc), len(file_chatto_core_v1_notification_proto_rawDesc)),
-			NumEnums:      6,
+			NumEnums:      3,
 			NumMessages:   22,
 			NumExtensions: 0,
 			NumServices:   0,

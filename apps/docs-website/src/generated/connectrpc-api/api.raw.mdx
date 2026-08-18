@@ -2193,7 +2193,7 @@ One exact notification occurrence.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
+| `occurrence` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Visible occurrence. Absence is reported as NOT_FOUND. |
 
 
 <a id="chatto-api-v1-NotificationService-BatchGetNotificationOccurrences"></a>
@@ -2228,7 +2228,7 @@ Exact visible notification occurrences requested by stable ID.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notifications` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
+| `occurrences` | repeated [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Found occurrences in first-seen request order. |
 
 
 <a id="chatto-api-v1-NotificationService-ListNotificationOccurrences"></a>
@@ -2237,6 +2237,8 @@ Exact visible notification occurrences requested by stable ID.
 
 Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
+Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+signal kind this server version cannot validate and assemble.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/ListNotificationOccurrences
@@ -2266,7 +2268,7 @@ One page of exact notification occurrences.
 | `unread_count` | `int32` | Total unread occurrence count, independent of presentation grouping. |
 | `next_expiry_at` | `google.protobuf.Timestamp` | Earliest expiry in the complete list, including occurrences outside this page. Clients refresh authoritative notification state at this boundary. |
 | `room_unread_counts` | repeated [`NotificationRoomUnreadCount`](#chatto-api-v1-NotificationRoomUnreadCount) | Complete unread-occurrence counts by target room. This is independent of the bounded page so room indicators remain authoritative. |
-| `important_unread_count` | `optional int32` | Exact unread occurrences with Important attention. Absent servers predate attention tiers, so clients should conservatively treat all unread occurrences as Important. |
+| `important_unread_count` | `int32` | Exact unread occurrences with Important attention. |
 
 
 <a id="chatto-api-v1-NotificationService-MarkNotificationRead"></a>
@@ -2299,7 +2301,7 @@ Notification occurrence after marking it read.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `notification` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Updated occurrence. |
+| `occurrence` | [`NotificationOccurrence`](#chatto-api-v1-NotificationOccurrence) | Updated occurrence. |
 
 
 <a id="chatto-api-v1-NotificationService-DeleteNotificationOccurrence"></a>
@@ -2407,7 +2409,7 @@ Result of deleting every currently visible notification occurrence.
 
 ### GetNotificationPolicy
 
-Gets every supported signal class and its inherited delivery intensity.
+Gets every supported preference category and its effective delivery mode.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
@@ -2455,8 +2457,8 @@ Set or clear one notification preference override.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
-| `kind` | [`NotificationPolicyKind`](#chatto-api-v1-NotificationPolicyKind) | Required notification signal class. |
-| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Unspecified clears the selected server or room override. |
+| `category` | [`NotificationPreferenceCategory`](#chatto-api-v1-NotificationPreferenceCategory) | Required notification preference category. |
+| `override` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Override at the selected scope. Absence clears it to Inherit. |
 
 
 <a id="chatto-api-v1-SetNotificationPolicyPreferenceResponse"></a>
@@ -4320,7 +4322,6 @@ Exact visible message destination carried by a notification signal.
 | `room` | [`RoomSummary`](#chatto-api-v1-RoomSummary) | Room containing the source activity. |
 | `event_id` | `string` | Exact source or reacted-to message event to reveal. |
 | `thread_root_event_id` | `optional string` | Thread root when the target is inside a thread. |
-| `parent_event_id` | `optional string` | Direct reply target when the occurrence was caused by a reply. |
 
 
 
@@ -4333,11 +4334,9 @@ One exact Notifications 2.0 source occurrence.
 | Field | Type | Description |
 | --- | --- | --- |
 | `id` | `string` | Stable occurrence ID. |
-| `source_event_id` | `string` | Durable source event from which this occurrence was derived. |
 | `created_at` | `google.protobuf.Timestamp` | Time of the source activity. |
 | `actor` | [`User`](#chatto-api-v1-User) | User who caused the source activity, when still visible. |
 | `signal` | [`NotificationSignal`](#chatto-api-v1-NotificationSignal) | Immutable cause and destination represented by this occurrence. |
-| `intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective delivery intensity when the signal was emitted. |
 | `unread` | `bool` | Whether this occurrence still contributes unread attention. |
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
@@ -4348,14 +4347,13 @@ One exact Notifications 2.0 source occurrence.
 
 ### NotificationPolicyPreference
 
-Explicit and effective delivery policy for one notification signal class.
+Explicit and effective delivery policy for one notification preference category.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `kind` | [`NotificationPolicyKind`](#chatto-api-v1-NotificationPolicyKind) | Notification signal class controlled by this row. |
-| `server_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit server override, or unspecified when inherited from product defaults. |
-| `room_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Explicit room override, or unspecified when inherited from server scope. |
-| `effective_intensity` | [`NotificationDeliveryIntensity`](#chatto-api-v1-NotificationDeliveryIntensity) | Effective intensity after applying product, server, and room inheritance. |
+| `category` | [`NotificationPreferenceCategory`](#chatto-api-v1-NotificationPreferenceCategory) | Preference category controlled by this row. |
+| `override` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Explicit override at the requested scope. Absence means Inherit. |
+| `effective` | [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Effective mode after applying product, server, and room inheritance. |
 
 
 
@@ -4369,7 +4367,7 @@ Unread notification occurrences currently targeting one room.
 | --- | --- | --- |
 | `room_id` | `string` | Target room ID. |
 | `unread_count` | `int32` | Number of unread occurrences targeting this room. |
-| `important_unread_count` | `optional int32` | Unread occurrences in this room with Important attention. Absence has the same compatibility meaning as the response-level field. |
+| `important_unread_count` | `int32` | Unread occurrences in this room with Important attention. |
 
 
 
@@ -4429,6 +4427,7 @@ A message mentioning a role held by the viewer.
 | Field | Type | Description |
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
+| `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
 
 
 
@@ -4774,39 +4773,39 @@ whether the notification is eligible for sound or push delivery.
 | `NOTIFICATION_ATTENTION_LEVEL_IMPORTANT` | `2` | Important activity appears with Chatto's notification orange. |
 
 
-<a id="chatto-api-v1-NotificationDeliveryIntensity"></a>
+<a id="chatto-api-v1-NotificationDeliveryMode"></a>
 
-### NotificationDeliveryIntensity
+### NotificationDeliveryMode
 
-Delivery strength for one notification signal class.
+Delivery behavior for one notification preference category.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED` | `0` | In preference writes, unspecified clears the override (Inherit). |
-| `NOTIFICATION_DELIVERY_INTENSITY_OFF` | `1` | Matching activity does not create a notification occurrence. |
-| `NOTIFICATION_DELIVERY_INTENSITY_BADGE` | `2` | Matching activity appears in the notification list without interruptive delivery. |
-| `NOTIFICATION_DELIVERY_INTENSITY_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
+| `NOTIFICATION_DELIVERY_MODE_UNSPECIFIED` | `0` | No delivery mode was specified. This value is not a valid override. |
+| `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create a notification occurrence. |
+| `NOTIFICATION_DELIVERY_MODE_BADGE` | `2` | Matching activity appears in the notification list without interruptive delivery. |
+| `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
 
 
-<a id="chatto-api-v1-NotificationPolicyKind"></a>
+<a id="chatto-api-v1-NotificationPreferenceCategory"></a>
 
-### NotificationPolicyKind
+### NotificationPreferenceCategory
 
 Stable preference key for one class of notification signal. Notification
 content uses NotificationSignal instead of this enum.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `NOTIFICATION_POLICY_KIND_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
-| `NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
-| `NOTIFICATION_POLICY_KIND_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
-| `NOTIFICATION_POLICY_KIND_REPLY` | `3` | Activity replied directly to the viewer's message. |
-| `NOTIFICATION_POLICY_KIND_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
-| `NOTIFICATION_POLICY_KIND_HERE` | `5` | An `@here` mention included the viewer. |
-| `NOTIFICATION_POLICY_KIND_ALL` | `6` | An `@all` mention included the viewer. |
-| `NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
-| `NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
-| `NOTIFICATION_POLICY_KIND_REACTION` | `9` | Someone reacted to the viewer's message. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_REPLY` | `3` | Activity replied directly to the viewer's message. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_HERE` | `5` | An `@here` mention included the viewer. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_ALL` | `6` | An `@all` mention included the viewer. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
+| `NOTIFICATION_PREFERENCE_CATEGORY_REACTION` | `9` | Someone reacted to the viewer's message. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

@@ -11,26 +11,25 @@ import (
 	"hmans.de/chatto/pkg/events"
 )
 
-var notificationPolicyKinds = []corev1.NotificationPolicyKind{
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM,
-	corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION,
+var notificationPreferenceCategories = []corev1.NotificationPreferenceCategory{
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM,
+	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION,
 }
 
-// NotificationPolicyPreference is one signal kind's explicit and effective policy
-// at server scope and, when RoomID is non-empty, room scope.
+// NotificationPolicyPreference is one category's override and effective policy
+// at the requested server or room scope.
 type NotificationPolicyPreference struct {
-	RoomID          string
-	Kind            corev1.NotificationPolicyKind
-	ServerIntensity corev1.NotificationDeliveryIntensity
-	RoomIntensity   corev1.NotificationDeliveryIntensity
-	Effective       corev1.NotificationDeliveryIntensity
+	RoomID    string
+	Category  corev1.NotificationPreferenceCategory
+	Override  *corev1.NotificationDeliveryMode
+	Effective corev1.NotificationDeliveryMode
 }
 
 // NotificationPolicyModel owns authenticated Notifications 2.0 policy reads
@@ -45,75 +44,75 @@ func (c *ChattoCore) NotificationPolicy() *NotificationPolicyModel {
 	return c.notificationPolicy
 }
 
-func defaultNotificationIntensity(kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
-	switch kind {
-	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE
-	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF
-	case corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ROLE_MENTION,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_HERE,
-		corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_ALL:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
+func defaultNotificationMode(category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
+	switch category {
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE,
+		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
 	default:
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 }
 
-func validNotificationPolicyKind(kind corev1.NotificationPolicyKind) bool {
-	return defaultNotificationIntensity(kind) != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+func validNotificationPreferenceCategory(category corev1.NotificationPreferenceCategory) bool {
+	return defaultNotificationMode(category) != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 }
 
-func validNotificationIntensity(intensity corev1.NotificationDeliveryIntensity, allowInherit bool) bool {
-	if allowInherit && intensity == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
+func validNotificationMode(mode corev1.NotificationDeliveryMode, allowInherit bool) bool {
+	if allowInherit && mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 		return true
 	}
-	return intensity >= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF &&
-		intensity <= corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
+	return mode >= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF &&
+		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
 }
 
-func (cm *ConfigModel) notificationServerIntensity(userID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
+func (cm *ConfigModel) notificationServerMode(userID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
 	if cm == nil || cm.config.Projection() == nil {
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
 	if u == nil {
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
-	return u.serverIntensityByKind[kind]
+	return u.serverModeByCategory[category]
 }
 
-func (cm *ConfigModel) notificationRoomIntensity(userID, roomID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
+func (cm *ConfigModel) notificationRoomMode(userID, roomID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
 	if cm == nil || cm.config.Projection() == nil {
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 	cm.config.Projection().RLock()
 	defer cm.config.Projection().RUnlock()
 	u := cm.config.Projection().users[userID]
 	if u == nil {
-		return corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
-	return u.roomIntensityByRoomAndKind[roomID][kind]
+	return u.roomModeByRoomAndCategory[roomID][category]
 }
 
-// GetEffectiveNotificationIntensity resolves room override, then server
+// GetEffectiveNotificationMode resolves room override, then server
 // override, then the product default for one signal class.
-func (c *ChattoCore) GetEffectiveNotificationIntensity(userID, roomID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
+func (c *ChattoCore) GetEffectiveNotificationMode(userID, roomID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
 	if roomID != "" {
-		if intensity := c.configModel.notificationRoomIntensity(userID, roomID, kind); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			return intensity
+		if mode := c.configModel.notificationRoomMode(userID, roomID, category); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			return mode
 		}
 	}
-	if intensity := c.configModel.notificationServerIntensity(userID, kind); intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-		return intensity
+	if mode := c.configModel.notificationServerMode(userID, category); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		return mode
 	}
-	return defaultNotificationIntensity(kind)
+	return defaultNotificationMode(category)
 }
 
 // waitForCurrentNotificationPolicy makes source-time policy evaluation observe
@@ -134,16 +133,20 @@ func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error
 	return nil
 }
 
-func (c *ChattoCore) setServerNotificationIntensity(ctx context.Context, userID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) error {
-	if !validNotificationPolicyKind(kind) || !validNotificationIntensity(intensity, true) {
-		return invalidArgument("invalid notification policy kind or delivery intensity")
+func (c *ChattoCore) setServerNotificationMode(ctx context.Context, userID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) error {
+	if !validNotificationPreferenceCategory(category) || !validNotificationMode(mode, true) {
+		return invalidArgument("invalid notification preference category or delivery mode")
 	}
 	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		if c.configModel.notificationServerIntensity(userID, kind) == intensity {
+		if c.configModel.notificationServerMode(userID, category) == mode {
 			return nil, nil
 		}
+		var override *corev1.NotificationDeliveryMode
+		if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			override = &mode
+		}
 		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
-			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Kind: kind, Intensity: intensity},
+			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Category: category, Override: override},
 		}})}, nil
 	})
 }
@@ -162,35 +165,40 @@ func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, act
 			return nil, err
 		}
 	}
-	result := make([]NotificationPolicyPreference, 0, len(notificationPolicyKinds))
-	for _, kind := range notificationPolicyKinds {
+	result := make([]NotificationPolicyPreference, 0, len(notificationPreferenceCategories))
+	for _, category := range notificationPreferenceCategories {
+		explicit := s.core.configModel.notificationServerMode(actorID, category)
+		if roomID != "" {
+			explicit = s.core.configModel.notificationRoomMode(actorID, roomID, category)
+		}
+		var override *corev1.NotificationDeliveryMode
+		if explicit != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			override = &explicit
+		}
 		result = append(result, NotificationPolicyPreference{
-			RoomID:          roomID,
-			Kind:            kind,
-			ServerIntensity: s.core.configModel.notificationServerIntensity(actorID, kind),
-			RoomIntensity:   s.core.configModel.notificationRoomIntensity(actorID, roomID, kind),
-			Effective:       s.core.GetEffectiveNotificationIntensity(actorID, roomID, kind),
+			RoomID: roomID, Category: category, Override: override,
+			Effective: s.core.GetEffectiveNotificationMode(actorID, roomID, category),
 		})
 	}
 	return result, nil
 }
 
-func (s *NotificationPolicyModel) SetServerNotificationIntensity(ctx context.Context, actorID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+func (s *NotificationPolicyModel) SetServerNotificationMode(ctx context.Context, actorID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if err := s.core.setServerNotificationIntensity(ctx, actorID, kind, intensity); err != nil {
+	if err := s.core.setServerNotificationMode(ctx, actorID, category, mode); err != nil {
 		return nil, fmt.Errorf("set server notification preference: %w", err)
 	}
 	return s.GetNotificationPolicy(ctx, actorID, "")
 }
 
-func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Context, actorID, roomID string, kind corev1.NotificationPolicyKind, intensity corev1.NotificationDeliveryIntensity) ([]NotificationPolicyPreference, error) {
+func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, actorID, roomID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) ([]NotificationPolicyPreference, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
-	if !validNotificationPolicyKind(kind) || !validNotificationIntensity(intensity, true) {
-		return nil, invalidArgument("invalid notification policy kind or delivery intensity")
+	if !validNotificationPreferenceCategory(category) || !validNotificationMode(mode, true) {
+		return nil, invalidArgument("invalid notification preference category or delivery mode")
 	}
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
 		authorizationSeq, err := s.prepareRoomAccess(ctx, actorID, roomID)
@@ -201,12 +209,16 @@ func (s *NotificationPolicyModel) SetRoomNotificationIntensity(ctx context.Conte
 		if err != nil {
 			return nil, fmt.Errorf("prepare room notification preference: %w", err)
 		}
-		if s.core.configModel.notificationRoomIntensity(actorID, roomID, kind) == intensity {
+		if s.core.configModel.notificationRoomMode(actorID, roomID, category) == mode {
 			return s.GetNotificationPolicy(ctx, actorID, roomID)
+		}
+		var override *corev1.NotificationDeliveryMode
+		if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			override = &mode
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
 			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-				UserId: actorID, RoomId: &roomID, Kind: kind, Intensity: intensity,
+				UserId: actorID, RoomId: &roomID, Category: category, Override: override,
 			},
 		}})
 		subject := agg.SubjectFor(event)

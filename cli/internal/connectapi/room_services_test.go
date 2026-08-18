@@ -713,9 +713,9 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	checkInaccessible("GetNotificationPolicy", err)
 
 	_, err = env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
-		RoomId:    &roomID,
-		Kind:      apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
-		Intensity: apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_OFF,
+		RoomId:   &roomID,
+		Category: apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
+		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
 	}))
 	checkInaccessible("SetNotificationPolicyPreference", err)
 }
@@ -1510,7 +1510,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	got, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{
 		NotificationId: occurrence.GetId(),
 	}))
-	if err != nil || got.Msg.GetNotification().GetId() != occurrence.GetId() {
+	if err != nil || got.Msg.GetOccurrence().GetId() != occurrence.GetId() {
 		t.Fatalf("GetNotificationOccurrence = (%+v, %v), want %s", got, err, occurrence.GetId())
 	}
 	if _, err := env.notifications.GetNotificationOccurrence(ctx, connect.NewRequest(&apiv1.GetNotificationOccurrenceRequest{
@@ -1521,7 +1521,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	batchGet, err := env.notifications.BatchGetNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchGetNotificationOccurrencesRequest{
 		NotificationIds: []string{"missing-notification", occurrence.GetId(), occurrence.GetId()},
 	}))
-	if err != nil || len(batchGet.Msg.GetNotifications()) != 1 || batchGet.Msg.GetNotifications()[0].GetId() != occurrence.GetId() {
+	if err != nil || len(batchGet.Msg.GetOccurrences()) != 1 || batchGet.Msg.GetOccurrences()[0].GetId() != occurrence.GetId() {
 		t.Fatalf("BatchGetNotificationOccurrences = (%+v, %v), want one de-duplicated occurrence", batchGet, err)
 	}
 
@@ -1558,17 +1558,17 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	}
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
-		Kind:      apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
-		Intensity: apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		Category: apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
+		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE.Enum(),
 	}))
 	if err != nil {
 		t.Fatalf("SetNotificationPolicyPreference: %v", err)
 	}
 	found := false
 	for _, preference := range policy.Msg.GetPreferences() {
-		if preference.GetKind() == apiv1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION {
-			found = preference.GetServerIntensity() == apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE &&
-				preference.GetEffectiveIntensity() == apiv1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE
+		if preference.GetCategory() == apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION {
+			found = preference.GetOverride() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE &&
+				preference.GetEffective() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE
 		}
 	}
 	if !found {
@@ -1643,8 +1643,9 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceCreated:        posted.GetCreatedAt().AsTime(),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, dm.Id, posted.Id),
-			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, dm.Id, posted.Id),
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
@@ -1690,7 +1691,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 	batchGet, err := env.notifications.BatchGetNotificationOccurrences(ctx, connect.NewRequest(&apiv1.BatchGetNotificationOccurrencesRequest{
 		NotificationIds: []string{staleBatchGet.GetId(), visibleBatchGet.GetId(), visibleBatchGet.GetId(), "missing-notification"},
 	}))
-	if err != nil || len(batchGet.Msg.GetNotifications()) != 1 || batchGet.Msg.GetNotifications()[0].GetId() != visibleBatchGet.GetId() {
+	if err != nil || len(batchGet.Msg.GetOccurrences()) != 1 || batchGet.Msg.GetOccurrences()[0].GetId() != visibleBatchGet.GetId() {
 		t.Fatalf("BatchGetNotificationOccurrences mixed visibility = (%+v, %v), want one visible occurrence", batchGet, err)
 	}
 	if deleted, err := env.notifications.DeleteNotificationOccurrence(ctx, connect.NewRequest(&apiv1.DeleteNotificationOccurrenceRequest{
@@ -1776,8 +1777,9 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
-		Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
-		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+		Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 	}
 	occurrence, created, err := env.core.NotificationOccurrences().Create(env.ctx, input)
@@ -1834,8 +1836,9 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceCreated:        baseTime.Add(-time.Duration(index) * time.Second),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
-			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !wasCreated {
@@ -1888,8 +1891,9 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceCreated:        sourceCreated,
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION, room.Id, posted.Id),
-			Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
 		if err != nil || !created {
@@ -1988,7 +1992,7 @@ func TestNotificationServiceBoundsOccurrencePage(t *testing.T) {
 	updated, err := env.notifications.MarkNotificationRead(ctx, connect.NewRequest(&apiv1.MarkNotificationReadRequest{
 		NotificationId: inbox.Msg.GetOccurrences()[0].GetId(),
 	}))
-	if err != nil || updated.Msg.GetNotification().GetUnread() {
+	if err != nil || updated.Msg.GetOccurrence().GetUnread() {
 		t.Fatalf("MarkNotificationRead = %+v, %v", updated, err)
 	}
 	if _, err := live.NextMsg(2 * time.Second); err != nil {
@@ -2036,8 +2040,8 @@ func TestMarkNotificationReadHydratesBeforeCommitting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Get occurrence after hydration failure: %v", err)
 	}
-	if stored.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
-		t.Fatalf("occurrence state after hydration failure = %v, want unread", stored.GetReadState())
+	if stored.GetRead() {
+		t.Fatal("occurrence was marked read after hydration failure")
 	}
 }
 

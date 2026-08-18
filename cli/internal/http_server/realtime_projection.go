@@ -264,34 +264,26 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_ViewerUpsert{ViewerUpsert: viewer}})
-		case *corev1.LiveEvent_NotificationOccurrenceChanged:
-			change := payload.NotificationOccurrenceChanged
+		case *corev1.LiveEvent_NotificationOccurrencesInvalidated:
+			invalidation := payload.NotificationOccurrencesInvalidated
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
 			}
-			action := realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED
-			silent := true
-			if change.GetCreated() {
-				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, change.GetNotificationId())
-				if err == nil && current.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
-					action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED
-					silent = !change.GetAlert()
+			playSound := false
+			if candidateID := invalidation.GetAlertCandidateNotificationId(); candidateID != "" {
+				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, candidateID)
+				if err == nil && core.NotificationAlertPending(current) {
+					playSound = true
 				} else if err != nil && !errors.Is(err, core.ErrNotFound) {
 					return nil, false, err
 				}
-			} else if change.GetDeleted() {
-				action = realtimev1.RealtimeProjectionNotificationAction_REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED
 			}
 			notifications, err := s.connectAPI.BuildRealtimeProjectionNotifications(ctx, viewerID)
 			if err != nil {
 				return nil, false, err
 			}
 			replacement := realtimeProjectionNotifications(notifications)
-			replacement.Change = &realtimev1.RealtimeProjectionNotificationChange{
-				Action:         action,
-				NotificationId: change.GetNotificationId(),
-				Silent:         silent,
-			}
+			replacement.PlayNotificationSound = playSound
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationsReplace{
 				NotificationsReplace: replacement,
 			}})
@@ -527,7 +519,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			// Thread unread state is independent of notification policy. An
-			// existing follower whose FOLLOWED_THREAD intensity is Off receives
+			// existing follower whose FOLLOWED_THREAD delivery mode is Off receives
 			// no occurrence invalidation, so reconcile from the durable message
 			// fact whenever this viewer actually follows the affected thread.
 			kind, err := s.core.FindRoomKind(ctx, roomID)

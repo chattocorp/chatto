@@ -221,7 +221,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				RecipientId:                "U1",
 				SourceEventId:              "E1",
 				SourceCreatedAt:            timestamppb.New(now),
-				Signal:                     testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, "R1", "E1"),
+				Signal:                     testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"),
 				ExpiresAt:                  timestamppb.New(expiresAt),
 				NotificationStreamSequence: 41,
 			}

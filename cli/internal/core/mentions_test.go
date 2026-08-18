@@ -548,7 +548,7 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	}
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 
@@ -575,12 +575,12 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if err := proto.Unmarshal(msg.Data, &live); err != nil {
 		t.Fatalf("unmarshal live event: %v", err)
 	}
-	event := live.GetNotificationOccurrenceChanged()
+	event := live.GetNotificationOccurrencesInvalidated()
 	if event == nil {
-		t.Fatalf("expected NotificationOccurrenceChangedEvent, got %T", live.Event)
+		t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
 	}
-	if event.Alert {
-		t.Fatal("NotificationOccurrenceChangedEvent.Alert = true during DND, want false")
+	if event.GetAlertCandidateNotificationId() != "" {
+		t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
 	}
 	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {
@@ -659,7 +659,7 @@ func TestChattoCore_MentionImmediatelyAfterMarkdownCodeNotifies(t *testing.T) {
 	requireUserIDs(t, event.GetMessagePosted().GetMentionedUserIds(), mentioned.Id)
 
 	notifications := testNotificationOccurrences(t, core, mentioned.Id)
-	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION) {
+	if len(notifications) != 1 || !testOccurrenceHasKind(notifications[0], corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION) {
 		t.Fatalf("expected one mention notification, got %#v", notifications)
 	}
 }

@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationDeliveryIntensity, NotificationPolicyKind } from '$lib/api-client/notifications';
+import { NotificationDeliveryMode, NotificationPreferenceCategory } from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -34,10 +34,9 @@ describe('NotificationPolicySettings', () => {
     setReactiveLocale('en-GB');
     mocks.notifications.getPolicy.mockResolvedValue([
       {
-        kind: NotificationPolicyKind.DIRECT_MESSAGE,
-        serverIntensity: NotificationDeliveryIntensity.ALERT,
-        roomIntensity: NotificationDeliveryIntensity.UNSPECIFIED,
-        effectiveIntensity: NotificationDeliveryIntensity.ALERT
+        category: NotificationPreferenceCategory.DIRECT_MESSAGE,
+        override: NotificationDeliveryMode.ALERT,
+        effective: NotificationDeliveryMode.ALERT
       }
     ]);
     mocks.notifications.setPolicyPreference.mockRejectedValue(new Error('save rejected'));
@@ -54,17 +53,17 @@ describe('NotificationPolicySettings', () => {
     });
 
     expect(container.querySelector('select[aria-label="Room invitations"]')).toBeNull();
-    expect(select.value).toBe(String(NotificationDeliveryIntensity.ALERT));
-    select.value = String(NotificationDeliveryIntensity.OFF);
+    expect(select.value).toBe(String(NotificationDeliveryMode.ALERT));
+    select.value = String(NotificationDeliveryMode.OFF);
     select.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(() => {
       expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationPolicyKind.DIRECT_MESSAGE,
-        NotificationDeliveryIntensity.OFF,
+        NotificationPreferenceCategory.DIRECT_MESSAGE,
+        NotificationDeliveryMode.OFF,
         undefined
       );
-      expect(select.value).toBe(String(NotificationDeliveryIntensity.ALERT));
+      expect(select.value).toBe(String(NotificationDeliveryMode.ALERT));
       expect(container.textContent).toContain('save rejected');
     });
   });
@@ -73,14 +72,9 @@ describe('NotificationPolicySettings', () => {
     mocks.notifications.getPolicy.mockImplementation((roomId?: string) =>
       Promise.resolve([
         {
-          kind: NotificationPolicyKind.DIRECT_MESSAGE,
-          serverIntensity: NotificationDeliveryIntensity.ALERT,
-          roomIntensity: roomId
-            ? NotificationDeliveryIntensity.BADGE
-            : NotificationDeliveryIntensity.UNSPECIFIED,
-          effectiveIntensity: roomId
-            ? NotificationDeliveryIntensity.BADGE
-            : NotificationDeliveryIntensity.ALERT
+          category: NotificationPreferenceCategory.DIRECT_MESSAGE,
+          override: roomId ? NotificationDeliveryMode.BADGE : NotificationDeliveryMode.ALERT,
+          effective: roomId ? NotificationDeliveryMode.BADGE : NotificationDeliveryMode.ALERT
         }
       ])
     );
@@ -102,14 +96,14 @@ describe('NotificationPolicySettings', () => {
     const directMessages = container.querySelector(
       'select[aria-label="Direct messages"]'
     ) as HTMLSelectElement;
-    expect(directMessages.value).toBe(String(NotificationDeliveryIntensity.BADGE));
-    directMessages.value = String(NotificationDeliveryIntensity.UNSPECIFIED);
+    expect(directMessages.value).toBe(String(NotificationDeliveryMode.BADGE));
+    directMessages.value = String(NotificationDeliveryMode.UNSPECIFIED);
     directMessages.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(() => {
       expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationPolicyKind.DIRECT_MESSAGE,
-        NotificationDeliveryIntensity.UNSPECIFIED,
+        NotificationPreferenceCategory.DIRECT_MESSAGE,
+        null,
         'room-1'
       );
     });

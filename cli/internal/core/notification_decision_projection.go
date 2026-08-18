@@ -559,8 +559,8 @@ func notificationPolicyEntryCount(config *ConfigProjection) int64 {
 	config.RLock()
 	defer config.RUnlock()
 	for _, user := range config.users {
-		entries += int64(len(user.serverIntensityByKind))
-		for _, room := range user.roomIntensityByRoomAndKind {
+		entries += int64(len(user.serverModeByCategory))
+		for _, room := range user.roomModeByRoomAndCategory {
 			entries += int64(len(room))
 		}
 	}
@@ -649,18 +649,18 @@ func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadR
 	return s.threadFollows[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)].state
 }
 
-func (s *notificationDecisionSnapshot) effectiveNotificationIntensity(userID, roomID string, kind corev1.NotificationPolicyKind) corev1.NotificationDeliveryIntensity {
+func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, kind corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
 	s.config.RLock()
 	defer s.config.RUnlock()
 	if user := s.config.users[userID]; user != nil {
-		if intensity := user.roomIntensityByRoomAndKind[roomID][kind]; intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			return intensity
+		if mode := user.roomModeByRoomAndCategory[roomID][kind]; mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			return mode
 		}
-		if intensity := user.serverIntensityByKind[kind]; intensity != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED {
-			return intensity
+		if mode := user.serverModeByCategory[kind]; mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+			return mode
 		}
 	}
-	return defaultNotificationIntensity(kind)
+	return defaultNotificationMode(kind)
 }
 
 func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) bool {

@@ -1747,8 +1747,8 @@ type UserConfigSnapshot struct {
 	UserId                        string                                `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	Timezone                      *string                               `protobuf:"bytes,2,opt,name=timezone,proto3,oneof" json:"timezone,omitempty"`
 	TimeFormat                    *TimeFormat                           `protobuf:"varint,3,opt,name=time_format,json=timeFormat,proto3,enum=chatto.core.v1.TimeFormat,oneof" json:"time_format,omitempty"`
-	ServerNotificationPreferences []*NotificationPreferenceSnapshot     `protobuf:"bytes,6,rep,name=server_notification_preferences,json=serverNotificationPreferences,proto3" json:"server_notification_preferences,omitempty"`
-	RoomNotificationPreferences   []*RoomNotificationPreferenceSnapshot `protobuf:"bytes,7,rep,name=room_notification_preferences,json=roomNotificationPreferences,proto3" json:"room_notification_preferences,omitempty"`
+	ServerNotificationPreferences []*NotificationPreferenceSnapshot     `protobuf:"bytes,4,rep,name=server_notification_preferences,json=serverNotificationPreferences,proto3" json:"server_notification_preferences,omitempty"`
+	RoomNotificationPreferences   []*RoomNotificationPreferenceSnapshot `protobuf:"bytes,5,rep,name=room_notification_preferences,json=roomNotificationPreferences,proto3" json:"room_notification_preferences,omitempty"`
 	unknownFields                 protoimpl.UnknownFields
 	sizeCache                     protoimpl.SizeCache
 }
@@ -1819,9 +1819,9 @@ func (x *UserConfigSnapshot) GetRoomNotificationPreferences() []*RoomNotificatio
 }
 
 type NotificationPreferenceSnapshot struct {
-	state         protoimpl.MessageState        `protogen:"open.v1"`
-	Kind          NotificationPolicyKind        `protobuf:"varint,1,opt,name=kind,proto3,enum=chatto.core.v1.NotificationPolicyKind" json:"kind,omitempty"`
-	Intensity     NotificationDeliveryIntensity `protobuf:"varint,2,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	Category      NotificationPreferenceCategory `protobuf:"varint,1,opt,name=category,proto3,enum=chatto.core.v1.NotificationPreferenceCategory" json:"category,omitempty"`
+	Mode          NotificationDeliveryMode       `protobuf:"varint,2,opt,name=mode,proto3,enum=chatto.core.v1.NotificationDeliveryMode" json:"mode,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1856,18 +1856,18 @@ func (*NotificationPreferenceSnapshot) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_projection_snapshots_proto_rawDescGZIP(), []int{25}
 }
 
-func (x *NotificationPreferenceSnapshot) GetKind() NotificationPolicyKind {
+func (x *NotificationPreferenceSnapshot) GetCategory() NotificationPreferenceCategory {
 	if x != nil {
-		return x.Kind
+		return x.Category
 	}
-	return NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
+	return NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
 }
 
-func (x *NotificationPreferenceSnapshot) GetIntensity() NotificationDeliveryIntensity {
+func (x *NotificationPreferenceSnapshot) GetMode() NotificationDeliveryMode {
 	if x != nil {
-		return x.Intensity
+		return x.Mode
 	}
-	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 }
 
 type RoomNotificationPreferenceSnapshot struct {
@@ -3683,19 +3683,19 @@ const file_chatto_core_v1_projection_snapshots_proto_rawDesc = "" +
 	"\x04logo\x18\x06 \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x04logo\x123\n" +
 	"\x06banner\x18\a \x01(\v2\x1b.chatto.core.v1.AssetRecordR\x06banner\x128\n" +
 	"\x05users\x18\b \x03(\v2\".chatto.core.v1.UserConfigSnapshotR\x05usersB\x14\n" +
-	"\x12_blocked_usernames\"\xde\x03\n" +
+	"\x12_blocked_usernames\"\x9d\x03\n" +
 	"\x12UserConfigSnapshot\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x1f\n" +
 	"\btimezone\x18\x02 \x01(\tH\x00R\btimezone\x88\x01\x01\x12@\n" +
 	"\vtime_format\x18\x03 \x01(\x0e2\x1a.chatto.core.v1.TimeFormatH\x01R\n" +
 	"timeFormat\x88\x01\x01\x12v\n" +
-	"\x1fserver_notification_preferences\x18\x06 \x03(\v2..chatto.core.v1.NotificationPreferenceSnapshotR\x1dserverNotificationPreferences\x12v\n" +
-	"\x1droom_notification_preferences\x18\a \x03(\v22.chatto.core.v1.RoomNotificationPreferenceSnapshotR\x1broomNotificationPreferencesB\v\n" +
+	"\x1fserver_notification_preferences\x18\x04 \x03(\v2..chatto.core.v1.NotificationPreferenceSnapshotR\x1dserverNotificationPreferences\x12v\n" +
+	"\x1droom_notification_preferences\x18\x05 \x03(\v22.chatto.core.v1.RoomNotificationPreferenceSnapshotR\x1broomNotificationPreferencesB\v\n" +
 	"\t_timezoneB\x0e\n" +
-	"\f_time_formatJ\x04\b\x04\x10\x05J\x04\b\x05\x10\x06R\x19server_notification_levelR\x18room_notification_levels\"\xa9\x01\n" +
-	"\x1eNotificationPreferenceSnapshot\x12:\n" +
-	"\x04kind\x18\x01 \x01(\x0e2&.chatto.core.v1.NotificationPolicyKindR\x04kind\x12K\n" +
-	"\tintensity\x18\x02 \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\"\x8f\x01\n" +
+	"\f_time_format\"\xaa\x01\n" +
+	"\x1eNotificationPreferenceSnapshot\x12J\n" +
+	"\bcategory\x18\x01 \x01(\x0e2..chatto.core.v1.NotificationPreferenceCategoryR\bcategory\x12<\n" +
+	"\x04mode\x18\x02 \x01(\x0e2(.chatto.core.v1.NotificationDeliveryModeR\x04mode\"\x8f\x01\n" +
 	"\"RoomNotificationPreferenceSnapshot\x12\x17\n" +
 	"\aroom_id\x18\x01 \x01(\tR\x06roomId\x12P\n" +
 	"\vpreferences\x18\x02 \x03(\v2..chatto.core.v1.NotificationPreferenceSnapshotR\vpreferences\"\xbf\x01\n" +
@@ -3907,8 +3907,8 @@ var file_chatto_core_v1_projection_snapshots_proto_goTypes = []any{
 	(RbacPermissionSubjectKind)(0),                 // 57: chatto.core.v1.RbacPermissionSubjectKind
 	(*AssetRecord)(nil),                            // 58: chatto.core.v1.AssetRecord
 	(TimeFormat)(0),                                // 59: chatto.core.v1.TimeFormat
-	(NotificationPolicyKind)(0),                    // 60: chatto.core.v1.NotificationPolicyKind
-	(NotificationDeliveryIntensity)(0),             // 61: chatto.core.v1.NotificationDeliveryIntensity
+	(NotificationPreferenceCategory)(0),            // 60: chatto.core.v1.NotificationPreferenceCategory
+	(NotificationDeliveryMode)(0),                  // 61: chatto.core.v1.NotificationDeliveryMode
 	(*NotificationOccurrence)(nil),                 // 62: chatto.core.v1.NotificationOccurrence
 	(*AssetCreatedEvent)(nil),                      // 63: chatto.core.v1.AssetCreatedEvent
 	(*AssetProcessingStartedEvent)(nil),            // 64: chatto.core.v1.AssetProcessingStartedEvent
@@ -3961,8 +3961,8 @@ var file_chatto_core_v1_projection_snapshots_proto_depIdxs = []int32{
 	59, // 37: chatto.core.v1.UserConfigSnapshot.time_format:type_name -> chatto.core.v1.TimeFormat
 	25, // 38: chatto.core.v1.UserConfigSnapshot.server_notification_preferences:type_name -> chatto.core.v1.NotificationPreferenceSnapshot
 	26, // 39: chatto.core.v1.UserConfigSnapshot.room_notification_preferences:type_name -> chatto.core.v1.RoomNotificationPreferenceSnapshot
-	60, // 40: chatto.core.v1.NotificationPreferenceSnapshot.kind:type_name -> chatto.core.v1.NotificationPolicyKind
-	61, // 41: chatto.core.v1.NotificationPreferenceSnapshot.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
+	60, // 40: chatto.core.v1.NotificationPreferenceSnapshot.category:type_name -> chatto.core.v1.NotificationPreferenceCategory
+	61, // 41: chatto.core.v1.NotificationPreferenceSnapshot.mode:type_name -> chatto.core.v1.NotificationDeliveryMode
 	25, // 42: chatto.core.v1.RoomNotificationPreferenceSnapshot.preferences:type_name -> chatto.core.v1.NotificationPreferenceSnapshot
 	62, // 43: chatto.core.v1.NotificationProjectionSnapshot.notifications:type_name -> chatto.core.v1.NotificationOccurrence
 	28, // 44: chatto.core.v1.NotificationProjectionSnapshot.tombstones:type_name -> chatto.core.v1.NotificationProjectionTombstone

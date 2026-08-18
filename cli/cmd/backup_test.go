@@ -484,7 +484,7 @@ func TestBackupRestoreRoundTrip(t *testing.T) {
 	// Notification history and its durable Alert-consumer position cross the
 	// backup boundary together.
 	notifications, err := srcJS.CreateStream(ctx, jetstream.StreamConfig{
-		Name: "NOTIFICATIONS", Subjects: []string{"notifications.signalled", "notifications.read", "notifications.dismissed", "notifications.alert_resolved"},
+		Name: "NOTIFICATIONS", Subjects: []string{"notifications.signalled", "notifications.read", "notifications.removed", "notifications.alert_resolved"},
 		Storage: jetstream.FileStorage, MaxAge: 91 * 24 * time.Hour, AllowMsgTTL: true,
 	})
 	if err != nil {

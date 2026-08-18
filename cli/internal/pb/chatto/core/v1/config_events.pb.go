@@ -807,13 +807,13 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 }
 
 // Records one server- or room-scoped notification policy override. An absent
-// room_id selects server scope; an unspecified intensity clears the override.
+// room_id selects server scope; an absent override clears it.
 type UserNotificationPreferenceChangedEvent struct {
-	state         protoimpl.MessageState        `protogen:"open.v1"`
-	UserId        string                        `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Kind          NotificationPolicyKind        `protobuf:"varint,2,opt,name=kind,proto3,enum=chatto.core.v1.NotificationPolicyKind" json:"kind,omitempty"`
-	Intensity     NotificationDeliveryIntensity `protobuf:"varint,3,opt,name=intensity,proto3,enum=chatto.core.v1.NotificationDeliveryIntensity" json:"intensity,omitempty"`
-	RoomId        *string                       `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+	state         protoimpl.MessageState         `protogen:"open.v1"`
+	UserId        string                         `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Category      NotificationPreferenceCategory `protobuf:"varint,2,opt,name=category,proto3,enum=chatto.core.v1.NotificationPreferenceCategory" json:"category,omitempty"`
+	Override      *NotificationDeliveryMode      `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.core.v1.NotificationDeliveryMode,oneof" json:"override,omitempty"`
+	RoomId        *string                        `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -855,18 +855,18 @@ func (x *UserNotificationPreferenceChangedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetKind() NotificationPolicyKind {
+func (x *UserNotificationPreferenceChangedEvent) GetCategory() NotificationPreferenceCategory {
 	if x != nil {
-		return x.Kind
+		return x.Category
 	}
-	return NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED
+	return NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetIntensity() NotificationDeliveryIntensity {
-	if x != nil {
-		return x.Intensity
+func (x *UserNotificationPreferenceChangedEvent) GetOverride() NotificationDeliveryMode {
+	if x != nil && x.Override != nil {
+		return *x.Override
 	}
-	return NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED
+	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 }
 
 func (x *UserNotificationPreferenceChangedEvent) GetRoomId() string {
@@ -919,12 +919,13 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
 	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xf4\x01\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\x8f\x02\n" +
 	"&UserNotificationPreferenceChangedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12:\n" +
-	"\x04kind\x18\x02 \x01(\x0e2&.chatto.core.v1.NotificationPolicyKindR\x04kind\x12K\n" +
-	"\tintensity\x18\x03 \x01(\x0e2-.chatto.core.v1.NotificationDeliveryIntensityR\tintensity\x12\x1c\n" +
-	"\aroom_id\x18\x04 \x01(\tH\x00R\x06roomId\x88\x01\x01B\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12J\n" +
+	"\bcategory\x18\x02 \x01(\x0e2..chatto.core.v1.NotificationPreferenceCategoryR\bcategory\x12I\n" +
+	"\boverride\x18\x03 \x01(\x0e2(.chatto.core.v1.NotificationDeliveryModeH\x00R\boverride\x88\x01\x01\x12\x1c\n" +
+	"\aroom_id\x18\x04 \x01(\tH\x01R\x06roomId\x88\x01\x01B\v\n" +
+	"\t_overrideB\n" +
 	"\n" +
 	"\b_room_idB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
@@ -964,8 +965,8 @@ var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*AssetRecord)(nil),                             // 18: chatto.core.v1.AssetRecord
 	(TimeFormat)(0),                                 // 19: chatto.core.v1.TimeFormat
 	(NotificationLevel)(0),                          // 20: chatto.core.v1.NotificationLevel
-	(NotificationPolicyKind)(0),                     // 21: chatto.core.v1.NotificationPolicyKind
-	(NotificationDeliveryIntensity)(0),              // 22: chatto.core.v1.NotificationDeliveryIntensity
+	(NotificationPreferenceCategory)(0),             // 21: chatto.core.v1.NotificationPreferenceCategory
+	(NotificationDeliveryMode)(0),                   // 22: chatto.core.v1.NotificationDeliveryMode
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
 	18, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
@@ -973,8 +974,8 @@ var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
 	19, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	20, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
 	20, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	21, // 5: chatto.core.v1.UserNotificationPreferenceChangedEvent.kind:type_name -> chatto.core.v1.NotificationPolicyKind
-	22, // 6: chatto.core.v1.UserNotificationPreferenceChangedEvent.intensity:type_name -> chatto.core.v1.NotificationDeliveryIntensity
+	21, // 5: chatto.core.v1.UserNotificationPreferenceChangedEvent.category:type_name -> chatto.core.v1.NotificationPreferenceCategory
+	22, // 6: chatto.core.v1.UserNotificationPreferenceChangedEvent.override:type_name -> chatto.core.v1.NotificationDeliveryMode
 	7,  // [7:7] is the sub-list for method output_type
 	7,  // [7:7] is the sub-list for method input_type
 	7,  // [7:7] is the sub-list for extension type_name

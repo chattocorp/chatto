@@ -47,7 +47,7 @@ func (*NotificationProjection) Subjects() []string {
 }
 
 func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence uint64) error {
-	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetExpiresAt() == nil || !event.GetExpiresAt().IsValid() {
+	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetNotificationId() == "" || event.GetExpiresAt() == nil || !event.GetExpiresAt().IsValid() {
 		return fmt.Errorf("invalid notification event at sequence %d", sequence)
 	}
 	p.Lock()
@@ -57,44 +57,36 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 	switch payload := event.GetEvent().(type) {
 	case *corev1.NotificationEvent_Signalled:
 		signalled := payload.Signalled
-		if signalled.GetNotificationId() == "" || signalled.GetSourceEventId() == "" || signalled.GetSourceCreatedAt() == nil || !signalled.GetSourceCreatedAt().IsValid() ||
-			signalled.GetSignal() == nil || signalled.GetEvaluatedAt() == nil || !signalled.GetEvaluatedAt().IsValid() ||
-			signalled.GetInitialReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNSPECIFIED {
+		if signalled.GetSourceEventId() == "" || signalled.GetSourceCreatedAt() == nil || !signalled.GetSourceCreatedAt().IsValid() || signalled.GetSignal() == nil {
 			return fmt.Errorf("invalid notification signal event at sequence %d", sequence)
 		}
 		if !event.GetExpiresAt().AsTime().After(p.now().UTC()) {
 			return nil
 		}
-		if _, dismissed := p.tombstones[signalled.GetNotificationId()]; dismissed {
+		if _, removed := p.tombstones[event.GetNotificationId()]; removed {
 			return nil
 		}
-		if _, exists := p.byID[signalled.GetNotificationId()]; exists {
+		if _, exists := p.byID[event.GetNotificationId()]; exists {
 			return nil
 		}
-		alertState := corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_NOT_APPLICABLE
-		if signalled.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT {
-			alertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING
-			if signalled.GetInitialReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ {
-				alertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
-			}
+		var alertDelivered *bool
+		if signalled.GetAlertExpiresAt() != nil && signalled.GetInitiallyRead() {
+			alertDelivered = proto.Bool(false)
 		}
 		stored := &corev1.NotificationOccurrence{
-			Id:                         signalled.GetNotificationId(),
+			Id:                         event.GetNotificationId(),
 			RecipientId:                event.GetRecipientId(),
 			SourceEventId:              signalled.GetSourceEventId(),
 			SourceCreatedAt:            signalled.GetSourceCreatedAt(),
 			ActorId:                    signalled.GetActorId(),
 			Signal:                     proto.Clone(signalled.GetSignal()).(*corev1.NotificationSignal),
-			Intensity:                  signalled.GetIntensity(),
-			ReadState:                  signalled.GetInitialReadState(),
-			EvaluatedAt:                signalled.GetEvaluatedAt(),
-			UpdatedAt:                  signalled.GetEvaluatedAt(),
+			Read:                       signalled.GetInitiallyRead(),
 			ExpiresAt:                  event.GetExpiresAt(),
-			AlertState:                 alertState,
 			SourceStreamSequence:       signalled.GetSourceStreamSequence(),
 			AttentionLevel:             signalled.GetAttentionLevel(),
 			AlertExpiresAt:             signalled.GetAlertExpiresAt(),
 			NotificationStreamSequence: sequence,
+			AlertDelivered:             alertDelivered,
 		}
 		p.byID[stored.GetId()] = stored
 		if p.idsByUser[stored.GetRecipientId()] == nil {
@@ -102,18 +94,17 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		}
 		p.idsByUser[stored.GetRecipientId()][stored.GetId()] = struct{}{}
 	case *corev1.NotificationEvent_Read:
-		occurrence := p.byID[payload.Read.GetNotificationId()]
+		occurrence := p.byID[event.GetNotificationId()]
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
 			return nil
 		}
-		occurrence.ReadState = corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ
-		occurrence.UpdatedAt = payload.Read.GetReadAt()
-		if occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
-			occurrence.AlertState = corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED
+		occurrence.Read = true
+		if occurrence.GetAlertExpiresAt() != nil && occurrence.AlertDelivered == nil {
+			occurrence.AlertDelivered = proto.Bool(false)
 		}
-	case *corev1.NotificationEvent_Dismissed:
-		notificationID := payload.Dismissed.GetNotificationId()
-		signalSequence := payload.Dismissed.GetSignalStreamSequence()
+	case *corev1.NotificationEvent_Removed:
+		notificationID := event.GetNotificationId()
+		var signalSequence uint64
 		if occurrence := p.byID[notificationID]; occurrence != nil && occurrence.GetRecipientId() == event.GetRecipientId() {
 			if signalSequence == 0 {
 				signalSequence = occurrence.GetNotificationStreamSequence()
@@ -129,16 +120,11 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 			signalSequence: signalSequence,
 		}
 	case *corev1.NotificationEvent_AlertResolved:
-		occurrence := p.byID[payload.AlertResolved.GetNotificationId()]
+		occurrence := p.byID[event.GetNotificationId()]
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
 			return nil
 		}
-		state := payload.AlertResolved.GetState()
-		if state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED && state != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
-			return fmt.Errorf("invalid notification alert state at sequence %d", sequence)
-		}
-		occurrence.AlertState = state
-		occurrence.UpdatedAt = payload.AlertResolved.GetResolvedAt()
+		occurrence.AlertDelivered = proto.Bool(payload.AlertResolved.GetDelivered())
 	default:
 		return fmt.Errorf("unsupported notification event at sequence %d", sequence)
 	}

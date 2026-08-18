@@ -3,7 +3,7 @@ import {
   createNotificationAPI,
   groupNotificationOccurrences,
   NotificationAttentionLevel,
-  NotificationPolicyKind,
+  NotificationSignalKind,
   type NotificationOccurrenceItem
 } from './notifications';
 
@@ -20,22 +20,20 @@ beforeEach(() => {
 
 function occurrence(
   id: string,
-  reason: NotificationPolicyKind,
+  reason: NotificationSignalKind,
   overrides: Partial<NotificationOccurrenceItem> = {}
 ): NotificationOccurrenceItem {
   return {
     id,
-    sourceEventId: `source-${id}`,
     createdAt: `2026-08-12T12:00:0${id.length}Z`,
     actor: null,
     room: { id: 'room', name: 'Room' },
     eventId: `event-${id}`,
     threadRootId: null,
-    parentEventId: null,
     signalKind: reason,
     targetSupported: true,
     attentionLevel:
-      reason === NotificationPolicyKind.REACTION
+      reason === NotificationSignalKind.REACTION
         ? NotificationAttentionLevel.AMBIENT
         : NotificationAttentionLevel.IMPORTANT,
     unread: true,
@@ -47,10 +45,10 @@ function occurrence(
 describe('groupNotificationOccurrences', () => {
   it('keeps separate message jump targets separate while grouping direct messages by room', () => {
     const groups = groupNotificationOccurrences([
-      occurrence('mention-a', NotificationPolicyKind.DIRECT_MENTION),
-      occurrence('mention-b', NotificationPolicyKind.DIRECT_MENTION),
-      occurrence('dm-a', NotificationPolicyKind.DIRECT_MESSAGE),
-      occurrence('dm-b', NotificationPolicyKind.DIRECT_MESSAGE)
+      occurrence('mention-a', NotificationSignalKind.DIRECT_MENTION),
+      occurrence('mention-b', NotificationSignalKind.DIRECT_MENTION),
+      occurrence('dm-a', NotificationSignalKind.DIRECT_MESSAGE),
+      occurrence('dm-b', NotificationSignalKind.DIRECT_MESSAGE)
     ]);
 
     expect(groups).toHaveLength(3);
@@ -59,11 +57,11 @@ describe('groupNotificationOccurrences', () => {
 
   it('consolidates reaction actors and emojis by the reacted-to target', () => {
     const groups = groupNotificationOccurrences([
-      occurrence('reaction-a', NotificationPolicyKind.REACTION, {
+      occurrence('reaction-a', NotificationSignalKind.REACTION, {
         eventId: 'message',
         reactionEmoji: '👍'
       }),
-      occurrence('reaction-b', NotificationPolicyKind.REACTION, {
+      occurrence('reaction-b', NotificationSignalKind.REACTION, {
         eventId: 'message',
         reactionEmoji: '❤️'
       })
@@ -76,10 +74,10 @@ describe('groupNotificationOccurrences', () => {
 
   it('uses the strongest unread attention level in a presentation group', () => {
     const groups = groupNotificationOccurrences([
-      occurrence('dm-ambient', NotificationPolicyKind.DIRECT_MESSAGE, {
+      occurrence('dm-ambient', NotificationSignalKind.DIRECT_MESSAGE, {
         attentionLevel: NotificationAttentionLevel.AMBIENT
       }),
-      occurrence('dm-important', NotificationPolicyKind.DIRECT_MESSAGE, {
+      occurrence('dm-important', NotificationSignalKind.DIRECT_MESSAGE, {
         attentionLevel: NotificationAttentionLevel.IMPORTANT
       })
     ]);
@@ -89,7 +87,7 @@ describe('groupNotificationOccurrences', () => {
 
   it('keeps replies exact even when followed-thread policy also matched', () => {
     const replies = ['reply-a', 'reply-b'].map((id) =>
-      occurrence(id, NotificationPolicyKind.REPLY, {
+      occurrence(id, NotificationSignalKind.REPLY, {
         threadRootId: 'thread'
       })
     );
@@ -99,7 +97,7 @@ describe('groupNotificationOccurrences', () => {
 
   it('consolidates a high-cardinality direct-message conversation without losing IDs', () => {
     const occurrences = Array.from({ length: 125 }, (_, index) =>
-      occurrence(`dm-${index}`, NotificationPolicyKind.DIRECT_MESSAGE, {
+      occurrence(`dm-${index}`, NotificationSignalKind.DIRECT_MESSAGE, {
         createdAt: new Date(Date.UTC(2026, 7, 12, 12, 0, index)).toISOString()
       })
     );

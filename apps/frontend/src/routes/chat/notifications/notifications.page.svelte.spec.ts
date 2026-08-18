@@ -5,7 +5,7 @@ import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
   NotificationAttentionLevel,
-  NotificationPolicyKind,
+  NotificationSignalKind,
   type NotificationOccurrenceItem
 } from '$lib/api-client/notifications';
 import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
@@ -20,16 +20,14 @@ const { mocks } = vi.hoisted(() => ({
     appUi: { disableRoomCallWideFor: vi.fn() },
     occurrence: {
       id: 'mention-1',
-      sourceEventId: 'source-1',
       createdAt: new Date().toISOString(),
       actor: null,
       room: { id: 'room-1', name: 'general' },
       eventId: 'event-1',
       threadRootId: 'thread-1',
-      parentEventId: null,
-      signalKind: 2,
+      signalKind: 'directMentionReceived' as const,
       targetSupported: true,
-      attentionLevel: 2,
+      attentionLevel: 2 as const,
       unread: true
     },
     store: {
@@ -305,7 +303,7 @@ describe('notifications page', () => {
     const occurrence = {
       ...mocks.occurrence,
       actor,
-      signalKind: NotificationPolicyKind.FOLLOWED_THREAD
+      signalKind: NotificationSignalKind.FOLLOWED_THREAD
     };
     mocks.store.notifications.fetchPage.mockResolvedValue(page([occurrence]));
 
@@ -338,7 +336,7 @@ describe('notifications page', () => {
       actor,
       eventId: 'reacted-to-message',
       threadRootId: null,
-      signalKind: NotificationPolicyKind.REACTION,
+      signalKind: NotificationSignalKind.REACTION,
       attentionLevel: NotificationAttentionLevel.AMBIENT,
       reactionEmoji: emoji
     });
@@ -379,7 +377,7 @@ describe('notifications page', () => {
           ...mocks.occurrence,
           id: 'reaction-bob',
           actor: bob,
-          signalKind: NotificationPolicyKind.REACTION,
+          signalKind: NotificationSignalKind.REACTION,
           attentionLevel: NotificationAttentionLevel.AMBIENT,
           reactionEmoji: 'heart'
         }
@@ -645,7 +643,6 @@ describe('notifications page', () => {
         {
           ...mocks.occurrence,
           id: 'mention-2',
-          sourceEventId: 'source-2',
           eventId: 'event-2',
           createdAt: new Date(Date.now() - 1_000).toISOString()
         }
@@ -892,10 +889,9 @@ describe('notifications page', () => {
       const occurrence = {
         ...mocks.occurrence,
         id: `dm-${offset}`,
-        sourceEventId: `dm-source-${offset}`,
         eventId: `dm-event-${offset}`,
         threadRootId: null,
-        signalKind: NotificationPolicyKind.DIRECT_MESSAGE,
+        signalKind: NotificationSignalKind.DIRECT_MESSAGE,
         createdAt: new Date(Date.UTC(2026, 7, 11, 12, 0, offset)).toISOString()
       };
       if (offset === 1) {

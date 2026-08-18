@@ -15,14 +15,14 @@ func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID st
 	return items
 }
 
-func testOccurrenceHasKind(occurrence *corev1.NotificationOccurrence, kind corev1.NotificationPolicyKind) bool {
-	return notificationSignalPolicyKind(occurrence.GetSignal()) == kind
+func testOccurrenceHasKind(occurrence *corev1.NotificationOccurrence, kind corev1.NotificationPreferenceCategory) bool {
+	return notificationSignalPreferenceCategory(occurrence.GetSignal()) == kind
 }
 
-func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kinds ...corev1.NotificationPolicyKind) bool {
-	seen := make(map[corev1.NotificationPolicyKind]int)
+func testOccurrencesHaveKinds(occurrences []*corev1.NotificationOccurrence, kinds ...corev1.NotificationPreferenceCategory) bool {
+	seen := make(map[corev1.NotificationPreferenceCategory]int)
 	for _, occurrence := range occurrences {
-		seen[notificationSignalPolicyKind(occurrence.GetSignal())]++
+		seen[notificationSignalPreferenceCategory(occurrence.GetSignal())]++
 	}
 	for _, kind := range kinds {
 		if seen[kind] == 0 {
@@ -37,8 +37,8 @@ func newNotificationRoomMessageTarget(roomID, eventID string) *corev1.Notificati
 	return newNotificationMessageReference(roomID, eventID)
 }
 
-func testNotificationSignal(kind corev1.NotificationPolicyKind, roomID, eventID string) *corev1.NotificationSignal {
-	return notificationSignalForPolicyKind(kind, newNotificationMessageReference(roomID, eventID), "")
+func testNotificationSignal(kind corev1.NotificationPreferenceCategory, roomID, eventID string) *corev1.NotificationSignal {
+	return notificationSignalForPreferenceCategory(kind, newNotificationMessageReference(roomID, eventID), "")
 }
 
 func testUnsupportedNotificationSignal() *corev1.NotificationSignal {
@@ -50,7 +50,7 @@ func testUnsupportedNotificationSignal() *corev1.NotificationSignal {
 func testDeleteAllNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) {
 	t.Helper()
 	for _, occurrence := range testNotificationOccurrences(t, chattoCore, userID) {
-		if _, err := chattoCore.NotificationOccurrences().Delete(testContext(t), userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED); err != nil {
+		if _, err := chattoCore.NotificationOccurrences().Delete(testContext(t), userID, occurrence.GetId()); err != nil {
 			t.Fatalf("delete notification occurrence: %v", err)
 		}
 	}

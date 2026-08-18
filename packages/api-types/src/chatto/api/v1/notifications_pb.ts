@@ -13,133 +13,133 @@ import { PageInfo, PageRequest } from "./pagination_pb.js";
  * Stable preference key for one class of notification signal. Notification
  * content uses NotificationSignal instead of this enum.
  *
- * @generated from enum chatto.api.v1.NotificationPolicyKind
+ * @generated from enum chatto.api.v1.NotificationPreferenceCategory
  */
-export enum NotificationPolicyKind {
+export enum NotificationPreferenceCategory {
   /**
    * No cause was specified. This value is not valid in preference writes.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_UNSPECIFIED = 0;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
    * A message was posted in a direct-message conversation.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE = 1;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE = 1;
    */
   DIRECT_MESSAGE = 1,
 
   /**
    * The viewer's username was mentioned directly.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_DIRECT_MENTION = 2;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION = 2;
    */
   DIRECT_MENTION = 2,
 
   /**
    * Activity replied directly to the viewer's message.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_REPLY = 3;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_REPLY = 3;
    */
   REPLY = 3,
 
   /**
    * A role held by the viewer was mentioned.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_ROLE_MENTION = 4;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION = 4;
    */
   ROLE_MENTION = 4,
 
   /**
    * An `@here` mention included the viewer.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_HERE = 5;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_HERE = 5;
    */
   HERE = 5,
 
   /**
    * An `@all` mention included the viewer.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_ALL = 6;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_ALL = 6;
    */
   ALL = 6,
 
   /**
    * New activity appeared in a thread followed by the viewer.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD = 7;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD = 7;
    */
   FOLLOWED_THREAD = 7,
 
   /**
    * New activity appeared in a room followed by the viewer.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM = 8;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM = 8;
    */
   FOLLOWED_ROOM = 8,
 
   /**
    * Someone reacted to the viewer's message.
    *
-   * @generated from enum value: NOTIFICATION_POLICY_KIND_REACTION = 9;
+   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_REACTION = 9;
    */
   REACTION = 9,
 }
-// Retrieve enum metadata with: proto3.getEnumType(NotificationPolicyKind)
-proto3.util.setEnumType(NotificationPolicyKind, "chatto.api.v1.NotificationPolicyKind", [
-  { no: 0, name: "NOTIFICATION_POLICY_KIND_UNSPECIFIED" },
-  { no: 1, name: "NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE" },
-  { no: 2, name: "NOTIFICATION_POLICY_KIND_DIRECT_MENTION" },
-  { no: 3, name: "NOTIFICATION_POLICY_KIND_REPLY" },
-  { no: 4, name: "NOTIFICATION_POLICY_KIND_ROLE_MENTION" },
-  { no: 5, name: "NOTIFICATION_POLICY_KIND_HERE" },
-  { no: 6, name: "NOTIFICATION_POLICY_KIND_ALL" },
-  { no: 7, name: "NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD" },
-  { no: 8, name: "NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM" },
-  { no: 9, name: "NOTIFICATION_POLICY_KIND_REACTION" },
+// Retrieve enum metadata with: proto3.getEnumType(NotificationPreferenceCategory)
+proto3.util.setEnumType(NotificationPreferenceCategory, "chatto.api.v1.NotificationPreferenceCategory", [
+  { no: 0, name: "NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE" },
+  { no: 2, name: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION" },
+  { no: 3, name: "NOTIFICATION_PREFERENCE_CATEGORY_REPLY" },
+  { no: 4, name: "NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION" },
+  { no: 5, name: "NOTIFICATION_PREFERENCE_CATEGORY_HERE" },
+  { no: 6, name: "NOTIFICATION_PREFERENCE_CATEGORY_ALL" },
+  { no: 7, name: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD" },
+  { no: 8, name: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM" },
+  { no: 9, name: "NOTIFICATION_PREFERENCE_CATEGORY_REACTION" },
 ]);
 
 /**
- * Delivery strength for one notification signal class.
+ * Delivery behavior for one notification preference category.
  *
- * @generated from enum chatto.api.v1.NotificationDeliveryIntensity
+ * @generated from enum chatto.api.v1.NotificationDeliveryMode
  */
-export enum NotificationDeliveryIntensity {
+export enum NotificationDeliveryMode {
   /**
-   * In preference writes, unspecified clears the override (Inherit).
+   * No delivery mode was specified. This value is not a valid override.
    *
-   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
    */
   UNSPECIFIED = 0,
 
   /**
    * Matching activity does not create a notification occurrence.
    *
-   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_OFF = 1;
    */
   OFF = 1,
 
   /**
    * Matching activity appears in the notification list without interruptive delivery.
    *
-   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_BADGE = 2;
    */
   BADGE = 2,
 
   /**
    * Matching activity appears in the notification list and may trigger sound or push.
    *
-   * @generated from enum value: NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_ALERT = 3;
    */
   ALERT = 3,
 }
-// Retrieve enum metadata with: proto3.getEnumType(NotificationDeliveryIntensity)
-proto3.util.setEnumType(NotificationDeliveryIntensity, "chatto.api.v1.NotificationDeliveryIntensity", [
-  { no: 0, name: "NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED" },
-  { no: 1, name: "NOTIFICATION_DELIVERY_INTENSITY_OFF" },
-  { no: 2, name: "NOTIFICATION_DELIVERY_INTENSITY_BADGE" },
-  { no: 3, name: "NOTIFICATION_DELIVERY_INTENSITY_ALERT" },
+// Retrieve enum metadata with: proto3.getEnumType(NotificationDeliveryMode)
+proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDeliveryMode", [
+  { no: 0, name: "NOTIFICATION_DELIVERY_MODE_UNSPECIFIED" },
+  { no: 1, name: "NOTIFICATION_DELIVERY_MODE_OFF" },
+  { no: 2, name: "NOTIFICATION_DELIVERY_MODE_BADGE" },
+  { no: 3, name: "NOTIFICATION_DELIVERY_MODE_ALERT" },
 ]);
 
 /**
@@ -204,13 +204,6 @@ export class NotificationMessageReference extends Message<NotificationMessageRef
    */
   threadRootEventId?: string;
 
-  /**
-   * Direct reply target when the occurrence was caused by a reply.
-   *
-   * @generated from field: optional string parent_event_id = 4;
-   */
-  parentEventId?: string;
-
   constructor(data?: PartialMessage<NotificationMessageReference>) {
     super();
     proto3.util.initPartial(data, this);
@@ -222,7 +215,6 @@ export class NotificationMessageReference extends Message<NotificationMessageRef
     { no: 1, name: "room", kind: "message", T: RoomSummary },
     { no: 2, name: "event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 4, name: "parent_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationMessageReference {
@@ -370,6 +362,14 @@ export class RoleMentionReceived extends Message<RoleMentionReceived> {
    */
   message?: NotificationMessageReference;
 
+  /**
+   * Source-time role handles that selected the viewer. Multiple matching role
+   * mentions are consolidated into one occurrence for the source message.
+   *
+   * @generated from field: repeated string role_names = 2;
+   */
+  roleNames: string[] = [];
+
   constructor(data?: PartialMessage<RoleMentionReceived>) {
     super();
     proto3.util.initPartial(data, this);
@@ -379,6 +379,7 @@ export class RoleMentionReceived extends Message<RoleMentionReceived> {
   static readonly typeName = "chatto.api.v1.RoleMentionReceived";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+    { no: 2, name: "role_names", kind: "scalar", T: 9 /* ScalarType.STRING */, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoleMentionReceived {
@@ -718,58 +719,44 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   id = "";
 
   /**
-   * Durable source event from which this occurrence was derived.
-   *
-   * @generated from field: string source_event_id = 2;
-   */
-  sourceEventId = "";
-
-  /**
    * Time of the source activity.
    *
-   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   * @generated from field: google.protobuf.Timestamp created_at = 2;
    */
   createdAt?: Timestamp;
 
   /**
    * User who caused the source activity, when still visible.
    *
-   * @generated from field: chatto.api.v1.User actor = 4;
+   * @generated from field: chatto.api.v1.User actor = 3;
    */
   actor?: User;
 
   /**
    * Immutable cause and destination represented by this occurrence.
    *
-   * @generated from field: chatto.api.v1.NotificationSignal signal = 5;
+   * @generated from field: chatto.api.v1.NotificationSignal signal = 4;
    */
   signal?: NotificationSignal;
 
   /**
-   * Effective delivery intensity when the signal was emitted.
-   *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 6;
-   */
-  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
-
-  /**
    * Whether this occurrence still contributes unread attention.
    *
-   * @generated from field: bool unread = 7;
+   * @generated from field: bool unread = 5;
    */
   unread = false;
 
   /**
    * Absolute expiry, 90 days after the source activity.
    *
-   * @generated from field: google.protobuf.Timestamp expires_at = 8;
+   * @generated from field: google.protobuf.Timestamp expires_at = 6;
    */
   expiresAt?: Timestamp;
 
   /**
    * Source-time visual importance of this occurrence.
    *
-   * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 9;
+   * @generated from field: chatto.api.v1.NotificationAttentionLevel attention_level = 7;
    */
   attentionLevel = NotificationAttentionLevel.UNSPECIFIED;
 
@@ -782,14 +769,12 @@ export class NotificationOccurrence extends Message<NotificationOccurrence> {
   static readonly typeName = "chatto.api.v1.NotificationOccurrence";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 2, name: "source_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "created_at", kind: "message", T: Timestamp },
-    { no: 4, name: "actor", kind: "message", T: User },
-    { no: 5, name: "signal", kind: "message", T: NotificationSignal },
-    { no: 6, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
-    { no: 7, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 8, name: "expires_at", kind: "message", T: Timestamp },
-    { no: 9, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
+    { no: 2, name: "created_at", kind: "message", T: Timestamp },
+    { no: 3, name: "actor", kind: "message", T: User },
+    { no: 4, name: "signal", kind: "message", T: NotificationSignal },
+    { no: 5, name: "unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 6, name: "expires_at", kind: "message", T: Timestamp },
+    { no: 7, name: "attention_level", kind: "enum", T: proto3.getEnumType(NotificationAttentionLevel) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationOccurrence {
@@ -894,13 +879,11 @@ export class ListNotificationOccurrencesResponse extends Message<ListNotificatio
   roomUnreadCounts: NotificationRoomUnreadCount[] = [];
 
   /**
-   * Exact unread occurrences with Important attention. Absent servers predate
-   * attention tiers, so clients should conservatively treat all unread
-   * occurrences as Important.
+   * Exact unread occurrences with Important attention.
    *
-   * @generated from field: optional int32 important_unread_count = 6;
+   * @generated from field: int32 important_unread_count = 6;
    */
-  importantUnreadCount?: number;
+  importantUnreadCount = 0;
 
   constructor(data?: PartialMessage<ListNotificationOccurrencesResponse>) {
     super();
@@ -915,7 +898,7 @@ export class ListNotificationOccurrencesResponse extends Message<ListNotificatio
     { no: 3, name: "unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
     { no: 4, name: "next_expiry_at", kind: "message", T: Timestamp },
     { no: 5, name: "room_unread_counts", kind: "message", T: NotificationRoomUnreadCount, repeated: true },
-    { no: 6, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */, opt: true },
+    { no: 6, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListNotificationOccurrencesResponse {
@@ -985,9 +968,9 @@ export class GetNotificationOccurrenceResponse extends Message<GetNotificationOc
   /**
    * Visible occurrence. Absence is reported as NOT_FOUND.
    *
-   * @generated from field: chatto.api.v1.NotificationOccurrence notification = 1;
+   * @generated from field: chatto.api.v1.NotificationOccurrence occurrence = 1;
    */
-  notification?: NotificationOccurrence;
+  occurrence?: NotificationOccurrence;
 
   constructor(data?: PartialMessage<GetNotificationOccurrenceResponse>) {
     super();
@@ -997,7 +980,7 @@ export class GetNotificationOccurrenceResponse extends Message<GetNotificationOc
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.GetNotificationOccurrenceResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "notification", kind: "message", T: NotificationOccurrence },
+    { no: 1, name: "occurrence", kind: "message", T: NotificationOccurrence },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationOccurrenceResponse {
@@ -1068,9 +1051,9 @@ export class BatchGetNotificationOccurrencesResponse extends Message<BatchGetNot
   /**
    * Found occurrences in first-seen request order.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationOccurrence notifications = 1;
+   * @generated from field: repeated chatto.api.v1.NotificationOccurrence occurrences = 1;
    */
-  notifications: NotificationOccurrence[] = [];
+  occurrences: NotificationOccurrence[] = [];
 
   constructor(data?: PartialMessage<BatchGetNotificationOccurrencesResponse>) {
     super();
@@ -1080,7 +1063,7 @@ export class BatchGetNotificationOccurrencesResponse extends Message<BatchGetNot
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.BatchGetNotificationOccurrencesResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "notifications", kind: "message", T: NotificationOccurrence, repeated: true },
+    { no: 1, name: "occurrences", kind: "message", T: NotificationOccurrence, repeated: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): BatchGetNotificationOccurrencesResponse {
@@ -1121,12 +1104,11 @@ export class NotificationRoomUnreadCount extends Message<NotificationRoomUnreadC
   unreadCount = 0;
 
   /**
-   * Unread occurrences in this room with Important attention. Absence has the
-   * same compatibility meaning as the response-level field.
+   * Unread occurrences in this room with Important attention.
    *
-   * @generated from field: optional int32 important_unread_count = 3;
+   * @generated from field: int32 important_unread_count = 3;
    */
-  importantUnreadCount?: number;
+  importantUnreadCount = 0;
 
   constructor(data?: PartialMessage<NotificationRoomUnreadCount>) {
     super();
@@ -1138,7 +1120,7 @@ export class NotificationRoomUnreadCount extends Message<NotificationRoomUnreadC
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
-    { no: 3, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */, opt: true },
+    { no: 3, name: "important_unread_count", kind: "scalar", T: 5 /* ScalarType.INT32 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationRoomUnreadCount {
@@ -1208,9 +1190,9 @@ export class MarkNotificationReadResponse extends Message<MarkNotificationReadRe
   /**
    * Updated occurrence.
    *
-   * @generated from field: chatto.api.v1.NotificationOccurrence notification = 1;
+   * @generated from field: chatto.api.v1.NotificationOccurrence occurrence = 1;
    */
-  notification?: NotificationOccurrence;
+  occurrence?: NotificationOccurrence;
 
   constructor(data?: PartialMessage<MarkNotificationReadResponse>) {
     super();
@@ -1220,7 +1202,7 @@ export class MarkNotificationReadResponse extends Message<MarkNotificationReadRe
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.MarkNotificationReadResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "notification", kind: "message", T: NotificationOccurrence },
+    { no: 1, name: "occurrence", kind: "message", T: NotificationOccurrence },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): MarkNotificationReadResponse {
@@ -1481,38 +1463,31 @@ export class DeleteAllNotificationOccurrencesResponse extends Message<DeleteAllN
 }
 
 /**
- * Explicit and effective delivery policy for one notification signal class.
+ * Explicit and effective delivery policy for one notification preference category.
  *
  * @generated from message chatto.api.v1.NotificationPolicyPreference
  */
 export class NotificationPolicyPreference extends Message<NotificationPolicyPreference> {
   /**
-   * Notification signal class controlled by this row.
+   * Preference category controlled by this row.
    *
-   * @generated from field: chatto.api.v1.NotificationPolicyKind kind = 1;
+   * @generated from field: chatto.api.v1.NotificationPreferenceCategory category = 1;
    */
-  kind = NotificationPolicyKind.UNSPECIFIED;
+  category = NotificationPreferenceCategory.UNSPECIFIED;
 
   /**
-   * Explicit server override, or unspecified when inherited from product defaults.
+   * Explicit override at the requested scope. Absence means Inherit.
    *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity server_intensity = 2;
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode override = 2;
    */
-  serverIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+  override?: NotificationDeliveryMode;
 
   /**
-   * Explicit room override, or unspecified when inherited from server scope.
+   * Effective mode after applying product, server, and room inheritance.
    *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity room_intensity = 3;
+   * @generated from field: chatto.api.v1.NotificationDeliveryMode effective = 3;
    */
-  roomIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
-
-  /**
-   * Effective intensity after applying product, server, and room inheritance.
-   *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity effective_intensity = 4;
-   */
-  effectiveIntensity = NotificationDeliveryIntensity.UNSPECIFIED;
+  effective = NotificationDeliveryMode.UNSPECIFIED;
 
   constructor(data?: PartialMessage<NotificationPolicyPreference>) {
     super();
@@ -1522,10 +1497,9 @@ export class NotificationPolicyPreference extends Message<NotificationPolicyPref
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.api.v1.NotificationPolicyPreference";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "kind", kind: "enum", T: proto3.getEnumType(NotificationPolicyKind) },
-    { no: 2, name: "server_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
-    { no: 3, name: "room_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
-    { no: 4, name: "effective_intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 1, name: "category", kind: "enum", T: proto3.getEnumType(NotificationPreferenceCategory) },
+    { no: 2, name: "override", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 3, name: "effective", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationPolicyPreference {
@@ -1650,18 +1624,18 @@ export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificat
   roomId?: string;
 
   /**
-   * Required notification signal class.
+   * Required notification preference category.
    *
-   * @generated from field: chatto.api.v1.NotificationPolicyKind kind = 2;
+   * @generated from field: chatto.api.v1.NotificationPreferenceCategory category = 2;
    */
-  kind = NotificationPolicyKind.UNSPECIFIED;
+  category = NotificationPreferenceCategory.UNSPECIFIED;
 
   /**
-   * Unspecified clears the selected server or room override.
+   * Override at the selected scope. Absence clears it to Inherit.
    *
-   * @generated from field: chatto.api.v1.NotificationDeliveryIntensity intensity = 3;
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode override = 3;
    */
-  intensity = NotificationDeliveryIntensity.UNSPECIFIED;
+  override?: NotificationDeliveryMode;
 
   constructor(data?: PartialMessage<SetNotificationPolicyPreferenceRequest>) {
     super();
@@ -1672,8 +1646,8 @@ export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificat
   static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "kind", kind: "enum", T: proto3.getEnumType(NotificationPolicyKind) },
-    { no: 3, name: "intensity", kind: "enum", T: proto3.getEnumType(NotificationDeliveryIntensity) },
+    { no: 2, name: "category", kind: "enum", T: proto3.getEnumType(NotificationPreferenceCategory) },
+    { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNotificationPolicyPreferenceRequest {

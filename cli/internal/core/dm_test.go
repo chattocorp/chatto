@@ -820,7 +820,7 @@ func TestDMNotifications(t *testing.T) {
 			t.Error("Expected to receive DM notification for user2")
 		}
 		occurrences := testNotificationOccurrences(t, core, user2.Id)
-		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE) {
+		if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE) {
 			t.Fatalf("DM occurrences = %+v, want one direct-message occurrence", occurrences)
 		}
 	})
@@ -853,12 +853,12 @@ func TestDMNotifications(t *testing.T) {
 		if err := proto.Unmarshal(msg.Data, &live); err != nil {
 			t.Fatalf("unmarshal live event: %v", err)
 		}
-		event := live.GetNotificationOccurrenceChanged()
+		event := live.GetNotificationOccurrencesInvalidated()
 		if event == nil {
-			t.Fatalf("expected NotificationOccurrenceChangedEvent, got %T", live.Event)
+			t.Fatalf("expected NotificationOccurrencesInvalidatedEvent, got %T", live.Event)
 		}
-		if event.Alert {
-			t.Fatal("NotificationOccurrenceChangedEvent.Alert = true during DND, want false")
+		if event.GetAlertCandidateNotificationId() != "" {
+			t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
 		}
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {

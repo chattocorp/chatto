@@ -4,8 +4,6 @@ import NotificationSync from './NotificationSync.svelte';
 import type { ProjectionHandler } from '$lib/eventBus.svelte';
 import {
   RealtimeProjectionEvent,
-  RealtimeProjectionNotificationAction,
-  RealtimeProjectionNotificationChange,
   RealtimeProjectionNotificationsReplace,
   RealtimeProjectionOperation
 } from '@chatto/api-types/realtime/v1/realtime_pb';
@@ -83,14 +81,14 @@ vi.mock('$lib/notifications/appBadge', () => ({
   updateAppBadge: mocks.updateAppBadge
 }));
 
-function dispatch(change?: RealtimeProjectionNotificationChange) {
+function dispatch(playNotificationSound = false) {
   const event = new RealtimeProjectionEvent({
     id: 'event-id',
     operations: [
       new RealtimeProjectionOperation({
         operation: {
           case: 'notificationsReplace',
-          value: new RealtimeProjectionNotificationsReplace({ change })
+          value: new RealtimeProjectionNotificationsReplace({ playNotificationSound })
         }
       })
     ]
@@ -131,41 +129,23 @@ describe('NotificationSync', () => {
   it('plays a sound for a live non-silent notification creation', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch(
-      new RealtimeProjectionNotificationChange({
-        action: RealtimeProjectionNotificationAction.CREATED,
-        notificationId: 'n1',
-        silent: false
-      })
-    );
+    dispatch(true);
 
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
   });
 
-  it('does not play a sound for a silent notification creation', async () => {
+  it('does not play a sound when the replacement does not request one', async () => {
     await renderAndWaitForSubscription();
 
-    dispatch(
-      new RealtimeProjectionNotificationChange({
-        action: RealtimeProjectionNotificationAction.CREATED,
-        notificationId: 'n1',
-        silent: true
-      })
-    );
+    dispatch(false);
 
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });
 
-  it('does not play a sound for reconciliation or occurrence updates', async () => {
+  it('does not play a sound for reconciliation', async () => {
     await renderAndWaitForSubscription();
 
     dispatch();
-    dispatch(
-      new RealtimeProjectionNotificationChange({
-        action: RealtimeProjectionNotificationAction.UPDATED,
-        notificationId: 'n1'
-      })
-    );
 
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
   });

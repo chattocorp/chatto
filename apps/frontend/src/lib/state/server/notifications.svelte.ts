@@ -3,12 +3,13 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   NotificationAttentionLevel,
-  NotificationDeliveryIntensity,
+  NotificationDeliveryMode,
   type NotificationAPI,
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage,
   type NotificationPolicyItem,
-  NotificationPolicyKind
+  NotificationPreferenceCategory,
+  NotificationSignalKind
 } from '$lib/api-client/notifications';
 
 /**
@@ -35,7 +36,7 @@ export type RoomNotificationResolveOptions = {
 };
 
 function isDMNotification(notification: NotificationOccurrenceItem): boolean {
-  return notification.signalKind === NotificationPolicyKind.DIRECT_MESSAGE;
+  return notification.signalKind === NotificationSignalKind.DIRECT_MESSAGE;
 }
 
 /**
@@ -527,11 +528,11 @@ export class NotificationStore {
   }
 
   setPolicyPreference(
-    kind: NotificationPolicyKind,
-    intensity: NotificationDeliveryIntensity,
+    kind: NotificationPreferenceCategory,
+    override: NotificationDeliveryMode | null,
     roomId?: string
   ): Promise<NotificationPolicyItem[]> {
-    return this.#api.setNotificationPolicyPreference(kind, intensity, roomId);
+    return this.#api.setNotificationPolicyPreference(kind, override, roomId);
   }
 
   /**

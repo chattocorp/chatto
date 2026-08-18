@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
-import { NotificationPolicyKind } from '$lib/api-client/notifications';
+import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -149,8 +149,8 @@ function notification(id: string, roomId: string, isDM = false) {
     createdAt: '2026-06-18T10:00:00Z',
     actor: null,
     signalKind: isDM
-      ? NotificationPolicyKind.DIRECT_MESSAGE
-      : NotificationPolicyKind.DIRECT_MENTION,
+      ? NotificationSignalKind.DIRECT_MESSAGE
+      : NotificationSignalKind.DIRECT_MENTION,
     targetSupported: true,
     room: { id: roomId, name: 'general' },
     eventId: 'event-1',

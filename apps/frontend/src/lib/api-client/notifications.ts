@@ -8,8 +8,8 @@ import type {
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   NotificationAttentionLevel,
-  NotificationDeliveryIntensity,
-  NotificationPolicyKind
+  NotificationDeliveryMode,
+  NotificationPreferenceCategory
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
@@ -35,17 +35,15 @@ export type NotificationActor = {
 
 export type NotificationOccurrenceItem = {
   id: string;
-  sourceEventId: string;
   createdAt: string;
   actor: NotificationActor | null;
-  /** Signal class understood by this client, or Unspecified for an additive future signal. */
-  signalKind: NotificationPolicyKind;
+  /** Signal class understood by this client, or unsupported for an additive future signal. */
+  signalKind: NotificationSignalKind;
   /** Whether this client understands the signal well enough to navigate it. */
   targetSupported: boolean;
   room: { id: string; name: string } | null;
   eventId: string;
   threadRootId: string | null;
-  parentEventId: string | null;
   attentionLevel: NotificationAttentionLevel;
   unread: boolean;
   reactionEmoji?: string | null;
@@ -75,12 +73,28 @@ export type NotificationOccurrencePage = {
   nextExpiryAt?: string | null;
 };
 
-export { NotificationAttentionLevel, NotificationDeliveryIntensity, NotificationPolicyKind };
+export { NotificationAttentionLevel, NotificationDeliveryMode, NotificationPreferenceCategory };
+
+export const NotificationSignalKind = {
+  DIRECT_MESSAGE: 'directMessageReceived',
+  DIRECT_MENTION: 'directMentionReceived',
+  REPLY: 'replyReceived',
+  ROLE_MENTION: 'roleMentionReceived',
+  HERE: 'hereMentionReceived',
+  ALL: 'allMentionReceived',
+  FOLLOWED_THREAD: 'followedThreadActivity',
+  FOLLOWED_ROOM: 'followedRoomActivity',
+  REACTION: 'reactionReceived',
+  UNSUPPORTED: 'unsupported'
+} as const;
+
+export type NotificationSignalKind =
+  (typeof NotificationSignalKind)[keyof typeof NotificationSignalKind];
+
 export type NotificationPolicyItem = {
-  kind: NotificationPolicyKind;
-  serverIntensity: NotificationDeliveryIntensity;
-  roomIntensity: NotificationDeliveryIntensity;
-  effectiveIntensity: NotificationDeliveryIntensity;
+  category: NotificationPreferenceCategory;
+  override: NotificationDeliveryMode | null;
+  effective: NotificationDeliveryMode;
 };
 
 export function createNotificationAPI(config: NotificationAPIConfig) {
@@ -102,8 +116,8 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
         { notificationId },
         { headers: headers() }
       );
-      if (!response.notification) throw new Error('Read notification was not returned');
-      return notificationOccurrence(response.notification);
+      if (!response.occurrence) throw new Error('Read notification was not returned');
+      return notificationOccurrence(response.occurrence);
     },
 
     async batchDeleteNotificationOccurrences(notificationIds: string[]): Promise<number> {
@@ -128,27 +142,25 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
     async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
       const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
       return response.preferences.map((preference) => ({
-        kind: preference.kind,
-        serverIntensity: preference.serverIntensity,
-        roomIntensity: preference.roomIntensity,
-        effectiveIntensity: preference.effectiveIntensity
+        category: preference.category,
+        override: preference.override ?? null,
+        effective: preference.effective
       }));
     },
 
     async setNotificationPolicyPreference(
-      kind: NotificationPolicyKind,
-      intensity: NotificationDeliveryIntensity,
+      category: NotificationPreferenceCategory,
+      override: NotificationDeliveryMode | null,
       roomId?: string
     ): Promise<NotificationPolicyItem[]> {
       const response = await client.setNotificationPolicyPreference(
-        { kind, intensity, roomId },
+        { category, override: override ?? undefined, roomId },
         { headers: headers() }
       );
       return response.preferences.map((preference) => ({
-        kind: preference.kind,
-        serverIntensity: preference.serverIntensity,
-        roomIntensity: preference.roomIntensity,
-        effectiveIntensity: preference.effectiveIntensity
+        category: preference.category,
+        override: preference.override ?? null,
+        effective: preference.effective
       }));
     }
   };
@@ -163,16 +175,14 @@ export function mapNotificationOccurrencePage(
     occurrences: response.occurrences.map(notificationOccurrence),
     consumedCount: response.occurrences.length,
     unreadCount: Number(response.unreadCount),
-    // An absent optional field identifies an older Notifications 2.0 server.
-    // Preserve its all-orange behavior instead of understating importance.
-    importantUnreadCount: Number(response.importantUnreadCount ?? response.unreadCount),
+    importantUnreadCount: Number(response.importantUnreadCount),
     roomUnreadCounts: Object.fromEntries(
       response.roomUnreadCounts.map((count) => [count.roomId, Number(count.unreadCount)])
     ),
     roomImportantUnreadCounts: Object.fromEntries(
       response.roomUnreadCounts.map((count) => [
         count.roomId,
-        Number(count.importantUnreadCount ?? count.unreadCount)
+        Number(count.importantUnreadCount)
       ])
     ),
     totalCount: Number(response.page?.totalCount ?? 0),
@@ -189,7 +199,6 @@ export function notificationOccurrence(
   const actor = notificationActor(item.actor);
   return {
     id: item.id,
-    sourceEventId: item.sourceEventId,
     createdAt: item.createdAt?.toDate().toISOString() ?? new Date(0).toISOString(),
     actor,
     signalKind: mapped.kind,
@@ -197,8 +206,7 @@ export function notificationOccurrence(
     room: target?.room ? { id: target.room.id, name: target.room.name } : null,
     eventId: target?.eventId ?? '',
     threadRootId: target?.threadRootEventId ?? null,
-    parentEventId: target?.parentEventId ?? null,
-    attentionLevel: effectiveNotificationAttentionLevel(item.attentionLevel, mapped.kind),
+    attentionLevel: item.attentionLevel,
     unread: item.unread,
     reactionEmoji: mapped.reactionEmoji,
     expiresAt: item.expiresAt?.toDate().toISOString() ?? new Date(0).toISOString()
@@ -207,7 +215,7 @@ export function notificationOccurrence(
 
 function notificationSignal(item: APINotificationOccurrence): {
   supported: boolean;
-  kind: NotificationPolicyKind;
+  kind: NotificationSignalKind;
   message: NotificationMessageReference | null;
   reactionEmoji: string | null;
 } {
@@ -216,70 +224,70 @@ function notificationSignal(item: APINotificationOccurrence): {
     case 'directMessageReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.DIRECT_MESSAGE,
+        kind: NotificationSignalKind.DIRECT_MESSAGE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'directMentionReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.DIRECT_MENTION,
+        kind: NotificationSignalKind.DIRECT_MENTION,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'replyReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.REPLY,
+        kind: NotificationSignalKind.REPLY,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'roleMentionReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.ROLE_MENTION,
+        kind: NotificationSignalKind.ROLE_MENTION,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'hereMentionReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.HERE,
+        kind: NotificationSignalKind.HERE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'allMentionReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.ALL,
+        kind: NotificationSignalKind.ALL,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'followedThreadActivity':
       return {
         supported: true,
-        kind: NotificationPolicyKind.FOLLOWED_THREAD,
+        kind: NotificationSignalKind.FOLLOWED_THREAD,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'followedRoomActivity':
       return {
         supported: true,
-        kind: NotificationPolicyKind.FOLLOWED_ROOM,
+        kind: NotificationSignalKind.FOLLOWED_ROOM,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
     case 'reactionReceived':
       return {
         supported: true,
-        kind: NotificationPolicyKind.REACTION,
+        kind: NotificationSignalKind.REACTION,
         message: kind.value.message ?? null,
         reactionEmoji: kind.value.emoji || null
       };
     default:
       return {
         supported: false,
-        kind: NotificationPolicyKind.UNSPECIFIED,
+        kind: NotificationSignalKind.UNSUPPORTED,
         message: null,
         reactionEmoji: null
       };
@@ -324,44 +332,28 @@ export function groupNotificationOccurrences(
     .sort((a, b) => b.latestAt.localeCompare(a.latestAt));
 }
 
-/** Resolve additive attention metadata, conservatively supporting older servers. */
-export function effectiveNotificationAttentionLevel(
-  stored: NotificationAttentionLevel,
-  signalKind: NotificationPolicyKind
-): NotificationAttentionLevel {
-  if (
-    stored === NotificationAttentionLevel.AMBIENT ||
-    stored === NotificationAttentionLevel.IMPORTANT
-  ) {
-    return stored;
-  }
-  return signalKind === NotificationPolicyKind.REACTION
-    ? NotificationAttentionLevel.AMBIENT
-    : NotificationAttentionLevel.IMPORTANT;
-}
-
 function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem): string {
   if (occurrence.targetSupported === false) return `occurrence:${occurrence.id}`;
   const roomId = occurrence.room?.id ?? '';
-  if (occurrence.signalKind === NotificationPolicyKind.DIRECT_MESSAGE) {
+  if (occurrence.signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
     return `dm:${roomId}`;
   }
   if (
-    occurrence.signalKind === NotificationPolicyKind.REPLY ||
-    occurrence.signalKind === NotificationPolicyKind.DIRECT_MENTION ||
-    occurrence.signalKind === NotificationPolicyKind.ROLE_MENTION ||
-    occurrence.signalKind === NotificationPolicyKind.HERE ||
-    occurrence.signalKind === NotificationPolicyKind.ALL
+    occurrence.signalKind === NotificationSignalKind.REPLY ||
+    occurrence.signalKind === NotificationSignalKind.DIRECT_MENTION ||
+    occurrence.signalKind === NotificationSignalKind.ROLE_MENTION ||
+    occurrence.signalKind === NotificationSignalKind.HERE ||
+    occurrence.signalKind === NotificationSignalKind.ALL
   ) {
     return `occurrence:${occurrence.id}`;
   }
-  if (occurrence.signalKind === NotificationPolicyKind.REACTION) {
+  if (occurrence.signalKind === NotificationSignalKind.REACTION) {
     return `reaction:${roomId}:${occurrence.threadRootId ?? ''}:${occurrence.eventId}`;
   }
-  if (occurrence.signalKind === NotificationPolicyKind.FOLLOWED_THREAD) {
+  if (occurrence.signalKind === NotificationSignalKind.FOLLOWED_THREAD) {
     return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
   }
-  if (occurrence.signalKind === NotificationPolicyKind.FOLLOWED_ROOM) {
+  if (occurrence.signalKind === NotificationSignalKind.FOLLOWED_ROOM) {
     return `room:${roomId}`;
   }
   // Unknown future causes stay exact until the client deliberately chooses a

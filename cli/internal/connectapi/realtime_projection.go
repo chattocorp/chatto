@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 
-	"google.golang.org/protobuf/proto"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/parallel"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -454,7 +453,7 @@ func (a *API) BuildRealtimeProjectionNotifications(ctx context.Context, userID s
 			UnreadCount:          summary.unreadCount,
 			NextExpiryAt:         summary.nextExpiryAt,
 			RoomUnreadCounts:     summary.roomCounts,
-			ImportantUnreadCount: proto.Int32(summary.importantUnreadCount),
+			ImportantUnreadCount: summary.importantUnreadCount,
 		},
 	}, nil
 }

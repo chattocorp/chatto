@@ -11,39 +11,39 @@ import "google/protobuf/timestamp.proto";
 
 // Stable preference key for one class of notification signal. Notification
 // content uses NotificationSignal instead of this enum.
-enum NotificationPolicyKind {
+enum NotificationPreferenceCategory {
   // No cause was specified. This value is not valid in preference writes.
-  NOTIFICATION_POLICY_KIND_UNSPECIFIED = 0;
+  NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED = 0;
   // A message was posted in a direct-message conversation.
-  NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE = 1;
+  NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE = 1;
   // The viewer's username was mentioned directly.
-  NOTIFICATION_POLICY_KIND_DIRECT_MENTION = 2;
+  NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION = 2;
   // Activity replied directly to the viewer's message.
-  NOTIFICATION_POLICY_KIND_REPLY = 3;
+  NOTIFICATION_PREFERENCE_CATEGORY_REPLY = 3;
   // A role held by the viewer was mentioned.
-  NOTIFICATION_POLICY_KIND_ROLE_MENTION = 4;
+  NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION = 4;
   // An `@here` mention included the viewer.
-  NOTIFICATION_POLICY_KIND_HERE = 5;
+  NOTIFICATION_PREFERENCE_CATEGORY_HERE = 5;
   // An `@all` mention included the viewer.
-  NOTIFICATION_POLICY_KIND_ALL = 6;
+  NOTIFICATION_PREFERENCE_CATEGORY_ALL = 6;
   // New activity appeared in a thread followed by the viewer.
-  NOTIFICATION_POLICY_KIND_FOLLOWED_THREAD = 7;
+  NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD = 7;
   // New activity appeared in a room followed by the viewer.
-  NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM = 8;
+  NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM = 8;
   // Someone reacted to the viewer's message.
-  NOTIFICATION_POLICY_KIND_REACTION = 9;
+  NOTIFICATION_PREFERENCE_CATEGORY_REACTION = 9;
 }
 
-// Delivery strength for one notification signal class.
-enum NotificationDeliveryIntensity {
-  // In preference writes, unspecified clears the override (Inherit).
-  NOTIFICATION_DELIVERY_INTENSITY_UNSPECIFIED = 0;
+// Delivery behavior for one notification preference category.
+enum NotificationDeliveryMode {
+  // No delivery mode was specified. This value is not a valid override.
+  NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
   // Matching activity does not create a notification occurrence.
-  NOTIFICATION_DELIVERY_INTENSITY_OFF = 1;
+  NOTIFICATION_DELIVERY_MODE_OFF = 1;
   // Matching activity appears in the notification list without interruptive delivery.
-  NOTIFICATION_DELIVERY_INTENSITY_BADGE = 2;
+  NOTIFICATION_DELIVERY_MODE_BADGE = 2;
   // Matching activity appears in the notification list and may trigger sound or push.
-  NOTIFICATION_DELIVERY_INTENSITY_ALERT = 3;
+  NOTIFICATION_DELIVERY_MODE_ALERT = 3;
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -65,8 +65,6 @@ message NotificationMessageReference {
   string event_id = 2;
   // Thread root when the target is inside a thread.
   optional string thread_root_event_id = 3;
-  // Direct reply target when the occurrence was caused by a reply.
-  optional string parent_event_id = 4;
 }
 
 // A direct message sent to the viewer.
@@ -87,6 +85,9 @@ message ReplyReceived {
 // A message mentioning a role held by the viewer.
 message RoleMentionReceived {
   NotificationMessageReference message = 1;
+  // Source-time role handles that selected the viewer. Multiple matching role
+  // mentions are consolidated into one occurrence for the source message.
+  repeated string role_names = 2;
 }
 
 // An `@here` message that included the viewer.
@@ -137,22 +138,18 @@ message NotificationSignal {
 message NotificationOccurrence {
   // Stable occurrence ID.
   string id = 1;
-  // Durable source event from which this occurrence was derived.
-  string source_event_id = 2;
   // Time of the source activity.
-  google.protobuf.Timestamp created_at = 3;
+  google.protobuf.Timestamp created_at = 2;
   // User who caused the source activity, when still visible.
-  User actor = 4;
+  User actor = 3;
   // Immutable cause and destination represented by this occurrence.
-  NotificationSignal signal = 5;
-  // Effective delivery intensity when the signal was emitted.
-  NotificationDeliveryIntensity intensity = 6;
+  NotificationSignal signal = 4;
   // Whether this occurrence still contributes unread attention.
-  bool unread = 7;
+  bool unread = 5;
   // Absolute expiry, 90 days after the source activity.
-  google.protobuf.Timestamp expires_at = 8;
+  google.protobuf.Timestamp expires_at = 6;
   // Source-time visual importance of this occurrence.
-  NotificationAttentionLevel attention_level = 9;
+  NotificationAttentionLevel attention_level = 7;
 }
 
 // Request for one page of notification occurrences.
@@ -175,10 +172,8 @@ message ListNotificationOccurrencesResponse {
   // Complete unread-occurrence counts by target room. This is independent of
   // the bounded page so room indicators remain authoritative.
   repeated NotificationRoomUnreadCount room_unread_counts = 5;
-  // Exact unread occurrences with Important attention. Absent servers predate
-  // attention tiers, so clients should conservatively treat all unread
-  // occurrences as Important.
-  optional int32 important_unread_count = 6;
+  // Exact unread occurrences with Important attention.
+  int32 important_unread_count = 6;
 }
 
 // Request one exact notification occurrence by stable ID.
@@ -190,7 +185,7 @@ message GetNotificationOccurrenceRequest {
 // One exact notification occurrence.
 message GetNotificationOccurrenceResponse {
   // Visible occurrence. Absence is reported as NOT_FOUND.
-  NotificationOccurrence notification = 1;
+  NotificationOccurrence occurrence = 1;
 }
 
 // Request an explicit bounded set of notification occurrences.
@@ -209,7 +204,7 @@ message BatchGetNotificationOccurrencesRequest {
 // Exact visible notification occurrences requested by stable ID.
 message BatchGetNotificationOccurrencesResponse {
   // Found occurrences in first-seen request order.
-  repeated NotificationOccurrence notifications = 1;
+  repeated NotificationOccurrence occurrences = 1;
 }
 
 // Unread notification occurrences currently targeting one room.
@@ -218,9 +213,8 @@ message NotificationRoomUnreadCount {
   string room_id = 1;
   // Number of unread occurrences targeting this room.
   int32 unread_count = 2;
-  // Unread occurrences in this room with Important attention. Absence has the
-  // same compatibility meaning as the response-level field.
-  optional int32 important_unread_count = 3;
+  // Unread occurrences in this room with Important attention.
+  int32 important_unread_count = 3;
 }
 
 // Request to mark one notification occurrence read.
@@ -232,7 +226,7 @@ message MarkNotificationReadRequest {
 // Notification occurrence after marking it read.
 message MarkNotificationReadResponse {
   // Updated occurrence.
-  NotificationOccurrence notification = 1;
+  NotificationOccurrence occurrence = 1;
 }
 
 // Request permanent deletion of one notification occurrence.
@@ -276,16 +270,14 @@ message DeleteAllNotificationOccurrencesResponse {
   int32 deleted_count = 1;
 }
 
-// Explicit and effective delivery policy for one notification signal class.
+// Explicit and effective delivery policy for one notification preference category.
 message NotificationPolicyPreference {
-  // Notification signal class controlled by this row.
-  NotificationPolicyKind kind = 1;
-  // Explicit server override, or unspecified when inherited from product defaults.
-  NotificationDeliveryIntensity server_intensity = 2;
-  // Explicit room override, or unspecified when inherited from server scope.
-  NotificationDeliveryIntensity room_intensity = 3;
-  // Effective intensity after applying product, server, and room inheritance.
-  NotificationDeliveryIntensity effective_intensity = 4;
+  // Preference category controlled by this row.
+  NotificationPreferenceCategory category = 1;
+  // Explicit override at the requested scope. Absence means Inherit.
+  optional NotificationDeliveryMode override = 2;
+  // Effective mode after applying product, server, and room inheritance.
+  NotificationDeliveryMode effective = 3;
 }
 
 // Request the authenticated viewer's notification policy.
@@ -307,13 +299,16 @@ message GetNotificationPolicyResponse {
 message SetNotificationPolicyPreferenceRequest {
   // Room scope to change; absent changes the server scope.
   optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required notification signal class.
-  NotificationPolicyKind kind = 2 [(buf.validate.field).enum = {
+  // Required notification preference category.
+  NotificationPreferenceCategory category = 2 [(buf.validate.field).enum = {
     defined_only: true
     not_in: [0]
   }];
-  // Unspecified clears the selected server or room override.
-  NotificationDeliveryIntensity intensity = 3 [(buf.validate.field).enum.defined_only = true];
+  // Override at the selected scope. Absence clears it to Inherit.
+  optional NotificationDeliveryMode override = 3 [(buf.validate.field).enum = {
+    defined_only: true
+    not_in: [0]
+  }];
 }
 
 // Complete supported notification policy after one preference change.
@@ -337,6 +332,8 @@ service NotificationService {
   rpc BatchGetNotificationOccurrences(BatchGetNotificationOccurrencesRequest) returns (BatchGetNotificationOccurrencesResponse);
   // Lists exact Notifications 2.0 occurrences. Clients may derive temporary
   // presentation groups without changing occurrence identity or counts.
+  // Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
+  // signal kind this server version cannot validate and assemble.
   rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);
   // Marks one occurrence read. Repeating the call is safe. Returns
   // UNIMPLEMENTED when this server cannot validate the occurrence signal kind.
@@ -362,7 +359,7 @@ service NotificationService {
   // Returns UNIMPLEMENTED rather than partially deleting a signal kind this
   // server cannot validate.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
-  // Gets every supported signal class and its inherited delivery intensity.
+  // Gets every supported preference category and its effective delivery mode.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
   // Sets or clears one server- or room-scoped signal-class override.
   rpc SetNotificationPolicyPreference(SetNotificationPolicyPreferenceRequest) returns (SetNotificationPolicyPreferenceResponse) {

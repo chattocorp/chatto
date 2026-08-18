@@ -1,5 +1,5 @@
 import { expect } from '@playwright/test';
-import { NotificationDeliveryIntensity } from '@chatto/api-types/api/v1/notifications_pb';
+import { NotificationDeliveryMode } from '@chatto/api-types/api/v1/notifications_pb';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   getNotificationPolicy,
@@ -24,12 +24,12 @@ test.describe('Notification policy', () => {
     const directMessages = page.getByRole('combobox', { name: 'Direct messages' });
     await expect(directMessages).toBeVisible();
     await expect(page.getByRole('combobox', { name: 'Room invitations' })).toHaveCount(0);
-    await directMessages.selectOption(String(NotificationDeliveryIntensity.OFF));
-    await expect(directMessages).toHaveValue(String(NotificationDeliveryIntensity.OFF));
+    await directMessages.selectOption(String(NotificationDeliveryMode.OFF));
+    await expect(directMessages).toHaveValue(String(NotificationDeliveryMode.OFF));
 
     await page.reload();
     await expect(page.getByRole('combobox', { name: 'Direct messages' })).toHaveValue(
-      String(NotificationDeliveryIntensity.OFF)
+      String(NotificationDeliveryMode.OFF)
     );
   });
 
@@ -43,17 +43,15 @@ test.describe('Notification policy', () => {
 
     await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'BADGE');
     let roomPolicy = await getNotificationPolicy(page, roomId);
-    expect(roomPolicy.find(({ kind }) => kind === 'FOLLOWED_ROOM')).toMatchObject({
-      serverIntensity: 'BADGE',
-      roomIntensity: 'UNSPECIFIED',
-      effectiveIntensity: 'BADGE'
+    expect(roomPolicy.find(({ category }) => category === 'FOLLOWED_ROOM')).toMatchObject({
+      override: 'UNSPECIFIED',
+      effective: 'BADGE'
     });
 
     roomPolicy = await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', roomId);
-    expect(roomPolicy.find(({ kind }) => kind === 'FOLLOWED_ROOM')).toMatchObject({
-      serverIntensity: 'BADGE',
-      roomIntensity: 'ALERT',
-      effectiveIntensity: 'ALERT'
+    expect(roomPolicy.find(({ category }) => category === 'FOLLOWED_ROOM')).toMatchObject({
+      override: 'ALERT',
+      effective: 'ALERT'
     });
   });
 });

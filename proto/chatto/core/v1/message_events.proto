@@ -59,21 +59,27 @@ message MessagePostedEvent {
   repeated MessageMention mentions = 10;
 }
 
-// MessageMentionKind identifies the source-time meaning of a resolved mention.
-enum MessageMentionKind {
-  MESSAGE_MENTION_KIND_UNSPECIFIED = 0;
-  MESSAGE_MENTION_KIND_USER = 1;
-  MESSAGE_MENTION_KIND_ROLE = 2;
-  MESSAGE_MENTION_KIND_HERE = 3;
-  MESSAGE_MENTION_KIND_ALL = 4;
+message DirectUserMention {}
+
+message RoleMessageMention {
+  string role_name = 1;
 }
 
-// MessageMention records one user selected by one resolved mention kind. A
+message HereMessageMention {}
+
+message AllMessageMention {}
+
+// MessageMention records one user selected by one resolved mention cause. A
 // user can appear more than once when a message reaches them through several
-// independently configurable mention kinds.
+// independently configurable causes.
 message MessageMention {
   string user_id = 1;
-  MessageMentionKind kind = 2;
+  oneof cause {
+    DirectUserMention direct = 2;
+    RoleMessageMention role = 3;
+    HereMessageMention here = 4;
+    AllMessageMention all = 5;
+  }
 }
 // ============================================================================
 // MESSAGE MUTATION EVENTS (room-scoped)

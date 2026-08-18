@@ -43,7 +43,7 @@ Both files share `package chatto.core.v1` and generate into the same Go package.
 | --------------------------- | ---------- | ----------------------------------------------------------- | -------------------------------------------------------------- |
 | JetStream-stored (room) | Stream     | RoomCreated, RoomUniversalChanged, RoomSlowModeChanged, MessagePosted, MessageEdited, MessageRetracted, ReactionAdded, ReactionRemoved, UserJoinedRoom, CallStarted, CallParticipantJoined, CallParticipantLeft, CallEnded | Ordering guarantees, historical replay, projection and recoverable-effect source of truth |
 | Room live-only              | NATS Core  | UserTyping | Ephemeral room notifications where another store/projection is source of truth |
-| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, NotificationOccurrenceChanged, PresenceChanged | Cross-tab sync, notification-state invalidation, server lifecycle |
+| Deployment live (user/config) | NATS Core  | UserCreated, ServerUpdated, NotificationOccurrencesInvalidated, PresenceChanged | Cross-tab sync, notification-state invalidation, server lifecycle |
 
 The distinction between stored and live-only events is explicit in the wire envelope: durable facts use `corev1.Event`, transient signals use `corev1.LiveEvent`. Room queries and server subscriptions are delivery contexts, not separate wrapper types.
 
@@ -185,8 +185,8 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
 | `notifications.signalled`                       | Rich immutable per-recipient notification signal and initial delivery state     |
 | `notifications.read`                            | Idempotent transition of one occurrence to Read                                 |
-| `notifications.dismissed`                       | Minimal anti-recreation tombstone for one removed occurrence                    |
-| `notifications.alert_resolved`                  | Terminal Delivered or Silenced outcome for interruptive delivery                |
+| `notifications.removed`                         | Minimal anti-recreation tombstone for one removed occurrence                    |
+| `notifications.alert_resolved`                  | Single terminal outcome for interruptive delivery                               |
 | `evt.group.{groupId}.{eventType}`                | Room group metadata and group-owned sidebar item ordering/membership facts      |
 | `evt.layout.default.{eventType}`                 | Singleton sidebar group ordering facts                                          |
 | `evt.user.{userId}.{eventType}`                  | User/account/profile/auth lookup facts and user-scoped auth audit facts         |

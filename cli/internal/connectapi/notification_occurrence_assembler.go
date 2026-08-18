@@ -67,7 +67,6 @@ func (a *notificationAssembler) messageReference(ctx context.Context, message *c
 		Room:              room,
 		EventId:           message.GetEventId(),
 		ThreadRootEventId: message.ThreadRootEventId,
-		ParentEventId:     message.ParentEventId,
 	}, nil
 }
 
@@ -111,7 +110,9 @@ func (a *notificationAssembler) signal(ctx context.Context, signal *corev1.Notif
 	case *corev1.NotificationSignal_ReplyReceived:
 		result.Kind = &apiv1.NotificationSignal_ReplyReceived{ReplyReceived: &apiv1.ReplyReceived{Message: apiMessage}}
 	case *corev1.NotificationSignal_RoleMentionReceived:
-		result.Kind = &apiv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &apiv1.RoleMentionReceived{Message: apiMessage}}
+		result.Kind = &apiv1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &apiv1.RoleMentionReceived{
+			Message: apiMessage, RoleNames: append([]string(nil), payload.RoleMentionReceived.GetRoleNames()...),
+		}}
 	case *corev1.NotificationSignal_HereMentionReceived:
 		result.Kind = &apiv1.NotificationSignal_HereMentionReceived{HereMentionReceived: &apiv1.HereMentionReceived{Message: apiMessage}}
 	case *corev1.NotificationSignal_AllMentionReceived:
@@ -130,25 +131,40 @@ func (a *notificationAssembler) occurrenceWithPresentation(ctx context.Context, 
 	if occurrence == nil {
 		return nil, nil
 	}
+	signal, err := a.signal(ctx, occurrence.GetSignal())
+	if err != nil {
+		return nil, err
+	}
+	attention := apiNotificationAttentionLevel(occurrence.GetAttentionLevel())
+	result := &apiv1.NotificationOccurrence{
+		Id: occurrence.GetId(), CreatedAt: occurrence.GetSourceCreatedAt(), Signal: signal,
+		AttentionLevel: attention, Unread: !occurrence.GetRead(), ExpiresAt: occurrence.GetExpiresAt(),
+	}
+	if signal == nil {
+		if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
+			return result, nil
+		}
+		return nil, nil
+	}
 	actor, err := a.actor(ctx, occurrence.GetActorId(), presence)
 	if err != nil {
 		return nil, err
 	}
-	signal, err := a.signal(ctx, occurrence.GetSignal())
-	if err != nil || signal == nil {
-		return nil, err
+	result.Actor = actor
+	return result, nil
+}
+
+func apiNotificationAttentionLevel(level corev1.NotificationAttentionLevel) apiv1.NotificationAttentionLevel {
+	switch level {
+	case corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT:
+		return apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
+	case corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT:
+		return apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+	default:
+		// Future importance tiers must never silently reduce attention when an
+		// older server assembles a retained occurrence.
+		return apiv1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
 	}
-	return &apiv1.NotificationOccurrence{
-		Id:             occurrence.GetId(),
-		SourceEventId:  occurrence.GetSourceEventId(),
-		CreatedAt:      occurrence.GetSourceCreatedAt(),
-		Actor:          actor,
-		Signal:         signal,
-		Intensity:      apiv1.NotificationDeliveryIntensity(occurrence.GetIntensity()),
-		AttentionLevel: apiv1.NotificationAttentionLevel(core.NotificationOccurrenceAttentionLevel(occurrence)),
-		Unread:         occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
-		ExpiresAt:      occurrence.GetExpiresAt(),
-	}, nil
 }
 
 func (a *notificationAssembler) occurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) ([]*apiv1.NotificationOccurrence, error) {

@@ -22,7 +22,7 @@ const (
 	StreamName           = "NOTIFICATIONS"
 	SignalledSubject     = "notifications.signalled"
 	ReadSubject          = "notifications.read"
-	DismissedSubject     = "notifications.dismissed"
+	RemovedSubject       = "notifications.removed"
 	AlertResolvedSubject = "notifications.alert_resolved"
 
 	IdentityMetadataKey = "chatto.notifications.incarnation"
@@ -35,7 +35,7 @@ func Subjects() []string {
 	return []string{
 		SignalledSubject,
 		ReadSubject,
-		DismissedSubject,
+		RemovedSubject,
 		AlertResolvedSubject,
 	}
 }
@@ -81,15 +81,19 @@ func (p *Publisher) AppendEventually(ctx context.Context, event *corev1.Notifica
 	if err != nil {
 		return events.StreamPosition{}, fmt.Errorf("marshal notification event: %w", err)
 	}
-	sequence, err := p.log.AppendEventually(ctx, subject, events.EncodedRecord{
-		ID:   event.GetId(),
-		Data: data,
-		TTL:  ttl,
-	})
-	if err != nil {
-		return events.StreamPosition{}, err
+	record := events.EncodedRecord{ID: event.GetId(), Data: data, TTL: ttl}
+	for {
+		sequence, err := p.log.AppendEventually(ctx, subject, record)
+		if err == nil {
+			return events.SubjectPosition(subject, sequence), nil
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return events.StreamPosition{}, err
+		}
+		if err := ctx.Err(); err != nil {
+			return events.StreamPosition{}, err
+		}
 	}
-	return events.SubjectPosition(subject, sequence), nil
 }
 
 func (p *Publisher) LastStreamSeq(ctx context.Context) (uint64, error) {
@@ -97,16 +101,16 @@ func (p *Publisher) LastStreamSeq(ctx context.Context) (uint64, error) {
 }
 
 func subjectFor(event *corev1.NotificationEvent) (string, error) {
-	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetOccurredAt() == nil {
-		return "", fmt.Errorf("%w: id, recipient_id, and occurred_at are required", ErrInvalidEvent)
+	if event == nil || event.GetId() == "" || event.GetRecipientId() == "" || event.GetNotificationId() == "" || event.GetOccurredAt() == nil {
+		return "", fmt.Errorf("%w: id, recipient_id, notification_id, and occurred_at are required", ErrInvalidEvent)
 	}
 	switch event.GetEvent().(type) {
 	case *corev1.NotificationEvent_Signalled:
 		return SignalledSubject, nil
 	case *corev1.NotificationEvent_Read:
 		return ReadSubject, nil
-	case *corev1.NotificationEvent_Dismissed:
-		return DismissedSubject, nil
+	case *corev1.NotificationEvent_Removed:
+		return RemovedSubject, nil
 	case *corev1.NotificationEvent_AlertResolved:
 		return AlertResolvedSubject, nil
 	default:

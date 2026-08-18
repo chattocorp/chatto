@@ -74,11 +74,11 @@ func TestNotificationAlertWorkerConsumesSignalledEvent(t *testing.T) {
 	case <-time.After(5 * time.Second):
 		t.Fatal("notification alert was not delivered from NOTIFICATIONS")
 	}
-	wantID := notificationOccurrenceID(alice.Id, posted.GetId(), corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE)
+	wantID := notificationOccurrenceID(alice.Id, posted.GetId(), "direct_message_received")
 	deadline := time.Now().Add(5 * time.Second)
 	for time.Now().Before(deadline) {
 		occurrence, getErr := chattoCore.NotificationOccurrences().Get(ctx, alice.Id, wantID)
-		if getErr == nil && occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED {
+		if getErr == nil && occurrence.AlertDelivered != nil && occurrence.GetAlertDelivered() {
 			return
 		}
 		time.Sleep(10 * time.Millisecond)

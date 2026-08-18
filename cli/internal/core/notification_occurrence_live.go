@@ -3,25 +3,24 @@ package core
 import (
 	"context"
 
+	"google.golang.org/protobuf/proto"
+
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
-func (c *ChattoCore) publishNotificationOccurrenceChanged(ctx context.Context, occurrence *corev1.NotificationOccurrence, created, deleted bool) {
+func (c *ChattoCore) publishNotificationOccurrencesInvalidated(ctx context.Context, occurrence *corev1.NotificationOccurrence, alertCandidate bool) {
 	if c == nil || occurrence == nil || occurrence.GetRecipientId() == "" {
 		return
 	}
-	alert := created && occurrence.GetIntensity() == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT &&
-		occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD &&
-		occurrence.GetAlertState() == corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING &&
-		!c.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId())
+	var candidateID *string
+	if alertCandidate && NotificationAlertPending(occurrence) && !c.suppressesNotificationAlertsForPresence(ctx, occurrence.GetRecipientId()) {
+		candidateID = proto.String(occurrence.GetId())
+	}
 	event := newLiveEvent(occurrence.GetActorId(), &corev1.LiveEvent{
-		Event: &corev1.LiveEvent_NotificationOccurrenceChanged{
-			NotificationOccurrenceChanged: &corev1.NotificationOccurrenceChangedEvent{
-				NotificationId: occurrence.GetId(),
-				Created:        created,
-				Deleted:        deleted,
-				Alert:          alert,
+		Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{
+			NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{
+				AlertCandidateNotificationId: candidateID,
 			},
 		},
 	})

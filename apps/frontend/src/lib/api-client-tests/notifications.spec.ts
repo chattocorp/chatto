@@ -9,18 +9,11 @@ import {
   notificationOccurrence,
   mapNotificationOccurrencePage,
   NotificationAttentionLevel,
-  NotificationDeliveryIntensity,
-  NotificationPolicyKind
+  NotificationSignalKind
 } from '$lib/api-client/notifications';
 
 describe('notification occurrence presentation mapping', () => {
-  it('distinguishes absent attention counts from current zero counts', () => {
-    const legacy = mapNotificationOccurrencePage(
-      new ListNotificationOccurrencesResponse({
-        unreadCount: 3,
-        roomUnreadCounts: [new NotificationRoomUnreadCount({ roomId: 'room-1', unreadCount: 2 })]
-      })
-    );
+  it('preserves authoritative attention counts', () => {
     const current = mapNotificationOccurrencePage(
       new ListNotificationOccurrencesResponse({
         unreadCount: 3,
@@ -35,8 +28,6 @@ describe('notification occurrence presentation mapping', () => {
       })
     );
 
-    expect(legacy.importantUnreadCount).toBe(3);
-    expect(legacy.roomImportantUnreadCounts).toEqual({ 'room-1': 2 });
     expect(current.importantUnreadCount).toBe(0);
     expect(current.roomImportantUnreadCounts).toEqual({ 'room-1': 0 });
   });
@@ -45,16 +36,15 @@ describe('notification occurrence presentation mapping', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-notification',
-        sourceEventId: 'reply-1',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('followedThreadActivity', 'reply-1', 'root-1'),
-        intensity: NotificationDeliveryIntensity.BADGE,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT,
         unread: true
       })
     );
 
     expect(occurrence).toMatchObject({
-      signalKind: NotificationPolicyKind.FOLLOWED_THREAD,
+      signalKind: NotificationSignalKind.FOLLOWED_THREAD,
       eventId: 'reply-1',
       threadRootId: 'root-1'
     });
@@ -64,15 +54,14 @@ describe('notification occurrence presentation mapping', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'thread-mention',
-        sourceEventId: 'reply-2',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('directMentionReceived', 'reply-2', 'root-1'),
-        intensity: NotificationDeliveryIntensity.ALERT,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT,
         unread: true
       })
     );
 
-    expect(occurrence.signalKind).toBe(NotificationPolicyKind.DIRECT_MENTION);
+    expect(occurrence.signalKind).toBe(NotificationSignalKind.DIRECT_MENTION);
     expect(occurrence.attentionLevel).toBe(NotificationAttentionLevel.IMPORTANT);
     expect(occurrence).toMatchObject({
       eventId: 'reply-2',
@@ -84,16 +73,15 @@ describe('notification occurrence presentation mapping', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'room-notification',
-        sourceEventId: 'message-1',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('followedRoomActivity', 'message-1'),
-        intensity: NotificationDeliveryIntensity.ALERT,
+        attentionLevel: NotificationAttentionLevel.IMPORTANT,
         unread: true
       })
     );
 
     expect(occurrence).toMatchObject({
-      signalKind: NotificationPolicyKind.FOLLOWED_ROOM,
+      signalKind: NotificationSignalKind.FOLLOWED_ROOM,
       eventId: 'message-1'
     });
   });
@@ -102,16 +90,15 @@ describe('notification occurrence presentation mapping', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
         id: 'reaction-notification',
-        sourceEventId: 'reaction-1',
         actor: { id: 'u1', displayName: 'Alice' },
         signal: notificationSignal('reactionReceived', 'message-1', 'thread-root-1', 'heart'),
-        intensity: NotificationDeliveryIntensity.BADGE,
+        attentionLevel: NotificationAttentionLevel.AMBIENT,
         unread: true
       })
     );
 
     expect(occurrence).toMatchObject({
-      signalKind: NotificationPolicyKind.REACTION,
+      signalKind: NotificationSignalKind.REACTION,
       eventId: 'message-1',
       threadRootId: 'thread-root-1'
     });
@@ -126,8 +113,8 @@ describe('notification occurrence presentation mapping', () => {
         occurrences: [
           new NotificationOccurrence({
             id: 'future-target',
-            sourceEventId: 'future-source',
             signal: { kind: { case: undefined } },
+            attentionLevel: NotificationAttentionLevel.IMPORTANT,
             unread: true
           })
         ]

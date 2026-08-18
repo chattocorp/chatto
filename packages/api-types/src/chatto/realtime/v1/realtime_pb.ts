@@ -43,40 +43,6 @@ proto3.util.setEnumType(RealtimeProjectionPinnedMessageAction, "chatto.realtime.
 ]);
 
 /**
- * Kind of live notification transition.
- *
- * @generated from enum chatto.realtime.v1.RealtimeProjectionNotificationAction
- */
-export enum RealtimeProjectionNotificationAction {
-  /**
-   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED = 1;
-   */
-  CREATED = 1,
-
-  /**
-   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED = 3;
-   */
-  UPDATED = 3,
-
-  /**
-   * @generated from enum value: REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED = 4;
-   */
-  DELETED = 4,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RealtimeProjectionNotificationAction)
-proto3.util.setEnumType(RealtimeProjectionNotificationAction, "chatto.realtime.v1.RealtimeProjectionNotificationAction", [
-  { no: 0, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UNSPECIFIED" },
-  { no: 1, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_CREATED" },
-  { no: 3, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_UPDATED" },
-  { no: 4, name: "REALTIME_PROJECTION_NOTIFICATION_ACTION_DELETED" },
-]);
-
-/**
  * Kind of reaction transition.
  *
  * @generated from enum chatto.realtime.v1.RealtimeProjectionReactionAction
@@ -1613,12 +1579,12 @@ export class RealtimeProjectionRoomTimelineEventRemove extends Message<RealtimeP
  */
 export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProjectionNotificationsReplace> {
   /**
-   * Live transition that caused this replacement, when one exists. Bootstrap,
-   * replay reconciliation, and compacted reset replacements omit this field.
+   * True only when this live replacement should produce a one-shot local
+   * notification sound. Bootstrap and reconciliation replacements are false.
    *
-   * @generated from field: optional chatto.realtime.v1.RealtimeProjectionNotificationChange change = 3;
+   * @generated from field: bool play_notification_sound = 4;
    */
-  change?: RealtimeProjectionNotificationChange;
+  playNotificationSound = false;
 
   /**
    * Authoritative Notifications 2.0 occurrences and exact unread count.
@@ -1635,7 +1601,7 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
   static readonly runtime: typeof proto3 = proto3;
   static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationsReplace";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 3, name: "change", kind: "message", T: RealtimeProjectionNotificationChange, opt: true },
+    { no: 4, name: "play_notification_sound", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 5, name: "occurrences", kind: "message", T: ListNotificationOccurrencesResponse },
   ]);
 
@@ -1653,62 +1619,6 @@ export class RealtimeProjectionNotificationsReplace extends Message<RealtimeProj
 
   static equals(a: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined, b: RealtimeProjectionNotificationsReplace | PlainMessage<RealtimeProjectionNotificationsReplace> | undefined): boolean {
     return proto3.util.equals(RealtimeProjectionNotificationsReplace, a, b);
-  }
-}
-
-/**
- * One live notification transition accompanying authoritative current state.
- *
- * This metadata exists for one-shot presentation effects such as sounds. The
- * enclosing replacement remains the canonical notification state.
- *
- * @generated from message chatto.realtime.v1.RealtimeProjectionNotificationChange
- */
-export class RealtimeProjectionNotificationChange extends Message<RealtimeProjectionNotificationChange> {
-  /**
-   * @generated from field: chatto.realtime.v1.RealtimeProjectionNotificationAction action = 1;
-   */
-  action = RealtimeProjectionNotificationAction.UNSPECIFIED;
-
-  /**
-   * @generated from field: string notification_id = 2;
-   */
-  notificationId = "";
-
-  /**
-   * True when a created notification must not produce an alert.
-   *
-   * @generated from field: bool silent = 3;
-   */
-  silent = false;
-
-  constructor(data?: PartialMessage<RealtimeProjectionNotificationChange>) {
-    super();
-    proto3.util.initPartial(data, this);
-  }
-
-  static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.realtime.v1.RealtimeProjectionNotificationChange";
-  static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "action", kind: "enum", T: proto3.getEnumType(RealtimeProjectionNotificationAction) },
-    { no: 2, name: "notification_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
-    { no: 3, name: "silent", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-  ]);
-
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RealtimeProjectionNotificationChange {
-    return new RealtimeProjectionNotificationChange().fromBinary(bytes, options);
-  }
-
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationChange {
-    return new RealtimeProjectionNotificationChange().fromJson(jsonValue, options);
-  }
-
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RealtimeProjectionNotificationChange {
-    return new RealtimeProjectionNotificationChange().fromJsonString(jsonString, options);
-  }
-
-  static equals(a: RealtimeProjectionNotificationChange | PlainMessage<RealtimeProjectionNotificationChange> | undefined, b: RealtimeProjectionNotificationChange | PlainMessage<RealtimeProjectionNotificationChange> | undefined): boolean {
-    return proto3.util.equals(RealtimeProjectionNotificationChange, a, b);
   }
 }
 

@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
-import { NotificationPolicyKind } from '$lib/api-client/notifications';
+import { NotificationSignalKind } from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 
 const { mocks } = vi.hoisted(() => {
@@ -589,7 +589,7 @@ describe('ServerSidebarEntry', () => {
   it('reveals the target room before navigating from a server notification indicator', async () => {
     const notification = {
       id: 'mention-1',
-      signalKind: NotificationPolicyKind.DIRECT_MENTION,
+      signalKind: NotificationSignalKind.DIRECT_MENTION,
       targetSupported: true,
       room: { id: 'room-1', name: 'general' },
       eventId: 'event-1',
@@ -637,7 +637,7 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.importantUnreadNotificationCount = 1;
     mocks.store.notifications.getNonDMNotification.mockReturnValue({
       id: 'future-target',
-      signalKind: NotificationPolicyKind.UNSPECIFIED,
+      signalKind: NotificationSignalKind.UNSUPPORTED,
       targetSupported: false,
       createdAt: new Date().toISOString(),
       actor: null

@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-18
 
 ## Overview
 
@@ -35,7 +35,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 1. Piggyback on persistent notifications
 
-**Decision:** A push fires only for a committed notification signal whose source-time policy intensity is Alert.
+**Decision:** A push fires only for a committed notification signal whose source-time delivery mode is Alert.
 **Why:** Two parallel decision trees would inevitably diverge. One persisted policy decision and occurrence eliminate that bug class. See FDR-012.
 **Tradeoff:** No way to push without also creating an in-app notification. Considered a feature, not a limitation: a push you can't find later in the app would be confusing.
 

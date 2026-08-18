@@ -6,7 +6,6 @@ import (
 	"sort"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
@@ -59,7 +58,7 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 		return nil, connectError(err)
 	}
 	if !visible {
-		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, occurrence.GetId())
 		return nil, connectError(core.ErrNotFound)
 	}
 	hydrated, err := s.hydratedOccurrence(ctx, occurrence)
@@ -69,7 +68,7 @@ func (s *notificationService) GetNotificationOccurrence(ctx context.Context, req
 	if hydrated == nil {
 		return nil, connectError(core.ErrNotFound)
 	}
-	return connect.NewResponse(&apiv1.GetNotificationOccurrenceResponse{Notification: hydrated}), nil
+	return connect.NewResponse(&apiv1.GetNotificationOccurrenceResponse{Occurrence: hydrated}), nil
 }
 
 func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.BatchGetNotificationOccurrencesRequest]) (*connect.Response[apiv1.BatchGetNotificationOccurrencesResponse], error) {
@@ -95,7 +94,7 @@ func (s *notificationService) BatchGetNotificationOccurrences(ctx context.Contex
 	if err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&apiv1.BatchGetNotificationOccurrencesResponse{Notifications: hydrated}), nil
+	return connect.NewResponse(&apiv1.BatchGetNotificationOccurrencesResponse{Occurrences: hydrated}), nil
 }
 
 func (s *notificationService) ListNotificationOccurrences(ctx context.Context, req *connect.Request[apiv1.ListNotificationOccurrencesRequest]) (*connect.Response[apiv1.ListNotificationOccurrencesResponse], error) {
@@ -109,6 +108,9 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 	occurrences, err := s.api.core.NotificationOccurrences().List(ctx, caller.UserID)
 	if err != nil {
 		return nil, connectError(err)
+	}
+	if err := requireSupportedNotificationSignals(occurrences...); err != nil {
+		return nil, err
 	}
 	occurrences, err = s.visibleNotificationOccurrences(ctx, caller.UserID, occurrences)
 	if err != nil {
@@ -133,7 +135,7 @@ func (s *notificationService) ListNotificationOccurrences(ctx context.Context, r
 		UnreadCount:          summary.unreadCount,
 		NextExpiryAt:         summary.nextExpiryAt,
 		RoomUnreadCounts:     summary.roomCounts,
-		ImportantUnreadCount: proto.Int32(summary.importantUnreadCount),
+		ImportantUnreadCount: summary.importantUnreadCount,
 	}), nil
 }
 
@@ -156,9 +158,10 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 		if summary.nextExpiryAt == nil || occurrence.GetExpiresAt().AsTime().Before(summary.nextExpiryAt.AsTime()) {
 			summary.nextExpiryAt = occurrence.GetExpiresAt()
 		}
-		if occurrence.GetReadState() == corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD {
+		if !occurrence.GetRead() {
 			summary.unreadCount++
-			important := core.NotificationOccurrenceAttentionLevel(occurrence) == corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
+			// Unknown future levels are conservatively Important.
+			important := occurrence.GetAttentionLevel() != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
 			if important {
 				summary.importantUnreadCount++
 			}
@@ -184,7 +187,7 @@ func notificationSummary(occurrences []*corev1.NotificationOccurrence) notificat
 		summary.roomCounts = append(summary.roomCounts, &apiv1.NotificationRoomUnreadCount{
 			RoomId:               roomID,
 			UnreadCount:          room.unreadCount,
-			ImportantUnreadCount: proto.Int32(room.importantUnreadCount),
+			ImportantUnreadCount: room.importantUnreadCount,
 		})
 	}
 	return summary
@@ -205,7 +208,7 @@ func (s *notificationService) visibleNotificationOccurrences(ctx context.Context
 			if core.NotificationOccurrenceHasUnsupportedSignal(occurrence) {
 				continue
 			}
-			if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST); err != nil {
+			if _, err := s.api.core.NotificationOccurrences().Delete(ctx, userID, occurrence.GetId()); err != nil {
 				return nil, err
 			}
 			continue
@@ -287,7 +290,7 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 		return nil, connectError(err)
 	}
 	if !visible {
-		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, _ = s.api.core.NotificationOccurrences().Delete(ctx, caller.UserID, existing.GetId())
 		return nil, connectError(core.ErrNotFound)
 	}
 	// Hydration may consult unrelated projections and fail. Complete it before
@@ -305,7 +308,7 @@ func (s *notificationService) MarkNotificationRead(ctx context.Context, req *con
 		return nil, connectError(err)
 	}
 	item.Unread = false
-	return connect.NewResponse(&apiv1.MarkNotificationReadResponse{Notification: item}), nil
+	return connect.NewResponse(&apiv1.MarkNotificationReadResponse{Occurrence: item}), nil
 }
 
 func (s *notificationService) DeleteNotificationOccurrence(ctx context.Context, req *connect.Request[apiv1.DeleteNotificationOccurrenceRequest]) (*connect.Response[apiv1.DeleteNotificationOccurrenceResponse], error) {
@@ -368,14 +371,27 @@ func (s *notificationService) DeleteAllNotificationOccurrences(ctx context.Conte
 	return connect.NewResponse(&apiv1.DeleteAllNotificationOccurrencesResponse{DeletedCount: int32(count)}), nil
 }
 
-func apiNotificationPolicy(roomID string, policy []core.NotificationPolicyPreference) (*apiv1.GetNotificationPolicyResponse, *apiv1.SetNotificationPolicyPreferenceResponse) {
+func apiNotificationPolicy(roomID string, policy []core.NotificationPolicyPreference) (*apiv1.GetNotificationPolicyResponse, *apiv1.SetNotificationPolicyPreferenceResponse, error) {
 	preferences := make([]*apiv1.NotificationPolicyPreference, 0, len(policy))
 	for _, preference := range policy {
+		category, err := apiNotificationPreferenceCategory(preference.Category)
+		if err != nil {
+			return nil, nil, err
+		}
+		effective, err := apiNotificationDeliveryMode(preference.Effective)
+		if err != nil {
+			return nil, nil, err
+		}
+		var override *apiv1.NotificationDeliveryMode
+		if preference.Override != nil {
+			mapped, err := apiNotificationDeliveryMode(*preference.Override)
+			if err != nil {
+				return nil, nil, err
+			}
+			override = &mapped
+		}
 		preferences = append(preferences, &apiv1.NotificationPolicyPreference{
-			Kind:               apiv1.NotificationPolicyKind(preference.Kind),
-			ServerIntensity:    apiv1.NotificationDeliveryIntensity(preference.ServerIntensity),
-			RoomIntensity:      apiv1.NotificationDeliveryIntensity(preference.RoomIntensity),
-			EffectiveIntensity: apiv1.NotificationDeliveryIntensity(preference.Effective),
+			Category: category, Override: override, Effective: effective,
 		})
 	}
 	get := &apiv1.GetNotificationPolicyResponse{Preferences: preferences}
@@ -384,7 +400,83 @@ func apiNotificationPolicy(roomID string, policy []core.NotificationPolicyPrefer
 		get.RoomId = &roomID
 		set.RoomId = &roomID
 	}
-	return get, set
+	return get, set, nil
+}
+
+func apiNotificationPreferenceCategory(category corev1.NotificationPreferenceCategory) (apiv1.NotificationPreferenceCategory, error) {
+	switch category {
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM, nil
+	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION, nil
+	default:
+		return apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED, core.ErrInvalidArgument
+	}
+}
+
+func coreNotificationPreferenceCategory(category apiv1.NotificationPreferenceCategory) (corev1.NotificationPreferenceCategory, error) {
+	switch category {
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM, nil
+	case apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION, nil
+	default:
+		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED, core.ErrInvalidArgument
+	}
+}
+
+func apiNotificationDeliveryMode(mode corev1.NotificationDeliveryMode) (apiv1.NotificationDeliveryMode, error) {
+	switch mode {
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, nil
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
+	default:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
+	}
+}
+
+func coreNotificationDeliveryMode(mode apiv1.NotificationDeliveryMode) (corev1.NotificationDeliveryMode, error) {
+	switch mode {
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, nil
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
+	default:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
+	}
 }
 
 func (s *notificationService) GetNotificationPolicy(ctx context.Context, req *connect.Request[apiv1.GetNotificationPolicyRequest]) (*connect.Response[apiv1.GetNotificationPolicyResponse], error) {
@@ -397,7 +489,10 @@ func (s *notificationService) GetNotificationPolicy(ctx context.Context, req *co
 	if err != nil {
 		return nil, connectError(err)
 	}
-	response, _ := apiNotificationPolicy(roomID, policy)
+	response, _, err := apiNotificationPolicy(roomID, policy)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	return connect.NewResponse(response), nil
 }
 
@@ -407,17 +502,29 @@ func (s *notificationService) SetNotificationPolicyPreference(ctx context.Contex
 		return nil, err
 	}
 	roomID := req.Msg.GetRoomId()
-	kind := corev1.NotificationPolicyKind(req.Msg.GetKind())
-	intensity := corev1.NotificationDeliveryIntensity(req.Msg.GetIntensity())
+	category, err := coreNotificationPreferenceCategory(req.Msg.GetCategory())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mode := corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+	if req.Msg.Override != nil {
+		mode, err = coreNotificationDeliveryMode(req.Msg.GetOverride())
+		if err != nil {
+			return nil, connectError(err)
+		}
+	}
 	var policy []core.NotificationPolicyPreference
 	if roomID == "" {
-		policy, err = s.api.core.NotificationPolicy().SetServerNotificationIntensity(ctx, caller.UserID, kind, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetServerNotificationMode(ctx, caller.UserID, category, mode)
 	} else {
-		policy, err = s.api.core.NotificationPolicy().SetRoomNotificationIntensity(ctx, caller.UserID, roomID, kind, intensity)
+		policy, err = s.api.core.NotificationPolicy().SetRoomNotificationMode(ctx, caller.UserID, roomID, category, mode)
 	}
 	if err != nil {
 		return nil, connectError(err)
 	}
-	_, response := apiNotificationPolicy(roomID, policy)
+	_, response, err := apiNotificationPolicy(roomID, policy)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	return connect.NewResponse(response), nil
 }

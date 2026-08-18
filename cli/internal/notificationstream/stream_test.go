@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -35,14 +37,12 @@ func TestPublisherStoresCanonicalEventWithPhysicalTTL(t *testing.T) {
 
 	now := time.Date(2026, 8, 17, 12, 0, 0, 0, time.UTC)
 	event := &corev1.NotificationEvent{
-		Id:          "NE1",
-		RecipientId: "U1",
-		OccurredAt:  timestamppb.New(now),
-		ExpiresAt:   timestamppb.New(now.Add(time.Hour)),
-		Event: &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{
-			NotificationId: "N1",
-			ReadAt:         timestamppb.New(now),
-		}},
+		Id:             "NE1",
+		RecipientId:    "U1",
+		NotificationId: "N1",
+		OccurredAt:     timestamppb.New(now),
+		ExpiresAt:      timestamppb.New(now.Add(time.Hour)),
+		Event:          &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
 	}
 	publisher := NewPublisher(js, stream, time.Hour, nil)
 	publisher.now = func() time.Time { return now }
@@ -78,8 +78,8 @@ func TestPublisherRejectsExpiredAndIncompleteEvents(t *testing.T) {
 		t.Fatalf("incomplete event error = %v, want ErrInvalidEvent", err)
 	}
 	expired := &corev1.NotificationEvent{
-		Id: "NE1", RecipientId: "U1", OccurredAt: timestamppb.New(now.Add(-2 * time.Hour)), ExpiresAt: timestamppb.New(now.Add(-time.Hour)),
-		Event: &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{NotificationId: "N1", ReadAt: timestamppb.New(now)}},
+		Id: "NE1", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamppb.New(now.Add(-2 * time.Hour)), ExpiresAt: timestamppb.New(now.Add(-time.Hour)),
+		Event: &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
 	}
 	if _, err := publisher.AppendEventually(ctx, expired); !errors.Is(err, ErrExpiredEvent) {
 		t.Fatalf("expired event error = %v, want ErrExpiredEvent", err)
@@ -87,7 +87,7 @@ func TestPublisherRejectsExpiredAndIncompleteEvents(t *testing.T) {
 }
 
 func TestNotificationSubjectsAreCompleteAndCallerOwned(t *testing.T) {
-	want := []string{SignalledSubject, ReadSubject, DismissedSubject, AlertResolvedSubject}
+	want := []string{SignalledSubject, ReadSubject, RemovedSubject, AlertResolvedSubject}
 	got := Subjects()
 	if len(got) != len(want) {
 		t.Fatalf("Subjects() = %v, want %v", got, want)
@@ -100,5 +100,101 @@ func TestNotificationSubjectsAreCompleteAndCallerOwned(t *testing.T) {
 	got[0] = "mutated"
 	if Subjects()[0] != SignalledSubject {
 		t.Fatal("caller mutation changed the notification subject contract")
+	}
+}
+
+func TestPublisherSurvivesSharedSubjectContention(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS_CONTENTION_TEST", Subjects: Subjects(), Storage: jetstream.MemoryStorage, AllowMsgTTL: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := NewPublisher(js, stream, time.Hour, nil)
+	now := time.Now().UTC()
+	const writers = 32
+	start := make(chan struct{})
+	errs := make(chan error, writers)
+	var wg sync.WaitGroup
+	for i := range writers {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			<-start
+			id := fmt.Sprintf("NE-%d", i)
+			_, err := publisher.AppendEventually(ctx, &corev1.NotificationEvent{
+				Id: id, RecipientId: "U1", NotificationId: id, OccurredAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+				Event: &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
+			})
+			errs <- err
+		}()
+	}
+	close(start)
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("contended append: %v", err)
+		}
+	}
+	info, err := stream.Info(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := info.State.Msgs; got != writers {
+		t.Fatalf("stored messages = %d, want %d", got, writers)
+	}
+}
+
+func TestAlertResolutionEventIDMakesTerminalOutcomeSingleWinner(t *testing.T) {
+	_, nc := testutil.StartNATS(t)
+	js, err := jetstream.New(nc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	stream, err := js.CreateStream(ctx, jetstream.StreamConfig{
+		Name: "NOTIFICATIONS_ALERT_RESOLUTION_TEST", Subjects: Subjects(), Storage: jetstream.MemoryStorage, AllowMsgTTL: true,
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	publisher := NewPublisher(js, stream, time.Hour, nil)
+	now := time.Now().UTC()
+	resolve := func(delivered bool) *corev1.NotificationEvent {
+		return &corev1.NotificationEvent{
+			Id: "NE-alert-resolved", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamppb.New(now), ExpiresAt: timestamppb.New(now.Add(time.Hour)),
+			Event: &corev1.NotificationEvent_AlertResolved{AlertResolved: &corev1.NotificationAlertResolved{Delivered: delivered}},
+		}
+	}
+	first, err := publisher.AppendEventually(ctx, resolve(true))
+	if err != nil {
+		t.Fatal(err)
+	}
+	second, err := publisher.AppendEventually(ctx, resolve(false))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if first.Seq != second.Seq {
+		t.Fatalf("competing resolutions stored at sequences %d and %d", first.Seq, second.Seq)
+	}
+	stored, err := stream.GetMsg(ctx, first.Seq)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var event corev1.NotificationEvent
+	if err := proto.Unmarshal(stored.Data, &event); err != nil {
+		t.Fatal(err)
+	}
+	if !event.GetAlertResolved().GetDelivered() {
+		t.Fatal("duplicate resolution replaced the first terminal outcome")
 	}
 }

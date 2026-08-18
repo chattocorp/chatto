@@ -26,11 +26,12 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 		SourceCreated: now,
 		ActorID:       "U-notification-actor",
 		Signal: testNotificationSignal(
-			corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION,
+			corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
 			"R-notification-room",
 			"E-notification-source",
 		),
-		Intensity:      corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT,
+		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT,
+		AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	}
 
@@ -38,13 +39,12 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if err != nil || !wasCreated || created == nil {
 		t.Fatalf("Create = (%+v, %v, %v), want new occurrence", created, wasCreated, err)
 	}
-	wantID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
+	wantID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, "direct_mention_received")
 	if created.GetId() != wantID || created.GetNotificationStreamSequence() == 0 {
 		t.Fatalf("created occurrence = %+v, want deterministic ID and stream sequence", created)
 	}
-	if created.GetIntensity() != corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT ||
-		created.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
-		t.Fatalf("created delivery state = (%v, %v)", created.GetIntensity(), created.GetAlertState())
+	if created.GetAlertExpiresAt() == nil || !NotificationAlertPending(created) {
+		t.Fatalf("created delivery state = %+v, want pending alert", created)
 	}
 	storedSignal, err := chattoCore.storage.notificationStream.GetMsg(ctx, created.GetNotificationStreamSequence())
 	if err != nil {
@@ -54,7 +54,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if err := proto.Unmarshal(storedSignal.Data, &signalEvent); err != nil {
 		t.Fatalf("decode stored signal: %v", err)
 	}
-	if got := signalEvent.GetSignalled(); got.GetNotificationId() != wantID || got.GetSourceEventId() != input.SourceEventID || got.GetSignal() == nil {
+	if got := signalEvent.GetSignalled(); signalEvent.GetNotificationId() != wantID || got.GetSourceEventId() != input.SourceEventID || got.GetSignal() == nil {
 		t.Fatalf("stored immutable signal = %+v", got)
 	}
 	duplicate, wasCreated, err := model.Create(ctx, input)
@@ -62,11 +62,10 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 		t.Fatalf("duplicate Create = (%+v, %v, %v)", duplicate, wasCreated, err)
 	}
 	read, err := model.MarkRead(ctx, input.RecipientID, wantID)
-	if err != nil || read.GetReadState() != corev1.NotificationReadState_NOTIFICATION_READ_STATE_READ ||
-		read.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED {
+	if err != nil || !read.GetRead() || read.AlertDelivered == nil || read.GetAlertDelivered() {
 		t.Fatalf("MarkRead = (%+v, %v)", read, err)
 	}
-	deleted, err := model.Delete(ctx, input.RecipientID, wantID, corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_DELETED)
+	deleted, err := model.Delete(ctx, input.RecipientID, wantID)
 	if err != nil || !deleted {
 		t.Fatalf("Delete = (%v, %v)", deleted, err)
 	}
@@ -90,8 +89,8 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 
 func TestNotificationIdentitySeparatesSignalKinds(t *testing.T) {
 	recipientID, sourceID := "U1", "E1"
-	mention := notificationOccurrenceID(recipientID, sourceID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
-	reply := notificationOccurrenceID(recipientID, sourceID, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
+	mention := notificationOccurrenceID(recipientID, sourceID, "direct_mention_received")
+	reply := notificationOccurrenceID(recipientID, sourceID, "reply_received")
 	if mention == reply {
 		t.Fatalf("different signal kinds shared ID %q", mention)
 	}
@@ -106,7 +105,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		RecipientId:     "U1",
 		SourceEventId:   "E1",
 		SourceCreatedAt: timestamp(now.Add(-time.Hour)),
-		Signal:          testNotificationSignal(corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY, "R1", "E1"),
+		Signal:          testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"),
 		ExpiresAt:       timestamp(now.Add(time.Minute)),
 	}
 	if err := p.Apply(notificationSignalledEvent("NE1", occurrence, now.Add(time.Minute)), 7); err != nil {
@@ -116,8 +115,8 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		t.Fatalf("projected occurrence = (%+v, %v)", got, ok)
 	}
 	if err := p.Apply(&corev1.NotificationEvent{
-		Id: "NE2", RecipientId: "U1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Minute)),
-		Event: &corev1.NotificationEvent_Dismissed{Dismissed: &corev1.NotificationDismissed{NotificationId: "N1", SignalStreamSequence: 7}},
+		Id: "NE2", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Minute)),
+		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{}},
 	}, 8); err != nil {
 		t.Fatalf("Apply dismissal: %v", err)
 	}
@@ -135,16 +134,13 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 
 func notificationSignalledEvent(id string, occurrence *corev1.NotificationOccurrence, expires time.Time) *corev1.NotificationEvent {
 	return &corev1.NotificationEvent{
-		Id: id, RecipientId: occurrence.GetRecipientId(), OccurredAt: occurrence.GetSourceCreatedAt(), ExpiresAt: timestamp(expires),
+		Id: id, RecipientId: occurrence.GetRecipientId(), NotificationId: occurrence.GetId(), OccurredAt: occurrence.GetSourceCreatedAt(), ExpiresAt: timestamp(expires),
 		Event: &corev1.NotificationEvent_Signalled{Signalled: &corev1.NotificationSignalled{
-			NotificationId:       occurrence.GetId(),
 			SourceEventId:        occurrence.GetSourceEventId(),
 			SourceCreatedAt:      occurrence.GetSourceCreatedAt(),
 			ActorId:              occurrence.GetActorId(),
 			Signal:               occurrence.GetSignal(),
-			Intensity:            occurrence.GetIntensity(),
-			InitialReadState:     corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
-			EvaluatedAt:          occurrence.GetSourceCreatedAt(),
+			InitiallyRead:        occurrence.GetRead(),
 			SourceStreamSequence: occurrence.GetSourceStreamSequence(),
 			AttentionLevel:       occurrence.GetAttentionLevel(),
 			AlertExpiresAt:       occurrence.GetAlertExpiresAt(),

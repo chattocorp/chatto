@@ -150,7 +150,7 @@ func TestReactionNotificationOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("addReaction = %v, %v", added, err)
 	}
 	occurrences := testNotificationOccurrences(t, chattoCore, author.Id)
-	if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REACTION) {
+	if len(occurrences) != 1 || !testOccurrenceHasKind(occurrences[0], corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION) {
 		t.Fatalf("reaction occurrences = %+v, want one reaction occurrence", occurrences)
 	}
 	if NotificationOccurrenceMessageReference(occurrences[0]).GetEventId() != message.Id || occurrences[0].GetActorId() != reactor.Id || occurrences[0].GetSignal().GetReactionReceived().GetEmoji() != "thumbsup" {

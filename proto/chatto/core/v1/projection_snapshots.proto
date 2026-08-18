@@ -206,19 +206,16 @@ message ConfigProjectionSnapshot {
 }
 
 message UserConfigSnapshot {
-  reserved 4, 5;
-  reserved "server_notification_level", "room_notification_levels";
-
   string user_id = 1;
   optional string timezone = 2;
   optional TimeFormat time_format = 3;
-  repeated NotificationPreferenceSnapshot server_notification_preferences = 6;
-  repeated RoomNotificationPreferenceSnapshot room_notification_preferences = 7;
+  repeated NotificationPreferenceSnapshot server_notification_preferences = 4;
+  repeated RoomNotificationPreferenceSnapshot room_notification_preferences = 5;
 }
 
 message NotificationPreferenceSnapshot {
-  NotificationPolicyKind kind = 1;
-  NotificationDeliveryIntensity intensity = 2;
+  NotificationPreferenceCategory category = 1;
+  NotificationDeliveryMode mode = 2;
 }
 
 message RoomNotificationPreferenceSnapshot {

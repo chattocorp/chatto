@@ -96,7 +96,7 @@ user-configurable.
 
 ## Notification policy
 
-Every cause independently inherits one delivery intensity through product
+Every preference category independently inherits one delivery mode through product
 default, user/server override, and optional room override:
 
 - **Off** — create no occurrence for this cause.
@@ -119,8 +119,10 @@ default, user/server override, and optional room override:
 One source event produces at most one occurrence per recipient and cause. If a
 message is both a reply and a direct mention, those are two exact signals with
 independent identity and triage. A user's own activity does not notify them.
+When several role handles in one message select the same recipient, they form
+one role-mention occurrence that retains the matching role handles.
 Policy changes affect future activity and never rewrite existing history.
-Delivery intensity controls interruption only; it does not determine whether
+Delivery mode controls interruption only; it does not determine whether
 an occurrence is visually Ambient or Important.
 
 ## Durable derivation and push delivery
@@ -185,7 +187,7 @@ instead of leaking stale presentation.
 - Posting in a thread follows it.
 - A delivered direct username mention follows the thread unless the recipient
   previously opted out; role, `@here`, and `@all` mentions do not.
-- Following a thread or room establishes an activity source whose intensity is
+- Following a thread or room establishes an activity source whose delivery mode is
   still controlled by notification policy.
 - Subscription controls belong to rooms and threads, not notification rows.
 

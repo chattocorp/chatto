@@ -616,12 +616,12 @@ func TestRoomAndThreadServicesMarkRoomAsReadAnchorsAndDoesNotRegress(t *testing.
 	}
 	e2 := env.post(room.Id, env.viewer.Id, "two", "")
 	e3 := env.post(room.Id, env.viewer.Id, "three", "")
-	roomMention := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e1, "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
-	roomReply := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e2, "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
-	futureRoomNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e3, "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_FOLLOWED_ROOM)
+	roomMention := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e1, "", corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION)
+	roomReply := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e2, "", corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
+	futureRoomNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, e3, "", corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM)
 	threadRoot := env.post(room.Id, env.viewer.Id, "thread root", "")
 	threadReply := env.post(room.Id, env.viewer.Id, "thread reply", threadRoot.Id)
-	threadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, threadReply, threadRoot.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
+	threadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, threadReply, threadRoot.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
 
 	ctx := withCaller(env.ctx, reader)
 	resp, err := env.rooms.MarkRoomAsRead(ctx, connect.NewRequest(&apiv1.MarkRoomAsReadRequest{
@@ -755,14 +755,14 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	root := env.post(room.Id, env.viewer.Id, "root", "")
 	reply1 := env.post(room.Id, env.viewer.Id, "reply one", root.Id)
 	reply2 := env.post(room.Id, env.viewer.Id, "reply two", root.Id)
-	threadReplyNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply1, root.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
-	threadMentionNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply2, root.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
+	threadReplyNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply1, root.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
+	threadMentionNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply2, root.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION)
 	reply3 := env.post(room.Id, env.viewer.Id, "reply three", root.Id)
-	futureThreadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply3, root.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
+	futureThreadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, reply3, root.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
 	otherRoot := env.post(room.Id, env.viewer.Id, "other root", "")
 	otherReply := env.post(room.Id, env.viewer.Id, "other reply", otherRoot.Id)
-	otherThreadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, otherReply, otherRoot.Id, corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_REPLY)
-	roomNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, root, "", corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MENTION)
+	otherThreadNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, otherReply, otherRoot.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
+	roomNotification := createReadTestOccurrence(t, env, reader.Id, env.viewer.Id, room.Id, root, "", corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION)
 
 	ctx := withCaller(env.ctx, reader)
 	resp, err := env.threads.MarkThreadAsRead(ctx, connect.NewRequest(&apiv1.MarkThreadAsReadRequest{
@@ -839,7 +839,7 @@ func TestRoomAndThreadServicesMarkThreadAsReadAnchorsAndDoesNotRegress(t *testin
 	}
 }
 
-func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *corev1.Event, threadRootID string, reason corev1.NotificationPolicyKind) *corev1.NotificationOccurrence {
+func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID, actorID, roomID string, event *corev1.Event, threadRootID string, reason corev1.NotificationPreferenceCategory) *corev1.NotificationOccurrence {
 	t.Helper()
 	sequence, err := env.core.GetEventSequence(env.ctx, core.KindChannel, roomID, event.GetId())
 	if err != nil {
@@ -856,8 +856,9 @@ func createReadTestOccurrence(t *testing.T, env *connectAPITestEnv, recipientID,
 		SourceStreamSequence: sequence,
 		ActorID:              actorID,
 		Signal:               testNotificationSignalWithMessage(reason, target),
-		Intensity:            corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
-		InitialReadState:     corev1.NotificationReadState_NOTIFICATION_READ_STATE_UNREAD,
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		InitiallyRead:        false,
 		SkipReadLookup:       true,
 	})
 	if err != nil {

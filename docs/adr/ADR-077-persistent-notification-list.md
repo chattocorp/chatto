@@ -111,7 +111,7 @@ new, while its visual attention level describes how strongly unread activity
 is emphasized. Disabling a cause does not mark content read, reading a
 notification does not necessarily advance a room cursor, and changing policy
 does not erase existing history. Visual attention is not configurable in this
-iteration and is not inferred from delivery intensity.
+iteration and is not inferred from delivery mode.
 
 ### Reconciliation and visibility
 

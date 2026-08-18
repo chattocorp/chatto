@@ -215,13 +215,13 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 		if _, err := chattoCore.SavePushSubscription(ctx, alice.Id, "https://push.example.test/policy", "key", "auth", "browser"); err != nil {
 			t.Fatalf("SavePushSubscription: %v", err)
 		}
-		if _, err := chattoCore.NotificationPolicy().SetServerNotificationIntensity(
+		if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(
 			ctx,
 			alice.Id,
-			corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_DIRECT_MESSAGE,
-			corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_BADGE,
+			corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
+			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
 		); err != nil {
-			t.Fatalf("SetServerNotificationIntensity: %v", err)
+			t.Fatalf("SetServerNotificationMode: %v", err)
 		}
 		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
 			t.Fatal("policy-downgraded occurrence contacted provider")

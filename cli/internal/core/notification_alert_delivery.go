@@ -103,7 +103,7 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 		return events.TerminateDelivery("invalid notification event", err)
 	}
 	signalled := event.GetSignalled()
-	if event.GetId() == "" || event.GetRecipientId() == "" || signalled.GetNotificationId() == "" {
+	if event.GetId() == "" || event.GetRecipientId() == "" || event.GetNotificationId() == "" || signalled == nil {
 		return events.TerminateDelivery("invalid notification signal", errors.New("required notification coordinate is empty"))
 	}
 	if err := d.core.notificationOccurrences.projection.Projector().WaitFor(ctx, events.SubjectPosition(delivery.Subject, delivery.StreamSequence)); err != nil {
@@ -114,34 +114,34 @@ func (d *notificationAlertDelivery) processDelivery(ctx context.Context, deliver
 	if err := d.waitForMaterializerCurrent(ctx); err != nil {
 		return fmt.Errorf("fence notification materializer before alert delivery: %w", err)
 	}
-	current, err := d.core.notificationOccurrences.Get(ctx, event.GetRecipientId(), signalled.GetNotificationId())
+	current, err := d.core.notificationOccurrences.Get(ctx, event.GetRecipientId(), event.GetNotificationId())
 	if errors.Is(err, ErrNotFound) {
 		return nil
 	}
 	if err != nil {
 		return err
 	}
-	if current.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+	if !NotificationAlertPending(current) {
 		return nil
 	}
 	deadline := NotificationAlertDeadline(current)
 	if deadline.IsZero() || !d.core.notificationOccurrences.now().UTC().Before(deadline) {
-		return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, false)
 	}
 	eligible, err := d.core.NotificationAlertEligible(ctx, current)
 	if err != nil {
 		return err
 	}
 	if !eligible || d.core.suppressesNotificationAlertsForPresence(ctx, current.GetRecipientId()) || d.core.notificationAlertHandler == nil {
-		return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+		return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, false)
 	}
 	if err := d.core.notificationAlertHandler(ctx, current); err != nil {
 		if errors.Is(err, ErrNotificationAlertSuppressed) {
-			return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED)
+			return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, false)
 		}
 		return err
 	}
-	return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_DELIVERED)
+	return d.core.notificationOccurrences.completeAlertDelivery(ctx, current, true)
 }
 
 // reconcileExpired closes PENDING alert state if its immutable source signal
@@ -152,14 +152,14 @@ func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error 
 	for {
 		now := d.core.notificationOccurrences.now().UTC()
 		for _, occurrence := range d.core.notificationOccurrences.projection.Projection().allOccurrences(now) {
-			if occurrence.GetAlertState() != corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_PENDING {
+			if !NotificationAlertPending(occurrence) {
 				continue
 			}
 			deadline := NotificationAlertDeadline(occurrence)
 			if !deadline.IsZero() && now.Before(deadline) {
 				continue
 			}
-			if err := d.core.notificationOccurrences.completeAlertDelivery(ctx, occurrence, corev1.NotificationAlertState_NOTIFICATION_ALERT_STATE_SILENCED); err != nil {
+			if err := d.core.notificationOccurrences.completeAlertDelivery(ctx, occurrence, false); err != nil {
 				return err
 			}
 		}
@@ -199,7 +199,7 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 		return false, fmt.Errorf("revalidate notification visibility: %w", err)
 	}
 	if len(visible) == 0 {
-		_, err := c.notificationOccurrences.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId(), corev1.NotificationRemovalReason_NOTIFICATION_REMOVAL_REASON_VISIBILITY_LOST)
+		_, err := c.notificationOccurrences.Delete(ctx, occurrence.GetRecipientId(), occurrence.GetId())
 		return false, err
 	}
 	return true, nil
@@ -207,9 +207,9 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
 	message := notificationSignalMessage(occurrence.GetSignal())
-	kind := notificationSignalPolicyKind(occurrence.GetSignal())
-	if message == nil || kind == corev1.NotificationPolicyKind_NOTIFICATION_POLICY_KIND_UNSPECIFIED {
+	category := notificationSignalPreferenceCategory(occurrence.GetSignal())
+	if message == nil || category == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED {
 		return false
 	}
-	return d.core.GetEffectiveNotificationIntensity(occurrence.GetRecipientId(), message.GetRoomId(), kind) == corev1.NotificationDeliveryIntensity_NOTIFICATION_DELIVERY_INTENSITY_ALERT
+	return d.core.GetEffectiveNotificationMode(occurrence.GetRecipientId(), message.GetRoomId(), category) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
 }
