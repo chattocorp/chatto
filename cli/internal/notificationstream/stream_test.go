@@ -15,6 +15,7 @@ import (
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/testutil"
+	"hmans.de/chatto/pkg/events"
 )
 
 func TestPublisherStoresCanonicalEventWithPhysicalTTL(t *testing.T) {
@@ -178,9 +179,16 @@ func TestPublisherAppendsLifecycleBatchAtomically(t *testing.T) {
 		}
 	}
 
-	positions, err := publisher.AppendBatchEventually(ctx, eventsToAppend)
+	results, err := publisher.AppendBatchEventuallyResults(ctx, eventsToAppend)
 	if err != nil {
-		t.Fatalf("AppendBatchEventually: %v", err)
+		t.Fatalf("AppendBatchEventuallyResults: %v", err)
+	}
+	positions := make([]events.StreamPosition, len(results))
+	for i, result := range results {
+		positions[i] = result.Position
+		if !result.Committed {
+			t.Fatalf("initial batch result %d = %+v, want committed", i, result)
+		}
 	}
 	if len(positions) != 3 || positions[1].Seq != positions[0].Seq+1 || positions[2].Seq != positions[1].Seq+1 {
 		t.Fatalf("batch positions = %+v, want three adjacent records", positions)
@@ -192,8 +200,14 @@ func TestPublisherAppendsLifecycleBatchAtomically(t *testing.T) {
 	if info.State.Msgs != 3 {
 		t.Fatalf("stored batch messages = %d, want 3", info.State.Msgs)
 	}
-	if _, err := publisher.AppendBatchEventually(ctx, eventsToAppend); err != nil {
+	retry, err := publisher.AppendBatchEventuallyResults(ctx, eventsToAppend)
+	if err != nil {
 		t.Fatalf("idempotent AppendBatchEventually retry: %v", err)
+	}
+	for i, result := range retry {
+		if result.Committed || result.Position != positions[i] {
+			t.Fatalf("retry result %d = %+v, want original position and committed=false", i, result)
+		}
 	}
 	info, err = stream.Info(ctx)
 	if err != nil {

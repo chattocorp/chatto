@@ -107,6 +107,9 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 			m.core.publishNotificationOccurrencesInvalidated(ctx, &corev1.NotificationOccurrence{RecipientId: userID}, false)
 		}
 		m.cleanupDismissedSignals(ctx, now)
+		if _, err := m.reconcileCoveredUnread(ctx); err != nil && ctx.Err() == nil {
+			m.logger.Warn("Notification read-boundary reconciliation will retry", "error", err)
+		}
 
 		delay := notificationPhysicalDeleteRetry
 		if next, ok := m.projection.Projection().nextExpiry(now); ok {
@@ -130,6 +133,43 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 	}
 }
 
+// reconcileCoveredUnread repairs the intentional two-store read handshake.
+// A request records the durable RUNTIME_STATE boundary before it appends read
+// lifecycle facts so late materialization cannot reintroduce covered work. If
+// the process stops between those writes, every replica's startup/background
+// pass idempotently completes the NOTIFICATIONS side of the handshake.
+func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context) (int, error) {
+	type cachedBoundary struct {
+		boundary notificationReadBoundary
+		exists   bool
+	}
+	boundaries := make(map[string]cachedBoundary)
+	matches := make([]*corev1.NotificationOccurrence, 0)
+	for _, occurrence := range m.projection.Projection().allOccurrences(m.now().UTC()) {
+		if occurrence.GetRead() || occurrence.GetSourceStreamSequence() == 0 {
+			continue
+		}
+		message := notificationSignalMessage(occurrence.GetSignal())
+		if message == nil {
+			continue
+		}
+		key := notificationReadBoundaryKey(occurrence.GetRecipientId(), message.GetRoomId(), message.GetThreadRootEventId())
+		cached, ok := boundaries[key]
+		if !ok {
+			boundary, exists, err := m.notificationReadBoundary(ctx, occurrence.GetRecipientId(), message.GetRoomId(), message.GetThreadRootEventId())
+			if err != nil {
+				return 0, err
+			}
+			cached = cachedBoundary{boundary: boundary, exists: exists}
+			boundaries[key] = cached
+		}
+		if cached.exists && m.occurrenceCoveredByBoundary(occurrence, cached.boundary) {
+			matches = append(matches, occurrence)
+		}
+	}
+	return m.markReadOccurrences(ctx, matches)
+}
+
 func (m *NotificationOccurrenceModel) cleanupDismissedSignals(ctx context.Context, now time.Time) {
 	m.cleanedMu.Lock()
 	for sequence, expiresAt := range m.cleaned {
@@ -150,7 +190,7 @@ func (m *NotificationOccurrenceModel) cleanupDismissedSignals(ctx context.Contex
 			continue
 		}
 		m.cleanedMu.Lock()
-		m.cleaned[tombstone.signalSequence] = tombstone.expiresAt
+		m.cleaned[tombstone.signalSequence] = tombstone.expiresAt.Add(notificationPhysicalCleanupGrace)
 		m.cleanedMu.Unlock()
 	}
 }
@@ -344,81 +384,214 @@ func (m *NotificationOccurrenceModel) appendAndWait(ctx context.Context, event *
 }
 
 func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNotificationOccurrenceInput) (*corev1.NotificationOccurrence, bool, error) {
+	results, err := m.createMany(ctx, []CreateNotificationOccurrenceInput{input})
+	if err != nil {
+		return nil, false, err
+	}
+	return results[0].occurrence, results[0].created, nil
+}
+
+type createNotificationOccurrenceResult struct {
+	occurrence *corev1.NotificationOccurrence
+	created    bool
+}
+
+type pendingNotificationCreate struct {
+	occurrence    *corev1.NotificationOccurrence
+	event         *corev1.NotificationEvent
+	resultIndexes []int
+	skipRead      bool
+}
+
+// CreateMany materializes one source fact's complete recipient fanout with
+// bounded atomic writes, one projection wait, and one live invalidation per
+// recipient. It is intentionally internal to the ordered materializer.
+func (m *NotificationOccurrenceModel) CreateMany(ctx context.Context, inputs []CreateNotificationOccurrenceInput) error {
+	_, err := m.createMany(ctx, inputs)
+	return err
+}
+
+func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []CreateNotificationOccurrenceInput) ([]createNotificationOccurrenceResult, error) {
+	results := make([]createNotificationOccurrenceResult, len(inputs))
+	active := false
+	for _, input := range inputs {
+		if err := validateNotificationCreateInput(input); err != nil {
+			return nil, err
+		}
+		active = active || (input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED && input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+	}
+	if !active {
+		return results, nil
+	}
+	if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
+		return nil, err
+	}
+
+	now := m.now().UTC()
+	pendingByID := make(map[string]*pendingNotificationCreate)
+	pending := make([]*pendingNotificationCreate, 0, len(inputs))
+	for i, input := range inputs {
+		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED || input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+			continue
+		}
+		signalKind := notificationSignalIdentity(input.Signal)
+		expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
+		if !expiresAt.After(now) {
+			continue
+		}
+		notificationID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, signalKind)
+		if m.projection.Projection().tombstoned(input.RecipientID, notificationID, now) {
+			continue
+		}
+		if existing, err := m.Get(ctx, input.RecipientID, notificationID); err == nil {
+			results[i].occurrence = existing
+			continue
+		} else if !errors.Is(err, ErrNotFound) {
+			return nil, err
+		}
+		if duplicate := pendingByID[notificationID]; duplicate != nil {
+			duplicate.resultIndexes = append(duplicate.resultIndexes, i)
+			continue
+		}
+
+		var alertExpiresAt *timestamppb.Timestamp
+		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT {
+			alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
+		}
+		occurrence := &corev1.NotificationOccurrence{
+			Id:                   notificationID,
+			RecipientId:          input.RecipientID,
+			SourceEventId:        input.SourceEventID,
+			SourceCreatedAt:      timestamppb.New(input.SourceCreated.UTC()),
+			ActorId:              input.ActorID,
+			Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
+			Read:                 input.InitiallyRead,
+			ExpiresAt:            timestamppb.New(expiresAt),
+			SourceStreamSequence: input.SourceStreamSequence,
+			AttentionLevel:       input.AttentionLevel,
+			AlertExpiresAt:       alertExpiresAt,
+		}
+		if !input.SkipReadLookup && !occurrence.GetRead() {
+			covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
+			if err != nil {
+				return nil, err
+			}
+			if covered {
+				occurrence.Read = true
+			}
+		}
+		item := &pendingNotificationCreate{
+			occurrence:    occurrence,
+			resultIndexes: []int{i},
+			skipRead:      input.SkipReadLookup,
+		}
+		item.event = newNotificationSignalledLifecycleEvent(now, occurrence)
+		pendingByID[notificationID] = item
+		pending = append(pending, item)
+	}
+	if len(pending) == 0 {
+		return results, nil
+	}
+
+	eventsToAppend := make([]*corev1.NotificationEvent, len(pending))
+	for i, item := range pending {
+		eventsToAppend[i] = item.event
+	}
+	committed, appendErr := m.appendEventsAndWait(ctx, eventsToAppend)
+	if appendErr != nil && len(committed) == 0 {
+		return nil, appendErr
+	}
+	wasCreated := make([]bool, len(pending))
+	for i, item := range pending {
+		_, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
+		if errors.Is(getErr, ErrNotFound) {
+			continue
+		}
+		if getErr != nil {
+			return nil, getErr
+		}
+		wasCreated[i] = i < len(committed) && committed[i]
+	}
+
+	covered := make([]*corev1.NotificationOccurrence, 0)
+	for _, item := range pending {
+		if item.skipRead {
+			continue
+		}
+		stored, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
+		if errors.Is(getErr, ErrNotFound) {
+			continue
+		}
+		if getErr != nil {
+			return nil, getErr
+		}
+		if stored.GetRead() {
+			continue
+		}
+		isCovered, coverErr := m.occurrenceCoveredByReadBoundary(ctx, stored)
+		if coverErr != nil {
+			return nil, coverErr
+		}
+		if isCovered {
+			covered = append(covered, stored)
+		}
+	}
+	if _, err := m.markReadOccurrences(ctx, covered); err != nil {
+		return nil, err
+	}
+	created := make([]*corev1.NotificationOccurrence, 0, len(pending))
+	for i, item := range pending {
+		stored, getErr := m.Get(ctx, item.occurrence.GetRecipientId(), item.occurrence.GetId())
+		if errors.Is(getErr, ErrNotFound) {
+			continue
+		}
+		if getErr != nil {
+			return nil, getErr
+		}
+		for _, resultIndex := range item.resultIndexes {
+			results[resultIndex] = createNotificationOccurrenceResult{occurrence: stored, created: wasCreated[i]}
+		}
+		if wasCreated[i] {
+			created = append(created, stored)
+		}
+	}
+	m.publishCreatedInvalidations(ctx, created)
+	if appendErr != nil {
+		return nil, appendErr
+	}
+	return results, nil
+}
+
+func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) error {
 	if strings.TrimSpace(input.RecipientID) == "" || strings.TrimSpace(input.SourceEventID) == "" || input.SourceCreated.IsZero() {
-		return nil, false, invalidArgument("recipient_id, source_event_id, and source_created_at are required")
+		return invalidArgument("recipient_id, source_event_id, and source_created_at are required")
 	}
 	message := notificationSignalMessage(input.Signal)
-	category := notificationSignalPreferenceCategory(input.Signal)
-	signalKind := notificationSignalIdentity(input.Signal)
-	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || category == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED || signalKind == "" {
-		return nil, false, invalidArgument("a supported notification signal with an exact message is required")
+	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalPreferenceCategory(input.Signal) == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED || notificationSignalIdentity(input.Signal) == "" {
+		return invalidArgument("a supported notification signal with an exact message is required")
 	}
 	switch input.Mode {
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
 		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
-		return nil, false, nil
+		return nil
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
 		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
 	default:
-		return nil, false, invalidArgument("unsupported notification delivery mode")
+		return invalidArgument("unsupported notification delivery mode")
 	}
-	if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
-		return nil, false, err
+	if input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT && input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
+		return invalidArgument("a concrete notification attention level is required")
 	}
-	expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
-	if !expiresAt.After(m.now().UTC()) {
-		return nil, false, nil
-	}
-	notificationID := notificationOccurrenceID(input.RecipientID, input.SourceEventID, signalKind)
-	if m.projection.Projection().tombstoned(input.RecipientID, notificationID, m.now().UTC()) {
-		return nil, false, nil
-	}
-	if existing, err := m.Get(ctx, input.RecipientID, notificationID); err == nil {
-		return existing, false, nil
-	} else if !errors.Is(err, ErrNotFound) {
-		return nil, false, err
-	}
+	return nil
+}
 
-	attention := input.AttentionLevel
-	if attention != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT && attention != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
-		return nil, false, invalidArgument("a concrete notification attention level is required")
-	}
-	alertRequested := input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
-	var alertExpiresAt *timestamppb.Timestamp
-	if alertRequested {
-		alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
-	}
-	occurrence := &corev1.NotificationOccurrence{
-		Id:                   notificationID,
-		RecipientId:          input.RecipientID,
-		SourceEventId:        input.SourceEventID,
-		SourceCreatedAt:      timestamppb.New(input.SourceCreated.UTC()),
-		ActorId:              input.ActorID,
-		Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
-		Read:                 input.InitiallyRead,
-		ExpiresAt:            timestamppb.New(expiresAt),
-		SourceStreamSequence: input.SourceStreamSequence,
-		AttentionLevel:       attention,
-		AlertExpiresAt:       alertExpiresAt,
-	}
-	if !input.SkipReadLookup && !occurrence.GetRead() {
-		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
-		if err != nil {
-			return nil, false, err
-		}
-		if covered {
-			occurrence.Read = true
-			if occurrence.GetAlertExpiresAt() != nil {
-				occurrence.AlertDelivered = proto.Bool(false)
-			}
-		}
-	}
-	event := &corev1.NotificationEvent{
-		Id:             notificationLifecycleEventID("signal", notificationID),
-		RecipientId:    input.RecipientID,
-		NotificationId: notificationID,
-		OccurredAt:     timestamppb.New(m.now().UTC()),
-		ExpiresAt:      timestamppb.New(expiresAt),
+func newNotificationSignalledLifecycleEvent(now time.Time, occurrence *corev1.NotificationOccurrence) *corev1.NotificationEvent {
+	return &corev1.NotificationEvent{
+		Id:             notificationLifecycleEventID("signal", occurrence.GetId()),
+		RecipientId:    occurrence.GetRecipientId(),
+		NotificationId: occurrence.GetId(),
+		OccurredAt:     timestamppb.New(now),
+		ExpiresAt:      occurrence.GetExpiresAt(),
 		Event: &corev1.NotificationEvent_Signalled{Signalled: &corev1.NotificationSignalled{
 			SourceEventId:        occurrence.GetSourceEventId(),
 			SourceCreatedAt:      occurrence.GetSourceCreatedAt(),
@@ -430,30 +603,22 @@ func (m *NotificationOccurrenceModel) Create(ctx context.Context, input CreateNo
 			AlertExpiresAt:       occurrence.GetAlertExpiresAt(),
 		}},
 	}
-	if err := m.appendAndWait(ctx, event); err != nil {
-		return nil, false, err
-	}
-	stored, err := m.Get(ctx, input.RecipientID, notificationID)
-	if errors.Is(err, ErrNotFound) {
-		return nil, false, nil
-	}
-	if err != nil {
-		return nil, false, err
-	}
-	if !input.SkipReadLookup && !stored.GetRead() {
-		covered, err := m.occurrenceCoveredByReadBoundary(ctx, stored)
-		if err != nil {
-			return nil, true, err
+}
+
+func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Context, occurrences []*corev1.NotificationOccurrence) {
+	byRecipient := make(map[string]*corev1.NotificationOccurrence)
+	for _, occurrence := range occurrences {
+		if occurrence == nil || occurrence.GetRecipientId() == "" {
+			continue
 		}
-		if covered {
-			stored, err = m.MarkRead(ctx, input.RecipientID, notificationID)
-			if err != nil {
-				return nil, true, err
-			}
+		current := byRecipient[occurrence.GetRecipientId()]
+		if current == nil || (!NotificationAlertPending(current) && NotificationAlertPending(occurrence)) {
+			byRecipient[occurrence.GetRecipientId()] = occurrence
 		}
 	}
-	m.core.publishNotificationOccurrencesInvalidated(ctx, stored, true)
-	return stored, true, nil
+	for _, occurrence := range byRecipient {
+		m.core.publishNotificationOccurrencesInvalidated(ctx, occurrence, true)
+	}
 }
 
 func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificationID string) (*corev1.NotificationOccurrence, error) {
@@ -566,13 +731,16 @@ func (m *NotificationOccurrenceModel) deleteOccurrences(ctx context.Context, occ
 			NotificationId: occurrence.GetId(),
 			OccurredAt:     timestamppb.New(now),
 			ExpiresAt:      occurrence.GetExpiresAt(),
-			Event:          &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{}},
+			Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{
+				SignalStreamSequence: occurrence.GetNotificationStreamSequence(),
+			}},
 		})
 	}
-	deleted, err := m.appendLifecycleEventsAndWait(ctx, eventsToAppend)
-	m.publishNotificationInvalidations(ctx, unique[:deleted])
+	committed, err := m.appendEventsAndWait(ctx, eventsToAppend)
+	changed := committedOccurrences(unique, committed)
+	m.publishNotificationInvalidations(ctx, changed)
 	m.cleanupDismissedSignals(ctx, now)
-	return deleted, err
+	return len(changed), err
 }
 
 func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, occurrences []*corev1.NotificationOccurrence) (int, error) {
@@ -599,26 +767,37 @@ func (m *NotificationOccurrenceModel) markReadOccurrences(ctx context.Context, o
 			Event:          &corev1.NotificationEvent_Read{Read: &corev1.NotificationRead{}},
 		})
 	}
-	updated, err := m.appendLifecycleEventsAndWait(ctx, eventsToAppend)
-	m.publishNotificationInvalidations(ctx, unique[:updated])
-	return updated, err
+	committed, err := m.appendEventsAndWait(ctx, eventsToAppend)
+	changed := committedOccurrences(unique, committed)
+	m.publishNotificationInvalidations(ctx, changed)
+	return len(changed), err
 }
 
-func (m *NotificationOccurrenceModel) appendLifecycleEventsAndWait(ctx context.Context, lifecycleEvents []*corev1.NotificationEvent) (int, error) {
-	committed := 0
+func committedOccurrences(occurrences []*corev1.NotificationOccurrence, committed []bool) []*corev1.NotificationOccurrence {
+	changed := make([]*corev1.NotificationOccurrence, 0, len(committed))
+	for i, wasCommitted := range committed {
+		if wasCommitted && i < len(occurrences) {
+			changed = append(changed, occurrences[i])
+		}
+	}
+	return changed
+}
+
+func (m *NotificationOccurrenceModel) appendEventsAndWait(ctx context.Context, lifecycleEvents []*corev1.NotificationEvent) ([]bool, error) {
+	committed := make([]bool, 0, len(lifecycleEvents))
 	var lastPosition events.StreamPosition
 	var appendErr error
 	for start := 0; start < len(lifecycleEvents); start += notificationLifecycleBatchSize {
 		end := min(start+notificationLifecycleBatchSize, len(lifecycleEvents))
-		positions, err := m.publisher.AppendBatchEventually(ctx, lifecycleEvents[start:end])
+		results, err := m.publisher.AppendBatchEventuallyResults(ctx, lifecycleEvents[start:end])
 		if err != nil {
 			appendErr = err
 			break
 		}
-		committed += len(positions)
-		for _, position := range positions {
-			if position.Seq > lastPosition.Seq {
-				lastPosition = position
+		for _, result := range results {
+			committed = append(committed, result.Committed)
+			if result.Position.Seq > lastPosition.Seq {
+				lastPosition = result.Position
 			}
 		}
 	}

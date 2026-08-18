@@ -573,6 +573,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		return err
 	}
 
+	toRemove := make([]*corev1.NotificationOccurrence, 0)
 	for pair, pairEntries := range entriesByPair {
 		if snapshot.membershipExists(pair.recipientID, pair.roomID) {
 			continue
@@ -580,12 +581,11 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
 			return err
 		}
-		for _, occurrence := range pairEntries {
-			removed, err := m.core.notificationOccurrences.Delete(ctx, pair.recipientID, occurrence.GetId())
-			if err != nil {
-				return err
-			}
-			_ = removed
+		toRemove = append(toRemove, pairEntries...)
+	}
+	if len(toRemove) > 0 {
+		if _, err := m.core.notificationOccurrences.deleteOccurrences(ctx, toRemove); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -641,12 +641,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
 		reference.ThreadRootEventId = &threadRootEventID
 	}
-	for _, input := range newNotificationOccurrenceInputs(event, reference, decisions) {
-		if err := m.materializeInput(ctx, input, streamSequence); err != nil {
-			return err
-		}
-	}
-	return nil
+	return m.materializeInputs(ctx, newNotificationOccurrenceInputs(event, reference, decisions), streamSequence)
 }
 
 func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
@@ -702,21 +697,28 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 }
 
 func (m *NotificationMaterializer) materializeInput(ctx context.Context, input CreateNotificationOccurrenceInput, streamSequence uint64) error {
-	message := notificationSignalMessage(input.Signal)
-	if message == nil {
-		return nil
+	return m.materializeInputs(ctx, []CreateNotificationOccurrenceInput{input}, streamSequence)
+}
+
+func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs []CreateNotificationOccurrenceInput, streamSequence uint64) error {
+	eligible := make([]CreateNotificationOccurrenceInput, 0, len(inputs))
+	for _, input := range inputs {
+		message := notificationSignalMessage(input.Signal)
+		if message == nil {
+			continue
+		}
+		afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, input.RecipientID, message.GetRoomId(), streamSequence)
+		if err != nil {
+			return err
+		}
+		if !afterBoundary {
+			continue
+		}
+		input.SourceStreamSequence = streamSequence
+		eligible = append(eligible, input)
 	}
-	afterBoundary, err := m.sourceAfterVisibilityBoundary(ctx, input.RecipientID, message.GetRoomId(), streamSequence)
-	if err != nil {
-		return err
-	}
-	if !afterBoundary {
-		return nil
-	}
-	input.SourceStreamSequence = streamSequence
-	_, _, err = m.core.notificationOccurrences.Create(ctx, input)
-	if err != nil {
-		return fmt.Errorf("create occurrence for recipient %s: %w", input.RecipientID, err)
+	if err := m.core.notificationOccurrences.CreateMany(ctx, eligible); err != nil {
+		return fmt.Errorf("create notification occurrences: %w", err)
 	}
 	return nil
 }

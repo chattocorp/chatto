@@ -151,7 +151,8 @@ func (l *EncodedEventLog) Append(ctx context.Context, subject string, record Enc
 	if err != nil {
 		return 0, err
 	}
-	return l.publishAt(ctx, subject, record, expectedSeq, "")
+	sequence, _, err := l.publishAt(ctx, subject, record, expectedSeq, "")
+	return sequence, err
 }
 
 // AppendEventually retries OCC conflicts with the exact same opaque record.
@@ -167,7 +168,7 @@ func (l *EncodedEventLog) AppendEventually(ctx context.Context, subject string, 
 		if err != nil {
 			return 0, err
 		}
-		seq, err := l.publishAt(ctx, subject, record, expectedSeq, "")
+		seq, _, err := l.publishAt(ctx, subject, record, expectedSeq, "")
 		if err == nil {
 			return seq, nil
 		}
@@ -206,7 +207,8 @@ func (l *EncodedEventLog) AppendAt(
 	if err := validateEncodedRecord(record); err != nil {
 		return 0, err
 	}
-	return l.publishAt(ctx, subject, record, expectedSeq, "")
+	sequence, _, err := l.publishAt(ctx, subject, record, expectedSeq, "")
+	return sequence, err
 }
 
 // AppendAtFilter publishes a record to subject with OCC against the current
@@ -221,7 +223,8 @@ func (l *EncodedEventLog) AppendAtFilter(
 	if err := validateEncodedRecord(record); err != nil {
 		return 0, err
 	}
-	return l.publishAt(ctx, subject, record, expectedFilterSeq, filter)
+	sequence, _, err := l.publishAt(ctx, subject, record, expectedFilterSeq, filter)
+	return sequence, err
 }
 
 func (l *EncodedEventLog) publishAt(
@@ -230,7 +233,7 @@ func (l *EncodedEventLog) publishAt(
 	record EncodedRecord,
 	expectedSeq uint64,
 	filter string,
-) (uint64, error) {
+) (uint64, bool, error) {
 	var opt jetstream.PublishOpt
 	if filter == "" {
 		opt = jetstream.WithExpectLastSequencePerSubject(expectedSeq)
@@ -243,7 +246,7 @@ func (l *EncodedEventLog) publishAt(
 	}
 	ack, err := l.js.Publish(ctx, subject, record.Data, publishOpts...)
 	if err == nil {
-		return ack.Sequence, nil
+		return ack.Sequence, ack.Duplicate, nil
 	}
 
 	target := subject
@@ -251,9 +254,9 @@ func (l *EncodedEventLog) publishAt(
 		target = "filter " + filter
 	}
 	if conflictErr := sequenceConflictError(err, target, expectedSeq); conflictErr != nil {
-		return 0, conflictErr
+		return 0, false, conflictErr
 	}
-	return 0, fmt.Errorf("publish: %w", err)
+	return 0, false, fmt.Errorf("publish: %w", err)
 }
 
 func (l *EncodedEventLog) publishAtStreamTail(
@@ -261,9 +264,9 @@ func (l *EncodedEventLog) publishAtStreamTail(
 	subject string,
 	record EncodedRecord,
 	expectedStreamSeq uint64,
-) (uint64, error) {
+) (uint64, bool, error) {
 	if err := validateEncodedRecord(record); err != nil {
-		return 0, err
+		return 0, false, err
 	}
 	publishOpts := []jetstream.PublishOpt{
 		jetstream.WithExpectLastSequence(expectedStreamSeq),
@@ -274,12 +277,12 @@ func (l *EncodedEventLog) publishAtStreamTail(
 	}
 	ack, err := l.js.Publish(ctx, subject, record.Data, publishOpts...)
 	if err == nil {
-		return ack.Sequence, nil
+		return ack.Sequence, ack.Duplicate, nil
 	}
 	if conflictErr := sequenceConflictError(err, "stream", expectedStreamSeq); conflictErr != nil {
-		return 0, conflictErr
+		return 0, false, conflictErr
 	}
-	return 0, fmt.Errorf("publish: %w", err)
+	return 0, false, fmt.Errorf("publish: %w", err)
 }
 
 // AppendBatch atomically publishes encoded records. Either all records land

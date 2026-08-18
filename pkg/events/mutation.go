@@ -73,6 +73,8 @@ type MutationResult struct {
 	Sequences []uint64
 	Attempts  int
 	Conflicts int
+	// Committed is false when the decision was empty or JetStream confirmed
+	// that the single logical event ID had already been committed.
 	Committed bool
 }
 
@@ -120,10 +122,10 @@ func (l *EncodedEventLog) ExecuteMutation(
 			return result, nil
 		}
 
-		seqs, err := l.publishMutation(ctx, boundary, expectedSeq, entries)
+		seqs, committed, err := l.publishMutation(ctx, boundary, expectedSeq, entries)
 		if err == nil {
 			result.Sequences = seqs
-			result.Committed = true
+			result.Committed = committed
 			return result, nil
 		}
 		if !errors.Is(err, ErrConflict) {
@@ -159,25 +161,26 @@ func (l *EncodedEventLog) publishMutation(
 	boundary MutationBoundary,
 	expectedSeq uint64,
 	entries []EncodedMutationEntry,
-) ([]uint64, error) {
+) ([]uint64, bool, error) {
 	if len(entries) == 1 {
 		if err := validateEncodedRecord(entries[0].Record); err != nil {
-			return nil, err
+			return nil, false, err
 		}
 		var (
-			seq uint64
-			err error
+			seq       uint64
+			duplicate bool
+			err       error
 		)
 		switch boundary.kind {
 		case mutationBoundarySubject:
-			seq, err = l.publishAt(ctx, entries[0].Subject, entries[0].Record, expectedSeq, boundary.subjectFilter)
+			seq, duplicate, err = l.publishAt(ctx, entries[0].Subject, entries[0].Record, expectedSeq, boundary.subjectFilter)
 		case mutationBoundaryStream:
-			seq, err = l.publishAtStreamTail(ctx, entries[0].Subject, entries[0].Record, expectedSeq)
+			seq, duplicate, err = l.publishAtStreamTail(ctx, entries[0].Subject, entries[0].Record, expectedSeq)
 		}
 		if err != nil {
-			return nil, err
+			return nil, false, err
 		}
-		return []uint64{seq}, nil
+		return []uint64{seq}, !duplicate, nil
 	}
 
 	batch := make([]EncodedBatchEntry, len(entries))
@@ -193,7 +196,8 @@ func (l *EncodedEventLog) publishMutation(
 		batch[0].HasStreamOCC = true
 		batch[0].ExpectedStreamSeq = expectedSeq
 	}
-	return l.AppendBatch(ctx, batch)
+	sequences, err := l.AppendBatch(ctx, batch)
+	return sequences, err == nil, err
 }
 
 func (l *EncodedEventLog) mutationBoundarySeq(ctx context.Context, boundary MutationBoundary) (uint64, error) {

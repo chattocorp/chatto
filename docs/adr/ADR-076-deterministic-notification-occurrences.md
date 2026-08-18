@@ -136,12 +136,17 @@ after the
 projection has observed that tombstone, Chatto securely deletes the original
 rich `NotificationSignalled` record by stream sequence. The tombstone prevents
 materializer redelivery from recreating the item and contains no presentation
-content. Repeating either mutation is idempotent.
+content. Repeating either mutation is idempotent, and duplicate JetStream
+acknowledgements are not counted as a second successful deletion. The private
+secure-delete coordinate remains projected through the broker's physical
+cleanup grace even after the tombstone stops affecting application state.
 
 Room/thread read reconciliation and visibility-loss boundaries remain bounded
 latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
 state, not notification history. They retain their existing direct-read and OCC
-handshakes.
+handshakes. Because the read boundary is recorded before matching
+`NotificationRead` facts, every replica completes interrupted handshakes at
+startup and periodically in the background.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They may carry one opaque alert-candidate notification ID but never expose
@@ -166,7 +171,8 @@ after application expiry. The stream `MaxAge` is the same 91-day upper bound.
 The grace period lets projections hide an item deterministically at 90 days
 while JetStream performs physical cleanup later. Broker expiry does not need to
 emit a synthetic event: every read prunes expired state, and a projection timer
-accelerates realtime convergence.
+accelerates realtime convergence. Dismissal cleanup retries retain their
+content-free signal coordinate through this entire grace period.
 
 ### Alert delivery consumes the signal log directly
 

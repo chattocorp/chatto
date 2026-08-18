@@ -175,6 +175,32 @@ func TestExecuteMutationEmptyDecisionIsNoop(t *testing.T) {
 	}
 }
 
+func TestExecuteMutationReportsDuplicateSingleRecordAsNotCommitted(t *testing.T) {
+	js, stream := setupTestStream(t)
+	eventLog := NewEncodedEventLog(js, stream, testLogger())
+	ctx := testContext(t)
+	entry := EncodedMutationEntry{
+		Subject: "evt.account.A.changed",
+		Record:  EncodedRecord{ID: "same-logical-event", Data: []byte("mutation")},
+	}
+
+	first, err := eventLog.ExecuteMutation(ctx, AtSubject(entry.Subject), func(context.Context, MutationAttempt) ([]EncodedMutationEntry, error) {
+		return []EncodedMutationEntry{entry}, nil
+	})
+	if err != nil || !first.Committed {
+		t.Fatalf("first mutation = %+v, %v, want committed", first, err)
+	}
+	second, err := eventLog.ExecuteMutation(ctx, AtSubject(entry.Subject), func(context.Context, MutationAttempt) ([]EncodedMutationEntry, error) {
+		return []EncodedMutationEntry{entry}, nil
+	})
+	if err != nil {
+		t.Fatalf("duplicate mutation: %v", err)
+	}
+	if second.Committed || len(second.Sequences) != 1 || second.Sequences[0] != first.Sequences[0] {
+		t.Fatalf("duplicate mutation = %+v, want original sequence and committed=false", second)
+	}
+}
+
 func TestExecuteMutationRejectsInvalidBoundary(t *testing.T) {
 	js, stream := setupTestStream(t)
 	eventLog := NewEncodedEventLog(js, stream, testLogger())

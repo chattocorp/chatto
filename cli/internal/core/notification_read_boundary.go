@@ -127,11 +127,22 @@ func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx contex
 	if err != nil || !exists {
 		return false, err
 	}
+	return m.occurrenceCoveredByBoundary(occurrence, boundary), nil
+}
+
+func (m *NotificationOccurrenceModel) occurrenceCoveredByBoundary(occurrence *corev1.NotificationOccurrence, boundary notificationReadBoundary) bool {
+	if occurrence == nil || occurrence.GetSourceStreamSequence() == 0 {
+		return false
+	}
+	message := notificationSignalMessage(occurrence.GetSignal())
+	if message == nil {
+		return false
+	}
 	if notificationOccurrenceHasPreferenceCategory(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION) {
 		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
-		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence, nil
+		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence
 	}
-	return occurrence.GetSourceStreamSequence() <= boundary.targetSequence, nil
+	return occurrence.GetSourceStreamSequence() <= boundary.targetSequence
 }
 
 func (m *NotificationOccurrenceModel) purgeNotificationReadBoundaries(ctx context.Context, userID string) error {

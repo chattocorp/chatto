@@ -242,7 +242,11 @@ message NotificationSignalled {
 
 message NotificationRead {}
 
-message NotificationRemoved {}
+message NotificationRemoved {
+  // Internal NOTIFICATIONS coordinate for retryable secure deletion of the
+  // corresponding rich signal record. This is never exposed by public APIs.
+  uint64 signal_stream_sequence = 1;
+}
 
 // NotificationAlertResolved is the single terminal fact for interruptive
 // delivery. A deterministic lifecycle ID prevents competing workers from

@@ -60,7 +60,8 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		if signalled.GetSourceEventId() == "" || signalled.GetSourceCreatedAt() == nil || !signalled.GetSourceCreatedAt().IsValid() || signalled.GetSignal() == nil {
 			return fmt.Errorf("invalid notification signal event at sequence %d", sequence)
 		}
-		if !event.GetExpiresAt().AsTime().After(p.now().UTC()) {
+		expiresAt := event.GetExpiresAt().AsTime().UTC()
+		if !expiresAt.After(p.now().UTC()) {
 			return nil
 		}
 		if _, removed := p.tombstones[event.GetNotificationId()]; removed {
@@ -104,7 +105,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 		}
 	case *corev1.NotificationEvent_Removed:
 		notificationID := event.GetNotificationId()
-		var signalSequence uint64
+		signalSequence := payload.Removed.GetSignalStreamSequence()
 		if occurrence := p.byID[notificationID]; occurrence != nil && occurrence.GetRecipientId() == event.GetRecipientId() {
 			if signalSequence == 0 {
 				signalSequence = occurrence.GetNotificationStreamSequence()
@@ -164,7 +165,7 @@ func (p *NotificationProjection) tombstoned(userID, notificationID string, now t
 	defer p.Unlock()
 	p.pruneExpiredLocked(now)
 	tombstone, exists := p.tombstones[notificationID]
-	return exists && tombstone.recipientID == userID
+	return exists && tombstone.recipientID == userID && tombstone.expiresAt.After(now)
 }
 
 func (p *NotificationProjection) userOccurrences(userID string, now time.Time) []*corev1.NotificationOccurrence {
@@ -204,7 +205,7 @@ func (p *NotificationProjection) pruneExpiredLocked(now time.Time) []string {
 		}
 	}
 	for id, tombstone := range p.tombstones {
-		if !tombstone.expiresAt.After(now) {
+		if !tombstone.expiresAt.Add(notificationPhysicalCleanupGrace).After(now) {
 			delete(p.tombstones, id)
 		}
 	}
@@ -228,8 +229,9 @@ func (p *NotificationProjection) nextExpiry(now time.Time) (time.Time, bool) {
 		}
 	}
 	for _, tombstone := range p.tombstones {
-		if next.IsZero() || tombstone.expiresAt.Before(next) {
-			next = tombstone.expiresAt
+		physicalExpiry := tombstone.expiresAt.Add(notificationPhysicalCleanupGrace)
+		if next.IsZero() || physicalExpiry.Before(next) {
+			next = physicalExpiry
 		}
 	}
 	return next, !next.IsZero()
@@ -266,7 +268,7 @@ func (p *NotificationProjection) adminProjectionEstimate() (int64, int64, []Proj
 	}
 }
 
-var notificationSnapshotContractID = snapshotContractID("v1", &corev1.NotificationProjectionSnapshot{})
+var notificationSnapshotContractID = snapshotContractID("v2", &corev1.NotificationProjectionSnapshot{})
 
 func (*NotificationProjection) SnapshotContractID() string { return notificationSnapshotContractID }
 
@@ -332,7 +334,7 @@ func (p *NotificationProjection) Restore(data []byte) error {
 			return fmt.Errorf("notification snapshot contains an invalid tombstone")
 		}
 		expiresAt := row.GetExpiresAt().AsTime().UTC()
-		if !expiresAt.After(now) {
+		if !expiresAt.Add(notificationPhysicalCleanupGrace).After(now) {
 			continue
 		}
 		if _, duplicate := tombstones[row.GetNotificationId()]; duplicate {

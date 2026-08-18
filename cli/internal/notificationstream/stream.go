@@ -65,11 +65,18 @@ func NewPublisher(js jetstream.JetStream, stream jetstream.Stream, retentionGrac
 // bounded-subject OCC conflict is safe because event IDs and state transitions
 // are idempotent.
 func (p *Publisher) AppendEventually(ctx context.Context, event *corev1.NotificationEvent) (events.StreamPosition, error) {
-	positions, err := p.AppendBatchEventually(ctx, []*corev1.NotificationEvent{event})
+	results, err := p.AppendBatchEventuallyResults(ctx, []*corev1.NotificationEvent{event})
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
-	return positions[0], nil
+	return results[0].Position, nil
+}
+
+// AppendResult distinguishes a newly committed lifecycle fact from a
+// JetStream de-duplication acknowledgement for the same logical event ID.
+type AppendResult struct {
+	Position  events.StreamPosition
+	Committed bool
 }
 
 type preparedEvent struct {
@@ -83,6 +90,18 @@ type preparedEvent struct {
 // conflict retries; the outer loop keeps idempotent retry alive until the
 // caller's context ends.
 func (p *Publisher) AppendBatchEventually(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]events.StreamPosition, error) {
+	results, err := p.AppendBatchEventuallyResults(ctx, notificationEvents)
+	positions := make([]events.StreamPosition, len(results))
+	for i, result := range results {
+		positions[i] = result.Position
+	}
+	return positions, err
+}
+
+// AppendBatchEventuallyResults behaves like AppendBatchEventually and also
+// reports which logical facts were newly committed. This matters for mutation
+// response accounting when concurrent callers race with deterministic IDs.
+func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]AppendResult, error) {
 	if len(notificationEvents) == 0 {
 		return nil, nil
 	}
@@ -133,22 +152,25 @@ func (p *Publisher) AppendBatchEventually(ctx context.Context, notificationEvent
 			return entries, nil
 		})
 		if err == nil {
-			positions := make([]events.StreamPosition, len(result.Sequences))
+			results := make([]AppendResult, len(result.Sequences))
 			for i, sequence := range result.Sequences {
-				positions[i] = events.SubjectPosition(subject, sequence)
+				results[i] = AppendResult{
+					Position:  events.SubjectPosition(subject, sequence),
+					Committed: result.Committed,
+				}
 			}
-			return positions, nil
+			return results, nil
 		}
 		if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
-			positions := make([]events.StreamPosition, 0, len(notificationEvents))
+			results := make([]AppendResult, 0, len(notificationEvents))
 			for _, event := range notificationEvents {
-				position, appendErr := p.AppendEventually(ctx, event)
+				single, appendErr := p.AppendBatchEventuallyResults(ctx, []*corev1.NotificationEvent{event})
 				if appendErr != nil {
 					return nil, appendErr
 				}
-				positions = append(positions, position)
+				results = append(results, single[0])
 			}
-			return positions, nil
+			return results, nil
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err

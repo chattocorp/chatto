@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"errors"
+	"fmt"
+	"sync"
 	"testing"
 	"time"
 
@@ -78,7 +80,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 	if recreated, wasCreated, err := model.Create(ctx, input); err != nil || wasCreated || recreated != nil {
 		t.Fatalf("Create after tombstone = (%+v, %v, %v), want suppressed", recreated, wasCreated, err)
 	}
-	model.cleanupDismissedSignals(ctx, input.SourceCreated.Add(notificationTTL+time.Second))
+	model.cleanupDismissedSignals(ctx, input.SourceCreated.Add(notificationTTL+notificationPhysicalCleanupGrace+time.Second))
 	model.cleanedMu.Lock()
 	cleanedCount := len(model.cleaned)
 	model.cleanedMu.Unlock()
@@ -93,6 +95,82 @@ func TestNotificationIdentitySeparatesSignalKinds(t *testing.T) {
 	reply := notificationOccurrenceID(recipientID, sourceID, "reply_received")
 	if mention == reply {
 		t.Fatalf("different signal kinds shared ID %q", mention)
+	}
+}
+
+func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
+	chattoCore, _ := newTestCore(t)
+	startCoreServices(t, chattoCore)
+	ctx := testContext(t)
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	inputs := make([]CreateNotificationOccurrenceInput, 3)
+	for i := range inputs {
+		recipientID := fmt.Sprintf("U-batch-%d", i)
+		inputs[i] = CreateNotificationOccurrenceInput{
+			RecipientID: recipientID, SourceEventID: "E-batch-source", SourceCreated: now, ActorID: "U-actor",
+			Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, "R-batch", "E-batch-source"),
+			Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			SkipReadLookup: true,
+		}
+	}
+	if err := chattoCore.NotificationOccurrences().CreateMany(ctx, inputs); err != nil {
+		t.Fatalf("CreateMany: %v", err)
+	}
+	var firstSequence uint64
+	for i, input := range inputs {
+		id := notificationOccurrenceID(input.RecipientID, input.SourceEventID, "all_mention_received")
+		occurrence, err := chattoCore.NotificationOccurrences().Get(ctx, input.RecipientID, id)
+		if err != nil {
+			t.Fatalf("Get recipient %d: %v", i, err)
+		}
+		if i == 0 {
+			firstSequence = occurrence.GetNotificationStreamSequence()
+		}
+		if got := occurrence.GetNotificationStreamSequence(); got != firstSequence+uint64(i) {
+			t.Fatalf("recipient %d stream sequence = %d, want %d", i, got, firstSequence+uint64(i))
+		}
+	}
+}
+
+func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
+	chattoCore, _ := newTestCore(t)
+	startCoreServices(t, chattoCore)
+	ctx := testContext(t)
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: "U-delete-race", SourceEventID: "E-delete-race", SourceCreated: now, ActorID: "U-actor",
+		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, "R-delete-race", "E-delete-race"),
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SkipReadLookup: true,
+	})
+	if err != nil || !created {
+		t.Fatalf("Create = (%+v, %v, %v), want new occurrence", occurrence, created, err)
+	}
+
+	start := make(chan struct{})
+	results := make(chan int, 2)
+	errs := make(chan error, 2)
+	var ready sync.WaitGroup
+	ready.Add(2)
+	for range 2 {
+		go func() {
+			ready.Done()
+			<-start
+			count, deleteErr := chattoCore.NotificationOccurrences().deleteOccurrences(ctx, []*corev1.NotificationOccurrence{occurrence})
+			results <- count
+			errs <- deleteErr
+		}()
+	}
+	ready.Wait()
+	close(start)
+	deleted := <-results + <-results
+	for range 2 {
+		if deleteErr := <-errs; deleteErr != nil {
+			t.Fatalf("concurrent delete: %v", deleteErr)
+		}
+	}
+	if deleted != 1 {
+		t.Fatalf("combined concurrent delete count = %d, want 1", deleted)
 	}
 }
 
@@ -116,7 +194,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	}
 	if err := p.Apply(&corev1.NotificationEvent{
 		Id: "NE2", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Minute)),
-		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{}},
+		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{SignalStreamSequence: 7}},
 	}, 8); err != nil {
 		t.Fatalf("Apply dismissal: %v", err)
 	}
@@ -127,8 +205,41 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		t.Fatalf("pending physical delete sequence = %d, want 7", got)
 	}
 	now = now.Add(2 * time.Minute)
+	if p.tombstoned("U1", "N1", now) {
+		t.Fatal("application-expired tombstone still suppressed semantic state")
+	}
+	if got := p.pendingPhysicalDeletes(now)["N1"].signalSequence; got != 7 {
+		t.Fatalf("cleanup-grace tombstone sequence = %d, want 7", got)
+	}
+	now = now.Add(notificationPhysicalCleanupGrace)
 	if got := p.pendingPhysicalDeletes(now); len(got) != 0 {
-		t.Fatalf("expired tombstones = %+v, want none", got)
+		t.Fatalf("physically expired tombstones = %+v, want none", got)
+	}
+}
+
+func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinate(t *testing.T) {
+	p := NewNotificationProjection()
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	p.now = func() time.Time { return now }
+	expiresAt := now.Add(-time.Minute)
+	occurrence := &corev1.NotificationOccurrence{
+		Id: "N-expired", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now.Add(-notificationTTL)),
+		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"), ExpiresAt: timestamp(expiresAt),
+	}
+	if err := p.Apply(notificationSignalledEvent("signal-expired", occurrence, expiresAt), 7); err != nil {
+		t.Fatalf("Apply expired signal: %v", err)
+	}
+	if _, visible := p.occurrence("U1", occurrence.GetId(), now); visible {
+		t.Fatal("application-expired signal became visible during cold replay")
+	}
+	if err := p.Apply(&corev1.NotificationEvent{
+		Id: "remove-expired", RecipientId: "U1", NotificationId: occurrence.GetId(), OccurredAt: timestamp(now), ExpiresAt: timestamp(expiresAt),
+		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{SignalStreamSequence: 7}},
+	}, 8); err != nil {
+		t.Fatalf("Apply expired removal: %v", err)
+	}
+	if got := p.pendingPhysicalDeletes(now)[occurrence.GetId()].signalSequence; got != 7 {
+		t.Fatalf("cold-replayed secure-delete sequence = %d, want 7", got)
 	}
 }
 

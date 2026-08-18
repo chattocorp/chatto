@@ -1583,9 +1583,12 @@ func (*NotificationRead) Descriptor() ([]byte, []int) {
 }
 
 type NotificationRemoved struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Internal NOTIFICATIONS coordinate for retryable secure deletion of the
+	// corresponding rich signal record. This is never exposed by public APIs.
+	SignalStreamSequence uint64 `protobuf:"varint,1,opt,name=signal_stream_sequence,json=signalStreamSequence,proto3" json:"signal_stream_sequence,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
 }
 
 func (x *NotificationRemoved) Reset() {
@@ -1616,6 +1619,13 @@ func (x *NotificationRemoved) ProtoReflect() protoreflect.Message {
 // Deprecated: Use NotificationRemoved.ProtoReflect.Descriptor instead.
 func (*NotificationRemoved) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{19}
+}
+
+func (x *NotificationRemoved) GetSignalStreamSequence() uint64 {
+	if x != nil {
+		return x.SignalStreamSequence
+	}
+	return 0
 }
 
 // NotificationAlertResolved is the single terminal fact for interruptive
@@ -1917,8 +1927,9 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x16source_stream_sequence\x18\x06 \x01(\x04R\x14sourceStreamSequence\x12S\n" +
 	"\x0fattention_level\x18\a \x01(\x0e2*.chatto.core.v1.NotificationAttentionLevelR\x0eattentionLevel\x12D\n" +
 	"\x10alert_expires_at\x18\b \x01(\v2\x1a.google.protobuf.TimestampR\x0ealertExpiresAt\"\x12\n" +
-	"\x10NotificationRead\"\x15\n" +
-	"\x13NotificationRemoved\"9\n" +
+	"\x10NotificationRead\"K\n" +
+	"\x13NotificationRemoved\x124\n" +
+	"\x16signal_stream_sequence\x18\x01 \x01(\x04R\x14signalStreamSequence\"9\n" +
 	"\x19NotificationAlertResolved\x12\x1c\n" +
 	"\tdelivered\x18\x01 \x01(\bR\tdelivered\"\x84\x04\n" +
 	"\x11NotificationEvent\x12\x0e\n" +

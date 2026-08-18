@@ -183,6 +183,56 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 	}
 }
 
+func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, _ := chattoCore.CreateRoom(ctx, "test-user", KindChannel, "", "Read repair", "")
+	poster, _ := chattoCore.CreateUser(ctx, SystemActorID, "read-repair-poster", "Read Repair Poster", "password123")
+	reader, _ := chattoCore.CreateUser(ctx, SystemActorID, "read-repair-reader", "Read Repair Reader", "password123")
+	for _, userID := range []string{poster.Id, reader.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, poster.Id, "covered", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	entry, ok := chattoCore.roomModel.timelineEntry(posted.Id)
+	if !ok {
+		t.Fatal("posted message missing from timeline")
+	}
+	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: reader.Id, SourceEventID: posted.Id, SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
+		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
+	})
+	if err != nil {
+		t.Fatalf("Create occurrence: %v", err)
+	}
+
+	// Simulate a stop after the durable boundary write but before the matching
+	// NOTIFICATIONS read fact was appended.
+	if _, err := chattoCore.NotificationOccurrences().recordNotificationReadBoundary(ctx, reader.Id, room.Id, "", posted.Id); err != nil {
+		t.Fatalf("record read boundary: %v", err)
+	}
+	before, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+	if err != nil || before.GetRead() {
+		t.Fatalf("before repair = %+v, %v, want unread", before, err)
+	}
+	if repaired, err := chattoCore.NotificationOccurrences().reconcileCoveredUnread(ctx); err != nil || repaired != 1 {
+		t.Fatalf("reconcileCoveredUnread = (%d, %v), want (1, nil)", repaired, err)
+	}
+	after, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+	if err != nil || !after.GetRead() {
+		t.Fatalf("after repair = %+v, %v, want read", after, err)
+	}
+	if repaired, err := chattoCore.NotificationOccurrences().reconcileCoveredUnread(ctx); err != nil || repaired != 0 {
+		t.Fatalf("idempotent reconcileCoveredUnread = (%d, %v), want (0, nil)", repaired, err)
+	}
+}
+
 func TestReadStateModel_MarkRoomAsReadCoversReactionToReadMessage(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
