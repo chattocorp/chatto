@@ -43,10 +43,12 @@ The build task first produces the frontend, then packages the host-platform
 bundle beneath `apps/desktop/dist/`. macOS builds include the native
 ScreenCaptureKit game-capture helper and its pinned LiveKit frameworks. CI
 checks and packages macOS, Windows, and Linux bundles, verifies the nested macOS
-helper, and validates the complete app signature. Ordinary local and pull-request
-builds use ad-hoc signing. Release builds use Developer ID signing, the hardened
-runtime, and Apple notarisation, then staple and validate the notarisation ticket
-before creating the release archive.
+helper, and validates platform signatures. Ordinary local and pull-request macOS
+builds use ad-hoc signing; ordinary Windows and Linux builds remain unsigned.
+Release builds use Developer ID signing and Apple notarisation on macOS and
+Microsoft Artifact Signing on Windows. CI verifies every shipped Windows
+executable and library against ChattoCorp's expected publisher identity and
+requires an RFC 3161 timestamp before creating the release archive.
 
 ### Configure macOS release signing
 
@@ -100,6 +102,76 @@ export CHATTO_MACOS_NOTARY_API_KEY_ID='KEY_ID'
 export CHATTO_MACOS_NOTARY_API_ISSUER_ID='ISSUER_UUID'
 mise desktop-build
 ```
+
+### Configure Windows release signing
+
+Windows releases use Microsoft Artifact Signing (formerly Trusted Signing) with
+GitHub's short-lived OpenID Connect credentials. No code-signing private key is
+exported to GitHub Actions.
+
+An Azure administrator must complete the one-time service setup:
+
+1. Create an Artifact Signing account and an organization-validated **Public
+   Trust** certificate profile for ChattoCorp GmbH. Record the account endpoint,
+   account name, profile name, and the complete certificate subject shown by the
+   issued profile.
+2. Create a Microsoft Entra application and service principal for the release
+   workflow. Add a **GitHub Actions deploying Azure resources** federated
+   credential for organization `chattocorp` (`261891647`), repository `chatto`
+   (`1205013299`), and environment `desktop-windows-signing`, with audience
+   `api://AzureADTokenExchange`. Azure generates the immutable-ID subject
+   `repo:chattocorp@261891647/chatto@1205013299:environment:desktop-windows-signing`.
+3. Grant that service principal only the **Artifact Signing Certificate Profile
+   Signer** role, scoped to the Chatto Desktop signing account.
+4. Create a protected `desktop-windows-signing` Actions environment and add the
+   following secrets and variables to it. Keep the macOS credentials in the
+   existing `desktop-signing` environment so the two platforms cannot access
+   one another's signing credentials.
+
+| Kind | Name | Value |
+| --- | --- | --- |
+| Secret | `CHATTO_WINDOWS_AZURE_CLIENT_ID` | Entra application (client) ID |
+| Secret | `CHATTO_WINDOWS_AZURE_TENANT_ID` | Entra directory (tenant) ID |
+| Secret | `CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID` | Azure subscription ID |
+| Variable | `CHATTO_WINDOWS_SIGNING_ENDPOINT` | Regional account endpoint, including `https://` |
+| Variable | `CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME` | Artifact Signing account name |
+| Variable | `CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME` | Public Trust certificate profile name |
+| Variable | `CHATTO_WINDOWS_EXPECTED_PUBLISHER` | Complete certificate subject, exactly as Windows reports it |
+
+Configure `desktop-windows-signing` to permit deployments only from
+`chatto-desktop/v*` tags and the `main` branch used for manually dispatched
+verification builds. Require a reviewer, who must approve a release before the
+Windows runner can request an Azure token.
+Enable prevention of self-review when another authorised reviewer is available;
+do not enable it for a single-reviewer environment, because that would make
+releases impossible. The release workflow fails before building when any
+setting is missing. After building, it signs every `.exe`, `.dll`, and native
+`.node` module recursively with SHA-256 and an RFC 3161 timestamp, then rejects
+missing, invalid, untimestamped, or unexpectedly published signatures before
+packaging the ZIP.
+
+Before the first tagged release, manually run the `release` workflow with the
+`desktop` target on `main`, approve the protected environment, and inspect the
+Windows verification ZIP on a clean supported Windows installation. In File
+Explorer, the Digital Signatures tab on `chatto-desktop.exe` must show the same
+publisher configured in `CHATTO_WINDOWS_EXPECTED_PUBLISHER`; PowerShell's
+`Get-AuthenticodeSignature` must report `Valid`.
+
+Artifact Signing keeps the signing keys and short-lived leaf certificates in
+Azure, so routine renewal does not require rotating a PFX secret. Renew the
+organization validation and certificate profile before Azure reports expiry.
+When replacing a profile, preserve the exact publisher subject, update only
+`CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME`, and complete the manual verification
+build before releasing. Do not change `CHATTO_WINDOWS_EXPECTED_PUBLISHER` unless
+the publisher identity is deliberately migrating and the installer/update plan
+has been reviewed.
+
+For emergency revocation, first remove the Entra role assignment or federated
+credential to stop new signatures, then revoke or disable the affected
+certificate profile in Azure. Remove the GitHub environment values, review
+Azure and GitHub audit logs, replace the Entra application if its identity was
+compromised, and publish incident-specific user guidance before signing with a
+replacement identity.
 
 Electron handles camera, microphone, and notification permission requests only
 for the fixed app origin. Screen sharing presents a native source picker.

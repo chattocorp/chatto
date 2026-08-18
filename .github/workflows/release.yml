@@ -160,7 +160,7 @@ jobs:
   build-desktop-release:
     if: ${{ (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/chatto-desktop/v')) || (github.event_name == 'workflow_dispatch' && inputs.target == 'desktop') }}
     name: build-desktop-release (${{ matrix.platform }})
-    environment: desktop-signing
+    environment: ${{ matrix.environment }}
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -168,16 +168,34 @@ jobs:
         include:
           - platform: linux
             os: ubuntu-latest
+            environment: desktop-signing
           - platform: macos
             os: macos-15
+            environment: desktop-signing
           - platform: windows
             os: windows-latest
+            environment: desktop-windows-signing
     runs-on: ${{ matrix.os }}
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - name: Checkout
         uses: actions/checkout@v6
         with:
           ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Verify trusted desktop ref
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git fetch origin '+refs/heads/main:refs/remotes/origin/main'
+          if ! git merge-base --is-ancestor HEAD origin/main; then
+            echo "::error::Desktop signing is restricted to commits reachable from origin/main."
+            exit 1
+          fi
 
       - name: Setup environment
         uses: ./.github/actions/setup
@@ -295,6 +313,35 @@ jobs:
             echo "CHATTO_MACOS_NOTARY_API_ISSUER_ID=${NOTARY_API_ISSUER_ID}"
           } >> "$GITHUB_ENV"
 
+      - name: Validate Windows signing configuration
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          AZURE_CLIENT_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_CLIENT_ID }}
+          AZURE_TENANT_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_TENANT_ID }}
+          AZURE_SUBSCRIPTION_ID: ${{ secrets.CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID }}
+          SIGNING_ENDPOINT: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          SIGNING_ACCOUNT_NAME: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          CERTIFICATE_PROFILE_NAME: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: |
+          $required = @{
+            CHATTO_WINDOWS_AZURE_CLIENT_ID = $env:AZURE_CLIENT_ID
+            CHATTO_WINDOWS_AZURE_TENANT_ID = $env:AZURE_TENANT_ID
+            CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID = $env:AZURE_SUBSCRIPTION_ID
+            CHATTO_WINDOWS_SIGNING_ENDPOINT = $env:SIGNING_ENDPOINT
+            CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME = $env:SIGNING_ACCOUNT_NAME
+            CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME = $env:CERTIFICATE_PROFILE_NAME
+            CHATTO_WINDOWS_EXPECTED_PUBLISHER = $env:EXPECTED_PUBLISHER
+          }
+          $missing = @($required.GetEnumerator() | Where-Object {
+            [string]::IsNullOrWhiteSpace([string]$_.Value)
+          } | ForEach-Object Key)
+          if ($missing.Count -gt 0) {
+            Write-Error "The following Windows release settings are not configured: $($missing -join ', ')"
+            exit 1
+          }
+
       - name: Build desktop bundle
         shell: bash
         env:
@@ -307,6 +354,30 @@ jobs:
             mise desktop-build
           fi
 
+      - name: Log in to Azure for Windows signing
+        if: runner.os == 'Windows'
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.CHATTO_WINDOWS_AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.CHATTO_WINDOWS_AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.CHATTO_WINDOWS_AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sign Windows desktop bundle
+        if: runner.os == 'Windows'
+        uses: azure/artifact-signing-action@v2
+        with:
+          endpoint: ${{ vars.CHATTO_WINDOWS_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ vars.CHATTO_WINDOWS_SIGNING_ACCOUNT_NAME }}
+          certificate-profile-name: ${{ vars.CHATTO_WINDOWS_CERTIFICATE_PROFILE_NAME }}
+          files-folder: ${{ github.workspace }}\apps\desktop\dist\windows
+          files-folder-filter: exe,dll,node
+          files-folder-recurse: true
+          file-digest: SHA256
+          timestamp-rfc3161: http://timestamp.acs.microsoft.com
+          timestamp-digest: SHA256
+          description: Chatto Desktop
+          description-url: https://chatto.run
+
       - name: Verify bundled frontend version
         shell: bash
         env:
@@ -315,6 +386,44 @@ jobs:
           jq -e --arg expected "$EXPECTED_VERSION" \
             '.version == $expected' \
             apps/frontend/build/_app/version.json
+
+      - name: Verify Windows bundle signatures
+        if: runner.os == 'Windows'
+        shell: pwsh
+        env:
+          EXPECTED_PUBLISHER: ${{ vars.CHATTO_WINDOWS_EXPECTED_PUBLISHER }}
+        run: |
+          $bundle = Resolve-Path "apps/desktop/dist/windows"
+          $files = @(Get-ChildItem -LiteralPath $bundle -File -Recurse | Where-Object {
+            $_.Extension -in '.exe', '.dll', '.node'
+          })
+          if ($files.Count -eq 0) {
+            Write-Error "The Windows bundle contains no executable files to verify."
+            exit 1
+          }
+
+          $failed = $false
+          foreach ($file in $files) {
+            $signature = Get-AuthenticodeSignature -LiteralPath $file.FullName
+            $publisher = $signature.SignerCertificate.Subject
+            $hasExpectedPublisher = [string]::Equals(
+              $publisher,
+              $env:EXPECTED_PUBLISHER,
+              [System.StringComparison]::OrdinalIgnoreCase
+            )
+            if (
+              $signature.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+              -not $hasExpectedPublisher -or
+              $null -eq $signature.TimeStamperCertificate
+            ) {
+              Write-Error "$($file.FullName): status=$($signature.Status), publisher='$publisher', timestamped=$($null -ne $signature.TimeStamperCertificate)"
+              $failed = $true
+            }
+          }
+          if ($failed) {
+            exit 1
+          }
+          Write-Host "Verified $($files.Count) signed Windows executable files from '$env:EXPECTED_PUBLISHER'."
 
       - name: Package macOS release
         if: runner.os == 'macOS'

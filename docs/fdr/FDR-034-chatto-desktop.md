@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-08-18
 
 ## Overview
 
@@ -40,9 +40,11 @@ system-browser authentication, and clean-machine media behavior are hardened.
   Acknowledged lifecycle control keeps the UI in a stopping state until the
   helper disconnects its LiveKit companion and exits. Hosts without this
   capability keep the browser's ordinary source chooser.
-- macOS, Windows, and Linux bundles are built in CI. Experimental macOS
-  artifacts are ad-hoc signed, while the other platform artifacts remain
-  unsigned until trusted platform signing and macOS notarisation are added.
+- macOS, Windows, and Linux bundles are built in CI. Release macOS artifacts
+  are Developer ID signed and notarised. Release Windows executables and
+  libraries are signed through Microsoft Artifact Signing with ChattoCorp's
+  stable publisher identity and timestamped before CI packages them. Local,
+  pull-request, and Linux artifacts are not trusted release builds.
 - Chatto Desktop has an independent version and changelog. Its release tags use
   `chatto-desktop/v{version}` and do not change the Chatto server version.
 - Each release rebuilds and embeds the official frontend from the Desktop tag's
@@ -117,15 +119,23 @@ different from Chatto server releases.
 **Tradeoff:** Compatibility diagnostics must distinguish the desktop shell
 version from the bundled Chatto client version.
 
-### 6. Build all supported host bundles before signing them
+### 6. Build all supported host bundles and sign trusted releases
 
-**Decision:** CI checks and builds macOS, Windows, and Linux bundles. Early
-artifacts may be published unsigned, but trusted signing and notarisation remain
-a separate release-hardening milestone.
+**Decision:** CI checks and builds macOS, Windows, and Linux bundles. The
+protected release workflow Developer ID signs and notarises macOS, and uses
+Microsoft Artifact Signing with GitHub OpenID Connect to sign Windows PE files.
+It validates macOS acceptance and every Windows signature, timestamp, and
+publisher subject before packaging. Linux remains unsigned until its
+update-capable package and trust model are selected.
 **Why:** Cross-platform builds catch packaging drift and let contributors test
-the application before release credentials are available.
-**Tradeoff:** Operating systems may warn about or block unsigned artifacts, and
-CI assembly alone does not prove clean-machine WebRTC behavior.
+the application before release credentials are available. Managed Windows
+signing keeps the private key out of GitHub while a protected environment and
+least-privilege Azure role restrict which revisions can request signatures.
+Windows and macOS use separate protected environments so neither platform's
+runner can access the other platform's signing credentials.
+**Tradeoff:** Ordinary CI artifacts remain unsigned, Windows signing depends on
+Azure availability and organization validation, and CI signature checks do not
+replace clean-machine installation or WebRTC verification.
 
 ### 7. Expose desktop-only capabilities through narrow optional bridges
 
@@ -187,7 +197,6 @@ media path that can adapt to each receiver.
 
 - How system-browser OAuth callbacks and normal external links should return to
   or focus the application on every platform.
-- Which platform and architecture becomes the first signed release target.
 - Which installer and automatic-update strategy should follow the first
   downloadable archives.
 - Whether Electron's shipped codec set covers every media artifact Chatto
