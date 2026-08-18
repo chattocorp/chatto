@@ -1,12 +1,14 @@
 services:
   nats:
     image: nats:latest
+    restart: unless-stopped
     command: ["--jetstream", "--store_dir=/data", "--auth=${NATS_TOKEN}"]
     volumes:
       - nats_data:/data
 
   livekit:
     image: livekit/livekit-server:latest
+    restart: unless-stopped
     command:
       - --config
       - /etc/livekit.yaml
@@ -21,6 +23,7 @@ services:
 
   chatto:
     image: ghcr.io/chattocorp/chatto:latest
+    restart: unless-stopped
     env_file: .env
     environment:
       PUID: "${PUID:-1000}"
@@ -32,6 +35,7 @@ services:
 
   caddy:
     image: caddy:latest
+    restart: unless-stopped
     ports:
       - "80:80"
       - "443:443"

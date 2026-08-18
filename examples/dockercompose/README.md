@@ -22,6 +22,9 @@ Visit `https://chat.example.com` and register with `admin@example.com`. Caddy
 obtains the HTTPS certificates automatically. The rest of this README explains
 the stack and the available customization options.
 
+All services use the `unless-stopped` restart policy, so Docker restarts them
+after a failure or host reboot unless you stopped them manually.
+
 `livekit.chat.example.com` is only an example. You can use any hostname you
 control, such as `calls.example.com`; update `CHATTO_LIVEKIT_URL` and the
 matching proxy route when using a different name.

@@ -5,6 +5,7 @@ import { packager } from "@electron/packager";
 import packageJson from "../package.json" with { type: "json" };
 import { pruneElectronLocales } from "./locales.mjs";
 import { embedMacOSCaptureHelper } from "./macos-capture-helper.mjs";
+import { macOSDistributionOptions } from "./macos-signing.mjs";
 import { macOSVersions, releaseBuildVersion } from "./version.mjs";
 
 const desktopRoot = path.resolve(
@@ -18,12 +19,9 @@ const platform = process.platform;
 const electronChecksum = process.env.CHATTO_ELECTRON_CHECKSUM;
 const electronArchiveName = `electron-v${packageJson.devDependencies.electron}-${platform}-${process.arch}.zip`;
 const embedCaptureHelper = platform === "darwin";
-const macOSSignIdentity =
-  platform === "darwin"
-    ? (process.env.CHATTO_MACOS_SIGN_IDENTITY ?? "-")
-    : undefined;
 const macVersions =
   platform === "darwin" ? macOSVersions(packageJson.version) : undefined;
+const macOSDistribution = macOSDistributionOptions(platform, process.env);
 const supportedLocales = (
   await readdir(path.resolve(desktopRoot, "../frontend/messages"), {
     withFileTypes: true,
@@ -73,20 +71,18 @@ const [bundleRoot] = await packager({
     ? [
         async ({ buildPath }) => {
           const appBundle = path.resolve(buildPath, "../../..");
+          const prunedLocales = await pruneElectronLocales(
+            appBundle,
+            platform,
+            supportedLocales,
+          );
+          logPrunedLocales(prunedLocales);
           await embedMacOSCaptureHelper(appBundle, macVersions);
         },
       ]
     : undefined,
-  osxSign:
-    platform === "darwin"
-      ? {
-          identity: macOSSignIdentity,
-          identityValidation: macOSSignIdentity !== "-",
-          optionsForFile: () => ({
-            hardenedRuntime: macOSSignIdentity !== "-",
-          }),
-        }
-      : undefined,
+  osxSign: macOSDistribution.osxSign,
+  osxNotarize: macOSDistribution.osxNotarize,
   ignore: [
     /^\/dist(?:\/|$)/,
     /^\/native(?:\/|$)/,
@@ -100,14 +96,11 @@ const appBundle =
   platform === "darwin"
     ? path.join(bundleRoot, `${packageJson.productName}.app`)
     : bundleRoot;
-const prunedLocales = await pruneElectronLocales(
-  appBundle,
-  platform,
-  supportedLocales,
-);
-console.log(
-  `Removed ${prunedLocales.removedLocales} unused Electron locale resources (${(prunedLocales.removedBytes / 1024 / 1024).toFixed(1)} MiB)`,
-);
+if (platform !== "darwin") {
+  logPrunedLocales(
+    await pruneElectronLocales(appBundle, platform, supportedLocales),
+  );
+}
 
 if (platform === "darwin") {
   await rename(
@@ -121,3 +114,9 @@ if (platform === "darwin") {
 }
 
 await rm(packagerOut, { recursive: true, force: true });
+
+function logPrunedLocales(prunedLocales) {
+  console.log(
+    `Removed ${prunedLocales.removedLocales} unused Electron locale resources (${(prunedLocales.removedBytes / 1024 / 1024).toFixed(1)} MiB)`,
+  );
+}
