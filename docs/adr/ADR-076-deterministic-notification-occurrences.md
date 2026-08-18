@@ -143,10 +143,14 @@ cleanup grace even after the tombstone stops affecting application state.
 
 Room/thread read reconciliation and visibility-loss boundaries remain bounded
 latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
-state, not notification history. They retain their existing direct-read and OCC
-handshakes. Because the read boundary is recorded before matching
-`NotificationRead` facts, every replica completes interrupted handshakes at
-startup and periodically in the background.
+state, not notification history. One process-wide filtered KV watcher indexes
+both boundary families; successful local writes wait for their exact KV
+revision to enter that index before dependent work continues. Because the read
+boundary is recorded before matching `NotificationRead` facts, every replica
+performs one startup repair and thereafter reconciles only the room/thread
+scope whose watched boundary changed. Large occurrence fanouts likewise read
+visibility boundaries from the index and publish their coalesced realtime
+invalidations with one flush rather than one broker round trip per recipient.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They may carry one opaque alert-candidate notification ID but never expose

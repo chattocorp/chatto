@@ -192,6 +192,10 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	if got, ok := p.occurrence("U1", "N1", now); !ok || got.GetNotificationStreamSequence() != 7 {
 		t.Fatalf("projected occurrence = (%+v, %v)", got, ok)
 	}
+	scope := notificationReadBoundaryScope{userID: "U1", roomID: "R1"}
+	if got := p.scopeOccurrences(scope, now); len(got) != 1 || got[0].GetId() != "N1" {
+		t.Fatalf("scope occurrences = %+v, want N1", got)
+	}
 	if err := p.Apply(&corev1.NotificationEvent{
 		Id: "NE2", RecipientId: "U1", NotificationId: "N1", OccurredAt: timestamp(now), ExpiresAt: timestamp(now.Add(time.Minute)),
 		Event: &corev1.NotificationEvent_Removed{Removed: &corev1.NotificationRemoved{SignalStreamSequence: 7}},
@@ -200,6 +204,9 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 	}
 	if _, ok := p.occurrence("U1", "N1", now); ok {
 		t.Fatal("dismissed occurrence remained visible")
+	}
+	if got := p.scopeOccurrences(scope, now); len(got) != 0 {
+		t.Fatalf("dismissed scope occurrences = %+v, want none", got)
 	}
 	if got := p.pendingPhysicalDeletes(now)["N1"].signalSequence; got != 7 {
 		t.Fatalf("pending physical delete sequence = %d, want 7", got)

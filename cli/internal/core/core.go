@@ -15,7 +15,6 @@ import (
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/evtstream"
-	"hmans.de/chatto/internal/notificationstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -43,6 +42,7 @@ type ChattoCore struct {
 	notificationPolicy        *NotificationPolicyModel
 	roomTimelineReads         *RoomTimelineReadModel
 	readStateModel            *ReadStateModel
+	notificationBoundaries    *notificationBoundaryIndex
 	notificationOccurrences   *NotificationOccurrenceModel
 	notificationMaterializer  *NotificationMaterializer
 	notificationAlertDelivery *notificationAlertDelivery
@@ -98,8 +98,6 @@ type ChattoCore struct {
 	// future aggregate cutovers; domain code accesses it through
 	// higher-level helpers as aggregates migrate.
 	EventPublisher *evtstream.Publisher
-	// NotificationPublisher writes the bounded Notifications 2.0 lifecycle log.
-	NotificationPublisher *notificationstream.Publisher
 
 	// projections is the set of all event-sourcing projections owned by
 	// this core. Each registration carries the runtime projector plus
@@ -195,6 +193,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
+	g.Go(func() error { return c.notificationBoundaries.run(gctx) })
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
 	g.Go(func() error { return c.notificationAlertDelivery.run(gctx) })

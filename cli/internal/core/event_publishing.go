@@ -26,22 +26,44 @@ const natsPublishFlushTimeout = 5 * time.Second
 // publishLiveEvent publishes a transient LiveEvent directly to a live.sync.>
 // subject, bypassing JetStream storage. The subject should already include
 // the "live.sync." prefix.
-func (c *ChattoCore) publishLiveEvent(_ context.Context, subject string, event *corev1.LiveEvent) error {
-	if err := validateLiveEvent(event); err != nil {
-		return err
-	}
+func (c *ChattoCore) publishLiveEvent(ctx context.Context, subject string, event *corev1.LiveEvent) error {
+	return c.publishLiveEvents(ctx, []liveEventPublication{{subject: subject, event: event}})
+}
 
-	eventData, err := proto.Marshal(event)
-	if err != nil {
-		return fmt.Errorf("failed to marshal live event: %w", err)
-	}
+type liveEventPublication struct {
+	subject string
+	event   *corev1.LiveEvent
+}
 
-	if err := c.nc.Publish(subject, eventData); err != nil {
-		return fmt.Errorf("failed to publish live event to %s: %w", subject, err)
+// publishLiveEvents publishes a related set of transient events and flushes
+// once after the complete set has entered the client buffer. This keeps large
+// fanouts linear without imposing one network round trip per recipient.
+func (c *ChattoCore) publishLiveEvents(_ context.Context, publications []liveEventPublication) error {
+	type encodedPublication struct {
+		subject string
+		data    []byte
 	}
-
+	encoded := make([]encodedPublication, 0, len(publications))
+	for index, publication := range publications {
+		if err := validateLiveEvent(publication.event); err != nil {
+			return fmt.Errorf("live publication %d: %w", index, err)
+		}
+		eventData, err := proto.Marshal(publication.event)
+		if err != nil {
+			return fmt.Errorf("marshal live publication %d: %w", index, err)
+		}
+		encoded = append(encoded, encodedPublication{subject: publication.subject, data: eventData})
+	}
+	if len(encoded) == 0 {
+		return nil
+	}
+	for _, publication := range encoded {
+		if err := c.nc.Publish(publication.subject, publication.data); err != nil {
+			return fmt.Errorf("publish live event to %s: %w", publication.subject, err)
+		}
+	}
 	if err := c.nc.FlushTimeout(natsPublishFlushTimeout); err != nil {
-		return fmt.Errorf("failed to flush live event to %s: %w", subject, err)
+		return fmt.Errorf("flush %d live events: %w", len(encoded), err)
 	}
 	return nil
 }

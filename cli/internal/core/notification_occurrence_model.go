@@ -90,10 +90,16 @@ func (m *NotificationOccurrenceModel) WaitCurrent(ctx context.Context) error {
 }
 
 func (m *NotificationOccurrenceModel) WaitReady(ctx context.Context) error {
+	if err := m.core.notificationBoundaries.waitReady(ctx); err != nil {
+		return err
+	}
 	return m.projection.Projector().WaitForStartup(ctx)
 }
 
 func (m *NotificationOccurrenceModel) Resync(ctx context.Context) error {
+	if err := m.core.notificationBoundaries.resync(ctx); err != nil {
+		return err
+	}
 	return m.projection.Projector().WaitForCurrent(ctx)
 }
 
@@ -101,34 +107,44 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 	if err := m.WaitReady(ctx); err != nil {
 		return err
 	}
-	for {
-		now := m.now().UTC()
-		for _, userID := range m.projection.Projection().pruneExpired(now) {
-			m.core.publishNotificationOccurrencesInvalidated(ctx, &corev1.NotificationOccurrence{RecipientId: userID}, false)
-		}
-		m.cleanupDismissedSignals(ctx, now)
-		if _, err := m.reconcileCoveredUnread(ctx); err != nil && ctx.Err() == nil {
-			m.logger.Warn("Notification read-boundary reconciliation will retry", "error", err)
-		}
-
-		delay := notificationPhysicalDeleteRetry
-		if next, ok := m.projection.Projection().nextExpiry(now); ok {
-			until := next.Sub(now)
-			if until < delay {
-				delay = until
+	if _, err := m.reconcileCoveredUnread(ctx); err != nil && ctx.Err() == nil {
+		m.logger.Warn("Notification read-boundary startup reconciliation will retry", "error", err)
+		m.core.notificationBoundaries.requeueReadChanges(nil, true)
+	}
+	reconcileChangedBoundaries := func() {
+		scopes, fullRepair := m.core.notificationBoundaries.takeReadChanges()
+		if fullRepair || len(scopes) > 0 {
+			if fullRepair {
+				scopes = nil
+			}
+			if _, err := m.reconcileCoveredUnread(ctx, scopes...); err != nil && ctx.Err() == nil {
+				m.logger.Warn("Notification read-boundary reconciliation will retry", "error", err)
+				m.core.notificationBoundaries.requeueReadChanges(scopes, fullRepair)
 			}
 		}
-		if delay < time.Millisecond {
-			delay = time.Millisecond
+	}
+	runMaintenance := func() {
+		now := m.now().UTC()
+		expiredUsers := m.projection.Projection().pruneExpired(now)
+		invalidations := make([]*corev1.NotificationOccurrence, 0, len(expiredUsers))
+		for _, userID := range expiredUsers {
+			invalidations = append(invalidations, &corev1.NotificationOccurrence{RecipientId: userID})
 		}
-		timer := time.NewTimer(delay)
+		m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, false)
+		m.cleanupDismissedSignals(ctx, now)
+	}
+	runMaintenance()
+	ticker := time.NewTicker(notificationPhysicalDeleteRetry)
+	defer ticker.Stop()
+	for {
 		select {
 		case <-ctx.Done():
-			timer.Stop()
 			return ctx.Err()
-		case <-m.projection.Projection().expiryChanges():
-			timer.Stop()
-		case <-timer.C:
+		case <-m.core.notificationBoundaries.readChanges():
+			reconcileChangedBoundaries()
+		case <-ticker.C:
+			reconcileChangedBoundaries()
+			runMaintenance()
 		}
 	}
 }
@@ -138,14 +154,22 @@ func (m *NotificationOccurrenceModel) Run(ctx context.Context) error {
 // lifecycle facts so late materialization cannot reintroduce covered work. If
 // the process stops between those writes, every replica's startup/background
 // pass idempotently completes the NOTIFICATIONS side of the handshake.
-func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context) (int, error) {
+func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context, scopes ...notificationReadBoundaryScope) (int, error) {
 	type cachedBoundary struct {
 		boundary notificationReadBoundary
 		exists   bool
 	}
-	boundaries := make(map[string]cachedBoundary)
+	boundaries := make(map[notificationReadBoundaryScope]cachedBoundary, len(scopes))
+	occurrences := make([]*corev1.NotificationOccurrence, 0)
+	if scopes == nil {
+		occurrences = m.projection.Projection().allOccurrences(m.now().UTC())
+	} else {
+		for _, scope := range scopes {
+			occurrences = append(occurrences, m.projection.Projection().scopeOccurrences(scope, m.now().UTC())...)
+		}
+	}
 	matches := make([]*corev1.NotificationOccurrence, 0)
-	for _, occurrence := range m.projection.Projection().allOccurrences(m.now().UTC()) {
+	for _, occurrence := range occurrences {
 		if occurrence.GetRead() || occurrence.GetSourceStreamSequence() == 0 {
 			continue
 		}
@@ -153,15 +177,17 @@ func (m *NotificationOccurrenceModel) reconcileCoveredUnread(ctx context.Context
 		if message == nil {
 			continue
 		}
-		key := notificationReadBoundaryKey(occurrence.GetRecipientId(), message.GetRoomId(), message.GetThreadRootEventId())
-		cached, ok := boundaries[key]
+		scope := notificationReadBoundaryScope{
+			userID: occurrence.GetRecipientId(), roomID: message.GetRoomId(), threadRootEventID: message.GetThreadRootEventId(),
+		}
+		cached, ok := boundaries[scope]
 		if !ok {
-			boundary, exists, err := m.notificationReadBoundary(ctx, occurrence.GetRecipientId(), message.GetRoomId(), message.GetThreadRootEventId())
+			boundary, exists, err := m.notificationReadBoundary(ctx, scope.userID, scope.roomID, scope.threadRootEventID)
 			if err != nil {
 				return 0, err
 			}
 			cached = cachedBoundary{boundary: boundary, exists: exists}
-			boundaries[key] = cached
+			boundaries[scope] = cached
 		}
 		if cached.exists && m.occurrenceCoveredByBoundary(occurrence, cached.boundary) {
 			matches = append(matches, occurrence)
@@ -616,9 +642,11 @@ func (m *NotificationOccurrenceModel) publishCreatedInvalidations(ctx context.Co
 			byRecipient[occurrence.GetRecipientId()] = occurrence
 		}
 	}
+	invalidations := make([]*corev1.NotificationOccurrence, 0, len(byRecipient))
 	for _, occurrence := range byRecipient {
-		m.core.publishNotificationOccurrencesInvalidated(ctx, occurrence, true)
+		invalidations = append(invalidations, occurrence)
 	}
+	m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, true)
 }
 
 func (m *NotificationOccurrenceModel) Get(_ context.Context, userID, notificationID string) (*corev1.NotificationOccurrence, error) {
@@ -790,15 +818,15 @@ func (m *NotificationOccurrenceModel) appendEventsAndWait(ctx context.Context, l
 	for start := 0; start < len(lifecycleEvents); start += notificationLifecycleBatchSize {
 		end := min(start+notificationLifecycleBatchSize, len(lifecycleEvents))
 		results, err := m.publisher.AppendBatchEventuallyResults(ctx, lifecycleEvents[start:end])
-		if err != nil {
-			appendErr = err
-			break
-		}
 		for _, result := range results {
 			committed = append(committed, result.Committed)
 			if result.Position.Seq > lastPosition.Seq {
 				lastPosition = result.Position
 			}
+		}
+		if err != nil {
+			appendErr = err
+			break
 		}
 	}
 	if !lastPosition.IsZero() {
@@ -816,9 +844,11 @@ func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx conte
 			byRecipient[occurrence.GetRecipientId()] = occurrence
 		}
 	}
+	invalidations := make([]*corev1.NotificationOccurrence, 0, len(byRecipient))
 	for _, occurrence := range byRecipient {
-		m.core.publishNotificationOccurrencesInvalidated(ctx, occurrence, false)
+		invalidations = append(invalidations, occurrence)
 	}
+	m.core.publishNotificationOccurrenceInvalidations(ctx, invalidations, false)
 }
 
 func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (int, error) {

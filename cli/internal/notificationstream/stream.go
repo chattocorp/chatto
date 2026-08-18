@@ -85,22 +85,11 @@ type preparedEvent struct {
 	physicalExpiry time.Time
 }
 
-// AppendBatchEventually atomically publishes lifecycle facts for one fixed
-// subject. The framework mutation owns the subject-tail fence and bounded
-// conflict retries; the outer loop keeps idempotent retry alive until the
-// caller's context ends.
-func (p *Publisher) AppendBatchEventually(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]events.StreamPosition, error) {
-	results, err := p.AppendBatchEventuallyResults(ctx, notificationEvents)
-	positions := make([]events.StreamPosition, len(results))
-	for i, result := range results {
-		positions[i] = result.Position
-	}
-	return positions, err
-}
-
-// AppendBatchEventuallyResults behaves like AppendBatchEventually and also
-// reports which logical facts were newly committed. This matters for mutation
-// response accounting when concurrent callers race with deterministic IDs.
+// AppendBatchEventuallyResults publishes lifecycle facts for one fixed
+// subject and reports which facts were newly committed. A batch whose IDs are
+// all new is atomic. If JetStream identifies a duplicate ID, the publisher
+// retries each fact idempotently; a non-nil error can then accompany partial
+// results that callers must wait for and account for before returning.
 func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificationEvents []*corev1.NotificationEvent) ([]AppendResult, error) {
 	if len(notificationEvents) == 0 {
 		return nil, nil
@@ -162,15 +151,13 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 			return results, nil
 		}
 		if errors.Is(err, events.ErrDuplicateBatchMessageID) && len(notificationEvents) > 1 {
-			results := make([]AppendResult, 0, len(notificationEvents))
-			for _, event := range notificationEvents {
+			return appendNotificationEventsIndividually(notificationEvents, func(event *corev1.NotificationEvent) (AppendResult, error) {
 				single, appendErr := p.AppendBatchEventuallyResults(ctx, []*corev1.NotificationEvent{event})
 				if appendErr != nil {
-					return nil, appendErr
+					return AppendResult{}, appendErr
 				}
-				results = append(results, single[0])
-			}
-			return results, nil
+				return single[0], nil
+			})
 		}
 		if !errors.Is(err, events.ErrConflict) {
 			return nil, err
@@ -181,8 +168,19 @@ func (p *Publisher) AppendBatchEventuallyResults(ctx context.Context, notificati
 	}
 }
 
-func (p *Publisher) LastStreamSeq(ctx context.Context) (uint64, error) {
-	return p.log.LastStreamSeq(ctx)
+func appendNotificationEventsIndividually(
+	notificationEvents []*corev1.NotificationEvent,
+	appendOne func(*corev1.NotificationEvent) (AppendResult, error),
+) ([]AppendResult, error) {
+	results := make([]AppendResult, 0, len(notificationEvents))
+	for _, event := range notificationEvents {
+		result, err := appendOne(event)
+		if err != nil {
+			return results, err
+		}
+		results = append(results, result)
+	}
+	return results, nil
 }
 
 func subjectFor(event *corev1.NotificationEvent) (string, error) {

@@ -212,21 +212,25 @@ func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *te
 		t.Fatalf("Create occurrence: %v", err)
 	}
 
+	before, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+	if err != nil || before.GetRead() {
+		t.Fatalf("before repair = %+v, %v, want unread", before, err)
+	}
 	// Simulate a stop after the durable boundary write but before the matching
 	// NOTIFICATIONS read fact was appended.
 	if _, err := chattoCore.NotificationOccurrences().recordNotificationReadBoundary(ctx, reader.Id, room.Id, "", posted.Id); err != nil {
 		t.Fatalf("record read boundary: %v", err)
 	}
-	before, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
-	if err != nil || before.GetRead() {
-		t.Fatalf("before repair = %+v, %v, want unread", before, err)
-	}
-	if repaired, err := chattoCore.NotificationOccurrences().reconcileCoveredUnread(ctx); err != nil || repaired != 1 {
-		t.Fatalf("reconcileCoveredUnread = (%d, %v), want (1, nil)", repaired, err)
-	}
-	after, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
-	if err != nil || !after.GetRead() {
-		t.Fatalf("after repair = %+v, %v, want read", after, err)
+	for {
+		after, err := chattoCore.NotificationOccurrences().Get(ctx, reader.Id, occurrence.GetId())
+		if err == nil && after.GetRead() {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			t.Fatalf("watched boundary did not repair occurrence: %+v, %v", after, err)
+		case <-time.After(time.Millisecond):
+		}
 	}
 	if repaired, err := chattoCore.NotificationOccurrences().reconcileCoveredUnread(ctx); err != nil || repaired != 0 {
 		t.Fatalf("idempotent reconcileCoveredUnread = (%d, %v), want (0, nil)", repaired, err)

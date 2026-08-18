@@ -40,25 +40,24 @@ func assembleCore(
 	)
 
 	return &ChattoCore{
-		nc:                    nc,
-		js:                    infra.js,
-		logger:                logger,
-		storage:               infra.storage,
-		config:                cfg,
-		encryption:            infra.encryption,
-		dekResolver:           infra.dekResolver,
-		configModel:           configModel,
-		roomModel:             roomModel,
-		userModel:             userModel,
-		rbacModel:             newRBACModel(projections.rbac),
-		mentionables:          newMentionablesModel(projections.mentionables),
-		invitationModel:       newInvitationModel(infra.eventPublisher, projections.invitations, cfg.SecretKey),
-		oauthClientModel:      newOAuthClientModel(projections.oauthClients),
-		s3Client:              infra.s3Client,
-		EventPublisher:        infra.eventPublisher,
-		NotificationPublisher: infra.notificationPublisher,
-		projections:           projections.registrations,
-		bootDone:              make(chan struct{}),
+		nc:               nc,
+		js:               infra.js,
+		logger:           logger,
+		storage:          infra.storage,
+		config:           cfg,
+		encryption:       infra.encryption,
+		dekResolver:      infra.dekResolver,
+		configModel:      configModel,
+		roomModel:        roomModel,
+		userModel:        userModel,
+		rbacModel:        newRBACModel(projections.rbac),
+		mentionables:     newMentionablesModel(projections.mentionables),
+		invitationModel:  newInvitationModel(infra.eventPublisher, projections.invitations, cfg.SecretKey),
+		oauthClientModel: newOAuthClientModel(projections.oauthClients),
+		s3Client:         infra.s3Client,
+		EventPublisher:   infra.eventPublisher,
+		projections:      projections.registrations,
+		bootDone:         make(chan struct{}),
 	}
 }
 
@@ -116,6 +115,10 @@ func initializeCoreServices(
 		core:  core,
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
+	core.notificationBoundaries = newNotificationBoundaryIndex(
+		infra.storage.runtimeStateKV,
+		logger.WithPrefix("core.NotificationBoundaryIndex"),
+	)
 	core.notificationOccurrences = NewNotificationOccurrenceModel(
 		core,
 		projections.notifications,

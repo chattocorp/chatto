@@ -71,7 +71,10 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
 		current, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			if _, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {
+			if revision, err := m.kv.Create(ctx, key, encodeNotificationReadBoundary(next), jetstream.KeyTTL(notificationTTL)); err == nil {
+				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+					return notificationReadBoundary{}, err
+				}
 				return next, nil
 			} else if !jetstreamutil.IsSequenceConflict(err) {
 				return notificationReadBoundary{}, fmt.Errorf("create notification read boundary: %w", err)
@@ -92,9 +95,15 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 			next.observedSequence = previous.observedSequence
 		}
 		if previous == next {
+			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, current.Revision()); err != nil {
+				return notificationReadBoundary{}, err
+			}
 			return next, nil
 		}
-		if _, err := m.core.updateRuntimeStateTokenTTL(ctx, key, encodeNotificationReadBoundary(next), current.Revision(), notificationTTL); err == nil {
+		if revision, err := m.core.updateRuntimeStateTokenTTL(ctx, key, encodeNotificationReadBoundary(next), current.Revision(), notificationTTL); err == nil {
+			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+				return notificationReadBoundary{}, err
+			}
 			return next, nil
 		} else if !jetstreamutil.IsSequenceConflict(err) {
 			return notificationReadBoundary{}, fmt.Errorf("update notification read boundary: %w", err)
@@ -104,15 +113,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 }
 
 func (m *NotificationOccurrenceModel) notificationReadBoundary(ctx context.Context, userID, roomID, threadRootEventID string) (notificationReadBoundary, bool, error) {
-	entry, err := m.kv.Get(ctx, notificationReadBoundaryKey(userID, roomID, threadRootEventID))
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-		return notificationReadBoundary{}, false, nil
-	}
-	if err != nil {
-		return notificationReadBoundary{}, false, fmt.Errorf("read notification read boundary: %w", err)
-	}
-	boundary, err := decodeNotificationReadBoundary(entry.Value())
-	return boundary, err == nil, err
+	return m.core.notificationBoundaries.readBoundary(ctx, userID, roomID, threadRootEventID)
 }
 
 func (m *NotificationOccurrenceModel) occurrenceCoveredByReadBoundary(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {

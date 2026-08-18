@@ -218,6 +218,28 @@ func TestPublisherAppendsLifecycleBatchAtomically(t *testing.T) {
 	}
 }
 
+func TestAppendNotificationEventsIndividuallyReturnsCommittedPrefixOnFailure(t *testing.T) {
+	wantErr := errors.New("later append failed")
+	eventsToAppend := []*corev1.NotificationEvent{{Id: "one"}, {Id: "two"}, {Id: "three"}}
+	calls := 0
+	results, err := appendNotificationEventsIndividually(eventsToAppend, func(event *corev1.NotificationEvent) (AppendResult, error) {
+		calls++
+		if event.GetId() == "three" {
+			return AppendResult{}, wantErr
+		}
+		return AppendResult{Position: events.SubjectPosition(ReadSubject, uint64(calls)), Committed: true}, nil
+	})
+	if !errors.Is(err, wantErr) {
+		t.Fatalf("error = %v, want %v", err, wantErr)
+	}
+	if calls != 3 {
+		t.Fatalf("append calls = %d, want 3", calls)
+	}
+	if len(results) != 2 || results[0].Position.Seq != 1 || results[1].Position.Seq != 2 {
+		t.Fatalf("partial results = %+v, want committed two-entry prefix", results)
+	}
+}
+
 func TestAlertResolutionEventIDMakesTerminalOutcomeSingleWinner(t *testing.T) {
 	_, nc := testutil.StartNATS(t)
 	js, err := jetstream.New(nc)

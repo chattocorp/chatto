@@ -27,8 +27,8 @@ type NotificationProjection struct {
 
 	byID       map[string]*corev1.NotificationOccurrence
 	idsByUser  map[string]map[string]struct{}
+	idsByScope map[notificationReadBoundaryScope]map[string]struct{}
 	tombstones map[string]notificationProjectionTombstone
-	expiryWake chan struct{}
 	now        func() time.Time
 }
 
@@ -36,8 +36,8 @@ func NewNotificationProjection() *NotificationProjection {
 	return &NotificationProjection{
 		byID:       make(map[string]*corev1.NotificationOccurrence),
 		idsByUser:  make(map[string]map[string]struct{}),
+		idsByScope: make(map[notificationReadBoundaryScope]map[string]struct{}),
 		tombstones: make(map[string]notificationProjectionTombstone),
-		expiryWake: make(chan struct{}, 1),
 		now:        time.Now,
 	}
 }
@@ -94,6 +94,7 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 			p.idsByUser[stored.GetRecipientId()] = make(map[string]struct{})
 		}
 		p.idsByUser[stored.GetRecipientId()][stored.GetId()] = struct{}{}
+		p.addScopeLocked(stored)
 	case *corev1.NotificationEvent_Read:
 		occurrence := p.byID[event.GetNotificationId()]
 		if occurrence == nil || occurrence.GetRecipientId() != event.GetRecipientId() {
@@ -129,7 +130,6 @@ func (p *NotificationProjection) Apply(event *corev1.NotificationEvent, sequence
 	default:
 		return fmt.Errorf("unsupported notification event at sequence %d", sequence)
 	}
-	p.signalExpiryChangeLocked()
 	return nil
 }
 
@@ -140,13 +140,37 @@ func (p *NotificationProjection) removeLocked(occurrence *corev1.NotificationOcc
 	if len(ids) == 0 {
 		delete(p.idsByUser, occurrence.GetRecipientId())
 	}
+	if scope, ok := notificationOccurrenceReadScope(occurrence); ok {
+		ids := p.idsByScope[scope]
+		delete(ids, occurrence.GetId())
+		if len(ids) == 0 {
+			delete(p.idsByScope, scope)
+		}
+	}
 }
 
-func (p *NotificationProjection) signalExpiryChangeLocked() {
-	select {
-	case p.expiryWake <- struct{}{}:
-	default:
+func (p *NotificationProjection) addScopeLocked(occurrence *corev1.NotificationOccurrence) {
+	scope, ok := notificationOccurrenceReadScope(occurrence)
+	if !ok {
+		return
 	}
+	if p.idsByScope[scope] == nil {
+		p.idsByScope[scope] = make(map[string]struct{})
+	}
+	p.idsByScope[scope][occurrence.GetId()] = struct{}{}
+}
+
+func notificationOccurrenceReadScope(occurrence *corev1.NotificationOccurrence) (notificationReadBoundaryScope, bool) {
+	if occurrence == nil || occurrence.GetRecipientId() == "" {
+		return notificationReadBoundaryScope{}, false
+	}
+	message := notificationSignalMessage(occurrence.GetSignal())
+	if message == nil || message.GetRoomId() == "" {
+		return notificationReadBoundaryScope{}, false
+	}
+	return notificationReadBoundaryScope{
+		userID: occurrence.GetRecipientId(), roomID: message.GetRoomId(), threadRootEventID: message.GetThreadRootEventId(),
+	}, true
 }
 
 func (p *NotificationProjection) occurrence(userID, notificationID string, now time.Time) (*corev1.NotificationOccurrence, bool) {
@@ -190,6 +214,17 @@ func (p *NotificationProjection) allOccurrences(now time.Time) []*corev1.Notific
 	return result
 }
 
+func (p *NotificationProjection) scopeOccurrences(scope notificationReadBoundaryScope, now time.Time) []*corev1.NotificationOccurrence {
+	p.Lock()
+	defer p.Unlock()
+	p.pruneExpiredLocked(now)
+	result := make([]*corev1.NotificationOccurrence, 0, len(p.idsByScope[scope]))
+	for id := range p.idsByScope[scope] {
+		result = append(result, proto.Clone(p.byID[id]).(*corev1.NotificationOccurrence))
+	}
+	return result
+}
+
 func (p *NotificationProjection) pruneExpired(now time.Time) []string {
 	p.Lock()
 	defer p.Unlock()
@@ -216,28 +251,6 @@ func (p *NotificationProjection) pruneExpiredLocked(now time.Time) []string {
 	sort.Strings(result)
 	return result
 }
-
-func (p *NotificationProjection) nextExpiry(now time.Time) (time.Time, bool) {
-	p.Lock()
-	defer p.Unlock()
-	p.pruneExpiredLocked(now)
-	var next time.Time
-	for _, occurrence := range p.byID {
-		expiresAt := occurrence.GetExpiresAt().AsTime().UTC()
-		if next.IsZero() || expiresAt.Before(next) {
-			next = expiresAt
-		}
-	}
-	for _, tombstone := range p.tombstones {
-		physicalExpiry := tombstone.expiresAt.Add(notificationPhysicalCleanupGrace)
-		if next.IsZero() || physicalExpiry.Before(next) {
-			next = physicalExpiry
-		}
-	}
-	return next, !next.IsZero()
-}
-
-func (p *NotificationProjection) expiryChanges() <-chan struct{} { return p.expiryWake }
 
 func (p *NotificationProjection) pendingPhysicalDeletes(now time.Time) map[string]notificationProjectionTombstone {
 	p.Lock()
@@ -312,6 +325,7 @@ func (p *NotificationProjection) Restore(data []byte) error {
 	now := p.now().UTC()
 	byID := make(map[string]*corev1.NotificationOccurrence)
 	idsByUser := make(map[string]map[string]struct{})
+	idsByScope := make(map[notificationReadBoundaryScope]map[string]struct{})
 	for _, occurrence := range snapshot.GetNotifications() {
 		if occurrence.GetId() == "" || occurrence.GetRecipientId() == "" || occurrence.GetExpiresAt() == nil || !occurrence.GetExpiresAt().IsValid() {
 			return fmt.Errorf("notification snapshot contains an invalid occurrence")
@@ -327,6 +341,12 @@ func (p *NotificationProjection) Restore(data []byte) error {
 			idsByUser[occurrence.GetRecipientId()] = make(map[string]struct{})
 		}
 		idsByUser[occurrence.GetRecipientId()][occurrence.GetId()] = struct{}{}
+		if scope, ok := notificationOccurrenceReadScope(occurrence); ok {
+			if idsByScope[scope] == nil {
+				idsByScope[scope] = make(map[string]struct{})
+			}
+			idsByScope[scope][occurrence.GetId()] = struct{}{}
+		}
 	}
 	tombstones := make(map[string]notificationProjectionTombstone)
 	for _, row := range snapshot.GetTombstones() {
@@ -346,14 +366,20 @@ func (p *NotificationProjection) Restore(data []byte) error {
 			if len(idsByUser[occurrence.GetRecipientId()]) == 0 {
 				delete(idsByUser, occurrence.GetRecipientId())
 			}
+			if scope, ok := notificationOccurrenceReadScope(occurrence); ok {
+				delete(idsByScope[scope], occurrence.GetId())
+				if len(idsByScope[scope]) == 0 {
+					delete(idsByScope, scope)
+				}
+			}
 		}
 		tombstones[row.GetNotificationId()] = notificationProjectionTombstone{recipientID: row.GetRecipientId(), expiresAt: expiresAt, signalSequence: row.GetSignalStreamSequence()}
 	}
 	p.Lock()
 	p.byID = byID
 	p.idsByUser = idsByUser
+	p.idsByScope = idsByScope
 	p.tombstones = tombstones
-	p.signalExpiryChangeLocked()
 	p.Unlock()
 	return nil
 }

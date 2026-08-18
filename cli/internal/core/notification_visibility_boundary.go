@@ -32,7 +32,10 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
 		entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			if _, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
+			if revision, err := m.core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL)); err == nil {
+				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+					return err
+				}
 				return nil
 			} else if !jetstreamutil.IsSequenceConflict(err) {
 				return fmt.Errorf("create notification visibility boundary: %w", err)
@@ -46,9 +49,12 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 			return fmt.Errorf("notification visibility boundary has invalid length %d", len(entry.Value()))
 		}
 		if binary.BigEndian.Uint64(entry.Value()) >= sequence {
-			return nil
+			return m.core.notificationBoundaries.waitForRevision(ctx, key, entry.Revision())
 		}
-		if _, err := m.core.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), notificationTTL); err == nil {
+		if revision, err := m.core.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), notificationTTL); err == nil {
+			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+				return err
+			}
 			return nil
 		} else if !jetstreamutil.IsSequenceConflict(err) {
 			return fmt.Errorf("update notification visibility boundary: %w", err)
@@ -61,17 +67,14 @@ func (m *NotificationMaterializer) sourceAfterVisibilityBoundary(ctx context.Con
 	if sequence == 0 {
 		return false, nil
 	}
-	entry, err := m.core.storage.runtimeStateKV.Get(ctx, notificationVisibilityBoundaryKey(userID, roomID))
-	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-		return true, nil
-	}
+	boundary, exists, err := m.core.notificationBoundaries.visibilityBoundary(ctx, userID, roomID)
 	if err != nil {
 		return false, fmt.Errorf("read notification visibility boundary: %w", err)
 	}
-	if len(entry.Value()) != 8 {
-		return false, fmt.Errorf("notification visibility boundary has invalid length %d", len(entry.Value()))
+	if !exists {
+		return true, nil
 	}
-	return sequence > binary.BigEndian.Uint64(entry.Value()), nil
+	return sequence > boundary, nil
 }
 
 func (m *NotificationMaterializer) purgeVisibilityBoundaries(ctx context.Context, userID string) error {
