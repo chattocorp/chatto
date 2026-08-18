@@ -874,10 +874,11 @@ func (m *NotificationOccurrenceModel) publishNotificationInvalidations(ctx conte
 }
 
 func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userID, roomID, threadRootEventID, targetEventID string) (int, error) {
-	if _, err := m.recordNotificationReadBoundary(ctx, userID, roomID, threadRootEventID, targetEventID); err != nil {
+	occurrences, err := m.List(ctx, userID)
+	if err != nil {
 		return 0, err
 	}
-	occurrences, err := m.List(ctx, userID)
+	boundary, err := m.recordNotificationReadBoundary(ctx, userID, roomID, threadRootEventID, targetEventID)
 	if err != nil {
 		return 0, err
 	}
@@ -887,16 +888,18 @@ func (m *NotificationOccurrenceModel) MarkCoveredRead(ctx context.Context, userI
 		if message == nil || message.GetRoomId() != roomID || message.GetThreadRootEventId() != threadRootEventID || occurrence.GetRead() {
 			continue
 		}
-		covered, err := m.occurrenceCoveredByReadBoundary(ctx, occurrence)
-		if err != nil {
-			return 0, err
-		}
-		if !covered {
+		if !m.occurrenceCoveredByBoundary(occurrence, boundary) {
 			continue
 		}
 		matches = append(matches, occurrence)
 	}
-	return m.markReadOccurrences(ctx, matches)
+	if _, err := m.markReadOccurrences(ctx, matches); err != nil {
+		return 0, err
+	}
+	// The watched-boundary repair may win the idempotent read append race after
+	// recordNotificationReadBoundary returns. Report the request's snapshotted
+	// affected set so its caller still emits the corresponding room-read reset.
+	return len(matches), nil
 }
 
 func (m *NotificationOccurrenceModel) VisibleOccurrences(ctx context.Context, recipientID string, occurrences []*corev1.NotificationOccurrence) ([]*corev1.NotificationOccurrence, error) {
