@@ -33,6 +33,7 @@ inventories.
 | ------ | -------- | ------ | ------------ | ----- |
 | `EVT` | `chatto-asset-processing-v1` | `evt.asset.*.asset_processing_started`, legacy `evt.room.*.asset_processing_started` | Explicit ack after a terminal asset outcome is projected; interrupted work is redelivered | Shared `asset-processing` runtime-unit replicas |
 | `EVT` | `chatto-user-key-shredding-v1` | `evt.user.*.user_key_shredding_requested` | Explicit ack after idempotent key deletion and projected `UserKeyShreddedEvent`; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
+| `EVT` | `chatto-user-push-subscription-cleanup-v1` | `evt.user.*.account_deleted` | Explicit ack after the deletion fence and idempotent owner-first removal of push credentials; interrupted or partially failed cleanup is redelivered | Shared `ChattoCore` replicas through `events.DurableWorker` |
 | `EVT` | `chatto-call-key-cleanup-v1` | `evt.room.*.call_ended` | Explicit ack after idempotent call-key shredding; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-asset-cleanup-v1` | `evt.asset.*.asset_deleted` | Explicit ack after idempotent binary and transform-cache deletion; interrupted or failed work is redelivered | Shared `ChattoCore` replicas |
 | `EVT` | `chatto-notification-materializer-v1` | Existing message, reaction, membership, room-layout, RBAC, account, and configured-owner facts; the name/filter pair is one immutable capability generation | Confirmed double ack only after exact-sequence derivation and idempotent lifecycle facts reach `NOTIFICATIONS`, with privacy boundaries persisted where required; interrupted, partially completed, failed, or schema-unsupported work is redelivered rather than discarded. New source schemas require a new consumer generation | Shared `ChattoCore` replicas through `events.DurableWorker` |
@@ -41,8 +42,9 @@ inventories.
 All consumers use file-backed durable consumer state. Most consume domain facts
 from `EVT`: replaying those facts is safe because asset-processing workers
 acknowledge projected terminal outcomes, key-shredding and cleanup workers
-repeat idempotent deletion, and user-key workers additionally acknowledge an
-existing physical-completion fact. Alert delivery instead consumes the bounded
+repeat idempotent deletion, push cleanup is fenced against late registration,
+and user-key workers additionally acknowledge an existing physical-completion
+fact. Alert delivery instead consumes the bounded
 notification lifecycle log directly; projected terminal state is its
 idempotency fence.
 

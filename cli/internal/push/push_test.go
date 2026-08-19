@@ -15,6 +15,7 @@ import (
 	"sync/atomic"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -604,11 +605,40 @@ func TestTruncatePreview(t *testing.T) {
 		text := "This is a test message that is slightly longer than one hundred characters and should be truncated properly"
 		result := truncatePreview(text)
 
-		if len(result) > maxPreviewLength+3 { // +3 for ellipsis rune
-			t.Errorf("Result too long: %d chars", len(result))
+		if got := utf8.RuneCountInString(result); got > maxPreviewLength {
+			t.Errorf("Result too long: %d characters", got)
 		}
 		if !strings.HasSuffix(result, "…") {
 			t.Errorf("Expected ellipsis at end")
+		}
+	})
+
+	t.Run("keeps exactly the character limit unchanged", func(t *testing.T) {
+		text := strings.Repeat("界", maxPreviewLength)
+		if result := truncatePreview(text); result != text {
+			t.Fatalf("truncatePreview changed a preview at the limit")
+		}
+	})
+
+	t.Run("truncates multibyte text without splitting UTF-8", func(t *testing.T) {
+		result := truncatePreview(strings.Repeat("界", maxPreviewLength+1))
+		want := strings.Repeat("界", maxPreviewLength-1) + "…"
+		if result != want {
+			t.Fatalf("truncatePreview() = %q, want %q", result, want)
+		}
+		if !utf8.ValidString(result) {
+			t.Fatal("truncatePreview returned invalid UTF-8")
+		}
+		if got := utf8.RuneCountInString(result); got != maxPreviewLength {
+			t.Fatalf("truncatePreview character count = %d, want %d", got, maxPreviewLength)
+		}
+	})
+
+	t.Run("truncates text without nearby whitespace at the hard limit", func(t *testing.T) {
+		result := truncatePreview(strings.Repeat("x", maxPreviewLength+20))
+		want := strings.Repeat("x", maxPreviewLength-1) + "…"
+		if result != want {
+			t.Fatalf("truncatePreview() = %q, want %q", result, want)
 		}
 	})
 }

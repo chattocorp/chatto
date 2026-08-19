@@ -133,11 +133,6 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 		c.logger.Info("Deleted message-owned assets during user deletion", "user_id", userID, "count", deleted)
 	}
 
-	// Delete push notification subscriptions
-	if _, err := c.DeleteAllUserPushSubscriptions(ctx, userID); err != nil {
-		c.logger.Warn("Failed to delete push subscriptions", "user_id", userID, "error", err)
-		// Continue - this is best-effort
-	}
 	// Delete avatar from object store if it exists
 	avatar, _ := c.GetUserAvatar(ctx, userID)
 	if avatar != nil {
@@ -152,6 +147,12 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}})
 	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
 		return fmt.Errorf("failed to mark user deleted: %w", err)
+	}
+	// Attempt immediate erasure after the durable deletion fact commits. A
+	// failure cannot roll the account deletion back; the dedicated durable
+	// worker will retry the same idempotent cleanup until it succeeds.
+	if _, err := c.DeleteAllUserPushSubscriptions(ctx, userID); err != nil {
+		c.logger.Warn("Push-subscription cleanup remains pending after account deletion", "user_id", userID, "error", err)
 	}
 	if _, err := c.RevokeRuntimeCredentialsForUser(ctx, userID, "account_deleted"); err != nil {
 		c.logger.Warn("Failed to revoke runtime credentials during deletion", "user_id", userID, "error", err)

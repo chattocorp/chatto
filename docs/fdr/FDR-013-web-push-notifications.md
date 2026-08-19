@@ -20,7 +20,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Push endpoints must be absolute HTTPS URLs without user information or fragments. Delivery bypasses environment proxies, rejects redirects, and blocks private and other special-use network addresses after resolving the hostname immediately before connecting.
 - A user can have up to 16 active devices subscribed simultaneously — every current device is attempted for each push. Once any device accepts an occurrence, Chatto does not retry the whole device set merely because another endpoint failed, avoiding duplicate alerts on healthy devices.
 - Test notifications are limited to one attempt per account every 10 seconds across server replicas. Delivery failures expose neither provider response bodies nor low-level network errors through the public API.
-- Push payloads include a mutable declarative-compatible notification envelope with a title, a truncated message preview (max 100 chars, broken at word boundaries), a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
+- Push payloads include a mutable declarative-compatible notification envelope with a title, a message preview truncated to at most 100 Unicode characters including its ellipsis and preferring a nearby word boundary, a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
 - Notification-alert pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
@@ -28,7 +28,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - While Chatto is visible, its notification stores are authoritative for the app-icon badge. Declarative Web Push supplies the origin server's exact unread-occurrence count while the app is closed or suspended.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
-- Deleting the user account removes all push subscriptions.
+- Deleting the user account removes all push subscriptions. Cleanup is tied to
+  the durable account-deletion fact, retries across crashes and partial
+  failures, and rejects registration that crosses the deletion boundary.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
 
 ## Design Decisions

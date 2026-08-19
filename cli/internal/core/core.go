@@ -46,6 +46,7 @@ type ChattoCore struct {
 	notificationOccurrences   *NotificationOccurrenceModel
 	notificationMaterializer  *NotificationMaterializer
 	notificationAlertDelivery *notificationAlertDelivery
+	pushSubscriptionCleanup   *pushSubscriptionCleanupModel
 	threadFollows             *ThreadFollowModel
 	reactionModel             *ReactionModel
 	userModel                 *UserModel
@@ -197,6 +198,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })
 	g.Go(func() error { return c.notificationAlertDelivery.run(gctx) })
+	g.Go(func() error { return c.pushSubscriptionCleanup.Run(gctx) })
 	g.Go(func() error { return c.presenceModel.Run(gctx) })
 	g.Go(func() error { return c.myEventsModel.Run(gctx) })
 	g.Go(func() error { return c.callModel.Run(gctx) })

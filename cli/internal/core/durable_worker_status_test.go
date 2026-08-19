@@ -8,6 +8,7 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 		{Stream: "EVT", Name: assetCleanupConsumerName, Waiting: 1, DeliveredStreamSeq: 40, AckFloorStreamSeq: 40},
 		{Stream: "EVT", Name: callKeyCleanupConsumerName, Pending: 2, AckPending: 1, Waiting: 1, Redelivered: 3},
 		{Stream: "EVT", Name: userKeyShreddingConsumerName},
+		{Stream: "EVT", Name: pushSubscriptionCleanupConsumerName, Waiting: 1},
 		{Stream: "EVT", Name: notificationWorkerConsumerName, Waiting: 1, DeliveredStreamSeq: 52, AckFloorStreamSeq: 51},
 		{Stream: "EVT", Name: assetProcessingConsumerName, Waiting: 0, Pending: 4},
 	}}, false)
@@ -24,6 +25,9 @@ func TestDurableWorkerAdminStatusesDeriveAvailabilityAndWork(t *testing.T) {
 	}
 	if got := byKey["user_key_shredding"]; got.Health != DurableWorkerHealthStalled {
 		t.Fatalf("user key shredding status = %+v, want stalled", got)
+	}
+	if got := byKey["user_push_subscription_cleanup"]; got.Health != DurableWorkerHealthHealthy {
+		t.Fatalf("user push-subscription cleanup status = %+v, want healthy", got)
 	}
 	if got := byKey["notification_materializer"]; got.Health != DurableWorkerHealthHealthy || got.LastDeliveredSequence != 52 || got.AckFloorSequence != 51 {
 		t.Fatalf("notification materializer status = %+v, want healthy with consumer progress", got)
@@ -44,8 +48,8 @@ func TestDurableWorkerAdminStatusesDoNotInferHandlerLivenessFromAckPending(t *te
 
 func TestDurableWorkerAdminStatusesReportMissingRequiredConsumers(t *testing.T) {
 	statuses := durableWorkerAdminStatuses(nil, true)
-	if len(statuses) != 6 {
-		t.Fatalf("statuses len = %d, want 6", len(statuses))
+	if len(statuses) != 7 {
+		t.Fatalf("statuses len = %d, want 7", len(statuses))
 	}
 	for _, status := range statuses {
 		if status.Health != DurableWorkerHealthUnavailable {

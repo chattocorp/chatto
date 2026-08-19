@@ -1289,8 +1289,8 @@ func TestAdminDiagnosticsServiceGetSystemInfoRequiresOwner(t *testing.T) {
 	if resp.Msg.GetAssetCleanup() == nil {
 		t.Fatal("AssetCleanup = nil")
 	}
-	if len(resp.Msg.GetDurableWorkers()) != 6 {
-		t.Fatalf("DurableWorkers len = %d, want 6", len(resp.Msg.GetDurableWorkers()))
+	if len(resp.Msg.GetDurableWorkers()) != 7 {
+		t.Fatalf("DurableWorkers len = %d, want 7", len(resp.Msg.GetDurableWorkers()))
 	}
 }
 

@@ -14,6 +14,7 @@ import (
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
+	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pushendpoint"
@@ -89,6 +90,9 @@ func (c *ChattoCore) SavePushSubscription(
 	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent); err != nil {
 		return nil, err
 	}
+	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
+		return nil, err
+	}
 	if err := c.checkPushSubscriptionCapacity(ctx, userID, endpoint); err != nil {
 		return nil, err
 	}
@@ -114,12 +118,36 @@ func (c *ChattoCore) SavePushSubscription(
 	if err := c.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
 		return nil, err
 	}
+	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
+		_, cleanupErr := c.DeleteAllUserPushSubscriptions(ctx, userID)
+		if cleanupErr != nil {
+			return nil, errors.Join(err, fmt.Errorf("remove push subscription written across account deletion: %w", cleanupErr))
+		}
+		return nil, err
+	}
 
 	c.logger.Debug("Push subscription saved",
 		"user_id", userID,
 		"endpoint_hash", hashEndpoint(endpoint))
 
 	return subscription, nil
+}
+
+func (c *ChattoCore) requirePushSubscriptionAccountActive(ctx context.Context, userID string) error {
+	if _, err := c.storage.runtimeStateKV.Get(ctx, pushSubscriptionDeletionFenceKey(userID)); err == nil {
+		return fmt.Errorf("push-subscription account is deleted: %w", ErrNotFound)
+	} else if !isPushRuntimeStateKeyAbsent(err) {
+		return fmt.Errorf("check push-subscription account-deletion fence: %w", err)
+	}
+	deletedSubject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserAccountDeleted)
+	sequence, err := c.EventPublisher.LastSubjectSeq(ctx, deletedSubject)
+	if err != nil {
+		return fmt.Errorf("check push-subscription account state: %w", err)
+	}
+	if sequence > 0 {
+		return fmt.Errorf("push-subscription account is deleted: %w", ErrNotFound)
+	}
+	return nil
 }
 
 func (c *ChattoCore) checkPushSubscriptionCapacity(ctx context.Context, userID, endpoint string) error {
@@ -175,9 +203,12 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 		}
 		entry, err := c.storage.runtimeStateKV.Get(ctx, ownerKey)
 		if isPushRuntimeStateKeyAbsent(err) {
-			if _, err := c.storage.runtimeStateKV.Create(ctx, ownerKey, value); err == nil {
+			if ownerRevision, err := c.storage.runtimeStateKV.Create(ctx, ownerKey, value); err == nil {
 				if current, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && current.Revision() == owner.SubscriptionRevision {
 					return nil
+				}
+				if err := c.deleteStalePushEndpointOwner(ctx, ownerKey, ownerRevision); err != nil {
+					return err
 				}
 				continue
 			} else if jetstreamutil.IsSequenceConflict(err) {
@@ -197,11 +228,17 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 			if latest, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && latest.Revision() == owner.SubscriptionRevision {
 				return nil
 			}
+			if err := c.deleteStalePushEndpointOwner(ctx, ownerKey, entry.Revision()); err != nil {
+				return err
+			}
 			continue
 		}
-		if _, err := c.storage.runtimeStateKV.Update(ctx, ownerKey, value, entry.Revision()); err == nil {
+		if ownerRevision, err := c.storage.runtimeStateKV.Update(ctx, ownerKey, value, entry.Revision()); err == nil {
 			if latest, err := c.storage.runtimeStateKV.Get(ctx, subscriptionKey); err == nil && latest.Revision() == owner.SubscriptionRevision {
 				return nil
+			}
+			if err := c.deleteStalePushEndpointOwner(ctx, ownerKey, ownerRevision); err != nil {
+				return err
 			}
 			continue
 		} else if jetstreamutil.IsSequenceConflict(err) {
@@ -211,6 +248,14 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 		}
 	}
 	return fmt.Errorf("failed to claim push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
+}
+
+func (c *ChattoCore) deleteStalePushEndpointOwner(ctx context.Context, key string, revision uint64) error {
+	err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(revision))
+	if err == nil || isPushRuntimeStateKeyAbsent(err) || jetstreamutil.IsSequenceConflict(err) {
+		return nil
+	}
+	return fmt.Errorf("failed to remove stale push endpoint owner: %w", err)
 }
 
 // PushSubscriptionOwnedByUser reports whether the endpoint is currently claimed
@@ -389,52 +434,116 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID string) (int, error) {
 	prefix := pushSubscriptionKeyFilter(userID)
 	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return 0, nil
-		}
+	if err != nil && !errors.Is(err, jetstream.ErrNoKeysFound) {
 		return 0, fmt.Errorf("failed to list push subscription keys: %w", err)
 	}
 
 	// Collect keys first to avoid modifying while iterating
 	var keys []string
-	for key := range lister.Keys() {
-		keys = append(keys, key)
+	if lister != nil {
+		for key := range lister.Keys() {
+			keys = append(keys, key)
+		}
 	}
 
 	deleted := 0
+	var cleanupErrors []error
 	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if isPushRuntimeStateKeyAbsent(err) {
 			continue
 		}
 		if err != nil {
-			c.logger.Warn("Failed to get push subscription before deleting", "key", key, "error", err)
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("get push subscription %s before deleting: %w", key, err))
 			continue
 		}
 
 		var sub corev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
-			c.logger.Warn("Failed to unmarshal push subscription before deleting", "key", key, "error", err)
-		} else if err := c.releasePushEndpointOwnership(ctx, userID, sub.Endpoint, entry.Revision()); err != nil {
-			c.logger.Warn("Failed to release push endpoint owner", "key", key, "error", err)
+			// The raw record may still contain credentials even when an older or
+			// damaged payload cannot be decoded. Erase it first; the owner scan
+			// below removes any content-free ownership record that still names the
+			// deleted account.
+			deleteErr := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+			if deleteErr == nil || isPushRuntimeStateKeyAbsent(deleteErr) {
+				deleted++
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("decode push subscription %s during deletion: %w", key, err))
+				continue
+			}
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete undecodable push subscription %s: %w", key, deleteErr))
+			continue
+		}
+		if err := c.releasePushEndpointOwnership(ctx, userID, sub.Endpoint, entry.Revision()); err != nil {
+			// Retain the subscription so redelivery can still recover its endpoint
+			// and retry the owner-first deletion ordering.
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("release push endpoint owner for %s: %w", key, err))
+			continue
 		}
 
 		err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-		if err != nil {
-			if !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
-				c.logger.Warn("Failed to delete push subscription", "key", key, "error", err)
-			}
+		if err != nil && !isPushRuntimeStateKeyAbsent(err) {
+			// A revision conflict means a concurrent registration replaced the
+			// credentials. Report it so the durable delivery retries and removes
+			// the newer exact revision rather than acknowledging partial cleanup.
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete push subscription %s: %w", key, err))
 			continue
 		}
-		deleted++
+		if err == nil {
+			deleted++
+		}
+	}
+
+	if err := c.deletePushEndpointOwnersForUser(ctx, userID); err != nil {
+		cleanupErrors = append(cleanupErrors, err)
 	}
 
 	c.logger.Debug("Deleted all push subscriptions for user",
 		"user_id", userID,
 		"count", deleted)
 
-	return deleted, nil
+	return deleted, errors.Join(cleanupErrors...)
+}
+
+func (c *ChattoCore) deletePushEndpointOwnersForUser(ctx context.Context, userID string) error {
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, pushEndpointOwnerKeyPrefix+">")
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("list push endpoint owners during account cleanup: %w", err)
+	}
+	var cleanupErrors []error
+	for key := range lister.Keys() {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if isPushRuntimeStateKeyAbsent(err) {
+			continue
+		}
+		if err != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("get push endpoint owner during account cleanup: %w", err))
+			continue
+		}
+		var owner pushEndpointOwner
+		if err := json.Unmarshal(entry.Value(), &owner); err != nil {
+			// A malformed owner record is unusable for delivery or future claims.
+			// Remove its exact revision, but return the decode failure once so the
+			// durable worker retries any subscription retained when owner release
+			// encountered the same record earlier in this pass.
+			deleteErr := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+			if deleteErr != nil && !isPushRuntimeStateKeyAbsent(deleteErr) {
+				cleanupErrors = append(cleanupErrors, fmt.Errorf("delete undecodable push endpoint owner: %w", deleteErr))
+				continue
+			}
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("decode push endpoint owner during account cleanup: %w", err))
+			continue
+		}
+		if owner.UserID != userID {
+			continue
+		}
+		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isPushRuntimeStateKeyAbsent(err) {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete push endpoint owner during account cleanup: %w", err))
+		}
+	}
+	return errors.Join(cleanupErrors...)
 }
 
 // GetAllPushSubscriptions returns all push subscriptions in the system.

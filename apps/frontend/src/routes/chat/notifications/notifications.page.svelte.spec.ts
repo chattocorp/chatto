@@ -465,6 +465,9 @@ describe('notifications page', () => {
     const originalStore = mocks.store.notifications;
     const actorOccurrence = {
       ...mocks.occurrence,
+      signalKind: NotificationSignalKind.REACTION,
+      attentionLevel: NotificationAttentionLevel.AMBIENT,
+      reactionEmoji: 'heart',
       actor: {
         id: 'alice',
         login: 'alice',
@@ -494,6 +497,9 @@ describe('notifications page', () => {
 
       await vi.waitFor(() => {
         expect(rendered.container.textContent).not.toContain('Alice Example');
+        expect(rendered.container.textContent).toContain(
+          "[deleted user] reacted with '❤️' to your message in #general."
+        );
       });
     } finally {
       rendered.unmount();

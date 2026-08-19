@@ -35,8 +35,10 @@ targets, unread counts, read state, or deletion semantics.
 - Trash deletes the exact visible occurrences represented by the current row.
   Dismiss All deletes every visible occurrence current at the server boundary.
   Both actions update the UI optimistically and then reconcile with the server.
-- Every occurrence and deletion marker expires exactly 90 days after its source
-  activity. Reading or deleting an occurrence does not extend that lifetime.
+- Every occurrence leaves application-visible state exactly 90 days after its
+  source activity. Reading or deleting it does not extend that lifetime.
+  Physical cleanup may continue during ADR-076's 24-hour grace period without
+  extending user-visible retention.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
 

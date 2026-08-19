@@ -13,6 +13,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode"
+	"unicode/utf8"
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
@@ -182,23 +184,27 @@ type PayloadContext struct {
 	RoomName string
 }
 
-// maxPreviewLength is the maximum length for message previews
+// maxPreviewLength is the maximum number of Unicode code points in a message
+// preview, including the ellipsis added when truncating.
 const maxPreviewLength = 100
 
-// truncatePreview truncates a message to maxPreviewLength with ellipsis
+// truncatePreview truncates a message to maxPreviewLength Unicode code points,
+// preferring a nearby whitespace boundary and including the ellipsis in the
+// limit. It never slices through a UTF-8 encoding.
 func truncatePreview(text string) string {
-	if len(text) <= maxPreviewLength {
+	if utf8.RuneCountInString(text) <= maxPreviewLength {
 		return text
 	}
-	// Find a good break point (space) near the limit
-	breakPoint := maxPreviewLength
-	for i := maxPreviewLength - 1; i > maxPreviewLength-20 && i > 0; i-- {
-		if text[i] == ' ' {
+	runes := []rune(text)
+	contentLimit := maxPreviewLength - 1
+	breakPoint := contentLimit
+	for i := contentLimit - 1; i > contentLimit-20 && i > 0; i-- {
+		if unicode.IsSpace(runes[i]) {
 			breakPoint = i
 			break
 		}
 	}
-	return text[:breakPoint] + "…"
+	return string(runes[:breakPoint]) + "…"
 }
 
 // SendResult contains the result of a push notification send attempt.

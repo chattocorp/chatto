@@ -34,9 +34,11 @@ This FDR covers the user account from registration through deletion: signup, ema
 - On deletion, the server: records `UserKeyShreddingRequestedEvent` with the complete opaque key coordinates, immediately tombstones the user's profile, authentication, search, and authored message state, then idempotently shreds app-owned DEK refs from `RUNTIME_STATE` and KMS wrapping-key refs from `ENCRYPTION_KEYS`. `UserKeyShreddedEvent` records physical completion. Durable workers retry unfinished key shredding and current message-owned asset deletion facts across crashes and replicas.
 - After deletion, all messages the user ever posted are tombstoned by projection before decryption and cryptographically unreadable. Timeline clients apply the normal deleted-message retention rule, so placeholders without current attachments, previews, reactions, or thread replies disappear after one hour.
 - Deleting an account removes its notification list, notification read and
-  visibility boundaries, and push subscriptions. Occurrences caused by the
-  deleted account retain no copied profile PII; current actor hydration may
-  disappear without exposing the deleted identity.
+  visibility boundaries, and push subscriptions. Push-credential cleanup
+  retries from the durable account-deletion fact across crashes and partial
+  failures. Occurrences caused by the deleted account retain no copied profile
+  PII; current actor hydration may disappear without exposing the deleted
+  identity.
 - Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.

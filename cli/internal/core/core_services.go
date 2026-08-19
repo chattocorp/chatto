@@ -129,6 +129,24 @@ func initializeCoreServices(
 	)
 	core.notificationMaterializer = NewNotificationMaterializer(core, projections.notificationDecisions)
 	core.notificationAlertDelivery = newNotificationAlertDelivery(core)
+	pushCleanupLease, err := lease.New(infra.js, infra.storage.memoryCacheKV, lease.Options{
+		Name:   pushSubscriptionReconcileLeaseName,
+		Bucket: "MEMORY_CACHE",
+		TTL:    pushSubscriptionReconcileLeaseTTL,
+		Logger: logger.WithPrefix("core.PushSubscriptionCleanupLease"),
+	})
+	if err != nil {
+		return fmt.Errorf("failed to initialize push-subscription cleanup lease: %w", err)
+	}
+	core.pushSubscriptionCleanup, err = newPushSubscriptionCleanupModel(
+		ctx,
+		core,
+		pushCleanupLease,
+		logger.WithPrefix("core.PushSubscriptionCleanup"),
+	)
+	if err != nil {
+		return fmt.Errorf("failed to initialize push-subscription cleanup: %w", err)
+	}
 	core.threadFollows = &ThreadFollowModel{core: core}
 	core.reactionModel = &ReactionModel{core: core, mutations: core.EventPublisher}
 	core.keyShredding, err = newUserKeyShreddingModel(ctx, core, logger.WithPrefix("core.UserKeyShredding"))

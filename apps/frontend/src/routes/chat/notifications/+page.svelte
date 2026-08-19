@@ -443,13 +443,10 @@
   function occurrenceSummary(group: NotificationGroupItem): string {
     const occurrence = group.openTarget;
     if (!occurrence) return m('chat.notifications.activity');
-    const actor = occurrence.actor?.displayName;
-    if (!actor) return m('chat.notifications.activity');
     const signalKind = occurrence.signalKind;
-    if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
-      return m('chat.notifications.summary.direct_message', { actor });
-    }
+    const actor = occurrence.actor?.displayName;
     if (signalKind === NotificationSignalKind.REACTION) {
+      const reactionActor = actor ?? m('common.deleted_user');
       const emojis = [
         ...new Set(
           group.occurrences
@@ -461,7 +458,7 @@
       const emoji = emojis.join(' ');
       const channel = occurrence.room?.name;
       if (emoji && channel) {
-        const values = { actor, emoji, channel: `#${channel}` };
+        const values = { actor: reactionActor, emoji, channel: `#${channel}` };
         const actorIds = new Set(
           group.occurrences.flatMap((item) => (item.actor ? [item.actor.id] : []))
         );
@@ -469,7 +466,11 @@
           ? m('chat.notifications.summary.reaction_group', values)
           : m('chat.notifications.summary.reaction', values);
       }
-      return m('chat.notifications.summary.activity', { actor });
+      return m('chat.notifications.summary.activity', { actor: reactionActor });
+    }
+    if (!actor) return m('chat.notifications.activity');
+    if (signalKind === NotificationSignalKind.DIRECT_MESSAGE) {
+      return m('chat.notifications.summary.direct_message', { actor });
     }
     if (signalKind === NotificationSignalKind.REPLY) {
       return m('chat.notifications.summary.reply', { actor });
