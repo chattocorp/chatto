@@ -2,6 +2,8 @@ package core
 
 import (
 	"context"
+	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,10 +12,12 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/sync/errgroup"
+	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
 	"hmans.de/chatto/internal/jetstreamutil"
 	"hmans.de/chatto/internal/lease"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -25,22 +29,17 @@ const (
 	pushSubscriptionCleanupAcknowledgeTimeout = 5 * time.Second
 	pushSubscriptionCleanupMaxPending         = 16
 
-	pushSubscriptionDeletionFenceKeyPrefix = "push_subscription_account_deleted."
-	// The durable account-deletion fact remains the permanent authority. This
-	// short-lived fence only covers an already-authorized subscription request
-	// that was in flight while its account was deleted.
-	pushSubscriptionDeletionFenceTTL   = 24 * time.Hour
 	pushSubscriptionReconcileEvery     = 15 * time.Second
-	pushSubscriptionReconcileTimeout   = 30 * time.Second
 	pushSubscriptionReconcileLeaseTTL  = time.Minute
 	pushSubscriptionReconcileLeaseName = "push-subscription-deletion-reconcile"
 )
 
 // pushSubscriptionCleanupModel turns the existing UserAccountDeleted domain
 // fact into recoverable physical removal of Web Push credentials. The durable
-// consumer handles normal crash/retry recovery. A bounded, leased reconciliation
-// pass covers the narrower race where an already-authorized registration write
-// lands after the deletion delivery has completed.
+// consumer handles the normal path. One leased startup/periodic pass scans the
+// current subscription and owner keyspaces once, using the permanent EVT fact
+// as its fence, to repair late writes, old partial failures, and orphaned owner
+// records without replaying a global scan for every deleted account.
 type pushSubscriptionCleanupModel struct {
 	core           *ChattoCore
 	worker         *events.DurableWorker
@@ -114,102 +113,182 @@ func (m *pushSubscriptionCleanupModel) processDelivery(ctx context.Context, deli
 			errors.New("account-deletion subject and payload do not match"),
 		)
 	}
-	if err := m.recordDeletionFence(ctx, userID); err != nil {
-		return err
-	}
 	if _, err := m.deleteAllFn(ctx, userID); err != nil {
 		return fmt.Errorf("delete push subscriptions for deleted account: %w", err)
 	}
 	return nil
 }
 
-func (m *pushSubscriptionCleanupModel) recordDeletionFence(ctx context.Context, userID string) error {
-	_, err := m.core.storage.runtimeStateKV.Create(
-		ctx,
-		pushSubscriptionDeletionFenceKey(userID),
-		[]byte{1},
-		jetstream.KeyTTL(pushSubscriptionDeletionFenceTTL),
-	)
-	if err == nil || jetstreamutil.IsSequenceConflict(err) {
-		return nil
-	}
-	return fmt.Errorf("record push-subscription account-deletion fence: %w", err)
-}
-
 func (m *pushSubscriptionCleanupModel) runReconciler(ctx context.Context) {
-	ticker := time.NewTicker(pushSubscriptionReconcileEvery)
-	defer ticker.Stop()
-	for {
-		m.tryReconcile(ctx)
-		select {
-		case <-ctx.Done():
-			return
-		case <-ticker.C:
+	err := m.reconcileLease.Run(ctx, func(leaderCtx context.Context) error {
+		for {
+			if err := m.reconcileDeletedAccountPushState(leaderCtx); err != nil && leaderCtx.Err() == nil {
+				m.logger.Warn("Failed to reconcile push subscriptions for deleted accounts", "error", err)
+			} else if err == nil {
+				m.logger.Debug("Reconciled push subscriptions and endpoint owners")
+			}
+			timer := time.NewTimer(pushSubscriptionReconcileEvery)
+			select {
+			case <-leaderCtx.Done():
+				if !timer.Stop() {
+					select {
+					case <-timer.C:
+					default:
+					}
+				}
+				return nil
+			case <-timer.C:
+			}
 		}
-	}
-}
-
-func (m *pushSubscriptionCleanupModel) tryReconcile(ctx context.Context) {
-	reconcileCtx, cancel := context.WithTimeout(ctx, pushSubscriptionReconcileTimeout)
-	defer cancel()
-	acquired, err := m.reconcileLease.TryRunWithCooldown(reconcileCtx, m.reconcileDeletionFences)
+	})
 	if err != nil && ctx.Err() == nil {
-		m.logger.Warn("Failed to reconcile push subscriptions for deleted accounts", "error", err)
-		return
-	}
-	if acquired {
-		m.logger.Debug("Reconciled push subscriptions for recently deleted accounts")
+		m.logger.Warn("Push-subscription reconciliation lease stopped", "error", err)
 	}
 }
 
-func (m *pushSubscriptionCleanupModel) reconcileDeletionFences(ctx context.Context) error {
-	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, pushSubscriptionDeletionFenceKeyPrefix+">")
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("list push-subscription account-deletion fences: %w", err)
-	}
+func (m *pushSubscriptionCleanupModel) reconcileDeletedAccountPushState(ctx context.Context) error {
+	deletedAccounts := make(map[string]bool)
+	cleanedAccounts := make(map[string]bool)
+	ownerReconciledAccounts := make(map[string]bool)
 	var cleanupErrors []error
-	for key := range lister.Keys() {
-		userID := strings.TrimPrefix(key, pushSubscriptionDeletionFenceKeyPrefix)
-		if userID == "" || userID == key || strings.Contains(userID, ".") {
-			cleanupErrors = append(cleanupErrors, fmt.Errorf("invalid push-subscription account-deletion fence key"))
+
+	subscriptionKeys, err := listPushRuntimeStateKeys(ctx, m.core.storage.runtimeStateKV, "push_subscription.>")
+	if err != nil {
+		return fmt.Errorf("list push subscriptions during account reconciliation: %w", err)
+	}
+	for _, key := range subscriptionKeys {
+		userID := extractUserIDFromPushKey(key)
+		if userID == "" {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("invalid push subscription key during account reconciliation"))
 			continue
 		}
-		// The deletion fence remains for 24 hours so registrations that were
-		// already in flight cannot recreate credentials after the durable worker
-		// has acknowledged the deletion fact. Avoid repeatedly scanning every
-		// endpoint-owner record for fences whose subscriptions are already gone.
-		hasSubscriptions, err := m.hasPushSubscriptions(ctx, userID)
+		deleted, err := m.accountDeleted(ctx, userID, deletedAccounts)
 		if err != nil {
 			cleanupErrors = append(cleanupErrors, err)
 			continue
 		}
-		if !hasSubscriptions {
+		if !deleted || cleanedAccounts[userID] {
 			continue
 		}
 		if _, err := m.deleteAllFn(ctx, userID); err != nil {
-			cleanupErrors = append(cleanupErrors, err)
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("reconcile deleted account push subscriptions: %w", err))
+			continue
 		}
+		cleanedAccounts[userID] = true
 	}
+
+	ownerKeys, err := listPushRuntimeStateKeys(ctx, m.core.storage.runtimeStateKV, pushEndpointOwnerKeyPrefix+">")
+	if err != nil {
+		cleanupErrors = append(cleanupErrors, fmt.Errorf("list push endpoint owners during account reconciliation: %w", err))
+		return errors.Join(cleanupErrors...)
+	}
+	for _, key := range ownerKeys {
+		userID, ownerRevision, remove, err := m.inspectPushEndpointOwner(ctx, key, deletedAccounts)
+		if err != nil {
+			cleanupErrors = append(cleanupErrors, err)
+			continue
+		}
+		if !remove {
+			continue
+		}
+		if err := m.core.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(ownerRevision)); err != nil && !isPushRuntimeStateKeyAbsent(err) {
+			if jetstreamutil.IsSequenceConflict(err) {
+				continue
+			}
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete push endpoint owner during account reconciliation: %w", err))
+			continue
+		}
+		if userID == "" || ownerReconciledAccounts[userID] {
+			continue
+		}
+		deleted, err := m.accountDeleted(ctx, userID, deletedAccounts)
+		if err != nil {
+			cleanupErrors = append(cleanupErrors, err)
+			continue
+		}
+		if !deleted {
+			continue
+		}
+		ownerReconciledAccounts[userID] = true
+		if _, err := m.deleteAllFn(ctx, userID); err != nil {
+			cleanupErrors = append(cleanupErrors, fmt.Errorf("reconcile deleted account after owner removal: %w", err))
+			continue
+		}
+		cleanedAccounts[userID] = true
+	}
+
 	return errors.Join(cleanupErrors...)
 }
 
-func (m *pushSubscriptionCleanupModel) hasPushSubscriptions(ctx context.Context, userID string) (bool, error) {
-	lister, err := m.core.storage.runtimeStateKV.ListKeysFiltered(ctx, pushSubscriptionKeyFilter(userID))
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
-		return false, nil
+// inspectPushEndpointOwner reports whether an owner record should be removed.
+// It treats malformed, orphaned, stale-revision, and deleted-account owners as
+// invalid. The owner key contains only a hash, so its corresponding subscription
+// key is reconstructed from the stored user ID and the short hash prefix.
+func (m *pushSubscriptionCleanupModel) inspectPushEndpointOwner(
+	ctx context.Context,
+	key string,
+	deletedAccounts map[string]bool,
+) (userID string, revision uint64, remove bool, err error) {
+	entry, err := m.core.storage.runtimeStateKV.Get(ctx, key)
+	if isPushRuntimeStateKeyAbsent(err) {
+		return "", 0, false, nil
 	}
 	if err != nil {
-		return false, fmt.Errorf("list push subscriptions for deleted account: %w", err)
+		return "", 0, false, fmt.Errorf("get push endpoint owner during account reconciliation: %w", err)
 	}
-	for range lister.Keys() {
-		return true, nil
+	var owner pushEndpointOwner
+	if err := json.Unmarshal(entry.Value(), &owner); err != nil || owner.UserID == "" || owner.SubscriptionRevision == 0 {
+		return "", entry.Revision(), true, nil
 	}
-	return false, nil
+
+	fullHash := strings.TrimPrefix(key, pushEndpointOwnerKeyPrefix)
+	if fullHash == key || len(fullHash) != sha256HexLength {
+		return owner.UserID, entry.Revision(), true, nil
+	}
+	if _, err := hex.DecodeString(fullHash); err != nil {
+		return owner.UserID, entry.Revision(), true, nil
+	}
+	subscriptionKey := "push_subscription." + owner.UserID + "." + fullHash[:shortPushEndpointHashLength]
+	subscriptionEntry, err := m.core.storage.runtimeStateKV.Get(ctx, subscriptionKey)
+	if isPushRuntimeStateKeyAbsent(err) {
+		return owner.UserID, entry.Revision(), true, nil
+	}
+	if err != nil {
+		return owner.UserID, entry.Revision(), false, fmt.Errorf("get push subscription for endpoint owner reconciliation: %w", err)
+	}
+	var subscription corev1.PushSubscription
+	if err := proto.Unmarshal(subscriptionEntry.Value(), &subscription); err != nil {
+		return owner.UserID, entry.Revision(), true, nil
+	}
+	if subscriptionEntry.Revision() != owner.SubscriptionRevision || pushEndpointOwnerKey(subscription.GetEndpoint()) != key {
+		return owner.UserID, entry.Revision(), true, nil
+	}
+	deleted, err := m.accountDeleted(ctx, owner.UserID, deletedAccounts)
+	if err != nil {
+		return owner.UserID, entry.Revision(), false, err
+	}
+	return owner.UserID, entry.Revision(), deleted, nil
 }
 
-func pushSubscriptionDeletionFenceKey(userID string) string {
-	return pushSubscriptionDeletionFenceKeyPrefix + userID
+func (m *pushSubscriptionCleanupModel) accountDeleted(
+	ctx context.Context,
+	userID string,
+	cache map[string]bool,
+) (bool, error) {
+	if deleted, ok := cache[userID]; ok {
+		return deleted, nil
+	}
+	subject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserAccountDeleted)
+	sequence, err := m.core.EventPublisher.LastSubjectSeq(ctx, subject)
+	if err != nil {
+		return false, fmt.Errorf("check account-deletion fact during push reconciliation: %w", err)
+	}
+	deleted := sequence > 0
+	cache[userID] = deleted
+	return deleted, nil
 }
+
+const (
+	sha256HexLength             = 64
+	shortPushEndpointHashLength = 16
+)

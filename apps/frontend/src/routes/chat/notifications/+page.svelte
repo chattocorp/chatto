@@ -446,7 +446,8 @@
     const signalKind = occurrence.signalKind;
     const actor = occurrence.actor?.displayName;
     if (signalKind === NotificationSignalKind.REACTION) {
-      const reactionActor = actor ?? m('common.deleted_user');
+      const reactionOccurrence = group.occurrences.find((item) => item.actor) ?? occurrence;
+      const reactionActor = reactionOccurrence.actor?.displayName ?? m('common.deleted_user');
       const emojis = [
         ...new Set(
           group.occurrences
@@ -456,13 +457,13 @@
         )
       ];
       const emoji = emojis.join(' ');
-      const channel = occurrence.room?.name;
+      const channel = reactionOccurrence.room?.name ?? occurrence.room?.name;
       if (emoji && channel) {
         const values = { actor: reactionActor, emoji, channel: `#${channel}` };
-        const actorIds = new Set(
-          group.occurrences.flatMap((item) => (item.actor ? [item.actor.id] : []))
+        const participants = new Set(
+          group.occurrences.map((item) => item.actor?.id ?? 'deleted-user')
         );
-        return actorIds.size > 1
+        return participants.size > 1
           ? m('chat.notifications.summary.reaction_group', values)
           : m('chat.notifications.summary.reaction', values);
       }

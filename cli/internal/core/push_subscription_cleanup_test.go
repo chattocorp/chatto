@@ -2,10 +2,12 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"testing"
 	"time"
 
+	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
@@ -31,9 +33,6 @@ func TestPushSubscriptionCleanupDeliveryRetriesPartialFailure(t *testing.T) {
 	if err := model.processDelivery(context.Background(), delivery); err == nil {
 		t.Fatal("first cleanup delivery unexpectedly succeeded")
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(context.Background(), pushSubscriptionDeletionFenceKey(userID)); err != nil {
-		t.Fatalf("cleanup fence was not durable before the failed physical cleanup: %v", err)
-	}
 	if err := model.processDelivery(context.Background(), delivery); err != nil {
 		t.Fatalf("redelivered cleanup: %v", err)
 	}
@@ -50,29 +49,95 @@ func TestPushSubscriptionCleanupDeliveryRejectsMismatchedSubject(t *testing.T) {
 	}
 }
 
-func TestSavePushSubscriptionRejectsDeletedAccountFence(t *testing.T) {
-	chatto, _ := setupTestCore(t)
-	ctx := context.Background()
-	userID := "push-cleanup-fenced-user"
-	if err := chatto.pushSubscriptionCleanup.recordDeletionFence(ctx, userID); err != nil {
-		t.Fatalf("record deletion fence: %v", err)
+func TestPushSubscriptionCleanupDurableWorkerHandsOffInterruptedDelivery(t *testing.T) {
+	chatto, _ := newTestCore(t)
+	ctx := testContext(t)
+	model := chatto.pushSubscriptionCleanup
+	consumer, err := chatto.storage.serverEvtStream.Consumer(ctx, pushSubscriptionCleanupConsumerName)
+	if err != nil {
+		t.Fatalf("load push cleanup consumer: %v", err)
 	}
-	if _, err := chatto.SavePushSubscription(ctx, userID, "https://push.example.com/fenced", "key", "auth", "browser"); !errors.Is(err, ErrNotFound) {
-		t.Fatalf("SavePushSubscription error = %v, want ErrNotFound", err)
+
+	started := make(chan struct{})
+	model.deleteAllFn = func(ctx context.Context, _ string) (int, error) {
+		close(started)
+		<-ctx.Done()
+		return 0, ctx.Err()
 	}
-	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, "https://push.example.com/fenced")); !isPushRuntimeStateKeyAbsent(err) {
-		t.Fatalf("fenced subscription was stored: %v", err)
+	firstWorker, err := events.NewDurableWorker(consumer, model.processDelivery, events.DurableWorkerOptions{
+		MaxConcurrent:     1,
+		FetchMaxWait:      20 * time.Millisecond,
+		RetryDelay:        10 * time.Millisecond,
+		AckTimeout:        time.Second,
+		HeartbeatInterval: time.Second,
+		Logger:            model.logger,
+	})
+	if err != nil {
+		t.Fatalf("configure first push cleanup worker: %v", err)
+	}
+	firstCtx, cancelFirst := context.WithCancel(ctx)
+	firstRun := make(chan error, 1)
+	go func() { firstRun <- firstWorker.Run(firstCtx) }()
+
+	userID := "push-cleanup-worker-handoff-user"
+	appendPushAccountDeletionFact(t, chatto, userID)
+	select {
+	case <-started:
+	case <-ctx.Done():
+		t.Fatalf("wait for first cleanup attempt: %v", ctx.Err())
+	}
+	cancelFirst()
+	if err := <-firstRun; err != nil {
+		t.Fatalf("stop first push cleanup worker: %v", err)
+	}
+
+	model.deleteAllFn = func(context.Context, string) (int, error) { return 1, nil }
+	completed := make(chan uint64, 1)
+	secondWorker, err := events.NewDurableWorker(consumer, func(ctx context.Context, delivery events.DurableDelivery) error {
+		err := model.processDelivery(ctx, delivery)
+		if err == nil {
+			completed <- delivery.NumDelivered
+		}
+		return err
+	}, events.DurableWorkerOptions{
+		MaxConcurrent:     1,
+		FetchMaxWait:      20 * time.Millisecond,
+		RetryDelay:        10 * time.Millisecond,
+		AckTimeout:        time.Second,
+		HeartbeatInterval: time.Second,
+		Logger:            model.logger,
+	})
+	if err != nil {
+		t.Fatalf("configure second push cleanup worker: %v", err)
+	}
+	secondCtx, cancelSecond := context.WithCancel(ctx)
+	secondRun := make(chan error, 1)
+	go func() { secondRun <- secondWorker.Run(secondCtx) }()
+	select {
+	case deliveries := <-completed:
+		if deliveries < 2 {
+			t.Fatalf("delivery attempt = %d, want a redelivery", deliveries)
+		}
+	case <-ctx.Done():
+		t.Fatalf("wait for handed-off cleanup: %v", ctx.Err())
+	}
+	cancelSecond()
+	if err := <-secondRun; err != nil {
+		t.Fatalf("stop second push cleanup worker: %v", err)
 	}
 }
 
-func TestPushSubscriptionCleanupReconcilesLateWriteAfterDeletionDelivery(t *testing.T) {
+func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDelivery(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-late-write-user"
 	endpoint := "https://push.example.com/late-write"
-	if err := chatto.pushSubscriptionCleanup.recordDeletionFence(ctx, userID); err != nil {
-		t.Fatalf("record deletion fence: %v", err)
+	appendPushAccountDeletionFact(t, chatto, userID)
+	if err := chatto.pushSubscriptionCleanup.processDelivery(ctx, pushSubscriptionCleanupDelivery(t, userID, userID)); err != nil {
+		t.Fatalf("complete initial deletion delivery: %v", err)
 	}
+	// Model an already-authorised registration completing after the deletion
+	// worker has acknowledged its otherwise successful pass.
 	subscription := &corev1.PushSubscription{
 		Endpoint:  endpoint,
 		P256Dh:    "key",
@@ -91,8 +156,8 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterDeletionDelivery(t *test
 		t.Fatalf("claim late endpoint ownership: %v", err)
 	}
 
-	if err := chatto.pushSubscriptionCleanup.reconcileDeletionFences(ctx); err != nil {
-		t.Fatalf("reconcile deletion fences: %v", err)
+	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile deleted-account push state: %v", err)
 	}
 	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isPushRuntimeStateKeyAbsent(err) {
 		t.Fatalf("late subscription remains after reconciliation: %v", err)
@@ -106,14 +171,68 @@ func TestSavePushSubscriptionRejectsCommittedAccountDeletion(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-cleanup-deleted-user"
-	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
-		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
-	}})
-	if _, err := chatto.EventPublisher.AppendEventually(ctx, evtstream.UserAggregate(userID).SubjectFor(event), event); err != nil {
-		t.Fatalf("append account deletion: %v", err)
-	}
+	appendPushAccountDeletionFact(t, chatto, userID)
 	if _, err := chatto.SavePushSubscription(ctx, userID, "https://push.example.com/deleted", "key", "auth", "browser"); !errors.Is(err, ErrNotFound) {
 		t.Fatalf("SavePushSubscription error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-cleanup-owner-only-user"
+	endpoint := "https://push.example.com/owner-only"
+	appendPushAccountDeletionFact(t, chatto, userID)
+
+	value, err := json.Marshal(pushEndpointOwner{UserID: userID, SubscriptionRevision: 42})
+	if err != nil {
+		t.Fatalf("marshal owner-only fixture: %v", err)
+	}
+	ownerKey := pushEndpointOwnerKey(endpoint)
+	if _, err := chatto.storage.runtimeStateKV.Put(ctx, ownerKey, value); err != nil {
+		t.Fatalf("store owner-only fixture: %v", err)
+	}
+
+	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile owner-only crash state: %v", err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
+		t.Fatalf("owner-only record remains after reconciliation: %v", err)
+	}
+}
+
+func TestDeleteAllUserPushSubscriptionsRejectsPartialKeyListing(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-cleanup-partial-list-user"
+	endpoints := []string{
+		"https://push.example.com/partial-list-a",
+		"https://push.example.com/partial-list-b",
+	}
+	for _, endpoint := range endpoints {
+		if _, err := chatto.SavePushSubscription(ctx, userID, endpoint, "key", "auth", "browser"); err != nil {
+			t.Fatalf("save push subscription: %v", err)
+		}
+	}
+
+	realKV := chatto.storage.runtimeStateKV
+	firstEntry, err := realKV.Get(ctx, pushSubscriptionKey(userID, endpoints[0]))
+	if err != nil {
+		t.Fatalf("get partial-list fixture: %v", err)
+	}
+	chatto.storage.runtimeStateKV = &partialKeyListingKV{
+		KeyValue: realKV,
+		filter:   pushSubscriptionKeyFilter(userID),
+		entries:  []jetstream.KeyValueEntry{firstEntry},
+	}
+	if deleted, err := chatto.DeleteAllUserPushSubscriptions(ctx, userID); err == nil || deleted != 0 {
+		t.Fatalf("partial listing cleanup = (%d, %v), want (0, error)", deleted, err)
+	}
+	chatto.storage.runtimeStateKV = realKV
+	for _, endpoint := range endpoints {
+		if _, err := realKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+			t.Fatalf("subscription %q was deleted from a partial listing: %v", endpoint, err)
+		}
 	}
 }
 
@@ -155,3 +274,42 @@ func pushSubscriptionCleanupDelivery(t *testing.T, subjectUserID, payloadUserID 
 		StreamSequence: 1,
 	}
 }
+
+func appendPushAccountDeletionFact(t *testing.T, chatto *ChattoCore, userID string) {
+	t.Helper()
+	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
+		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
+	}})
+	if _, err := chatto.EventPublisher.AppendEventually(context.Background(), evtstream.UserAggregate(userID).SubjectFor(event), event); err != nil {
+		t.Fatalf("append account deletion: %v", err)
+	}
+}
+
+type partialKeyListingKV struct {
+	jetstream.KeyValue
+	filter  string
+	entries []jetstream.KeyValueEntry
+}
+
+func (kv *partialKeyListingKV) WatchFiltered(
+	_ context.Context,
+	filters []string,
+	opts ...jetstream.WatchOpt,
+) (jetstream.KeyWatcher, error) {
+	if len(filters) != 1 || filters[0] != kv.filter {
+		return kv.KeyValue.WatchFiltered(context.Background(), filters, opts...)
+	}
+	updates := make(chan jetstream.KeyValueEntry, len(kv.entries))
+	for _, entry := range kv.entries {
+		updates <- entry
+	}
+	close(updates)
+	return &staticKeyWatcher{updates: updates}, nil
+}
+
+type staticKeyWatcher struct {
+	updates <-chan jetstream.KeyValueEntry
+}
+
+func (w *staticKeyWatcher) Updates() <-chan jetstream.KeyValueEntry { return w.updates }
+func (w *staticKeyWatcher) Stop() error                             { return nil }

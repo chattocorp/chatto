@@ -737,8 +737,14 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
 		t.Fatalf("subscription was not retained for retry: %v", err)
 	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); err != nil {
+		t.Fatalf("undecodable endpoint owner was unexpectedly removed: %v", err)
+	}
+	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile malformed owner: %v", err)
+	}
 	if _, err := core.storage.runtimeStateKV.Get(ctx, ownerKey); !isPushRuntimeStateKeyAbsent(err) {
-		t.Fatalf("undecodable endpoint owner was not removed for retry: %v", err)
+		t.Fatalf("undecodable endpoint owner was not repaired: %v", err)
 	}
 
 	deleted, err = core.DeleteAllUserPushSubscriptions(ctx, userID)
@@ -756,7 +762,7 @@ func TestDeleteAllUserPushSubscriptionsRetainsRecoverableRecordWhenOwnerReleaseF
 	}
 }
 
-func TestDeleteAllUserPushSubscriptionsRepairsLegacyOrphanOwner(t *testing.T) {
+func TestPushSubscriptionCleanupRepairsLegacyOrphanOwner(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
 	userID := "push-user-orphan-owner"
@@ -772,12 +778,8 @@ func TestDeleteAllUserPushSubscriptionsRepairsLegacyOrphanOwner(t *testing.T) {
 		t.Fatalf("legacy owner fixture owned = %v, err = %v", owned, err)
 	}
 
-	deleted, err := core.DeleteAllUserPushSubscriptions(ctx, userID)
-	if err != nil {
-		t.Fatalf("DeleteAllUserPushSubscriptions: %v", err)
-	}
-	if deleted != 0 {
-		t.Fatalf("deleted = %d, want no remaining subscription records", deleted)
+	if err := core.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile orphan owner: %v", err)
 	}
 	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || owned {
 		t.Fatalf("orphan owner after repair = %v, err = %v", owned, err)

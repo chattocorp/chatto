@@ -134,11 +134,6 @@ func (c *ChattoCore) SavePushSubscription(
 }
 
 func (c *ChattoCore) requirePushSubscriptionAccountActive(ctx context.Context, userID string) error {
-	if _, err := c.storage.runtimeStateKV.Get(ctx, pushSubscriptionDeletionFenceKey(userID)); err == nil {
-		return fmt.Errorf("push-subscription account is deleted: %w", ErrNotFound)
-	} else if !isPushRuntimeStateKeyAbsent(err) {
-		return fmt.Errorf("check push-subscription account-deletion fence: %w", err)
-	}
 	deletedSubject := evtstream.UserAggregate(userID).Subject(evtstream.EventUserAccountDeleted)
 	sequence, err := c.EventPublisher.LastSubjectSeq(ctx, deletedSubject)
 	if err != nil {
@@ -182,6 +177,35 @@ func (c *ChattoCore) AdmitPushTestNotification(ctx context.Context, userID strin
 
 func isPushRuntimeStateKeyAbsent(err error) bool {
 	return errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted)
+}
+
+// listPushRuntimeStateKeys waits for JetStream's explicit initial-snapshot
+// sentinel. The newer jetstream.KeyLister API closes its only channel both on
+// completion and on interruption, so it cannot distinguish a complete list
+// from a partial one. Cleanup callers must not acknowledge physical erasure
+// after seeing only a prefix of the matching keys.
+func listPushRuntimeStateKeys(ctx context.Context, kv jetstream.KeyValue, filters ...string) ([]string, error) {
+	watcher, err := kv.WatchFiltered(ctx, filters, jetstream.IgnoreDeletes(), jetstream.MetaOnly())
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = watcher.Stop() }()
+
+	var keys []string
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case entry, ok := <-watcher.Updates():
+			if !ok {
+				return nil, errors.New("push runtime-state key snapshot ended before completion")
+			}
+			if entry == nil {
+				return keys, nil
+			}
+			keys = append(keys, entry.Key())
+		}
+	}
 }
 
 func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, endpoint string) error {
@@ -395,17 +419,13 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 // GetUserPushSubscriptions returns all push subscriptions for a user.
 // Authorization: Caller must verify userID matches authenticated user.
 func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string) ([]*corev1.PushSubscription, error) {
-	prefix := pushSubscriptionKeyFilter(userID)
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
+	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, pushSubscriptionKeyFilter(userID))
 	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return []*corev1.PushSubscription{}, nil
-		}
 		return nil, fmt.Errorf("failed to list push subscription keys: %w", err)
 	}
 
 	var subscriptions []*corev1.PushSubscription
-	for key := range lister.Keys() {
+	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get push subscription %s: %w", key, err)
@@ -432,18 +452,9 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 // Used when a user account is deleted.
 // Authorization: Internal use only - called from user deletion flow.
 func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID string) (int, error) {
-	prefix := pushSubscriptionKeyFilter(userID)
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
-	if err != nil && !errors.Is(err, jetstream.ErrNoKeysFound) {
+	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, pushSubscriptionKeyFilter(userID))
+	if err != nil {
 		return 0, fmt.Errorf("failed to list push subscription keys: %w", err)
-	}
-
-	// Collect keys first to avoid modifying while iterating
-	var keys []string
-	if lister != nil {
-		for key := range lister.Keys() {
-			keys = append(keys, key)
-		}
 	}
 
 	deleted := 0
@@ -461,9 +472,8 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 		var sub corev1.PushSubscription
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			// The raw record may still contain credentials even when an older or
-			// damaged payload cannot be decoded. Erase it first; the owner scan
-			// below removes any content-free ownership record that still names the
-			// deleted account.
+			// damaged payload cannot be decoded. Erase it first; the global
+			// reconciler separately removes unusable or orphaned owner records.
 			deleteErr := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
 			if deleteErr == nil || isPushRuntimeStateKeyAbsent(deleteErr) {
 				deleted++
@@ -493,57 +503,11 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 		}
 	}
 
-	if err := c.deletePushEndpointOwnersForUser(ctx, userID); err != nil {
-		cleanupErrors = append(cleanupErrors, err)
-	}
-
 	c.logger.Debug("Deleted all push subscriptions for user",
 		"user_id", userID,
 		"count", deleted)
 
 	return deleted, errors.Join(cleanupErrors...)
-}
-
-func (c *ChattoCore) deletePushEndpointOwnersForUser(ctx context.Context, userID string) error {
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, pushEndpointOwnerKeyPrefix+">")
-	if errors.Is(err, jetstream.ErrNoKeysFound) {
-		return nil
-	}
-	if err != nil {
-		return fmt.Errorf("list push endpoint owners during account cleanup: %w", err)
-	}
-	var cleanupErrors []error
-	for key := range lister.Keys() {
-		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-		if isPushRuntimeStateKeyAbsent(err) {
-			continue
-		}
-		if err != nil {
-			cleanupErrors = append(cleanupErrors, fmt.Errorf("get push endpoint owner during account cleanup: %w", err))
-			continue
-		}
-		var owner pushEndpointOwner
-		if err := json.Unmarshal(entry.Value(), &owner); err != nil {
-			// A malformed owner record is unusable for delivery or future claims.
-			// Remove its exact revision, but return the decode failure once so the
-			// durable worker retries any subscription retained when owner release
-			// encountered the same record earlier in this pass.
-			deleteErr := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-			if deleteErr != nil && !isPushRuntimeStateKeyAbsent(deleteErr) {
-				cleanupErrors = append(cleanupErrors, fmt.Errorf("delete undecodable push endpoint owner: %w", deleteErr))
-				continue
-			}
-			cleanupErrors = append(cleanupErrors, fmt.Errorf("decode push endpoint owner during account cleanup: %w", err))
-			continue
-		}
-		if owner.UserID != userID {
-			continue
-		}
-		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isPushRuntimeStateKeyAbsent(err) {
-			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete push endpoint owner during account cleanup: %w", err))
-		}
-	}
-	return errors.Join(cleanupErrors...)
 }
 
 // GetAllPushSubscriptions returns all push subscriptions in the system.
@@ -552,17 +516,13 @@ func (c *ChattoCore) deletePushEndpointOwnersForUser(ctx context.Context, userID
 // NOTE: Currently unused. Reserved for future admin dashboard feature to list
 // all push subscriptions for monitoring/debugging purposes.
 func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscriptionWithUser, error) {
-	prefix := "push_subscription.>"
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, prefix)
+	keys, err := listPushRuntimeStateKeys(ctx, c.storage.runtimeStateKV, "push_subscription.>")
 	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return []*PushSubscriptionWithUser{}, nil
-		}
 		return nil, fmt.Errorf("failed to list push subscription keys: %w", err)
 	}
 
 	var subscriptions []*PushSubscriptionWithUser
-	for key := range lister.Keys() {
+	for _, key := range keys {
 		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 		if err != nil {
 			c.logger.Warn("Failed to get push subscription", "key", key, "error", err)

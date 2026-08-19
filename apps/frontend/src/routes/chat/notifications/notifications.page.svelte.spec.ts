@@ -395,6 +395,54 @@ describe('notifications page', () => {
     expect(row.textContent?.match(/#general/g)).toHaveLength(1);
   });
 
+  it('keeps a known reaction actor as the lead when another actor was deleted', async () => {
+    const alice = {
+      id: 'alice',
+      login: 'alice',
+      displayName: 'Alice',
+      deleted: false,
+      avatarUrl: null,
+      presenceStatus: 1,
+      customStatus: null
+    };
+    mocks.store.notifications.fetchPage.mockResolvedValue(
+      page([
+        {
+          ...mocks.occurrence,
+          id: 'reaction-alice',
+          createdAt: '2026-08-19T12:00:00.000Z',
+          actor: alice,
+          eventId: 'reacted-to-message',
+          signalKind: NotificationSignalKind.REACTION,
+          attentionLevel: NotificationAttentionLevel.AMBIENT,
+          reactionEmoji: 'thumbsup'
+        },
+        {
+          ...mocks.occurrence,
+          id: 'reaction-deleted',
+          createdAt: '2026-08-19T12:01:00.000Z',
+          actor: null,
+          eventId: 'reacted-to-message',
+          signalKind: NotificationSignalKind.REACTION,
+          attentionLevel: NotificationAttentionLevel.AMBIENT,
+          reactionEmoji: 'heart'
+        }
+      ] as NotificationOccurrenceItem[])
+    );
+
+    const { container } = render(NotificationsPage);
+    const row = await vi.waitFor(() => {
+      const element = q(container, '[data-testid="notification-group"]');
+      expect(element).not.toBeNull();
+      return element as HTMLElement;
+    });
+
+    expect(row.textContent).toContain(
+      "Alice and others reacted with '❤️ 👍' to your message in #general."
+    );
+    expect(row.textContent).not.toContain('[deleted user] and others');
+  });
+
   it('preserves a healthy server result when another server fails', async () => {
     const remoteStore = {
       ...mocks.store,

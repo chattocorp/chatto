@@ -30,7 +30,10 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions. Cleanup is tied to
   the durable account-deletion fact, retries across crashes and partial
-  failures, and rejects registration that crosses the deletion boundary.
+  failures, and rejects registration that crosses the deletion boundary. A
+  renewable lease leader performs startup/periodic reconciliation without a
+  fixed whole-pass deadline, using that permanent fact to erase late writes and
+  repair orphaned endpoint-owner records without a second deletion marker.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
 
 ## Design Decisions
