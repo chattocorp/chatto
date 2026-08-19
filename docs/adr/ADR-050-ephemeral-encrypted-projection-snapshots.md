@@ -2,14 +2,18 @@
 
 **Date:** 2026-07-13
 
+**Updated:** 2026-08-19
+
 ## Context
 
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) makes `EVT` the
-source of truth and process-local projections the read side. Every Chatto
-process currently rebuilds every projection by replaying `EVT` from the
-beginning. Bounded replay-only idempotency state, profiling hooks, and
-reproducible benchmarks have reduced and exposed that cost, but
-startup time and allocation still grow with retained event history.
+source of domain truth and process-local projections the read side. Most Chatto
+projections rebuild by replaying `EVT`; purpose-bounded projections may instead
+own another event log, such as the `NOTIFICATIONS` lifecycle log in ADR-076.
+Without a snapshot, each projector replays its owning log from the beginning.
+Bounded replay-only idempotency state, profiling hooks, and reproducible
+benchmarks have reduced and exposed that cost, but startup time and allocation
+still grow with retained event history.
 
 Snapshots can accelerate startup by persisting a derived projection state and
 replaying only later events. They also introduce a second representation of
@@ -33,18 +37,19 @@ not need them in order to use snapshots for startup acceleration.
 
 Add optional, ephemeral projection snapshots under the following contract.
 
-### EVT remains permanent and authoritative
+### Source logs remain authoritative
 
 `EVT` remains the only durable source of domain truth and is retained
-indefinitely. Snapshots do not permit event expiration, truncation, compaction,
-or archival. Deleting every snapshot may make startup slower but must not
-change reconstructed state or lose data.
+indefinitely. A purpose-bounded secondary log remains authoritative only for
+its own finite lifecycle and keeps the retention contract defined by its own
+ADR. Snapshots do not change either contract. Deleting every snapshot may make
+startup slower but must not change reconstructed state or lose data.
 
 Missing, corrupt, incompatible, undecryptable, or otherwise invalid snapshots
-fall back automatically to replay from `EVT`. Snapshot failures do not prevent
-Chatto from starting when `EVT` itself is available. Bootstrap snapshot loads
-have a 15-second deadline so a stalled object backend cannot hold core startup
-indefinitely.
+fall back automatically to replay from the owning event log. Snapshot failures
+do not prevent Chatto from starting when that log itself is available.
+Bootstrap snapshot loads have a 15-second deadline so a stalled object backend
+cannot hold core startup indefinitely.
 
 ### Snapshot contracts are projection-scoped
 
@@ -58,8 +63,8 @@ Each snapshot records three distinct identifiers:
 - the producing Chatto version for diagnostics only.
 
 A projection contract ID changes when restored state would no longer be
-equivalent to replaying EVT through the recorded cutoff. Unrelated Chatto
-releases do not invalidate a snapshot. Contract IDs are bounded path-safe,
+equivalent to replaying its owning event log through the recorded cutoff.
+Unrelated Chatto releases do not invalidate a snapshot. Contract IDs are bounded path-safe,
 projection-local equality tokens, not ordered schema or Chatto versions, and
 Chatto performs no migration between them. Forward upgrades and rollbacks use
 independent contract-scoped pointers and cold-replay when their own contract
@@ -77,9 +82,9 @@ require a manual token bump.
 
 Current source carries only the current codec schema. It does not need to decode
 superseded contract generations: an old binary retains its own schema and
-contract namespace, while a new binary cold-replays EVT when its namespace has
-no usable generation. This keeps rollback safe without accumulating obsolete
-snapshot messages.
+contract namespace, while a new binary cold-replays the owning event log when
+its namespace has no usable generation. This keeps rollback safe without
+accumulating obsolete snapshot messages.
 
 ### Snapshots reuse the configured binary-storage backend
 
@@ -107,12 +112,12 @@ both NATS and S3 payload backends. A stale lease holder can upload a generation,
 but it cannot regress a newer pointer; a failed pointer CAS rolls back the
 unpublished upload and leaves the newer history intact.
 
-The pointer also carries each generation's cutoff sequence, creation time, EVT
-incarnation, and projection contract ID. A writer may refresh the same
-cutoff once it is old, but the repository rejects a redundant refresh when a
+The pointer also carries each generation's cutoff sequence, creation time,
+owning event-log incarnation, and projection contract ID. A writer may refresh
+the same cutoff once it is old, but the repository rejects a redundant refresh when a
 previous lease holder already published a fresh, authenticated, usable
 generation. Missing or corrupt current objects are repaired instead. It rejects
-a lower cutoff for the same EVT incarnation and snapshot contract.
+a lower cutoff for the same event-log incarnation and snapshot contract.
 Revision OCC prevents a concurrent writer from replacing newer history.
 
 Changing a contract leaves the prior encrypted pointer untouched. This keeps
@@ -160,11 +165,11 @@ dedicated NATS Object Store TTL applies to both layouts.
 The unencrypted envelope contains only the framing data required to select the
 decryption scheme, derive the key, and authenticate the ciphertext: a magic
 value, envelope version, key-scheme identifier, random salt and nonce, and the
-opaque object generation ID. Projection names, contract IDs, EVT stream
+opaque object generation ID. Projection names, contract IDs, owning event-log
 identity and sequence, creation time, checksums, entry counts, and other
 semantic metadata live inside the encrypted authenticated payload. Object paths
 reveal the fixed projection key and contract ID, but not server data,
-EVT positions, or creation metadata.
+source-log positions, or creation metadata.
 
 Ciphertext length and backend write time remain observable; padding policies
 may be added later if those side channels prove material.
@@ -188,7 +193,7 @@ A snapshot generation is one immutable encrypted bundle containing its
 manifest and projection payload. The encrypted manifest records at least:
 
 - generation ID;
-- EVT stream name, cutoff sequence, and its versioned incarnation identity;
+- owning event-log name, cutoff sequence, and its versioned incarnation identity;
 - projection key, contract ID, and producer version;
 - payload size and checksum; and
 - creation time.
@@ -203,19 +208,21 @@ valid. The pointer's KV key is derived from `core.secret_key`, the projection
 key, and contract ID so it does not disclose which contract it addresses.
 
 Restore validates the envelope, authentication tag, manifest, projection
-contract, cutoff bounds, and the current EVT incarnation identity before
-mutating a live projection. Chatto stores the opaque identity in EVT stream
-metadata so it survives process reconstruction and backup restore but changes
-when EVT is deleted and recreated. Missing metadata is deterministically
-derived once from the stream creation time so concurrent replicas converge,
-then persisted; `StreamInfo.Created` is not used for later comparisons because
-it is not stable across embedded NATS process reconstruction.
+contract, cutoff bounds, and the current owning event-log incarnation identity
+before mutating a live projection. Chatto stores an independent opaque identity
+in each event log's stream metadata so it survives process reconstruction and
+backup restore but changes when that stream is deleted and recreated. Missing
+metadata is deterministically derived once from the stream creation time so
+concurrent replicas converge, then persisted; `StreamInfo.Created` is not used
+for later comparisons because it is not stable across embedded NATS process
+reconstruction.
 
 Projection restore codecs are transactional: a rejected payload must leave
 prior state unchanged so the projector can reset to its cold-start state and
-replay all of `EVT`. Capturing a snapshot must bind projection state and its
-applied EVT sequence at one projector-owned barrier. Reading projection state
-and a projector cursor in separate unsynchronized operations is invalid.
+replay all of its owning event log. Capturing a snapshot must bind projection
+state and its applied source-log sequence at one projector-owned barrier.
+Reading projection state and a projector cursor in separate unsynchronized
+operations is invalid.
 
 Each projection pointer retains current and previous generation references. A
 writer deletes the generation that falls out of that window and rolls back a
@@ -264,10 +271,10 @@ Immutable generation bundles, current/previous fallback, and validation keep
 stale workers and interrupted uploads harmless. Loaders never trust
 process-local ownership state.
 
-Initialization is best-effort as well: snapshot Object Store, repository, EVT
-identity, projector configuration, and lease failures disable the affected
-snapshot workers and log the reason. They do not prevent core startup when EVT
-is available.
+Initialization is best-effort as well: snapshot Object Store, repository,
+source-log identity, projector configuration, and lease failures disable the
+affected snapshot workers and log the reason. They do not prevent core startup
+when the owning event log is available.
 
 The worker checks every eligible projection immediately after boot and then
 hourly. It publishes immediately after a cold replay or when startup replay
@@ -275,7 +282,7 @@ advanced beyond the restored cutoff. A fresh, unchanged restore is not
 republished. Once the latest generation is 23 hours old, the worker refreshes
 it even when its cutoff is unchanged, ensuring quiet projections receive a new
 storage timestamp before retention expiry without turning restarts into writes.
-A lower cutoff for the same EVT history and contract is rejected. A
+A lower cutoff for the same source-log history and contract is rejected. A
 failure for one projection is logged and does not prevent the remaining jobs
 from running. On S3, the elected pass also attempts a cluster-wide daily expiry
 cooldown claim in `MEMORY_CACHE`. A successful bounded expiry retains that claim
@@ -296,12 +303,19 @@ rebuilt only from durable `ThreadFollowedEvent` and `ThreadUnfollowedEvent`
 facts.
 
 Each eligible projection loads its snapshot independently. A successful restore
-starts that projection's ordered EVT consumer at one greater than its own
+starts that projection's ordered source-log consumer at one greater than its own
 cutoff. A projection with no usable snapshot starts its consumer at sequence 1
-without changing any sibling's frontier. Projections with no matching EVT
+without changing any sibling's frontier. Projections with no matching source-log
 history have no state to accelerate and do not publish zero-cutoff generations.
 Boot-time waiters are released through the same sequence-advance path used by
 live events even when they begin waiting while restore is in flight.
+
+Most Chatto projections own an `EVT` frontier. The notification occurrence
+projection instead binds its snapshot to the independent `NOTIFICATIONS` stream
+name, incarnation, and sequence. The EVT-backed Notification Decisions
+projection remains capped at the notification materializer's confirmed EVT
+consumer floor, so restoring or publishing a snapshot can never skip source
+facts whose notification effects are still pending.
 
 Every registered projection must still become current before Chatto completes
 boot. A cold projection can therefore determine total startup wall time, but it
@@ -336,8 +350,10 @@ configure S3 lifecycle expiry disable Chatto's redundant pass with
 ## Consequences
 
 - Each eligible projection can start from its own compatible snapshot cutoff
-  and replay only its later EVT delta without weakening the authority or
-  retention of `EVT`.
+  and replay only its later source-log delta without weakening the authority or
+  retention contract of that log. `EVT` remains the permanent domain authority;
+  a bounded secondary log remains authoritative only for its own finite
+  lifecycle.
 - Snapshots naturally use cheaper S3 storage where configured while preserving
   the zero-dependency NATS default. NATS snapshots follow Chatto's NATS backup;
   S3 snapshots follow the operator's S3 backup policy.
@@ -349,7 +365,7 @@ configure S3 lifecycle expiry disable Chatto's redundant pass with
 - Upgrades and rollbacks remain safe but may cold-replay when projection
   compatibility changes.
 - Storage-backend availability can affect the optimization but cannot affect
-  correctness. A snapshot backend outage falls back to EVT replay.
+  correctness. A snapshot backend outage falls back to owning-log replay.
 - Reusing the asset backend requires a strict namespace and backup boundary so
   derived internal objects are not mistaken for user assets. Backups may carry
   them, but never depend on them.

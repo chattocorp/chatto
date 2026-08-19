@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -24,6 +24,10 @@ Chatto controls who can do what through role-based access control. Every authent
 - Default permissions are creation-time state: fresh server defaults are seeded only into an empty RBAC stream, and channel-room defaults are committed atomically with room creation. Startup does not backfill missing or cleared decisions.
 - Roles have a `pingable` setting that controls whether `@role` pings notify assigned room members. Fresh servers seed `moderator` as pingable and leave `owner`, `admin`, and `everyone` unpingable.
 - User-initiated RBAC writes carry the authenticated user's ID as the event actor. Synthetic `system` actors are reserved for bootstrap, seeding, migrations, and other non-user maintenance.
+- Losing effective room visibility through membership, room-group layout, or
+  RBAC removes inaccessible notification occurrences. A durable visibility
+  boundary prevents activity queued before that loss from becoming visible if
+  access is quickly regained.
 
 ## Design Decisions
 
@@ -99,5 +103,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline)
-- **FDRs:** Every FDR that mentions a permission depends on this one.
+- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
+- **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications).

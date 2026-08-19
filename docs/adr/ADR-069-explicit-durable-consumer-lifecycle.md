@@ -4,13 +4,22 @@
 
 **Status:** Accepted
 
+**Updated:** 2026-08-19
+
 ## Context
 
-Chatto uses named JetStream durable pull consumers to recover external effects
-from `EVT`. Every replica of one worker role shares the same consumer, so its
-delivery and acknowledgement position belongs to the server deployment rather
-than to one process. The consumer continues to exist while workers are offline
-and is included when Chatto snapshots the `EVT` stream for backup.
+Chatto uses named JetStream durable pull consumers to recover asynchronous
+outcomes from application-owned event logs. Most consume `EVT`, including the
+`chatto-notification-materializer-v1` handoff into the bounded notification
+log. `chatto-notification-alert-delivery-v1` consumes
+`notifications.signalled` from `NOTIFICATIONS`. Every replica of one worker
+role shares the same consumer, so its delivery and acknowledgement position
+belongs to the server deployment rather than to one process. The consumer
+continues to exist while workers are offline
+and is included when Chatto snapshots its owning stream for backup. Notification
+backups capture `EVT`, then `RUNTIME_STATE`, then `NOTIFICATIONS` so accepted
+source work remains either materialized or replayable from the restored
+consumer position; see ADR-076.
 
 That persistence is part of the recovery guarantee. Deleting a consumer loses
 its acknowledgement and pending-delivery state. Recreating one of Chatto's
@@ -70,10 +79,11 @@ Retire a named consumer through a staged, application-owned migration:
 6. Remove the consumer from the NATS resource inventory and update rollout,
    backup/restore, diagnostics, and focused migration tests as applicable.
 
-`EVT` uses limits retention, so deleting one of these consumers removes its
-consumer state without deleting the underlying event history. Reintroducing a
-consumer later must nevertheless define its delivery starting point and replay
-behavior explicitly.
+Deleting one of these consumers removes its consumer state without deleting
+records from the owning stream. Reintroducing a consumer later must
+nevertheless define its delivery starting point and replay behavior explicitly. On bounded
+logs, retained source facts may expire independently according to that log's
+application and broker retention policy.
 
 Mechanical retirement helpers may be shared only when concrete applications
 demonstrate the same safe preconditions. A helper may inspect and delete a
@@ -106,4 +116,5 @@ lifecycle.
 - [ADR-041](ADR-041-runtime-units.md)
 - [ADR-056](ADR-056-extractable-nats-event-sourcing-framework.md)
 - [ADR-066](ADR-066-durable-asset-processing-runtime-unit.md)
+- [ADR-076](ADR-076-deterministic-notification-occurrences.md)
 - [NATS JetStream consumer configuration](https://docs.nats.io/nats-concepts/jetstream/consumers)

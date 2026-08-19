@@ -2,6 +2,8 @@
 
 **Date:** 2026-07-20
 
+**Updated:** 2026-08-19
+
 ## Context
 
 ADR-033 defines projections as derived state rebuilt from `EVT`. The original
@@ -19,18 +21,20 @@ storage policy instead of event application.
 
 Keep the base projection contract limited to two responsibilities:
 
-- declare the logical EVT subjects it consumes; and
+- declare the logical subjects it consumes from its configured event log; and
 - apply decoded events in stream order with their stable stream sequence.
 
-A projection with no persistence capability starts empty and cold-replays
-`EVT`. This is the default and requires no snapshot methods.
+A projection with no persistence capability starts empty and cold-replays its
+configured event log. This is the default and requires no snapshot methods.
+Most Chatto projections consume `EVT`; the Notifications projection consumes
+the bounded `NOTIFICATIONS` log defined by ADR-076.
 
 Persistence is opt-in through separate interfaces:
 
 - `SnapshotProjection` serializes and restores portable state through the
   encrypted snapshot repository defined by ADR-050.
 - `CheckpointedProjection` owns local derived storage and returns the highest
-  EVT sequence atomically represented by that storage.
+  source-log sequence atomically represented by that storage.
 - `StartupBatchProjection` may atomically apply ordered batches while replaying
   the history captured at startup. Live events continue through individual
   `Apply` calls.
@@ -60,7 +64,7 @@ remains the run fence; later capture can recover once lookup succeeds, but
 refuses publication if the stream was actually recreated.
 
 A successful checkpointed `Apply` or startup batch commits the materialized
-changes and final EVT sequence atomically. Returning success before both are
+changes and final source-log sequence atomically. Returning success before both are
 durable could skip events after restart and is therefore invalid.
 
 ## Consequences

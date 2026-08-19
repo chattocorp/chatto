@@ -1,7 +1,7 @@
 # ADR-043: Client-Shell Internationalization
 
 **Date:** 2026-06-22
-**Updated:** 2026-08-04
+**Updated:** 2026-08-19
 **Status:** Superseded by [ADR-065](ADR-065-runtime-json-client-internationalization.md)
 
 ## Context
@@ -36,7 +36,7 @@ Locale payloads should be split into separate bundles and loaded lazily. Chatto 
 Chatto will prefer static, typed message keys over runtime string lookups:
 
 - Component chrome, settings labels, dialogs, validation messages, empty states, toast text, and system-event labels use generated message functions.
-- Stable enums, permission names, event types, and notification policy reasons/intensities are mapped explicitly to message functions at the UI boundary.
+- Stable enums, permission names, event types, notification preference categories, delivery modes, attention levels, and signal kinds are mapped explicitly to message functions at the UI boundary.
 - User-generated content, server names, room names, display names, message bodies, uploaded filenames, and other user-authored values are displayed as authored and are not translated.
 - Backend APIs should return structured data, stable codes, enum values, and parameters rather than pre-rendered localized product copy.
 - Persisted EVT events and projections must store language-neutral facts, not localized labels or sentences.

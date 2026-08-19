@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-07-27
+**Updated:** 2026-08-19
 
 ## Context
 
@@ -99,6 +99,13 @@ that snapshot is applied. KV remains authoritative, writes retain revision OCC,
 and write paths wait for the watcher to observe their successful revision when
 they require local read-your-writes.
 
+`NotificationBoundaryIndex` applies the same process-wide filtered-watcher
+pattern to notification read and visibility boundaries. Core startup waits for
+its initial snapshot. Writes retain KV revision OCC and wait for the successful
+revision to reach the index when local read-your-writes matters. One owning
+model therefore serves all requests and background repair without creating a
+watcher per request, user, or WebSocket.
+
 The HMAC keys for runtime credential handles, OAuth codes, and account workflow
 tokens are derived with `[core].secret_key` from the raw token/code plus a
 per-flow scope string. `RUNTIME_STATE` is included in backups, so active
@@ -127,6 +134,8 @@ from exact unread notification occurrences instead of preserving
 - Hot read-state assembly avoids one KV round trip per room or thread, at the
   cost of process memory proportional to the persisted marker count and one
   process-wide filtered watcher per replica.
+- Notification read and visibility reconciliation gets the same bounded,
+  process-wide watcher and startup/read-your-writes guarantees.
 - The old `SERVER_RUNTIME` bucket is historical pre-0.1 storage, not a place
   for new state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and
@@ -157,3 +166,5 @@ from exact unread notification occurrences instead of preserving
   event-sourced content/domain boundary.
 - [ADR-028](ADR-028-event-id-keyed-read-state.md) — defines the read-cursor
   shape that now lives in `RUNTIME_STATE`.
+- [ADR-076](ADR-076-deterministic-notification-occurrences.md) — defines the
+  bounded notification log and its cross-log runtime boundaries.

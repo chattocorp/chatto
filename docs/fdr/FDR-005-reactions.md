@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -12,6 +12,13 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
 - Clicking a pill toggles the current user's reaction.
+- Another user's reaction to your message creates one exact Ambient
+  notification occurrence when the reaction preference resolves to Badge or
+  Alert. Your own reactions do not notify you. Removing the reaction removes
+  that exact occurrence.
+- The notification list may consolidate every actor and emoji for the same
+  reacted-to message into one row, while unread badges continue to count the
+  exact underlying occurrences.
 - A user can add up to 20 distinct emoji reactions to one message. Reaching the limit rolls back the attempted reaction and shows a specific explanation; removing a reaction frees a slot.
 - On desktop, hovering a message reveals a quick-reaction bar with the user's most recently used emojis (falling back to a default set if none have been used yet).
 - Recent emoji selections persist in localStorage so the quick-bar stays personal across sessions.

@@ -4,6 +4,8 @@
 
 **Status:** Accepted
 
+**Updated:** 2026-08-19
+
 ## Context
 
 Chatto's event-sourced state, single `EVT` stream, projections, optional
@@ -56,6 +58,14 @@ stream-incarnation identity, and resource lifecycle. Durable domain facts in
 that stream are authoritative; projections and effect-delivery state do not
 become alternate authorities for the same facts.
 
+An application may add an explicitly designed secondary event log for the
+bounded lifecycle of a derived resource when that lifecycle needs independent
+ordering, replay, retention, or durable consumption. Such a log does not weaken
+the primary-log rule: it must derive from authoritative facts, must not duplicate
+their domain authority, and must define a recoverable at-least-once handoff,
+semantic expiry, backup treatment, and independent stream identity. Chatto's
+`NOTIFICATIONS` log in ADR-076 is the first production example.
+
 Applications own their encoded event envelope and compatibility policy.
 Chatto and Authling currently use application-owned Protobuf envelopes, but
 Protobuf is not a Loom Architecture requirement and the shared framework stays
@@ -76,14 +86,22 @@ materializations                       workers
    `- optional snapshots/checkpoints   external outcomes
 ```
 
+An optional bounded secondary log can itself feed materializations and workers,
+but it remains downstream of the authoritative domain facts that create it.
+
+```text
+primary EVT -> durable worker -> bounded lifecycle log -> materialization
+                                                   `-> durable worker -> outcome
+```
+
 Commands that decide from projected state must wait for the relevant
 projection frontier and append with OCC over the same aggregate subject or
 subject filter represented by that state. Conflict retries re-evaluate the
 complete decision from current state. A successful append returns a durable
 position that can serve as a local read-your-writes barrier.
 
-The single stream provides one durable sequence for replay and readiness, but
-applications must not infer domain causality between unrelated aggregates from
+The primary stream provides one durable sequence for domain replay and
+readiness, but applications must not infer domain causality between unrelated aggregates from
 their incidental global sequence order. Cross-aggregate invariants need an
 explicit OCC boundary or durable application facts.
 
@@ -162,12 +180,14 @@ The name does not make `pkg/events` stable or require APIs to use Loom
 terminology. A later ADR can rename the architecture without migrating stored
 data or public APIs.
 
-One primary event stream keeps backup, replay, readiness, and operational
+One primary event stream keeps domain backup, replay, readiness, and operational
 reasoning small, but it also shares stream-level replication, retention, and
-write capacity across the application's durable domain. A future application
-that needs multiple authoritative streams would be a deliberate variation or
-revision of the Loom Architecture rather than an invisible implementation
-detail.
+write capacity across the application's durable domain. Purpose-bounded
+secondary logs add operational resources and cross-log recovery boundaries, so
+they require explicit justification rather than becoming a default outbox
+pattern. Multiple authoritative domain streams would still be a deliberate
+variation or revision of the Loom Architecture rather than an invisible
+implementation detail.
 
 Reusable snapshot repositories become an explicit framework direction, but
 their extraction remains evidence-driven. Product storage and security policy
@@ -184,4 +204,5 @@ rather than a prerequisite for adopting the architecture.
 - [ADR-057](ADR-057-temporarily-incubate-authling.md)
 - [ADR-058](ADR-058-application-neutral-embedded-nats-runtime.md)
 - [ADR-069](ADR-069-explicit-durable-consumer-lifecycle.md)
+- [ADR-076](ADR-076-deterministic-notification-occurrences.md)
 - [Authling ADR-001](../../authling/docs/adr/ADR-001-event-sourced-nats-architecture.md)

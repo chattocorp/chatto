@@ -48,7 +48,7 @@ replace part of their original design.
 | [ADR-031](ADR-031-room-group-centric-acl.md) | Room-Group-Centric ACL for Room-Scope Permissions | Accepted | 2026-05-13 |
 | [ADR-032](ADR-032-signed-attachment-locator-urls.md) | Self-Describing Signed Attachment URLs | Superseded | 2026-05-23 |
 | [ADR-033](ADR-033-event-sourced-state-with-projections.md) | Event-Sourced State with Derived Projections | Accepted | 2026-05-24 |
-| [ADR-034](ADR-034-single-event-stream.md) | Single Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
+| [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Accepted | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Accepted | 2026-05-27 |
 | [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Accepted | 2026-05-31 |
@@ -91,4 +91,4 @@ replace part of their original design.
 | [ADR-074](ADR-074-keep-server-catalogue-device-local.md) | Keep the Frontend Server Catalogue Device-Local | Accepted | 2026-08-14 |
 | [ADR-075](ADR-075-native-pitchfork-development-stack.md) | Run the Complete Development Stack Natively with Pitchfork | Accepted | 2026-08-17 |
 | [ADR-076](ADR-076-deterministic-notification-occurrences.md) | Store Notification Lifecycle Facts in a Bounded Event Stream | Accepted | 2026-08-10 |
-| [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent List with Derived Groups | Accepted | 2026-08-10 |
+| [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |

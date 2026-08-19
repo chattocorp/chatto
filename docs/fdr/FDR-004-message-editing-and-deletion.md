@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -18,6 +18,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Being a reply, a message inside a thread, or a channel echo does not by itself keep a deleted-message placeholder visible.
 - Deleting an already-deleted message is a no-op.
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
+- Retracting a message removes notification occurrences whose exact target is
+  that message. Retracting only a channel echo removes the echo artifact, not
+  occurrences targeting the canonical thread reply.
 - A racing deletion always wins over an edit; a deleted message cannot be made visible again by a late edit retry.
 - An edit retried after another message mutation keeps the latest attachments and preview metadata instead of restoring an older body snapshot.
 - Every authorized edit, attachment removal, and preview removal rechecks mutable authority inside a room-OCC attempt and atomically guards the narrow authorization fence. A concurrent room or classified authorization change forces a retry before commit. Deletions still recheck mutable authority on each room-OCC attempt and retain request-time semantics for a cross-aggregate revocation.
@@ -79,5 +82,5 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-038 (room-owned thread state)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications)

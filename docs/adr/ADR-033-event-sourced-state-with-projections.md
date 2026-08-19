@@ -2,6 +2,8 @@
 
 **Date:** 2026-05-24
 
+**Updated:** 2026-08-19
+
 ## Context
 
 [ADR-006](ADR-006-kv-source-of-truth-streams-audit-log.md) established CRUD + audit log: KV buckets hold current state, streams capture history. As the codebase has grown on that pattern, several costs have become hard to ignore:
@@ -28,7 +30,14 @@ Architecture.
 
 Adopt event sourcing as the storage pattern for domain state.
 
-- **The event stream is the source of truth.** Domain mutations are expressed as events appended to a single JetStream stream (see ADR-034). Current state for any read is derived from these events.
+- **The primary event stream is the source of domain truth.** Domain mutations
+  are expressed as events appended to the single `EVT` JetStream stream (see
+  ADR-034). Current domain state for any read is derived from these events.
+  Purpose-bounded secondary logs may record the lifecycle of finite derived
+  resources when their retention and recovery contract differs from permanent
+  domain history. They must derive from existing domain facts, must not become
+  an alternate authority for those facts, and require an explicit decision;
+  `NOTIFICATIONS` in ADR-076 is the first such log.
 - **Projections are derived state.** Each aggregate type has one or more projections rebuilt from the event stream that serve reads. Most are in-memory Go data structures maintained independently by every Chatto process. ADR-054 keeps projection persistence optional and permits disposable locally checkpointed projections, such as a disk-backed search index, while preserving `EVT` as the reconstruction authority.
 - **All writes use optimistic concurrency control.** Every event publish carries a `Nats-Expected-Last-Subject-Sequence` header. The framework offers no "publish without OCC" primitive. This guarantees that per-subject (per-aggregate) history is a serialized sequence with no race-induced gaps. The same invariant makes migration replayable and makes uniqueness claims expressible as ordered subject sequences. When a write decision comes from projection state, the owning projection exposes a snapshot containing both the derived state and the applied stream sequence for the same OCC subject/filter; conflict retries wait for catch-up and decide from a fresh snapshot.
 - **Read-your-writes via stream positions.** Successful publish returns a stream sequence number, and the writer already knows the subject or subject filter it published/guarded against. Domain code wraps those into an `events.StreamPosition` and asks the relevant projection owner to wait until its projector reaches that position. The projector verifies both sides of the contract: the sequence must belong to the supplied subject/filter, and the projection must consume the sequence's actual subject. Waiting on a raw sequence that the projection will never consume is a programming error, not a timeout-shaped control path. Reads from other actors see the new state on the projection's natural consumer cadence — typically sub-millisecond, never coordinated.
@@ -47,7 +56,12 @@ This ADR supersedes ADR-006.
 - **Read-your-writes is per-process.** A writer on process A waits for A's projection consumer to advance; a reader on process B sees the change on B's natural cadence. Cross-process consistency is eventual. In practice the delay is sub-millisecond and bounded by NATS Core latency. API responses from two processes can momentarily disagree; we treat this as acceptable for chat.
 - **Startup cost grows with stream length.** Without a usable compatible snapshot, a long-running instance pays projection-rebuild time on restart. ADR-050 permits snapshots only as an optional accelerator, so complete replay remains the correctness baseline and fallback.
 - **Migration is per-aggregate and phased.** See ADR-035. Big-bang migration is not feasible. The two systems coexist for the duration of the transition.
-- **Ops story shifts.** Operators back up one big stream instead of many KV buckets. Restore is "replay events," which is conceptually simpler than restoring multiple KV snapshots into a coordinated state. Long-term storage and retention are out of scope here and will be revisited.
+- **Ops story shifts.** Operators back up one primary domain stream instead of
+  many domain KV buckets. Restore of domain state is "replay `EVT`." A
+  purpose-bounded secondary log can add another coordinated backup resource
+  when losing its finite user-visible lifecycle would be incorrect; ADR-076
+  defines that exception for notifications. Long-term domain storage and
+  retention remain out of scope here.
 - **Crypto-shredding model survives, with a deliberate ES exception for body payloads.** [ADR-007](ADR-007-per-user-encryption-with-crypto-shredding.md) per-user encryption applies to event payloads; deleting a user's key still renders their messages unreadable. The body/event split in [ADR-011](ADR-011-message-body-event-split.md) now lives inside EVT as private body payload events plus public message facts, removing the old body-side-table coordination problem for migrated messages. Public message facts (`MessagePostedEvent`, `MessageEditedEvent`, `MessageRetractedEvent`) remain immutable event-sourced history; private `MessageBodyEvent` payload facts are retention-controlled content carriers and may be securely deleted to satisfy message deletion semantics. This is an explicit, narrow departure from strict event-sourcing immutability: a cold replay after deletion preserves the durable conversation facts but cannot reconstruct deleted body material. If we later introduce per-message DEKs in a separate non-backed-up key store, message deletion can shred that per-message key instead of deleting `MessageBodyEvent`, allowing these payload events to become immutable again and better align with textbook ES practice.
 - **No third-party framework dependency.** Trade: we own the abstractions and their evolution. Read both `looplab/eventhorizon` and `blinkinglight/bee` for design vocabulary, but ship our own minimal package shaped to Chatto's needs.
 - **Projection-owned consumers and readiness.** Each `Projector` owns one NATS `OrderedConsumer` for its lifetime, including snapshot restore, startup replay, and live consumption. This duplicates some JetStream delivery and protobuf decoding compared with process-local shared fanout, but isolates replay frontiers and failures and gives colocated and future out-of-process projections one lifecycle model. `ChattoCore` still waits for every registered projection to become current before completing boot.

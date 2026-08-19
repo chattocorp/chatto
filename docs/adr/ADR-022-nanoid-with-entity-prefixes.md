@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Updated:** 2026-08-19
+
 ## Context
 
 Every entity in Chatto (users, spaces, rooms, events, assets, notifications) needs a unique identifier. The options include UUIDs (128-bit, standard but verbose), auto-incrementing integers (simple but leak ordering and count), and NanoID (compact, customizable alphabet, configurable entropy).
@@ -19,11 +21,16 @@ Use 14-character NanoIDs with an alphanumeric alphabet (~83.4 bits of entropy) p
 | `R` | Room |
 | `A` | Asset |
 | `E` | Event |
-| `N` | Notification |
+| `N` | Legacy notification |
 
 Opaque tokens use two-letter prefixes: `PR` (password reset), `RG` (registration completion), and `AD` (account deletion). Email verification codes are six-digit numeric OTPs and do not use NanoID prefixes.
 
 DM room IDs are a special case: deterministic SHA-256 hex truncated to 14 characters, with no prefix (since they're computed from participant IDs, not randomly generated).
+
+Notifications 2.0 is another deliberate exception. Exact occurrence IDs use a
+deterministic `ntf_` identifier derived from recipient, source event, and signal
+kind; notification lifecycle fact IDs use `nte_`. These IDs make retry and
+replay idempotent and are not NanoIDs. See ADR-076.
 
 ## Consequences
 

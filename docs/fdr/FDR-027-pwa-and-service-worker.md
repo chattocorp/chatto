@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -21,7 +21,10 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 - The served web manifest uses the server name as the installed app name. Its icons, along with favicon and Apple touch icon metadata, use the uploaded server logo when one exists and fall back to bundled Chatto icons otherwise.
 - Protected uploaded asset loads use direct signed asset URLs owned by the foreground app. The worker does not receive registered-server API bearer tokens, does not proxy asset requests, and does not cache protected asset bodies.
 - Push notifications continue to display native OS notifications and route notification clicks into the SPA.
-- Push dismiss payloads still close matching visible notifications on the device.
+- Native notification dismissal is presentation-only. Chatto sends no dismissal
+  control push, and dismissing an OS notification does not mutate its persistent
+  occurrence. Ordinary notification updates ask visible clients to reconcile
+  their authoritative list and badge.
 
 ## Design Decisions
 

@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -49,11 +49,19 @@ Users can start a private, one-to-one conversation with anyone they can see in a
 **Why:** Find-or-create needs to be cheap and race-free. Hashing the participant set gives a content-addressable ID, so the same two users always land in the same DM without a database lookup. The more general participant-set model remains an implementation capability rather than a product promise.
 **Tradeoff:** DM membership is fixed at creation. The product has no way to add participants to a conversation or turn a one-to-one DM into a group conversation; users who need a shared conversation with more people use a channel room.
 
-### 5. Per-server scope (no unified inbox)
+### 5. Per-server conversation scope with combined notifications
 
-**Decision:** Each Chatto server's DMs are scoped to that server. There's no cross-server aggregation that shows "all your DMs across all the servers you're connected to" in one inbox.
+**Decision:** Each Chatto server's DM conversations are scoped to that server.
+There is no cross-server conversation inbox. The client may still combine
+notification occurrences from authenticated servers into its notification
+page.
 **Why:** A unified inbox was tried and removed. The complexity of cross-server aggregation (auth, real-time aggregation, navigation routing) outweighed the benefit for the current user base, which mostly works in one server at a time.
-**Tradeoff:** Users in multiple servers have to switch servers to see DMs in each. If a unified inbox is reintroduced, this FDR needs a rewrite.
+**Tradeoff:** Users in multiple servers switch servers to browse each DM
+conversation. The notification page may combine exact DM occurrences from all
+authenticated servers, but it is an attention list rather than a cross-server
+conversation browser. Each incoming DM is one exact occurrence; the client may
+group a conversation into one row while its badge still counts every unread
+message. Self-DMs do not notify their author, and ordinary DMs default to Alert.
 
 ### 6. Moderation deny-list inside DMs
 

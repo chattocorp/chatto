@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-10
 
+**Updated:** 2026-08-19
+
 ## Context
 
 Chatto's legacy notifications were random, recipient-specific runtime records
@@ -42,8 +44,12 @@ avoids per-notification JetStream subject-index overhead.
 The stream is included in normal backups. It contains the authoritative
 90-day notification list, user triage, and pending alert work; excluding it
 would discard user-visible history and accepted delivery work at an arbitrary
-backup boundary. The stream and its durable consumer state are restored
-together.
+backup boundary. Backup captures `EVT`, then `RUNTIME_STATE`, then
+`NOTIFICATIONS`, including the durable consumer state owned by each stream.
+Because the materializer acknowledges an EVT source only after its notification
+output is durable, every captured source is either represented in the later
+`NOTIFICATIONS` snapshot or remains replayable from the restored materializer
+consumer position.
 
 ### Rich signals and exact identity
 
@@ -62,10 +68,10 @@ the recipient. The record
 references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
-`NotificationPreferenceCategory` remains a small enum because it is a stable preference
-key. It is not the notification payload. Future notification features, such as
-room invitations, add a rich signal branch and define their authorization,
-lifecycle, rendering, navigation, and delivery behavior.
+`NotificationPreferenceCategory` remains a small enum because it is a stable
+preference key. It is not the notification payload. Future notification
+features, such as room invitations, add a rich signal branch and define their
+authorization, lifecycle, rendering, navigation, and delivery behavior.
 
 One source fact may generate several notification signals for the same user.
 For example, one message may independently be a reply and a direct mention.
@@ -94,8 +100,8 @@ signal instead of applying the wrong policy or persisting a false cause; DM,
 reply, and follow signal kinds that remain independently knowable are still derived.
 Current writers populate `mentions` with every rich cause.
 
-The Notification Decisions projection consumes the compact EVT state needed
-for notification derivation: active accounts, room membership and kind,
+The EVT-backed Notification Decisions projection consumes the compact state
+needed for notification derivation: active accounts, room membership and kind,
 universal-room authorization, room-group layout, RBAC, notification policy,
 thread followers, and reply counts. Alongside its current read model it keeps a
 second in-memory evaluator at the durable worker's ordered position. Events
@@ -104,7 +110,9 @@ advances, so an exact boundary costs only the intervening facts rather than a
 copy of total server state. The materializer can therefore reconstruct state at
 the delivered EVT sequence even if live projections have advanced through
 later policy, membership, or follow changes. Persisted snapshots cannot restore
-or publish past the durable consumer's confirmed EVT floor.
+or publish past the materializer consumer's confirmed EVT floor. This cap is
+specific to the decision projection: the occurrence projection independently
+snapshots its own `NOTIFICATIONS` position and incarnation.
 
 The shared `chatto-notification-materializer-v1` durable consumer reads only
 existing domain-changing `EVT` facts. It derives deterministic occurrences at
@@ -116,6 +124,10 @@ Retraction, reaction removal, visibility loss, room deletion, and account
 deletion use their existing EVT facts to append notification dismissals. No
 notification-only event is added to `EVT`, and there is no notification work
 record in `RUNTIME_STATE`.
+
+The materializer uses `DeliverNew` for the Notifications 2.0 rollout boundary.
+It processes facts committed after its durable consumer was first established;
+legacy notifications and older retained EVT history are not backfilled.
 
 Current list and alert reads still fence the user, room, room-group-layout, and
 RBAC projections before treating a target as visible or absent. Persistent
@@ -132,8 +144,7 @@ stream position or current tail before reading it.
 
 Read appends an empty `NotificationRead` fact. It leaves the occurrence in the
 list and suppresses a pending Alert. Dismissal appends `NotificationRemoved`;
-after the
-projection has observed that tombstone, Chatto securely deletes the original
+after the projection has observed that tombstone, Chatto securely deletes the original
 rich `NotificationSignalled` record by stream sequence. The tombstone prevents
 materializer redelivery from recreating the item and contains no presentation
 content. Repeating either mutation is idempotent, and duplicate JetStream
@@ -189,11 +200,12 @@ revalidates policy, visibility, exact reaction/target existence, DND, and push
 subscription ownership.
 
 Only unread, pending, source-time `Alert` occurrences may contact a provider.
-The immutable delivery deadline is two minutes after source time. The worker
+The immutable delivery deadline is two minutes after source time. When a
+still-pending Alert reaches a delivery or suppression decision, the worker
 appends one `NotificationAlertResolved` fact carrying the terminal outcome
-before
-acknowledging. Redelivery is an ack-only no-op once the projected state is
-terminal. Provider delivery remains at least once: a crash after provider
+before acknowledging. A notification already made terminal by read, removal,
+or expiry needs no additional alert-resolution fact; redelivery is an ack-only
+no-op. Provider delivery remains at least once: a crash after provider
 acceptance but before the terminal fact commits can duplicate a push.
 
 ### Compatibility
@@ -203,9 +215,9 @@ boundary. Legacy notification records are neither migrated nor read. Retained
 legacy protobuf messages and old EVT variants remain decodable but current code
 does not write them.
 
-The public notification API is intentionally breaking relative to legacy and
-earlier unreleased Notifications 2.0 drafts. It exposes exact occurrences and
-rich signal oneofs; the bundled client owns presentation grouping. New signal
+The public notification API intentionally replaces the released legacy API. It
+exposes exact occurrences and rich signal oneofs; the bundled client owns
+presentation grouping. New signal
 branches are wire-additive after release, but a server must preserve and reject
 unsupported variants rather than guessing their visibility or deleting them.
 New top-level `NotificationEvent` lifecycle variants require a readers-first
@@ -230,5 +242,6 @@ unknown operation instead of accepting an empty replacement and advancing.
   redelivery idempotent.
 - Application expiry is deterministic even though JetStream cleanup is
   asynchronous.
-- One additional replicated file-backed stream and durable consumer add bounded
-  NATS cluster overhead.
+- One additional replicated file-backed stream and two durable consumers—the
+  EVT materializer and the notification Alert worker—add bounded NATS cluster
+  overhead.

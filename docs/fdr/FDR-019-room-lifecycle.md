@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -16,13 +16,18 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal with announcement-only posting defaults and `#general` as a normal channel room in the default Lobby group. Those posting defaults are an explicit trusted seed option; a user-created room merely named `announcements` receives ordinary permissions.
-- **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users should mute it instead. DMs cannot be Universal.
+- **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users can instead configure that room's notification policy. DMs cannot be Universal.
 - **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
 - **Ban member** — `room.ban-member` holders can ban a user from a channel room with a required reason and optional expiry. The banned user loses room read/write/live access immediately and cannot rejoin until the ban is removed or expires.
 - **Delete** — `room.manage` appends `RoomDeletedEvent` to `EVT`, releases the room from its group layout, and causes projections to remove the room from the catalog and memberships.
+- Leaving, removal, a room ban, loss of Universal eligibility, a group move, or
+  an RBAC change removes notification occurrences the user can no longer see.
+  Room deletion removes all occurrences targeting that room. A durable
+  visibility boundary prevents older queued activity from reappearing after a
+  quick regain of access.
 - Moving a room between groups requires `room.manage` in both groups (see FDR-017).
 
 ## Design Decisions
@@ -55,13 +60,14 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 **Decision:** Archiving doesn't kick anyone out. Members can still see the room if they navigate to it directly; they just can't find it through normal browse paths.
 **Why:** Forcibly leaving members would mean re-joining them on unarchive, which the membership system doesn't model. Keeping membership intact lets archive be reversible without ambiguity.
-**Tradeoff:** A user with a deep-link to an archived room can still post in it. In practice, archived rooms are usually emptied or muted first.
+**Tradeoff:** A user with a deep-link to an archived room can still post in it. In practice, archived rooms are usually emptied or have their notification policy reduced first.
 
 ### 6. Live layout updates broadcast on archive / unarchive
 
 **Decision:** Archive and unarchive both publish a `RoomLayoutUpdatedEvent` so all connected clients refresh the sidebar.
 **Why:** Without this, archiving a room would still show it in everyone's sidebar until they refresh. Live update keeps the visual state consistent across sessions.
-**Tradeoff:** One more event class to maintain. Fits cleanly into the existing live-event pattern (FDR-012's mechanism).
+**Tradeoff:** One more event class to maintain. It fits the authoritative
+realtime projection pattern in ADR-051.
 
 ### 7. Channel member bans use dedicated moderation events
 
@@ -110,5 +116,5 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Related
 
-- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-017 (Room Groups & Sidebar Layout)
+- **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout)

@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-10
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -16,6 +16,10 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 - Clicking the avatar or name in the byline opens the user's context menu.
 - If the user selects text inside a message body before choosing Reply or Reply in thread, the target composer inserts that selected plain text as a Markdown blockquote while preserving any existing draft text.
 - A thread is a sequence of messages starting from a root message and continuing inside a dedicated thread pane. Threads can contain plain messages or reply-attributed messages; both are valid.
+- Posting a reply attempts to follow the thread for its author, even after an
+  earlier unfollow. The first reply also attempts to follow the root author when
+  they have never made a follow choice. These post-commit subscription writes
+  are best-effort and cannot roll back the message.
 - When posting a root message in a channel room, an author with both root and thread posting permissions can choose **Post as thread**. The root is immediately marked as a thread and the author follows it, while the composer remains in the room timeline. The author or another member can open the empty thread from its thread link when they want to reply.
 - Posting an ordinary root message remains unchanged. If nobody explicitly establishes its thread, the first thread reply establishes one implicitly.
 - Thread badges in the room timeline are normal links to the thread URL, so users can copy or open the thread link through browser-native link actions.
@@ -34,8 +38,8 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 ### 2. Posting permissions are split by location only, not by reply attribution
 
 **Decision:** Two posting permissions: `message.post` (room timeline) and `message.post-in-thread` (inside a thread). Reply attribution (`inReplyTo`) is **not** separately gated — anyone who can post can reply.
-**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. A separate "can reply with attribution" gate was considered (and shipped in earlier versions as `message.reply`) but later removed: its only real effect was firing a reply-notification to the original author, which `@mention` under `message.post` already achieves. The matrix noise wasn't paying for a meaningful moderation surface.
-**Tradeoff:** Operators who genuinely wanted to disable reply attribution as a UI affordance can't do so via permissions. In practice nobody asked.
+**Why:** Operators want to express patterns like "everyone can reply in threads, but only certain roles can post root messages" — that's the room-vs-thread axis, which the two permissions cover. Reply attribution is message presentation and notification semantics, not a distinct posting location or moderation boundary. A reply may create its own notification occurrence independently of a direct mention in the same message; the recipient controls that reply cause through notification policy.
+**Tradeoff:** Operators who genuinely want to disable reply attribution as a UI affordance cannot do so through permissions. Recipients can suppress reply notifications without disabling the reply feature itself.
 
 ### 3. Reply attribution doesn't change storage
 

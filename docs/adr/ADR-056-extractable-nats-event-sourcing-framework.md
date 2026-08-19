@@ -2,6 +2,8 @@
 
 **Date:** 2026-07-30
 
+**Updated:** 2026-08-19
+
 ## Context
 
 [ADR-033](ADR-033-event-sourced-state-with-projections.md) deliberately chose a
@@ -35,7 +37,8 @@ NATS framework that may later move to a standalone repository.
 Framework-owned responsibilities are:
 
 - opaque-byte event-log reads, OCC-only publishing, and atomic append
-  mechanics;
+  mechanics, including duplicate-aware results and optional per-record broker
+  TTL;
 - stream positions and projection readiness barriers;
 - ordered consumer, replay, startup batching, and failure lifecycles;
 - bounded durable pull-worker execution over application-configured consumers,
@@ -70,10 +73,20 @@ parallel projection/projector arguments.
 
 `EncodedEventLog` is the envelope-neutral storage boundary. It owns NATS
 message-ID deduplication, OCC headers, atomic batches, stream positions, and
-opaque record reads. Chatto's `evtstream.Publisher` is the typed adapter that
+opaque record reads. A record may request physical broker expiry when the
+application-owned stream enables per-message TTL, but semantic expiry remains
+application policy enforced by projections and APIs. Atomic batches report a
+typed duplicate-ID failure so an application can fall back to idempotent
+single-record appends without losing a committed prefix.
+
+The framework is configured with a concrete JetStream stream; it does not
+assume that an application has only one event log or that the log is named
+`EVT`. Chatto's `evtstream.Publisher` is the typed adapter that
 validates `corev1.Event`, uses its stable ID, and protobuf-encodes or decodes at
-the boundary. This preserves the existing persisted bytes and lets the write
-mechanics evolve without knowing Chatto's event vocabulary.
+the primary domain boundary. `internal/notificationstream` independently adapts
+the bounded `corev1.NotificationEvent` envelope and `NOTIFICATIONS` stream
+through the same mechanics. Both adapters own their application-specific
+subjects, identities, validation, and retention policy.
 
 `NewDecodedProjector` is the matching envelope-neutral replay boundary.
 Applications supply an `EventDecoder[E]` and `EventProjection[E]`; the
@@ -98,20 +111,22 @@ Handlers must honor cancellation: the framework first cancels any outstanding
 pull, then stops heartbeats and schedules active-delivery redelivery just beyond
 the maximum pull lifetime so an orphaned server-side request cannot reclaim the
 handoff. It retains lifecycle ownership until those handlers return. Chatto's
-asset-processing runtime unit
-is the first production consumer and retains its existing durable consumer
-contract.
+asset-processing runtime unit was the first production consumer and retains its
+existing durable consumer contract. The notification materializer and
+notification Alert worker now exercise the same framework against `EVT` and
+`NOTIFICATIONS`, respectively.
 
-Chatto owns its versioned EVT incarnation format and the
-`chatto.evt.incarnation` stream metadata through `internal/evtstream`.
-Composition passes Chatto's resolver into snapshot and checkpoint
-configuration. At restore time the projector invokes it with the same fresh
-`StreamInfo` used for sequence bounds, preventing an old identity from being
-combined with a recreated stream's bounds. The projector and snapshot
-repository require only a non-empty opaque result and never impose Chatto's
-metadata key or identity syntax. Snapshot capture carries the identity bound to
-that projector run alongside its state and cutoff; application publication
-does not maintain a second identity value.
+Chatto owns a versioned incarnation format for each application event log:
+`chatto.evt.incarnation` through `internal/evtstream` and
+`chatto.notifications.incarnation` through `internal/notificationstream`.
+Composition passes the matching resolver into each projector's snapshot and
+checkpoint configuration. At restore time the projector invokes it with the
+same fresh `StreamInfo` used for sequence bounds, preventing an old identity
+from being combined with a recreated stream's bounds. The projector and
+snapshot repository require only a non-empty opaque result and never impose a
+Chatto metadata key or identity syntax. Snapshot capture carries the identity
+bound to that projector run alongside its state and cutoff; application
+publication does not maintain a second identity value.
 
 The framework is exposed as the independently versioned incubation module
 `hmans.de/chatto/pkg/events`, so code outside Chatto's module can compile and
@@ -167,9 +182,9 @@ on any Chatto production package: its production imports are
 limited to the Go standard library and `nats.go`. It privately classifies the
 JetStream wrong-last-sequence errors needed to preserve `ErrConflict` rather
 than depending on Chatto's application-wide JetStream helpers. Generic
-projection replay can use another application envelope without changing the
-ordered lifecycle, while `internal/evtstream` keeps Chatto's storage contract
-explicit and unchanged.
+projection replay can use another application envelope or another log in the
+same application without changing the ordered lifecycle, while Chatto's typed
+adapters keep each storage contract explicit.
 
 The external consumer contract proves live OCC publication, read-your-writes
 waiting, conflict reporting, projector shutdown, and cold replay through the

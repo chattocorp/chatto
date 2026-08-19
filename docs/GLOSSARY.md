@@ -76,7 +76,7 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Notification Group** — Client-side presentation row that combines related notification occurrences by conversation or target while retaining their exact underlying activity and jump targets. It is not a server-side resource. See [ADR-077](adr/ADR-077-persistent-notification-list.md).
 
-**Delivery Intensity** — Per-cause notification preference with one of three effective values: Off, Badge, or Alert. See [FDR-012](fdr/FDR-012-notifications.md).
+**Notification Delivery Mode** — Per-cause notification preference with one of three effective values: Off, Badge, or Alert. See [FDR-012](fdr/FDR-012-notifications.md).
 
 **Asset** — An uploaded or generated file stored by Chatto; it may exist before or independently of a message. See [FDR-008](fdr/FDR-008-file-attachments-and-video.md).
 
@@ -156,7 +156,7 @@ Infrastructure jargon. If only contributors say the word, it goes here.
 
 **Outcome** — Loom term for reliable asynchronous work caused by a committed event and performed by a durable worker, such as sending an email or updating another system. See [ADR-073](adr/ADR-073-define-the-loom-architecture.md).
 
-**Notification Occurrence** — Projected current state of one exact recipient-specific notification signal and its Read, Dismissed, and alert-delivery lifecycle. Identity is deterministic per recipient, source event, and policy kind. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
+**Notification Occurrence** — Projected current state of one exact recipient-specific notification signal. It is Unread or Read until deletion or expiry removes it; minimal lifecycle facts prevent dismissed activity from being recreated. Identity is deterministic per recipient, source event, and signal kind. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
 
 **Notification Signal** — Immutable event-shaped notification cause whose protobuf variant owns its exact destination and cause-specific data. Signals live in the bounded `NOTIFICATIONS` event stream rather than permanent `EVT`. See [ADR-076](adr/ADR-076-deterministic-notification-occurrences.md).
 

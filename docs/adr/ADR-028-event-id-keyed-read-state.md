@@ -2,13 +2,13 @@
 
 **Date:** 2026-05-06
 
-**Updated:** 2026-07-27
+**Updated:** 2026-08-19
 
 **Status:** Accepted
 
 **Tracking issue:** [#330](https://github.com/chattocorp/chatto/issues/330)
 
-**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md)
+**Related:** [ADR-026](ADR-026-event-identity-via-nanoid.md), [ADR-027](ADR-027-instance-space-server-consolidation.md), [ADR-029](ADR-029-instance-to-server-rename.md), [ADR-030](ADR-030-space-tier-retirement.md), [ADR-076](ADR-076-deterministic-notification-occurrences.md)
 
 **Naming note:** This ADR was written during the consolidation work and refers to subjects like `space.{s}.room.{r}.msg.*` and the legacy `SPACE_{id}_RUNTIME` KV bucket. Post-ADR-029/030, the subject became `server.room.{kind}.{roomId}.msg.*`; post-#596 read markers live in `RUNTIME_STATE` as `read.room.{userId}.{roomId}`. The core event-ID keying decision is unchanged.
 
@@ -58,6 +58,17 @@ retrying. Membership and DM initialization use create-only writes so delayed
 initialization cannot replace a newer user-facing marker. No watcher belongs to
 an API request or WebSocket connection.
 
+### Notification read-boundary handshake
+
+Room and thread reads also cover matching notification occurrences. Because the
+read marker lives in `RUNTIME_STATE` while notification lifecycle facts live in
+the separate bounded `NOTIFICATIONS` event stream, the write first persists a
+bounded notification read boundary in `RUNTIME_STATE`, then appends the covered
+`NotificationRead` facts. A process-wide watcher gates startup and local
+read-your-writes for these boundaries. Background repair replays unfinished
+boundaries, so a crash between the two writes cannot leave covered occurrences
+permanently unread. See ADR-076.
+
 ## Consequences
 
 - **Phase 4 of #330 doesn't have to translate read state.** Event IDs are stream-renumber-proof; the bulk stream copy doesn't touch the read-state bucket. Legacy `room_read_status.*` entries can be deleted at any time (or never — they're tiny). Caveat: if Phase 4 ends up dropping and recreating the per-space RUNTIME KV bucket (rather than just renumbering the stream), all `room_read_event.*` markers go with it and every user becomes a deploy-era user under the lazy-init semantics above. That's likely tolerable but worth noting in the Phase 4 plan.
@@ -70,3 +81,6 @@ an API request or WebSocket connection.
 - **Auto-mark on `PostMessage` for thread replies looks up the room's last root event** (one extra subject lookup per thread-reply auto-mark) so the marker always points to a real root event ID. Previously this worked by accident because seqs are linear across root and thread events; with event IDs, we have to be explicit. Whether thread replies should dismiss room-level unread *at all* is a separate question for a future ADR.
 - **Lazy init can silently swallow messages that arrived between deploy and a user's first post-deploy read.** Documented above; accepted.
 - **API contract is unchanged.** `MarkRoomAsReadResult` still returns `lastReadAt` and `previousLastReadAt` times — the same shape the frontend already consumed under ADR-026.
+- **Room and thread reads cross a bounded log boundary.** The durable
+  read-boundary handshake makes notification reconciliation retryable without
+  moving read cursors or notification work into permanent domain history.

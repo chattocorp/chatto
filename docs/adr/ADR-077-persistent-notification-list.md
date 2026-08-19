@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-10
 
+**Updated:** 2026-08-19
+
 ## Context
 
 The legacy model equates a notification record with pending unread attention.
@@ -58,10 +60,12 @@ through listing or realtime without scanning pages.
 
 Each occurrence carries one rich `NotificationSignal` oneof branch, including
 its exact destination and any cause-specific data such as reaction emoji. New
-signal kinds can be added as protobuf oneof branches. Older clients retain an
-unsupported occurrence as a generic, non-navigating row with exact read/delete
-identity instead of guessing navigation or hiding its badge. Each new variant
-requires its own visibility and lifecycle behavior. The API does not hydrate or
+signal kinds can be added as protobuf oneof branches. An older client receiving
+a newer public signal retains it as a generic, non-navigating row with exact
+read/delete identity instead of guessing navigation or hiding its badge. An
+older server that cannot validate a stored signal fails the affected operation
+with `UNIMPLEMENTED` rather than guessing visibility or mutating it. Each new
+variant requires its own visibility and lifecycle behavior. The API does not hydrate or
 return message excerpts; clients render concise descriptions from signal,
 actor, room, and cause-specific metadata.
 
@@ -98,9 +102,11 @@ activity for the same target. The list does not show a redundant `1` counter.
 The bell, server indicator, and room indicators use exact unread occurrence
 counts and exact Important subsets. They remain present for Ambient-only
 activity but turn notification orange whenever at least one Important item is
-unread. Installed-app and push app badges continue to count every unread
-occurrence. Presentation consolidation never changes these counts: two unread
-DMs in one displayed row still count as two.
+unread. The installed app aggregates exact unread counts from all authenticated
+servers currently loaded by the client. A declarative push can carry only its
+origin server's exact unread count while the app is suspended. Presentation
+consolidation never changes either count: two unread DMs in one displayed row
+still count as two.
 
 ### Read state and policy remain separate
 
@@ -115,7 +121,7 @@ iteration and is not inferred from delivery mode.
 
 ### Reconciliation and visibility
 
-Before list/realtime assembly and mark-read, the server fences the notification
+Before occurrence reads, realtime assembly, and every read/delete mutation, the server fences the notification
 materializer, notification projection, and the recipient, room, group-layout,
 and RBAC projections used to validate current visibility. Retracted targets,
 removed reactions, and inaccessible rooms are dismissed before they can be

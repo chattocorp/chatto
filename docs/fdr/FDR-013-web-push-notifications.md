@@ -1,11 +1,11 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-18
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
-Users can opt in to receive notifications through the browser's W3C Web Push system, so they get pinged for DMs, mentions, and replies even when the Chatto tab isn't open. Push is opt-in per device, requires operator configuration (VAPID keys), and piggybacks on the persistent notification system (see FDR-012).
+Users can opt in to receive notifications through the browser's W3C Web Push system, so Alert-eligible notification activity can reach them even when the Chatto tab is not open. Push is opt-in per device, requires operator configuration (VAPID keys), and piggybacks on the persistent notification system (see FDR-012).
 
 ## Behavior
 
@@ -35,7 +35,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 1. Piggyback on persistent notifications
 
-**Decision:** A push fires only for a committed notification signal whose source-time delivery mode is Alert.
+**Decision:** A committed notification signal is eligible to produce a push only when its source-time delivery mode is Alert. Delivery-time validation may still suppress it.
 **Why:** Two parallel decision trees would inevitably diverge. One persisted policy decision and occurrence eliminate that bug class. See FDR-012.
 **Tradeoff:** No way to push without also creating an in-app notification. Considered a feature, not a limitation: a push you can't find later in the app would be confusing.
 
@@ -119,9 +119,13 @@ Existing stored endpoints receive the same checks when used. Accounts can keep a
 
 ## Permissions
 
-No Chatto-side permission gates push. The OS and browser permissions are the only user-facing gates; Chatto's stored subscriptions are a refreshed delivery cache.
+There is no dedicated RBAC permission for Web Push. The OS/browser permission
+and device subscription are the user-facing opt-in gates. Regular delivery also
+requires a currently visible, unread, pending Alert occurrence within its
+deadline, current notification policy and DND eligibility, an existing target,
+and a subscription still owned by the recipient.
 
 ## Related
 
 - **ADRs:** ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications)
+- **FDRs:** FDR-006 (@Mentions), FDR-012 (Notifications), FDR-027 (PWA & Service Worker)

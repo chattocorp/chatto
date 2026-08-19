@@ -2,6 +2,7 @@
 
 - **Status**: Accepted
 - **Date**: 2026-05-11
+- **Updated**: 2026-08-19
 - **Related**: [ADR-027: Instance/Space/Server Consolidation](ADR-027-instance-space-server-consolidation.md), [ADR-029: Rename `Instance` → `Server`](ADR-029-instance-to-server-rename.md), [ADR-015: DMs as a hidden space](ADR-015-dms-as-hidden-space.md)
 
 ## Context
@@ -21,7 +22,7 @@ The Space tier is therefore *behaviourally* retired, but its mechanical residue 
 
 3. **DMs still have legacy hidden-space residue at the wire boundary.** ADR-015's "hidden DM space" predates the room-`kind` discriminator. With the `kind` field now baked into KV keys and NATS subjects, the DM scope is determined by `kind == "dm"` directly; the old `space_id = "DM"` value only survives where persisted payloads or compatibility APIs still carry a `space_id` field.
 
-4. **Proto layer is partially renamed.** The durable server-membership deletion event has been corrected to `ServerMemberDeletedEvent` while preserving field 320. Live deployment-scoped config changes use `ServerUpdatedEvent`; unused `ServerCreatedEvent` / `ServerDeletedEvent` live proto messages were removed during the 0.1 protobuf cleanup. `SpaceUserPreferences` (used by notification levels) and the bare `Space` / `SpaceMembership` messages share the remaining naming legacy.
+4. **Proto layer is partially renamed.** The durable server-membership deletion event has been corrected to `ServerMemberDeletedEvent` while preserving field 320. Live deployment-scoped config changes use `ServerUpdatedEvent`; unused `ServerCreatedEvent` / `ServerDeletedEvent` live proto messages were removed during the 0.1 protobuf cleanup. The bare `Space` / `SpaceMembership` messages and the legacy `SpaceUserPreferences` notification shape share the remaining naming residue. Notifications 2.0 no longer reads or writes that legacy preference model; see ADR-076.
 
 The cost of leaving this in place is paid every time someone reads the code: a new contributor sees a `spaceID` parameter and assumes the codebase is multi-space, which it isn't. The cost of removing it is one focused refactor.
 

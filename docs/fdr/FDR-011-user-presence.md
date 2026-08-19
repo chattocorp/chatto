@@ -1,7 +1,7 @@
 # FDR-011: User Presence
 
 **Status:** Active
-**Last reviewed:** 2026-08-03
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -28,7 +28,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 **Decision:** A user has one presence status across all spaces/rooms in a server.
 **Why:** Anything else is confusing — "I'm online in #design but away in #engineering" doesn't match how presence works in any other chat tool. Per-server matches the user's actual session.
-**Tradeoff:** Users can't selectively appear online for some rooms. They can mute rooms for notification purposes (see FDR-012) but not for presence.
+**Tradeoff:** Users cannot selectively appear online for some rooms. They can configure per-cause notification delivery for a room (see FDR-012), but not per-room presence.
 
 ### 2. Offline is inferred, not stored
 
@@ -50,7 +50,7 @@ Every user has a presence status visible to others as a colored dot on their ava
 
 ### 5. DND is live user state
 
-**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it silences notification sounds and web push delivery without dropping the underlying notification records. Durable custom statuses live separately as user profile metadata (FDR-022).
+**Decision:** Do Not Disturb is a live presence status for the user, not durable account state. It expires with presence and is not backed up or replayed from EVT. While present, it suppresses notification sounds and Web Push at delivery time without dropping, downgrading, or rewriting the source-time delivery mode of underlying notification occurrences. Durable custom statuses live separately as user profile metadata (FDR-022).
 **Why:** Presence controls notification routing and "right now" UI hints. Persisting it as domain/account history would overstate its meaning, while custom statuses communicate user-authored profile context without changing availability.
 **Tradeoff:** The UI has two adjacent concepts: live presence dot and durable custom status. They deliberately answer different questions.
 

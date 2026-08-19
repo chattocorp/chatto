@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-08-11
+**Last reviewed:** 2026-08-19
 
 ## Overview
 
@@ -15,8 +15,8 @@ the message body.
 - Typing `@` followed by at least one character opens the autocomplete popup in the composer.
 - Matching is fuzzy against room-member logins, room-member display names, the virtual handles `all` and `here`, and pingable role names. Prefix matches rank higher than substring matches.
 - Pressing Enter confirms the highlighted autocomplete result and appends a space. Pressing Tab completes the first match, appends a space, and pressing Tab again cycles to the next candidate.
-- `@username` mentions notify that user if they are a current room member. Universal room implicit members count as room members.
-- Pingable `@role` mentions notify current room members who are explicitly assigned that role. Universal room implicit members count as room members.
+- `@username` mentions select that user when they are a current room member. Universal room implicit members count as room members; notification policy still decides whether to create an occurrence.
+- Pingable `@role` mentions select current room members who are explicitly assigned that role. Universal room implicit members count as room members; each recipient's policy still applies.
 - `@owner` and `@admin` are ordinary role handles but are not pingable by default, so they do not appear in autocomplete and do not notify unless an operator explicitly enables them.
 - Fresh servers seed the `moderator` role as pingable. It remains an explicit role ping: it reaches users assigned to `moderator`, not admins or owners unless those users also have the `moderator` role.
 - `@all` mentions every current room member, regardless of presence.
@@ -29,7 +29,7 @@ the message body.
 - The bundled composer asks for confirmation before sending a message that
   mentions any role or room-wide virtual handle (`@all` or `@here`).
 - Mentions are resolved when a message is first posted. Editing a message later does not add, remove, dismiss, or re-send mention notifications.
-- A delivered direct `@username` mention inside a thread automatically follows that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
+- A delivered direct `@username` mention inside a thread attempts to follow that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
 
 ## Design Decisions
 
@@ -86,9 +86,13 @@ item.
 
 ### 8. Direct thread mentions can subscribe the recipient
 
-**Decision:** When a direct `@username` mention is delivered inside a thread, Chatto writes a thread-follow event for the mentioned user only if they have no prior follow state for it. An explicit unfollow suppresses mention-driven re-follow, but the mention notification is still created when normal notification rules allow it.
+**Decision:** When a direct `@username` mention is delivered inside a thread, Chatto attempts a post-commit thread-follow event for the mentioned user only if they have no prior follow state for it. An explicit unfollow suppresses mention-driven re-follow, but the mention notification is still created when normal notification rules allow it.
 **Why:** A direct thread mention usually means the thread now concerns the recipient, so it should appear in My Threads by default. An explicit unfollow is a stronger preference and should not be undone by someone else's later mention.
-**Tradeoff:** Broadcast and role mentions do not populate My Threads for every recipient; authors who need someone to track a thread should mention that user directly.
+**Tradeoff:** The follow write is best-effort after the source message commits,
+so a transient failure can omit the subscription without losing the message or
+mention notification. Broadcast and role mentions do not populate My Threads
+for every recipient; authors who need someone to track a thread should mention
+that user directly.
 
 ### 9. Role and room-wide sends use client-side confirmation
 
@@ -97,8 +101,11 @@ mentions a role or the room-wide virtual handles `@all` or `@here`. The prompt
 is client-side only; the public `MessageService.CreateMessage` API posts
 authorized messages directly and does not issue or require a mention
 confirmation token. Notification fanout is still resolved server-side at post
-time after deduplication, excluding the author, excluding users muted for the
-room, and applying room-membership constraints.
+time after deduplication, excluding the author, applying effective membership,
+and suppressing each cause that resolves to Off for that recipient and room.
+Multiple matching role handles for one recipient produce one role-mention
+occurrence that retains the matching handles; direct, role, `@here`, and `@all`
+remain distinct causes.
 **Why:** Role and room-wide mentions are useful operational tools, but accidental broad pings are costly. Confirmation preserves the feature while catching the common "I did not realize this reaches everyone" mistake.
 **Tradeoff:** Integrators are responsible for their own UX friction when they
 expose role or room-wide mention sending, while the bundled client keeps the

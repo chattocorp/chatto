@@ -158,8 +158,9 @@ message tombstone. Canonical reply deletion marks the corresponding echo
 upsert as a retained deleted row so it remains a tombstone rather than taking
 the direct-echo deletion path.
 
-Notification occurrences and room/thread read markers include latest-value state
-outside EVT. Every subscription therefore re-emits the viewer resource, every
+Notification occurrences are projected from the bounded `NOTIFICATIONS` event
+log, while room/thread read markers are latest-value state outside `EVT`.
+Every subscription therefore re-emits the viewer resource, every
 visible room's viewer state, the complete followed-thread viewer-state set,
 the finite notification occurrence page with exact unread and per-room occurrence
 counts, and directory presence before `caught_up`.
@@ -190,11 +191,11 @@ Authenticated server presentation and runtime settings are canonical client
 state. They are therefore included in the compacted prefix and replaced by a
 projection operation after server updates; the client does not bootstrap or
 refresh them through a separate ConnectRPC read. Typing, presence transitions,
-attention hints, and session termination remain non-replayable envelopes on the
-same WebSocket; presence additionally has the finite convergence operation
-described above. Notification create/dismiss signals, viewer preferences,
-thread follow/read state, and profile changes instead assemble authoritative
-projection operations. A notification replacement may include optional
+and session termination remain non-replayable envelopes on the same WebSocket;
+presence additionally has the finite convergence operation described above.
+Notification lifecycle invalidations, viewer preferences, thread follow/read
+state, and profile changes instead assemble authoritative projection
+operations. A notification replacement may include optional
 live-only transition metadata for presentation effects such as sounds; replay
 and finite reconciliation omit it. Active call state is canonical and uses
 `active_calls_replace` in the compacted prefix and after durable call
@@ -216,8 +217,8 @@ reaction, room, thread-creation, custom-status, asset, call, notification,
 viewer-preference, thread-follow/read, server-layout, or member-removal
 alternatives; their former field numbers and names are reserved. Integrators
 migrate those handlers to `RealtimeProjectionEvent` operations and retain the
-envelope only for non-replayable signals: typing, presence, mention/new-DM
-attention hints, and session termination.
+envelope only for non-replayable signals: typing, presence, and session
+termination.
 
 `user_remove` purges the directory resource and every copied render reference
 to that user in retained membership, timeline includes, notification actors,
@@ -285,7 +286,7 @@ clients from repeatedly forcing timeline assembly and PII decryption.
 Ordinary message delivery refreshes only the room's lightweight viewer state
 (including unread state), not its notification count, metadata, or complete
 membership list. Notification counts converge independently through
-notification signals and resume reconciliation. Room selection remains a pure
+notification lifecycle invalidations and resume reconciliation. Room selection remains a pure
 rendering concern after that room's first hydration, even after live rows have
 rolled through the capped window.
 
