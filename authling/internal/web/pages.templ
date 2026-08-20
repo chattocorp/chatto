@@ -128,6 +128,50 @@ templ passwordResetCompletePage() {
 	}
 }
 
+templ emailChangePage(message string) {
+	@layout("Change your email address") {
+		<h1 class="text-3xl font-semibold tracking-tight">Change your email address</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password, then verify the new address. This signs out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/email">
+			<label class="block"><span class="font-medium">New email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<label class="block"><span class="font-medium">Current password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Email me a change code</button>
+		</form>
+	}
+}
+
+templ emailChangeCodePage(flow, message string) {
+	@layout("Verify your new email address") {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your new email address</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/email/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			<label class="block"><span class="font-medium">Email change code</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" autofocus required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Verify code</button>
+		</form>
+	}
+}
+
+templ emailChangeConfirmPage(flow, message string) {
+	@layout("Confirm your email change") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your new email address is verified</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Confirming will change your sign-in address and sign out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8" method="post" action="/account/email/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Change email address</button>
+		</form>
+	}
+}
+
 templ consentPage(request oidcprovider.ConsentRequest) {
 	@layout("Authorize access") {
 		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
@@ -199,13 +243,20 @@ templ accountCreatedPage(accountID string) {
 	}
 }
 
-templ accountPage(accountID string) {
+templ accountPage(accountID string, emailChanged, notificationFailed bool) {
 	@layout("Your Authling account") {
 		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Signed in</p>
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
+		if emailChanged {
+			<p role="status" class="mt-5 rounded-xl bg-green-50 p-4 text-green-900 dark:bg-green-950 dark:text-green-100">Your email address was changed. Use your new email address the next time you sign in.</p>
+		}
+		if notificationFailed {
+			<p role="alert" class="mt-5 rounded-xl bg-amber-50 p-4 text-amber-900 dark:bg-amber-950 dark:text-amber-100">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>
+		}
 		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
-		<form class="mt-8" method="post" action="/logout">
+		<a class="mt-8 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" href="/account/email">Change email address</a>
+		<form class="mt-3" method="post" action="/logout">
 			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit">Sign out</button>
 		</form>
 	}

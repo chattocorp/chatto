@@ -16,6 +16,7 @@ import (
 	"github.com/a-h/templ"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
+	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/passwordreset"
 	"hmans.de/authling/internal/registration"
@@ -39,6 +40,7 @@ type Dependencies struct {
 	Authentication *authentication.Service
 	Registration   *registration.Service
 	PasswordReset  *passwordreset.Service
+	EmailChange    *emailchange.Service
 	Sessions       *sessions.Service
 	OIDC           *oidcprovider.Service
 	SecureCookies  bool
@@ -291,7 +293,133 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		render(w, r, http.StatusOK, accountPage(account.ID))
+		emailChanged := r.URL.Query().Get("email_changed") == "1"
+		render(w, r, http.StatusOK, accountPage(account.ID, emailChanged, emailChanged && r.URL.Query().Get("email_notice_failed") == "1"))
+	})
+	mux.HandleFunc("GET /account/email", func(w http.ResponseWriter, r *http.Request) {
+		if _, err := authenticatedAccount(r, deps); errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		} else if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		render(w, r, http.StatusOK, emailChangePage(""))
+	})
+	mux.HandleFunc("POST /account/email", func(w http.ResponseWriter, r *http.Request) {
+		if deps.EmailChange == nil {
+			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		if err := r.ParseForm(); err != nil {
+			render(w, r, http.StatusBadRequest, emailChangePage("Invalid form submission."))
+			return
+		}
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		flow, err := deps.EmailChange.Start(r.Context(), account.ID, r.FormValue("password"), r.FormValue("email"))
+		switch {
+		case errors.Is(err, emailchange.ErrInvalidEmail), errors.Is(err, accounts.ErrEmailUnchanged):
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage(err.Error()))
+			return
+		case errors.Is(err, accounts.ErrInvalidCredentials):
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage("The current password is incorrect."))
+			return
+		case err != nil:
+			render(w, r, http.StatusServiceUnavailable, emailChangePage("We couldn't send an email change code. Please try again later."))
+			return
+		}
+		render(w, r, http.StatusOK, emailChangeCodePage(flow, ""))
+	})
+	mux.HandleFunc("POST /account/email/verify", func(w http.ResponseWriter, r *http.Request) {
+		if deps.EmailChange == nil {
+			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		flow := r.FormValue("flow")
+		if err := deps.EmailChange.Verify(r.Context(), account.ID, flow, r.FormValue("code")); err != nil {
+			render(w, r, http.StatusUnprocessableEntity, emailChangeCodePage(flow, emailchange.ErrInvalidCode.Error()))
+			return
+		}
+		render(w, r, http.StatusOK, emailChangeConfirmPage(flow, ""))
+	})
+	mux.HandleFunc("POST /account/email/complete", func(w http.ResponseWriter, r *http.Request) {
+		if deps.EmailChange == nil {
+			http.Error(w, "email change unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		flow := r.FormValue("flow")
+		completion, err := deps.EmailChange.Complete(r.Context(), account.ID, flow)
+		if errors.Is(err, emailchange.ErrInvalidFlow) {
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage("We couldn't change that email address. Start again."))
+			return
+		}
+		if err != nil {
+			render(w, r, http.StatusServiceUnavailable, emailChangeConfirmPage(flow, "We couldn't change your email address. Please try again."))
+			return
+		}
+		if err := establishSession(w, r, deps, completion.Account.ID); err != nil {
+			clearSessionCookie(w, deps.SecureCookies)
+			http.Error(w, "email changed, but a new session could not be established", http.StatusServiceUnavailable)
+			return
+		}
+		target := "/account?email_changed=1"
+		if completion.OldAddressNotificationFailed {
+			target += "&email_notice_failed=1"
+		}
+		redirect(w, r, target)
 	})
 	mux.HandleFunc("POST /logout", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Sessions == nil {

@@ -165,6 +165,66 @@ func (p *Publisher) AppendPasswordResetRequested(
 	return events.SubjectPosition(subject, sequence), nil
 }
 
+// AppendEmailChangeRequested records successful reauthentication for an email
+// change at an explicitly observed account tail.
+func (p *Publisher) AppendEmailChangeRequested(
+	ctx context.Context,
+	event *corev1.Event,
+	expectedTail uint64,
+) (events.StreamPosition, error) {
+	payload := event.GetEmailChangeRequested()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append email change requested: event payload is not email_change_requested")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
+// AppendEmailChanged atomically stages an encrypted replacement address on the
+// account aggregate and activates its PII-free global claim.
+func (p *Publisher) AppendEmailChanged(
+	ctx context.Context,
+	changeEvent, claimEvent *corev1.Event,
+	expectedAccount, expectedRegistry uint64,
+) (events.StreamPosition, error) {
+	change := changeEvent.GetEmailChanged()
+	claim := claimEvent.GetEmailClaimed()
+	if change == nil || claim == nil || change.GetAccountId() != claim.GetAccountId() || claim.GetCredentialEventId() != changeEvent.GetId() {
+		return events.StreamPosition{}, fmt.Errorf("append email changed: matching email_changed and email_claimed payloads are required")
+	}
+	accountSubject, err := AccountSubject(change.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	changeRecord, err := encode(changeEvent)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	claimRecord, err := encode(claimEvent)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequences, err := p.log.AppendBatch(ctx, []events.EncodedBatchEntry{
+		{Subject: accountSubject, Record: changeRecord, ExpectedSeq: expectedAccount, HasOCC: true},
+		{Subject: accountRegistrySubject, Record: claimRecord, ExpectedSeq: expectedRegistry, HasOCC: true},
+	})
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(accountRegistrySubject, sequences[1]), nil
+}
+
 // AppendIssuerEstablished creates the singleton issuer aggregate.
 func (p *Publisher) AppendIssuerEstablished(ctx context.Context, event *corev1.Event) (events.StreamPosition, error) {
 	if event.GetIssuerEstablished() == nil {
@@ -233,6 +293,9 @@ func validate(event *corev1.Event) error {
 		if !validSubjectToken(payload.EmailClaimed.GetAccountId()) {
 			return fmt.Errorf("invalid account id")
 		}
+		if credentialEventID := payload.EmailClaimed.GetCredentialEventId(); credentialEventID != "" && !validSubjectToken(credentialEventID) {
+			return fmt.Errorf("email claim credential event id is invalid")
+		}
 	case *corev1.Event_PasswordChanged:
 		credential := payload.PasswordChanged
 		if !validSubjectToken(credential.GetAccountId()) || credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetPasswordVerifierNonce()) == 0 || len(credential.GetPasswordVerifierCiphertext()) == 0 {
@@ -245,6 +308,16 @@ func validate(event *corev1.Event) error {
 		request := payload.PasswordResetRequested
 		if !validSubjectToken(request.GetAccountId()) || !validSubjectToken(request.GetCredentialEventId()) {
 			return fmt.Errorf("password reset request is incomplete")
+		}
+	case *corev1.Event_EmailChangeRequested:
+		request := payload.EmailChangeRequested
+		if !validSubjectToken(request.GetAccountId()) || !validSubjectToken(request.GetCredentialEventId()) {
+			return fmt.Errorf("email change request is incomplete")
+		}
+	case *corev1.Event_EmailChanged:
+		credential := payload.EmailChanged
+		if !validSubjectToken(credential.GetAccountId()) || credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetEmailNonce()) == 0 || len(credential.GetEmailCiphertext()) == 0 || !validSubjectToken(credential.GetEmailChangeRequestEventId()) || !validSubjectToken(credential.GetPriorCredentialEventId()) {
+			return fmt.Errorf("email credential envelope is incomplete or unsupported")
 		}
 	case *corev1.Event_IssuerEstablished:
 		if payload.IssuerEstablished.GetIssuer() == "" || payload.IssuerEstablished.GetSigningKeyRef() == "" || payload.IssuerEstablished.GetSigningKeyId() == "" {

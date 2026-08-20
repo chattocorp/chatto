@@ -11,10 +11,10 @@ storage, starts every required projection, waits for startup replay, starts the
 HTTP listener, and then runs until its process context is cancelled.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
-consent, account, and logout pages plus embedded browser assets. It also
-exposes OpenID Connect discovery, authorization, token, UserInfo, and JWKS
-endpoints. Authling exposes no public account-management, application-data,
-document, or synchronization API.
+verified email-change, consent, account, and logout pages plus embedded browser
+assets. It also exposes OpenID Connect discovery, authorization, token,
+UserInfo, and JWKS endpoints. Authling exposes no public account-management,
+application-data, document, or synchronization API.
 
 ## Configuration
 
@@ -76,7 +76,7 @@ storage-path, logging, and deployment policy.
 | Resource | Kind | Storage | Subjects | Purpose |
 |----------|------|---------|----------|---------|
 | `AUTHLING_EVT` | Stream | File, S2-compressed | `authling.evt.>` | Authoritative Authling event history |
-| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
+| `AUTHLING_RUNTIME_STATE` | KV bucket | File, history 1 | Opaque HMAC-derived keys | Encrypted signup, password-reset, email-change, session, OIDC request, code, and access-token state, plus bounded delivery and login-attempt counters |
 | `AUTHLING_KEYS` | KV bucket | File, history 1 | Opaque key references | Workflow, OIDC signing, user, and wrapped credential data keys |
 
 `AUTHLING_EVT` enables JetStream atomic publication for future multi-event
@@ -98,7 +98,9 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 | `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID and envelope creation time |
 | `PasswordResetRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-event IDs; the envelope ID identifies the audit request |
 | `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, and optional reset-request references plus the replacement encrypted password verifier |
-| `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account ID only |
+| `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
+| `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
+| `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 
 The account ID is restricted to one NATS-safe token. Structural account
@@ -118,9 +120,13 @@ opaque key references, but neither plaintext email nor plaintext password
 verifiers. Password-reset requests validate their account and credential
 binding without adding derived model state. Password changes replace the
 current encrypted verifier and advance a durable account authentication
-version. Local authentication resolves and decrypts a verifier only for one
-bounded Argon2id comparison; absent accounts resolve a persistent synthetic key
-hierarchy and encrypted dummy verifier through the same storage path.
+version. Email-change requests likewise validate without adding model state.
+An email-change account event stages its encrypted replacement; the adjacent
+correlated registry event swaps the active digest and credential and advances
+the authentication version. Local authentication resolves and decrypts a
+verifier only for one bounded Argon2id comparison; absent accounts resolve a
+persistent synthetic key hierarchy and encrypted dummy verifier through the
+same storage path.
 
 The runtime does not become ready until the projection has replayed its captured
 startup history. A decode or apply failure fails the projection and runtime.
@@ -165,9 +171,9 @@ Session records are authenticated-encrypted in runtime state beneath
 HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
 inactivity limit. Activity updates use OCC and never extend the absolute
 deadline. Each session records the account authentication version current at
-issuance. A password reset advances that durable version, invalidating every
-older session across replicas and restarts. Logout deletes the server record
-before clearing the cookie.
+issuance. Password reset and verified email change advance that durable
+version, invalidating every older session across replicas and restarts. Logout
+deletes the server record before clearing the cookie.
 
 `GET /password-reset` starts verified-email recovery. Three POST endpoints
 create an expiring flow, verify its six-digit code, and commit a new password.
@@ -181,6 +187,19 @@ newer password while tolerating intervening request-audit appends. Successful
 completion links `PasswordChangedEvent` to the request event, preserves the
 account ID and email claim, creates a new browser session, and can resume an
 interrupted OIDC consent request.
+
+`GET /account/email` requires a valid browser session and renders signed-in
+email change. Three POST endpoints reauthenticate the current password, verify
+a six-digit code delivered to the requested address, and confirm completion.
+`EmailChangeRequestedEvent` commits before flow creation or delivery and stores
+no address. The encrypted flow binds both addresses and the requested change to
+the reauthenticated credential. Completion atomically appends an encrypted
+`EmailChangedEvent` and PII-free correlated `EmailClaimedEvent` under account
+and registry OCC. The old address remains authoritative until that batch
+commits; afterward Authling advances the durable authentication version,
+creates a fresh completing session, and attempts a best-effort security notice
+to the old address. The completion POST redirects to the account page with a
+refresh-safe success result and, when needed, the old-address delivery warning.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
@@ -198,14 +217,14 @@ Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
 part. The initial UserInfo response contains only the account ID as `sub`.
 
-The HTTP server bounds header, body-read, response-write, and idle time. Signup
-and password reset also cap request bodies, globally limit OTP delivery, and
-bound concurrent SMTP and completion work per process.
+The HTTP server bounds header, body-read, response-write, and idle time. Signup,
+password reset, and email change also cap request bodies, globally limit OTP
+delivery, and bound concurrent SMTP and completion work per process.
 
 ## Deliberately absent
 
-The runtime does not yet contain email-address change, signed-in password
-change, MFA recovery, account erasure, session lists or selective remote
+The runtime does not yet contain signed-in password change, MFA recovery,
+account erasure, session lists or selective remote
 session revocation, OIDC refresh tokens or key rotation,
 diagnostic endpoints, or backup tooling. Application data, documents, and
 generic synchronization are deliberately outside Authling's identity-provider

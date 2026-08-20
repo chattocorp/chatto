@@ -25,6 +25,9 @@ for (const path of [
   '/password-reset',
   '/password-reset/verify',
   '/password-reset/complete',
+  '/account/email',
+  '/account/email/verify',
+  '/account/email/complete',
   '/oidc/consent'
 ]) {
   test(`rejects cross-origin form submission to ${path}`, async ({ request, stack }) => {

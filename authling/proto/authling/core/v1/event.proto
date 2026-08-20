@@ -23,6 +23,8 @@ message Event {
     IssuerEstablishedEvent issuer_established = 102;
     PasswordChangedEvent password_changed = 103;
     PasswordResetRequestedEvent password_reset_requested = 104;
+    EmailChangeRequestedEvent email_change_requested = 105;
+    EmailChangedEvent email_changed = 106;
   }
 }
 
@@ -35,9 +37,14 @@ message IssuerEstablishedEvent {
 }
 
 // EmailClaimedEvent activates the protected email credential staged by the
-// immediately preceding account creation in the same atomic publish batch.
+// immediately preceding account creation or email change in the same atomic
+// publish batch.
 message EmailClaimedEvent {
   string account_id = 1;
+
+  // The account event that staged the email. Historical account-creation
+  // claims written before correlation was added leave this empty.
+  string credential_event_id = 2;
 }
 
 // AccountCreatedEvent records the creation of an opaque Authling account and,
@@ -77,4 +84,24 @@ message PasswordChangedEvent {
 message PasswordResetRequestedEvent {
   string account_id = 1;
   string credential_event_id = 2;
+}
+
+// EmailChangeRequestedEvent records accepted reauthentication for an email
+// change without retaining either the old or requested address.
+message EmailChangeRequestedEvent {
+  string account_id = 1;
+  string credential_event_id = 2;
+}
+
+// EmailChangedEvent stages a verified replacement login address. Its adjacent
+// EmailClaimedEvent activates the address atomically through the registry.
+message EmailChangedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 credential_envelope_version = 4;
+  bytes email_nonce = 5;
+  bytes email_ciphertext = 6;
+  string email_change_request_event_id = 7;
+  string prior_credential_event_id = 8;
 }

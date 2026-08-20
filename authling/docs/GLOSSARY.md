@@ -28,11 +28,16 @@ email challenge and binds successful recovery to the password credential that
 was current when the flow began. It expires after 15 minutes and is not a
 durable account fact.
 
+**Email change flow** — Short-lived, encrypted runtime state that binds a
+signed-in account and reauthenticated credential to its old and requested new
+addresses and an email challenge. It expires after 15 minutes and is not a
+durable account fact.
+
 **Browser session** — Short-lived, server-side runtime state that binds an
 opaque browser cookie to one account after signup or login. A session is not a
 durable account fact and can be revoked independently from other sessions.
-Password reset invalidates every session issued under the account's older
-authentication version.
+Password reset and verified email change invalidate every session issued under
+the account's older authentication version.
 
 **Issuer** — The immutable public URL identifying one Authling deployment as
 one OpenID Provider. Tokens and discovery use this exact value; changing it is

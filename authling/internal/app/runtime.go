@@ -15,6 +15,7 @@ import (
 	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
+	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/issuer"
 	"hmans.de/authling/internal/keyvault"
@@ -42,6 +43,8 @@ type Runtime struct {
 	Registration *registration.Service
 	// PasswordReset owns verified-email password recovery.
 	PasswordReset *passwordreset.Service
+	// EmailChange owns signed-in verified email-address replacement.
+	EmailChange *emailchange.Service
 	// Authentication owns local login throttling and credential verification.
 	Authentication *authentication.Service
 	// Sessions owns first-party browser session runtime state.
@@ -128,6 +131,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		Accounts:       accountService,
 		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 		PasswordReset:  passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 		Authentication: authentication.New(stores.RuntimeState, js, workflowKey, accountService),
 		Sessions:       sessionService,
 		OIDC:           oidcService,
@@ -203,6 +207,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			Authentication:    runtime.Authentication,
 			Registration:      runtime.Registration,
 			PasswordReset:     runtime.PasswordReset,
+			EmailChange:       runtime.EmailChange,
 			Sessions:          runtime.Sessions,
 			OIDC:              runtime.OIDC,
 			SecureCookies:     cfg.HTTP.SecureCookies(),

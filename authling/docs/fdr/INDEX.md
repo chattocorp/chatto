@@ -14,3 +14,4 @@ record planned behavior as active functionality.
 | [FDR-004](FDR-004-openid-connect-provider.md) | OpenID Connect Provider | Experimental | 2026-08-01 |
 | [FDR-005](FDR-005-account-data-sync.md) | Account Data Synchronization | Retired | 2026-08-14 |
 | [FDR-006](FDR-006-password-reset.md) | Password Reset | Experimental | 2026-08-14 |
+| [FDR-007](FDR-007-verified-email-change.md) | Verified Email Change | Experimental | 2026-08-20 |

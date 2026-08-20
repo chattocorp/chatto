@@ -53,6 +53,20 @@ export async function waitForPasswordResetCode(
   );
 }
 
+export async function waitForEmailChangeCode(
+  request: APIRequestContext,
+  mailpitURL: string,
+  timeoutMs = 10_000
+): Promise<string> {
+  return waitForCode(
+    request,
+    mailpitURL,
+    'Your Authling email change code',
+    /email change code is ([0-9]{6})\./,
+    timeoutMs
+  );
+}
+
 async function waitForCode(
   request: APIRequestContext,
   mailpitURL: string,
