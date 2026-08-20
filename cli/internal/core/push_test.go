@@ -184,69 +184,81 @@ func TestSavePushSubscription(t *testing.T) {
 func TestSavePushSubscriptionForClient(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
-	navigationBaseURL := "https://app.example.com/chat/remote.example.com"
+	clientHost := "app.example.com:8443"
 
 	sub, err := core.SavePushSubscriptionForClient(
 		ctx,
-		"push-user-client-route",
-		"https://push.example.com/client-route",
+		"push-user-client-host",
+		"https://push.example.com/client-host",
 		"key",
 		"auth",
 		"browser",
-		navigationBaseURL,
+		clientHost,
 	)
 	if err != nil {
 		t.Fatalf("SavePushSubscriptionForClient error: %v", err)
 	}
-	if sub.NavigationBaseUrl != navigationBaseURL {
-		t.Fatalf("NavigationBaseUrl = %q, want %q", sub.NavigationBaseUrl, navigationBaseURL)
+	if sub.ClientHost != clientHost {
+		t.Fatalf("ClientHost = %q, want %q", sub.ClientHost, clientHost)
 	}
 }
 
-func TestSavePushSubscriptionForClient_RejectsInvalidNavigationBaseURLs(t *testing.T) {
+func TestSavePushSubscriptionForClient_ValidatesClientHosts(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
+	maxClientHost := strings.Join([]string{
+		strings.Repeat("a", 63),
+		strings.Repeat("b", 63),
+		strings.Repeat("c", 63),
+		strings.Repeat("d", 61),
+	}, ".") + ":1"
 
 	invalid := []string{
-		"http://app.example.com/chat/remote.example.com",
-		"https://user:password@app.example.com/chat/remote.example.com",
-		"https://app.example.com/chat/remote.example.com?source=push",
-		"https://app.example.com/chat/remote.example.com#fragment",
-		"/chat/remote.example.com",
-		strings.Repeat("x", MaxPushNavigationBaseURLLength+1),
+		"https://app.example.com",
+		"user:password@app.example.com",
+		"app.example.com/chat/remote.example.com",
+		"app.example.com?source=push",
+		"app.example.com#fragment",
+		"app.example.com:",
+		"app.example.com:0",
+		"app.example.com:65536",
+		"app.example.com:not-a-port",
+		strings.Repeat("x", MaxPushClientHostLength+1),
 	}
-	for index, navigationBaseURL := range invalid {
+	for index, clientHost := range invalid {
 		_, err := core.SavePushSubscriptionForClient(
 			ctx,
-			fmt.Sprintf("push-user-invalid-navigation-%d", index),
-			fmt.Sprintf("https://push.example.com/invalid-navigation-%d", index),
+			fmt.Sprintf("push-user-invalid-client-host-%d", index),
+			fmt.Sprintf("https://push.example.com/invalid-client-host-%d", index),
 			"key",
 			"auth",
 			"browser",
-			navigationBaseURL,
+			clientHost,
 		)
 		if !errors.Is(err, ErrInvalidArgument) {
-			t.Errorf("navigation base URL %q: error = %v, want ErrInvalidArgument", navigationBaseURL, err)
+			t.Errorf("client host %q: error = %v, want ErrInvalidArgument", clientHost, err)
 		}
 	}
 
-	for _, navigationBaseURL := range []string{
-		"https://app.example.com/chat/remote.example.com",
-		"http://localhost:5173/chat/remote.example.com",
-		"http://127.0.0.1:5173/chat/remote.example.com",
-		"https://app.example.com/chat/" + strings.Repeat("x", MaxPushNavigationBaseURLLength-len("https://app.example.com/chat/")),
+	for _, clientHost := range []string{
+		"app.example.com",
+		"app.example.com:8443",
+		"localhost:5173",
+		"127.0.0.1:5173",
+		"[::1]:5173",
+		maxClientHost,
 	} {
 		_, err := core.SavePushSubscriptionForClient(
 			ctx,
-			"push-user-valid-navigation",
-			"https://push.example.com/valid-navigation-"+hashEndpoint(navigationBaseURL),
+			"push-user-valid-client-host",
+			"https://push.example.com/valid-client-host-"+hashEndpoint(clientHost),
 			"key",
 			"auth",
 			"browser",
-			navigationBaseURL,
+			clientHost,
 		)
 		if err != nil {
-			t.Errorf("navigation base URL %q: %v", navigationBaseURL, err)
+			t.Errorf("client host %q: %v", clientHost, err)
 		}
 	}
 }

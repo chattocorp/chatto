@@ -35,15 +35,13 @@ type SubscribePushRequest struct {
 	Auth string `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
 	// Optional browser user-agent string for device identification.
 	UserAgent *string `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
-	// Absolute client route that opens this server in the installed web app.
-	// This is stored per subscription because the same account can use clients
-	// hosted by different Chatto servers. When omitted, notification clicks open
-	// this server's bundled /chat/- client for compatibility with older clients.
-	// It must use HTTPS, except for loopback development origins, and must not
-	// contain user information, a query, or a fragment.
-	NavigationBaseUrl *string `protobuf:"bytes,5,opt,name=navigation_base_url,json=navigationBaseUrl,proto3,oneof" json:"navigation_base_url,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// URL host of the Chatto server that supplied the installed web app. The
+	// sending server combines this with its own hostname to reconstruct the
+	// client route. A host can include a port but no scheme, path, or user info.
+	// When omitted, notification clicks open this server's bundled /chat/- client.
+	ClientHost    *string `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3,oneof" json:"client_host,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubscribePushRequest) Reset() {
@@ -104,9 +102,9 @@ func (x *SubscribePushRequest) GetUserAgent() string {
 	return ""
 }
 
-func (x *SubscribePushRequest) GetNavigationBaseUrl() string {
-	if x != nil && x.NavigationBaseUrl != nil {
-		return *x.NavigationBaseUrl
+func (x *SubscribePushRequest) GetClientHost() string {
+	if x != nil && x.ClientHost != nil {
+		return *x.ClientHost
 	}
 	return ""
 }
@@ -116,12 +114,12 @@ type SubscribePushResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the subscription was stored.
 	Subscribed bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
-	// True when the server persisted navigation_base_url. New clients use this
-	// acknowledgement before trusting a remote server to route notification
-	// clicks back through the installed web app.
-	NavigationBaseUrlStored bool `protobuf:"varint,2,opt,name=navigation_base_url_stored,json=navigationBaseUrlStored,proto3" json:"navigation_base_url_stored,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	// True when the server persisted client_host. New clients use this
+	// acknowledgement before trusting a remote server to reconstruct the
+	// installed web app's notification route.
+	ClientHostStored bool `protobuf:"varint,2,opt,name=client_host_stored,json=clientHostStored,proto3" json:"client_host_stored,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *SubscribePushResponse) Reset() {
@@ -161,9 +159,9 @@ func (x *SubscribePushResponse) GetSubscribed() bool {
 	return false
 }
 
-func (x *SubscribePushResponse) GetNavigationBaseUrlStored() bool {
+func (x *SubscribePushResponse) GetClientHostStored() bool {
 	if x != nil {
-		return x.NavigationBaseUrlStored
+		return x.ClientHostStored
 	}
 	return false
 }
@@ -347,7 +345,7 @@ var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\x96\x02\n" +
+	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xff\x01\n" +
 	"\x14SubscribePushRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\x12\"\n" +
@@ -356,15 +354,16 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\x04auth\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12,\n" +
 	"\n" +
-	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01\x12=\n" +
-	"\x13navigation_base_url\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x01R\x11navigationBaseUrl\x88\x01\x01B\r\n" +
-	"\v_user_agentB\x16\n" +
-	"\x14_navigation_base_url\"t\n" +
+	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01\x12.\n" +
+	"\vclient_host\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01H\x01R\n" +
+	"clientHost\x88\x01\x01B\r\n" +
+	"\v_user_agentB\x0e\n" +
+	"\f_client_host\"e\n" +
 	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +
-	"subscribed\x12;\n" +
-	"\x1anavigation_base_url_stored\x18\x02 \x01(\bR\x17navigationBaseUrlStored\"@\n" +
+	"subscribed\x12,\n" +
+	"\x12client_host_stored\x18\x02 \x01(\bR\x10clientHostStored\"@\n" +
 	"\x16UnsubscribePushRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"=\n" +

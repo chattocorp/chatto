@@ -12,12 +12,12 @@ export type SubscribePushInput = {
   p256dh: string;
   auth: string;
   userAgent?: string;
-  navigationBaseUrl?: string;
+  clientHost?: string;
 };
 
 export type SubscribePushResult = {
   subscribed: boolean;
-  navigationBaseUrlStored: boolean;
+  clientHostStored: boolean;
 };
 
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
@@ -29,7 +29,7 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       const response = await client.subscribe(input, { headers: headers() });
       return {
         subscribed: response.subscribed,
-        navigationBaseUrlStored: response.navigationBaseUrlStored
+        clientHostStored: response.clientHostStored
       };
     },
 

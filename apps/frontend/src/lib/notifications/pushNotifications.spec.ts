@@ -145,7 +145,7 @@ function installPushGlobals() {
     Notification,
     PushManager: class PushManager {},
     atob: (value: string) => Buffer.from(value, 'base64').toString('binary'),
-    location: { origin: 'https://app.test', protocol: 'https:' }
+    location: { origin: 'https://app.test', host: 'app.test', protocol: 'https:' }
   });
   vi.stubGlobal('navigator', {
     serviceWorker: {
@@ -316,7 +316,7 @@ describe('pushNotifications.ensureRegistered', () => {
     mocks.subscribePush.mockReset();
     mocks.subscribePush.mockResolvedValue({
       subscribed: true,
-      navigationBaseUrlStored: true
+      clientHostStored: true
     });
     mocks.unsubscribePush.mockReset();
     mocks.unsubscribePush.mockResolvedValue(true);
@@ -355,7 +355,7 @@ describe('pushNotifications.ensureRegistered', () => {
       p256dh: 'p256dh-key',
       auth: 'auth-secret',
       userAgent: 'test-agent',
-      navigationBaseUrl: 'https://app.test/chat/-'
+      clientHost: 'app.test'
     });
   });
 
@@ -377,7 +377,7 @@ describe('pushNotifications.ensureRegistered', () => {
     );
   });
 
-  it('uses a dedicated service worker scope and remote app route for a remote server', async () => {
+  it('uses a dedicated service worker scope and stores the client host for a remote server', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote');
     const remoteGetSubscription = vi.fn().mockResolvedValue(null);
@@ -404,12 +404,12 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.subscribePush).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'https://push.example/remote',
-        navigationBaseUrl: 'https://app.test/chat/remote.example.com'
+        clientHost: 'app.test'
       })
     );
   });
 
-  it('rejects and removes a remote subscription when an older server omits route acknowledgement', async () => {
+  it('rejects and removes a remote subscription when an older server omits client-host acknowledgement', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-old-server');
     const register = vi.fn().mockResolvedValue({
@@ -422,7 +422,7 @@ describe('pushNotifications.ensureRegistered', () => {
     Object.assign(navigator.serviceWorker, { register });
     mocks.subscribePush.mockResolvedValueOnce({
       subscribed: true,
-      navigationBaseUrlStored: false
+      clientHostStored: false
     });
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
@@ -431,7 +431,7 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
   });
 
-  it('removes a remote subscription when route acknowledgement is indeterminate', async () => {
+  it('removes a remote subscription when client-host acknowledgement is indeterminate', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-failed-response');
     const register = vi.fn().mockResolvedValue({
@@ -467,7 +467,7 @@ describe('pushNotifications.ensureRegistered', () => {
     getSubscription.mockResolvedValueOnce(existingSubscription);
     mocks.subscribePush.mockResolvedValueOnce({
       subscribed: false,
-      navigationBaseUrlStored: false
+      clientHostStored: false
     });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
@@ -478,7 +478,7 @@ describe('pushNotifications.ensureRegistered', () => {
     subscribe.mockResolvedValueOnce(createdSubscription);
     mocks.subscribePush.mockResolvedValueOnce({
       subscribed: false,
-      navigationBaseUrlStored: false
+      clientHostStored: false
     });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);

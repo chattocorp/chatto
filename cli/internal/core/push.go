@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"net"
 	"net/url"
+	"strconv"
 	"strings"
 	"time"
 
@@ -93,14 +94,14 @@ func (c *ChattoCore) SavePushSubscription(
 }
 
 // SavePushSubscriptionForClient stores or updates a browser subscription with
-// the route used to open its hosting web client. An empty navigation base keeps
-// the legacy bundled-client routing behaviour.
+// the URL host of its serving Chatto client. An empty client host keeps the
+// legacy bundled-client routing behaviour.
 func (c *ChattoCore) SavePushSubscriptionForClient(
 	ctx context.Context,
 	userID string,
-	endpoint, p256dh, auth, userAgent, navigationBaseURL string,
+	endpoint, p256dh, auth, userAgent, clientHost string,
 ) (*corev1.PushSubscription, error) {
-	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, navigationBaseURL); err != nil {
+	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost); err != nil {
 		return nil, err
 	}
 	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
@@ -111,12 +112,12 @@ func (c *ChattoCore) SavePushSubscriptionForClient(
 	}
 
 	subscription := &corev1.PushSubscription{
-		Endpoint:          endpoint,
-		P256Dh:            p256dh,
-		Auth:              auth,
-		CreatedAt:         timestamppb.New(time.Now()),
-		UserAgent:         userAgent,
-		NavigationBaseUrl: navigationBaseURL,
+		Endpoint:   endpoint,
+		P256Dh:     p256dh,
+		Auth:       auth,
+		CreatedAt:  timestamppb.New(time.Now()),
+		UserAgent:  userAgent,
+		ClientHost: clientHost,
 	}
 
 	data, err := proto.Marshal(subscription)
@@ -382,7 +383,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 	return fmt.Errorf("failed to release push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
 }
 
-func validatePushSubscription(endpoint, p256dh, auth, userAgent, navigationBaseURL string) error {
+func validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost string) error {
 	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
 		return err
 	}
@@ -398,32 +399,29 @@ func validatePushSubscription(endpoint, p256dh, auth, userAgent, navigationBaseU
 	if err := validateStringMaxLength("push user agent", userAgent, MaxPushUserAgentLength); err != nil {
 		return err
 	}
-	if err := validatePushNavigationBaseURL(navigationBaseURL); err != nil {
+	if err := validatePushClientHost(clientHost); err != nil {
 		return err
 	}
 	return nil
 }
 
-func validatePushNavigationBaseURL(value string) error {
-	if err := validateStringMaxLength("push navigation base URL", value, MaxPushNavigationBaseURLLength); err != nil {
+func validatePushClientHost(value string) error {
+	if err := validateStringMaxLength("push client host", value, MaxPushClientHostLength); err != nil {
 		return err
 	}
 	if value == "" {
 		return nil
 	}
 
-	if strings.Contains(value, "#") {
-		return fmt.Errorf("%w: push navigation base URL must not contain a fragment", ErrInvalidArgument)
+	parsed, err := url.Parse("https://" + value)
+	if err != nil || parsed.Host != value || parsed.Hostname() == "" || parsed.User != nil || parsed.Path != "" || parsed.RawQuery != "" || parsed.Fragment != "" || strings.HasSuffix(parsed.Host, ":") {
+		return fmt.Errorf("%w: push client host must contain only a hostname and optional port", ErrInvalidArgument)
 	}
-	parsed, err := url.ParseRequestURI(value)
-	if err != nil || !parsed.IsAbs() || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
-		return fmt.Errorf("%w: push navigation base URL must be an absolute web URL without credentials, query, or fragment", ErrInvalidArgument)
-	}
-	if parsed.Scheme == "https" {
-		return nil
-	}
-	if parsed.Scheme != "http" || !isLoopbackHostname(parsed.Hostname()) {
-		return fmt.Errorf("%w: push navigation base URL must use HTTPS except on loopback", ErrInvalidArgument)
+	if port := parsed.Port(); port != "" {
+		numericPort, err := strconv.Atoi(port)
+		if err != nil || numericPort < 1 || numericPort > 65535 {
+			return fmt.Errorf("%w: push client host port must be between 1 and 65535", ErrInvalidArgument)
+		}
 	}
 	return nil
 }

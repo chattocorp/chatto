@@ -7,7 +7,6 @@
  */
 
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
-import { serverIdToSegment } from '$lib/navigation';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
@@ -290,7 +289,7 @@ export async function ensureRegistered(
     return false;
   }
 
-  const routeRequired = !serverRegistry.isOriginServer(serverId);
+  const clientHostRequired = !serverRegistry.isOriginServer(serverId);
   let subscription: PushSubscription | null = null;
   let createdSubscription = false;
 
@@ -324,18 +323,18 @@ export async function ensureRegistered(
       return false;
     }
 
-    const route = navigationBaseURL(serverId);
+    const clientHost = window.location.host;
     const saved = await pushAPI(serverId).subscribe({
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
       userAgent: navigator.userAgent,
-      navigationBaseUrl: route
+      clientHost
     });
 
-    if (!saved.subscribed || (routeRequired && !saved.navigationBaseUrlStored)) {
+    if (!saved.subscribed || (clientHostRequired && !saved.clientHostStored)) {
       console.error('Failed to save push subscription');
-      if (createdSubscription || routeRequired) {
+      if (createdSubscription || clientHostRequired) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
@@ -345,9 +344,9 @@ export async function ensureRegistered(
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
     // A remote subscription is unusable until the server positively
-    // acknowledges its navigation route. Fail closed when that acknowledgement
+    // acknowledges its client host. Fail closed when that acknowledgement
     // is indeterminate so a later push cannot open the wrong frontend.
-    if (subscription && (createdSubscription || routeRequired)) {
+    if (subscription && (createdSubscription || clientHostRequired)) {
       await invalidateSubscription(serverId, subscription);
     }
     return false;
@@ -418,11 +417,6 @@ function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): b
   const leftBytes = new Uint8Array(left);
   if (leftBytes.length !== right.length) return false;
   return leftBytes.every((byte, index) => byte === right[index]);
-}
-
-function navigationBaseURL(serverId: string): string {
-  const serverSegment = encodeURIComponent(serverIdToSegment(serverId));
-  return new URL(`/chat/${serverSegment}`, window.location.origin).toString();
 }
 
 function pushAPI(serverId: string) {

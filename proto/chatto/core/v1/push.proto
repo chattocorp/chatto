@@ -31,7 +31,7 @@ message PushSubscription {
   // User agent string (for debugging/device identification)
   string user_agent = 5;
 
-  // Client route that opens this server in the installed web app. Empty for
-  // legacy subscriptions, which navigate through this server's bundled app.
-  string navigation_base_url = 6;
+  // URL host of the Chatto server that supplied the installed web app. Empty
+  // for legacy subscriptions, which navigate through this server's bundled app.
+  string client_host = 6;
 }

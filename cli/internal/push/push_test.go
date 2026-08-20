@@ -564,7 +564,7 @@ func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
 		notificationTestSignalDirectMention,
 	)
 	subscription := &corev1.PushSubscription{
-		NavigationBaseUrl: "https://app.example.com/chat/remote.example.com",
+		ClientHost: "app.example.com",
 	}
 
 	payload := BuildPayloadFromOccurrenceForSubscription(
@@ -580,6 +580,72 @@ func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
 	}
 	if payload.Icon != "https://remote.example.com/icons/icon-192.png" {
 		t.Fatalf("Icon = %q", payload.Icon)
+	}
+}
+
+func TestNavigationBaseURL(t *testing.T) {
+	tests := []struct {
+		name          string
+		subscription  *corev1.PushSubscription
+		serverBaseURL string
+		want          string
+	}{
+		{
+			name:          "legacy subscription uses bundled client",
+			subscription:  &corev1.PushSubscription{},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com/chat/-",
+		},
+		{
+			name:          "remote server opens in stored client host",
+			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://app.example.com/chat/remote.example.com",
+		},
+		{
+			name:          "remote client preserves a non-default port",
+			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com:8443"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://app.example.com:8443/chat/remote.example.com",
+		},
+		{
+			name:          "same origin uses bundled client route",
+			subscription:  &corev1.PushSubscription{ClientHost: "chat.example.com"},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com/chat/-",
+		},
+		{
+			name:          "default port is the same origin",
+			subscription:  &corev1.PushSubscription{ClientHost: "chat.example.com:443"},
+			serverBaseURL: "https://chat.example.com",
+			want:          "https://chat.example.com:443/chat/-",
+		},
+		{
+			name:          "loopback remote client uses HTTP",
+			subscription:  &corev1.PushSubscription{ClientHost: "localhost:5173"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "http://localhost:5173/chat/remote.example.com",
+		},
+		{
+			name:          "same loopback origin preserves HTTPS",
+			subscription:  &corev1.PushSubscription{ClientHost: "localhost:8443"},
+			serverBaseURL: "https://localhost:8443",
+			want:          "https://localhost:8443/chat/-",
+		},
+		{
+			name:          "malformed persisted host falls back safely",
+			subscription:  &corev1.PushSubscription{ClientHost: "https://app.example.com"},
+			serverBaseURL: "https://remote.example.com",
+			want:          "https://remote.example.com/chat/-",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			if got := NavigationBaseURL(test.subscription, test.serverBaseURL); got != test.want {
+				t.Fatalf("NavigationBaseURL() = %q, want %q", got, test.want)
+			}
+		})
 	}
 }
 
@@ -864,7 +930,7 @@ func TestSend(t *testing.T) {
 		}
 	})
 
-	t.Run("sends a notification at the accepted client route boundary", func(t *testing.T) {
+	t.Run("sends a notification at the accepted client host boundary", func(t *testing.T) {
 		var bodyLen int
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			body, err := io.ReadAll(r.Body)
@@ -878,8 +944,15 @@ func TestSend(t *testing.T) {
 		}))
 		defer server.Close()
 
-		prefix := "https://app.example.com/chat/remote.example.com/"
-		navigationBaseURL := prefix + strings.Repeat("x", core.MaxPushNavigationBaseURLLength-len(prefix))
+		clientHost := strings.Join([]string{
+			strings.Repeat("a", 63),
+			strings.Repeat("b", 63),
+			strings.Repeat("c", 63),
+			strings.Repeat("d", 61),
+		}, ".") + ":1"
+		if len(clientHost) != core.MaxPushClientHostLength {
+			t.Fatalf("test client host length = %d, want %d", len(clientHost), core.MaxPushClientHostLength)
+		}
 		payload := BuildPayloadFromOccurrenceForSubscription(
 			notificationOccurrenceForTest(
 				strings.Repeat("n", 64),
@@ -892,7 +965,7 @@ func TestSend(t *testing.T) {
 			),
 			strings.Repeat("a", 80),
 			"https://remote.example.com",
-			&corev1.PushSubscription{NavigationBaseUrl: navigationBaseURL},
+			&corev1.PushSubscription{ClientHost: clientHost},
 			&PayloadContext{
 				MessagePreview: strings.Repeat("p", maxPreviewLength),
 				RoomName:       strings.Repeat("q", 100),

@@ -42,16 +42,14 @@ export class SubscribePushRequest extends Message<SubscribePushRequest> {
   userAgent?: string;
 
   /**
-   * Absolute client route that opens this server in the installed web app.
-   * This is stored per subscription because the same account can use clients
-   * hosted by different Chatto servers. When omitted, notification clicks open
-   * this server's bundled /chat/- client for compatibility with older clients.
-   * It must use HTTPS, except for loopback development origins, and must not
-   * contain user information, a query, or a fragment.
+   * URL host of the Chatto server that supplied the installed web app. The
+   * sending server combines this with its own hostname to reconstruct the
+   * client route. A host can include a port but no scheme, path, or user info.
+   * When omitted, notification clicks open this server's bundled /chat/- client.
    *
-   * @generated from field: optional string navigation_base_url = 5;
+   * @generated from field: optional string client_host = 5;
    */
-  navigationBaseUrl?: string;
+  clientHost?: string;
 
   constructor(data?: PartialMessage<SubscribePushRequest>) {
     super();
@@ -65,7 +63,7 @@ export class SubscribePushRequest extends Message<SubscribePushRequest> {
     { no: 2, name: "p256dh", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "auth", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 5, name: "navigation_base_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "client_host", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushRequest {
@@ -99,13 +97,13 @@ export class SubscribePushResponse extends Message<SubscribePushResponse> {
   subscribed = false;
 
   /**
-   * True when the server persisted navigation_base_url. New clients use this
-   * acknowledgement before trusting a remote server to route notification
-   * clicks back through the installed web app.
+   * True when the server persisted client_host. New clients use this
+   * acknowledgement before trusting a remote server to reconstruct the
+   * installed web app's notification route.
    *
-   * @generated from field: bool navigation_base_url_stored = 2;
+   * @generated from field: bool client_host_stored = 2;
    */
-  navigationBaseUrlStored = false;
+  clientHostStored = false;
 
   constructor(data?: PartialMessage<SubscribePushResponse>) {
     super();
@@ -116,7 +114,7 @@ export class SubscribePushResponse extends Message<SubscribePushResponse> {
   static readonly typeName = "chatto.api.v1.SubscribePushResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "subscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "navigation_base_url_stored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 2, name: "client_host_stored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushResponse {

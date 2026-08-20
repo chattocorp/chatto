@@ -34,7 +34,7 @@ describe('createPushNotificationAPI', () => {
   });
 
   it('subscribes and unsubscribes with bearer auth', async () => {
-    mocks.subscribe.mockResolvedValue({ subscribed: true, navigationBaseUrlStored: true });
+    mocks.subscribe.mockResolvedValue({ subscribed: true, clientHostStored: true });
     mocks.unsubscribe.mockResolvedValue({ unsubscribed: true });
 
     const api = createPushNotificationAPI({
@@ -49,7 +49,7 @@ describe('createPushNotificationAPI', () => {
         auth: 'auth-secret',
         userAgent: 'browser'
       })
-    ).resolves.toEqual({ subscribed: true, navigationBaseUrlStored: true });
+    ).resolves.toEqual({ subscribed: true, clientHostStored: true });
     await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -72,7 +72,7 @@ describe('createPushNotificationAPI', () => {
   });
 
   it('omits auth headers when no bearer token exists', async () => {
-    mocks.subscribe.mockResolvedValue({ subscribed: true, navigationBaseUrlStored: false });
+    mocks.subscribe.mockResolvedValue({ subscribed: true, clientHostStored: false });
 
     const api = createPushNotificationAPI({
       baseUrl: '/api/connect',
@@ -85,7 +85,7 @@ describe('createPushNotificationAPI', () => {
         p256dh: 'p256dh-key',
         auth: 'auth-secret'
       })
-    ).resolves.toEqual({ subscribed: true, navigationBaseUrlStored: false });
+    ).resolves.toEqual({ subscribed: true, clientHostStored: false });
 
     expect(mocks.subscribe).toHaveBeenCalledWith(
       {

@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net"
 	"net/url"
 	"strings"
 	"sync"
@@ -445,13 +446,61 @@ func BuildPayloadFromOccurrenceForSubscription(
 	)
 }
 
-// NavigationBaseURL returns the client route stored with a subscription, or
-// the legacy bundled-client route for subscriptions created by older clients.
+// NavigationBaseURL reconstructs the client route for a subscription. Older
+// subscriptions without a client host use the legacy bundled-client route.
 func NavigationBaseURL(subscription *corev1.PushSubscription, serverBaseURL string) string {
-	if subscription != nil && subscription.NavigationBaseUrl != "" {
-		return subscription.NavigationBaseUrl
+	legacyURL := buildAppURL(serverBaseURL, []string{"chat", "-"}, "", "")
+	if subscription == nil || subscription.ClientHost == "" {
+		return legacyURL
 	}
-	return buildAppURL(serverBaseURL, []string{"chat", "-"}, "", "")
+
+	serverURL, err := url.Parse(serverBaseURL)
+	if err != nil || serverURL.Scheme == "" || serverURL.Hostname() == "" {
+		return legacyURL
+	}
+	clientURL, err := url.Parse(serverURL.Scheme + "://" + subscription.ClientHost)
+	if err != nil || clientURL.Host != subscription.ClientHost || clientURL.Hostname() == "" {
+		return legacyURL
+	}
+
+	if sameOriginHost(clientURL, serverURL) {
+		return buildAppURL(clientURL.String(), []string{"chat", "-"}, "", "")
+	}
+
+	clientURL.Scheme = "https"
+	if isLoopbackHostname(clientURL.Hostname()) {
+		clientURL.Scheme = "http"
+	}
+	return buildAppURL(clientURL.String(), []string{"chat", serverURL.Hostname()}, "", "")
+}
+
+func sameOriginHost(clientURL, serverURL *url.URL) bool {
+	if !strings.EqualFold(clientURL.Hostname(), serverURL.Hostname()) {
+		return false
+	}
+	return effectivePort(clientURL) == effectivePort(serverURL)
+}
+
+func effectivePort(value *url.URL) string {
+	if port := value.Port(); port != "" {
+		return port
+	}
+	switch strings.ToLower(value.Scheme) {
+	case "http":
+		return "80"
+	case "https":
+		return "443"
+	default:
+		return ""
+	}
+}
+
+func isLoopbackHostname(hostname string) bool {
+	if strings.EqualFold(hostname, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(hostname)
+	return ip != nil && ip.IsLoopback()
 }
 
 func buildPayloadFromOccurrence(

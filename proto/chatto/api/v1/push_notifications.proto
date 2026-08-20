@@ -50,13 +50,11 @@ message SubscribePushRequest {
   // Optional browser user-agent string for device identification.
   optional string user_agent = 4 [(buf.validate.field).string.max_len = 512];
 
-  // Absolute client route that opens this server in the installed web app.
-  // This is stored per subscription because the same account can use clients
-  // hosted by different Chatto servers. When omitted, notification clicks open
-  // this server's bundled /chat/- client for compatibility with older clients.
-  // It must use HTTPS, except for loopback development origins, and must not
-  // contain user information, a query, or a fragment.
-  optional string navigation_base_url = 5 [(buf.validate.field).string.max_len = 512];
+  // URL host of the Chatto server that supplied the installed web app. The
+  // sending server combines this with its own hostname to reconstruct the
+  // client route. A host can include a port but no scheme, path, or user info.
+  // When omitted, notification clicks open this server's bundled /chat/- client.
+  optional string client_host = 5 [(buf.validate.field).string.max_len = 255];
 }
 
 // Response from storing a browser push subscription.
@@ -64,10 +62,10 @@ message SubscribePushResponse {
   // True when the subscription was stored.
   bool subscribed = 1;
 
-  // True when the server persisted navigation_base_url. New clients use this
-  // acknowledgement before trusting a remote server to route notification
-  // clicks back through the installed web app.
-  bool navigation_base_url_stored = 2;
+  // True when the server persisted client_host. New clients use this
+  // acknowledgement before trusting a remote server to reconstruct the
+  // installed web app's notification route.
+  bool client_host_stored = 2;
 }
 
 // Request to remove a browser push subscription.

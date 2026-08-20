@@ -2504,7 +2504,7 @@ Request to store a PushSubscription returned by the browser Push API.
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
-| `navigation_base_url` | `optional string` | Absolute client route that opens this server in the installed web app. This is stored per subscription because the same account can use clients hosted by different Chatto servers. When omitted, notification clicks open this server's bundled /chat/- client for compatibility with older clients. It must use HTTPS, except for loopback development origins, and must not contain user information, a query, or a fragment. |
+| `client_host` | `optional string` | URL host of the Chatto server that supplied the installed web app. The sending server combines this with its own hostname to reconstruct the client route. A host can include a port but no scheme, path, or user info. When omitted, notification clicks open this server's bundled /chat/- client. |
 
 
 <a id="chatto-api-v1-SubscribePushResponse"></a>
@@ -2516,7 +2516,7 @@ Response from storing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `subscribed` | `bool` | True when the subscription was stored. |
-| `navigation_base_url_stored` | `bool` | True when the server persisted navigation_base_url. New clients use this acknowledgement before trusting a remote server to route notification clicks back through the installed web app. |
+| `client_host_stored` | `bool` | True when the server persisted client_host. New clients use this acknowledgement before trusting a remote server to reconstruct the installed web app's notification route. |
 
 
 <a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>

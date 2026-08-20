@@ -41,11 +41,11 @@ type PushSubscription struct {
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,4,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 	// User agent string (for debugging/device identification)
 	UserAgent string `protobuf:"bytes,5,opt,name=user_agent,json=userAgent,proto3" json:"user_agent,omitempty"`
-	// Client route that opens this server in the installed web app. Empty for
-	// legacy subscriptions, which navigate through this server's bundled app.
-	NavigationBaseUrl string `protobuf:"bytes,6,opt,name=navigation_base_url,json=navigationBaseUrl,proto3" json:"navigation_base_url,omitempty"`
-	unknownFields     protoimpl.UnknownFields
-	sizeCache         protoimpl.SizeCache
+	// URL host of the Chatto server that supplied the installed web app. Empty
+	// for legacy subscriptions, which navigate through this server's bundled app.
+	ClientHost    string `protobuf:"bytes,6,opt,name=client_host,json=clientHost,proto3" json:"client_host,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PushSubscription) Reset() {
@@ -113,9 +113,9 @@ func (x *PushSubscription) GetUserAgent() string {
 	return ""
 }
 
-func (x *PushSubscription) GetNavigationBaseUrl() string {
+func (x *PushSubscription) GetClientHost() string {
 	if x != nil {
-		return x.NavigationBaseUrl
+		return x.ClientHost
 	}
 	return ""
 }
@@ -124,7 +124,7 @@ var File_chatto_core_v1_push_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_push_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/core/v1/push.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xe4\x01\n" +
+	"\x19chatto/core/v1/push.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd5\x01\n" +
 	"\x10PushSubscription\x12\x1a\n" +
 	"\bendpoint\x18\x01 \x01(\tR\bendpoint\x12\x16\n" +
 	"\x06p256dh\x18\x02 \x01(\tR\x06p256dh\x12\x12\n" +
@@ -132,8 +132,9 @@ const file_chatto_core_v1_push_proto_rawDesc = "" +
 	"\n" +
 	"created_at\x18\x04 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12\x1d\n" +
 	"\n" +
-	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12.\n" +
-	"\x13navigation_base_url\x18\x06 \x01(\tR\x11navigationBaseUrlB\xac\x01\n" +
+	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x1f\n" +
+	"\vclient_host\x18\x06 \x01(\tR\n" +
+	"clientHostB\xac\x01\n" +
 	"\x12com.chatto.core.v1B\tPushProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
