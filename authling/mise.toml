@@ -1,6 +1,6 @@
 [tools]
 buf = "latest"
-go = "1.26.2"
+go = "1.26.7"
 node = "22"
 "aqua:axllent/mailpit" = "latest"
 
