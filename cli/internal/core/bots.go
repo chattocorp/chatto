@@ -456,6 +456,15 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 			if err := c.roomModel.waitForDirectory(ctx, position); err != nil {
 				return fmt.Errorf("wait for room directory projection: %w", err)
 			}
+			// Room-to-group membership is owned by evt.group.>, so room-scoped
+			// inherited authority also requires the complete group-layout tail.
+			groupPosition, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
+			if err != nil {
+				return fmt.Errorf("read room-group projection position: %w", err)
+			}
+			if err := c.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
+				return fmt.Errorf("wait for room-group projection: %w", err)
+			}
 			if _, err := c.GetRoom(ctx, KindChannel, normalized.ID); err != nil {
 				return fmt.Errorf("%w: room scope %q does not exist", ErrInvalidArgument, normalized.ID)
 			}

@@ -297,6 +297,45 @@ func TestSetBotPermissionRejectsNonexistentScopesWithoutPersisting(t *testing.T)
 	}
 }
 
+func TestSetBotPermissionUsesCurrentRoomGroupForOwnerCeiling(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "moving-room-owner", "Moving Room Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "moving_room_bot", "Moving Room Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	oldGroup, err := c.CreateRoomGroup(ctx, SystemActorID, "Old Group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup old: %v", err)
+	}
+	newGroup, err := c.CreateRoomGroup(ctx, SystemActorID, "New Group", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup new: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, oldGroup.GetId(), "moving-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := c.GrantUserGroupPermission(ctx, SystemActorID, oldGroup.GetId(), owner.GetId(), PermRoomManage); err != nil {
+		t.Fatalf("GrantUserGroupPermission old group: %v", err)
+	}
+	if err := c.MoveRoomToGroup(ctx, SystemActorID, room.GetId(), newGroup.GetId()); err != nil {
+		t.Fatalf("MoveRoomToGroup: %v", err)
+	}
+
+	_, err = c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
+		Kind: MatrixScopeRoom,
+		ID:   room.GetId(),
+	}, PermRoomManage, PermissionStateAllow)
+	if !errors.Is(err, ErrBotOwnerPermissionCeiling) {
+		t.Fatalf("SetBotPermission after room move err = %v, want ErrBotOwnerPermissionCeiling", err)
+	}
+}
+
 func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
