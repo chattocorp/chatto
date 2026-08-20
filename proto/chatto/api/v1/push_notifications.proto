@@ -99,7 +99,8 @@ message UnsubscribePushResponse {
 
 // Capability-authenticated request to remove an exact push subscription.
 message DeletePushSubscriptionByCapabilityRequest {
-  // Push service endpoint URL identifying the current endpoint owner.
+  // Complete push service endpoint URL. Its opaque path identifies the exact
+  // browser subscription; a provider host alone is not unique.
   string endpoint = 1 [(buf.validate.field).string = {
     min_len: 1
     max_len: 4096

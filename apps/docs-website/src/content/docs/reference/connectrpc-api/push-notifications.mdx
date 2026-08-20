@@ -116,7 +116,7 @@ Capability-authenticated request to remove an exact push subscription.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `endpoint` | `string` | Push service endpoint URL identifying the current endpoint owner. |
+| `endpoint` | `string` | Complete push service endpoint URL. Its opaque path identifies the exact browser subscription; a provider host alone is not unique. |
 | `auth` | `string` | Authentication secret from the same browser PushSubscription. |
 | `cleanup_token` | `string` | Per-save capability supplied with the original Subscribe request. Cleanup is a no-op after any later save replaces this token. |
 

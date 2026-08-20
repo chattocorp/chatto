@@ -260,7 +260,8 @@ func (x *UnsubscribePushResponse) GetUnsubscribed() bool {
 // Capability-authenticated request to remove an exact push subscription.
 type DeletePushSubscriptionByCapabilityRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Push service endpoint URL identifying the current endpoint owner.
+	// Complete push service endpoint URL. Its opaque path identifies the exact
+	// browser subscription; a provider host alone is not unique.
 	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
 	// Authentication secret from the same browser PushSubscription.
 	Auth string `protobuf:"bytes,2,opt,name=auth,proto3" json:"auth,omitempty"`

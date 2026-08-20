@@ -222,7 +222,8 @@ export class UnsubscribePushResponse extends Message<UnsubscribePushResponse> {
  */
 export class DeletePushSubscriptionByCapabilityRequest extends Message<DeletePushSubscriptionByCapabilityRequest> {
   /**
-   * Push service endpoint URL identifying the current endpoint owner.
+   * Complete push service endpoint URL. Its opaque path identifies the exact
+   * browser subscription; a provider host alone is not unique.
    *
    * @generated from field: string endpoint = 1;
    */
