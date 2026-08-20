@@ -106,6 +106,9 @@ type PasswordResetTarget struct {
 type PasswordChangeTarget struct {
 	AccountID         string
 	CredentialEventID string
+	// newPassword is transient secret command data. It binds completion to the
+	// replacement that passed reauthentication and policy validation.
+	newPassword string
 }
 
 // EmailChangeTarget binds an expiring verified-mailbox flow to the credential
@@ -830,17 +833,17 @@ func (s *Service) PreparePasswordChange(ctx context.Context, accountID, currentP
 	if subtle.ConstantTimeCompare([]byte(currentPassword), []byte(newPassword)) == 1 {
 		return PasswordChangeTarget{}, ErrPasswordUnchanged
 	}
-	return PasswordChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID}, nil
+	return PasswordChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID, newPassword: newPassword}, nil
 }
 
 // ChangePassword replaces a signed-in account's password only if the
 // reauthenticated credential is still current. The stable account ID and
 // verified email are unchanged.
-func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarget, password string) (Account, error) {
-	if target.AccountID == "" || target.CredentialEventID == "" {
+func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarget) (Account, error) {
+	if target.AccountID == "" || target.CredentialEventID == "" || target.newPassword == "" {
 		return Account{}, ErrCredentialChanged
 	}
-	password, err := validatePassword(password, s.passwordMinimumLength)
+	password, err := validatePassword(target.newPassword, s.passwordMinimumLength)
 	if err != nil {
 		return Account{}, err
 	}

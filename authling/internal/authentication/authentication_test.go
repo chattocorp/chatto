@@ -25,7 +25,7 @@ func (s *stubAuthenticator) PreparePasswordChange(context.Context, string, strin
 	return accounts.PasswordChangeTarget{}, s.err
 }
 
-func (s *stubAuthenticator) ChangePassword(context.Context, accounts.PasswordChangeTarget, string) (accounts.Account, error) {
+func (s *stubAuthenticator) ChangePassword(context.Context, accounts.PasswordChangeTarget) (accounts.Account, error) {
 	return accounts.Account{}, s.err
 }
 

@@ -33,7 +33,7 @@ type attemptCounter struct {
 type accountAuthenticator interface {
 	AuthenticateLocal(context.Context, string, string) (accounts.Account, error)
 	PreparePasswordChange(context.Context, string, string, string) (accounts.PasswordChangeTarget, error)
-	ChangePassword(context.Context, accounts.PasswordChangeTarget, string) (accounts.Account, error)
+	ChangePassword(context.Context, accounts.PasswordChangeTarget) (accounts.Account, error)
 	PrepareEmailChange(context.Context, string, string, string) (accounts.EmailChangeTarget, error)
 }
 
@@ -174,7 +174,7 @@ func (s *Service) ChangePassword(ctx context.Context, accountID, currentPassword
 	if authErr != nil {
 		return accounts.Account{}, authErr
 	}
-	return s.accounts.ChangePassword(ctx, target, newPassword)
+	return s.accounts.ChangePassword(ctx, target)
 }
 
 func (s *Service) acquirePasswordSlot(ctx context.Context) (func(), error) {

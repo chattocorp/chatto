@@ -574,7 +574,7 @@ func TestSignedInPasswordChangeRejectsAStaleReauthentication(t *testing.T) {
 	if _, err := runtime.Authentication.ChangePassword(testContext(t), account.ID, "the original uncommon password", "second replacement uncommon password"); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.Accounts.ChangePassword(testContext(t), target, "first replacement uncommon password"); !errors.Is(err, accounts.ErrCredentialChanged) {
+	if _, err := runtime.Accounts.ChangePassword(testContext(t), target); !errors.Is(err, accounts.ErrCredentialChanged) {
 		t.Fatalf("stale password change error = %v, want ErrCredentialChanged", err)
 	}
 }
@@ -593,7 +593,7 @@ func TestSignedInPasswordChangeToleratesAnAuditEventAfterReauthentication(t *tes
 	if _, ok, err := runtime.Accounts.RecordPasswordResetRequested(testContext(t), "password-audit@example.com"); err != nil || !ok {
 		t.Fatalf("record intervening audit event: present = %v, error = %v", ok, err)
 	}
-	changed, err := runtime.Accounts.ChangePassword(testContext(t), target, "the replacement uncommon password")
+	changed, err := runtime.Accounts.ChangePassword(testContext(t), target)
 	if err != nil {
 		t.Fatalf("change password after audit event: %v", err)
 	}
