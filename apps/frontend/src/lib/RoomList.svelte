@@ -38,7 +38,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import type { CallRoomParticipant } from '$lib/state/server/activeCallRooms.svelte';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
-  import NotificationPolicyQuickActions from '$lib/components/menus/NotificationPolicyQuickActions.svelte';
   import {
     contextMenuTrigger,
     type ContextMenuTriggerDetails
@@ -546,19 +545,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
         contextRoom.viewerNotificationCount > 0}
       canConfigure={contextRoom.viewerCanManageRoom && contextRoom.type !== RoomKind.DM}
       canLeave={!contextRoom.isUniversal && contextRoom.type !== RoomKind.DM}
-      showAdditionalActions={contextRoom.viewerIsMember}
       onJoin={() => void handleJoinRoom(contextRoom)}
       onMarkRead={() => handleMarkRoomRead(contextRoom)}
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
-    >
-      {#if contextRoom.viewerIsMember}
-        <NotificationPolicyQuickActions
-          {notificationStore}
-          roomId={contextRoom.id}
-          onupdated={() => (roomContextMenu = null)}
-        />
-      {/if}
-    </NavigationContextMenu>
+    />
   </ContextMenu>
 {/if}

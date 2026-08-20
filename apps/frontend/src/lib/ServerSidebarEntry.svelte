@@ -12,7 +12,6 @@
   import { m } from '$lib/i18n/messages';
   import ContextMenu from '$lib/ui/ContextMenu.svelte';
   import NavigationContextMenu from '$lib/components/menus/NavigationContextMenu.svelte';
-  import NotificationPolicyQuickActions from '$lib/components/menus/NotificationPolicyQuickActions.svelte';
   import {
     contextMenuTrigger,
     type ContextMenuTriggerDetails
@@ -269,16 +268,8 @@
       kind="server"
       showMarkRead={serverActionsAvailable}
       canMarkRead={roomUnreadStore.hasAnyUnread || notificationStore.unreadNotificationCount > 0}
-      showAdditionalActions={serverActionsAvailable}
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}
-    >
-      {#if serverActionsAvailable}
-        <NotificationPolicyQuickActions
-          {notificationStore}
-          onupdated={closeContextMenu}
-        />
-      {/if}
-    </NavigationContextMenu>
+    />
   </ContextMenu>
 {/if}
