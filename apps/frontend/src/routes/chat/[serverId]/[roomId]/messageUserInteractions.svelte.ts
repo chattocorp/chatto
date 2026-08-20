@@ -29,7 +29,7 @@ export class MessageUserInteractionState {
         login: user.login,
         displayName: user.displayName,
         deleted: user.deleted ?? false,
-        accountKind: user.accountKind,
+        isBot: user.isBot,
         avatarUrl: user.avatarUrl,
         customStatus: user.customStatus,
         presenceStatus: user.presenceStatus

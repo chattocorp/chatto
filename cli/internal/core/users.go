@@ -41,7 +41,7 @@ type userCreationOptions struct {
 	verifiedEmail string
 	external      *PendingExternalIdentityFlow
 	invitationID  string
-	accountKind   corev1.UserAccountKind
+	isBot         bool
 	botOwnerID    string
 	botAPIKeyOut  *string
 	authorize     func() error
@@ -50,11 +50,8 @@ type userCreationOptions struct {
 func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
-	accountKind := options.accountKind
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED {
-		accountKind = corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
-	}
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	isBot := options.isBot
+	if isBot {
 		if err := ValidateBotLogin(login); err != nil {
 			return nil, err
 		}
@@ -117,12 +114,12 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		Login:          login,
 		DisplayName:    displayName,
 		CreatedAt:      now,
-		AccountKind:    accountKind,
+		IsBot:          isBot,
 		BotOwnerUserId: options.botOwnerID,
 	}
 	var botAPIKey string
 	var botAPIKeyVerifier []byte
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if isBot {
 		var err error
 		botAPIKey, err = NewBotAPIKey(userID)
 		if err != nil {
@@ -175,7 +172,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
 		UserAccountCreated: &corev1.UserAccountCreatedEvent{
 			UserId:         userID,
-			AccountKind:    accountKind,
+			IsBot:          isBot,
 			BotOwnerUserId: options.botOwnerID,
 		},
 	}})
@@ -200,7 +197,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		Subject: agg.Subject(evtstream.EventUserAccountCreated),
 		Event:   accountCreated,
 	}}
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if isBot {
 		keyCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_BotApiKeyCreated{
 			BotApiKeyCreated: &corev1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
 		}})
@@ -284,7 +281,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		if err := c.requireLoginMentionHandleAvailable(login); err != nil {
 			return err
 		}
-		if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT && c.config.Limits.MaxUsersOrDefault() >= 0 {
+		if isBot && c.config.Limits.MaxUsersOrDefault() >= 0 {
 			count, err := c.CountUserLimitAccounts(ctx)
 			if err != nil {
 				return err

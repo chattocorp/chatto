@@ -3,7 +3,7 @@ export type UserSummaryForCache = {
   login: string;
   displayName: string;
   deleted: boolean;
-  accountKind?: number;
+  isBot?: boolean;
   avatarUrl: string | null;
 };
 

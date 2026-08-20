@@ -125,7 +125,7 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
-| `account_kind` | [`UserAccountKind`](#chatto-api-v1-UserAccountKind) | Whether this identity represents a person or a bot. |
+| `is_bot` | `bool` | True when this identity represents an automated bot. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -1618,19 +1618,6 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_AWAY` | `2` | The user is connected but away or idle. |
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
-
-<a id="chatto-api-v1-UserAccountKind"></a>
-
-### UserAccountKind
-
-Public account kind for a user identity. Older servers may return
-UNSPECIFIED, which clients should render as a human account.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `USER_ACCOUNT_KIND_UNSPECIFIED` | `0` | Account kind was not reported; treat as HUMAN for compatibility. |
-| `USER_ACCOUNT_KIND_HUMAN` | `1` | Account represents a person. |
-| `USER_ACCOUNT_KIND_BOT` | `2` | Account represents an automated bot. |
 
 <a id="chatto-api-v1-TimeFormat"></a>
 

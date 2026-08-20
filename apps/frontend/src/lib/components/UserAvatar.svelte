@@ -1,6 +1,5 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
   import { untrack } from 'svelte';
   import { m } from '$lib/i18n/messages';
   import type { UserAvatarUserView } from '$lib/render/users';
@@ -121,9 +120,7 @@
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');
-  const showBotBadge = $derived(
-    !!user && !user.deleted && user.accountKind === UserAccountKind.BOT
-  );
+  const showBotBadge = $derived(!!user && !user.deleted && user.isBot === true);
   const hasOverlay = $derived(showCustomStatusBadge || showPresenceDot || showBotBadge);
   const wrapperClass = $derived(
     [sizeClasses[size], 'inline-grid shrink-0 rounded-full', hasOverlay && 'relative', className]

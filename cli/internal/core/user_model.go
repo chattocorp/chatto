@@ -236,6 +236,6 @@ func (m *UserModel) botIDs() []string {
 	return m.users.Projection().BotIDs()
 }
 
-func (m *UserModel) accountKindAndOwner(userID string) (corev1.UserAccountKind, string, bool) {
-	return m.users.Projection().AccountKindAndOwner(userID)
+func (m *UserModel) isBotAndOwner(userID string) (bool, string, bool) {
+	return m.users.Projection().IsBotAndOwner(userID)
 }

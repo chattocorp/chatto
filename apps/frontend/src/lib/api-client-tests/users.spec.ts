@@ -1,6 +1,6 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest';
 import { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
-import { User as APIUser, UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
+import { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { createUserAPI, mapUserSummary } from '$lib/api-client/users';
 
 const mocks = vi.hoisted(() => ({
@@ -37,7 +37,7 @@ describe('createUserAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
-            accountKind: UserAccountKind.BOT,
+            isBot: true,
             avatarUrl: 'https://cdn/avatar.webp'
           })
         })
@@ -55,7 +55,7 @@ describe('createUserAPI', () => {
         login: 'alice',
         displayName: 'Alice',
         deleted: false,
-        accountKind: UserAccountKind.BOT,
+        isBot: true,
         avatarUrl: 'https://cdn/avatar.webp'
       }
     ]);
@@ -86,7 +86,7 @@ describe('createUserAPI', () => {
       login: 'bob',
       displayName: 'Bob',
       deleted: false,
-      accountKind: UserAccountKind.UNSPECIFIED,
+      isBot: false,
       avatarUrl: null
     });
   });

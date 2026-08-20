@@ -19,7 +19,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 		t.Fatalf("CreateBot: %v", err)
 	}
 	bot := created.Msg.GetBot()
-	if bot.GetUser().GetAccountKind() != apiv1.UserAccountKind_USER_ACCOUNT_KIND_BOT || bot.GetOwnerUserId() != env.viewer.GetId() {
+	if !bot.GetUser().GetIsBot() || bot.GetOwnerUserId() != env.viewer.GetId() {
 		t.Fatalf("created bot = %+v", bot)
 	}
 	if created.Msg.GetApiKey() == "" {
@@ -59,7 +59,7 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetViewer bot: %v", err)
 	}
-	if profile := viewer.Msg.GetUser().GetProfile(); profile.GetAccountKind() != apiv1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if profile := viewer.Msg.GetUser().GetProfile(); !profile.GetIsBot() {
 		t.Fatalf("bot viewer profile = %+v", profile)
 	}
 	if !apiPermissionGranted(viewer.Msg.GetViewerPermissions().GetPermissions(), string(core.PermMessagePost)) {

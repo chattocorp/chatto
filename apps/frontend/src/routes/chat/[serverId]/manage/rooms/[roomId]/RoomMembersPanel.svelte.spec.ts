@@ -1,5 +1,4 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -254,7 +253,7 @@ describe('RoomMembersPanel', () => {
   });
 
   it('marks bots in room membership management', async () => {
-    setup({ members: [{ ...member('helper_bot', 'Helper Bot'), accountKind: UserAccountKind.BOT }] });
+    setup({ members: [{ ...member('helper_bot', 'Helper Bot'), isBot: true }] });
     const { container } = renderPanel();
     await settle();
 

@@ -40,7 +40,7 @@ const ParticipantPublisherKindGameShare = "game_share"
 type participantMetadata struct {
 	Login         string                 `json:"login"`
 	AvatarURL     string                 `json:"avatarUrl,omitempty"`
-	AccountKind   corev1.UserAccountKind `json:"accountKind,omitempty"`
+	IsBot         bool                   `json:"isBot,omitempty"`
 	CallID        string                 `json:"callId,omitempty"`
 	PublisherKind string                 `json:"publisherKind,omitempty"`
 	OwnerIdentity string                 `json:"ownerIdentity,omitempty"`
@@ -125,10 +125,10 @@ func ParseLiveKitRoomServerID(lkRoomName string) string {
 }
 
 // GenerateVoiceCallToken creates a LiveKit join token for a user.
-// The login, avatar URL, and account kind are embedded as JSON metadata so the
+// The login, avatar URL, and bot status are embedded as JSON metadata so the
 // frontend can render identity without additional queries.
 // Authorization: Caller must verify room membership before calling.
-func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, accountKind corev1.UserAccountKind, e2eeKey string, callID ...string) (*VoiceCallToken, error) {
+func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL string, isBot bool, e2eeKey string, callID ...string) (*VoiceCallToken, error) {
 	at := lkauth.NewAccessToken(apiKey, apiSecret)
 	grant := &lkauth.VideoGrant{
 		RoomJoin: true,
@@ -143,7 +143,7 @@ func GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, lo
 	if len(callID) > 0 {
 		activeCallID = callID[0]
 	}
-	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, AccountKind: accountKind, CallID: activeCallID})
+	md, err := json.Marshal(participantMetadata{Login: login, AvatarURL: avatarURL, IsBot: isBot, CallID: activeCallID})
 	if err != nil {
 		return nil, fmt.Errorf("marshal participant metadata: %w", err)
 	}

@@ -10,7 +10,6 @@ import type {
 } from '$lib/api-client/adminUsers';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
@@ -196,7 +195,7 @@ describe('server member detail queries', () => {
 
   it('marks a bot account in the member overview', async () => {
     mocks.getMember.mockResolvedValueOnce(
-      details(member('helper_bot', { accountKind: UserAccountKind.BOT }))
+      details(member('helper_bot', { isBot: true }))
     );
 
     const rendered = render(MemberDetailPage);

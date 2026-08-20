@@ -1,5 +1,4 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
@@ -89,7 +88,7 @@ describe('MentionAutocomplete', () => {
     });
 
     it('marks bot mention targets with the shared avatar badge', () => {
-      const bot = { ...member('helper_bot', 'Helper Bot'), accountKind: UserAccountKind.BOT };
+      const bot = { ...member('helper_bot', 'Helper Bot'), isBot: true };
       const { container } = renderAutocomplete({ query: 'helper', members: [bot] });
 
       expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();

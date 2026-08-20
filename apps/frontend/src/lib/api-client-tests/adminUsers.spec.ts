@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { createAdminUserManagementAPI } from '$lib/api-client/adminUsers';
 
 const mocks = vi.hoisted(() => ({
@@ -63,7 +62,7 @@ describe('createAdminUserManagementAPI', () => {
             displayName: 'Alice',
             avatarUrl: undefined,
             deleted: false,
-            accountKind: UserAccountKind.BOT
+            isBot: true
           },
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },
@@ -97,7 +96,7 @@ describe('createAdminUserManagementAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
-          accountKind: UserAccountKind.BOT,
+          isBot: true,
           roles: ['admin'],
           createdAt: '2026-01-02T03:04:05.000Z',
           deleted: false,

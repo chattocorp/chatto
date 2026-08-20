@@ -1,5 +1,4 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { MessageSearchOrder } from '$lib/api-client/messageSearch';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
@@ -179,14 +178,14 @@ type User = {
   displayName: string;
   avatarUrl: string | null;
   presenceStatus: string;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
 };
 
 function user(
   id: string,
   login: string,
   displayName: string,
-  accountKind = UserAccountKind.HUMAN
+  isBot = false
 ): User {
   return {
     id,
@@ -194,7 +193,7 @@ function user(
     displayName,
     avatarUrl: null,
     presenceStatus: 'ONLINE',
-    accountKind
+    isBot
   };
 }
 
@@ -437,7 +436,7 @@ describe('QuickSwitcher', () => {
 
   it('marks bot user results', async () => {
     mocks.listUsers.mockResolvedValue({
-      members: [user('user-helper', 'helper_bot', 'Helper', UserAccountKind.BOT)],
+      members: [user('user-helper', 'helper_bot', 'Helper', true)],
       totalCount: 1,
       hasMore: false
     });

@@ -243,7 +243,7 @@ func serverMemberForUser(ctx context.Context, api *API, user *corev1.User) (*api
 		return nil, connectError(err)
 	}
 	var roles []string
-	if user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if !user.GetIsBot() {
 		roles = append([]string{core.RoleEveryone}, assigned...)
 	}
 	return directoryMember(ctx, api, user, roles)

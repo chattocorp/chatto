@@ -421,7 +421,7 @@ describe('createRoomCommandAPI', () => {
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: PresenceStatus.AWAY,
             customStatus: null,
-            accountKind: 0,
+            isBot: false,
             roles: [],
             createdAt: '2026-01-01T09:00:00.000Z'
           },
@@ -434,7 +434,7 @@ describe('createRoomCommandAPI', () => {
             avatarUrl: null,
             presenceStatus: PresenceStatus.OFFLINE,
             customStatus: null,
-            accountKind: 0,
+            isBot: false,
             roles: [],
             createdAt: null
           },

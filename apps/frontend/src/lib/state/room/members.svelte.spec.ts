@@ -1,5 +1,4 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { describe, expect, it, vi } from 'vitest';
 
 import type { MemberDirectoryAPI, MemberDirectoryPage } from '$lib/api-client/memberDirectory';
@@ -38,13 +37,13 @@ function deferred<T>() {
   return { promise, resolve };
 }
 
-function user(id: string, login = id, accountKind = UserAccountKind.HUMAN) {
+function user(id: string, login = id, isBot = false) {
   return {
     id,
     login,
     displayName: login,
     deleted: false,
-    accountKind,
+    isBot,
     avatarUrl: null,
     presenceStatus: PresenceStatus.ONLINE,
     customStatus: null,
@@ -75,11 +74,11 @@ describe('RoomMembersStore', () => {
   });
 
   it('preserves explicit bot identity from directory members', async () => {
-    const store = createStore([pageResult([user('bot-1', 'helper_bot', UserAccountKind.BOT)])]);
+    const store = createStore([pageResult([user('bot-1', 'helper_bot', true)])]);
     store.setRoom('room-1');
     await store.loadInitial();
 
-    expect(store.members[0]?.accountKind).toBe(UserAccountKind.BOT);
+    expect(store.members[0]?.isBot).toBe(true);
   });
 
   it('publishes the first page before hydrating the canonical member list in the background', async () => {

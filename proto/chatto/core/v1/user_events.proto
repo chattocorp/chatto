@@ -68,7 +68,7 @@ message EncryptedUserString {
 
 message UserAccountCreatedEvent {
   string user_id = 1;
-  UserAccountKind account_kind = 2;
+  bool is_bot = 2;
   // Required for bot accounts and empty for human accounts.
   string bot_owner_user_id = 3;
   EncryptedUserString encrypted_login = 10;

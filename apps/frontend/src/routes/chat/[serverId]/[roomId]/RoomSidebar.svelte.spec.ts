@@ -1,6 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { ImageFitMode } from '@chatto/api-types/api/v1/common_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
@@ -605,7 +604,7 @@ describe('RoomSidebar', () => {
   });
 
   it('marks bot accounts in the room member list', async () => {
-    mockRoomMembers([{ ...member(1), login: 'helper_bot', accountKind: UserAccountKind.BOT }]);
+    mockRoomMembers([{ ...member(1), login: 'helper_bot', isBot: true }]);
 
     const { container } = render(RoomSidebarTestHarness, {
       props: { roomData: roomData([], 0, false) }

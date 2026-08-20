@@ -17,14 +17,6 @@ enum RoomKind {
   ROOM_KIND_DM = 2;
 }
 
-// UserAccountKind identifies whether an account represents a person or an
-// automated bot identity. Historical accounts with UNSPECIFIED kind are human.
-enum UserAccountKind {
-  USER_ACCOUNT_KIND_UNSPECIFIED = 0;
-  USER_ACCOUNT_KIND_HUMAN = 1;
-  USER_ACCOUNT_KIND_BOT = 2;
-}
-
 // Room represents a chat room on the server.
 // For channel rooms, group_id MUST point to a RoomGroup; DM rooms leave it empty.
 message Room {
@@ -68,9 +60,9 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
   CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
-  // Immutable account kind. UNSPECIFIED is treated as HUMAN for historical
-  // accounts created before explicit account kinds existed.
-  UserAccountKind account_kind = 7;
+  // True for an automated bot identity. False for human accounts, including
+  // historical accounts created before bot identities existed.
+  bool is_bot = 7;
   // Human owner of this bot. Empty for human accounts.
   string bot_owner_user_id = 8;
 }

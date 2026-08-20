@@ -218,7 +218,7 @@ func (s *roleService) apiRoleUsers(ctx context.Context, users []core.RoleUserSum
 			Login:          user.Login,
 			DisplayName:    user.DisplayName,
 			Deleted:        user.Deleted,
-			AccountKind:    apiUserAccountKind(user.AccountKind),
+			IsBot:    user.IsBot,
 			PresenceStatus: corePresenceStatusToAPI(presence),
 			CustomStatus:   coreCustomStatusToAPI(user.CustomStatus),
 		})

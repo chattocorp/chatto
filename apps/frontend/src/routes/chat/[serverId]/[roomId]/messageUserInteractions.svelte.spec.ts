@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { MessageUserInteractionState } from './messageUserInteractions.svelte';
 
 const member = {
@@ -24,12 +23,12 @@ describe('MessageUserInteractionState', () => {
   it('retains an actor who is no longer in the room', () => {
     const state = new MessageUserInteractionState(() => []);
 
-    state.showUser({ ...member, deleted: false, accountKind: UserAccountKind.BOT }, null);
+    state.showUser({ ...member, deleted: false, isBot: true }, null);
 
     expect(state.user).toEqual({
       ...member,
       deleted: false,
-      accountKind: UserAccountKind.BOT,
+      isBot: true,
       customStatus: undefined
     });
     expect(state.hasCurrentMember(member.id)).toBe(false);

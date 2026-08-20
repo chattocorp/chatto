@@ -1,5 +1,4 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
@@ -621,7 +620,7 @@ describe('RoomList', () => {
         login: 'teal',
         displayName: 'Teal',
         avatarUrl: null,
-        accountKind: UserAccountKind.BOT
+        isBot: true
       }
     ]);
 

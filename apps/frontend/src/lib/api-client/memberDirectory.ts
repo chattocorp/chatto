@@ -9,7 +9,6 @@ import { UserService } from '@chatto/api-types/api/v1/member_directory_connect';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 
 export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
@@ -21,7 +20,7 @@ export type DirectoryMember = {
   login: string;
   displayName: string;
   deleted: boolean;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
   avatarUrl: string | null;
   presenceStatus: PresenceStatus;
   customStatus: {
@@ -159,7 +158,7 @@ export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember 
     login: user?.login ?? '',
     displayName: user?.displayName ?? '',
     deleted: user?.deleted ?? false,
-    accountKind: user?.accountKind ?? UserAccountKind.UNSPECIFIED,
+    isBot: user?.isBot ?? false,
     avatarUrl: user?.avatarUrl ?? null,
     presenceStatus: presenceStatusOrOffline(user?.presenceStatus ?? PresenceStatus.UNSPECIFIED),
     customStatus: user?.customStatus

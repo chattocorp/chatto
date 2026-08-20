@@ -183,13 +183,13 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## API Compatibility
 
-- `User.account_kind`, the `UserAccountKind` enum, and `BotService` are additive
+- `User.is_bot` and `BotService` are additive
   public API changes for Chatto 0.5.0.
 - The existing `AdminPermissionService` user-permission operations accept bot
   user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
   a target-specific delegation ceiling prevents an explicit allow.
-- `USER_ACCOUNT_KIND_UNSPECIFIED` is rendered as human for old persisted users
-  and version-skew tolerance. Older clients ignore the additive field and may
+- Missing historical `is_bot` values decode as false, so old persisted users
+  remain human accounts. Older clients ignore the additive field and may
   render bot identities without a bot marker.
 - The bundled client gates bot management on server version `0.5.0-0`. A new
   client does not call `BotService` on an older server.

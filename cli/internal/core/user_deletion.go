@@ -113,7 +113,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
 	}
-	if user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if !user.GetIsBot() {
 		if err := c.deleteOwnedBots(ctx, actorID, userID); err != nil {
 			return err
 		}
@@ -157,7 +157,7 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	}})
 	for {
 		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.EventSubjectFilter(), func() error {
-			if user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT && len(c.userModel.botIDsOwnedBy(userID)) > 0 {
+			if !user.GetIsBot() && len(c.userModel.botIDsOwnedBy(userID)) > 0 {
 				return errOwnedBotsRemain
 			}
 			return nil

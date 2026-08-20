@@ -19,14 +19,13 @@ import { playCallSound } from '$lib/audio/callSounds';
 import { m } from '$lib/i18n/messages';
 import type { VoiceCallAPI } from '$lib/api-client/voiceCalls';
 import { NativeScreenSharePublisherSession } from '$lib/desktop/nativeScreenSharePublisher';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 export type CallParticipantInfo = {
   identity: string;
   name: string;
   login: string;
   avatarUrl: string | null;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
   isMuted: boolean;
   isLocal: boolean;
   connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
@@ -49,7 +48,7 @@ export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
 type ParticipantMetadata = {
   login?: string;
   avatarUrl?: string;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
   publisherKind?: string;
   ownerIdentity?: string;
 };
@@ -1088,7 +1087,7 @@ export class VoiceCallState {
         name: p.name ?? p.identity,
         login: md.login ?? p.identity,
         avatarUrl: md.avatarUrl ?? null,
-        accountKind: md.accountKind ?? UserAccountKind.HUMAN,
+        isBot: md.isBot ?? false,
         isMuted: isParticipantMuted(p),
         isLocal,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],

@@ -157,7 +157,7 @@ func (c *ChattoCore) GetServerMembers(ctx context.Context, search string, limit,
 			assigned = nil
 		}
 		var roles []string
-		if user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		if !user.GetIsBot() {
 			roles = append([]string{RoleEveryone}, assigned...)
 		}
 		result = append(result, ServerMemberWithRoles{

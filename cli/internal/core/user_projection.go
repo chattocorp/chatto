@@ -206,17 +206,14 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	}
 	loginHash := userPIILookupHash(login)
 	u := p.ensureUserLocked(e.GetUserId())
-	accountKind := e.GetAccountKind()
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED {
-		accountKind = corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
-	}
+	isBot := e.GetIsBot()
 	u.user = &corev1.User{
 		Id:             e.GetUserId(),
 		CreatedAt:      envelopeCreatedAt,
-		AccountKind:    accountKind,
+		IsBot:    isBot,
 		BotOwnerUserId: e.GetBotOwnerUserId(),
 	}
-	if accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT && e.GetBotOwnerUserId() != "" {
+	if isBot && e.GetBotOwnerUserId() != "" {
 		if p.ownerBots[e.GetBotOwnerUserId()] == nil {
 			p.ownerBots[e.GetBotOwnerUserId()] = make(map[string]struct{})
 		}
@@ -433,7 +430,7 @@ func (p *UserProjection) applyKeyShredded(userID string) {
 }
 
 func (p *UserProjection) removeBotOwnerIndexLocked(userID string, u *projectedUser) {
-	if u == nil || u.user == nil || u.user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if u == nil || u.user == nil || !u.user.GetIsBot() {
 		return
 	}
 	ownerID := u.user.GetBotOwnerUserId()
@@ -463,7 +460,7 @@ func (p *UserProjection) BotIDs() []string {
 	defer p.RUnlock()
 	ids := make([]string, 0)
 	for userID, u := range p.users {
-		if u != nil && !u.deleted && !u.shredded && u.user != nil && u.user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		if u != nil && !u.deleted && !u.shredded && u.user != nil && u.user.GetIsBot() {
 			ids = append(ids, userID)
 		}
 	}
@@ -471,20 +468,16 @@ func (p *UserProjection) BotIDs() []string {
 	return ids
 }
 
-// AccountKindAndOwner returns non-PII account classification without hydrating
-// the encrypted user profile.
-func (p *UserProjection) AccountKindAndOwner(userID string) (corev1.UserAccountKind, string, bool) {
+// IsBotAndOwner returns bot status and ownership without hydrating the
+// encrypted user profile.
+func (p *UserProjection) IsBotAndOwner(userID string) (bool, string, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
 	if u == nil || u.deleted || u.shredded || u.user == nil {
-		return corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED, "", false
+		return false, "", false
 	}
-	kind := u.user.GetAccountKind()
-	if kind == corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED {
-		kind = corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
-	}
-	return kind, u.user.GetBotOwnerUserId(), true
+	return u.user.GetIsBot(), u.user.GetBotOwnerUserId(), true
 }
 
 func (p *UserProjection) KeyShreddingRequested(userID string) bool {

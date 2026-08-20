@@ -200,7 +200,7 @@ func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, ident
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return nil, 0, fmt.Errorf("invalid credentials")
 	}
-	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user.GetIsBot() {
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return nil, 0, fmt.Errorf("invalid credentials")
 	}

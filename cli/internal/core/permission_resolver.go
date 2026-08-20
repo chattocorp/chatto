@@ -3,8 +3,6 @@ package core
 import (
 	"context"
 	"fmt"
-
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -89,8 +87,8 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
-	accountKind, ownerUserID, accountExists := r.core.userModel.accountKindAndOwner(userID)
-	if accountExists && accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	isBot, ownerUserID, accountExists := r.core.userModel.isBotAndOwner(userID)
+	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
 	if _, known := GetPermissionMetadata(perm); known {
@@ -134,8 +132,8 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 	if kind == KindDM && dmBoundaryDenies(perm) {
 		return DecisionDeny, nil
 	}
-	ownerKind, _, ownerExists := r.core.userModel.accountKindAndOwner(ownerUserID)
-	if !ownerExists || ownerKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN {
+	ownerIsBot, _, ownerExists := r.core.userModel.isBotAndOwner(ownerUserID)
+	if !ownerExists || ownerIsBot {
 		return DecisionDeny, nil
 	}
 

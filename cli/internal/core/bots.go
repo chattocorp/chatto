@@ -79,11 +79,11 @@ func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token stri
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
-	if err != nil || bot.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if err != nil || !bot.GetIsBot() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
-	if err != nil || owner.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if err != nil || owner.GetIsBot() {
 		return nil, nil, ErrAuthTokenNotFound
 	}
 	return bot, presentedVerifier, nil
@@ -106,7 +106,7 @@ func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error 
 	if err != nil {
 		return err
 	}
-	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user.GetIsBot() {
 		return ErrHumanAccountRequired
 	}
 	return nil
@@ -120,7 +120,7 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 	if err != nil {
 		return nil, err
 	}
-	if bot.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if !bot.GetIsBot() {
 		return nil, ErrNotFound
 	}
 	if bot.GetBotOwnerUserId() == actorID {
@@ -137,7 +137,7 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 }
 
 func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
-	if user == nil || user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
 	}
 	credential, ok := c.userModel.botAPIKeyCredential(user.GetId())
@@ -170,8 +170,10 @@ func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName 
 	}
 	var apiKey string
 	user, err := c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
-		accountKind: corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT,
-		botOwnerID:  actorID, botAPIKeyOut: &apiKey, authorize: check,
+		isBot:        true,
+		botOwnerID:   actorID,
+		botAPIKeyOut: &apiKey,
+		authorize:    check,
 	})
 	if err != nil {
 		return nil, err

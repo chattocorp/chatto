@@ -5,17 +5,6 @@ package chatto.api.v1;
 import "chatto/api/v1/presence.proto";
 import "chatto/api/v1/user_status.proto";
 
-// Public account kind for a user identity. Older servers may return
-// UNSPECIFIED, which clients should render as a human account.
-enum UserAccountKind {
-  // Account kind was not reported; treat as HUMAN for compatibility.
-  USER_ACCOUNT_KIND_UNSPECIFIED = 0;
-  // Account represents a person.
-  USER_ACCOUNT_KIND_HUMAN = 1;
-  // Account represents an automated bot.
-  USER_ACCOUNT_KIND_BOT = 2;
-}
-
 // Public user fields.
 message User {
   // Stable user ID.
@@ -32,6 +21,6 @@ message User {
   PresenceStatus presence_status = 6;
   // Custom profile status, when set.
   CustomUserStatus custom_status = 7;
-  // Whether this identity represents a person or a bot.
-  UserAccountKind account_kind = 8;
+  // True when this identity represents an automated bot.
+  bool is_bot = 8;
 }

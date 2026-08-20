@@ -367,9 +367,9 @@ func (x *EncryptedUserString) GetContentKeyEpoch() int32 {
 }
 
 type UserAccountCreatedEvent struct {
-	state       protoimpl.MessageState `protogen:"open.v1"`
-	UserId      string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	AccountKind UserAccountKind        `protobuf:"varint,2,opt,name=account_kind,json=accountKind,proto3,enum=chatto.core.v1.UserAccountKind" json:"account_kind,omitempty"`
+	state  protoimpl.MessageState `protogen:"open.v1"`
+	UserId string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	IsBot  bool                   `protobuf:"varint,2,opt,name=is_bot,json=isBot,proto3" json:"is_bot,omitempty"`
 	// Required for bot accounts and empty for human accounts.
 	BotOwnerUserId       string               `protobuf:"bytes,3,opt,name=bot_owner_user_id,json=botOwnerUserId,proto3" json:"bot_owner_user_id,omitempty"`
 	EncryptedLogin       *EncryptedUserString `protobuf:"bytes,10,opt,name=encrypted_login,json=encryptedLogin,proto3" json:"encrypted_login,omitempty"`
@@ -415,11 +415,11 @@ func (x *UserAccountCreatedEvent) GetUserId() string {
 	return ""
 }
 
-func (x *UserAccountCreatedEvent) GetAccountKind() UserAccountKind {
+func (x *UserAccountCreatedEvent) GetIsBot() bool {
 	if x != nil {
-		return x.AccountKind
+		return x.IsBot
 	}
-	return UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED
+	return false
 }
 
 func (x *UserAccountCreatedEvent) GetBotOwnerUserId() string {
@@ -1582,10 +1582,10 @@ const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\x13EncryptedUserString\x12'\n" +
 	"\x0fencrypted_value\x18\x01 \x01(\fR\x0eencryptedValue\x12\x14\n" +
 	"\x05nonce\x18\x02 \x01(\fR\x05nonce\x12*\n" +
-	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\xca\x02\n" +
+	"\x11content_key_epoch\x18\x03 \x01(\x05R\x0fcontentKeyEpoch\"\x9d\x02\n" +
 	"\x17UserAccountCreatedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12B\n" +
-	"\faccount_kind\x18\x02 \x01(\x0e2\x1f.chatto.core.v1.UserAccountKindR\vaccountKind\x12)\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x15\n" +
+	"\x06is_bot\x18\x02 \x01(\bR\x05isBot\x12)\n" +
 	"\x11bot_owner_user_id\x18\x03 \x01(\tR\x0ebotOwnerUserId\x12L\n" +
 	"\x0fencrypted_login\x18\n" +
 	" \x01(\v2#.chatto.core.v1.EncryptedUserStringR\x0eencryptedLogin\x12Y\n" +
@@ -1708,28 +1708,26 @@ var file_chatto_core_v1_user_events_proto_goTypes = []any{
 	(*UserKeyShreddingRequestedEvent)(nil),    // 25: chatto.core.v1.UserKeyShreddingRequestedEvent
 	(*UserDEKGeneratedEvent)(nil),             // 26: chatto.core.v1.UserDEKGeneratedEvent
 	(TimeFormat)(0),                           // 27: chatto.core.v1.TimeFormat
-	(UserAccountKind)(0),                      // 28: chatto.core.v1.UserAccountKind
-	(*DeprecatedAsset)(nil),                   // 29: chatto.core.v1.DeprecatedAsset
-	(*ServerUserPreferences)(nil),             // 30: chatto.core.v1.ServerUserPreferences
-	(*CustomUserStatus)(nil),                  // 31: chatto.core.v1.CustomUserStatus
+	(*DeprecatedAsset)(nil),                   // 28: chatto.core.v1.DeprecatedAsset
+	(*ServerUserPreferences)(nil),             // 29: chatto.core.v1.ServerUserPreferences
+	(*CustomUserStatus)(nil),                  // 30: chatto.core.v1.CustomUserStatus
 }
 var file_chatto_core_v1_user_events_proto_depIdxs = []int32{
 	27, // 0: chatto.core.v1.ServerUserPreferencesUpdatedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	28, // 1: chatto.core.v1.UserAccountCreatedEvent.account_kind:type_name -> chatto.core.v1.UserAccountKind
-	5,  // 2: chatto.core.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
-	5,  // 3: chatto.core.v1.UserAccountCreatedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	5,  // 4: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
-	5,  // 5: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
-	29, // 6: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
-	5,  // 7: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
-	30, // 8: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
-	31, // 9: chatto.core.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.v1.CustomUserStatus
-	0,  // 10: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	5,  // 1: chatto.core.v1.UserAccountCreatedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
+	5,  // 2: chatto.core.v1.UserAccountCreatedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
+	5,  // 3: chatto.core.v1.UserLoginChangedEvent.encrypted_login:type_name -> chatto.core.v1.EncryptedUserString
+	5,  // 4: chatto.core.v1.UserDisplayNameChangedEvent.encrypted_display_name:type_name -> chatto.core.v1.EncryptedUserString
+	28, // 5: chatto.core.v1.UserAvatarSetEvent.avatar:type_name -> chatto.core.v1.DeprecatedAsset
+	5,  // 6: chatto.core.v1.UserVerifiedEmailAddedEvent.encrypted_email:type_name -> chatto.core.v1.EncryptedUserString
+	29, // 7: chatto.core.v1.UserServerPreferencesChangedEvent.preferences:type_name -> chatto.core.v1.ServerUserPreferences
+	30, // 8: chatto.core.v1.UserCustomStatusSetEvent.status:type_name -> chatto.core.v1.CustomUserStatus
+	0,  // 9: chatto.core.v1.UserDEKGeneratedEvent.purpose:type_name -> chatto.core.v1.UserDEKPurpose
+	10, // [10:10] is the sub-list for method output_type
+	10, // [10:10] is the sub-list for method input_type
+	10, // [10:10] is the sub-list for extension type_name
+	10, // [10:10] is the sub-list for extension extendee
+	0,  // [0:10] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_user_events_proto_init() }

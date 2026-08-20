@@ -49,7 +49,7 @@ message presentation. Each message row itself opens the original message.
       login: summary.login,
       displayName: summary.displayName,
       deleted: summary.deleted ?? false,
-      accountKind: summary.accountKind,
+      isBot: summary.isBot,
       avatarUrl: summary.avatarUrl,
       presenceStatus: PresenceStatus.OFFLINE
     };

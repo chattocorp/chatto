@@ -21,7 +21,7 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	if bot.User.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || bot.OwnerUserID != owner.GetId() {
+	if !bot.User.GetIsBot() || bot.OwnerUserID != owner.GetId() {
 		t.Fatalf("bot identity = %+v, want explicit bot owned by %s", bot, owner.GetId())
 	}
 	if !strings.HasPrefix(bot.APIKey, botAPIKeyPrefix+bot.User.GetId()+".") {

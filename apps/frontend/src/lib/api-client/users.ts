@@ -2,7 +2,6 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { UserService } from '@chatto/api-types/api/v1/member_directory_connect';
 import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 export type UserAPIConfig = {
   baseUrl: string;
@@ -15,7 +14,7 @@ export type UserSummary = {
   login: string;
   displayName: string;
   deleted: boolean;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
   avatarUrl: string | null;
 };
 
@@ -46,7 +45,7 @@ export function mapUserSummary(user: APIUser): UserSummary {
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
-    accountKind: user.accountKind,
+    isBot: user.isBot,
     avatarUrl: user.avatarUrl || null
   };
 }

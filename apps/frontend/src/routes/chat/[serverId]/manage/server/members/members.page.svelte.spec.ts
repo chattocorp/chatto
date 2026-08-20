@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import MembersPage from './+page.svelte';
-import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 type Member = {
   id: string;
@@ -11,7 +10,7 @@ type Member = {
   avatarUrl: string | null;
   roles: string[];
   createdAt: string;
-  accountKind?: UserAccountKind;
+  isBot?: boolean;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -251,7 +250,7 @@ describe('server admin members pagination', () => {
   });
 
   it('marks bot accounts in the member list', async () => {
-    queueResults(result([{ ...member(0, 'helper_bot'), accountKind: UserAccountKind.BOT }]));
+    queueResults(result([{ ...member(0, 'helper_bot'), isBot: true }]));
 
     const { container } = render(MembersPage);
     await settle();

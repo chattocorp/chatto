@@ -201,7 +201,7 @@ func (p *UserProjection) Restore(data []byte) error {
 			u.verifiedEmail[email.GetDigest()] = projectedVerifiedEmail{pii: pii, verifiedAt: email.GetVerifiedAt().AsTime()}
 		}
 		restored.users[userID] = u
-		if u.user != nil && u.user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT && u.user.GetBotOwnerUserId() != "" && active {
+		if u.user != nil && u.user.GetIsBot() && u.user.GetBotOwnerUserId() != "" && active {
 			if restored.ownerBots[u.user.GetBotOwnerUserId()] == nil {
 				restored.ownerBots[u.user.GetBotOwnerUserId()] = make(map[string]struct{})
 			}

@@ -10,7 +10,6 @@
   import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { formatCooldownRemaining, getLoginChangeCooldownRemaining } from '$lib/validation';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
   type Props = {
     member: AdminMember;
@@ -36,7 +35,7 @@
       .sort((a, b) => rolePosition(a) - rolePosition(b))
   );
   const serverRoleCount = $derived(sortedServerRoles.length);
-  const isBot = $derived(member.accountKind === UserAccountKind.BOT);
+  const isBot = $derived(member.isBot === true);
   const cooldownSummary = $derived.by(() => {
     if (cooldownActive) {
       return m('admin.member_detail.self_rename_cooldown', {

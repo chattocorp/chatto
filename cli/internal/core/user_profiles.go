@@ -151,7 +151,7 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	if login != nil {
 		nextLogin = strings.TrimSpace(*login)
 		var validationErr error
-		if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		if user.GetIsBot() {
 			validationErr = ValidateBotLogin(nextLogin)
 		} else {
 			validationErr = ValidateHumanLogin(nextLogin)
@@ -339,7 +339,7 @@ func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newL
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}
-	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user.GetIsBot() {
 		if err := ValidateBotLogin(newLogin); err != nil {
 			return nil, err
 		}

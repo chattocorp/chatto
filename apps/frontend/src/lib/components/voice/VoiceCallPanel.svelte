@@ -15,7 +15,6 @@ Room sidebar panel for voice/video calls.
 -->
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-  import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -65,7 +64,7 @@ Room sidebar panel for voice/video calls.
       login: string;
       displayName: string;
       avatarUrl: string | null;
-      accountKind: UserAccountKind;
+      isBot: boolean;
       presenceStatus: PresenceStatus;
     };
     isMuted: boolean;
@@ -88,7 +87,7 @@ Room sidebar panel for voice/video calls.
           login: p.login,
           displayName: p.name,
           avatarUrl: p.avatarUrl,
-          accountKind: p.accountKind ?? UserAccountKind.HUMAN,
+          isBot: p.isBot ?? false,
           presenceStatus: PresenceStatus.ONLINE
         },
         isMuted: p.isMuted,
@@ -110,7 +109,7 @@ Room sidebar panel for voice/video calls.
         login: p.login,
         displayName: p.displayName,
         avatarUrl: p.avatarUrl,
-        accountKind: p.accountKind,
+        isBot: p.isBot,
         presenceStatus: PresenceStatus.ONLINE
       },
       isMuted: false,

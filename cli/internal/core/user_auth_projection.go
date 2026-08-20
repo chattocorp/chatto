@@ -32,7 +32,7 @@ type botAPIKeyWatcher struct {
 
 type projectedUserAuth struct {
 	deleted            bool
-	accountKind        corev1.UserAccountKind
+	isBot               bool
 	botOwnerUserID     string
 	botAPIKeyVerifier  []byte
 	botAPIKeyCreatedAt time.Time
@@ -82,10 +82,7 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_UserAccountCreated:
 		if e.UserAccountCreated != nil {
 			u := p.ensureUserLocked(e.UserAccountCreated.GetUserId())
-			u.accountKind = e.UserAccountCreated.GetAccountKind()
-			if u.accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED {
-				u.accountKind = corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
-			}
+			u.isBot = e.UserAccountCreated.GetIsBot()
 			u.botOwnerUserID = e.UserAccountCreated.GetBotOwnerUserId()
 		}
 	case *corev1.Event_BotApiKeyCreated:
@@ -270,7 +267,7 @@ func (p *UserAuthProjection) applyBotAPIKeyCreated(e *corev1.BotApiKeyCreatedEve
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
-	if u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if u.deleted || !u.isBot {
 		return
 	}
 	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], e.GetVerifier()...)
@@ -283,7 +280,7 @@ func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEve
 		return
 	}
 	u := p.ensureUserLocked(e.GetUserId())
-	if u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || len(u.botAPIKeyVerifier) == 0 {
+	if u.deleted || !u.isBot || len(u.botAPIKeyVerifier) == 0 {
 		return
 	}
 	nextVerifier := e.GetVerifier()
@@ -319,7 +316,7 @@ func (p *UserAuthProjection) BotAPIKeyCredential(userID string) (BotAPIKeyCreden
 	p.RLock()
 	defer p.RUnlock()
 	u := p.users[userID]
-	if u == nil || u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || len(u.botAPIKeyVerifier) == 0 {
+	if u == nil || u.deleted || !u.isBot || len(u.botAPIKeyVerifier) == 0 {
 		return BotAPIKeyCredential{}, false
 	}
 	return BotAPIKeyCredential{
@@ -337,7 +334,7 @@ func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier [
 	invalidated := make(chan struct{})
 	p.Lock()
 	u := p.users[userID]
-	if u == nil || u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT ||
+	if u == nil || u.deleted || !u.isBot ||
 		!bytes.Equal(u.botAPIKeyVerifier, verifier) {
 		close(invalidated)
 		p.Unlock()

@@ -157,7 +157,7 @@ func (c *ChattoCore) GetUserPermissionMatrix(ctx context.Context, actorID, userI
 	if err != nil {
 		return nil, err
 	}
-	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user.GetIsBot() {
 		user, err = c.requireBotManager(ctx, actorID, userID)
 		if err != nil {
 			return nil, err
@@ -250,7 +250,7 @@ func (c *ChattoCore) SetUserPermissionState(ctx context.Context, actorID, userID
 	if err != nil {
 		return err
 	}
-	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+	if user.GetIsBot() {
 		return c.setBotUserPermissionState(ctx, actorID, userID, scope, perm, state)
 	}
 	check := func() error {
@@ -608,7 +608,7 @@ func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName str
 func (c *ChattoCore) buildUserPermissionMatrix(ctx context.Context, actorID string, user *corev1.User) (*UserPermissionMatrix, error) {
 	userID := user.GetId()
 	applicable := matrixApplicablePermissions()
-	bot := user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT
+	bot := user.GetIsBot()
 	if bot {
 		filtered := applicable[:0]
 		for _, permission := range applicable {
