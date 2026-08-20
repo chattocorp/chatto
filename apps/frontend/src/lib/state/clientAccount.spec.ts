@@ -8,7 +8,7 @@ const { mocks } = vi.hoisted(() => ({
     beginExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
-    unsubscribePush: vi.fn(),
+    unsubscribePushBeforeLeaving: vi.fn(),
     notifyLogout: vi.fn(),
     clearLastRoom: vi.fn(),
     clearServerAuthentication: vi.fn(),
@@ -24,7 +24,7 @@ vi.mock('$lib/auth/signOut', () => ({
 }));
 vi.mock('$lib/auth/sessionChannel', () => ({ notifyLogout: mocks.notifyLogout }));
 vi.mock('$lib/notifications/pushNotifications', () => ({
-  unsubscribe: mocks.unsubscribePush
+  unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
 }));
 vi.mock('$lib/storage/lastRoom', () => ({ clearLastRoom: mocks.clearLastRoom }));
 vi.mock('$lib/state/server/registry.svelte', () => ({
@@ -55,7 +55,7 @@ beforeEach(() => {
   mocks.authenticated = new Set(['origin', 'remote']);
   mocks.signOutServer.mockResolvedValue(new Response('{}'));
   mocks.signOutServers.mockResolvedValue(undefined);
-  mocks.unsubscribePush.mockResolvedValue(true);
+  mocks.unsubscribePushBeforeLeaving.mockResolvedValue(undefined);
 });
 
 describe('ClientAccountCoordinator', () => {
@@ -63,7 +63,7 @@ describe('ClientAccountCoordinator', () => {
     const result = await clientAccount.signOutCurrentServer('remote');
 
     expect(mocks.signOutServer).toHaveBeenCalledWith(mocks.servers[1], false);
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith('remote');
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledWith('remote');
     expect(mocks.clearLastRoom).toHaveBeenCalledWith('remote');
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('remote');
     expect(mocks.removeServer).not.toHaveBeenCalled();
@@ -74,7 +74,7 @@ describe('ClientAccountCoordinator', () => {
     const result = await clientAccount.signOutCurrentServer('origin');
 
     expect(mocks.beginExplicitSignOutRedirect).toHaveBeenCalledOnce();
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith('origin');
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledWith('origin');
     expect(mocks.clearServerAuthentication).toHaveBeenCalledWith('origin');
     expect(mocks.removeServer).not.toHaveBeenCalled();
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
@@ -85,14 +85,13 @@ describe('ClientAccountCoordinator', () => {
     const result = await clientAccount.signOutAllServers();
 
     expect(mocks.signOutServers).toHaveBeenCalledWith(mocks.servers, expect.any(Function));
-    expect(mocks.unsubscribePush).toHaveBeenCalledTimes(2);
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
     expect(mocks.resetToOrigin).toHaveBeenCalledOnce();
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
     expect(result).toEqual({ kind: 'hard' });
   });
 
-  it('does not let pending push cleanup block sign-out', async () => {
-    mocks.unsubscribePush.mockReturnValue(new Promise<boolean>(() => {}));
+  it('continues sign-out after local push cleanup', async () => {
 
     await expect(clientAccount.signOutCurrentServer('remote')).resolves.toEqual({
       kind: 'soft',
@@ -100,6 +99,6 @@ describe('ClientAccountCoordinator', () => {
     });
     await expect(clientAccount.signOutAllServers()).resolves.toEqual({ kind: 'hard' });
 
-    expect(mocks.unsubscribePush).toHaveBeenCalledTimes(3);
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(3);
   });
 });

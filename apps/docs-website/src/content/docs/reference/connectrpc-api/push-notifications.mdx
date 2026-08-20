@@ -45,7 +45,7 @@ Request to store a PushSubscription returned by the browser Push API.
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
-| `client_host` | `optional string` | URL host of the Chatto server that supplied the installed web app. The sending server combines this with its own hostname to reconstruct the client route. A host can include a port but no scheme, path, or user info. When omitted, notification clicks open this server's bundled /chat/- client. |
+| `client_host` | `optional string` | URL host of the Chatto server that supplied the installed web app. The sending server combines this with its own hostname to reconstruct the client route. A host can include a port but no scheme, path, or user info. SubscribeForClient requires this field; Subscribe ignores it. |
 
 
 <a id="chatto-api-v1-SubscribePushResponse"></a>
@@ -57,8 +57,27 @@ Response from storing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `subscribed` | `bool` | True when the subscription was stored. |
-| `client_host_stored` | `bool` | True when the server persisted client_host. New clients use this acknowledgement before trusting a remote server to reconstruct the installed web app's notification route. |
 
+
+<a id="chatto-api-v1-PushNotificationService-SubscribeForClient"></a>
+
+### SubscribeForClient
+
+Stores a subscription whose notifications must open a different Chatto
+server's installed web app. This separate RPC makes rolling upgrades fail
+closed: older replicas reject the unknown method before storing anything.
+
+```http
+POST /api/connect/chatto.api.v1.PushNotificationService/SubscribeForClient
+```
+
+#### Input: [SubscribePushRequest](#chatto-api-v1-SubscribePushRequest)
+
+Uses the same input shape documented above.
+
+#### Result: [SubscribePushResponse](#chatto-api-v1-SubscribePushResponse)
+
+Uses the same result shape documented above.
 
 <a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>
 

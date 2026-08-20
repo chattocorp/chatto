@@ -223,15 +223,28 @@ type SendResult struct {
 	Gone bool
 }
 
+// DeliveryEndpoint returns the provider endpoint from either the current
+// client-aware representation or a legacy subscription.
+func DeliveryEndpoint(sub *corev1.PushSubscription) string {
+	if sub != nil && sub.DeliveryEndpoint != "" {
+		return sub.DeliveryEndpoint
+	}
+	if sub == nil {
+		return ""
+	}
+	return sub.Endpoint
+}
+
 // Send sends a push notification to a single subscription.
 func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload *Payload) *SendResult {
+	endpoint := DeliveryEndpoint(sub)
 	result := &SendResult{
-		Endpoint: sub.Endpoint,
+		Endpoint: endpoint,
 	}
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	if err := s.validateEndpoint(sub.Endpoint); err != nil {
+	if err := s.validateEndpoint(endpoint); err != nil {
 		result.Error = errors.New("push delivery failed: invalid endpoint")
 		return result
 	}
@@ -265,7 +278,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 
 	// Create webpush subscription from our proto
 	subscription := &webpush.Subscription{
-		Endpoint: sub.Endpoint,
+		Endpoint: endpoint,
 		Keys: webpush.Keys{
 			P256dh: sub.P256Dh,
 			Auth:   sub.Auth,

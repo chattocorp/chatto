@@ -38,7 +38,7 @@ type SubscribePushRequest struct {
 	// URL host of the Chatto server that supplied the installed web app. The
 	// sending server combines this with its own hostname to reconstruct the
 	// client route. A host can include a port but no scheme, path, or user info.
-	// When omitted, notification clicks open this server's bundled /chat/- client.
+	// SubscribeForClient requires this field; Subscribe ignores it.
 	ClientHost    *string `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3,oneof" json:"client_host,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -113,13 +113,9 @@ func (x *SubscribePushRequest) GetClientHost() string {
 type SubscribePushResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the subscription was stored.
-	Subscribed bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
-	// True when the server persisted client_host. New clients use this
-	// acknowledgement before trusting a remote server to reconstruct the
-	// installed web app's notification route.
-	ClientHostStored bool `protobuf:"varint,2,opt,name=client_host_stored,json=clientHostStored,proto3" json:"client_host_stored,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	Subscribed    bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *SubscribePushResponse) Reset() {
@@ -155,13 +151,6 @@ func (*SubscribePushResponse) Descriptor() ([]byte, []int) {
 func (x *SubscribePushResponse) GetSubscribed() bool {
 	if x != nil {
 		return x.Subscribed
-	}
-	return false
-}
-
-func (x *SubscribePushResponse) GetClientHostStored() bool {
-	if x != nil {
-		return x.ClientHostStored
 	}
 	return false
 }
@@ -358,12 +347,11 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\vclient_host\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\xff\x01H\x01R\n" +
 	"clientHost\x88\x01\x01B\r\n" +
 	"\v_user_agentB\x0e\n" +
-	"\f_client_host\"e\n" +
+	"\f_client_host\"7\n" +
 	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +
-	"subscribed\x12,\n" +
-	"\x12client_host_stored\x18\x02 \x01(\bR\x10clientHostStored\"@\n" +
+	"subscribed\"@\n" +
 	"\x16UnsubscribePushRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"=\n" +
@@ -371,9 +359,10 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed\"!\n" +
 	"\x1fSendTestPushNotificationRequest\"6\n" +
 	" SendTestPushNotificationResponse\x12\x12\n" +
-	"\x04sent\x18\x01 \x01(\bR\x04sent2\xcd\x02\n" +
+	"\x04sent\x18\x01 \x01(\bR\x04sent2\xae\x03\n" +
 	"\x17PushNotificationService\x12V\n" +
-	"\tSubscribe\x12#.chatto.api.v1.SubscribePushRequest\x1a$.chatto.api.v1.SubscribePushResponse\x12a\n" +
+	"\tSubscribe\x12#.chatto.api.v1.SubscribePushRequest\x1a$.chatto.api.v1.SubscribePushResponse\x12_\n" +
+	"\x12SubscribeForClient\x12#.chatto.api.v1.SubscribePushRequest\x1a$.chatto.api.v1.SubscribePushResponse\x12a\n" +
 	"\vUnsubscribe\x12%.chatto.api.v1.UnsubscribePushRequest\x1a&.chatto.api.v1.UnsubscribePushResponse\"\x03\x90\x02\x02\x12w\n" +
 	"\x14SendTestNotification\x12..chatto.api.v1.SendTestPushNotificationRequest\x1a/.chatto.api.v1.SendTestPushNotificationResponseB\xb2\x01\n" +
 	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
@@ -401,13 +390,15 @@ var file_chatto_api_v1_push_notifications_proto_goTypes = []any{
 }
 var file_chatto_api_v1_push_notifications_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.PushNotificationService.Subscribe:input_type -> chatto.api.v1.SubscribePushRequest
-	2, // 1: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribePushRequest
-	4, // 2: chatto.api.v1.PushNotificationService.SendTestNotification:input_type -> chatto.api.v1.SendTestPushNotificationRequest
-	1, // 3: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribePushResponse
-	3, // 4: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribePushResponse
-	5, // 5: chatto.api.v1.PushNotificationService.SendTestNotification:output_type -> chatto.api.v1.SendTestPushNotificationResponse
-	3, // [3:6] is the sub-list for method output_type
-	0, // [0:3] is the sub-list for method input_type
+	0, // 1: chatto.api.v1.PushNotificationService.SubscribeForClient:input_type -> chatto.api.v1.SubscribePushRequest
+	2, // 2: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribePushRequest
+	4, // 3: chatto.api.v1.PushNotificationService.SendTestNotification:input_type -> chatto.api.v1.SendTestPushNotificationRequest
+	1, // 4: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribePushResponse
+	1, // 5: chatto.api.v1.PushNotificationService.SubscribeForClient:output_type -> chatto.api.v1.SubscribePushResponse
+	3, // 6: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribePushResponse
+	5, // 7: chatto.api.v1.PushNotificationService.SendTestNotification:output_type -> chatto.api.v1.SendTestPushNotificationResponse
+	4, // [4:8] is the sub-list for method output_type
+	0, // [0:4] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name

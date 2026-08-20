@@ -2087,6 +2087,13 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		VAPIDPrivateKey: "private-key",
 		VAPIDSubject:    "mailto:admin@example.com",
 	}
+	if _, err := env.push.SubscribeForClient(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+		Endpoint: "https://push.example.test/client-host-required",
+		P256Dh:   "p256dh-key",
+		Auth:     "auth-secret",
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("missing client host SubscribeForClient code = %v, want invalid_argument", connect.CodeOf(err))
+	}
 	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint: "http://127.0.0.1/internal",
 		P256Dh:   "p256dh-key",
@@ -2094,7 +2101,7 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unsafe endpoint Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	subResp, err := env.push.SubscribeForClient(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint:   "https://push.example.test/sub",
 		P256Dh:     "p256dh-key",
 		Auth:       "auth-secret",
@@ -2102,16 +2109,16 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		ClientHost: stringPtr("app.example.test"),
 	}))
 	if err != nil {
-		t.Fatalf("Subscribe: %v", err)
+		t.Fatalf("SubscribeForClient: %v", err)
 	}
-	if !subResp.Msg.GetSubscribed() || !subResp.Msg.GetClientHostStored() {
-		t.Fatalf("Subscribe response = %+v, want subscription and client-host acknowledgement", subResp.Msg)
+	if !subResp.Msg.GetSubscribed() {
+		t.Fatalf("SubscribeForClient response = %+v, want subscription acknowledgement", subResp.Msg)
 	}
 	subs, err := env.core.GetUserPushSubscriptions(env.ctx, env.viewer.Id)
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions: %v", err)
 	}
-	if len(subs) != 1 || subs[0].GetEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" || subs[0].GetClientHost() != "app.example.test" {
+	if len(subs) != 1 || subs[0].GetEndpoint() != "" || subs[0].GetDeliveryEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" || subs[0].GetClientHost() != "app.example.test" {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 

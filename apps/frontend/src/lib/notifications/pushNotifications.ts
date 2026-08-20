@@ -19,6 +19,8 @@ type EnsureRegisteredOptions = {
   prompt: boolean;
 };
 
+const registrationTails = new Map<string, Promise<boolean>>();
+
 export type PushRegistrationTarget = {
   serverId: string;
   userId: string;
@@ -260,7 +262,22 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * already granted, this refreshes the server-side delivery cache without
  * prompting the user.
  */
-export async function ensureRegistered(
+export function ensureRegistered(
+  serverId: string,
+  vapidPublicKey: string,
+  options: EnsureRegisteredOptions
+): Promise<boolean> {
+  const previous = registrationTails.get(serverId) ?? Promise.resolve(false);
+  const current = previous
+    .catch(() => false)
+    .then(() => ensureRegisteredOnce(serverId, vapidPublicKey, options));
+  registrationTails.set(serverId, current);
+  return current.finally(() => {
+    if (registrationTails.get(serverId) === current) registrationTails.delete(serverId);
+  });
+}
+
+async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
   options: EnsureRegisteredOptions
@@ -323,16 +340,18 @@ export async function ensureRegistered(
       return false;
     }
 
-    const clientHost = window.location.host;
-    const saved = await pushAPI(serverId).subscribe({
+    const input = {
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
-      userAgent: navigator.userAgent,
-      clientHost
-    });
+      userAgent: navigator.userAgent
+    };
+    const api = pushAPI(serverId);
+    const saved = clientHostRequired
+      ? await api.subscribeForClient({ ...input, clientHost: window.location.host })
+      : await api.subscribe(input);
 
-    if (!saved.subscribed || (clientHostRequired && !saved.clientHostStored)) {
+    if (!saved.subscribed) {
       console.error('Failed to save push subscription');
       if (createdSubscription || clientHostRequired) {
         await invalidateSubscription(serverId, subscription);
@@ -358,14 +377,14 @@ async function invalidateSubscription(
   subscription: PushSubscription
 ): Promise<void> {
   try {
-    await pushAPI(serverId).unsubscribe(subscription.endpoint);
-  } catch {
-    // Browser cleanup must still run when server cleanup is unavailable.
-  }
-  try {
     await subscription.unsubscribe();
   } catch {
     // The subscription is already unusable from this client's perspective.
+  }
+  try {
+    await pushAPI(serverId).unsubscribe(subscription.endpoint);
+  } catch {
+    // Local invalidation has already stopped this browser receiving pushes.
   }
 }
 
@@ -382,25 +401,30 @@ export async function subscribe(serverId: string, vapidPublicKey: string): Promi
 /**
  * Unsubscribe from push notifications.
  * This will:
- * 1. Remove the subscription from the server
- * 2. Unsubscribe from the browser's push service
+ * 1. Unsubscribe from the browser's push service
+ * 2. Remove the subscription from the server
  *
  * @returns true if unsubscription was successful
  */
 export async function unsubscribe(serverId: string): Promise<boolean> {
+  const cleanup = await beginUnsubscribe(serverId);
+  return cleanup.removedFromBrowser && (await cleanup.removeFromServer);
+}
+
+/** Invalidates browser delivery before navigation and backgrounds server cleanup. */
+export async function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
+  const cleanup = await beginUnsubscribe(serverId);
+  void cleanup.removeFromServer;
+}
+
+async function beginUnsubscribe(serverId: string): Promise<{
+  removedFromBrowser: boolean;
+  removeFromServer: Promise<boolean>;
+}> {
   const api = pushAPI(serverId);
   const subscription = await getSubscription(serverId);
   if (!subscription) {
-    // Already unsubscribed
-    return true;
-  }
-
-  let removedFromServer = false;
-  try {
-    removedFromServer = await api.unsubscribe(subscription.endpoint);
-    if (!removedFromServer) console.error('Failed to remove push subscription from server');
-  } catch (error) {
-    console.error('Failed to remove push subscription from server:', error);
+    return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
   }
 
   let removedFromBrowser = false;
@@ -410,7 +434,17 @@ export async function unsubscribe(serverId: string): Promise<boolean> {
     console.error('Failed to unsubscribe from browser push:', error);
   }
 
-  return removedFromServer && removedFromBrowser;
+  const removeFromServer = api.unsubscribe(subscription.endpoint).then(
+    (removed) => {
+      if (!removed) console.error('Failed to remove push subscription from server');
+      return removed;
+    },
+    (error) => {
+      console.error('Failed to remove push subscription from server:', error);
+      return false;
+    }
+  );
+  return { removedFromBrowser, removeFromServer };
 }
 
 function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): boolean {

@@ -5,7 +5,8 @@ import {
   getPushRegistrationTargets,
   getSubscription as getPushSubscription,
   onNotificationClick,
-  unsubscribe
+  unsubscribe,
+  unsubscribeBeforeLeaving
 } from './pushNotifications';
 import {
   notificationRoomTargetFromPathname,
@@ -16,6 +17,7 @@ import {
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
   subscribePush: vi.fn(),
+  subscribeForClientPush: vi.fn(),
   unsubscribePush: vi.fn(),
   appUi: {
     disableRoomCallWideFor: vi.fn()
@@ -311,13 +313,13 @@ describe('pushNotifications.ensureRegistered', () => {
     mocks.createPushNotificationAPI.mockReset();
     mocks.createPushNotificationAPI.mockReturnValue({
       subscribe: mocks.subscribePush,
+      subscribeForClient: mocks.subscribeForClientPush,
       unsubscribe: mocks.unsubscribePush
     });
     mocks.subscribePush.mockReset();
-    mocks.subscribePush.mockResolvedValue({
-      subscribed: true,
-      clientHostStored: true
-    });
+    mocks.subscribePush.mockResolvedValue({ subscribed: true });
+    mocks.subscribeForClientPush.mockReset();
+    mocks.subscribeForClientPush.mockResolvedValue({ subscribed: true });
     mocks.unsubscribePush.mockReset();
     mocks.unsubscribePush.mockResolvedValue(true);
   });
@@ -354,9 +356,9 @@ describe('pushNotifications.ensureRegistered', () => {
       endpoint: 'https://push.example/existing',
       p256dh: 'p256dh-key',
       auth: 'auth-secret',
-      userAgent: 'test-agent',
-      clientHost: 'app.test'
+      userAgent: 'test-agent'
     });
+    expect(mocks.subscribeForClientPush).not.toHaveBeenCalled();
   });
 
   it('creates and saves a subscription when permission is granted and none exists', async () => {
@@ -401,15 +403,44 @@ describe('pushNotifications.ensureRegistered', () => {
       baseUrl: 'https://remote.test/api/connect',
       bearerToken: 'remote-token'
     });
-    expect(mocks.subscribePush).toHaveBeenCalledWith(
+    expect(mocks.subscribeForClientPush).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'https://push.example/remote',
         clientHost: 'app.test'
       })
     );
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
   });
 
-  it('rejects and removes a remote subscription when an older server omits client-host acknowledgement', async () => {
+  it('serializes concurrent registration refreshes for the same server', async () => {
+    permission = 'granted';
+    const remoteSubscription = makeSubscription('https://push.example/remote-serialized');
+    const register = vi.fn().mockResolvedValue({
+      active: {},
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
+        subscribe: vi.fn()
+      }
+    });
+    Object.assign(navigator.serviceWorker, { register });
+    const firstSave = deferred<{ subscribed: boolean }>();
+    mocks.subscribeForClientPush
+      .mockReturnValueOnce(firstSave.promise)
+      .mockResolvedValue({ subscribed: true });
+
+    const first = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
+    await vi.waitFor(() => expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce());
+    const second = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
+    await Promise.resolve();
+    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
+
+    firstSave.resolve({ subscribed: true });
+    await expect(first).resolves.toBe(true);
+    await expect(second).resolves.toBe(true);
+    expect(mocks.subscribeForClientPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects and removes a remote subscription when the route-aware RPC is unavailable', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-old-server');
     const register = vi.fn().mockResolvedValue({
@@ -420,10 +451,7 @@ describe('pushNotifications.ensureRegistered', () => {
       }
     });
     Object.assign(navigator.serviceWorker, { register });
-    mocks.subscribePush.mockResolvedValueOnce({
-      subscribed: true,
-      clientHostStored: false
-    });
+    mocks.subscribeForClientPush.mockRejectedValueOnce(new Error('unimplemented'));
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
@@ -442,7 +470,7 @@ describe('pushNotifications.ensureRegistered', () => {
       }
     });
     Object.assign(navigator.serviceWorker, { register });
-    mocks.subscribePush.mockRejectedValueOnce(new Error('response lost'));
+    mocks.subscribeForClientPush.mockRejectedValueOnce(new Error('response lost'));
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
@@ -465,10 +493,7 @@ describe('pushNotifications.ensureRegistered', () => {
     permission = 'granted';
     const existingSubscription = makeSubscription('https://push.example/existing');
     getSubscription.mockResolvedValueOnce(existingSubscription);
-    mocks.subscribePush.mockResolvedValueOnce({
-      subscribed: false,
-      clientHostStored: false
-    });
+    mocks.subscribePush.mockResolvedValueOnce({ subscribed: false });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(existingSubscription.unsubscribe).not.toHaveBeenCalled();
@@ -476,16 +501,13 @@ describe('pushNotifications.ensureRegistered', () => {
     const createdSubscription = makeSubscription('https://push.example/created');
     getSubscription.mockResolvedValueOnce(null);
     subscribe.mockResolvedValueOnce(createdSubscription);
-    mocks.subscribePush.mockResolvedValueOnce({
-      subscribed: false,
-      clientHostStored: false
-    });
+    mocks.subscribePush.mockResolvedValueOnce({ subscribed: false });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(createdSubscription.unsubscribe).toHaveBeenCalledOnce();
   });
 
-  it('unsubscribes from the server before unsubscribing the browser subscription', async () => {
+  it('unsubscribes the browser before removing the server record', async () => {
     permission = 'granted';
     const subscription = makeSubscription('https://push.example/existing');
     getSubscription.mockResolvedValue(subscription);
@@ -494,6 +516,9 @@ describe('pushNotifications.ensureRegistered', () => {
 
     expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/existing');
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(subscription.unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.unsubscribePush.mock.invocationCallOrder[0]
+    );
   });
 
   it('still unsubscribes the browser when server cleanup fails', async () => {
@@ -506,6 +531,21 @@ describe('pushNotifications.ensureRegistered', () => {
 
     expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('finishes local invalidation before leaving without waiting for server cleanup', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/leaving');
+    getSubscription.mockResolvedValue(subscription);
+    mocks.unsubscribePush.mockReturnValueOnce(new Promise<boolean>(() => {}));
+
+    await expect(unsubscribeBeforeLeaving('origin')).resolves.toBeUndefined();
+
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
+    expect(subscription.unsubscribe.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.unsubscribePush.mock.invocationCallOrder[0]
+    );
   });
 });
 

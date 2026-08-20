@@ -45,7 +45,7 @@ export class SubscribePushRequest extends Message<SubscribePushRequest> {
    * URL host of the Chatto server that supplied the installed web app. The
    * sending server combines this with its own hostname to reconstruct the
    * client route. A host can include a port but no scheme, path, or user info.
-   * When omitted, notification clicks open this server's bundled /chat/- client.
+   * SubscribeForClient requires this field; Subscribe ignores it.
    *
    * @generated from field: optional string client_host = 5;
    */
@@ -96,15 +96,6 @@ export class SubscribePushResponse extends Message<SubscribePushResponse> {
    */
   subscribed = false;
 
-  /**
-   * True when the server persisted client_host. New clients use this
-   * acknowledgement before trusting a remote server to reconstruct the
-   * installed web app's notification route.
-   *
-   * @generated from field: bool client_host_stored = 2;
-   */
-  clientHostStored = false;
-
   constructor(data?: PartialMessage<SubscribePushResponse>) {
     super();
     proto3.util.initPartial(data, this);
@@ -114,7 +105,6 @@ export class SubscribePushResponse extends Message<SubscribePushResponse> {
   static readonly typeName = "chatto.api.v1.SubscribePushResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "subscribed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
-    { no: 2, name: "client_host_stored", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushResponse {

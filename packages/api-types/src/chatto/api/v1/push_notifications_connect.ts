@@ -29,6 +29,19 @@ export const PushNotificationService = {
       kind: MethodKind.Unary,
     },
     /**
+     * Stores a subscription whose notifications must open a different Chatto
+     * server's installed web app. This separate RPC makes rolling upgrades fail
+     * closed: older replicas reject the unknown method before storing anything.
+     *
+     * @generated from rpc chatto.api.v1.PushNotificationService.SubscribeForClient
+     */
+    subscribeForClient: {
+      name: "SubscribeForClient",
+      I: SubscribePushRequest,
+      O: SubscribePushResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
      * Removes the caller's browser push subscription by endpoint.
      *
      * The call is idempotent: removing an unknown endpoint still succeeds.

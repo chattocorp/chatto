@@ -13,6 +13,11 @@ service PushNotificationService {
   // the browser grants notification permission and returns a PushSubscription.
   rpc Subscribe(SubscribePushRequest) returns (SubscribePushResponse);
 
+  // Stores a subscription whose notifications must open a different Chatto
+  // server's installed web app. This separate RPC makes rolling upgrades fail
+  // closed: older replicas reject the unknown method before storing anything.
+  rpc SubscribeForClient(SubscribePushRequest) returns (SubscribePushResponse);
+
   // Removes the caller's browser push subscription by endpoint.
   //
   // The call is idempotent: removing an unknown endpoint still succeeds.
@@ -53,7 +58,7 @@ message SubscribePushRequest {
   // URL host of the Chatto server that supplied the installed web app. The
   // sending server combines this with its own hostname to reconstruct the
   // client route. A host can include a port but no scheme, path, or user info.
-  // When omitted, notification clicks open this server's bundled /chat/- client.
+  // SubscribeForClient requires this field; Subscribe ignores it.
   optional string client_host = 5 [(buf.validate.field).string.max_len = 255];
 }
 
@@ -61,11 +66,6 @@ message SubscribePushRequest {
 message SubscribePushResponse {
   // True when the subscription was stored.
   bool subscribed = 1;
-
-  // True when the server persisted client_host. New clients use this
-  // acknowledgement before trusting a remote server to reconstruct the
-  // installed web app's notification route.
-  bool client_host_stored = 2;
 }
 
 // Request to remove a browser push subscription.

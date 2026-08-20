@@ -12,12 +12,14 @@ export type SubscribePushInput = {
   p256dh: string;
   auth: string;
   userAgent?: string;
-  clientHost?: string;
+};
+
+export type SubscribeForClientPushInput = SubscribePushInput & {
+  clientHost: string;
 };
 
 export type SubscribePushResult = {
   subscribed: boolean;
-  clientHostStored: boolean;
 };
 
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
@@ -28,8 +30,14 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
     async subscribe(input: SubscribePushInput): Promise<SubscribePushResult> {
       const response = await client.subscribe(input, { headers: headers() });
       return {
-        subscribed: response.subscribed,
-        clientHostStored: response.clientHostStored
+        subscribed: response.subscribed
+      };
+    },
+
+    async subscribeForClient(input: SubscribeForClientPushInput): Promise<SubscribePushResult> {
+      const response = await client.subscribeForClient(input, { headers: headers() });
+      return {
+        subscribed: response.subscribed
       };
     },
 

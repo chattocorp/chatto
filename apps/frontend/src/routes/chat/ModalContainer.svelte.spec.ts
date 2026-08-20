@@ -41,7 +41,7 @@ const { mocks } = vi.hoisted(() => ({
     signOutAuthling: vi.fn(),
     signOutCurrentAccount: vi.fn(),
     signOutAllAccount: vi.fn(),
-    unsubscribePush: vi.fn()
+    unsubscribePushBeforeLeaving: vi.fn()
   }
 }));
 
@@ -163,7 +163,7 @@ vi.mock('$lib/accountData/signOut', () => ({
 
 vi.mock('$lib/notifications/pushNotifications', async (importOriginal) => ({
   ...(await importOriginal<typeof import('$lib/notifications/pushNotifications')>()),
-  unsubscribe: mocks.unsubscribePush
+  unsubscribeBeforeLeaving: mocks.unsubscribePushBeforeLeaving
 }));
 
 vi.mock('$lib/state/clientAccount', () => ({
@@ -250,7 +250,7 @@ beforeEach(() => {
   mocks.signOutServer.mockResolvedValue(new Response('{}', { status: 200 }));
   mocks.signOutServers.mockResolvedValue(undefined);
   mocks.signOutAuthling.mockResolvedValue(undefined);
-  mocks.unsubscribePush.mockResolvedValue(true);
+  mocks.unsubscribePushBeforeLeaving.mockResolvedValue(undefined);
   mocks.signOutCurrentAccount.mockImplementation(async (serverId: string) => {
     const server = mocks.servers.find((candidate) => candidate.id === serverId);
     if (!server) return null;
@@ -677,7 +677,7 @@ describe('ModalContainer remove server modal', () => {
     };
     mocks.servers = [mocks.originServer!, remote];
     mocks.modal = { type: 'removeServer', serverId: 'remote', spaceName: 'Remote' };
-    mocks.unsubscribePush.mockReturnValueOnce(new Promise<boolean>(() => {}));
+    mocks.unsubscribePushBeforeLeaving.mockResolvedValueOnce(undefined);
 
     const { container } = render(ModalContainer);
     await expect
@@ -696,8 +696,8 @@ describe('ModalContainer remove server modal', () => {
       expect(window.history.back).toHaveBeenCalledOnce();
     });
     expect(mocks.goto).not.toHaveBeenCalled();
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith('remote');
-    expect(mocks.unsubscribePush).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledWith('remote');
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledOnce();
     expect(mocks.removeServer).toHaveBeenCalledOnce();
   });
 

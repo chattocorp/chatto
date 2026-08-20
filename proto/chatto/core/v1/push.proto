@@ -16,7 +16,8 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
    devices/browsers per user while preventing duplicate subscriptions.
 */
 message PushSubscription {
-  // The push service endpoint URL (provided by the browser)
+  // The push service endpoint URL for legacy subscriptions. Host-aware
+  // subscriptions leave this empty so older senders fail closed.
   string endpoint = 1;
 
   // The client's P-256 ECDH public key for message encryption (base64url-encoded)
@@ -34,4 +35,9 @@ message PushSubscription {
   // URL host of the Chatto server that supplied the installed web app. Empty
   // for legacy subscriptions, which navigate through this server's bundled app.
   string client_host = 6;
+
+  // The push service endpoint URL for a client-host-aware subscription. New
+  // senders prefer this field; older senders cannot mistake it for a legacy
+  // subscription that they know how to route.
+  string delivery_endpoint = 7;
 }

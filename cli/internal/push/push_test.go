@@ -790,6 +790,20 @@ func TestSendResult(t *testing.T) {
 	})
 }
 
+func TestDeliveryEndpoint(t *testing.T) {
+	legacy := &corev1.PushSubscription{Endpoint: "https://push.example.com/legacy"}
+	if got := DeliveryEndpoint(legacy); got != legacy.Endpoint {
+		t.Fatalf("DeliveryEndpoint legacy = %q, want %q", got, legacy.Endpoint)
+	}
+	hostAware := &corev1.PushSubscription{
+		Endpoint:         "",
+		DeliveryEndpoint: "https://push.example.com/client-aware",
+	}
+	if got := DeliveryEndpoint(hostAware); got != hostAware.DeliveryEndpoint {
+		t.Fatalf("DeliveryEndpoint client-aware = %q, want %q", got, hostAware.DeliveryEndpoint)
+	}
+}
+
 func TestSend(t *testing.T) {
 	t.Run("rejects an unsafe endpoint before using the HTTP client", func(t *testing.T) {
 		client := &concurrencyTrackingHTTPClient{}

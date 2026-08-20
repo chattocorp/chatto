@@ -47,18 +47,34 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 	if req.Msg.UserAgent != nil {
 		userAgent = req.Msg.GetUserAgent()
 	}
-	clientHost := ""
-	if req.Msg.ClientHost != nil {
-		clientHost = req.Msg.GetClientHost()
-	}
-	if _, err := s.api.core.SavePushSubscriptionForClient(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, clientHost); err != nil {
+	if _, err := s.api.core.SavePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent); err != nil {
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribePushResponse{
-		Subscribed:       true,
-		ClientHostStored: clientHost != "",
-	}), nil
+	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
+}
+
+func (s *pushNotificationService) SubscribeForClient(ctx context.Context, req *connect.Request[apiv1.SubscribePushRequest]) (*connect.Response[apiv1.SubscribePushResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if !s.api.config.Push.IsConfigured() {
+		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("push notifications are not enabled on this instance"))
+	}
+	if req.Msg.ClientHost == nil || req.Msg.GetClientHost() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("client host is required"))
+	}
+
+	userAgent := ""
+	if req.Msg.UserAgent != nil {
+		userAgent = req.Msg.GetUserAgent()
+	}
+	if _, err := s.api.core.SavePushSubscriptionForClient(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetClientHost()); err != nil {
+		return nil, connectError(err)
+	}
+
+	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
 }
 
 func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribePushRequest]) (*connect.Response[apiv1.UnsubscribePushResponse], error) {

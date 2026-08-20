@@ -1,6 +1,6 @@
 import { beginExplicitSignOutRedirect, signOutServer, signOutServers } from '$lib/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
-import { unsubscribe as unsubscribePush } from '$lib/notifications/pushNotifications';
+import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 
@@ -17,7 +17,7 @@ class ClientAccountCoordinator {
 
     const origin = serverRegistry.isOriginServer(serverId);
     if (origin) beginExplicitSignOutRedirect();
-    void unsubscribePush(serverId).catch(() => false);
+    await unsubscribePushBeforeLeaving(serverId).catch(() => undefined);
     await signOutServer(server, origin).catch(() => undefined);
     clearLastRoom(serverId);
 
@@ -40,7 +40,7 @@ class ClientAccountCoordinator {
   async signOutAllServers(): Promise<ClientAccountNavigation> {
     beginExplicitSignOutRedirect();
     for (const server of serverRegistry.servers) {
-      void unsubscribePush(server.id).catch(() => false);
+      await unsubscribePushBeforeLeaving(server.id).catch(() => undefined);
     }
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
