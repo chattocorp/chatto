@@ -44,15 +44,14 @@ auto = ["stop"]
 [daemons.authling]
 run = """
 workspace_slug=$(cat .context/dev/workspace-slug)
-data_root=".context/dev/$workspace_slug"
-mkdir -p "$data_root/authling/nats"
+mkdir -p authling/.authling/nats
 cd authling
 mise build
 cd ..
 export AUTHLING_HTTP_BIND_ADDRESS="127.0.0.1:$PORT"
 export AUTHLING_HTTP_PUBLIC_URL="https://authling-$workspace_slug.localhost:42443"
 export AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS="chatto-$workspace_slug.localhost"
-export AUTHLING_NATS_EMBEDDED_DATA_DIR="$data_root/authling/nats"
+export AUTHLING_NATS_EMBEDDED_DATA_DIR="authling/.authling/nats"
 exec authling/bin/authling run
 """
 port = { expect = [8080], bump = true }
@@ -84,20 +83,19 @@ watch = [
 dir = "cli"
 run = """
 workspace_slug=$(cat ../.context/dev/workspace-slug)
-data_root="../.context/dev/$workspace_slug"
-mkdir -p internal/http_server/.client "$data_root/chatto/nats" "$data_root/chatto/search"
+mkdir -p internal/http_server/.client data/search
 touch internal/http_server/.client/.gitkeep
 go build -trimpath -tags 'bootstrap nomsgpack' -ldflags "-X main.Version=$CHATTO_DEVELOPMENT_VERSION" -o bin/chatto-dev .
 export CHATTO_WEBSERVER_PORT="$PORT"
 export CHATTO_WEBSERVER_URL="https://chatto-$workspace_slug.localhost:42443"
 export CHATTO_METRICS_PORT="$PORT1"
 export CHATTO_EXPORTER_PORT="$PORT2"
-export CHATTO_SEARCH_PROVIDER_DIRECTORY="$data_root/chatto/search"
+export CHATTO_SEARCH_PROVIDER_DIRECTORY="./data/search"
 export CHATTO_AUTH_PROVIDERS_0_ISSUER_URL="https://authling-$workspace_slug.localhost:42443"
 export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="https://chatto-$workspace_slug.localhost:42443/oauth/client-metadata.json"
 export CHATTO_LIVEKIT_URL="wss://livekit-$workspace_slug.localhost:42443"
 export CHATTO_LIVEKIT_WEBHOOK_URL="https://chatto-$workspace_slug.localhost:42443/webhooks/livekit"
-export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/chatto/nats"
+export CHATTO_NATS_EMBEDDED_DATA_DIR="./data"
 exec ./bin/chatto-dev start
 """
 port = { expect = [4001, 9090, 9100], bump = true }

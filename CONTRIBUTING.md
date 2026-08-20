@@ -88,6 +88,8 @@ CLI arguments after the task name, for example `mise chatto version`.
 ## Local Bootstrap Users
 
 Local development instances are bootstrapped from `cli/chatto.toml` when the server is otherwise empty.
+The complete `mise dev` stack stores Chatto's embedded-NATS state and search
+index in `cli/data/`, matching direct CLI development runs.
 
 | Login   | Email               | Password    | Role  |
 | ------- | ------------------- | ----------- | ----- |

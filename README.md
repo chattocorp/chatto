@@ -46,8 +46,10 @@ mise dev
 `mise dev` registers the proxy routes and starts a Pitchfork project session.
 Vite, Astro, and Storybook reload their own source changes; Pitchfork rebuilds
 and restarts the Go services when their sources change and keeps the shared API
-types and Lingua packages compiled in watch mode. Chatto and Authling keep
-separate embedded-NATS state beneath `.context/dev/`.
+types and Lingua packages compiled in watch mode. Chatto keeps its embedded-NATS
+state and search index in `cli/data/`, while Authling keeps its embedded-NATS
+state in `authling/.authling/nats/`. Both locations are isolated by the
+worktree.
 
 For public workspace slug `<workspace>` (the Conductor workspace name, or the
 checkout directory name outside Conductor), open these Pitchfork-managed HTTPS
@@ -79,12 +81,12 @@ on the current device; Authling stores identity-provider state only.
 
 The checked-in credentials and bootstrap accounts are for local development
 only. Stop the attached run command to leave its Pitchfork project session and
-stop the workspace's processes. Remove `.context/dev/` while the stack is
-stopped to delete every local workspace identity and both products' data, then
-establish a fresh Authling issuer on the next start. Pitchfork installs its
-local certificate authority in the macOS login keychain so browsers and the Go
-OIDC clients trust its HTTPS origins. This is not a production deployment
-example.
+stop the workspace's processes. Remove `cli/data/` to reset Chatto. Remove the
+`authling/.authling/` directory to reset Authling and establish a fresh issuer
+on the next start. Only remove state while the stack is stopped. Pitchfork
+installs its local certificate authority in the macOS login keychain so
+browsers and the Go OIDC clients trust its HTTPS origins. This is not a
+production deployment example.
 
 ## License
 

@@ -41,14 +41,17 @@ workspace slug used by its preview URLs. `mise dev` records that slug in the
 gitignored `.context/dev/workspace-slug` file before starting Pitchfork; the
 daemon commands use the same value for Chatto, Authling, LiveKit, and Astro
 configuration. Outside Conductor, the checkout directory name is the fallback.
-Chatto and Authling retain separate embedded-NATS and search state beneath the
-matching `.context/dev/<workspace>/` directory, preventing issuer-bound state
-from being reused if the public workspace name changes. Vite, Storybook, and
-Astro consume the one root pnpm installation rather than maintaining
-per-container stores. Pitchfork also supervises TypeScript watch builds for the
-shared API types and Lingua packages, so their `dist` outputs stay current for
-Vite and Storybook. Mailpit and LiveKit run from their mise-managed native
-binaries.
+Chatto retains its embedded-NATS state and search index in `cli/data/`, while
+Authling retains its embedded-NATS state in `authling/.authling/nats/`. These
+product-owned locations are already isolated by the worktree and remain stable
+when the public workspace name changes. Renaming a workspace updates the public
+Authling issuer URL without silently replacing either product's development
+database; developers reset issuer-bound Authling state explicitly when they
+need a fresh issuer. Vite, Storybook, and Astro consume the one root pnpm
+installation rather than maintaining per-container stores. Pitchfork also
+supervises TypeScript watch builds for the shared API types and Lingua packages,
+so their `dist` outputs stay current for Vite and Storybook. Mailpit and LiveKit
+run from their mise-managed native binaries.
 
 Pitchfork discovers a proxy target by inspecting a daemon's listening ports.
 That is ambiguous for multi-port servers such as Mailpit and LiveKit and for
@@ -94,6 +97,10 @@ CIMD SSRF protections and canonical-origin checks remain the default.
   no longer trigger container image rebuilds.
 - Tool downloads and Go/pnpm caches are shared through mise and the host's
   normal package stores across worktrees.
+- Existing Chatto development data in `cli/data/` remains available to the
+  complete stack and survives public workspace renames.
+- Existing Authling development data in `authling/.authling/nats/` remains
+  available to the complete stack; resetting issuer-bound state is explicit.
 - Developers need no Docker or OrbStack integration for the repository's
   complete development environment.
 - The Pitchfork certificate authority must be trusted once on each development
