@@ -448,6 +448,38 @@ describe('NotificationStore', () => {
     expect(api.listNotificationOccurrences).toHaveBeenCalledWith(50, 50);
   });
 
+  it('retains authoritative first-page pagination metadata', () => {
+    const store = new NotificationStore(makeAPI());
+    const first = notificationPage(page([mention('first')], 75));
+    first.consumedCount = 50;
+    first.hasMore = true;
+
+    store.replaceOccurrenceProjection(first);
+
+    expect(store.consumedCount).toBe(50);
+    expect(store.totalCount).toBe(75);
+    expect(store.hasMore).toBe(true);
+  });
+
+  it('appends an older page and advances its retained raw offset', async () => {
+    const api = makeAPI();
+    const older = notificationPage(page([mention('older')], 2));
+    older.consumedCount = 1;
+    api.listNotificationOccurrences.mockResolvedValueOnce(older);
+    const store = new NotificationStore(api);
+    const first = notificationPage(page([mention('first')], 2));
+    first.consumedCount = 1;
+    first.hasMore = true;
+    store.replaceOccurrenceProjection(first);
+
+    await store.fetchPage(1);
+
+    expect(store.occurrences.map(({ id }) => id)).toEqual(['first', 'older']);
+    expect(store.consumedCount).toBe(2);
+    expect(store.totalCount).toBe(2);
+    expect(store.hasMore).toBe(false);
+  });
+
   it('retries an in-flight page response invalidated by a projection reset', async () => {
     const response = deferred<NotificationOccurrencePage>();
     const api = makeAPI();
@@ -460,7 +492,9 @@ describe('NotificationStore', () => {
 
     await expect(fetch).resolves.toMatchObject({ occurrences: [] });
     expect(store.occurrences).toEqual([]);
-    expect(store.resetVersion).toBe(1);
+    expect(store.consumedCount).toBe(0);
+    expect(store.totalCount).toBe(0);
+    expect(store.hasMore).toBe(false);
   });
 
   it('retries an in-flight room lookup invalidated by a projection reset', async () => {

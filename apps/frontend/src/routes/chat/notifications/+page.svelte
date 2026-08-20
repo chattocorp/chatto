@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { untrack } from 'svelte';
   import { SvelteMap, SvelteSet } from 'svelte/reactivity';
   import { EmptyState, PaneHeader } from '$lib/ui';
   import { Button } from '$lib/ui/form';
@@ -53,16 +52,24 @@
 
   const activeLocale = $derived(getLocale());
   const appUi = getAppUiState();
-  let groups = $state.raw<ServerGroup[]>(notificationGroupsFromProjection());
-  let loading = $state(!notificationProjectionHasLoaded());
+  const hydrationAttempts = new SvelteSet<string>();
+  const optimisticallyDismissedOccurrenceIds = new SvelteSet<string>();
+  const groups = $derived.by(notificationGroupsFromProjection);
+  const pagination = $derived.by(notificationPaginationFromProjection);
+  const loading = $derived(!notificationProjectionHasLoaded());
   let loadingMore = $state(false);
-  let pageError = $state(false);
+  let loadMoreError = $state(false);
   let dismissingAll = $state(false);
-  let loadGeneration = 0;
-  let pagination = $state.raw<PaginationSource[]>([]);
   const pendingMutationKeys = new SvelteSet<string>();
   const hasPendingMutation = $derived(pendingMutationKeys.size > 0);
   const hasMore = $derived(pagination.some((source) => source.hasMore));
+  const pageError = $derived(
+    loadMoreError ||
+      serverRegistry.servers.some((instance) => {
+        const stores = serverRegistry.getStore(instance.id);
+        return stores.isAuthenticated && stores.notifications.error !== null;
+      })
+  );
   const showServerHostname = $derived(
     serverRegistry.servers.filter(
       (instance) => serverRegistry.getStore(instance.id).isAuthenticated
@@ -82,207 +89,59 @@
     return sorted.filter((item) => item.group.latestAt >= newestUnloadedBoundary!);
   });
   const dateSections = $derived.by(() => groupNotificationsByDate(visibleGroups));
-  const notificationViewInvalidations = $derived(
-    serverRegistry.servers
-      .map((instance) => serverRegistry.getStore(instance.id).notifications.viewInvalidationVersion)
-      .join(':')
-  );
-  const notificationPrivacyBoundaries = $derived(
-    serverRegistry.servers
-      .map((instance) => {
-        const notifications = serverRegistry.getStore(instance.id).notifications;
-        const rooms = [...notifications.revokedRoomIds].sort().join(',');
-        const users = [...notifications.scrubbedUserIds].sort().join(',');
-        return `${rooms}|${users}`;
-      })
-      .join(':')
-  );
-  const notificationResetVersions = $derived(
-    serverRegistry.servers
-      .map((instance) => serverRegistry.getStore(instance.id).notifications.resetVersion)
-      .join(':')
-  );
-  let observedResetVersions = '';
-  let hasObservedResetVersions = false;
-  $effect(() => {
-    const currentResetVersions = notificationResetVersions;
-    if (!hasObservedResetVersions) {
-      observedResetVersions = currentResetVersions;
-      hasObservedResetVersions = true;
-      return;
-    }
-    if (currentResetVersions === observedResetVersions) return;
-    observedResetVersions = currentResetVersions;
-    // A compacted projection reset invalidates every hydrated page row.
-    groups = [];
-    pagination = [];
-  });
-  $effect(() => {
-    void notificationPrivacyBoundaries;
-    // Authorization loss and account deletion are privacy boundaries. Scrub
-    // local paginated payloads immediately instead of waiting for a reload.
-    groups = untrack(() =>
-      groups.flatMap((item) => {
-        const occurrences = visibleOccurrencesForServer(item.serverId, item.group.occurrences);
-        if (occurrences.length === 0) return [];
-        return groupNotificationOccurrences(occurrences).map((group) => ({ ...item, group }));
-      })
-    );
-  });
-  $effect(() => {
-    void notificationViewInvalidations;
-    // Initial projection hydration and one logical mutation can emit several
-    // adjacent invalidations. Coalesce them into one authoritative list read
-    // per authenticated server.
-    const timer = setTimeout(() => void loadNotifications(), 50);
-    return () => clearTimeout(timer);
-  });
 
-  // Reconcile the list at its earliest expiry as well as on live invalidations.
+  // Realtime normally hydrates this retained store before the route is opened.
+  // Fetch only genuinely missing projections as a transport fallback.
   $effect(() => {
-    if (groups.length === 0) return;
-    const expiry = groups.reduce<number | null>((earliest, item) => {
-      if (!item.group.nextExpiryAt) return earliest;
-      const value = new Date(item.group.nextExpiryAt).getTime() + 50;
-      return earliest === null || value < earliest ? value : earliest;
-    }, null);
-    if (expiry === null) return;
-    let timer: ReturnType<typeof setTimeout> | undefined;
-    const schedule = () => {
-      const remaining = expiry - Date.now();
-      if (remaining <= 0) {
-        void loadNotifications();
-        return;
+    for (const instance of serverRegistry.servers) {
+      const stores = serverRegistry.getStore(instance.id);
+      if (
+        !stores.isAuthenticated ||
+        stores.notifications.hasLoaded ||
+        hydrationAttempts.has(instance.id)
+      ) {
+        continue;
       }
-      timer = setTimeout(schedule, Math.min(remaining, 2_147_483_647));
-    };
-    schedule();
-    return () => {
-      if (timer) clearTimeout(timer);
-    };
+      hydrationAttempts.add(instance.id);
+      void stores.notifications.fetch();
+    }
   });
 
-  async function loadNotifications() {
-    const generation = ++loadGeneration;
-    loading = true;
-    loadingMore = false;
+  // A privacy boundary can remove every renderable row from a raw page. Keep
+  // advancing until content is visible or the authoritative page is exhausted.
+  $effect(() => {
+    if (!loading && groups.length === 0 && hasMore && !loadingMore && !pageError) {
+      void loadMore();
+    }
+  });
+
+  async function retryNotifications() {
+    loadMoreError = false;
     const requests = serverRegistry.servers.flatMap((instance) => {
       const stores = serverRegistry.getStore(instance.id);
-      if (!stores.isAuthenticated) return [];
-      return [
-        {
-          serverId: instance.id,
-          request: (async () => {
-            const page = await stores.notifications.fetchPage();
-            let hostname: string;
-            try {
-              hostname = new URL(instance.url).hostname;
-            } catch {
-              hostname = instance.url;
-            }
-            return {
-              serverId: instance.id,
-              page,
-              groups: groupNotificationOccurrences(
-                visibleOccurrencesForServer(instance.id, page.occurrences)
-              ).map((group): ServerGroup => ({
-                serverId: instance.id,
-                serverHostname: hostname,
-                timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-                group
-              }))
-            };
-          })()
-        }
-      ];
-    });
-    const results = await Promise.allSettled(requests.map(({ request }) => request));
-    if (generation !== loadGeneration) return;
-    const refreshedServerIds = new SvelteSet(
-      results.flatMap((result) => (result.status === 'fulfilled' ? [result.value.serverId] : []))
-    );
-    groups = [
-      ...groups.filter((item) => !refreshedServerIds.has(item.serverId)),
-      ...results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-    ].sort(compareGroups);
-    pagination = results.flatMap((result, index): PaginationSource[] => {
-      if (result.status !== 'fulfilled') {
-        return [
-          {
-            serverId: requests[index].serverId,
-            offset: 0,
-            hasMore: true
-          }
-        ];
+      if (
+        !stores.isAuthenticated ||
+        (stores.notifications.hasLoaded && stores.notifications.error === null)
+      ) {
+        return [];
       }
-      return [
-        {
-          serverId: result.value.serverId,
-          offset: result.value.page.consumedCount ?? result.value.page.occurrences.length,
-          hasMore: result.value.page.hasMore
-        }
-      ];
+      hydrationAttempts.add(instance.id);
+      return [stores.notifications.fetch()];
     });
-    pageError = results.some((result) => result.status === 'rejected');
-    loading = false;
-    if (groups.length === 0 && hasMore && !pageError) void loadMore();
+    await Promise.allSettled(requests);
   }
 
   async function loadMore() {
     if (loading || loadingMore || !hasMore) return;
-    const generation = loadGeneration;
     loadingMore = true;
-    pageError = false;
+    loadMoreError = false;
     const pending = pagination.filter((source) => source.hasMore);
     const results = await Promise.allSettled(
-      pending.map(async (source) => {
-        const stores = serverRegistry.getStore(source.serverId);
-        const page = await stores.notifications.fetchPage(source.offset);
-        let hostname: string;
-        const instance = serverRegistry.servers.find(({ id }) => id === source.serverId);
-        try {
-          hostname = new URL(instance?.url ?? '').hostname;
-        } catch {
-          hostname = instance?.url ?? source.serverId;
-        }
-        return {
-          serverId: source.serverId,
-          page,
-          groups: groupNotificationOccurrences(
-            visibleOccurrencesForServer(source.serverId, page.occurrences)
-          ).map((group): ServerGroup => ({
-            serverId: source.serverId,
-            serverHostname: hostname,
-            timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
-            group
-          }))
-        };
-      })
+      pending.map((source) =>
+        serverRegistry.getStore(source.serverId).notifications.fetchPage(source.offset)
+      )
     );
-    if (generation !== loadGeneration) {
-      loadingMore = false;
-      return;
-    }
-    groups = mergeServerGroups(
-      groups,
-      results.flatMap((result) => (result.status === 'fulfilled' ? result.value.groups : []))
-    );
-    pagination = pagination.map((source) => {
-      const result = results.find(
-        (candidate) =>
-          candidate.status === 'fulfilled' && candidate.value.serverId === source.serverId
-      );
-      if (!result || result.status !== 'fulfilled') return source;
-      return {
-        ...source,
-        offset:
-          source.offset + (result.value.page.consumedCount ?? result.value.page.occurrences.length),
-        hasMore:
-          result.value.page.hasMore &&
-          (result.value.page.consumedCount ?? result.value.page.occurrences.length) > 0
-      };
-    });
-    pageError = results.some((result) => result.status === 'rejected');
+    loadMoreError = results.some((result) => result.status === 'rejected');
     loadingMore = false;
     if (groups.length === 0 && hasMore && !pageError) void loadMore();
   }
@@ -329,7 +188,9 @@
           hostname = instance.url;
         }
         return groupNotificationOccurrences(
-          visibleOccurrencesForServer(instance.id, stores.notifications.occurrences)
+          visibleOccurrencesForServer(instance.id, stores.notifications.occurrences).filter(
+            (occurrence) => !optimisticallyDismissedOccurrenceIds.has(occurrence.id)
+          )
         ).map((group): ServerGroup => ({
           serverId: instance.id,
           serverHostname: hostname,
@@ -338,6 +199,20 @@
         }));
       })
       .sort(compareGroups);
+  }
+
+  function notificationPaginationFromProjection(): PaginationSource[] {
+    return serverRegistry.servers.flatMap((instance) => {
+      const stores = serverRegistry.getStore(instance.id);
+      if (!stores.isAuthenticated) return [];
+      return [
+        {
+          serverId: instance.id,
+          offset: stores.notifications.consumedCount,
+          hasMore: stores.notifications.hasMore
+        }
+      ];
+    });
   }
 
   function notificationProjectionHasLoaded(): boolean {
@@ -351,27 +226,6 @@
     const byTime = b.group.latestAt.localeCompare(a.group.latestAt);
     if (byTime !== 0) return byTime;
     return mutationKey(a).localeCompare(mutationKey(b));
-  }
-
-  function mergeServerGroups(current: ServerGroup[], incoming: ServerGroup[]): ServerGroup[] {
-    const metadata = new SvelteMap<string, Omit<ServerGroup, 'group'>>();
-    const occurrences = new SvelteMap<string, NotificationOccurrenceItem[]>();
-    for (const item of [...current, ...incoming]) {
-      metadata.set(item.serverId, item);
-      const existing = occurrences.get(item.serverId) ?? [];
-      occurrences.set(item.serverId, [
-        ...existing,
-        ...item.group.occurrences.filter(
-          (occurrence) => !existing.some((candidate) => candidate.id === occurrence.id)
-        )
-      ]);
-    }
-    return [...occurrences.entries()]
-      .flatMap(([serverId, items]) => {
-        const server = metadata.get(serverId)!;
-        return groupNotificationOccurrences(items).map((group) => ({ ...server, group }));
-      })
-      .sort(compareGroups);
   }
 
   function groupNotificationsByDate(items: ServerGroup[]): NotificationDateSection[] {
@@ -533,12 +387,9 @@
     if (pendingMutationKeys.has(key)) return;
     setMutationPending(key, true);
     const store = serverRegistry.getStore(item.serverId).notifications;
-    groups = groups.filter((candidate) => rowKey(candidate) !== rowKey(item));
-    pagination = pagination.map((source) =>
-      source.serverId === item.serverId
-        ? { ...source, offset: Math.max(0, source.offset - item.group.occurrences.length) }
-        : source
-    );
+    for (const occurrence of item.group.occurrences) {
+      optimisticallyDismissedOccurrenceIds.add(occurrence.id);
+    }
     try {
       await store.deleteOccurrences(
         item.group.occurrences.map((occurrence) => occurrence.id),
@@ -563,8 +414,11 @@
   async function dismissAll() {
     if (dismissingAll || hasPendingMutation || groups.length === 0) return;
     dismissingAll = true;
-    groups = [];
-    pagination = pagination.map((source) => ({ ...source, offset: 0, hasMore: false }));
+    for (const item of groups) {
+      for (const occurrence of item.group.occurrences) {
+        optimisticallyDismissedOccurrenceIds.add(occurrence.id);
+      }
+    }
 
     const serverIds = serverRegistry.servers.flatMap((instance) => {
       const store = serverRegistry.getStore(instance.id);
@@ -579,7 +433,6 @@
       results.flatMap((result, index) => (result.status === 'rejected' ? [serverIds[index]!] : []))
     );
     if (failedServerIds.size > 0) {
-      pageError = true;
       toast.error(m('common.error.network'));
     }
     dismissingAll = false;
@@ -611,7 +464,7 @@
   <div class="flex flex-1 flex-col overflow-y-auto">
     {#if pageError && groups.length === 0}
       <EmptyState icon="icon-[uil--exclamation-triangle]" title={m('common.error.network')}>
-        <Button variant="secondary" label={m('common.retry')} onclick={loadNotifications}
+        <Button variant="secondary" label={m('common.retry')} onclick={retryNotifications}
           >{m('common.retry')}</Button
         >
       </EmptyState>

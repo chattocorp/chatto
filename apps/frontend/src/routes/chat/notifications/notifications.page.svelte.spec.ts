@@ -41,12 +41,15 @@ const { mocks } = vi.hoisted(() => ({
         }
       },
       notifications: {
-        viewInvalidationVersion: 0,
-        resetVersion: 0,
         revokedRoomIds: new Set<string>(),
         scrubbedUserIds: new Set<string>(),
         occurrences: [] as NotificationOccurrenceItem[],
+        consumedCount: 0,
+        totalCount: 0,
+        hasMore: false,
         hasLoaded: false,
+        error: null as string | null,
+        fetch: vi.fn(),
         fetchPage: vi.fn(),
         markOccurrenceRead: vi.fn().mockResolvedValue(undefined),
         deleteOccurrences: vi.fn().mockResolvedValue(undefined),
@@ -109,18 +112,29 @@ function page(
   };
 }
 
+function retainProjection(
+  occurrences: NotificationOccurrenceItem[] = [mocks.occurrence as NotificationOccurrenceItem],
+  hasMore = false,
+  consumedCount = occurrences.length
+) {
+  mocks.store.notifications.occurrences = occurrences;
+  mocks.store.notifications.consumedCount = consumedCount;
+  mocks.store.notifications.totalCount = occurrences.length;
+  mocks.store.notifications.hasMore = hasMore;
+  mocks.store.notifications.hasLoaded = true;
+  mocks.store.notifications.error = null;
+}
+
 describe('notifications page', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     toast.clear();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    mocks.store.notifications.viewInvalidationVersion = 0;
-    mocks.store.notifications.resetVersion = 0;
     mocks.store.notifications.revokedRoomIds.clear();
     mocks.store.notifications.scrubbedUserIds.clear();
-    mocks.store.notifications.occurrences = [];
-    mocks.store.notifications.hasLoaded = false;
+    retainProjection();
+    mocks.store.notifications.fetch.mockResolvedValue(undefined);
     mocks.store.notifications.fetchPage.mockResolvedValue(page());
     mocks.store.notifications.deleteOccurrences.mockResolvedValue(undefined);
     mocks.store.notifications.deleteAllOccurrences.mockResolvedValue(undefined);
@@ -188,7 +202,7 @@ describe('notifications page', () => {
       room: null,
       eventId: ''
     } as NotificationOccurrenceItem;
-    mocks.store.notifications.fetchPage.mockResolvedValue(page([unsupported]));
+    retainProjection([unsupported]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -220,16 +234,14 @@ describe('notifications page', () => {
       unread: false,
       createdAt: new Date(Date.now() - 60_000).toISOString()
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([mocks.occurrence as NotificationOccurrenceItem, readOccurrence])
-    );
+    retainProjection([mocks.occurrence as NotificationOccurrenceItem, readOccurrence]);
 
     const { container } = render(NotificationsPage);
     await vi.waitFor(() => {
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
     });
 
-    expect(mocks.store.notifications.fetchPage).toHaveBeenCalledTimes(1);
+    expect(mocks.store.notifications.fetchPage).not.toHaveBeenCalled();
     const readRow = q(container, '[data-notification-state="read"]') as HTMLElement;
     const unreadRow = q(container, '[data-notification-state="unread"]') as HTMLElement;
     const readTarget = q(readRow, ':scope > button') as HTMLButtonElement;
@@ -245,36 +257,50 @@ describe('notifications page', () => {
     expect(unreadContent.querySelectorAll(':scope > *')).toHaveLength(2);
   });
 
-  it('renders the retained occurrence projection immediately while refreshing', async () => {
-    let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
-    mocks.store.notifications.occurrences = [mocks.occurrence as NotificationOccurrenceItem];
-    mocks.store.notifications.hasLoaded = true;
-    mocks.store.notifications.fetchPage.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveRefresh = resolve;
-        })
-    );
-
+  it('renders a retained occurrence projection without refetching it', async () => {
     const rendered = render(NotificationsPage);
     expect(rendered.container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(
       1
     );
     expect(rendered.container.textContent).not.toContain('Loading');
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
+    expect(mocks.store.notifications.fetchPage).not.toHaveBeenCalled();
+    rendered.unmount();
+  });
 
-    resolveRefresh?.(page());
-    await vi.waitFor(() => expect(mocks.store.notifications.fetchPage).toHaveBeenCalledTimes(1));
+  it('renders a retained empty projection without flashing or refetching', async () => {
+    retainProjection([]);
+
+    const rendered = render(NotificationsPage);
+    expect(rendered.container.textContent).toContain('No notifications');
+    expect(rendered.container.textContent).not.toContain('Loading');
+
+    await new Promise((resolve) => setTimeout(resolve, 80));
+    expect(mocks.store.notifications.fetch).not.toHaveBeenCalled();
+    expect(mocks.store.notifications.fetchPage).not.toHaveBeenCalled();
+    expect(rendered.container.textContent).toContain('No notifications');
     rendered.unmount();
   });
 
   it('keeps initial hydration visually quiet', async () => {
+    const originalStore = mocks.store.notifications;
     let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
-    mocks.store.notifications.fetchPage.mockImplementation(
-      () =>
-        new Promise((resolve) => {
-          resolveRefresh = resolve;
-        })
-    );
+    const api = {
+      listNotificationOccurrences: vi.fn(
+        () =>
+          new Promise<ReturnType<typeof page>>((resolve) => {
+            resolveRefresh = resolve;
+          })
+      ),
+      markNotificationRead: vi.fn(),
+      batchDeleteNotificationOccurrences: vi.fn(),
+      deleteAllNotificationOccurrences: vi.fn(),
+      getNotificationPolicy: vi.fn(),
+      updateNotificationPolicy: vi.fn()
+    };
+    const notificationStore = new NotificationStore(api as never);
+    (mocks.store as { notifications: unknown }).notifications = notificationStore;
 
     const rendered = render(NotificationsPage);
     expect(rendered.container.textContent).not.toContain('Loading');
@@ -288,6 +314,7 @@ describe('notifications page', () => {
       ).toHaveLength(1);
     });
     rendered.unmount();
+    (mocks.store as { notifications: unknown }).notifications = originalStore;
   });
 
   it('renders a full-sentence summary and omits the single-occurrence counter', async () => {
@@ -305,7 +332,7 @@ describe('notifications page', () => {
       actor,
       signalKind: NotificationSignalKind.FOLLOWED_THREAD
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(page([occurrence]));
+    retainProjection([occurrence]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -340,9 +367,10 @@ describe('notifications page', () => {
       attentionLevel: NotificationAttentionLevel.AMBIENT,
       reactionEmoji: emoji
     });
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([reaction('reaction-alice', alice, 'thumbsup'), reaction('reaction-bob', bob, 'heart')])
-    );
+    retainProjection([
+      reaction('reaction-alice', alice, 'thumbsup'),
+      reaction('reaction-bob', bob, 'heart')
+    ]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -371,18 +399,16 @@ describe('notifications page', () => {
       presenceStatus: 1,
       customStatus: null
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([
-        {
-          ...mocks.occurrence,
-          id: 'reaction-bob',
-          actor: bob,
-          signalKind: NotificationSignalKind.REACTION,
-          attentionLevel: NotificationAttentionLevel.AMBIENT,
-          reactionEmoji: 'heart'
-        }
-      ])
-    );
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        id: 'reaction-bob',
+        actor: bob,
+        signalKind: NotificationSignalKind.REACTION,
+        attentionLevel: NotificationAttentionLevel.AMBIENT,
+        reactionEmoji: 'heart'
+      }
+    ]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -405,30 +431,28 @@ describe('notifications page', () => {
       presenceStatus: 1,
       customStatus: null
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([
-        {
-          ...mocks.occurrence,
-          id: 'reaction-alice',
-          createdAt: '2026-08-19T12:00:00.000Z',
-          actor: alice,
-          eventId: 'reacted-to-message',
-          signalKind: NotificationSignalKind.REACTION,
-          attentionLevel: NotificationAttentionLevel.AMBIENT,
-          reactionEmoji: 'thumbsup'
-        },
-        {
-          ...mocks.occurrence,
-          id: 'reaction-deleted',
-          createdAt: '2026-08-19T12:01:00.000Z',
-          actor: null,
-          eventId: 'reacted-to-message',
-          signalKind: NotificationSignalKind.REACTION,
-          attentionLevel: NotificationAttentionLevel.AMBIENT,
-          reactionEmoji: 'heart'
-        }
-      ] as NotificationOccurrenceItem[])
-    );
+    retainProjection([
+      {
+        ...mocks.occurrence,
+        id: 'reaction-alice',
+        createdAt: '2026-08-19T12:00:00.000Z',
+        actor: alice,
+        eventId: 'reacted-to-message',
+        signalKind: NotificationSignalKind.REACTION,
+        attentionLevel: NotificationAttentionLevel.AMBIENT,
+        reactionEmoji: 'thumbsup'
+      },
+      {
+        ...mocks.occurrence,
+        id: 'reaction-deleted',
+        createdAt: '2026-08-19T12:01:00.000Z',
+        actor: null,
+        eventId: 'reacted-to-message',
+        signalKind: NotificationSignalKind.REACTION,
+        attentionLevel: NotificationAttentionLevel.AMBIENT,
+        reactionEmoji: 'heart'
+      }
+    ] as NotificationOccurrenceItem[]);
 
     const { container } = render(NotificationsPage);
     const row = await vi.waitFor(() => {
@@ -448,7 +472,13 @@ describe('notifications page', () => {
       ...mocks.store,
       notifications: {
         ...mocks.store.notifications,
-        fetchPage: vi.fn().mockRejectedValue(new Error('remote offline'))
+        occurrences: [],
+        consumedCount: 0,
+        totalCount: 0,
+        hasMore: false,
+        hasLoaded: false,
+        error: 'remote offline',
+        fetch: vi.fn().mockResolvedValue(undefined)
       }
     };
     mocks.servers.push({ id: 'remote', url: 'https://remote.example.test' });
@@ -466,12 +496,11 @@ describe('notifications page', () => {
 
   it('does not render a stale notification page for a room behind a privacy boundary', async () => {
     mocks.store.notifications.revokedRoomIds.add('room-1');
-    mocks.store.notifications.fetchPage.mockResolvedValue(page());
 
     const { container } = render(NotificationsPage);
 
     await vi.waitFor(() => {
-      expect(mocks.store.notifications.fetchPage).toHaveBeenCalled();
+      expect(mocks.store.notifications.fetchPage).not.toHaveBeenCalled();
       expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(0);
     });
   });
@@ -555,23 +584,18 @@ describe('notifications page', () => {
     }
   });
 
-  it('keeps mounted rows while a realtime refresh waits for an optimistic mutation', async () => {
+  it('applies an authoritative realtime replacement without a list request', async () => {
     const originalStore = mocks.store.notifications;
-    let resolveMutation: ((value: NotificationOccurrenceItem) => void) | undefined;
     const api = {
-      listNotificationOccurrences: vi.fn().mockResolvedValue(page()),
-      markNotificationRead: vi.fn().mockImplementation(
-        () =>
-          new Promise<NotificationOccurrenceItem>((resolve) => {
-            resolveMutation = resolve;
-          })
-      ),
+      listNotificationOccurrences: vi.fn(),
+      markNotificationRead: vi.fn(),
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
       updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
+    notificationStore.replaceOccurrenceProjection(page());
     (mocks.store as { notifications: unknown }).notifications = notificationStore;
     const rendered = render(NotificationsPage);
     try {
@@ -581,51 +605,31 @@ describe('notifications page', () => {
         ).toHaveLength(1);
       });
 
-      const marking = notificationStore.markRead('mention-1');
-      notificationStore.invalidateViews();
-      await new Promise((resolve) => setTimeout(resolve, 80));
-
-      expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
-      expect(
-        rendered.container.querySelectorAll('[data-testid="notification-group"]')
-      ).toHaveLength(1);
-
-      resolveMutation?.(mocks.occurrence as NotificationOccurrenceItem);
-      await expect(marking).resolves.toBe(true);
-      await vi.waitFor(() => expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2));
+      notificationStore.replaceOccurrenceProjection(page([]));
+      await vi.waitFor(() => {
+        expect(
+          rendered.container.querySelectorAll('[data-testid="notification-group"]')
+        ).toHaveLength(0);
+      });
+      expect(api.listNotificationOccurrences).not.toHaveBeenCalled();
     } finally {
       rendered.unmount();
       (mocks.store as { notifications: unknown }).notifications = originalStore;
     }
   });
 
-  it('retries a mounted refresh invalidated by a mutation that starts in flight', async () => {
+  it('updates mounted rows after quiet reconciliation', async () => {
     const originalStore = mocks.store.notifications;
-    let resolveRefresh: ((value: ReturnType<typeof page>) => void) | undefined;
-    let resolveMutation: ((value: NotificationOccurrenceItem) => void) | undefined;
     const api = {
-      listNotificationOccurrences: vi
-        .fn()
-        .mockResolvedValueOnce(page())
-        .mockImplementationOnce(
-          () =>
-            new Promise<ReturnType<typeof page>>((resolve) => {
-              resolveRefresh = resolve;
-            })
-        )
-        .mockResolvedValue(page([])),
-      markNotificationRead: vi.fn().mockImplementation(
-        () =>
-          new Promise<NotificationOccurrenceItem>((resolve) => {
-            resolveMutation = resolve;
-          })
-      ),
+      listNotificationOccurrences: vi.fn().mockResolvedValue(page([])),
+      markNotificationRead: vi.fn(),
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
       updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
+    notificationStore.replaceOccurrenceProjection(page());
     (mocks.store as { notifications: unknown }).notifications = notificationStore;
     const rendered = render(NotificationsPage);
     try {
@@ -635,25 +639,13 @@ describe('notifications page', () => {
         ).toHaveLength(1);
       });
 
-      notificationStore.invalidateViews();
-      await vi.waitFor(() => expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(2));
-      const marking = notificationStore.markRead('mention-1');
-      resolveRefresh?.(page());
-      await new Promise((resolve) => setTimeout(resolve, 20));
-
-      expect(rendered.container.textContent).not.toContain('Network error');
-      expect(
-        rendered.container.querySelectorAll('[data-testid="notification-group"]')
-      ).toHaveLength(1);
-
-      resolveMutation?.(mocks.occurrence as NotificationOccurrenceItem);
-      await expect(marking).resolves.toBe(true);
-      await vi.waitFor(() => expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(3));
+      await notificationStore.reconcile();
       await vi.waitFor(() => {
         expect(
           rendered.container.querySelectorAll('[data-testid="notification-group"]')
         ).toHaveLength(0);
       });
+      expect(api.listNotificationOccurrences).toHaveBeenCalledTimes(1);
     } finally {
       rendered.unmount();
       (mocks.store as { notifications: unknown }).notifications = originalStore;
@@ -691,17 +683,15 @@ describe('notifications page', () => {
     mocks.store.notifications.deleteOccurrences.mockImplementation(
       () => new Promise<void>((resolve) => (resolveMutation = resolve))
     );
-    mocks.store.notifications.fetchPage.mockResolvedValue(
-      page([
-        mocks.occurrence as NotificationOccurrenceItem,
-        {
-          ...mocks.occurrence,
-          id: 'mention-2',
-          eventId: 'event-2',
-          createdAt: new Date(Date.now() - 1_000).toISOString()
-        }
-      ])
-    );
+    retainProjection([
+      mocks.occurrence as NotificationOccurrenceItem,
+      {
+        ...mocks.occurrence,
+        id: 'mention-2',
+        eventId: 'event-2',
+        createdAt: new Date(Date.now() - 1_000).toISOString()
+      }
+    ]);
 
     const { container } = render(NotificationsPage);
     const deleteButton = await vi.waitFor(() => {
@@ -737,7 +727,7 @@ describe('notifications page', () => {
       timezone: 'Pacific/Auckland',
       timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
     };
-    mocks.store.notifications.fetchPage.mockResolvedValue(page(occurrences));
+    retainProjection(occurrences);
 
     const { container } = render(NotificationsPage);
     const headings = await vi.waitFor(() => {
@@ -768,9 +758,12 @@ describe('notifications page', () => {
       ...mocks.store,
       notifications: {
         ...mocks.store.notifications,
-        fetchPage: vi
-          .fn()
-          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
+        occurrences: [{ ...mocks.occurrence, id: 'remote-notification' }],
+        consumedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+        hasLoaded: true,
+        error: null,
         deleteAllOccurrences: vi.fn(() => new Promise<void>((resolve) => (resolveRemote = resolve)))
       }
     };
@@ -801,9 +794,12 @@ describe('notifications page', () => {
       ...mocks.store,
       notifications: {
         ...mocks.store.notifications,
-        fetchPage: vi
-          .fn()
-          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
+        occurrences: [{ ...mocks.occurrence, id: 'remote-notification' }],
+        consumedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+        hasLoaded: true,
+        error: null,
         deleteAllOccurrences: vi.fn().mockRejectedValue(new Error('remote offline'))
       }
     };
@@ -833,9 +829,12 @@ describe('notifications page', () => {
       ...mocks.store,
       notifications: {
         ...mocks.store.notifications,
-        fetchPage: vi
-          .fn()
-          .mockResolvedValue(page([{ ...mocks.occurrence, id: 'remote-notification' }])),
+        occurrences: [{ ...mocks.occurrence, id: 'remote-notification' }],
+        consumedCount: 1,
+        totalCount: 1,
+        hasMore: false,
+        hasLoaded: true,
+        error: null,
         deleteAllOccurrences: vi.fn().mockResolvedValue(undefined)
       }
     };
@@ -858,6 +857,7 @@ describe('notifications page', () => {
   });
 
   it('loads the next page from each server independently', async () => {
+    const originalStore = mocks.store.notifications;
     let intersectionCallback: IntersectionObserverCallback | undefined;
     vi.stubGlobal(
       'IntersectionObserver',
@@ -876,50 +876,85 @@ describe('notifications page', () => {
         thresholds = [];
       }
     );
-    mocks.store.notifications.fetchPage.mockImplementation((offset = 0) => {
-      const occurrence = {
-        ...mocks.occurrence,
-        id: `notification-${offset}`,
-        createdAt: `2026-08-11T12:0${offset}:00Z`
-      };
-      return Promise.resolve(page([occurrence], offset === 0));
-    });
+    const api = {
+      listNotificationOccurrences: vi.fn((_limit: number, offset = 0) => {
+        const occurrence = {
+          ...mocks.occurrence,
+          id: `notification-${offset}`,
+          createdAt: `2026-08-11T12:0${offset}:00Z`
+        };
+        return Promise.resolve(page([occurrence], false));
+      }),
+      markNotificationRead: vi.fn(),
+      batchDeleteNotificationOccurrences: vi.fn(),
+      deleteAllNotificationOccurrences: vi.fn(),
+      getNotificationPolicy: vi.fn(),
+      updateNotificationPolicy: vi.fn()
+    };
+    const notificationStore = new NotificationStore(api as never);
+    const firstOccurrence = {
+      ...mocks.occurrence,
+      id: 'notification-0',
+      createdAt: '2026-08-11T12:00:00Z'
+    } as NotificationOccurrenceItem;
+    notificationStore.replaceOccurrenceProjection(page([firstOccurrence], true));
+    const fetchPage = vi.spyOn(notificationStore, 'fetchPage');
+    (mocks.store as { notifications: unknown }).notifications = notificationStore;
 
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-    });
-    intersectionCallback?.(
-      [{ isIntersecting: true } as IntersectionObserverEntry],
-      {} as IntersectionObserver
-    );
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(1);
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
-    });
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      await vi.waitFor(() => {
+        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      });
+      intersectionCallback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver
+      );
+      await vi.waitFor(() => {
+        expect(fetchPage).toHaveBeenCalledWith(1);
+        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(2);
+      });
+    } finally {
+      unmount();
+      (mocks.store as { notifications: unknown }).notifications = originalStore;
+    }
   });
 
   it('continues past an empty privacy-filtered page using its raw consumed offset', async () => {
-    mocks.store.notifications.fetchPage.mockImplementation((offset = 0) => {
-      if (offset === 0) {
-        return Promise.resolve({ ...page([], true), consumedCount: 50 });
-      }
-      return Promise.resolve(
-        offset === 50
-          ? { ...page([mocks.occurrence as NotificationOccurrenceItem]), consumedCount: 1 }
-          : page([])
-      );
-    });
+    const originalStore = mocks.store.notifications;
+    const api = {
+      listNotificationOccurrences: vi.fn((_limit: number, offset = 0) => {
+        return Promise.resolve(
+          offset === 50
+            ? { ...page([mocks.occurrence as NotificationOccurrenceItem]), consumedCount: 1 }
+            : page([])
+        );
+      }),
+      markNotificationRead: vi.fn(),
+      batchDeleteNotificationOccurrences: vi.fn(),
+      deleteAllNotificationOccurrences: vi.fn(),
+      getNotificationPolicy: vi.fn(),
+      updateNotificationPolicy: vi.fn()
+    };
+    const notificationStore = new NotificationStore(api as never);
+    notificationStore.replaceOccurrenceProjection({ ...page([], true), consumedCount: 50 });
+    const fetchPage = vi.spyOn(notificationStore, 'fetchPage');
+    (mocks.store as { notifications: unknown }).notifications = notificationStore;
 
-    const { container } = render(NotificationsPage);
-
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(50);
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-    });
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      await vi.waitFor(() => {
+        expect(fetchPage).toHaveBeenCalledWith(50);
+        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      });
+    } finally {
+      unmount();
+      (mocks.store as { notifications: unknown }).notifications = originalStore;
+    }
   });
 
   it('consolidates one direct-message group across loaded pages and dismisses every member', async () => {
+    const originalStore = mocks.store.notifications;
     let intersectionCallback: IntersectionObserverCallback | undefined;
     let resolveSecondPage: (() => void) | undefined;
     vi.stubGlobal(
@@ -939,51 +974,70 @@ describe('notifications page', () => {
         thresholds = [];
       }
     );
-    mocks.store.notifications.fetchPage.mockImplementation(async (offset = 0) => {
-      const occurrence = {
+    const occurrenceAt = (offset: number) =>
+      ({
         ...mocks.occurrence,
         id: `dm-${offset}`,
         eventId: `dm-event-${offset}`,
         threadRootId: null,
         signalKind: NotificationSignalKind.DIRECT_MESSAGE,
         createdAt: new Date(Date.UTC(2026, 7, 11, 12, 0, offset)).toISOString()
-      };
-      if (offset === 1) {
-        await new Promise<void>((resolve) => {
-          resolveSecondPage = resolve;
-        });
-      }
-      return page([occurrence], offset === 0);
-    });
+      }) as NotificationOccurrenceItem;
+    const api = {
+      listNotificationOccurrences: vi.fn(async (_limit: number, offset = 0) => {
+        if (offset === 1) {
+          await new Promise<void>((resolve) => {
+            resolveSecondPage = resolve;
+          });
+        }
+        return page([occurrenceAt(offset)], false);
+      }),
+      markNotificationRead: vi.fn(),
+      batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(0),
+      deleteAllNotificationOccurrences: vi.fn(),
+      getNotificationPolicy: vi.fn(),
+      updateNotificationPolicy: vi.fn()
+    };
+    const notificationStore = new NotificationStore(api as never);
+    notificationStore.replaceOccurrenceProjection(page([occurrenceAt(0)], true));
+    const fetchPage = vi.spyOn(notificationStore, 'fetchPage');
+    const deleteOccurrences = vi.spyOn(notificationStore, 'deleteOccurrences');
+    (mocks.store as { notifications: unknown }).notifications = notificationStore;
 
-    const { container } = render(NotificationsPage);
-    await vi.waitFor(() => {
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-    });
-    intersectionCallback?.(
-      [{ isIntersecting: true } as IntersectionObserverEntry],
-      {} as IntersectionObserver
-    );
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.fetchPage).toHaveBeenCalledWith(1);
-      expect(resolveSecondPage).toEqual(expect.any(Function));
-      expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('true');
-      expect(container.textContent).not.toContain('Loading');
-    });
-    resolveSecondPage!();
-    await vi.waitFor(() => {
-      expect(container.textContent).not.toContain('Loading');
-      expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('false');
-      expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
-    });
-
-    (q(container, 'button[aria-label="Delete"]') as HTMLButtonElement).click();
-    await vi.waitFor(() => {
-      expect(mocks.store.notifications.deleteOccurrences).toHaveBeenCalledWith(
-        expect.arrayContaining(['dm-0', 'dm-1']),
-        { unread: 2, importantUnread: 2, roomId: 'room-1' }
+    const { container, unmount } = render(NotificationsPage);
+    try {
+      await vi.waitFor(() => {
+        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      });
+      intersectionCallback?.(
+        [{ isIntersecting: true } as IntersectionObserverEntry],
+        {} as IntersectionObserver
       );
-    });
-    expect(mocks.store.notifications.deleteOccurrences.mock.calls[0]?.[0]).toHaveLength(2);
+      await vi.waitFor(() => {
+        expect(fetchPage).toHaveBeenCalledWith(1);
+        expect(resolveSecondPage).toEqual(expect.any(Function));
+        expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('true');
+        expect(container.textContent).not.toContain('Loading');
+      });
+      resolveSecondPage!();
+      await vi.waitFor(() => {
+        expect(container.textContent).not.toContain('Loading');
+        expect(q(container, '.selectable-list')?.getAttribute('aria-busy')).toBe('false');
+        expect(container.querySelectorAll('[data-testid="notification-group"]')).toHaveLength(1);
+      });
+
+      (q(container, 'button[aria-label="Delete"]') as HTMLButtonElement).click();
+      await vi.waitFor(() => {
+        expect(deleteOccurrences).toHaveBeenCalledWith(expect.arrayContaining(['dm-0', 'dm-1']), {
+          unread: 2,
+          importantUnread: 2,
+          roomId: 'room-1'
+        });
+      });
+      expect(deleteOccurrences.mock.calls[0]?.[0]).toHaveLength(2);
+    } finally {
+      unmount();
+      (mocks.store as { notifications: unknown }).notifications = originalStore;
+    }
   });
 });

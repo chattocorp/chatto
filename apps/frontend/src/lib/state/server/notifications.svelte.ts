@@ -72,14 +72,17 @@ export class NotificationStore {
   #failedMutationReconciliation: Promise<void> | undefined;
   #firstPageRequest: Promise<NotificationOccurrencePage> | undefined;
   occurrences = $state.raw<NotificationOccurrenceItem[]>([]);
+  /** Raw server rows consumed by the retained occurrence page. */
+  consumedCount = $state(0);
+  /** Exact visible occurrence total reported with the retained page. */
+  totalCount = $state(0);
+  /** Whether the retained page has older server rows available. */
+  hasMore = $state(false);
   unreadNotificationCount = $state(0);
   importantUnreadNotificationCount = $state(0);
   roomUnreadCounts = $state.raw<Record<string, number>>({});
   roomImportantUnreadCounts = $state.raw<Record<string, number>>({});
   nextExpiryAt = $state<string | null>(null);
-  /** Advances only for realtime invalidations, including changes made in another session. */
-  viewInvalidationVersion = $state(0);
-  resetVersion = $state(0);
   readonly revokedRoomIds = new SvelteSet<string>();
   /** Users whose copied profile data must not be rendered from stale notification pages. */
   readonly scrubbedUserIds = new SvelteSet<string>();
@@ -127,6 +130,9 @@ export class NotificationStore {
       0
     );
     this.occurrences = occurrences;
+    this.consumedCount = page.consumedCount ?? page.occurrences.length;
+    this.totalCount = page.totalCount;
+    this.hasMore = page.hasMore && this.consumedCount > 0;
     this.unreadNotificationCount = Math.max(0, page.unreadCount - revokedUnreadCount);
     this.importantUnreadNotificationCount = Math.max(
       0,
@@ -146,10 +152,6 @@ export class NotificationStore {
     this.error = null;
   }
 
-  invalidateViews(): void {
-    this.viewInvalidationVersion++;
-  }
-
   /** Invalidate projection-owned state while a compacted reset hydrates. */
   resetProjectionState(): void {
     this.#fetchGeneration++;
@@ -158,6 +160,9 @@ export class NotificationStore {
     this.#pendingReadById.clear();
     this.#pendingReadRequestById.clear();
     this.occurrences = [];
+    this.consumedCount = 0;
+    this.totalCount = 0;
+    this.hasMore = false;
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
     this.roomUnreadCounts = {};
@@ -169,8 +174,6 @@ export class NotificationStore {
     // a later snapshot frame never arrives.
     this.hasLoaded = true;
     this.error = null;
-    this.resetVersion++;
-    this.invalidateViews();
   }
 
   /** Remove copied profile data for an account deleted from the projection. */
@@ -182,7 +185,6 @@ export class NotificationStore {
     if (occurrences.some((occurrence, index) => occurrence !== this.occurrences[index])) {
       this.occurrences = occurrences;
     }
-    this.invalidateViews();
   }
 
   /** Drop notification payloads for a room at an authorization boundary. */
@@ -212,6 +214,8 @@ export class NotificationStore {
           occurrence.room?.id === roomId
       ).length;
     this.occurrences = this.occurrences.filter((occurrence) => occurrence.room?.id !== roomId);
+    this.consumedCount = this.occurrences.length;
+    this.totalCount = Math.max(this.occurrences.length, this.totalCount - roomOccurrenceIds.size);
 
     if (removedUnreadOccurrences > 0) {
       this.unreadNotificationCount = Math.max(
@@ -228,14 +232,12 @@ export class NotificationStore {
     this.roomUnreadCounts = withoutRecordKey(this.roomUnreadCounts, roomId);
     this.roomImportantUnreadCounts = withoutRecordKey(this.roomImportantUnreadCounts, roomId);
     this.nextExpiryAt = earliestNotificationOccurrenceExpiry(this.occurrences);
-    this.invalidateViews();
   }
 
   /** Re-open a room only after an explicit positive membership projection. */
   restoreRoom(roomId: string): void {
     if (!this.revokedRoomIds.delete(roomId)) return;
     this.#authoritativeGeneration++;
-    this.invalidateViews();
   }
 
   /**
@@ -421,6 +423,10 @@ export class NotificationStore {
     if (offset === 0) this.replaceOccurrenceProjection(safePage);
     else {
       this.occurrences = mergeNotificationOccurrences(this.occurrences, safePage.occurrences);
+      const consumedCount = safePage.consumedCount ?? safePage.occurrences.length;
+      this.consumedCount = Math.max(this.consumedCount, offset + consumedCount);
+      this.totalCount = safePage.totalCount;
+      this.hasMore = safePage.hasMore && consumedCount > 0;
     }
     return safePage;
   }
@@ -455,6 +461,8 @@ export class NotificationStore {
     this.#fetchGeneration++;
     this.loading = false;
     this.occurrences = this.occurrences.filter((occurrence) => !removedIds.has(occurrence.id));
+    this.consumedCount = Math.max(0, this.consumedCount - removedOccurrences.length);
+    this.totalCount = Math.max(0, this.totalCount - removedOccurrences.length);
     const removedUnreadCount =
       knownCounts?.unread ?? removedOccurrences.filter((occurrence) => occurrence.unread).length;
     const removedImportantUnreadCount =
@@ -505,6 +513,9 @@ export class NotificationStore {
     this.#pendingDeletionById.clear();
     this.loading = false;
     this.occurrences = [];
+    this.consumedCount = 0;
+    this.totalCount = 0;
+    this.hasMore = false;
     this.unreadNotificationCount = 0;
     this.importantUnreadNotificationCount = 0;
     this.roomUnreadCounts = {};
@@ -757,7 +768,6 @@ export class NotificationStore {
         continue;
       }
       this.replaceOccurrenceProjection(page);
-      this.invalidateViews();
       return;
     }
   }

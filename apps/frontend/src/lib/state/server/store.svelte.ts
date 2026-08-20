@@ -550,7 +550,6 @@ export class ServerStateStore {
             this.notifications.replaceOccurrenceProjection(
               mapNotificationOccurrencePage(replacement.occurrences)
             );
-            this.notifications.invalidateViews();
           }
           break;
         }
