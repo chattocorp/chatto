@@ -42,6 +42,9 @@ const (
 	// PushNotificationServiceUnsubscribeProcedure is the fully-qualified name of the
 	// PushNotificationService's Unsubscribe RPC.
 	PushNotificationServiceUnsubscribeProcedure = "/chatto.api.v1.PushNotificationService/Unsubscribe"
+	// PushNotificationServiceDeleteSubscriptionByCapabilityProcedure is the fully-qualified name of the
+	// PushNotificationService's DeleteSubscriptionByCapability RPC.
+	PushNotificationServiceDeleteSubscriptionByCapabilityProcedure = "/chatto.api.v1.PushNotificationService/DeleteSubscriptionByCapability"
 	// PushNotificationServiceSendTestNotificationProcedure is the fully-qualified name of the
 	// PushNotificationService's SendTestNotification RPC.
 	PushNotificationServiceSendTestNotificationProcedure = "/chatto.api.v1.PushNotificationService/SendTestNotification"
@@ -62,6 +65,10 @@ type PushNotificationServiceClient interface {
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
+	// Removes the exact current subscription when its Push API auth secret
+	// matches. This capability-based cleanup does not use the current account's
+	// session, allowing cancelled registration to finish safely after sign-out.
+	DeleteSubscriptionByCapability(context.Context, *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
 	// unavailable error without exposing the push provider's response body.
@@ -98,6 +105,13 @@ func NewPushNotificationServiceClient(httpClient connect.HTTPClient, baseURL str
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		deleteSubscriptionByCapability: connect.NewClient[v1.DeletePushSubscriptionByCapabilityRequest, v1.DeletePushSubscriptionByCapabilityResponse](
+			httpClient,
+			baseURL+PushNotificationServiceDeleteSubscriptionByCapabilityProcedure,
+			connect.WithSchema(pushNotificationServiceMethods.ByName("DeleteSubscriptionByCapability")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
 		sendTestNotification: connect.NewClient[v1.SendTestPushNotificationRequest, v1.SendTestPushNotificationResponse](
 			httpClient,
 			baseURL+PushNotificationServiceSendTestNotificationProcedure,
@@ -109,10 +123,11 @@ func NewPushNotificationServiceClient(httpClient connect.HTTPClient, baseURL str
 
 // pushNotificationServiceClient implements PushNotificationServiceClient.
 type pushNotificationServiceClient struct {
-	subscribe            *connect.Client[v1.SubscribePushRequest, v1.SubscribePushResponse]
-	subscribeForClient   *connect.Client[v1.SubscribePushRequest, v1.SubscribePushResponse]
-	unsubscribe          *connect.Client[v1.UnsubscribePushRequest, v1.UnsubscribePushResponse]
-	sendTestNotification *connect.Client[v1.SendTestPushNotificationRequest, v1.SendTestPushNotificationResponse]
+	subscribe                      *connect.Client[v1.SubscribePushRequest, v1.SubscribePushResponse]
+	subscribeForClient             *connect.Client[v1.SubscribePushRequest, v1.SubscribePushResponse]
+	unsubscribe                    *connect.Client[v1.UnsubscribePushRequest, v1.UnsubscribePushResponse]
+	deleteSubscriptionByCapability *connect.Client[v1.DeletePushSubscriptionByCapabilityRequest, v1.DeletePushSubscriptionByCapabilityResponse]
+	sendTestNotification           *connect.Client[v1.SendTestPushNotificationRequest, v1.SendTestPushNotificationResponse]
 }
 
 // Subscribe calls chatto.api.v1.PushNotificationService.Subscribe.
@@ -128,6 +143,12 @@ func (c *pushNotificationServiceClient) SubscribeForClient(ctx context.Context, 
 // Unsubscribe calls chatto.api.v1.PushNotificationService.Unsubscribe.
 func (c *pushNotificationServiceClient) Unsubscribe(ctx context.Context, req *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error) {
 	return c.unsubscribe.CallUnary(ctx, req)
+}
+
+// DeleteSubscriptionByCapability calls
+// chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability.
+func (c *pushNotificationServiceClient) DeleteSubscriptionByCapability(ctx context.Context, req *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error) {
+	return c.deleteSubscriptionByCapability.CallUnary(ctx, req)
 }
 
 // SendTestNotification calls chatto.api.v1.PushNotificationService.SendTestNotification.
@@ -151,6 +172,10 @@ type PushNotificationServiceHandler interface {
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
+	// Removes the exact current subscription when its Push API auth secret
+	// matches. This capability-based cleanup does not use the current account's
+	// session, allowing cancelled registration to finish safely after sign-out.
+	DeleteSubscriptionByCapability(context.Context, *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
 	// unavailable error without exposing the push provider's response body.
@@ -183,6 +208,13 @@ func NewPushNotificationServiceHandler(svc PushNotificationServiceHandler, opts 
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	pushNotificationServiceDeleteSubscriptionByCapabilityHandler := connect.NewUnaryHandler(
+		PushNotificationServiceDeleteSubscriptionByCapabilityProcedure,
+		svc.DeleteSubscriptionByCapability,
+		connect.WithSchema(pushNotificationServiceMethods.ByName("DeleteSubscriptionByCapability")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
 	pushNotificationServiceSendTestNotificationHandler := connect.NewUnaryHandler(
 		PushNotificationServiceSendTestNotificationProcedure,
 		svc.SendTestNotification,
@@ -197,6 +229,8 @@ func NewPushNotificationServiceHandler(svc PushNotificationServiceHandler, opts 
 			pushNotificationServiceSubscribeForClientHandler.ServeHTTP(w, r)
 		case PushNotificationServiceUnsubscribeProcedure:
 			pushNotificationServiceUnsubscribeHandler.ServeHTTP(w, r)
+		case PushNotificationServiceDeleteSubscriptionByCapabilityProcedure:
+			pushNotificationServiceDeleteSubscriptionByCapabilityHandler.ServeHTTP(w, r)
 		case PushNotificationServiceSendTestNotificationProcedure:
 			pushNotificationServiceSendTestNotificationHandler.ServeHTTP(w, r)
 		default:
@@ -218,6 +252,10 @@ func (UnimplementedPushNotificationServiceHandler) SubscribeForClient(context.Co
 
 func (UnimplementedPushNotificationServiceHandler) Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PushNotificationService.Unsubscribe is not implemented"))
+}
+
+func (UnimplementedPushNotificationServiceHandler) DeleteSubscriptionByCapability(context.Context, *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability is not implemented"))
 }
 
 func (UnimplementedPushNotificationServiceHandler) SendTestNotification(context.Context, *connect.Request[v1.SendTestPushNotificationRequest]) (*connect.Response[v1.SendTestPushNotificationResponse], error) {

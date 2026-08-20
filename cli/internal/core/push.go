@@ -3,6 +3,7 @@ package core
 import (
 	"context"
 	"crypto/sha256"
+	"crypto/subtle"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -487,6 +488,58 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 		"user_id", userID,
 		"endpoint_hash", hashEndpoint(endpoint))
 
+	return nil
+}
+
+// DeletePushSubscriptionByCapability removes only the exact current endpoint
+// owner whose browser Push API auth secret matches. It is safe to call without
+// an account session after a cancelled registration settles: concurrent
+// ownership transfers and credential rotations fail the revision/auth checks.
+func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, endpoint, auth string) error {
+	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
+		return err
+	}
+	if err := pushendpoint.Validate(endpoint); err != nil {
+		return fmt.Errorf("%w: %v", ErrInvalidArgument, err)
+	}
+	if auth == "" {
+		return fmt.Errorf("%w: push auth secret is required", ErrInvalidArgument)
+	}
+	if err := validateStringMaxLength("push auth secret", auth, MaxPushAuthLength); err != nil {
+		return err
+	}
+
+	owner, err := c.getPushEndpointOwner(ctx, endpoint)
+	if err != nil || owner == nil {
+		return err
+	}
+	key := pushSubscriptionKey(owner.UserID, endpoint)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if isPushRuntimeStateKeyAbsent(err) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("failed to get push subscription for capability cleanup: %w", err)
+	}
+	if entry.Revision() != owner.SubscriptionRevision {
+		return nil
+	}
+
+	var subscription corev1.PushSubscription
+	if err := proto.Unmarshal(entry.Value(), &subscription); err != nil {
+		return fmt.Errorf("failed to unmarshal push subscription for capability cleanup: %w", err)
+	}
+	if pushSubscriptionEndpoint(&subscription) != endpoint || subtle.ConstantTimeCompare([]byte(subscription.Auth), []byte(auth)) != 1 {
+		return nil
+	}
+
+	if err := c.releasePushEndpointOwnership(ctx, owner.UserID, endpoint, entry.Revision()); err != nil {
+		return err
+	}
+	err = c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
+	if err != nil && !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+		return fmt.Errorf("failed to delete push subscription by capability: %w", err)
+	}
 	return nil
 }
 

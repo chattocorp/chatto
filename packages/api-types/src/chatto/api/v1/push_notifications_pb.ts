@@ -207,6 +207,98 @@ export class UnsubscribePushResponse extends Message<UnsubscribePushResponse> {
 }
 
 /**
+ * Capability-authenticated request to remove an exact push subscription.
+ *
+ * @generated from message chatto.api.v1.DeletePushSubscriptionByCapabilityRequest
+ */
+export class DeletePushSubscriptionByCapabilityRequest extends Message<DeletePushSubscriptionByCapabilityRequest> {
+  /**
+   * Push service endpoint URL identifying the current endpoint owner.
+   *
+   * @generated from field: string endpoint = 1;
+   */
+  endpoint = "";
+
+  /**
+   * Authentication secret from the same browser PushSubscription. Cleanup is
+   * a no-op unless it matches the exact current subscription revision.
+   *
+   * @generated from field: string auth = 2;
+   */
+  auth = "";
+
+  constructor(data?: PartialMessage<DeletePushSubscriptionByCapabilityRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeletePushSubscriptionByCapabilityRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "endpoint", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "auth", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeletePushSubscriptionByCapabilityRequest {
+    return new DeletePushSubscriptionByCapabilityRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeletePushSubscriptionByCapabilityRequest {
+    return new DeletePushSubscriptionByCapabilityRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeletePushSubscriptionByCapabilityRequest {
+    return new DeletePushSubscriptionByCapabilityRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeletePushSubscriptionByCapabilityRequest | PlainMessage<DeletePushSubscriptionByCapabilityRequest> | undefined, b: DeletePushSubscriptionByCapabilityRequest | PlainMessage<DeletePushSubscriptionByCapabilityRequest> | undefined): boolean {
+    return proto3.util.equals(DeletePushSubscriptionByCapabilityRequest, a, b);
+  }
+}
+
+/**
+ * Response from capability-authenticated subscription cleanup.
+ *
+ * @generated from message chatto.api.v1.DeletePushSubscriptionByCapabilityResponse
+ */
+export class DeletePushSubscriptionByCapabilityResponse extends Message<DeletePushSubscriptionByCapabilityResponse> {
+  /**
+   * True when the idempotent cleanup request completed. It does not reveal
+   * whether a matching subscription existed.
+   *
+   * @generated from field: bool completed = 1;
+   */
+  completed = false;
+
+  constructor(data?: PartialMessage<DeletePushSubscriptionByCapabilityResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.DeletePushSubscriptionByCapabilityResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "completed", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): DeletePushSubscriptionByCapabilityResponse {
+    return new DeletePushSubscriptionByCapabilityResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): DeletePushSubscriptionByCapabilityResponse {
+    return new DeletePushSubscriptionByCapabilityResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): DeletePushSubscriptionByCapabilityResponse {
+    return new DeletePushSubscriptionByCapabilityResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: DeletePushSubscriptionByCapabilityResponse | PlainMessage<DeletePushSubscriptionByCapabilityResponse> | undefined, b: DeletePushSubscriptionByCapabilityResponse | PlainMessage<DeletePushSubscriptionByCapabilityResponse> | undefined): boolean {
+    return proto3.util.equals(DeletePushSubscriptionByCapabilityResponse, a, b);
+  }
+}
+
+/**
  * Request to test the current user's registered browser push subscriptions.
  *
  * @generated from message chatto.api.v1.SendTestPushNotificationRequest

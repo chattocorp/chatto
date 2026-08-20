@@ -6,7 +6,8 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   subscribe: vi.fn(),
   subscribeForClient: vi.fn(),
-  unsubscribe: vi.fn()
+  unsubscribe: vi.fn(),
+  deleteSubscriptionByCapability: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -28,11 +29,13 @@ describe('createPushNotificationAPI', () => {
     mocks.subscribe.mockReset();
     mocks.subscribeForClient.mockReset();
     mocks.unsubscribe.mockReset();
+    mocks.deleteSubscriptionByCapability.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       subscribe: mocks.subscribe,
       subscribeForClient: mocks.subscribeForClient,
-      unsubscribe: mocks.unsubscribe
+      unsubscribe: mocks.unsubscribe,
+      deleteSubscriptionByCapability: mocks.deleteSubscriptionByCapability
     });
   });
 
@@ -40,6 +43,7 @@ describe('createPushNotificationAPI', () => {
     mocks.subscribe.mockResolvedValue({ subscribed: true });
     mocks.subscribeForClient.mockResolvedValue({ subscribed: true });
     mocks.unsubscribe.mockResolvedValue({ unsubscribed: true });
+    mocks.deleteSubscriptionByCapability.mockResolvedValue({ completed: true });
 
     const api = createPushNotificationAPI({
       baseUrl: 'https://origin.test/api/connect',
@@ -67,6 +71,9 @@ describe('createPushNotificationAPI', () => {
       )
     ).resolves.toEqual({ subscribed: true });
     await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
+    await expect(
+      api.deleteByCapability('https://push.example/stale', 'stale-auth-secret')
+    ).resolves.toBe(true);
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
       baseUrl: 'https://origin.test/api/connect',
@@ -94,6 +101,10 @@ describe('createPushNotificationAPI', () => {
       },
       { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
+    expect(mocks.deleteSubscriptionByCapability).toHaveBeenCalledWith({
+      endpoint: 'https://push.example/stale',
+      auth: 'stale-auth-secret'
+    });
   });
 
   it('omits auth headers when no bearer token exists', async () => {

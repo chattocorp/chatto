@@ -2164,6 +2164,24 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	})); err != nil {
 		t.Fatalf("idempotent Unsubscribe: %v", err)
 	}
+
+	capabilityEndpoint := "https://push.example.test/capability-cleanup"
+	if _, err := env.core.SavePushSubscription(env.ctx, env.viewer.Id, capabilityEndpoint, "p256dh-key", "capability-auth", "test-agent"); err != nil {
+		t.Fatalf("save capability cleanup fixture: %v", err)
+	}
+	cleanupResp, err := env.push.DeleteSubscriptionByCapability(context.Background(), connect.NewRequest(&apiv1.DeletePushSubscriptionByCapabilityRequest{
+		Endpoint: capabilityEndpoint,
+		Auth:     "capability-auth",
+	}))
+	if err != nil {
+		t.Fatalf("unauthenticated DeleteSubscriptionByCapability: %v", err)
+	}
+	if !cleanupResp.Msg.GetCompleted() {
+		t.Fatal("DeleteSubscriptionByCapability completed = false, want true")
+	}
+	if owned, err := env.core.PushSubscriptionOwnedByUser(env.ctx, env.viewer.Id, capabilityEndpoint); err != nil || owned {
+		t.Fatalf("capability cleanup ownership = %t, err = %v", owned, err)
+	}
 }
 
 func TestPushNotificationServiceHidesDeliveryFailureDetails(t *testing.T) {

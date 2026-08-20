@@ -61,6 +61,10 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
     },
 
+    async deleteByCapability(endpoint: string, auth: string): Promise<boolean> {
+      return (await client.deleteSubscriptionByCapability({ endpoint, auth })).completed;
+    },
+
     async sendTestNotification(): Promise<boolean> {
       return (await client.sendTestNotification({}, { headers: headers() })).sent;
     }

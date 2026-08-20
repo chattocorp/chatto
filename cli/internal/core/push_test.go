@@ -616,6 +616,44 @@ func TestPushSubscriptionCurrentForUserRejectsRotatedCredentials(t *testing.T) {
 	}
 }
 
+func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	endpoint := "https://push.example.com/capability-cleanup"
+	userA := "push-capability-user-a"
+	userB := "push-capability-user-b"
+
+	if _, err := core.SavePushSubscription(ctx, userA, endpoint, "key-a", "auth-a", "browser-a"); err != nil {
+		t.Fatalf("SavePushSubscription user A: %v", err)
+	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "wrong-auth"); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability wrong auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userA, endpoint); err != nil || !owned {
+		t.Fatalf("wrong capability changed A ownership: owned=%t err=%v", owned, err)
+	}
+
+	if _, err := core.SavePushSubscription(ctx, userB, endpoint, "key-b", "auth-b", "browser-b"); err != nil {
+		t.Fatalf("SavePushSubscription user B: %v", err)
+	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "auth-a"); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability stale auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || !owned {
+		t.Fatalf("stale capability changed B ownership: owned=%t err=%v", owned, err)
+	}
+	if subscriptions, err := core.GetUserPushSubscriptions(ctx, userB); err != nil || len(subscriptions) != 1 {
+		t.Fatalf("stale capability removed B subscription: count=%d err=%v", len(subscriptions), err)
+	}
+
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "auth-b"); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability current auth: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || owned {
+		t.Fatalf("current capability left B ownership: owned=%t err=%v", owned, err)
+	}
+}
+
 func TestStaleSubscriptionRevisionCannotReleaseRefreshedOwnership(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()

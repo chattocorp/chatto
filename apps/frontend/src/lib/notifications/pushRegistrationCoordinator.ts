@@ -14,6 +14,7 @@ const operationTails = new Map<string, Promise<unknown>>();
 const registrationEpochs = new Map<string, number>();
 const suspendedServers = new Map<string, { crossTabPersisted: boolean }>();
 const activeRegistrations = new Map<string, AbortController>();
+const refreshListeners = new Set<(serverId: string) => void>();
 let coordinationChannel: BroadcastChannel | null | undefined;
 let storageListenerInstalled = false;
 
@@ -120,12 +121,38 @@ function ensureCrossTabCoordination(): void {
         serverId?: unknown;
         crossTabPersisted?: unknown;
       };
-      if (message.type !== 'suspend' || typeof message.serverId !== 'string') return;
-      suspendLocally(message.serverId, message.crossTabPersisted === true);
+      if (typeof message.serverId !== 'string') return;
+      if (message.type === 'suspend') {
+        suspendLocally(message.serverId, message.crossTabPersisted === true);
+      } else if (message.type === 'refresh') {
+        notifyRefreshListeners(message.serverId);
+      }
     });
   } catch {
     coordinationChannel = null;
   }
+}
+
+function notifyRefreshListeners(serverId: string): void {
+  for (const listener of refreshListeners) listener(serverId);
+}
+
+/** Requests that active same-origin realms reassert one server subscription. */
+export function requestPushRegistrationRefresh(serverId: string): void {
+  ensureCrossTabCoordination();
+  notifyRefreshListeners(serverId);
+  try {
+    coordinationChannel?.postMessage({ type: 'refresh', serverId });
+  } catch {
+    // A foreground realm or its next startup refresh can still repair state.
+  }
+}
+
+/** Subscribes a long-lived registration owner to cross-tab refresh requests. */
+export function onPushRegistrationRefresh(listener: (serverId: string) => void): () => void {
+  refreshListeners.add(listener);
+  ensureCrossTabCoordination();
+  return () => refreshListeners.delete(listener);
 }
 
 function broadcastSuspension(serverId: string, crossTabPersisted: boolean): void {

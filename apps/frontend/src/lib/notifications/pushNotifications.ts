@@ -19,6 +19,8 @@ import {
   enqueuePushRegistration,
   hasDurablePushCoordinationStorage,
   isPushRegistrationSuspended,
+  onPushRegistrationRefresh,
+  requestPushRegistrationRefresh,
   resumePushRegistration,
   shouldInvalidateCancelledPushRegistration,
   suspendPushRegistration,
@@ -251,6 +253,11 @@ export async function refreshPushSubscriptions(
   );
 }
 
+onPushRegistrationRefresh((serverId) => {
+  const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
+  if (target) void refreshPushSubscriptions([target]);
+});
+
 /**
  * Convert base64url string to Uint8Array (for VAPID key).
  */
@@ -319,6 +326,7 @@ async function ensureRegisteredOnce(
 
   const clientHostRequired = !serverRegistry.isOriginServer(serverId);
   let subscription: PushSubscription | null = null;
+  let subscriptionAuth: string | null = null;
   let createdSubscription = false;
   let api: PushNotificationAPI | null = null;
 
@@ -362,6 +370,7 @@ async function ensureRegisteredOnce(
       console.error('Invalid push subscription');
       return false;
     }
+    subscriptionAuth = json.keys.auth;
 
     const input = {
       endpoint: json.endpoint,
@@ -387,7 +396,7 @@ async function ensureRegisteredOnce(
       if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       } else {
-        await removeStaleServerSubscription(api, subscription.endpoint);
+        await removeStaleServerSubscription(serverId, api, subscription.endpoint, input.auth);
       }
       return false;
     }
@@ -412,7 +421,14 @@ async function ensureRegisteredOnce(
       if (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired))) {
         await invalidateSubscription(serverId, subscription);
       } else if (cancelled && api) {
-        await removeStaleServerSubscription(api, subscription.endpoint);
+        if (subscriptionAuth) {
+          await removeStaleServerSubscription(
+            serverId,
+            api,
+            subscription.endpoint,
+            subscriptionAuth
+          );
+        }
       }
     }
     return false;
@@ -420,21 +436,23 @@ async function ensureRegisteredOnce(
 }
 
 /**
- * Removes only the obsolete account's server record after another realm has
- * resumed registration. The API facade is captured before the save, so its
- * bearer token remains scoped to that save's account. Server-side revision and
- * owner checks prevent this cleanup from releasing a replacement account's
- * endpoint claim.
+ * Removes only the exact subscription created by the cancelled save. Cleanup
+ * uses the browser Push API auth secret rather than the current account session,
+ * so cookie changes or revoked bearer tokens cannot redirect it at another
+ * account. Server-side secret, revision, and owner checks protect replacements.
  */
 async function removeStaleServerSubscription(
+  serverId: string,
   api: PushNotificationAPI,
-  endpoint: string
+  endpoint: string,
+  auth: string
 ): Promise<void> {
   try {
-    await api.unsubscribe(endpoint);
+    await api.deleteByCapability(endpoint, auth);
   } catch {
-    // The stale credentials may already be revoked; browser invalidation during
-    // suspension still makes their endpoint unusable.
+    // Browser invalidation during suspension still makes the endpoint unusable.
+  } finally {
+    requestPushRegistrationRefresh(serverId);
   }
 }
 

@@ -3,11 +3,12 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { SendTestPushNotificationRequest, SendTestPushNotificationResponse, SubscribePushRequest, SubscribePushResponse, UnsubscribePushRequest, UnsubscribePushResponse } from "./push_notifications_pb.js";
+import { DeletePushSubscriptionByCapabilityRequest, DeletePushSubscriptionByCapabilityResponse, SendTestPushNotificationRequest, SendTestPushNotificationResponse, SubscribePushRequest, SubscribePushResponse, UnsubscribePushRequest, UnsubscribePushResponse } from "./push_notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Browser Web Push subscription commands for the current user.
+ * Browser Web Push subscription commands. Account mutations authenticate the
+ * current user; late-save cleanup uses the exact subscription's capability.
  *
  * @generated from service chatto.api.v1.PushNotificationService
  */
@@ -52,6 +53,20 @@ export const PushNotificationService = {
       name: "Unsubscribe",
       I: UnsubscribePushRequest,
       O: UnsubscribePushResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+    /**
+     * Removes the exact current subscription when its Push API auth secret
+     * matches. This capability-based cleanup does not use the current account's
+     * session, allowing cancelled registration to finish safely after sign-out.
+     *
+     * @generated from rpc chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability
+     */
+    deleteSubscriptionByCapability: {
+      name: "DeleteSubscriptionByCapability",
+      I: DeletePushSubscriptionByCapabilityRequest,
+      O: DeletePushSubscriptionByCapabilityResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

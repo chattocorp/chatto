@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
   subscribePush: vi.fn(),
   subscribeForClientPush: vi.fn(),
   unsubscribePush: vi.fn(),
+  deleteByCapabilityPush: vi.fn(),
   appUi: {
     disableRoomCallWideFor: vi.fn()
   },
@@ -377,7 +378,8 @@ describe('pushNotifications.ensureRegistered', () => {
     mocks.createPushNotificationAPI.mockReturnValue({
       subscribe: mocks.subscribePush,
       subscribeForClient: mocks.subscribeForClientPush,
-      unsubscribe: mocks.unsubscribePush
+      unsubscribe: mocks.unsubscribePush,
+      deleteByCapability: mocks.deleteByCapabilityPush
     });
     mocks.subscribePush.mockReset();
     mocks.subscribePush.mockResolvedValue({ subscribed: true });
@@ -385,6 +387,8 @@ describe('pushNotifications.ensureRegistered', () => {
     mocks.subscribeForClientPush.mockResolvedValue({ subscribed: true });
     mocks.unsubscribePush.mockReset();
     mocks.unsubscribePush.mockResolvedValue(true);
+    mocks.deleteByCapabilityPush.mockReset();
+    mocks.deleteByCapabilityPush.mockResolvedValue(true);
   });
 
   it('does not prompt or mutate when permission is default and prompt is false', async () => {
@@ -553,12 +557,6 @@ describe('pushNotifications.ensureRegistered', () => {
     // A different tab installs new authentication and clears shared suspension;
     // this realm intentionally retains its local block and obsolete credentials.
     window.localStorage.removeItem('chatto.push-registration.suspended.remote');
-    const replacementAccountUnsubscribe = vi.fn().mockResolvedValue(true);
-    mocks.createPushNotificationAPI.mockReturnValue({
-      subscribe: mocks.subscribePush,
-      subscribeForClient: mocks.subscribeForClientPush,
-      unsubscribe: replacementAccountUnsubscribe
-    });
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
     // A transport that ignores abort may settle after a new session starts.
@@ -566,10 +564,13 @@ describe('pushNotifications.ensureRegistered', () => {
     // record without invalidating the other tab's browser replacement.
     firstSave.resolve({ subscribed: true });
     await firstSave.promise;
-    await vi.waitFor(() => expect(mocks.unsubscribePush).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.deleteByCapabilityPush).toHaveBeenCalledOnce());
     expect(remoteSubscription.unsubscribe).not.toHaveBeenCalled();
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
-    expect(replacementAccountUnsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+    expect(mocks.deleteByCapabilityPush).toHaveBeenCalledWith(
+      remoteSubscription.endpoint,
+      'auth-secret'
+    );
   });
 
   it('keeps leaving suspension visible across tabs until new authentication is installed', async () => {
