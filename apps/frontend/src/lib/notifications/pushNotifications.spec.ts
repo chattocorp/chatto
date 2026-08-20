@@ -543,6 +543,24 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
   });
 
+  it('does not let delayed leaving cleanup remove another tab\'s replacement', async () => {
+    permission = 'granted';
+    const replacement = makeSubscription('https://push.example/cross-tab-replacement');
+    const delayedLookup = deferred<PushSubscription | null>();
+    getSubscription.mockReturnValue(delayedLookup.promise);
+
+    const leaving = unsubscribeBeforeLeaving('origin');
+    await Promise.resolve();
+    // Another realm installs authentication and the replacement while this
+    // realm's shared-subscription lookup is still pending.
+    window.localStorage.removeItem('chatto.push-registration.suspended.origin');
+    delayedLookup.resolve(replacement);
+
+    await expect(leaving).resolves.toBeUndefined();
+    expect(replacement.unsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+  });
+
   it('rejects and removes a remote subscription when the route-aware RPC is unavailable', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-old-server');

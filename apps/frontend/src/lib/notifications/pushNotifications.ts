@@ -469,12 +469,19 @@ async function beginUnsubscribe(serverId: string): Promise<{
   if (!subscription) {
     return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
   }
+  if (!shouldInvalidateCancelledPushRegistration(serverId)) {
+    return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
+  }
 
   let removedFromBrowser = false;
   try {
     removedFromBrowser = await subscription.unsubscribe();
   } catch (error) {
     console.error('Failed to unsubscribe from browser push:', error);
+  }
+
+  if (!shouldInvalidateCancelledPushRegistration(serverId)) {
+    return { removedFromBrowser, removeFromServer: Promise.resolve(true) };
   }
 
   const removeFromServer = api.unsubscribe(subscription.endpoint).then(
