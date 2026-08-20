@@ -73,11 +73,6 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
         queryScope: 'origin-session',
         isConnected: true,
         showConnectionLostBanner: false,
-        client: {
-          query: mocks.query,
-          mutation: mocks.mutation,
-          subscription: vi.fn()
-        },
         connectBaseUrl: 'https://origin.test/api/connect',
         bearerToken: 'origin-token',
         apiConfig: {
@@ -97,6 +92,14 @@ async function settle() {
   await Promise.resolve();
   await Promise.resolve();
   flushSync();
+}
+
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise;
+  });
+  return { promise, resolve };
 }
 
 function setRangeValue(input: HTMLInputElement, value: string) {
