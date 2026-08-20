@@ -634,6 +634,23 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
   });
 
+  it('still performs local leaving cleanup when browser storage is denied', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/storage-denied');
+    getSubscription.mockResolvedValue(subscription);
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get: () => {
+        throw new DOMException('storage denied', 'SecurityError');
+      }
+    });
+
+    await expect(unsubscribeBeforeLeaving('origin')).resolves.toBeUndefined();
+
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
+  });
+
   it('finishes local invalidation before leaving without waiting for server cleanup', async () => {
     permission = 'granted';
     const subscription = makeSubscription('https://push.example/leaving');

@@ -205,6 +205,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	g.Go(func() error { return c.assetModel.Run(gctx) })
 	g.Go(func() error { return c.assetUploadModel.RunCleanup(gctx) })
 	g.Go(func() error { return c.keyShredding.Run(gctx) })
+	g.Go(func() error { return c.runPushEndpointOwnerReconciliation(gctx) })
 	if c.projectionSnapshotWorker != nil {
 		g.Go(func() error {
 			err := c.projectionSnapshotWorker.Run(gctx, c.bootDone)

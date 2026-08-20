@@ -31,6 +31,7 @@ const (
 	pushEndpointOwnerKeyPrefix            = "push_endpoint_owner."
 	pushTestNotificationThrottleKeyPrefix = "push_test_notification_throttle."
 	pushEndpointOwnerMaxRetries           = 8
+	pushEndpointOwnerReconcileInterval    = time.Minute
 	pushTestNotificationThrottleTTL       = 10 * time.Second
 
 	// MaxPushSubscriptionsPerUser is the maximum number of active browser
@@ -369,6 +370,30 @@ func (c *ChattoCore) ReconcilePushEndpointOwners(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// runPushEndpointOwnerReconciliation repairs mixed-version deletions at
+// startup and periodically for as long as this replica is running.
+func (c *ChattoCore) runPushEndpointOwnerReconciliation(ctx context.Context) error {
+	if err := c.ReconcilePushEndpointOwners(ctx); err != nil {
+		c.logger.Warn("Failed to reconcile push endpoint owners", "error", err)
+	}
+	return c.runPushEndpointOwnerReconciliationLoop(ctx, pushEndpointOwnerReconcileInterval)
+}
+
+func (c *ChattoCore) runPushEndpointOwnerReconciliationLoop(ctx context.Context, interval time.Duration) error {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case <-ticker.C:
+			if err := c.ReconcilePushEndpointOwners(ctx); err != nil {
+				c.logger.Warn("Failed to reconcile push endpoint owners", "error", err)
+			}
+		}
+	}
 }
 
 // PushSubscriptionOwnedByUser reports whether the endpoint is currently claimed

@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 
@@ -291,6 +292,52 @@ func TestReconcilePushEndpointOwnersRemovesLegacyReplicaAccountDeletionOrphan(t 
 	}
 	if _, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint)); !isPushRuntimeStateKeyAbsent(err) {
 		t.Fatalf("orphan owner still exists after reconciliation: %v", err)
+	}
+}
+
+func TestPushEndpointOwnerReconciliationLoopRepairsDeletionAfterStartup(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	userID := "push-user-client-host-old-account-delete-periodic"
+	endpoint := "https://push.example.com/client-host-old-account-delete-periodic"
+
+	if _, err := core.SavePushSubscriptionForClient(ctx, userID, endpoint, "key", "auth", "browser", "app.example.com"); err != nil {
+		t.Fatalf("SavePushSubscriptionForClient: %v", err)
+	}
+	done := make(chan error, 1)
+	go func() {
+		done <- core.runPushEndpointOwnerReconciliationLoop(ctx, 5*time.Millisecond)
+	}()
+
+	// Let at least one healthy periodic pass complete before simulating an old
+	// replica's later account deletion.
+	time.Sleep(15 * time.Millisecond)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint)); err != nil {
+		t.Fatalf("healthy owner unexpectedly removed: %v", err)
+	}
+	if err := core.storage.runtimeStateKV.Delete(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("legacy subscription delete: %v", err)
+	}
+
+	deadline := time.Now().Add(time.Second)
+	for {
+		_, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint))
+		if isPushRuntimeStateKeyAbsent(err) {
+			break
+		}
+		if err != nil {
+			t.Fatalf("get owner during periodic reconciliation: %v", err)
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("periodic reconciliation did not remove orphan owner")
+		}
+		time.Sleep(time.Millisecond)
+	}
+
+	cancel()
+	if err := <-done; !errors.Is(err, context.Canceled) {
+		t.Fatalf("reconciliation loop error = %v, want context cancellation", err)
 	}
 }
 
