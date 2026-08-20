@@ -179,9 +179,7 @@
         "enabling": "Ebligante...",
         "blocked_error": "Puŝaj sciigoj estas blokitaj en via retumilo aŭ OS-agordoj.",
         "enable_failed": "Malsukcesis ebligi puŝajn sciigojn. Bonvolu provi denove.",
-        "enable_error": "Okazis eraro dum ebligado de puŝaj sciigoj",
-        "remote_title": "Indiĝena puŝo ne disponeblas por foraj serviloj",
-        "remote_description": "Ĉi tiu instalita aplikaĵo povas nur registri retumilajn puŝajn sciigojn ĉe la servilo, kiu servis ĝin. Insignoj kaj sonoj pri sciigo en la aplikaĵo daŭre funkcias por ĉi tiu servilo dum Chatto estas malfermita."
+        "enable_error": "Okazis eraro dum ebligado de puŝaj sciigoj"
       },
       "push_prompt": {
         "title": "Ebligu puŝajn sciigojn",

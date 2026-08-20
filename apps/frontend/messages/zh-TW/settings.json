@@ -179,9 +179,7 @@
         "enabling": "正在啟用...",
         "blocked_error": "推播通知已在瀏覽器或作業系統設定中遭到封鎖。",
         "enable_failed": "無法啟用推播通知，請再試一次。",
-        "enable_error": "啟用推播通知時發生錯誤",
-        "remote_title": "遠端伺服器無法使用原生推播",
-        "remote_description": "這個已安裝的 App 只能向提供該 App 的伺服器註冊瀏覽器推播通知。Chatto 開啟時，此伺服器的 App 內通知徽章與音效仍會正常運作。"
+        "enable_error": "啟用推播通知時發生錯誤"
       },
       "push_prompt": {
         "title": "啟用推播通知",

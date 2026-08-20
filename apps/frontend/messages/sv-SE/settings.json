@@ -179,9 +179,7 @@
         "enabling": "Aktiverar...",
         "blocked_error": "Push-meddelanden blockeras i din webbläsare eller OS-inställningar.",
         "enable_failed": "Det gick inte att aktivera push-meddelanden. Försök igen.",
-        "enable_error": "Ett fel uppstod när push-meddelanden aktiverades",
-        "remote_title": "Native push är inte tillgänglig för fjärrservrar",
-        "remote_description": "Den här installerade appen kan bara registrera push-meddelanden från webbläsaren med servern som serverade den. Aviseringsmärken och ljud i appen fungerar fortfarande för den här servern medan Chatto är öppen."
+        "enable_error": "Ett fel uppstod när push-meddelanden aktiverades"
       },
       "push_prompt": {
         "title": "Aktivera push-meddelanden",

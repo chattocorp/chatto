@@ -179,9 +179,7 @@
         "enabling": "Notiek iespējošana...",
         "blocked_error": "Push paziņojumi ir bloķēti jūsu pārlūkprogrammas vai OS iestatījumos.",
         "enable_failed": "Neizdevās iespējot push paziņojumus. Lūdzu, mēģiniet vēlreiz.",
-        "enable_error": "Iespējojot pašpiegādes paziņojumus, radās kļūda",
-        "remote_title": "Vietējā push nav pieejama attāliem serveriem",
-        "remote_description": "Šī instalētā lietotne var reģistrēt pārlūkprogrammas push paziņojumus tikai serverī, kas to apkalpoja. Kamēr Chatto ir atvērts, šajā serverī joprojām darbojas lietotnes paziņojumu emblēmas un skaņas."
+        "enable_error": "Iespējojot pašpiegādes paziņojumus, radās kļūda"
       },
       "push_prompt": {
         "title": "Iespējot push paziņojumus",

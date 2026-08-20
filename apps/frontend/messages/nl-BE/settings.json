@@ -179,9 +179,7 @@
         "enabling": "Aanzetten...",
         "blocked_error": "Pushmeldingen worden geblokkeerd in uw browser- of besturingssysteeminstellingen.",
         "enable_failed": "Kan pushmeldingen niet inschakelen. Probeer het opnieuw.",
-        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen",
-        "remote_title": "Native push is niet beschikbaar voor externe servers",
-        "remote_description": "Deze geïnstalleerde app kan alleen browser-pushmeldingen registreren bij de server die deze heeft aangeboden. In-app-meldingsbadges en -geluiden werken nog steeds voor deze server terwijl Chatto open is."
+        "enable_error": "Er is een fout opgetreden bij het inschakelen van pushmeldingen"
       },
       "push_prompt": {
         "title": "Schakel pushmeldingen in",

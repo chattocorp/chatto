@@ -290,10 +290,13 @@ export async function ensureRegistered(
     return false;
   }
 
+  const routeRequired = !serverRegistry.isOriginServer(serverId);
+  let subscription: PushSubscription | null = null;
+  let createdSubscription = false;
+
   try {
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
-    let subscription = await registration.pushManager.getSubscription();
-    let createdSubscription = false;
+    subscription = await registration.pushManager.getSubscription();
 
     if (
       subscription?.options.applicationServerKey &&
@@ -330,14 +333,10 @@ export async function ensureRegistered(
       navigationBaseUrl: route
     });
 
-    const routeRequired = !serverRegistry.isOriginServer(serverId);
     if (!saved.subscribed || (routeRequired && !saved.navigationBaseUrlStored)) {
       console.error('Failed to save push subscription');
       if (createdSubscription || routeRequired) {
-        await pushAPI(serverId)
-          .unsubscribe(subscription.endpoint)
-          .catch(() => false);
-        await subscription.unsubscribe();
+        await invalidateSubscription(serverId, subscription);
       }
       return false;
     }
@@ -345,7 +344,29 @@ export async function ensureRegistered(
     return true;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
+    // A remote subscription is unusable until the server positively
+    // acknowledges its navigation route. Fail closed when that acknowledgement
+    // is indeterminate so a later push cannot open the wrong frontend.
+    if (subscription && (createdSubscription || routeRequired)) {
+      await invalidateSubscription(serverId, subscription);
+    }
     return false;
+  }
+}
+
+async function invalidateSubscription(
+  serverId: string,
+  subscription: PushSubscription
+): Promise<void> {
+  try {
+    await pushAPI(serverId).unsubscribe(subscription.endpoint);
+  } catch {
+    // Browser cleanup must still run when server cleanup is unavailable.
+  }
+  try {
+    await subscription.unsubscribe();
+  } catch {
+    // The subscription is already unusable from this client's perspective.
   }
 }
 

@@ -179,9 +179,7 @@
         "enabling": "正在启用...",
         "blocked_error": "浏览器或操作系统设置已阻止推送通知。",
         "enable_failed": "推送通知启用失败，请重试。",
-        "enable_error": "启用推送通知时出错",
-        "remote_title": "远程服务器无法使用原生推送",
-        "remote_description": "此已安装应用只能向提供该应用的服务器注册浏览器推送通知。Chatto 打开时，此服务器的应用内通知角标和提示音仍然有效。"
+        "enable_error": "启用推送通知时出错"
       },
       "push_prompt": {
         "title": "启用推送通知",

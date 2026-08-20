@@ -178,10 +178,16 @@
   let pushError = $state<string | null>(null);
   let pushTestLoading = $state(false);
   let pushTestStatus = $state<'sent' | 'failed' | null>(null);
+  let pushSubscriptionGeneration = 0;
+  let pushEnableGeneration = 0;
+  let pushTestGeneration = 0;
 
   // Check push subscription status on mount
   $effect(() => {
     const serverId = activeServerId;
+    const generation = ++pushSubscriptionGeneration;
+    ++pushEnableGeneration;
+    ++pushTestGeneration;
     pushSubscribed = false;
     pushLoading = false;
     pushError = null;
@@ -190,13 +196,16 @@
     if (showPushControls && pushSupported) {
       pushPermission = getPermission();
       checkPushSubscription(serverId).then((subscribed) => {
-        if (activeServerId === serverId) pushSubscribed = subscribed;
+        if (activeServerId === serverId && pushSubscriptionGeneration === generation) {
+          pushSubscribed = subscribed;
+        }
       });
     }
   });
 
   async function handleEnablePush() {
     const serverId = activeServerId;
+    const generation = ++pushEnableGeneration;
     const vapidKey = serverInfo.vapidPublicKey;
     if (!vapidKey) {
       pushError = m('settings.notifications.push.not_configured');
@@ -208,7 +217,7 @@
 
     try {
       const success = await ensureRegistered(serverId, vapidKey, { prompt: true });
-      if (activeServerId !== serverId) return;
+      if (activeServerId !== serverId || pushEnableGeneration !== generation) return;
       pushPermission = getPermission();
       if (success) {
         pushSubscribed = true;
@@ -219,25 +228,32 @@
             : m('settings.notifications.push.enable_failed');
       }
     } catch {
-      if (activeServerId === serverId) {
+      if (activeServerId === serverId && pushEnableGeneration === generation) {
         pushError = m('settings.notifications.push.enable_error');
       }
     } finally {
-      if (activeServerId === serverId) pushLoading = false;
+      if (activeServerId === serverId && pushEnableGeneration === generation) pushLoading = false;
     }
   }
 
   async function handleTestPush() {
     const serverId = activeServerId;
+    const generation = ++pushTestGeneration;
     pushTestLoading = true;
     pushTestStatus = null;
     try {
       const sent = await sendTestNotification(serverId);
-      if (activeServerId === serverId) pushTestStatus = sent ? 'sent' : 'failed';
+      if (activeServerId === serverId && pushTestGeneration === generation) {
+        pushTestStatus = sent ? 'sent' : 'failed';
+      }
     } catch {
-      if (activeServerId === serverId) pushTestStatus = 'failed';
+      if (activeServerId === serverId && pushTestGeneration === generation) {
+        pushTestStatus = 'failed';
+      }
     } finally {
-      if (activeServerId === serverId) pushTestLoading = false;
+      if (activeServerId === serverId && pushTestGeneration === generation) {
+        pushTestLoading = false;
+      }
     }
   }
 </script>

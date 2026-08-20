@@ -179,9 +179,7 @@
         "enabling": "Activation...",
         "blocked_error": "Les notifications poussées sont bloquées dans les paramètres de votre navigateur ou de votre système d'exploitation.",
         "enable_failed": "Échec de l'activation des notifications push. Veuillez réessayer.",
-        "enable_error": "Une erreur s'est produite lors de l'activation des notifications poussées",
-        "remote_title": "Le push natif n'est pas disponible pour les serveurs distants",
-        "remote_description": "Cette application installée ne peut enregistrer les notifications poussées du navigateur qu'avec le serveur qui l'a servie. Les badges et les sons de notification dans l'application fonctionnent toujours pour ce serveur lorsque Chatto est ouvert."
+        "enable_error": "Une erreur s'est produite lors de l'activation des notifications poussées"
       },
       "push_prompt": {
         "title": "Activer les notifications poussées",

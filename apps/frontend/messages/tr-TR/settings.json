@@ -179,9 +179,7 @@
         "enabling": "Etkinleştiriliyor...",
         "blocked_error": "Anında bildirimler tarayıcınızda veya işletim sistemi ayarlarınızda engellenir.",
         "enable_failed": "Anlık bildirimler etkinleştirilemedi. Lütfen tekrar deneyin.",
-        "enable_error": "Anlık bildirimler etkinleştirilirken bir hata oluştu",
-        "remote_title": "Uzak sunucular için yerel push kullanılamıyor",
-        "remote_description": "Yüklenen bu uygulama, yalnızca kendisine hizmet veren sunucuya tarayıcı anlık bildirimlerini kaydedebilir. Chatto açıkken uygulama içi bildirim işaretleri ve sesler bu sunucu için çalışmaya devam eder."
+        "enable_error": "Anlık bildirimler etkinleştirilirken bir hata oluştu"
       },
       "push_prompt": {
         "title": "Anlık bildirimleri etkinleştir",

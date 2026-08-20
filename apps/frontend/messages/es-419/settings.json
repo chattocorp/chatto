@@ -179,9 +179,7 @@
         "enabling": "Habilitando...",
         "blocked_error": "Las notificaciones push están bloqueadas en la configuración de su navegador o sistema operativo.",
         "enable_failed": "No se pudieron habilitar las notificaciones push. Por favor inténtalo de nuevo.",
-        "enable_error": "Ocurrió un error al habilitar las notificaciones push",
-        "remote_title": "La inserción nativa no está disponible para servidores remotos",
-        "remote_description": "Esta aplicación instalada solo puede registrar notificaciones push del navegador con el servidor que la proporcionó. Los sonidos y los distintivos de notificación en la aplicación siguen funcionando para este servidor mientras Chatto está abierto."
+        "enable_error": "Ocurrió un error al habilitar las notificaciones push"
       },
       "push_prompt": {
         "title": "Habilitar notificaciones push",

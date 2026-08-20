@@ -179,9 +179,7 @@
         "enabling": "Lubamine...",
         "blocked_error": "Tõukemärguanded on teie brauseris või OS-i seadetes blokeeritud.",
         "enable_failed": "Tõukemärguannete lubamine ebaõnnestus. Palun proovi uuesti.",
-        "enable_error": "Tõukemärguannete lubamisel ilmnes viga",
-        "remote_title": "Native push pole kaugserverite jaoks saadaval",
-        "remote_description": "See installitud rakendus saab registreerida brauseri tõukemärguandeid ainult seda teenindanud serveris. Rakendusesisesed märguandemärgid ja helid töötavad selles serveris endiselt, kui Chatto on avatud."
+        "enable_error": "Tõukemärguannete lubamisel ilmnes viga"
       },
       "push_prompt": {
         "title": "Luba tõukemärguanded",

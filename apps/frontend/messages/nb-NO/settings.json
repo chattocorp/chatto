@@ -179,9 +179,7 @@
         "enabling": "Aktiverer...",
         "blocked_error": "Push-varsler er blokkert i nettleseren eller OS-innstillingene.",
         "enable_failed": "Kunne ikke aktivere push-varsler. Vennligst prøv igjen.",
-        "enable_error": "Det oppstod en feil under aktivering av push-varsler",
-        "remote_title": "Native push er ikke tilgjengelig for eksterne servere",
-        "remote_description": "Denne installerte appen kan bare registrere nettleser-push-varsler med serveren som serverte den. Varslingsmerker og lyder i appen fungerer fortsatt for denne serveren mens Chatto er åpen."
+        "enable_error": "Det oppstod en feil under aktivering av push-varsler"
       },
       "push_prompt": {
         "title": "Aktiver push-varsler",

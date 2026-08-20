@@ -179,9 +179,7 @@
         "enabling": "Povolení...",
         "blocked_error": "Oznámení push jsou blokována v nastavení prohlížeče nebo operačního systému.",
         "enable_failed": "Nepodařilo se aktivovat oznámení push. Zkuste to prosím znovu.",
-        "enable_error": "Při povolování oznámení push došlo k chybě",
-        "remote_title": "Nativní push není k dispozici pro vzdálené servery",
-        "remote_description": "Tato nainstalovaná aplikace může zaregistrovat oznámení push prohlížeče pouze na serveru, který ji obsluhoval. I když je otevřen Chatto, odznaky a zvuky oznámení v aplikaci pro tento server stále fungují."
+        "enable_error": "Při povolování oznámení push došlo k chybě"
       },
       "push_prompt": {
         "title": "Povolit push oznámení",

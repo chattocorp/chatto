@@ -277,6 +277,7 @@ describe('pushNotifications.getPushCapability', () => {
 
 describe('pushNotifications.getPushRegistrationTargets', () => {
   beforeEach(() => {
+    installPushGlobals();
     mocks.serverStores.origin.isAuthenticated = true;
     mocks.serverStores.origin.serverInfo.pushNotificationsEnabled = true;
     mocks.serverStores.remote.isAuthenticated = true;
@@ -423,6 +424,25 @@ describe('pushNotifications.ensureRegistered', () => {
       subscribed: true,
       navigationBaseUrlStored: false
     });
+
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
+
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
+    expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('removes a remote subscription when route acknowledgement is indeterminate', async () => {
+    permission = 'granted';
+    const remoteSubscription = makeSubscription('https://push.example/remote-failed-response');
+    const register = vi.fn().mockResolvedValue({
+      active: {},
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
+        subscribe: vi.fn()
+      }
+    });
+    Object.assign(navigator.serviceWorker, { register });
+    mocks.subscribePush.mockRejectedValueOnce(new Error('response lost'));
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 

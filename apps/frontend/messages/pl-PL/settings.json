@@ -179,9 +179,7 @@
         "enabling": "Włączam...",
         "blocked_error": "Powiadomienia push są blokowane w ustawieniach przeglądarki lub systemu operacyjnego.",
         "enable_failed": "Nie udało się włączyć powiadomień push. Spróbuj ponownie.",
-        "enable_error": "Wystąpił błąd podczas włączania powiadomień push",
-        "remote_title": "Natywny push jest niedostępny dla serwerów zdalnych",
-        "remote_description": "Ta zainstalowana aplikacja może rejestrować powiadomienia push przeglądarki tylko na serwerze, który ją obsługiwał. Plakietki i dźwięki powiadomień w aplikacji nadal działają na tym serwerze, gdy Chatto jest otwarty."
+        "enable_error": "Wystąpił błąd podczas włączania powiadomień push"
       },
       "push_prompt": {
         "title": "Włącz powiadomienia push",

@@ -179,9 +179,7 @@
         "enabling": "Abilitazione...",
         "blocked_error": "Le notifiche push sono bloccate nelle impostazioni del browser o del sistema operativo.",
         "enable_failed": "Impossibile abilitare le notifiche push. Per favore riprova.",
-        "enable_error": "Si è verificato un errore durante l'attivazione delle notifiche push",
-        "remote_title": "Il push nativo non è disponibile per i server remoti",
-        "remote_description": "Questa app installata può registrare solo le notifiche push del browser con il server che l'ha servita. I badge e i suoni di notifica in-app continuano a funzionare per questo server mentre Chatto è aperto."
+        "enable_error": "Si è verificato un errore durante l'attivazione delle notifiche push"
       },
       "push_prompt": {
         "title": "Abilita le notifiche push",

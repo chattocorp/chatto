@@ -37,8 +37,10 @@ type SubscribePushRequest struct {
 	UserAgent *string `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
 	// Absolute client route that opens this server in the installed web app.
 	// This is stored per subscription because the same account can use clients
-	// hosted by different Chatto servers. It must use HTTPS, except for loopback
-	// development origins, and must not contain a query or fragment.
+	// hosted by different Chatto servers. When omitted, notification clicks open
+	// this server's bundled /chat/- client for compatibility with older clients.
+	// It must use HTTPS, except for loopback development origins, and must not
+	// contain a query or fragment.
 	NavigationBaseUrl *string `protobuf:"bytes,5,opt,name=navigation_base_url,json=navigationBaseUrl,proto3,oneof" json:"navigation_base_url,omitempty"`
 	unknownFields     protoimpl.UnknownFields
 	sizeCache         protoimpl.SizeCache
