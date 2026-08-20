@@ -494,6 +494,21 @@ func (p *Projection) credentialForAccount(accountID string) (protectedCredential
 	return credential, ok
 }
 
+// credentialForPasswordMutation rejects the interval in which an atomic email
+// change has staged its account event but its adjacent registry claim has not
+// yet activated the new credential. Appending against the old credential in
+// that interval would create an event that fails ordered replay after the
+// registry claim advances the credential generation.
+func (p *Projection) credentialForPasswordMutation(accountID string) (protectedCredential, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	if pending, ok := p.pendingEmails[accountID]; ok && pending.replaces {
+		return protectedCredential{}, false
+	}
+	credential, ok := p.credentials[accountID]
+	return credential, ok
+}
+
 func (p *Projection) hasEmailChangeRequest(target EmailChangeTarget) bool {
 	p.RLock()
 	defer p.RUnlock()
@@ -1186,10 +1201,19 @@ func (s *Service) passwordCredentialAtTail(ctx context.Context, accountID, crede
 	if err != nil {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}
+	registryTail, err := s.publisher.AccountRegistryTail(ctx)
+	if err != nil {
+		return 0, protectedCredential{}, fmt.Errorf("read account registry tail: %w", err)
+	}
 	if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
 		return 0, protectedCredential{}, fmt.Errorf("wait for account credential: %w", err)
 	}
-	credential, ok := s.handle.Projection().credentialForAccount(accountID)
+	if registryTail > 0 {
+		if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(evtstream.AccountRegistrySubject(), registryTail)); err != nil {
+			return 0, protectedCredential{}, fmt.Errorf("wait for account registry credential: %w", err)
+		}
+	}
+	credential, ok := s.handle.Projection().credentialForPasswordMutation(accountID)
 	if !ok || credential.eventID != credentialEventID {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}

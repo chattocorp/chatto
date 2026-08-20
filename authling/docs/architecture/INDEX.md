@@ -219,8 +219,9 @@ old-address delivery warning.
 password change. Its POST requires the current password, a distinct replacement
 that satisfies the configured password policy, and matching confirmation. The
 current-password check uses an OCC-backed distributed attempt limit and bounded
-Argon2 capacity. Completion appends a `PasswordChangedEvent` bound to the exact
-reauthenticated credential, advances the authentication version, invalidates
+Argon2 capacity. Completion waits through captured account and email-registry
+projection boundaries, then appends a `PasswordChangedEvent` bound to the exact
+reauthenticated credential. It advances the authentication version, invalidates
 older browser sessions, and creates a replacement session at that exact
 generation. The account ID, verified email, and OIDC `sub` remain unchanged.
 
