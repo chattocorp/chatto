@@ -2504,7 +2504,7 @@ Request to store a PushSubscription returned by the browser Push API.
 | `p256dh` | `string` | Client P-256 ECDH public key from PushSubscription.keys.p256dh. |
 | `auth` | `string` | Authentication secret from PushSubscription.keys.auth. |
 | `user_agent` | `optional string` | Optional browser user-agent string for device identification. |
-| `navigation_base_url` | `optional string` | Absolute client route that opens this server in the installed web app. This is stored per subscription because the same account can use clients hosted by different Chatto servers. When omitted, notification clicks open this server's bundled /chat/- client for compatibility with older clients. It must use HTTPS, except for loopback development origins, and must not contain a query or fragment. |
+| `navigation_base_url` | `optional string` | Absolute client route that opens this server in the installed web app. This is stored per subscription because the same account can use clients hosted by different Chatto servers. When omitted, notification clicks open this server's bundled /chat/- client for compatibility with older clients. It must use HTTPS, except for loopback development origins, and must not contain user information, a query, or a fragment. |
 
 
 <a id="chatto-api-v1-SubscribePushResponse"></a>
