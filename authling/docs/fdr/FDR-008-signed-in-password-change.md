@@ -57,14 +57,19 @@ failed reauthentication attempts.
 
 ### 3. Bind authorization to one credential generation
 
-**Decision:** The command uses account-subject OCC and succeeds only while the
-credential whose password was checked remains current. Unrelated audit-only
-events may advance the account tail and are retried without weakening the
-credential precondition.
+**Decision:** The command captures both the account and email-registry
+boundaries, waits for the projection through them, then uses account-subject
+OCC. It succeeds only while the credential whose password was checked remains
+current. Unrelated audit-only events may advance the account tail and are
+retried without weakening the credential precondition. The validated
+replacement travels inside the transient command target so completion cannot
+substitute another password.
 
 **Why:** A password proven before another credential mutation must not
-authorize a later overwrite. The event correlation also makes historical
-replay validate the same relationship.
+authorize a later overwrite. Waiting through the registry side of an atomic
+email-change batch prevents password change from observing its staged account
+event as though the older credential were still safe to mutate. The event
+correlation makes historical replay validate the same relationship.
 
 **Tradeoff:** A concurrent password or email change forces the person to sign
 in again before retrying.
