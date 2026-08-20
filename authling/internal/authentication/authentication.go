@@ -32,6 +32,8 @@ type attemptCounter struct {
 
 type accountAuthenticator interface {
 	AuthenticateLocal(context.Context, string, string) (accounts.Account, error)
+	PreparePasswordChange(context.Context, string, string, string) (accounts.PasswordChangeTarget, error)
+	ChangePassword(context.Context, accounts.PasswordChangeTarget, string) (accounts.Account, error)
 	PrepareEmailChange(context.Context, string, string, string) (accounts.EmailChangeTarget, error)
 }
 
@@ -133,6 +135,46 @@ func (s *Service) ReauthenticateEmailChange(ctx context.Context, accountID, pass
 		_ = s.kv.Delete(ctx, limit.key, jetstream.LastRevision(limit.revision))
 	}
 	return target, authErr
+}
+
+// ChangePassword reauthenticates a signed-in account under the same
+// distributed guessing and Argon2 concurrency defenses as login, then commits
+// the replacement while that exact credential remains current.
+func (s *Service) ChangePassword(ctx context.Context, accountID, currentPassword, newPassword string) (accounts.Account, error) {
+	release, err := s.acquirePasswordSlot(ctx)
+	if err != nil {
+		return accounts.Account{}, err
+	}
+	defer release()
+
+	key := s.attemptKey("password-change-reauth-attempt", accountID)
+	limit, err := s.readLimit(ctx, key)
+	if err != nil {
+		return accounts.Account{}, fmt.Errorf("read password change reauthentication limit: %w", err)
+	}
+	target, authErr := s.accounts.PreparePasswordChange(ctx, accountID, currentPassword, newPassword)
+	passwordAccepted := authErr == nil || errors.Is(authErr, accounts.ErrInvalidPassword) || errors.Is(authErr, accounts.ErrPasswordUnchanged)
+	if !passwordAccepted {
+		if !errors.Is(authErr, accounts.ErrInvalidCredentials) {
+			return accounts.Account{}, authErr
+		}
+		if !limit.limited {
+			if err := s.recordFailure(ctx, key); err != nil {
+				return accounts.Account{}, fmt.Errorf("record failed password change reauthentication: %w", err)
+			}
+		}
+		return accounts.Account{}, accounts.ErrInvalidCredentials
+	}
+	if limit.limited {
+		return accounts.Account{}, accounts.ErrInvalidCredentials
+	}
+	if limit.revision > 0 {
+		_ = s.kv.Delete(ctx, limit.key, jetstream.LastRevision(limit.revision))
+	}
+	if authErr != nil {
+		return accounts.Account{}, authErr
+	}
+	return s.accounts.ChangePassword(ctx, target, newPassword)
 }
 
 func (s *Service) acquirePasswordSlot(ctx context.Context) (func(), error) {

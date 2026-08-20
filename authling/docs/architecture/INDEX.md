@@ -11,10 +11,10 @@ storage, starts every required projection, waits for startup replay, starts the
 HTTP listener, and then runs until its process context is cancelled.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
-verified email-change, consent, account, and logout pages plus embedded browser
-assets. It also exposes OpenID Connect discovery, authorization, token,
-UserInfo, and JWKS endpoints. Authling exposes no public account-management,
-application-data, document, or synchronization API.
+signed-in password-change, verified email-change, consent, account, and logout
+pages plus embedded browser assets. It also exposes OpenID Connect discovery,
+authorization, token, UserInfo, and JWKS endpoints. Authling exposes no public
+account-management, application-data, document, or synchronization API.
 
 ## Configuration
 
@@ -33,8 +33,9 @@ carry a matching `Origin`; Fetch Metadata is an additional cross-site signal.
 The listener itself is plain HTTP, so production deployments terminate HTTPS
 at a reverse proxy. An explicit configuration switch lets canonical-origin
 checks consume proxy-overwritten `X-Forwarded-Host` and `X-Forwarded-Proto`;
-the direct listener must remain trusted-only in that mode. HTTPS deployments use a host-bound `__Host-` session cookie;
-the unprefixed cookie name exists only for loopback development.
+the direct listener must remain trusted-only in that mode. HTTPS deployments
+use a host-bound `__Host-` session cookie; the unprefixed cookie name exists
+only for loopback development.
 
 `authentication.password_minimum_length` sets the local signup password
 minimum and defaults to ten Unicode characters. Values from eight through 128
@@ -97,7 +98,7 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 |-------|---------|-----------|----------|
 | `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID and envelope creation time |
 | `PasswordResetRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-event IDs; the envelope ID identifies the audit request |
-| `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, and optional reset-request references plus the replacement encrypted password verifier |
+| `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, prior-credential, ceremony, and optional reset-request references plus the replacement encrypted password verifier |
 | `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
@@ -117,19 +118,20 @@ The account model consumes `authling.evt.account.*` and
 During replay it resolves and decrypts local credentials and rebuilds a keyed
 digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
-verifiers. Password-reset requests validate their account and credential
-binding without adding derived model state. Password changes replace the
-current encrypted verifier and advance a durable account authentication
-version. The model retains a bounded set of email-change requests per account
+verifiers. The model retains bounded password-reset request correlations so
+replay can validate recovery-produced password changes. Password changes
+validate their declared recovery or signed-in ceremony, replace the current
+encrypted verifier, and advance a durable account authentication version. The
+model retains a bounded set of email-change requests per account
 so replay can require the exact reauthentication audit chain without retaining
 abandoned request IDs without bound. An email-change account event stages its
 encrypted replacement; the adjacent correlated registry event swaps the active
 digest and credential and advances the authentication version. Local
-authentication and email-change reauthentication share distributed attempt
-limits and bounded Argon2 capacity. They resolve and decrypt a verifier only
-for one bounded Argon2id comparison; absent login accounts resolve a persistent
-synthetic key hierarchy and encrypted dummy verifier through the same storage
-path.
+authentication, signed-in password change, and email-change reauthentication
+share distributed attempt limits and bounded Argon2 capacity. They resolve and
+decrypt a verifier only for one bounded Argon2id comparison; absent login
+accounts resolve a persistent synthetic key hierarchy and encrypted dummy
+verifier through the same storage path.
 
 The runtime does not become ready until the projection has replayed its captured
 startup history. A decode or apply failure fails the projection and runtime.
@@ -174,9 +176,9 @@ Session records are authenticated-encrypted in runtime state beneath
 HMAC-derived keys. They have a 24-hour absolute lifetime and a one-hour
 inactivity limit. Activity updates use OCC and never extend the absolute
 deadline. Each session records the account authentication version current at
-issuance. Password reset and verified email change advance that durable
-version, invalidating every older session across replicas and restarts. Logout
-deletes the server record before clearing the cookie.
+issuance. Password reset, signed-in password change, and verified email change
+advance that durable version, invalidating every older session across replicas
+and restarts. Logout deletes the server record before clearing the cookie.
 
 `GET /password-reset` starts verified-email recovery. Three POST endpoints
 create an expiring flow, verify its six-digit code, and commit a new password.
@@ -213,6 +215,15 @@ recovery and session establishment. The completion POST redirects to the
 account page with a refresh-safe success result and, when needed, the
 old-address delivery warning.
 
+`GET /account/password` requires a valid browser session and renders signed-in
+password change. Its POST requires the current password, a distinct replacement
+that satisfies the configured password policy, and matching confirmation. The
+current-password check uses an OCC-backed distributed attempt limit and bounded
+Argon2 capacity. Completion appends a `PasswordChangedEvent` bound to the exact
+reauthenticated credential, advances the authentication version, invalidates
+older browser sessions, and creates a replacement session at that exact
+generation. The account ID, verified email, and OIDC `sub` remain unchanged.
+
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
 requires exactly the `openid` scope and S256 PKCE.
@@ -230,14 +241,14 @@ winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
 part. The initial UserInfo response contains only the account ID as `sub`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
-password reset, and email change also cap request bodies, globally limit OTP
-delivery, and bound concurrent SMTP and completion work per process.
+password reset, signed-in password change, and email change also cap request
+bodies. OTP flows globally limit delivery and bound concurrent SMTP and
+completion work per process.
 
 ## Deliberately absent
 
-The runtime does not yet contain signed-in password change, MFA recovery,
-account erasure, session lists or selective remote
-session revocation, OIDC refresh tokens or key rotation,
+The runtime does not yet contain MFA recovery, account erasure, session lists
+or selective remote session revocation, OIDC refresh tokens or key rotation,
 diagnostic endpoints, or backup tooling. Application data, documents, and
 generic synchronization are deliberately outside Authling's identity-provider
 boundary.

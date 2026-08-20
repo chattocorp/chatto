@@ -28,6 +28,11 @@ email challenge and binds successful recovery to the password credential that
 was current when the flow began. It expires after 15 minutes and is not a
 durable account fact.
 
+**Signed-in password change** — A local-credential rotation authorized by an
+active browser session and the current password. It preserves the account ID,
+verified email, and OIDC `sub` while invalidating older Authling browser
+sessions.
+
 **Email change flow** — Short-lived, encrypted runtime state that binds a
 signed-in account and reauthenticated credential to its old and requested new
 addresses and an email challenge. It expires after 15 minutes and is not a
@@ -37,8 +42,8 @@ the older credential stale.
 **Browser session** — Short-lived, server-side runtime state that binds an
 opaque browser cookie to one account after signup or login. A session is not a
 durable account fact and can be revoked independently from other sessions.
-Password reset and verified email change invalidate every session issued under
-the account's older authentication version.
+Password reset, signed-in password change, and verified email change invalidate
+every session issued under the account's older authentication version.
 
 **Issuer** — The immutable public URL identifying one Authling deployment as
 one OpenID Provider. Tokens and discovery use this exact value; changing it is

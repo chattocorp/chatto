@@ -17,7 +17,7 @@ current runtime in `docs/architecture/`.
 
 ## Later account and authentication work
 
-- [ ] Define signed-in credential rotation and selective session revocation policies
+- [ ] Define selective browser-session revocation policies
 - [ ] Design upstream SSO through Goth-supported providers
 - [ ] Define secure upstream-account linking and email-collision behavior
 - [ ] Implement an event-backed orphan-key cleanup worker and crash/race tests

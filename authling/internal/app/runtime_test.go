@@ -431,6 +431,7 @@ func TestPasswordResetChangesCredentialAndInvalidatesOlderSessionsAcrossRestart(
 	if err != nil {
 		t.Fatal(err)
 	}
+	credentialEvent, _ := lastAccountEvent(t, first, account.ID)
 	oldSession, _, err := first.Sessions.Create(testContext(t), account.ID)
 	if err != nil {
 		t.Fatal(err)
@@ -465,8 +466,12 @@ func TestPasswordResetChangesCredentialAndInvalidatesOlderSessionsAcrossRestart(
 		t.Fatalf("changed account = %+v, original = %+v", changed, account)
 	}
 	changeEvent, _ := lastAccountEvent(t, first, account.ID)
-	if got := changeEvent.GetPasswordChanged().GetPasswordResetRequestEventId(); got != requestEvent.GetId() {
+	change := changeEvent.GetPasswordChanged()
+	if got := change.GetPasswordResetRequestEventId(); got != requestEvent.GetId() {
 		t.Fatalf("password change request event ID = %q, want %q", got, requestEvent.GetId())
+	}
+	if change.GetKind() != corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY || change.GetPriorCredentialEventId() != credentialEvent.GetId() {
+		t.Fatalf("recovery password change event = %+v", changeEvent)
 	}
 	if _, err := first.Authentication.Login(testContext(t), "recover@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("old password login error = %v, want ErrInvalidCredentials", err)
@@ -489,6 +494,111 @@ func TestPasswordResetChangesCredentialAndInvalidatesOlderSessionsAcrossRestart(
 	}
 	if _, err := restarted.Sessions.Validate(testContext(t), oldSession); !errors.Is(err, sessions.ErrNotFound) {
 		t.Fatalf("restarted older session validation error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestSignedInPasswordChangePreservesAccountAndInvalidatesOlderSessionsAcrossRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)
+	account, err := first.Accounts.CreateLocal(testContext(t), "change-password@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentialEvent, _ := lastAccountEvent(t, first, account.ID)
+	olderSession, _, err := first.Sessions.Create(testContext(t), account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := first.Authentication.ChangePassword(testContext(t), account.ID, "wrong current password", "the replacement uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("wrong current password error = %v, want ErrInvalidCredentials", err)
+	}
+	if _, err := first.Authentication.ChangePassword(testContext(t), account.ID, "the original uncommon password", "the original uncommon password"); !errors.Is(err, accounts.ErrPasswordUnchanged) {
+		t.Fatalf("unchanged password error = %v, want ErrPasswordUnchanged", err)
+	}
+	changed, err := first.Authentication.ChangePassword(testContext(t), account.ID, "the original uncommon password", "the replacement uncommon password")
+	if err != nil {
+		t.Fatalf("change signed-in password: %v", err)
+	}
+	if changed.ID != account.ID || changed.AuthenticationVersion != account.AuthenticationVersion+1 {
+		t.Fatalf("changed account = %+v, original = %+v", changed, account)
+	}
+	changeEvent, changeRecord := lastAccountEvent(t, first, account.ID)
+	payload := changeEvent.GetPasswordChanged()
+	if payload == nil || payload.GetKind() != corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN || payload.GetPriorCredentialEventId() != credentialEvent.GetId() || payload.GetPasswordResetRequestEventId() != "" {
+		t.Fatalf("signed-in password change event = %+v", changeEvent)
+	}
+	for _, secret := range []string{"the original uncommon password", "the replacement uncommon password", "change-password@example.com"} {
+		if bytes.Contains(changeRecord, []byte(secret)) {
+			t.Fatalf("password change event contains protected value %q", secret)
+		}
+	}
+	if _, err := first.Authentication.Login(testContext(t), "change-password@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("old password login error = %v, want ErrInvalidCredentials", err)
+	}
+	if authenticated, err := first.Authentication.Login(testContext(t), "change-password@example.com", "the replacement uncommon password"); err != nil || authenticated != changed {
+		t.Fatalf("new password login = %+v, %v; want %+v", authenticated, err, changed)
+	}
+	if _, err := first.Sessions.Validate(testContext(t), olderSession); !errors.Is(err, sessions.ErrNotFound) {
+		t.Fatalf("older session validation error = %v, want ErrNotFound", err)
+	}
+	replacementSession, _, err := first.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, changed.AuthenticationVersion)
+	if err != nil {
+		t.Fatalf("create replacement session: %v", err)
+	}
+	if _, err := first.Sessions.Validate(testContext(t), replacementSession); err != nil {
+		t.Fatalf("validate replacement session: %v", err)
+	}
+	stopTestRuntime(t, first, cancelFirst, firstErrors)
+
+	restarted, cancelRestarted, restartedErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
+	if authenticated, err := restarted.Authentication.Login(testContext(t), "change-password@example.com", "the replacement uncommon password"); err != nil || authenticated != changed {
+		t.Fatalf("restarted login = %+v, %v; want %+v", authenticated, err, changed)
+	}
+	if _, err := restarted.Sessions.Validate(testContext(t), olderSession); !errors.Is(err, sessions.ErrNotFound) {
+		t.Fatalf("restarted older session validation error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestSignedInPasswordChangeRejectsAStaleReauthentication(t *testing.T) {
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t))
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "stale-password@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := runtime.Accounts.PreparePasswordChange(testContext(t), account.ID, "the original uncommon password", "first replacement uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.Authentication.ChangePassword(testContext(t), account.ID, "the original uncommon password", "second replacement uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.Accounts.ChangePassword(testContext(t), target, "first replacement uncommon password"); !errors.Is(err, accounts.ErrCredentialChanged) {
+		t.Fatalf("stale password change error = %v, want ErrCredentialChanged", err)
+	}
+}
+
+func TestSignedInPasswordChangeToleratesAnAuditEventAfterReauthentication(t *testing.T) {
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t))
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "password-audit@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := runtime.Accounts.PreparePasswordChange(testContext(t), account.ID, "the original uncommon password", "the replacement uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, ok, err := runtime.Accounts.RecordPasswordResetRequested(testContext(t), "password-audit@example.com"); err != nil || !ok {
+		t.Fatalf("record intervening audit event: present = %v, error = %v", ok, err)
+	}
+	changed, err := runtime.Accounts.ChangePassword(testContext(t), target, "the replacement uncommon password")
+	if err != nil {
+		t.Fatalf("change password after audit event: %v", err)
+	}
+	if changed.AuthenticationVersion != account.AuthenticationVersion+1 {
+		t.Fatalf("changed authentication version = %d, want %d", changed.AuthenticationVersion, account.AuthenticationVersion+1)
 	}
 }
 

@@ -62,6 +62,10 @@ func (commonPasswordError) Is(target error) bool { return target == ErrInvalidPa
 // mismatches so callers cannot disclose which email addresses are registered.
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
+// ErrPasswordUnchanged indicates that a signed-in password change selected
+// the account's current normalized password.
+var ErrPasswordUnchanged = errors.New("new password must be different from the current password")
+
 // ErrCredentialChanged indicates that an identity workflow was issued for an
 // older local credential or unavailable request and must not overwrite it.
 var ErrCredentialChanged = errors.New("local credential changed")
@@ -97,6 +101,13 @@ type PasswordResetTarget struct {
 	RequestEventID    string
 }
 
+// PasswordChangeTarget binds signed-in reauthentication to the credential
+// that was current when the existing password was verified.
+type PasswordChangeTarget struct {
+	AccountID         string
+	CredentialEventID string
+}
+
 // EmailChangeTarget binds an expiring verified-mailbox flow to the credential
 // for which the current password was reauthenticated.
 type EmailChangeTarget struct {
@@ -118,21 +129,29 @@ type emailChangeRequest struct {
 	sequence          uint64
 }
 
+type passwordResetRequest struct {
+	credentialEventID string
+	sequence          uint64
+}
+
 // This comfortably exceeds the global number of code deliveries possible
 // during one flow lifetime while bounding replay memory for abandoned audits.
 const maxTrackedEmailChangeRequestsPerAccount = 4096
 
+const maxTrackedPasswordResetRequestsPerAccount = 4096
+
 // Projection rebuilds the active account registry from durable events.
 type Projection struct {
 	events.MemoryProjection
-	accounts      map[string]Account
-	emails        map[[32]byte]string
-	pendingEmails map[string]pendingEmail
-	emailChanges  map[string]map[string]emailChangeRequest
-	credentials   map[string]protectedCredential
-	keyReferences map[string]struct{}
-	vault         *keyvault.Vault
-	indexKey      []byte
+	accounts       map[string]Account
+	emails         map[[32]byte]string
+	pendingEmails  map[string]pendingEmail
+	emailChanges   map[string]map[string]emailChangeRequest
+	passwordResets map[string]map[string]passwordResetRequest
+	credentials    map[string]protectedCredential
+	keyReferences  map[string]struct{}
+	vault          *keyvault.Vault
+	indexKey       []byte
 }
 
 // NewProjection creates the protected account projection.
@@ -148,8 +167,8 @@ func (*Projection) Subjects() []string {
 // Apply adds one durable account fact to the in-memory registry.
 func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 	if requested := event.GetPasswordResetRequested(); requested != nil {
-		p.RLock()
-		defer p.RUnlock()
+		p.Lock()
+		defer p.Unlock()
 		account, ok := p.accounts[requested.GetAccountId()]
 		if !ok {
 			return fmt.Errorf("password reset request references an absent account")
@@ -158,6 +177,25 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 		if !ok || credential.eventID != requested.GetCredentialEventId() {
 			return fmt.Errorf("password reset request references another credential")
 		}
+		if p.passwordResets == nil {
+			p.passwordResets = make(map[string]map[string]passwordResetRequest)
+		}
+		requests := p.passwordResets[account.ID]
+		if requests == nil {
+			requests = make(map[string]passwordResetRequest)
+			p.passwordResets[account.ID] = requests
+		}
+		if len(requests) >= maxTrackedPasswordResetRequestsPerAccount {
+			var oldestID string
+			oldestSequence := ^uint64(0)
+			for id, request := range requests {
+				if request.sequence < oldestSequence {
+					oldestID, oldestSequence = id, request.sequence
+				}
+			}
+			delete(requests, oldestID)
+		}
+		requests[event.GetId()] = passwordResetRequest{credentialEventID: requested.GetCredentialEventId(), sequence: sequence}
 		return nil
 	}
 	if requested := event.GetEmailChangeRequested(); requested != nil {
@@ -203,12 +241,32 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 		if !ok || credential.userKeyRef != changed.GetUserKeyRef() || credential.credentialKeyRef != changed.GetCredentialKeyRef() {
 			return fmt.Errorf("password change references another credential hierarchy")
 		}
+		if prior := changed.GetPriorCredentialEventId(); prior != "" && credential.eventID != prior {
+			return fmt.Errorf("password change references another prior credential")
+		}
+		switch changed.GetKind() {
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_UNSPECIFIED:
+			// Historical password changes predate explicit ceremony and prior
+			// credential correlation.
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY:
+			request, ok := p.passwordResets[account.ID][changed.GetPasswordResetRequestEventId()]
+			if !ok || request.credentialEventID != changed.GetPriorCredentialEventId() {
+				return fmt.Errorf("password change references another recovery request")
+			}
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN:
+			if changed.GetPasswordResetRequestEventId() != "" {
+				return fmt.Errorf("signed-in password change references a recovery request")
+			}
+		default:
+			return fmt.Errorf("password change kind is unsupported")
+		}
 		credential.eventID = event.GetId()
 		credential.passwordVerifierNonce = append([]byte(nil), changed.GetPasswordVerifierNonce()...)
 		credential.passwordVerifierCiphertext = append([]byte(nil), changed.GetPasswordVerifierCiphertext()...)
 		credential.passwordVerifierAAD = passwordChangedAAD(event.GetId(), account.ID, credential.userKeyRef, credential.credentialKeyRef)
 		p.credentials[account.ID] = credential
 		delete(p.emailChanges, account.ID)
+		delete(p.passwordResets, account.ID)
 		account.AuthenticationVersion++
 		p.accounts[account.ID] = account
 		return nil
@@ -451,6 +509,17 @@ func (p *Projection) completedEmailChange(target EmailChangeTarget, newEmail str
 		return Account{}, false
 	}
 	account, ok := p.accounts[target.AccountID]
+	return account, ok
+}
+
+func (p *Projection) completedPasswordChange(accountID, eventID string) (Account, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	credential, ok := p.credentials[accountID]
+	if !ok || credential.eventID != eventID {
+		return Account{}, false
+	}
+	account, ok := p.accounts[accountID]
 	return account, ok
 }
 
@@ -726,6 +795,91 @@ func (s *Service) HasEmail(email string) bool {
 	return s.handle.Projection().HasEmail(NormalizeEmail(email))
 }
 
+// PreparePasswordChange reauthenticates one local account against its current
+// password, validates the replacement, and binds the command to that exact
+// credential generation. Callers must apply distributed guessing and Argon2
+// concurrency limits around it.
+func (s *Service) PreparePasswordChange(ctx context.Context, accountID, currentPassword, newPassword string) (PasswordChangeTarget, error) {
+	credential, ok := s.handle.Projection().credentialForAccount(accountID)
+	if !ok {
+		return PasswordChangeTarget{}, ErrInvalidCredentials
+	}
+	if err := s.verifyCredentialPassword(ctx, credential, currentPassword); err != nil {
+		return PasswordChangeTarget{}, err
+	}
+	currentPassword = norm.NFC.String(currentPassword)
+	newPassword, err := validatePassword(newPassword, s.passwordMinimumLength)
+	if err != nil {
+		return PasswordChangeTarget{}, err
+	}
+	if subtle.ConstantTimeCompare([]byte(currentPassword), []byte(newPassword)) == 1 {
+		return PasswordChangeTarget{}, ErrPasswordUnchanged
+	}
+	return PasswordChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID}, nil
+}
+
+// ChangePassword replaces a signed-in account's password only if the
+// reauthenticated credential is still current. The stable account ID and
+// verified email are unchanged.
+func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarget, password string) (Account, error) {
+	if target.AccountID == "" || target.CredentialEventID == "" {
+		return Account{}, ErrCredentialChanged
+	}
+	password, err := validatePassword(password, s.passwordMinimumLength)
+	if err != nil {
+		return Account{}, err
+	}
+	tail, credential, err := s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+	if err != nil {
+		return Account{}, err
+	}
+	verifier, err := hashPassword(password)
+	if err != nil {
+		return Account{}, err
+	}
+	dataKey, err := s.vault.ResolveDataKey(ctx, credential.credentialKeyRef, credential.userKeyRef)
+	if err != nil {
+		return Account{}, fmt.Errorf("resolve password credential key: %w", err)
+	}
+	defer clear(dataKey)
+	eventID, err := ids.New("evt")
+	if err != nil {
+		return Account{}, err
+	}
+	sealedVerifier, err := datacrypto.Seal(dataKey, []byte(verifier), passwordChangedAAD(eventID, target.AccountID, credential.userKeyRef, credential.credentialKeyRef))
+	if err != nil {
+		return Account{}, err
+	}
+	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
+		AccountId: target.AccountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
+		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
+		PriorCredentialEventId: target.CredentialEventID,
+		Kind:                   corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN,
+	}}}
+	for range 5 {
+		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
+		if errors.Is(err, events.ErrConflict) {
+			tail, _, err = s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+			if err != nil {
+				return Account{}, err
+			}
+			continue
+		}
+		if err != nil {
+			return Account{}, fmt.Errorf("commit signed-in password change: %w", err)
+		}
+		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
+			return Account{}, fmt.Errorf("wait for signed-in password change: %w", err)
+		}
+		account, ok := s.handle.Projection().completedPasswordChange(target.AccountID, eventID)
+		if !ok {
+			return Account{}, ErrCredentialChanged
+		}
+		return account, nil
+	}
+	return Account{}, fmt.Errorf("signed-in password change conflict")
+}
+
 // PrepareEmailChange reauthenticates one local account against its current
 // password and binds a prospective change to that exact credential version.
 // Callers must apply distributed guessing and concurrency limits around it.
@@ -989,6 +1143,8 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 		AccountId: target.AccountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
 		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
 		PasswordResetRequestEventId: target.RequestEventID,
+		PriorCredentialEventId:      target.CredentialEventID,
+		Kind:                        corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY,
 	}}}
 	for range 5 {
 		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
@@ -1005,9 +1161,9 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
 			return Account{}, fmt.Errorf("wait for password change: %w", err)
 		}
-		account, ok := s.handle.Projection().Get(target.AccountID)
+		account, ok := s.handle.Projection().completedPasswordChange(target.AccountID, eventID)
 		if !ok {
-			return Account{}, fmt.Errorf("reset account is absent from projection")
+			return Account{}, ErrCredentialChanged
 		}
 		return account, nil
 	}
@@ -1015,22 +1171,26 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 }
 
 func (s *Service) passwordResetCredentialAtTail(ctx context.Context, target PasswordResetTarget) (uint64, protectedCredential, error) {
-	tail, err := s.publisher.AccountTail(ctx, target.AccountID)
+	return s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+}
+
+func (s *Service) passwordCredentialAtTail(ctx context.Context, accountID, credentialEventID string) (uint64, protectedCredential, error) {
+	tail, err := s.publisher.AccountTail(ctx, accountID)
 	if err != nil {
 		return 0, protectedCredential{}, fmt.Errorf("read account tail: %w", err)
 	}
 	if tail == 0 {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}
-	subject, err := evtstream.AccountSubject(target.AccountID)
+	subject, err := evtstream.AccountSubject(accountID)
 	if err != nil {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}
 	if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
 		return 0, protectedCredential{}, fmt.Errorf("wait for account credential: %w", err)
 	}
-	credential, ok := s.handle.Projection().credentialForAccount(target.AccountID)
-	if !ok || credential.eventID != target.CredentialEventID {
+	credential, ok := s.handle.Projection().credentialForAccount(accountID)
+	if !ok || credential.eventID != credentialEventID {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}
 	return tail, credential, nil

@@ -1,7 +1,7 @@
 # FDR-006: Password Reset
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-14
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -119,8 +119,9 @@ retirement are implemented.
 - Flow tokens and OTPs never appear in URLs or logs. The browser carries the
   opaque flow token only in form fields.
 - Request audit events contain no email, OTP, flow token, IP address, user
-  agent, or other recovery material. A successful change carries only the
-  opaque request-event reference needed to correlate the audit trail.
+  agent, or other recovery material. A successful change carries only its
+  ceremony kind and the opaque request- and credential-event references needed
+  to correlate the audit trail.
 - Flow state and password verifiers are authenticated-encrypted with distinct,
   versioned AAD domains. Ciphertext cannot be moved between creation and change
   events or between credentials without failing authentication.
@@ -132,9 +133,8 @@ retirement are implemented.
 
 ## Limitations
 
-- Authling does not currently support signed-in password change, email-address
-  change, MFA recovery, recovery codes, administrator recovery, or user-visible
-  authentication history.
+- Authling does not currently support MFA recovery, recovery codes,
+  administrator recovery, or user-visible authentication history.
 - Password reset does not revoke already issued OIDC tokens or sessions held by
   relying parties. Token revocation and RP-initiated logout are separate future
   protocol work.
@@ -148,4 +148,5 @@ retirement are implemented.
   [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md)
 - **Features:** [FDR-002](FDR-002-verified-email-signup.md),
   [FDR-003](FDR-003-local-login-and-browser-sessions.md),
-  [FDR-004](FDR-004-openid-connect-provider.md)
+  [FDR-004](FDR-004-openid-connect-provider.md),
+  [FDR-008](FDR-008-signed-in-password-change.md)

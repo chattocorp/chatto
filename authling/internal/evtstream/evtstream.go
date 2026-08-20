@@ -304,6 +304,23 @@ func validate(event *corev1.Event) error {
 		if requestID := credential.GetPasswordResetRequestEventId(); requestID != "" && !validSubjectToken(requestID) {
 			return fmt.Errorf("password reset request event id is invalid")
 		}
+		if priorID := credential.GetPriorCredentialEventId(); priorID != "" && !validSubjectToken(priorID) {
+			return fmt.Errorf("password prior credential event id is invalid")
+		}
+		switch credential.GetKind() {
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_UNSPECIFIED:
+			// Historical events predate explicit ceremony correlation.
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY:
+			if !validSubjectToken(credential.GetPasswordResetRequestEventId()) || !validSubjectToken(credential.GetPriorCredentialEventId()) {
+				return fmt.Errorf("recovery password change correlation is incomplete")
+			}
+		case corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN:
+			if credential.GetPasswordResetRequestEventId() != "" || !validSubjectToken(credential.GetPriorCredentialEventId()) {
+				return fmt.Errorf("signed-in password change correlation is invalid")
+			}
+		default:
+			return fmt.Errorf("password change kind is unsupported")
+		}
 	case *corev1.Event_PasswordResetRequested:
 		request := payload.PasswordResetRequested
 		if !validSubjectToken(request.GetAccountId()) || !validSubjectToken(request.GetCredentialEventId()) {

@@ -122,6 +122,39 @@ func TestPasswordChangeInvalidatesAcceptedEmailChangeRequests(t *testing.T) {
 	}
 }
 
+func TestSignedInPasswordChangeRequiresCurrentCredentialCorrelation(t *testing.T) {
+	projection := NewProjection(nil, []byte("index key"))
+	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example"}}
+	projection.credentials = map[string]protectedCredential{"acc_example": {
+		accountID: "acc_example", eventID: "evt_current", userKeyRef: "key_user", credentialKeyRef: "key_credential",
+	}}
+	event := &corev1.Event{Id: "evt_password", CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
+		AccountId: "acc_example", UserKeyRef: "key_user", CredentialKeyRef: "key_credential",
+		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: []byte("nonce"), PasswordVerifierCiphertext: []byte("ciphertext"),
+		PriorCredentialEventId: "evt_stale", Kind: corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN,
+	}}}
+	if err := projection.Apply(event, 2); err == nil || !strings.Contains(err.Error(), "prior credential") {
+		t.Fatalf("stale signed-in password change error = %v", err)
+	}
+}
+
+func TestRecoveryPasswordChangeRequiresAppliedRequest(t *testing.T) {
+	projection := NewProjection(nil, []byte("index key"))
+	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example"}}
+	projection.credentials = map[string]protectedCredential{"acc_example": {
+		accountID: "acc_example", eventID: "evt_current", userKeyRef: "key_user", credentialKeyRef: "key_credential",
+	}}
+	event := &corev1.Event{Id: "evt_password", CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
+		AccountId: "acc_example", UserKeyRef: "key_user", CredentialKeyRef: "key_credential",
+		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: []byte("nonce"), PasswordVerifierCiphertext: []byte("ciphertext"),
+		PasswordResetRequestEventId: "evt_request", PriorCredentialEventId: "evt_current",
+		Kind: corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY,
+	}}}
+	if err := projection.Apply(event, 2); err == nil || !strings.Contains(err.Error(), "recovery request") {
+		t.Fatalf("uncorrelated recovery password change error = %v", err)
+	}
+}
+
 func TestCompletedEmailChangeRequiresItsExactCredentialGeneration(t *testing.T) {
 	projection := NewProjection(nil, []byte("index key"))
 	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example", AuthenticationVersion: 2}}

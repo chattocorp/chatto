@@ -166,9 +166,8 @@ event rollout.
 
 ## Limitations
 
-- Authling does not yet provide selective session preservation, signed-in
-  password change, MFA recovery, administrator recovery, or a user-visible
-  authentication history.
+- Authling does not yet provide selective session preservation, MFA recovery,
+  administrator recovery, or a user-visible authentication history.
 - The security notice to the old address is best-effort and has no durable
   retry worker.
 - Existing OIDC tokens and relying-party sessions are not revoked.
@@ -178,4 +177,5 @@ event rollout.
 - [FDR-002: Verified Email Signup](FDR-002-verified-email-signup.md)
 - [FDR-003: Local Login and Browser Sessions](FDR-003-local-login-and-browser-sessions.md)
 - [FDR-006: Password Reset](FDR-006-password-reset.md)
+- [FDR-008: Signed-in Password Change](FDR-008-signed-in-password-change.md)
 - [Runtime architecture inventory](../architecture/INDEX.md)

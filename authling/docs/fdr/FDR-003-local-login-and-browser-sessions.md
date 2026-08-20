@@ -1,7 +1,7 @@
 # FDR-003: Local Login and Browser Sessions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-14
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -31,10 +31,10 @@ experience.
   sessions.
 - Sessions remain valid across an Authling process restart when the browser
   still has its session cookie and runtime storage remains available.
-- Sessions carry the account's durable authentication version. Password reset
-  and verified email change advance that version and invalidate every older
-  Authling browser session, including across process restarts; the completing
-  browser receives a new session.
+- Sessions carry the account's durable authentication version. Password reset,
+  signed-in password change, and verified email change advance that version
+  and invalidate every older Authling browser session, including across
+  process restarts; the completing browser receives a new session.
 - Protected pages reject absent, expired, malformed, forged, and revoked
   sessions. Cross-origin login and logout submissions are rejected.
 - The configured public origin is canonical: requests for another host are
@@ -103,7 +103,7 @@ attempt budget.
 ## Limitations
 
 - There is no "remember me", session list, selective remote session revocation,
-  signed-in password change, or user-visible authentication history yet.
+  or user-visible authentication history yet.
 - Password-only login is a single-factor authentication ceremony. Authling
   does not yet implement MFA or phishing-resistant authenticators.
 - Authling's listener does not terminate TLS. Production operators must expose
@@ -118,7 +118,8 @@ attempt budget.
 - **Features:** [FDR-001](FDR-001-standalone-account-runtime.md),
   [FDR-002](FDR-002-verified-email-signup.md),
   [FDR-006](FDR-006-password-reset.md),
-  [FDR-007](FDR-007-verified-email-change.md)
+  [FDR-007](FDR-007-verified-email-change.md),
+  [FDR-008](FDR-008-signed-in-password-change.md)
 - **Security baseline:** [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html),
   [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
   and [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)

@@ -162,6 +162,15 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "email credential envelope is incomplete") {
 		t.Fatalf("decode incomplete email change error = %v", err)
 	}
+	malformed = passwordChangedEvent("evt_signed_in_change")
+	malformed.GetPasswordChanged().Kind = corev1.PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN
+	data, err = proto.Marshal(malformed)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "signed-in password change correlation is invalid") {
+		t.Fatalf("decode uncorrelated signed-in password change error = %v", err)
+	}
 }
 
 func TestAccountSubjectRejectsUnsafeTokens(t *testing.T) {

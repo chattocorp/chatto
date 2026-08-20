@@ -76,6 +76,20 @@ message PasswordChangedEvent {
   // The audit event that initiated this recovery-driven change. Historical
   // password changes written before request auditing leave this empty.
   string password_reset_request_event_id = 7;
+
+  // The protected credential event that was current when this change was
+  // authorized. Historical password changes leave this empty.
+  string prior_credential_event_id = 8;
+
+  // The ceremony that authorized this change. Historical password changes
+  // leave this unspecified.
+  PasswordChangeKind kind = 9;
+}
+
+enum PasswordChangeKind {
+  PASSWORD_CHANGE_KIND_UNSPECIFIED = 0;
+  PASSWORD_CHANGE_KIND_RECOVERY = 1;
+  PASSWORD_CHANGE_KIND_SIGNED_IN = 2;
 }
 
 // PasswordResetRequestedEvent records an accepted recovery request for an

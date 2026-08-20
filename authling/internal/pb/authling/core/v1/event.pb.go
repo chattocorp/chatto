@@ -22,6 +22,55 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
+type PasswordChangeKind int32
+
+const (
+	PasswordChangeKind_PASSWORD_CHANGE_KIND_UNSPECIFIED PasswordChangeKind = 0
+	PasswordChangeKind_PASSWORD_CHANGE_KIND_RECOVERY    PasswordChangeKind = 1
+	PasswordChangeKind_PASSWORD_CHANGE_KIND_SIGNED_IN   PasswordChangeKind = 2
+)
+
+// Enum value maps for PasswordChangeKind.
+var (
+	PasswordChangeKind_name = map[int32]string{
+		0: "PASSWORD_CHANGE_KIND_UNSPECIFIED",
+		1: "PASSWORD_CHANGE_KIND_RECOVERY",
+		2: "PASSWORD_CHANGE_KIND_SIGNED_IN",
+	}
+	PasswordChangeKind_value = map[string]int32{
+		"PASSWORD_CHANGE_KIND_UNSPECIFIED": 0,
+		"PASSWORD_CHANGE_KIND_RECOVERY":    1,
+		"PASSWORD_CHANGE_KIND_SIGNED_IN":   2,
+	}
+)
+
+func (x PasswordChangeKind) Enum() *PasswordChangeKind {
+	p := new(PasswordChangeKind)
+	*p = x
+	return p
+}
+
+func (x PasswordChangeKind) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PasswordChangeKind) Descriptor() protoreflect.EnumDescriptor {
+	return file_authling_core_v1_event_proto_enumTypes[0].Descriptor()
+}
+
+func (PasswordChangeKind) Type() protoreflect.EnumType {
+	return &file_authling_core_v1_event_proto_enumTypes[0]
+}
+
+func (x PasswordChangeKind) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PasswordChangeKind.Descriptor instead.
+func (PasswordChangeKind) EnumDescriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{0}
+}
+
 // Event is Authling's persisted envelope for durable domain facts.
 //
 // This message is a storage contract. Existing fields and oneof tags must not
@@ -442,8 +491,14 @@ type PasswordChangedEvent struct {
 	// The audit event that initiated this recovery-driven change. Historical
 	// password changes written before request auditing leave this empty.
 	PasswordResetRequestEventId string `protobuf:"bytes,7,opt,name=password_reset_request_event_id,json=passwordResetRequestEventId,proto3" json:"password_reset_request_event_id,omitempty"`
-	unknownFields               protoimpl.UnknownFields
-	sizeCache                   protoimpl.SizeCache
+	// The protected credential event that was current when this change was
+	// authorized. Historical password changes leave this empty.
+	PriorCredentialEventId string `protobuf:"bytes,8,opt,name=prior_credential_event_id,json=priorCredentialEventId,proto3" json:"prior_credential_event_id,omitempty"`
+	// The ceremony that authorized this change. Historical password changes
+	// leave this unspecified.
+	Kind          PasswordChangeKind `protobuf:"varint,9,opt,name=kind,proto3,enum=authling.core.v1.PasswordChangeKind" json:"kind,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PasswordChangedEvent) Reset() {
@@ -523,6 +578,20 @@ func (x *PasswordChangedEvent) GetPasswordResetRequestEventId() string {
 		return x.PasswordResetRequestEventId
 	}
 	return ""
+}
+
+func (x *PasswordChangedEvent) GetPriorCredentialEventId() string {
+	if x != nil {
+		return x.PriorCredentialEventId
+	}
+	return ""
+}
+
+func (x *PasswordChangedEvent) GetKind() PasswordChangeKind {
+	if x != nil {
+		return x.Kind
+	}
+	return PasswordChangeKind_PASSWORD_CHANGE_KIND_UNSPECIFIED
 }
 
 // PasswordResetRequestedEvent records an accepted recovery request for an
@@ -772,7 +841,7 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x10email_ciphertext\x18\x05 \x01(\fR\x0femailCiphertext\x12>\n" +
 	"\x1bcredential_envelope_version\x18\x06 \x01(\rR\x19credentialEnvelopeVersion\x126\n" +
 	"\x17password_verifier_nonce\x18\a \x01(\fR\x15passwordVerifierNonce\x12@\n" +
-	"\x1cpassword_verifier_ciphertext\x18\b \x01(\fR\x1apasswordVerifierCiphertext\"\x85\x03\n" +
+	"\x1cpassword_verifier_ciphertext\x18\b \x01(\fR\x1apasswordVerifierCiphertext\"\xfa\x03\n" +
 	"\x14PasswordChangedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12 \n" +
@@ -782,7 +851,9 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x1bcredential_envelope_version\x18\x04 \x01(\rR\x19credentialEnvelopeVersion\x126\n" +
 	"\x17password_verifier_nonce\x18\x05 \x01(\fR\x15passwordVerifierNonce\x12@\n" +
 	"\x1cpassword_verifier_ciphertext\x18\x06 \x01(\fR\x1apasswordVerifierCiphertext\x12D\n" +
-	"\x1fpassword_reset_request_event_id\x18\a \x01(\tR\x1bpasswordResetRequestEventId\"l\n" +
+	"\x1fpassword_reset_request_event_id\x18\a \x01(\tR\x1bpasswordResetRequestEventId\x129\n" +
+	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId\x128\n" +
+	"\x04kind\x18\t \x01(\x0e2$.authling.core.v1.PasswordChangeKindR\x04kind\"l\n" +
 	"\x1bPasswordResetRequestedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +
@@ -802,7 +873,11 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"emailNonce\x12)\n" +
 	"\x10email_ciphertext\x18\x06 \x01(\fR\x0femailCiphertext\x12@\n" +
 	"\x1demail_change_request_event_id\x18\a \x01(\tR\x19emailChangeRequestEventId\x129\n" +
-	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventIdB7Z5hmans.de/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
+	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId*\x81\x01\n" +
+	"\x12PasswordChangeKind\x12$\n" +
+	" PASSWORD_CHANGE_KIND_UNSPECIFIED\x10\x00\x12!\n" +
+	"\x1dPASSWORD_CHANGE_KIND_RECOVERY\x10\x01\x12\"\n" +
+	"\x1ePASSWORD_CHANGE_KIND_SIGNED_IN\x10\x02B7Z5hmans.de/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
 
 var (
 	file_authling_core_v1_event_proto_rawDescOnce sync.Once
@@ -816,32 +891,35 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 	return file_authling_core_v1_event_proto_rawDescData
 }
 
+var file_authling_core_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
 var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
 var file_authling_core_v1_event_proto_goTypes = []any{
-	(*Event)(nil),                       // 0: authling.core.v1.Event
-	(*IssuerEstablishedEvent)(nil),      // 1: authling.core.v1.IssuerEstablishedEvent
-	(*EmailClaimedEvent)(nil),           // 2: authling.core.v1.EmailClaimedEvent
-	(*AccountCreatedEvent)(nil),         // 3: authling.core.v1.AccountCreatedEvent
-	(*PasswordChangedEvent)(nil),        // 4: authling.core.v1.PasswordChangedEvent
-	(*PasswordResetRequestedEvent)(nil), // 5: authling.core.v1.PasswordResetRequestedEvent
-	(*EmailChangeRequestedEvent)(nil),   // 6: authling.core.v1.EmailChangeRequestedEvent
-	(*EmailChangedEvent)(nil),           // 7: authling.core.v1.EmailChangedEvent
-	(*timestamppb.Timestamp)(nil),       // 8: google.protobuf.Timestamp
+	(PasswordChangeKind)(0),             // 0: authling.core.v1.PasswordChangeKind
+	(*Event)(nil),                       // 1: authling.core.v1.Event
+	(*IssuerEstablishedEvent)(nil),      // 2: authling.core.v1.IssuerEstablishedEvent
+	(*EmailClaimedEvent)(nil),           // 3: authling.core.v1.EmailClaimedEvent
+	(*AccountCreatedEvent)(nil),         // 4: authling.core.v1.AccountCreatedEvent
+	(*PasswordChangedEvent)(nil),        // 5: authling.core.v1.PasswordChangedEvent
+	(*PasswordResetRequestedEvent)(nil), // 6: authling.core.v1.PasswordResetRequestedEvent
+	(*EmailChangeRequestedEvent)(nil),   // 7: authling.core.v1.EmailChangeRequestedEvent
+	(*EmailChangedEvent)(nil),           // 8: authling.core.v1.EmailChangedEvent
+	(*timestamppb.Timestamp)(nil),       // 9: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	8, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	3, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
-	2, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
-	1, // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
-	4, // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
-	5, // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
-	6, // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
-	7, // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
-	8, // [8:8] is the sub-list for method output_type
-	8, // [8:8] is the sub-list for method input_type
-	8, // [8:8] is the sub-list for extension type_name
-	8, // [8:8] is the sub-list for extension extendee
-	0, // [0:8] is the sub-list for field type_name
+	9, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	4, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
+	3, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
+	2, // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
+	5, // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
+	6, // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
+	7, // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
+	8, // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
+	0, // 8: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
+	9, // [9:9] is the sub-list for method output_type
+	9, // [9:9] is the sub-list for method input_type
+	9, // [9:9] is the sub-list for extension type_name
+	9, // [9:9] is the sub-list for extension extendee
+	0, // [0:9] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -863,13 +941,14 @@ func file_authling_core_v1_event_proto_init() {
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
-			NumEnums:      0,
+			NumEnums:      1,
 			NumMessages:   8,
 			NumExtensions: 0,
 			NumServices:   0,
 		},
 		GoTypes:           file_authling_core_v1_event_proto_goTypes,
 		DependencyIndexes: file_authling_core_v1_event_proto_depIdxs,
+		EnumInfos:         file_authling_core_v1_event_proto_enumTypes,
 		MessageInfos:      file_authling_core_v1_event_proto_msgTypes,
 	}.Build()
 	File_authling_core_v1_event_proto = out.File

@@ -42,8 +42,9 @@ to its own repository.
   issuers remain first-class.
 - The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
-  sessions, password reset, verified email change, and logout, and provides the
-  narrow OpenID Connect surface recorded in FDR-004. It has no public
+  sessions, password reset, signed-in password change, verified email change,
+  and logout. It provides the narrow OpenID Connect surface recorded in
+  FDR-004. It has no public
   account-management, application-data, document, or synchronization API. Do
   not document other planned identity-provider behavior as implemented.
 
