@@ -19,6 +19,7 @@ import (
 
 	jose "github.com/go-jose/go-jose/v4"
 	"github.com/go-jose/go-jose/v4/jwt"
+	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
@@ -850,6 +851,138 @@ func TestCommittedEmailChangeRecoveryDoesNotCrossPasswordReset(t *testing.T) {
 	}
 }
 
+func TestEmailChangeRecoversCommittedCompletionAfterLeaseExpires(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	clock := &mutableClock{now: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	crashingSender := newCrashAfterCommitSender()
+	first, cancelFirst, firstErrors := startTestRuntimeWithOptions(t, cfg, crashingSender, []emailchange.Option{emailchange.WithClock(clock.Now)})
+	account, err := first.Accounts.CreateLocal(testContext(t), "crash-old@example.com", "the post commit recovery password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := first.EmailChange.Start(testContext(t), account.ID, "the post commit recovery password", "crash-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(crashingSender.last().Body)
+	if err := first.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	firstCompletion := make(chan error, 1)
+	go func() {
+		_, err := first.EmailChange.Complete(context.Background(), account.ID, flow)
+		firstCompletion <- err
+	}()
+	select {
+	case <-crashingSender.notificationStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("email change did not commit before simulated crash")
+	}
+	stopTestRuntime(t, first, cancelFirst, firstErrors)
+	close(crashingSender.releaseNotification)
+	select {
+	case <-firstCompletion:
+	case <-time.After(5 * time.Second):
+		t.Fatal("interrupted completion did not return")
+	}
+
+	recoverySender := &capturingSender{}
+	restarted, cancelRestarted, restartedErrors := startTestRuntimeWithOptions(t, cfg, recoverySender, []emailchange.Option{emailchange.WithClock(clock.Now)})
+	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
+	if _, err := restarted.EmailChange.Complete(testContext(t), account.ID, flow); err == nil {
+		t.Fatal("recovery ignored the still-active completion lease")
+	}
+	clock.Advance(46 * time.Second)
+	completion, err := restarted.EmailChange.Complete(testContext(t), account.ID, flow)
+	if err != nil {
+		t.Fatalf("recover committed email change after lease expiry: %v", err)
+	}
+	if completion.Account.ID != account.ID || completion.AuthenticationVersion != account.AuthenticationVersion+1 {
+		t.Fatalf("recovered completion = %+v, original account = %+v", completion, account)
+	}
+	if notice := recoverySender.last(); notice.To != "crash-old@example.com" || notice.Subject != "Your Authling email address changed" {
+		t.Fatalf("recovered old-address notice = %+v", notice)
+	}
+	if _, err := restarted.EmailChange.Complete(testContext(t), account.ID, flow); !errors.Is(err, emailchange.ErrInvalidFlow) {
+		t.Fatalf("reused recovered flow error = %v, want ErrInvalidFlow", err)
+	}
+}
+
+func TestVerifiedEmailChangeBecomesStaleAfterPasswordReset(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "stale-old@example.com", "the stale email change password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the stale email change password", "stale-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	resetFlow, err := runtime.PasswordReset.Start(testContext(t), "stale-old@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resetCode := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.PasswordReset.Verify(testContext(t), resetFlow, resetCode); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.PasswordReset.Complete(testContext(t), resetFlow, "the replacement password after stale flow"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); !errors.Is(err, emailchange.ErrInvalidFlow) {
+		t.Fatalf("stale email change completion error = %v, want ErrInvalidFlow", err)
+	}
+	if runtime.Accounts.HasEmail("stale-new@example.com") {
+		t.Fatal("stale email change claimed its replacement address")
+	}
+}
+
+func TestEmailChangeWrongCodesExhaustAndFlowsExpire(t *testing.T) {
+	clock := &mutableClock{now: time.Date(2026, 8, 20, 12, 0, 0, 0, time.UTC)}
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntimeWithOptions(t, embeddedTestConfig(t), sender, []emailchange.Option{emailchange.WithClock(clock.Now)})
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "otp-old@example.com", "the email change otp password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the email change otp password", "otp-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	wrong := "000000"
+	if code == wrong {
+		wrong = "111111"
+	}
+	for range 5 {
+		if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, wrong); !errors.Is(err, emailchange.ErrInvalidCode) {
+			t.Fatalf("wrong email change code error = %v, want ErrInvalidCode", err)
+		}
+	}
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); !errors.Is(err, emailchange.ErrInvalidCode) {
+		t.Fatalf("correct code after exhaustion error = %v, want ErrInvalidCode", err)
+	}
+	expiringFlow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the email change otp password", "expired-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiringCode := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	clock.Advance(emailchange.FlowTTL)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, expiringFlow, expiringCode); !errors.Is(err, emailchange.ErrInvalidCode) {
+		t.Fatalf("expired email change code error = %v, want ErrInvalidCode", err)
+	}
+	if runtime.Accounts.HasEmail("otp-new@example.com") || runtime.Accounts.HasEmail("expired-new@example.com") {
+		t.Fatal("exhausted or expired email change mutated the active identity")
+	}
+}
+
 func TestConcurrentEmailChangeCompletionHasOneActiveLease(t *testing.T) {
 	sender := newBlockingNotificationSender()
 	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
@@ -919,6 +1052,110 @@ func TestEmailChangeDeliveryFailureLeavesIdentityUnchangedAndCanRetry(t *testing
 	}
 	if _, err := runtime.EmailChange.Start(testContext(t), account.ID, "the delivery failure password", "delivery-new@example.com"); err != nil {
 		t.Fatalf("retry after failed code delivery: %v", err)
+	}
+}
+
+func TestEmailChangeCommitsDurableFactsBeforeDeliveryEffects(t *testing.T) {
+	sender := &inspectingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "ordered-old@example.com", "the delivery ordering password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var requestInspected bool
+	sender.inspect = func(message email.Message) error {
+		if message.Subject != "Your Authling email change code" {
+			return nil
+		}
+		requestInspected = true
+		event, record := lastAccountEvent(t, runtime, account.ID)
+		if event.GetEmailChangeRequested() == nil {
+			return fmt.Errorf("latest account event before code delivery is not EmailChangeRequested")
+		}
+		code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(message.Body)
+		for _, secret := range []string{"ordered-old@example.com", "ordered-new@example.com", code} {
+			if bytes.Contains(record, []byte(secret)) {
+				return fmt.Errorf("request event exposed %q before code delivery", secret)
+			}
+		}
+		return nil
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the delivery ordering password", "ordered-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !requestInspected {
+		t.Fatal("code delivery did not inspect its preceding audit event")
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	var mutationInspected bool
+	sender.inspect = func(message email.Message) error {
+		if message.Subject != "Your Authling email address changed" {
+			return nil
+		}
+		mutationInspected = true
+		if !runtime.Accounts.HasEmail("ordered-new@example.com") || runtime.Accounts.HasEmail("ordered-old@example.com") {
+			return fmt.Errorf("identity mutation was not projected before old-address notification")
+		}
+		event, _ := lastAccountEvent(t, runtime, account.ID)
+		if event.GetEmailChanged() == nil {
+			return fmt.Errorf("latest account event before old-address notification is not EmailChanged")
+		}
+		return nil
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err != nil {
+		t.Fatal(err)
+	}
+	if !mutationInspected {
+		t.Fatal("old-address notification did not inspect its preceding identity mutation")
+	}
+}
+
+func TestEmailChangeRuntimeStateDoesNotExposeIdentityOrVerificationMaterial(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "sealed-old@example.com", "the runtime secrecy password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the runtime secrecy password", "sealed-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	js, err := jetstream.New(runtime.connection.NATS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	stores, err := storage.OpenStores(testContext(t), js, 1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := stores.RuntimeState.Keys(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	secrets := [][]byte{[]byte("sealed-old@example.com"), []byte("sealed-new@example.com"), []byte(account.ID), []byte(flow), []byte(code)}
+	for _, key := range keys {
+		for _, secret := range secrets {
+			if bytes.Contains([]byte(key), secret) {
+				t.Fatalf("runtime key %q exposes sensitive workflow material", key)
+			}
+		}
+		entry, err := stores.RuntimeState.Get(testContext(t), key)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, secret := range secrets {
+			if bytes.Contains(entry.Value(), secret) {
+				t.Fatalf("runtime value for %q exposes sensitive workflow material", key)
+			}
+		}
 	}
 }
 
@@ -1078,13 +1315,26 @@ func startTestRuntime(
 	senders ...email.Sender,
 ) (*Runtime, context.CancelFunc, <-chan error) {
 	t.Helper()
+	if len(senders) == 0 {
+		return startTestRuntimeWithOptions(t, cfg, nil, nil)
+	}
+	return startTestRuntimeWithOptions(t, cfg, senders[0], nil)
+}
+
+func startTestRuntimeWithOptions(
+	t *testing.T,
+	cfg config.Config,
+	sender email.Sender,
+	emailChangeOptions []emailchange.Option,
+) (*Runtime, context.CancelFunc, <-chan error) {
+	t.Helper()
 	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
 	var runtime *Runtime
 	var err error
-	if len(senders) == 0 {
+	if sender == nil {
 		runtime, err = New(testContext(t), cfg, logger)
 	} else {
-		runtime, err = newRuntime(testContext(t), cfg, logger, senders[0])
+		runtime, err = newRuntimeWithEmailChangeOptions(testContext(t), cfg, logger, sender, emailChangeOptions...)
 	}
 	if err != nil {
 		t.Fatalf("create runtime: %v", err)
@@ -1113,6 +1363,61 @@ type failingNotificationSender struct{ capturingSender }
 type failingFirstEmailChangeCodeSender struct {
 	capturingSender
 	failed bool
+}
+
+type inspectingSender struct {
+	capturingSender
+	inspect func(email.Message) error
+}
+
+func (s *inspectingSender) SendContext(ctx context.Context, message email.Message) error {
+	if s.inspect != nil {
+		if err := s.inspect(message); err != nil {
+			return err
+		}
+	}
+	return s.capturingSender.SendContext(ctx, message)
+}
+
+type crashAfterCommitSender struct {
+	capturingSender
+	notificationStarted chan struct{}
+	releaseNotification chan struct{}
+	startOnce           sync.Once
+}
+
+func newCrashAfterCommitSender() *crashAfterCommitSender {
+	return &crashAfterCommitSender{notificationStarted: make(chan struct{}), releaseNotification: make(chan struct{})}
+}
+
+func (s *crashAfterCommitSender) SendContext(ctx context.Context, message email.Message) error {
+	if message.Subject == "Your Authling email address changed" {
+		s.startOnce.Do(func() { close(s.notificationStarted) })
+		select {
+		case <-s.releaseNotification:
+			return errors.New("simulated process loss after identity commit")
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return s.capturingSender.SendContext(ctx, message)
+}
+
+type mutableClock struct {
+	mu  sync.Mutex
+	now time.Time
+}
+
+func (c *mutableClock) Now() time.Time {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.now
+}
+
+func (c *mutableClock) Advance(duration time.Duration) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.now = c.now.Add(duration)
 }
 
 type blockingNotificationSender struct {

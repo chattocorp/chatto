@@ -64,6 +64,10 @@ func New(
 }
 
 func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender) (*Runtime, error) {
+	return newRuntimeWithEmailChangeOptions(ctx, cfg, logger, sender)
+}
+
+func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, emailChangeOptions ...emailchange.Option) (*Runtime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -132,7 +136,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		Accounts:       accountService,
 		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 		PasswordReset:  passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService),
+		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, emailChangeOptions...),
 		Authentication: authenticationService,
 		Sessions:       sessionService,
 		OIDC:           oidcService,

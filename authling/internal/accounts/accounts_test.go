@@ -55,6 +55,28 @@ func TestEmailChangedRequiresAppliedReauthenticationRequest(t *testing.T) {
 	}
 }
 
+func TestEmailChangedRejectsRequestBoundToAnotherCredential(t *testing.T) {
+	projection := NewProjection(nil, []byte("index key"))
+	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example"}}
+	projection.credentials = map[string]protectedCredential{"acc_example": {
+		accountID: "acc_example", eventID: "evt_prior", userKeyRef: "key_user", credentialKeyRef: "key_credential",
+	}}
+	projection.emailChanges = map[string]map[string]emailChangeRequest{"acc_example": {
+		"evt_request": {credentialEventID: "evt_other", sequence: 1},
+	}}
+	event := &corev1.Event{
+		Id: "evt_change", CreatedAt: timestamppb.Now(),
+		Event: &corev1.Event_EmailChanged{EmailChanged: &corev1.EmailChangedEvent{
+			AccountId: "acc_example", UserKeyRef: "key_user", CredentialKeyRef: "key_credential",
+			CredentialEnvelopeVersion: 1, EmailNonce: []byte("nonce"), EmailCiphertext: []byte("ciphertext"),
+			EmailChangeRequestEventId: "evt_request", PriorCredentialEventId: "evt_prior",
+		}},
+	}
+	if err := projection.Apply(event, 2); err == nil || !strings.Contains(err.Error(), "another reauthentication request") {
+		t.Fatalf("wrong-credential request error = %v", err)
+	}
+}
+
 func TestEmailReplacementClaimRequiresCorrelationButHistoricalCreationDoesNot(t *testing.T) {
 	claim := func() *corev1.Event {
 		return &corev1.Event{Id: "evt_claim", CreatedAt: timestamppb.Now(), Event: &corev1.Event_EmailClaimed{EmailClaimed: &corev1.EmailClaimedEvent{AccountId: "acc_example"}}}
@@ -65,12 +87,61 @@ func TestEmailReplacementClaimRequiresCorrelationButHistoricalCreationDoesNot(t 
 	if err := replacement.Apply(claim(), 1); err == nil || !strings.Contains(err.Error(), "missing credential correlation") {
 		t.Fatalf("uncorrelated replacement claim error = %v", err)
 	}
+	wrongCorrelation := claim()
+	wrongCorrelation.GetEmailClaimed().CredentialEventId = "evt_other"
+	if err := replacement.Apply(wrongCorrelation, 1); err == nil || !strings.Contains(err.Error(), "another staged credential") {
+		t.Fatalf("wrong replacement claim correlation error = %v", err)
+	}
 
 	historical := NewProjection(nil, []byte("index key"))
 	digestValue := digest(historical.indexKey, "person@example.com")
 	historical.pendingEmails = map[string]pendingEmail{"acc_example": {eventID: "evt_created", digest: digestValue}}
 	if err := historical.Apply(claim(), 1); err != nil {
 		t.Fatalf("historical uncorrelated creation claim: %v", err)
+	}
+}
+
+func TestPasswordChangeInvalidatesAcceptedEmailChangeRequests(t *testing.T) {
+	projection := NewProjection(nil, []byte("index key"))
+	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example"}}
+	projection.credentials = map[string]protectedCredential{"acc_example": {
+		accountID: "acc_example", eventID: "evt_prior", userKeyRef: "key_user", credentialKeyRef: "key_credential",
+	}}
+	projection.emailChanges = map[string]map[string]emailChangeRequest{"acc_example": {
+		"evt_request": {credentialEventID: "evt_prior", sequence: 1},
+	}}
+	event := &corev1.Event{Id: "evt_password", CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
+		AccountId: "acc_example", UserKeyRef: "key_user", CredentialKeyRef: "key_credential",
+		PasswordVerifierNonce: []byte("nonce"), PasswordVerifierCiphertext: []byte("ciphertext"),
+	}}}
+	if err := projection.Apply(event, 2); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := projection.emailChanges["acc_example"]; ok {
+		t.Fatal("password change retained accepted email-change requests")
+	}
+}
+
+func TestCompletedEmailChangeRequiresItsExactCredentialGeneration(t *testing.T) {
+	projection := NewProjection(nil, []byte("index key"))
+	projection.accounts = map[string]Account{"acc_example": {ID: "acc_example", AuthenticationVersion: 2}}
+	projection.credentials = map[string]protectedCredential{"acc_example": {
+		accountID:                 "acc_example",
+		eventID:                   "evt_email_change",
+		emailChangeEventID:        "evt_email_change",
+		emailChangeRequestEventID: "evt_request",
+		emailDigest:               digest(projection.indexKey, "new@example.com"),
+	}}
+	target := EmailChangeTarget{AccountID: "acc_example", RequestEventID: "evt_request"}
+	if account, ok := projection.completedEmailChange(target, "new@example.com"); !ok || account.AuthenticationVersion != 2 {
+		t.Fatalf("current email change completion = %+v, %v", account, ok)
+	}
+	credential := projection.credentials["acc_example"]
+	credential.eventID = "evt_later_password_change"
+	projection.credentials["acc_example"] = credential
+	projection.accounts["acc_example"] = Account{ID: "acc_example", AuthenticationVersion: 3}
+	if account, ok := projection.completedEmailChange(target, "new@example.com"); ok {
+		t.Fatalf("email change completion crossed a later credential generation: %+v", account)
 	}
 }
 

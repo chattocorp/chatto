@@ -78,11 +78,29 @@ type Service struct {
 	authentication  *authentication.Service
 	deliverySlots   chan struct{}
 	completionSlots chan struct{}
+	now             func() time.Time
+}
+
+// Option customizes the email-change service's operational dependencies.
+type Option func(*Service)
+
+// WithClock supplies the clock used for expiring workflow state and completion
+// leases. It is primarily useful for deterministic lifecycle verification.
+func WithClock(now func() time.Time) Option {
+	return func(service *Service) {
+		if now != nil {
+			service.now = now
+		}
+	}
 }
 
 // New constructs the verified email-change workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service) *Service {
-	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, authentication: authenticationService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions)}
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service, options ...Option) *Service {
+	service := &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, authentication: authenticationService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions), now: time.Now}
+	for _, option := range options {
+		option(service)
+	}
+	return service
 }
 
 // Start reauthenticates the account, records the accepted request, and sends a
@@ -121,7 +139,7 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 	if err != nil {
 		return "", err
 	}
-	state := flowState{Target: target, NewEmail: newEmail, CodeDigest: keyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: time.Now().UTC().Add(FlowTTL)}
+	state := flowState{Target: target, NewEmail: newEmail, CodeDigest: keyedDigest(s.key, "code\x00"+token+"\x00"+code), ExpiresAt: s.now().UTC().Add(FlowTTL)}
 	key := s.flowKey(token)
 	data, err := s.seal(key, state)
 	if err != nil {
@@ -143,7 +161,7 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 func (s *Service) Verify(ctx context.Context, accountID, token, code string) error {
 	key := s.flowKey(token)
 	entry, state, err := s.read(ctx, key)
-	if err != nil || state.Target.AccountID != accountID || !time.Now().Before(state.ExpiresAt) || state.Verified || state.WrongAttempts >= maxWrongAttempts {
+	if err != nil || state.Target.AccountID != accountID || !s.now().Before(state.ExpiresAt) || state.Verified || state.WrongAttempts >= maxWrongAttempts {
 		return ErrInvalidCode
 	}
 	want := keyedDigest(s.key, "code\x00"+token+"\x00"+strings.TrimSpace(code))
@@ -165,10 +183,10 @@ func (s *Service) Verify(ctx context.Context, accountID, token, code string) err
 func (s *Service) Complete(ctx context.Context, accountID, token string) (Completion, error) {
 	key := s.flowKey(token)
 	entry, state, err := s.read(ctx, key)
-	if err != nil || state.Target.AccountID != accountID || !time.Now().Before(state.ExpiresAt) || !state.Verified {
+	if err != nil || state.Target.AccountID != accountID || !s.now().Before(state.ExpiresAt) || !state.Verified {
 		return Completion{}, ErrInvalidFlow
 	}
-	now := time.Now().UTC()
+	now := s.now().UTC()
 	if state.CompletionLeaseUntil.After(now) {
 		return Completion{}, errCompletionBusy
 	}
@@ -279,7 +297,7 @@ func (s *Service) update(ctx context.Context, key string, revision uint64, state
 	if err != nil {
 		return 0, err
 	}
-	remaining := time.Until(state.ExpiresAt)
+	remaining := state.ExpiresAt.Sub(s.now())
 	if remaining <= 0 {
 		return 0, ErrInvalidFlow
 	}
