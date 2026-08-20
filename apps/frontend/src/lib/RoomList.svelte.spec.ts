@@ -1,4 +1,5 @@
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
@@ -619,7 +620,8 @@ describe('RoomList', () => {
         userId: 'teal',
         login: 'teal',
         displayName: 'Teal',
-        avatarUrl: null
+        avatarUrl: null,
+        accountKind: UserAccountKind.BOT
       }
     ]);
 
@@ -637,6 +639,7 @@ describe('RoomList', () => {
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
+    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
       children.indexOf(icon!) - 1
     );

@@ -242,6 +242,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       login: participant.login,
       displayName: participant.displayName,
       deleted: false,
+      accountKind: participant.accountKind,
       avatarUrl: participant.avatarUrl,
       presenceStatus: PresenceStatus.OFFLINE
     };

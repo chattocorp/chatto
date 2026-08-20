@@ -432,12 +432,29 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 			if normalized.ID == "" {
 				return fmt.Errorf("%w: group scope requires an ID", ErrInvalidArgument)
 			}
+			// Capture and apply the shared group tail before trusting this
+			// replica's projection. A concurrent deletion after this point
+			// advances the authorization fence and conflicts the RBAC append.
+			position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupAggregate(normalized.ID).AllEventsFilter())
+			if err != nil {
+				return fmt.Errorf("read room-group aggregate tail: %w", err)
+			}
+			if err := c.roomModel.waitForGroupLayout(ctx, position); err != nil {
+				return fmt.Errorf("wait for room-group projection: %w", err)
+			}
 			if _, err := c.GetRoomGroup(ctx, normalized.ID); err != nil {
 				return fmt.Errorf("%w: group scope %q does not exist", ErrInvalidArgument, normalized.ID)
 			}
 		case MatrixScopeRoom:
 			if normalized.ID == "" {
 				return fmt.Errorf("%w: room scope requires an ID", ErrInvalidArgument)
+			}
+			position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(normalized.ID).AllEventsFilter())
+			if err != nil {
+				return fmt.Errorf("read room aggregate tail: %w", err)
+			}
+			if err := c.roomModel.waitForDirectory(ctx, position); err != nil {
+				return fmt.Errorf("wait for room directory projection: %w", err)
 			}
 			if _, err := c.GetRoom(ctx, KindChannel, normalized.ID); err != nil {
 				return fmt.Errorf("%w: room scope %q does not exist", ErrInvalidArgument, normalized.ID)
