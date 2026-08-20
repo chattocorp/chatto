@@ -68,18 +68,17 @@ export function getPushCapability(): PushCapability {
     typeof window === 'undefined' ||
     !('serviceWorker' in navigator) ||
     !('locks' in navigator) ||
-    !hasDurablePushCoordinationStorage() ||
-    !('Notification' in window)
+    !hasDurablePushCoordinationStorage()
   ) {
     return 'unsupported';
   }
 
-  if ('PushManager' in window) {
-    return 'supported';
-  }
-
   if (isIosBrowserContext() && !isStandaloneDisplayMode()) {
     return 'ios_home_screen_required';
+  }
+
+  if ('PushManager' in window && 'Notification' in window) {
+    return 'supported';
   }
 
   return 'unsupported';

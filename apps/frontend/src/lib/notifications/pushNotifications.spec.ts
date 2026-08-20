@@ -188,6 +188,7 @@ function installCapabilityGlobals(options: {
   hasPushManager?: boolean;
   hasWebLocks?: boolean;
   hasLocalStorage?: boolean;
+  hasNotification?: boolean;
   standalone?: boolean;
   displayModeStandalone?: boolean;
   protocol?: string;
@@ -198,12 +199,13 @@ function installCapabilityGlobals(options: {
     setItem: (key: string, value: string) => storage.set(key, value),
     removeItem: (key: string) => storage.delete(key)
   };
-  vi.stubGlobal('Notification', {
+  const notification = {
     permission: 'default',
     requestPermission: vi.fn()
-  });
+  };
+  vi.stubGlobal('Notification', options.hasNotification === false ? undefined : notification);
   vi.stubGlobal('window', {
-    Notification,
+    ...(options.hasNotification === false ? {} : { Notification: notification }),
     ...(options.hasPushManager === false ? {} : { PushManager: class PushManager {} }),
     ...(options.hasLocalStorage === false ? {} : { localStorage }),
     matchMedia: vi.fn((query: string) => ({
@@ -272,7 +274,8 @@ describe('pushNotifications.getPushCapability', () => {
     installCapabilityGlobals({
       userAgent: 'Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15',
       platform: 'iPhone',
-      hasPushManager: false
+      hasPushManager: false,
+      hasNotification: false
     });
 
     expect(getPushCapability()).toBe('ios_home_screen_required');
