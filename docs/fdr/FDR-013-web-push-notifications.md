@@ -25,7 +25,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - Notification-alert pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
 - Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries, then confirms that the occurrence is still unread and Alert-eligible, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
-- While Chatto is visible, its notification stores are authoritative for the app-icon badge. Declarative Web Push supplies the origin server's exact unread-occurrence count while the app is closed or suspended.
+- While Chatto is visible, its notification stores are authoritative for the aggregate app-icon badge. Declarative Web Push supplies the sending server's exact unread-occurrence count while the app is closed or suspended.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
 - Deleting the user account removes all push subscriptions. Cleanup is tied to
@@ -100,9 +100,9 @@ device after the occurrence is triaged until the person dismisses it there.
 
 ### 10. Late delivery and badge ownership
 
-**Decision:** Regular push delivery revalidates the exact unread Alert occurrence, target visibility, and active subscription immediately before sending. The visible app owns its aggregate multi-server badge; Declarative Web Push carries the origin server's exact unread-occurrence count while the app is closed.
+**Decision:** Regular push delivery revalidates the exact unread Alert occurrence, target visibility, and active subscription immediately before sending. The visible app owns its aggregate multi-server badge; Declarative Web Push carries the sending server's exact unread-occurrence count while the app is closed.
 **Why:** Occurrence materialization and push delivery are asynchronous, so a slower delivery can otherwise overtake read/delete state, target removal, or subscription rotation. Revalidation keeps the push tied to current authoritative state without persisting a separate badge record.
-**Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. Concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate, and a closed-app count covers only the app's origin server.
+**Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. Concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate, and a closed-app count reflects only the server whose push arrived last.
 
 ### 11. High urgency only for user-visible pushes
 
