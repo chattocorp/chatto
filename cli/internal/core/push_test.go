@@ -2,6 +2,7 @@ package core
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strings"
@@ -200,6 +201,49 @@ func TestSavePushSubscriptionForClient(t *testing.T) {
 	}
 	if sub.ClientHost != clientHost {
 		t.Fatalf("ClientHost = %q, want %q", sub.ClientHost, clientHost)
+	}
+}
+
+func TestClientHostPushSubscriptionFailsClosedForLegacyReplica(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-client-host-rollout"
+	endpoint := "https://push.example.com/client-host-rollout"
+
+	subscription, err := core.SavePushSubscriptionForClient(
+		ctx,
+		userID,
+		endpoint,
+		"key",
+		"auth",
+		"browser",
+		"app.example.com",
+	)
+	if err != nil {
+		t.Fatalf("SavePushSubscriptionForClient: %v", err)
+	}
+
+	ownerEntry, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint))
+	if err != nil {
+		t.Fatalf("get endpoint owner: %v", err)
+	}
+	var legacyOwner struct {
+		UserID               string `json:"user_id"`
+		SubscriptionRevision uint64 `json:"subscription_revision"`
+	}
+	if err := json.Unmarshal(ownerEntry.Value(), &legacyOwner); err != nil {
+		t.Fatalf("unmarshal endpoint owner as a legacy replica: %v", err)
+	}
+	if legacyOwner.UserID != "" {
+		t.Fatalf("legacy replica sees owner user ID %q, want empty so it skips delivery", legacyOwner.UserID)
+	}
+	if legacyOwner.SubscriptionRevision == 0 {
+		t.Fatal("legacy replica did not retain the subscription revision")
+	}
+
+	current, err := core.PushSubscriptionCurrentForUser(ctx, userID, subscription)
+	if err != nil || !current {
+		t.Fatalf("new replica should recognize client-host owner: current=%t err=%v", current, err)
 	}
 }
 
@@ -576,7 +620,7 @@ func TestStaleSubscriptionRevisionCannotReleaseRefreshedOwnership(t *testing.T) 
 	if _, err := core.SavePushSubscription(ctx, userID, endpoint, "new-key", "new-auth", "browser"); err != nil {
 		t.Fatalf("SavePushSubscription new credentials: %v", err)
 	}
-	if err := core.releasePushEndpointOwnership(ctx, userID, endpoint, staleEntry.Revision()); err != nil {
+	if err := core.releasePushEndpointOwnership(ctx, userID, endpoint, "", staleEntry.Revision()); err != nil {
 		t.Fatalf("releasePushEndpointOwnership stale revision: %v", err)
 	}
 

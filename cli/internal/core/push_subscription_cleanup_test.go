@@ -152,7 +152,7 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 	if _, err := chatto.storage.runtimeStateKV.Put(ctx, pushSubscriptionKey(userID, endpoint), data); err != nil {
 		t.Fatalf("store late subscription: %v", err)
 	}
-	if err := chatto.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
+	if err := chatto.claimPushEndpointOwnership(ctx, userID, endpoint, ""); err != nil {
 		t.Fatalf("claim late endpoint ownership: %v", err)
 	}
 

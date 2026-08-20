@@ -18,6 +18,7 @@
     getPushCapability,
     getPermission,
     isSubscribed as checkPushSubscription,
+    refreshPushSubscriptions,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -221,6 +222,7 @@
       pushPermission = getPermission();
       if (success) {
         pushSubscribed = true;
+        void refreshPushSubscriptions().catch(() => undefined);
       } else {
         pushError =
           pushPermission === 'denied'

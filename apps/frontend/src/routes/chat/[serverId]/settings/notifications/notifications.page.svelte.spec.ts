@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => ({
     getPushCapability: vi.fn(),
     getPermission: vi.fn(),
     isSubscribed: vi.fn(),
+    refreshPushSubscriptions: vi.fn(),
     sendTestNotification: vi.fn()
   }
 }));
@@ -43,6 +44,7 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
   getPushCapability: mocks.pushNotifications.getPushCapability,
   getPermission: mocks.pushNotifications.getPermission,
   isSubscribed: mocks.pushNotifications.isSubscribed,
+  refreshPushSubscriptions: mocks.pushNotifications.refreshPushSubscriptions,
   sendTestNotification: mocks.pushNotifications.sendTestNotification
 }));
 
@@ -143,6 +145,8 @@ describe('Notification settings page', () => {
     mocks.pushNotifications.getPushCapability.mockReturnValue('supported');
     mocks.pushNotifications.isSubscribed.mockReset();
     mocks.pushNotifications.isSubscribed.mockResolvedValue(false);
+    mocks.pushNotifications.refreshPushSubscriptions.mockReset();
+    mocks.pushNotifications.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.pushNotifications.sendTestNotification.mockReset();
     mocks.pushNotifications.sendTestNotification.mockResolvedValue(true);
   });
@@ -322,6 +326,7 @@ describe('Notification settings page', () => {
     expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('origin', 'vapid-key', {
       prompt: true
     });
+    expect(mocks.pushNotifications.refreshPushSubscriptions).toHaveBeenCalledOnce();
     expect(container.textContent).toContain('Push notifications enabled');
     expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');

@@ -19,23 +19,30 @@
   } = $props();
 
   const activeServerId = $derived(getActiveServer());
+  let removing = $state(false);
 
   async function removeServer() {
-    const removingActiveServer = modal.serverId === activeServerId;
-    await unsubscribePush(modal.serverId).catch(() => false);
-    clearLastRoom(modal.serverId);
-    serverRegistry.removeServer(modal.serverId);
+    if (removing) return;
+    removing = true;
+    try {
+      const removingActiveServer = modal.serverId === activeServerId;
+      void unsubscribePush(modal.serverId).catch(() => false);
+      clearLastRoom(modal.serverId);
+      serverRegistry.removeServer(modal.serverId);
 
-    if (!removingActiveServer) {
-      onclose();
-      return;
-    }
+      if (!removingActiveServer) {
+        onclose();
+        return;
+      }
 
-    const originId = serverRegistry.originServer?.id;
-    if (originId && originId !== modal.serverId) {
-      goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(originId) }));
-    } else {
-      goto(resolve('/'));
+      const originId = serverRegistry.originServer?.id;
+      if (originId && originId !== modal.serverId) {
+        await goto(resolve('/chat/[serverId]', { serverId: serverIdToSegment(originId) }));
+      } else {
+        await goto(resolve('/'));
+      }
+    } catch {
+      removing = false;
     }
   }
 </script>
@@ -44,6 +51,7 @@
   title={m('room.server.remove_title')}
   actionLabel={m('room.server.remove_action')}
   actionIcon="iconify icon-[uil--minus-circle]"
+  loading={removing}
   onconfirm={removeServer}
   {onclose}
 >

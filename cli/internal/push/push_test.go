@@ -603,6 +603,24 @@ func TestNavigationBaseURL(t *testing.T) {
 			want:          "https://app.example.com/chat/remote.example.com",
 		},
 		{
+			name:          "remote route lowercases the server hostname",
+			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://REMOTE.EXAMPLE.COM",
+			want:          "https://app.example.com/chat/remote.example.com",
+		},
+		{
+			name:          "remote route uses the browser IDNA hostname",
+			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://b\u00fccher.example",
+			want:          "https://app.example.com/chat/xn--bcher-kva.example",
+		},
+		{
+			name:          "remote route preserves browser IPv6 brackets",
+			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com"},
+			serverBaseURL: "https://[0:0::1]:8443",
+			want:          "https://app.example.com/chat/[::1]",
+		},
+		{
 			name:          "remote client preserves a non-default port",
 			subscription:  &corev1.PushSubscription{ClientHost: "app.example.com:8443"},
 			serverBaseURL: "https://remote.example.com",

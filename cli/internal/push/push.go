@@ -19,6 +19,7 @@ import (
 
 	webpush "github.com/SherClockHolmes/webpush-go"
 	"github.com/charmbracelet/log"
+	"golang.org/x/net/idna"
 
 	"hmans.de/chatto/internal/config"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -462,23 +463,66 @@ func NavigationBaseURL(subscription *corev1.PushSubscription, serverBaseURL stri
 	if err != nil || clientURL.Host != subscription.ClientHost || clientURL.Hostname() == "" {
 		return legacyURL
 	}
+	clientHostname, err := canonicalHostname(clientURL.Hostname())
+	if err != nil {
+		return legacyURL
+	}
+	clientURL.Host = hostnameWithOptionalPort(clientHostname, clientURL.Port())
 
 	if sameOriginHost(clientURL, serverURL) {
 		return buildAppURL(clientURL.String(), []string{"chat", "-"}, "", "")
 	}
 
 	clientURL.Scheme = "https"
-	if isLoopbackHostname(clientURL.Hostname()) {
+	if isLoopbackHostname(clientHostname) {
 		clientURL.Scheme = "http"
 	}
-	return buildAppURL(clientURL.String(), []string{"chat", serverURL.Hostname()}, "", "")
+	serverRouteHostname, err := browserRouteHostname(serverURL.Hostname())
+	if err != nil {
+		return legacyURL
+	}
+	return buildAppURL(clientURL.String(), []string{"chat", serverRouteHostname}, "", "")
 }
 
 func sameOriginHost(clientURL, serverURL *url.URL) bool {
-	if !strings.EqualFold(clientURL.Hostname(), serverURL.Hostname()) {
+	clientHostname, clientErr := canonicalHostname(clientURL.Hostname())
+	serverHostname, serverErr := canonicalHostname(serverURL.Hostname())
+	if clientErr != nil || serverErr != nil || clientHostname != serverHostname {
 		return false
 	}
 	return effectivePort(clientURL) == effectivePort(serverURL)
+}
+
+func canonicalHostname(hostname string) (string, error) {
+	if ip := net.ParseIP(hostname); ip != nil {
+		return strings.ToLower(ip.String()), nil
+	}
+	value, err := idna.Lookup.ToASCII(strings.ToLower(hostname))
+	if err != nil {
+		return "", err
+	}
+	return strings.ToLower(value), nil
+}
+
+func browserRouteHostname(hostname string) (string, error) {
+	value, err := canonicalHostname(hostname)
+	if err != nil {
+		return "", err
+	}
+	if strings.Contains(value, ":") {
+		return "[" + value + "]", nil
+	}
+	return value, nil
+}
+
+func hostnameWithOptionalPort(hostname, port string) string {
+	if port != "" {
+		return net.JoinHostPort(hostname, port)
+	}
+	if strings.Contains(hostname, ":") {
+		return "[" + hostname + "]"
+	}
+	return hostname
 }
 
 func effectivePort(value *url.URL) string {

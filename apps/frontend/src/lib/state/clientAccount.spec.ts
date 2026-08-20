@@ -90,4 +90,16 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.notifyLogout).toHaveBeenCalledOnce();
     expect(result).toEqual({ kind: 'hard' });
   });
+
+  it('does not let pending push cleanup block sign-out', async () => {
+    mocks.unsubscribePush.mockReturnValue(new Promise<boolean>(() => {}));
+
+    await expect(clientAccount.signOutCurrentServer('remote')).resolves.toEqual({
+      kind: 'soft',
+      serverId: 'origin'
+    });
+    await expect(clientAccount.signOutAllServers()).resolves.toEqual({ kind: 'hard' });
+
+    expect(mocks.unsubscribePush).toHaveBeenCalledTimes(3);
+  });
 });
