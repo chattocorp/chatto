@@ -553,15 +553,23 @@ describe('pushNotifications.ensureRegistered', () => {
     // A different tab installs new authentication and clears shared suspension;
     // this realm intentionally retains its local block and obsolete credentials.
     window.localStorage.removeItem('chatto.push-registration.suspended.remote');
+    const replacementAccountUnsubscribe = vi.fn().mockResolvedValue(true);
+    mocks.createPushNotificationAPI.mockReturnValue({
+      subscribe: mocks.subscribePush,
+      subscribeForClient: mocks.subscribeForClientPush,
+      unsubscribe: replacementAccountUnsubscribe
+    });
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
     // A transport that ignores abort may settle after a new session starts.
-    // Its stale continuation must not invalidate the other tab's replacement.
+    // Its stale continuation must delete only the obsolete account's server
+    // record without invalidating the other tab's browser replacement.
     firstSave.resolve({ subscribed: true });
     await firstSave.promise;
-    await Promise.resolve();
+    await vi.waitFor(() => expect(mocks.unsubscribePush).toHaveBeenCalledOnce());
     expect(remoteSubscription.unsubscribe).not.toHaveBeenCalled();
-    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
+    expect(replacementAccountUnsubscribe).not.toHaveBeenCalled();
   });
 
   it('keeps leaving suspension visible across tabs until new authentication is installed', async () => {

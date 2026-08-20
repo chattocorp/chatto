@@ -7,6 +7,7 @@
  */
 
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
+import type { PushNotificationAPI } from '$lib/api-client/pushNotifications';
 import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
@@ -319,6 +320,7 @@ async function ensureRegisteredOnce(
   const clientHostRequired = !serverRegistry.isOriginServer(serverId);
   let subscription: PushSubscription | null = null;
   let createdSubscription = false;
+  let api: PushNotificationAPI | null = null;
 
   try {
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
@@ -367,7 +369,7 @@ async function ensureRegisteredOnce(
       auth: json.keys.auth,
       userAgent: navigator.userAgent
     };
-    const api = pushAPI(serverId);
+    api = pushAPI(serverId);
     if (isPushRegistrationSuspended(serverId, signal)) {
       if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
@@ -384,6 +386,8 @@ async function ensureRegisteredOnce(
     if (isPushRegistrationSuspended(serverId, signal)) {
       if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
+      } else {
+        await removeStaleServerSubscription(api, subscription.endpoint);
       }
       return false;
     }
@@ -404,13 +408,33 @@ async function ensureRegisteredOnce(
     // is indeterminate so a later push cannot open the wrong frontend.
     const cancelled = isPushRegistrationSuspended(serverId, signal);
     const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
-    if (
-      subscription &&
-      (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired)))
-    ) {
-      await invalidateSubscription(serverId, subscription);
+    if (subscription) {
+      if (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired))) {
+        await invalidateSubscription(serverId, subscription);
+      } else if (cancelled && api) {
+        await removeStaleServerSubscription(api, subscription.endpoint);
+      }
     }
     return false;
+  }
+}
+
+/**
+ * Removes only the obsolete account's server record after another realm has
+ * resumed registration. The API facade is captured before the save, so its
+ * bearer token remains scoped to that save's account. Server-side revision and
+ * owner checks prevent this cleanup from releasing a replacement account's
+ * endpoint claim.
+ */
+async function removeStaleServerSubscription(
+  api: PushNotificationAPI,
+  endpoint: string
+): Promise<void> {
+  try {
+    await api.unsubscribe(endpoint);
+  } catch {
+    // The stale credentials may already be revoked; browser invalidation during
+    // suspension still makes their endpoint unusable.
   }
 }
 
