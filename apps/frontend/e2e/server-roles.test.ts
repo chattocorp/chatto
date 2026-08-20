@@ -637,7 +637,7 @@ test.describe('Server Permission Enforcement', () => {
       await serverAdminPage.expectAdminLinkVisible();
     });
 
-    test('user without server.manage permission cannot see settings link', async ({
+    test('user without server.manage permission sees only permitted management links', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -654,8 +654,13 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Non-admin should not see settings link in sidebar
-      await serverAdminPage.expectAdminLinkNotVisible();
+      // Bots remains available through the default bot.create grant, while
+      // General stays hidden without server.manage.
+      await serverAdminPage.expectAdminLinkVisible();
+      await serverAdminPage.adminLink.click();
+      await page.waitForURL(routes.serverAdminBots);
+      await serverAdminPage.expectBotsNavVisible();
+      await serverAdminPage.expectGeneralNavNotVisible();
     });
   });
 

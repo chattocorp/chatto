@@ -82,6 +82,7 @@ export const serverAdminRolesNew = serverAdminPermissionsNew;
 export const serverAdminRole = serverAdminPermission;
 export const serverAdminMembers = serverAdmin('members');
 export const serverAdminMember = (userId: string) => serverAdmin(`members/${userId}`);
+export const serverAdminBots = serverAdmin('bots');
 export const serverAdminSecurity = serverAdmin('security');
 export const serverAdminSystem = serverAdmin('system');
 export const serverAdminMemberPermissions = (userId: string) =>

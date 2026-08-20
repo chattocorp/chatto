@@ -93,7 +93,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await serverAdminPage.expectAdminLinkVisible();
     });
 
-    test('regular member without admin permissions does not see Server Admin button', async ({
+    test('regular member enters Server Admin through Bots', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -110,8 +110,13 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Regular member without admin permissions should NOT see Server Admin link
-      await serverAdminPage.expectAdminLinkNotVisible();
+      // Fresh servers grant bot.create to everyone, so Bots is this member's
+      // only Server Admin entry point. Unrelated sections remain hidden.
+      await serverAdminPage.expectAdminLinkVisible();
+      await serverAdminPage.adminLink.click();
+      await page.waitForURL(routes.serverAdminBots);
+      await serverAdminPage.expectBotsNavVisible();
+      await serverAdminPage.expectGeneralNavNotVisible();
     });
 
     test('member with only role.assign permission sees Server Admin button', async ({
@@ -190,8 +195,8 @@ test.describe('Server Admin Navigation Permissions', () => {
     });
   });
 
-  test.describe('Settings nav item filtering', () => {
-    test('server admin sees all settings nav items', async ({ serverAdminPage }) => {
+  test.describe('Server Admin nav item filtering', () => {
+    test('server admin sees all management nav items', async ({ serverAdminPage }) => {
       const { page } = serverAdminPage;
 
       // Create user and load the primary server
@@ -204,6 +209,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       // Admin should see all nav items
       await serverAdminPage.expectGeneralNavVisible();
       await serverAdminPage.expectMembersNavVisible();
+      await serverAdminPage.expectBotsNavVisible();
       await serverAdminPage.expectRolesNavVisible();
     });
 

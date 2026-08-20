@@ -51,7 +51,7 @@ function createButton(container: Element): HTMLButtonElement | undefined {
   );
 }
 
-describe('Bot settings page', () => {
+describe('Bot administration page', () => {
   beforeEach(() => {
     mocks.canCreateBots = false;
     mocks.query.data = [];

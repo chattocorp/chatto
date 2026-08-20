@@ -200,7 +200,9 @@
   }
 </script>
 
-<PageTitle title={m('settings.bots.title')} />
+<PageTitle
+  title={m('admin.common.server_admin_page_title', { title: m('settings.bots.title') })}
+/>
 <PaneHeader title={m('settings.bots.title')} subtitle={m('settings.bots.subtitle')} showMobileNav />
 
 <PaneContent>

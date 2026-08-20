@@ -14,6 +14,8 @@ exercise more authority than its human owner currently possesses.
 
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
+- Bot accounts are created and managed from the Bots page in Server Admin,
+  rather than from a user's personal settings.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission

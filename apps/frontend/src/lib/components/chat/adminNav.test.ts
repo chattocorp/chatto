@@ -31,6 +31,18 @@ function server(overrides: Partial<AdminNavServerPermissions> = {}): AdminNavSer
 }
 
 describe('getAdminNavItems', () => {
+  it('shows Bots as a server-management surface for every signed-in human', () => {
+    const items = getAdminNavItems({
+      serverSegment: 'local',
+      chrome: chrome(),
+      server: server()
+    });
+
+    expect(items.find((item) => item.label === 'Bots')?.href).toBe(
+      '/chat/local/manage/server/bots'
+    );
+  });
+
   it('shows Members for admin user viewers', () => {
     const items = getAdminNavItems({
       serverSegment: 'local',
