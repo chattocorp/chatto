@@ -18,7 +18,7 @@
     PaneContent,
     PaneHeader
   } from '$lib/ui';
-  import { Button, TextInput } from '$lib/ui/form';
+  import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
 
   const serverScope = useServerScope();
@@ -60,6 +60,25 @@
   let deleteVisible = $state(false);
   let deleteLoading = $state(false);
 
+  const botLoginSchema = z
+    .string()
+    .min(2, m('common.validation.username_min'))
+    .max(32, m('common.validation.username_max'))
+    .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
+    .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'))
+    .refine(
+      (value) => value.toLowerCase().endsWith('_bot'),
+      m('settings.bots.username_hint')
+    );
+  const normalizedCreateLogin = $derived(createLogin.trim());
+  const createLoginError = $derived(
+    normalizedCreateLogin ? validate(botLoginSchema, normalizedCreateLogin) : undefined
+  );
+  const normalizedEditLogin = $derived(editLogin.trim());
+  const editLoginError = $derived(
+    normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
+  );
+
   function botAPI() {
     return serverScope.connection.getAPI(createBotAPI);
   }
@@ -80,12 +99,12 @@
   }
 
   async function createBot() {
-    if (!canCreateBots) return;
+    if (!canCreateBots || !normalizedCreateLogin || createLoginError) return;
     createLoading = true;
     createError = null;
     try {
       const created = await botAPI().createBot({
-        login: createLogin.trim(),
+        login: normalizedCreateLogin,
         displayName: createDisplayName.trim()
       });
       selectedBotId = created.bot.id;
@@ -110,13 +129,13 @@
   }
 
   async function updateBot() {
-    if (!selectedBot) return;
+    if (!selectedBot || !normalizedEditLogin || editLoginError) return;
     editLoading = true;
     editError = null;
     try {
       await botAPI().updateBot({
         botUserId: selectedBot.id,
-        login: editLogin.trim(),
+        login: normalizedEditLogin,
         displayName: editDisplayName.trim()
       });
       await refreshBots();
@@ -286,7 +305,7 @@
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
-  disabled={!createLogin.trim().toLowerCase().endsWith('_bot') || !createDisplayName.trim()}
+  disabled={!normalizedCreateLogin || !!createLoginError || !createDisplayName.trim()}
   error={createError}
   onsubmit={createBot}
   onclose={() => (createVisible = false)}
@@ -294,7 +313,8 @@
   <TextInput
     id="bot-login"
     label={m('settings.bots.username')}
-    description={m('settings.bots.username_hint')}
+    description={normalizedCreateLogin ? undefined : m('settings.bots.username_hint')}
+    error={createLoginError}
     maxlength={32}
     required
     autofocus
@@ -314,7 +334,7 @@
   title={m('settings.bots.edit_title')}
   submitLabel={m('common.save')}
   loading={editLoading}
-  disabled={!editLogin.trim().toLowerCase().endsWith('_bot') || !editDisplayName.trim()}
+  disabled={!normalizedEditLogin || !!editLoginError || !editDisplayName.trim()}
   error={editError}
   onsubmit={updateBot}
   onclose={() => (editVisible = false)}
@@ -322,6 +342,7 @@
   <TextInput
     id="edit-bot-login"
     label={m('settings.bots.username')}
+    error={editLoginError}
     maxlength={32}
     required
     bind:value={editLogin}
