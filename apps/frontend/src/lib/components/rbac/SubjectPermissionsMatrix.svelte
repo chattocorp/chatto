@@ -38,6 +38,10 @@ its dense matrix rows scroll.
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** Present for bot matrices to explain the live owner ceiling. */
+    ownerGranted?: boolean;
+    /** Bot decision after its own scope inheritance, before the owner ceiling. */
+    delegated?: MatrixDecision;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -269,6 +273,12 @@ its dense matrix rows scroll.
                 : ov !== 'neutral'
                   ? `Override ${ov} for ${permission} at ${scope.label}`
                   : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+              {@const ownerCeiling =
+                cell.ownerGranted === false
+                  ? `Owner ceiling blocks ${permission} at ${scope.label}`
+                  : cell.ownerGranted === true
+                    ? `Owner currently grants ${permission} at ${scope.label}`
+                    : null}
               {@const titleParts = forceAllow
                 ? [
                     'Allow (owners are always granted all permissions)',
@@ -281,13 +291,16 @@ its dense matrix rows scroll.
                     ov === 'neutral' && eff !== 'neutral'
                       ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
                       : null,
-                    ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
+                    ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                    ownerCeiling
                   ].filter(Boolean)}
               <MatrixCell
                 override={displayOverride}
                 inherited={displayEffective}
                 updating={isUpdating}
                 disabled={readOnly}
+                allowBlocked={cell.ownerGranted === false}
+                ceilingBlocked={cell.ownerGranted === false && cell.delegated === 'ALLOW'}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
                 onCycle={(next) => onCycle(scope, permission, next)}

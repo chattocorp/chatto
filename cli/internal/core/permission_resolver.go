@@ -3,6 +3,8 @@ package core
 import (
 	"context"
 	"fmt"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 // PermissionResolver handles permission resolution using a deliberately small
@@ -87,6 +89,10 @@ func (r *PermissionResolver) ResolveGroup(ctx context.Context, userID string, ki
 }
 
 func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+	accountKind, ownerUserID, accountExists := r.core.userModel.accountKindAndOwner(userID)
+	if accountExists && accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
+	}
 	if _, known := GetPermissionMetadata(perm); known {
 		isOwner, err := r.core.IsServerOwner(ctx, userID)
 		if err != nil {
@@ -119,6 +125,53 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		result = DecisionAllow
 	}
 	return result, err
+}
+
+func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
+	if perm == PermBotCreate || perm == PermBotManage {
+		return DecisionDeny, nil
+	}
+	if kind == KindDM && dmBoundaryDenies(perm) {
+		return DecisionDeny, nil
+	}
+	ownerKind, _, ownerExists := r.core.userModel.accountKindAndOwner(ownerUserID)
+	if !ownerExists || ownerKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN {
+		return DecisionDeny, nil
+	}
+
+	groupID := explicitGroupID
+	if kind == KindChannel && roomID != "" && PermissionAppliesAtScope(perm, ScopeRoom) && groupID == "" {
+		if room, err := r.core.GetRoom(ctx, KindChannel, roomID); err == nil && room != nil {
+			groupID = room.GroupId
+		}
+	}
+	delegated := r.botDelegatedDecision(botUserID, kind, roomID, groupID, perm)
+	if delegated != DecisionAllow {
+		return DecisionDeny, nil
+	}
+	ownerDecision, err := r.resolveWithGroup(ctx, ownerUserID, kind, roomID, groupID, perm)
+	if err != nil {
+		return DecisionNone, err
+	}
+	if ownerDecision != DecisionAllow {
+		return DecisionDeny, nil
+	}
+	return DecisionAllow, nil
+}
+
+// botDelegatedDecision resolves only the bot's explicit direct-user decisions.
+// Bots never receive named-role, everyone, owner, or DM-default grants.
+func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
+	parts := perm.KeyParts()
+	if parts.Verb == "" || parts.ObjectType == "" {
+		return DecisionNone
+	}
+	scopes := r.applicableScopeTargets(kind, roomID, groupID, perm)
+	entry, ok := r.nearestDecision(botUserID, parts, scopes)
+	if !ok {
+		return DecisionNone
+	}
+	return entry.Decision
 }
 
 // HasServerPermission checks a server-only permission (no room context).

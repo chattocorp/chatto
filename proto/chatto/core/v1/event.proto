@@ -188,6 +188,8 @@ message Event {
     UserCustomStatusClearedEvent user_custom_status_cleared = 716;
     UserExternalIdentityUnlinkedEvent user_external_identity_unlinked = 717;
     UserKeyShreddingRequestedEvent user_key_shredding_requested = 718;
+    BotApiKeyCreatedEvent bot_api_key_created = 719;
+    BotApiKeyRotatedEvent bot_api_key_rotated = 720;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

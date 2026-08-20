@@ -23,6 +23,11 @@ type UserAuthProjection struct {
 
 type projectedUserAuth struct {
 	deleted            bool
+	accountKind        corev1.UserAccountKind
+	botOwnerUserID     string
+	botAPIKeyVerifier  []byte
+	botAPIKeyCreatedAt time.Time
+	botAPIKeyRotatedAt time.Time
 	passwordHash       []byte
 	passwordSetAt      time.Time
 	authGeneration     uint64
@@ -49,6 +54,8 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
 	}
 }
 
@@ -64,8 +71,17 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 	switch e := event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated:
 		if e.UserAccountCreated != nil {
-			p.ensureUserLocked(e.UserAccountCreated.GetUserId())
+			u := p.ensureUserLocked(e.UserAccountCreated.GetUserId())
+			u.accountKind = e.UserAccountCreated.GetAccountKind()
+			if u.accountKind == corev1.UserAccountKind_USER_ACCOUNT_KIND_UNSPECIFIED {
+				u.accountKind = corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
+			}
+			u.botOwnerUserID = e.UserAccountCreated.GetBotOwnerUserId()
 		}
+	case *corev1.Event_BotApiKeyCreated:
+		p.applyBotAPIKeyCreated(e.BotApiKeyCreated, event.GetCreatedAt())
+	case *corev1.Event_BotApiKeyRotated:
+		p.applyBotAPIKeyRotated(e.BotApiKeyRotated, event.GetCreatedAt())
 	case *corev1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
 	case *corev1.Event_UserOidcSubjectLinked:
@@ -214,6 +230,9 @@ func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEve
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
+	u.botAPIKeyVerifier = nil
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyRotatedAt = time.Time{}
 	p.deleteIdentityIndexLocked(e.GetUserId())
 }
 
@@ -228,7 +247,63 @@ func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
 	u.passwordSetAt = time.Time{}
 	u.externalIdentities = make(map[string]ExternalIdentity)
 	u.oauthConsent = make(map[string]struct{})
+	u.botAPIKeyVerifier = nil
+	u.botAPIKeyCreatedAt = time.Time{}
+	u.botAPIKeyRotatedAt = time.Time{}
 	p.deleteIdentityIndexLocked(userID)
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyCreated(e *corev1.BotApiKeyCreatedEvent, createdAt *timestamppb.Timestamp) {
+	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return
+	}
+	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], e.GetVerifier()...)
+	u.botAPIKeyCreatedAt = timestampTime(createdAt)
+	u.botAPIKeyRotatedAt = time.Time{}
+}
+
+func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEvent, createdAt *timestamppb.Timestamp) {
+	if e == nil || e.GetUserId() == "" || len(e.GetVerifier()) == 0 {
+		return
+	}
+	u := p.ensureUserLocked(e.GetUserId())
+	if u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || len(u.botAPIKeyVerifier) == 0 {
+		return
+	}
+	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], e.GetVerifier()...)
+	u.botAPIKeyRotatedAt = timestampTime(createdAt)
+}
+
+func timestampTime(value *timestamppb.Timestamp) time.Time {
+	if value == nil || !value.IsValid() {
+		return time.Time{}
+	}
+	return value.AsTime()
+}
+
+// BotAPIKeyCredential is the projected verifier and safe metadata for one bot.
+type BotAPIKeyCredential struct {
+	Verifier  []byte
+	CreatedAt time.Time
+	RotatedAt time.Time
+}
+
+func (p *UserAuthProjection) BotAPIKeyCredential(userID string) (BotAPIKeyCredential, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || len(u.botAPIKeyVerifier) == 0 {
+		return BotAPIKeyCredential{}, false
+	}
+	return BotAPIKeyCredential{
+		Verifier:  append([]byte(nil), u.botAPIKeyVerifier...),
+		CreatedAt: u.botAPIKeyCreatedAt,
+		RotatedAt: u.botAPIKeyRotatedAt,
+	}, true
 }
 
 func (p *UserAuthProjection) deleteIdentityIndexLocked(userID string) {

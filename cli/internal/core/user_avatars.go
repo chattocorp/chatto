@@ -18,10 +18,8 @@ import (
 // uploads it to the object store (NATS or S3), and returns the asset reference.
 // If the user already has an avatar, the old one is deleted after successful upload.
 func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader io.Reader) (*corev1.AssetRecord, error) {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return nil, fmt.Errorf("user not found: %w", err)
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
 	}
 
 	// Capture old avatar reference for cleanup after successful upload
@@ -95,10 +93,8 @@ func (c *ChattoCore) UploadUserAvatar(ctx context.Context, userID string, reader
 
 // SetUserAvatar stores the user's avatar asset reference through the user aggregate.
 func (c *ChattoCore) SetUserAvatar(ctx context.Context, userID string, asset *corev1.AssetRecord) error {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
 	}
 
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_AssetCreated{
@@ -132,10 +128,8 @@ func (c *ChattoCore) GetUserAvatar(ctx context.Context, userID string) (*corev1.
 // DeleteUserAvatar removes a user's avatar from storage (NATS or S3).
 // Returns nil if the user has no avatar set.
 func (c *ChattoCore) DeleteUserAvatar(ctx context.Context, userID string) error {
-	// Verify user exists
-	_, err := c.GetUser(ctx, userID)
-	if err != nil {
-		return fmt.Errorf("user not found: %w", err)
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
 	}
 
 	// Get current avatar to delete the file from storage

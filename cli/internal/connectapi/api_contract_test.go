@@ -44,6 +44,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/",
 		"/" + apiv1connect.AssetServiceName + "/",
 		"/" + apiv1connect.AssetUploadServiceName + "/",
+		"/" + apiv1connect.BotServiceName + "/",
 		"/" + adminv1connect.AdminServerServiceName + "/",
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/",
 		"/" + authv1connect.PushSubscriptionCleanupServiceName + "/",
@@ -91,6 +92,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MyAccountServiceName + "/":                AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetServiceName + "/":                    AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.AssetUploadServiceName + "/":              AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.BotServiceName + "/":                      AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminServerServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + authv1connect.ExternalIdentityAuthServiceName + "/":    AuthPolicyPublic,
 		"/" + authv1connect.PushSubscriptionCleanupServiceName + "/": AuthPolicyPublic,
@@ -136,6 +138,9 @@ func TestPublicReflectionResolver(t *testing.T) {
 
 	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(discoveryv1connect.ServerDiscoveryServiceName)); err != nil {
 		t.Fatalf("FindDescriptorByName(%s): %v", discoveryv1connect.ServerDiscoveryServiceName, err)
+	}
+	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(apiv1connect.BotServiceName)); err != nil {
+		t.Fatalf("FindDescriptorByName(%s): %v", apiv1connect.BotServiceName, err)
 	}
 	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(authv1connect.ExternalIdentityAuthServiceName)); err != nil {
 		t.Fatalf("FindDescriptorByName(%s): %v", authv1connect.ExternalIdentityAuthServiceName, err)

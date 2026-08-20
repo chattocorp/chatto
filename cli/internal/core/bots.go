@@ -1,0 +1,471 @@
+package core
+
+import (
+	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"sort"
+	"strings"
+	"time"
+
+	"hmans.de/chatto/internal/evtstream"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/pkg/events"
+)
+
+const botAPIKeyPrefix = "cht_BK_"
+
+// Bot is the management view of a bot account. APIKey is populated only by
+// CreateBot and RotateBotAPIKey and must never be logged or persisted.
+type Bot struct {
+	User            *corev1.User
+	OwnerUserID     string
+	APIKey          string
+	APIKeyCreatedAt time.Time
+	APIKeyRotatedAt time.Time
+}
+
+// BotPermissionCell explains a bot decision before and after its owner ceiling.
+type BotPermissionCell struct {
+	Permission       string
+	ScopeID          string
+	Configured       MatrixDecision
+	Delegated        MatrixDecision
+	OwnerGranted     bool
+	EffectiveGranted bool
+}
+
+// BotPermissionMatrix is the complete direct-grant matrix for one bot.
+type BotPermissionMatrix struct {
+	BotUserID             string
+	ApplicablePermissions []string
+	Scopes                []PermissionMatrixScope
+	Cells                 []BotPermissionCell
+}
+
+func parseBotAPIKey(token string) (string, bool) {
+	if !strings.HasPrefix(token, botAPIKeyPrefix) {
+		return "", false
+	}
+	rest := strings.TrimPrefix(token, botAPIKeyPrefix)
+	botID, encodedSecret, ok := strings.Cut(rest, ".")
+	if !ok || botID == "" || encodedSecret == "" || strings.Contains(encodedSecret, ".") {
+		return "", false
+	}
+	secret, err := base64.RawURLEncoding.DecodeString(encodedSecret)
+	if err != nil || len(secret) != botAPIKeySecretBytes || base64.RawURLEncoding.EncodeToString(secret) != encodedSecret {
+		return "", false
+	}
+	return botID, true
+}
+
+func (c *ChattoCore) botAPIKeyVerifier(token string) []byte {
+	mac := hmac.New(sha256.New, []byte(c.config.SecretKey))
+	_, _ = mac.Write([]byte("bot_api_key"))
+	_, _ = mac.Write([]byte{0})
+	_, _ = mac.Write([]byte(token))
+	return mac.Sum(nil)
+}
+
+// ValidateBotAPIKey authenticates a bot's non-expiring API key against the
+// latest verifier replayed from EVT. It returns ErrAuthTokenNotFound for every
+// malformed, stale, deleted, or otherwise unusable key.
+func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*corev1.User, error) {
+	botID, ok := parseBotAPIKey(token)
+	if !ok {
+		return nil, ErrAuthTokenNotFound
+	}
+	agg := evtstream.UserAggregate(botID)
+	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", agg.AllEventsFilter()); err != nil {
+		return nil, err
+	}
+	credential, ok := c.userModel.botAPIKeyCredential(botID)
+	if !ok || subtle.ConstantTimeCompare(c.botAPIKeyVerifier(token), credential.Verifier) != 1 {
+		return nil, ErrAuthTokenNotFound
+	}
+	bot, err := c.GetUser(ctx, botID)
+	if err != nil || bot.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return nil, ErrAuthTokenNotFound
+	}
+	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
+	if err != nil || owner.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return nil, ErrAuthTokenNotFound
+	}
+	return bot, nil
+}
+
+func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error {
+	if userID == "" {
+		return ErrNotAuthenticated
+	}
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
+		return err
+	}
+	if user.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return ErrHumanAccountRequired
+	}
+	return nil
+}
+
+func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID string) (*corev1.User, error) {
+	if err := c.requireHumanUser(ctx, actorID); err != nil {
+		return nil, err
+	}
+	bot, err := c.GetUser(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	if bot.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return nil, ErrNotFound
+	}
+	if bot.GetBotOwnerUserId() == actorID {
+		return bot, nil
+	}
+	allowed, err := c.CanManageBots(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	if !allowed {
+		return nil, ErrPermissionDenied
+	}
+	return bot, nil
+}
+
+func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
+	if user == nil || user.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return nil, ErrNotFound
+	}
+	credential, ok := c.userModel.botAPIKeyCredential(user.GetId())
+	if !ok {
+		return nil, ErrNotFound
+	}
+	return &Bot{
+		User: user, OwnerUserID: user.GetBotOwnerUserId(),
+		APIKeyCreatedAt: credential.CreatedAt, APIKeyRotatedAt: credential.RotatedAt,
+	}, nil
+}
+
+// CreateBot creates a passwordless bot owned by actorID and returns its raw key once.
+func (c *ChattoCore) CreateBot(ctx context.Context, actorID, login, displayName string) (*Bot, error) {
+	check := func() error {
+		if err := c.requireHumanUser(ctx, actorID); err != nil {
+			return err
+		}
+		allowed, err := c.CanCreateBots(ctx, actorID)
+		if err != nil {
+			return err
+		}
+		if !allowed {
+			return ErrPermissionDenied
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return nil, err
+	}
+	var apiKey string
+	user, err := c.createUserWithOptions(ctx, actorID, login, displayName, "", userCreationOptions{
+		accountKind: corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT,
+		botOwnerID:  actorID, botAPIKeyOut: &apiKey, authorize: check,
+	})
+	if err != nil {
+		return nil, err
+	}
+	bot, err := c.botFromUser(user)
+	if err != nil {
+		return nil, err
+	}
+	bot.APIKey = apiKey
+	return bot, nil
+}
+
+// GetBot returns one bot visible to the human caller.
+func (c *ChattoCore) GetBot(ctx context.Context, actorID, botID string) (*Bot, error) {
+	user, err := c.requireBotManager(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	return c.botFromUser(user)
+}
+
+// ListBots returns owned bots, or every bot for callers with bot.manage.
+func (c *ChattoCore) ListBots(ctx context.Context, actorID string) ([]*Bot, error) {
+	if err := c.requireHumanUser(ctx, actorID); err != nil {
+		return nil, err
+	}
+	manageAll, err := c.CanManageBots(ctx, actorID)
+	if err != nil {
+		return nil, err
+	}
+	ids := c.userModel.botIDsOwnedBy(actorID)
+	if manageAll {
+		ids = c.userModel.botIDs()
+	}
+	result := make([]*Bot, 0, len(ids))
+	for _, id := range ids {
+		user, err := c.GetUser(ctx, id)
+		if err != nil {
+			continue
+		}
+		bot, err := c.botFromUser(user)
+		if err == nil {
+			result = append(result, bot)
+		}
+	}
+	sort.Slice(result, func(i, j int) bool {
+		if strings.EqualFold(result[i].User.GetLogin(), result[j].User.GetLogin()) {
+			return result[i].User.GetId() < result[j].User.GetId()
+		}
+		return strings.ToLower(result[i].User.GetLogin()) < strings.ToLower(result[j].User.GetLogin())
+	})
+	return result, nil
+}
+
+// UpdateBot changes a bot's public identity as one aggregate mutation.
+func (c *ChattoCore) UpdateBot(ctx context.Context, actorID, botID string, login, displayName *string) (*Bot, error) {
+	if login == nil && displayName == nil {
+		return nil, fmt.Errorf("%w: at least one field is required", ErrInvalidArgument)
+	}
+	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
+		return nil, err
+	}
+	user, err := c.updateUserProfileAs(ctx, actorID, botID, login, displayName)
+	if err != nil {
+		return nil, err
+	}
+	return c.botFromUser(user)
+}
+
+// RotateBotAPIKey replaces the sole verifier. There is deliberately no retry:
+// concurrent rotations conflict so two callers cannot both receive keys while
+// only one remains current.
+func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string) (*Bot, error) {
+	key, err := NewBotAPIKey(botID)
+	if err != nil {
+		return nil, err
+	}
+	authorizationSeq, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		return nil, err
+	}
+	filter := evtstream.UserAggregate(botID).AllEventsFilter()
+	filterSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUsers(ctx, events.SubjectPosition(filter, filterSeq)); err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUserAuthCurrent(ctx, "bot API key rotation"); err != nil {
+		return nil, err
+	}
+	rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, evtstream.RBACSubjectFilter())
+	if err != nil {
+		return nil, err
+	}
+	if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(evtstream.RBACSubjectFilter(), rbacSeq)); err != nil {
+		return nil, err
+	}
+	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
+		return nil, err
+	}
+	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotApiKeyRotated{
+		BotApiKeyRotated: &corev1.BotApiKeyRotatedEvent{UserId: botID, Verifier: c.botAPIKeyVerifier(key)},
+	}})
+	subject := evtstream.UserAggregate(botID).SubjectFor(event)
+	seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+		Subject: subject, Event: event, HasOCC: true, ExpectedSeq: filterSeq, FilterSubject: filter,
+	}}, authorizationSeq)
+	if err != nil {
+		return nil, err
+	}
+	if err := c.userModel.waitForUserAuth(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
+		return nil, err
+	}
+	user, err := c.GetUser(ctx, botID)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := c.botFromUser(user)
+	if err != nil {
+		return nil, err
+	}
+	bot.APIKey = key
+	return bot, nil
+}
+
+// DeleteBot permanently deletes a managed bot. Repeated calls are idempotent.
+func (c *ChattoCore) DeleteBot(ctx context.Context, actorID, botID string) (bool, error) {
+	if _, err := c.requireBotManager(ctx, actorID, botID); err != nil {
+		if errors.Is(err, ErrNotFound) {
+			return false, nil
+		}
+		return false, err
+	}
+	if err := c.DeleteUser(ctx, actorID, botID); err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+func (c *ChattoCore) GetBotPermissionMatrix(ctx context.Context, actorID, botID string) (*BotPermissionMatrix, error) {
+	bot, err := c.requireBotManager(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	allPermissions := matrixApplicablePermissions()
+	applicable := make([]string, 0, len(allPermissions))
+	for _, permission := range allPermissions {
+		if botPermissionDelegable(Permission(permission)) {
+			applicable = append(applicable, permission)
+		}
+	}
+	scopes, err := c.buildMatrixScopes(ctx)
+	if err != nil {
+		return nil, err
+	}
+	cells := make([]BotPermissionCell, 0, len(applicable)*len(scopes))
+	for _, permission := range applicable {
+		for _, scope := range scopes {
+			cell, ok, err := c.buildBotPermissionCell(ctx, bot, Permission(permission), scope)
+			if err != nil {
+				return nil, err
+			}
+			if ok {
+				cells = append(cells, cell)
+			}
+		}
+	}
+	return &BotPermissionMatrix{BotUserID: botID, ApplicablePermissions: applicable, Scopes: scopes, Cells: cells}, nil
+}
+
+func (c *ChattoCore) buildBotPermissionCell(ctx context.Context, bot *corev1.User, perm Permission, scope PermissionMatrixScope) (BotPermissionCell, bool, error) {
+	var configured, delegated, owner DecisionKind
+	var err error
+	switch scope.Kind {
+	case MatrixScopeServer:
+		if !PermissionAppliesAtScope(perm, ScopeServer) {
+			return BotPermissionCell{}, false, nil
+		}
+		configured, err = c.GetUserExplicitServerOverride(ctx, bot.GetId(), perm)
+		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, "", "", perm)
+		if err == nil {
+			owner, err = c.PermResolver().Resolve(ctx, bot.GetBotOwnerUserId(), KindChannel, "", perm)
+		}
+	case MatrixScopeGroup:
+		if !PermissionAppliesAtScope(perm, ScopeGroup) {
+			return BotPermissionCell{}, false, nil
+		}
+		id := scopeRefID(scope.ID, "group:")
+		configured, err = c.GetUserExplicitGroupOverride(ctx, id, bot.GetId(), perm)
+		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, "", id, perm)
+		if err == nil {
+			owner, err = c.PermResolver().ResolveGroup(ctx, bot.GetBotOwnerUserId(), KindChannel, id, perm)
+		}
+	case MatrixScopeRoom:
+		if !PermissionAppliesAtScope(perm, ScopeRoom) {
+			return BotPermissionCell{}, false, nil
+		}
+		id := scopeRefID(scope.ID, "room:")
+		configured, err = c.GetUserExplicitRoomOverride(ctx, id, bot.GetId(), perm)
+		groupID, groupErr := c.lookupRoomGroupID(ctx, id)
+		if err == nil {
+			err = groupErr
+		}
+		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, id, groupID, perm)
+		if err == nil {
+			owner, err = c.PermResolver().Resolve(ctx, bot.GetBotOwnerUserId(), KindChannel, id, perm)
+		}
+	default:
+		return BotPermissionCell{}, false, ErrInvalidArgument
+	}
+	if err != nil {
+		return BotPermissionCell{}, false, err
+	}
+	return BotPermissionCell{
+		Permission: string(perm), ScopeID: scope.ID,
+		Configured: matrixDecisionFromCoreDecision(configured), Delegated: matrixDecisionFromCoreDecision(delegated),
+		OwnerGranted: owner == DecisionAllow, EffectiveGranted: delegated == DecisionAllow && owner == DecisionAllow,
+	}, true, nil
+}
+
+// SetBotPermission stores one direct bot decision. New allows are rejected
+// while the owner lacks that permission; existing grants become dormant when
+// the owner later loses permission and reactivate if the owner regains it.
+func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string, scope PermissionTargetScope, perm Permission, state PermissionState) (*BotPermissionCell, error) {
+	bot, err := c.requireBotManager(ctx, actorID, botID)
+	if err != nil {
+		return nil, err
+	}
+	if !botPermissionDelegable(perm) {
+		return nil, fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
+	}
+	check := func() error {
+		currentBot, err := c.requireBotManager(ctx, actorID, botID)
+		if err != nil {
+			return err
+		}
+		if state == PermissionStateAllow {
+			var decision DecisionKind
+			switch normalizePermissionScope(scope).Kind {
+			case MatrixScopeGroup:
+				decision, err = c.PermResolver().ResolveGroup(ctx, currentBot.GetBotOwnerUserId(), KindChannel, scope.ID, perm)
+			case MatrixScopeRoom:
+				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindChannel, scope.ID, perm)
+			default:
+				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindChannel, "", perm)
+			}
+			if err != nil {
+				return err
+			}
+			if decision != DecisionAllow {
+				return ErrBotOwnerPermissionCeiling
+			}
+		}
+		return nil
+	}
+	if err := check(); err != nil {
+		return nil, err
+	}
+	normalized := normalizePermissionScope(scope)
+	var coreScope PermissionScope
+	switch normalized.Kind {
+	case MatrixScopeGroup:
+		coreScope = ScopeGroup
+	case MatrixScopeRoom:
+		coreScope = ScopeRoom
+	default:
+		coreScope = ScopeServer
+		normalized.ID = ""
+	}
+	if err := c.applyUserPermissionState(ctx, actorID, coreScope, normalized.ID, botID, perm, state, check); err != nil {
+		return nil, err
+	}
+	matrixScope := PermissionMatrixScope{Kind: normalized.Kind, ID: "server"}
+	if normalized.Kind == MatrixScopeGroup {
+		matrixScope.ID = "group:" + normalized.ID
+	}
+	if normalized.Kind == MatrixScopeRoom {
+		matrixScope.ID = "room:" + normalized.ID
+	}
+	cell, ok, err := c.buildBotPermissionCell(ctx, bot, perm, matrixScope)
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, ErrInvalidArgument
+	}
+	return &cell, nil
+}
+
+func botPermissionDelegable(perm Permission) bool {
+	if _, known := GetPermissionMetadata(perm); !known {
+		return false
+	}
+	return perm != PermBotCreate && perm != PermBotManage && perm != PermUserDeleteSelf
+}

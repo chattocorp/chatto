@@ -1,5 +1,6 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { createPresenceCache } from '$lib/state/presenceCache.svelte';
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
@@ -11,12 +12,14 @@
     size = 'md',
     showPresence = false,
     showStatus = false,
-    presenceStatus = PresenceStatus.ONLINE
+    presenceStatus = PresenceStatus.ONLINE,
+    accountKind = UserAccountKind.HUMAN
   }: {
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
     presenceStatus?: PresenceStatus;
+    accountKind?: UserAccountKind;
   } = $props();
 
   const user = $derived({
@@ -24,6 +27,7 @@
     login: 'alice',
     displayName: 'Alice',
     deleted: false,
+    accountKind,
     avatarUrl: null,
     presenceStatus,
     customStatus: {

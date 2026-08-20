@@ -2,12 +2,15 @@ package core
 
 import (
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"log"
 	"math/big"
 
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
+
+const botAPIKeySecretBytes = 32
 
 const (
 	idAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
@@ -117,6 +120,17 @@ func NewNotificationID() string {
 // The "cht_" prefix makes tokens recognizable in logs and password managers.
 func NewAuthToken() string {
 	return "cht_" + newID("AT")
+}
+
+// NewBotAPIKey creates the sole show-once API key for a bot. The stable bot ID
+// in the prefix lets authentication select one aggregate without maintaining a
+// separate mutable lookup index; the random secret remains unpersisted.
+func NewBotAPIKey(botUserID string) (string, error) {
+	secret := make([]byte, botAPIKeySecretBytes)
+	if _, err := rand.Read(secret); err != nil {
+		return "", fmt.Errorf("generate bot API key: %w", err)
+	}
+	return "cht_BK_" + botUserID + "." + base64.RawURLEncoding.EncodeToString(secret), nil
 }
 
 // NewLinkPreviewToken generates a composer link-preview token with "cht_LP" prefix.

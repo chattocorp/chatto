@@ -316,3 +316,9 @@ rather than appearing as missing or deleted users.
 external-identity, consent, and auth-generation state from
 `UserAuthProjection`, giving domain callers one user boundary while snapshot
 serialization cannot reach authentication state.
+
+Bot account kind and owner ID are durable user-aggregate fields projected by
+`UserProjection`; it also maintains the owner-to-bot index used for management
+and cascade deletion. `UserAuthProjection` replays the latest bot API-key
+verifier and creation/rotation timestamps from EVT. The raw API key is never a
+projection value, snapshot field, or retrievable resource.

@@ -356,8 +356,8 @@ func streamMsgToEventLogEntry(msg *jetstream.RawStreamMsg) (*EventLogEntry, erro
 	}, nil
 }
 
-// marshalEventLogPayloadJSON redacts password verifiers from the public audit
-// API without changing the durable event used by projections and replay.
+// marshalEventLogPayloadJSON redacts credential verifiers from the public
+// audit API without changing the durable event used by projections and replay.
 func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
 	redacted, ok := proto.Clone(event).(*corev1.Event)
 	if !ok {
@@ -365,6 +365,12 @@ func marshalEventLogPayloadJSON(event *corev1.Event) ([]byte, error) {
 	}
 	if passwordChanged := redacted.GetUserPasswordHashChanged(); passwordChanged != nil {
 		passwordChanged.PasswordHash = nil
+	}
+	if keyCreated := redacted.GetBotApiKeyCreated(); keyCreated != nil {
+		keyCreated.Verifier = nil
+	}
+	if keyRotated := redacted.GetBotApiKeyRotated(); keyRotated != nil {
+		keyRotated.Verifier = nil
 	}
 
 	return protojson.MarshalOptions{

@@ -79,6 +79,9 @@ func (c *ChattoCore) externalIdentityLinkStartKey(token string) string {
 }
 
 func (c *ChattoCore) CreatePendingExternalIdentityLinkStart(ctx context.Context, providerID, redirectPath, userID string) (string, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
+	}
 	start := PendingExternalIdentityLinkStart{
 		ProviderID:   strings.TrimSpace(providerID),
 		RedirectPath: strings.TrimSpace(redirectPath),
@@ -136,6 +139,9 @@ func (c *ChattoCore) CreatePendingExternalIdentityLinkFlow(ctx context.Context, 
 	userID = strings.TrimSpace(userID)
 	if userID == "" {
 		return "", ErrInvalidArgument
+	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
 	}
 	flow.Kind = ExternalIdentityFlowKindLink
 	flow.BoundUserID = userID
@@ -276,6 +282,9 @@ func (c *ChattoCore) CreateUserForExternalIdentity(ctx context.Context, login, d
 }
 
 func (c *ChattoCore) LinkPendingExternalIdentity(ctx context.Context, userID string, flow *PendingExternalIdentityFlow) (ExternalIdentity, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return ExternalIdentity{}, err
+	}
 	if flow == nil || flow.Kind != ExternalIdentityFlowKindLink {
 		return ExternalIdentity{}, ErrExternalIdentityFlowWrongKind
 	}
@@ -301,6 +310,9 @@ func (c *ChattoCore) ConfirmPendingExternalIdentityLink(ctx context.Context, flo
 	if flow.BoundUserID == "" {
 		return ExternalIdentity{}, ErrExternalIdentityFlowUserBound
 	}
+	if err := c.requireHumanUser(ctx, flow.BoundUserID); err != nil {
+		return ExternalIdentity{}, err
+	}
 	if err := c.LinkExternalIdentity(ctx, flow.ProviderID, flow.ProviderType, flow.Issuer, flow.Subject, flow.BoundUserID); err != nil {
 		return ExternalIdentity{}, err
 	}
@@ -324,6 +336,9 @@ func (c *ChattoCore) ExternalIdentitiesForUser(ctx context.Context, userID strin
 // It refuses to remove the last available sign-in method for passwordless
 // accounts so users created through SSO cannot lock themselves out.
 func (c *ChattoCore) DisconnectExternalIdentity(ctx context.Context, userID, subjectHash string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	userID = strings.TrimSpace(userID)
 	subjectHash = strings.TrimSpace(subjectHash)
 	if userID == "" || subjectHash == "" {

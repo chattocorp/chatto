@@ -4,6 +4,7 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
+import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
@@ -12,11 +13,17 @@ const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
   getUserPermissionMatrix: vi.fn(),
   setRolePermission: vi.fn(),
-  setUserPermission: vi.fn()
+  setUserPermission: vi.fn(),
+  getPermissionMatrix: vi.fn(),
+  setPermission: vi.fn()
 }));
 
 vi.mock('$lib/api-client/permissions', () => ({
   createPermissionAPI: () => permissionMocks
+}));
+
+vi.mock('$lib/api-client/bots', () => ({
+  createBotAPI: () => permissionMocks
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -71,6 +78,22 @@ beforeEach(() => {
   );
   permissionMocks.setRolePermission.mockResolvedValue({});
   permissionMocks.setUserPermission.mockResolvedValue({});
+  permissionMocks.getPermissionMatrix.mockResolvedValue({
+    botUserId: 'bot-a',
+    applicablePermissions: ['message.post'],
+    scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+    cells: [
+      {
+        permission: 'message.post',
+        scopeId: 'server',
+        configured: 'ALLOW',
+        delegated: 'ALLOW',
+        ownerGranted: false,
+        effectiveGranted: false
+      }
+    ]
+  });
+  permissionMocks.setPermission.mockResolvedValue({});
 });
 
 afterEach(() => queryClient.clear());
@@ -225,6 +248,24 @@ describe('subject permission loaders', () => {
     await vi.waitFor(() => {
       expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
       expect(cellButton(rendered.container, 'room.manage').disabled).toBe(false);
+    });
+  });
+
+  it('shows the owner ceiling and writes bot decisions through BotService', async () => {
+    const rendered = render(BotPermissionsMatrix, { props: { botUserId: 'bot-a' } });
+    await settle();
+
+    const button = cellButton(rendered.container, 'message.post');
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(rendered.container.textContent).toContain('owner');
+
+    button.click();
+    await settle();
+    expect(permissionMocks.setPermission).toHaveBeenCalledWith({
+      botUserId: 'bot-a',
+      permission: 'message.post',
+      scope: { tier: 'server' },
+      decision: 'DENY'
     });
   });
 });

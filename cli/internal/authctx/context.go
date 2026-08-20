@@ -21,13 +21,16 @@ type RuntimeCredentialKind string
 const (
 	RuntimeCredentialKindBearerToken   RuntimeCredentialKind = "bearer_token"
 	RuntimeCredentialKindCookieSession RuntimeCredentialKind = "cookie_session"
+	RuntimeCredentialKindBotAPIKey     RuntimeCredentialKind = "bot_api_key"
 )
 
 // RuntimeCredential identifies the concrete runtime credential that
-// authenticated a request. Handle is the opaque credential value as presented
-// through the transport identified by Kind. OAuthClientID is present only for
-// OAuth access tokens and lets long-lived transports enforce client policy
-// after their initial authentication.
+// authenticated a request. Handle identifies the credential for follow-up
+// lifecycle checks. It is the presented opaque value for runtime tokens and
+// sessions, but a stable, non-secret identifier for credentials such as bot
+// API keys. OAuthClientID is present only for OAuth access tokens and lets
+// long-lived transports enforce client policy after their initial
+// authentication.
 type RuntimeCredential struct {
 	Kind          RuntimeCredentialKind
 	UserID        string

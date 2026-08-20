@@ -9,6 +9,41 @@ import { PresenceStatus } from "./presence_pb.js";
 import { CustomUserStatus } from "./user_status_pb.js";
 
 /**
+ * Public account kind for a user identity. Older servers may return
+ * UNSPECIFIED, which clients should render as a human account.
+ *
+ * @generated from enum chatto.api.v1.UserAccountKind
+ */
+export enum UserAccountKind {
+  /**
+   * Account kind was not reported; treat as HUMAN for compatibility.
+   *
+   * @generated from enum value: USER_ACCOUNT_KIND_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Account represents a person.
+   *
+   * @generated from enum value: USER_ACCOUNT_KIND_HUMAN = 1;
+   */
+  HUMAN = 1,
+
+  /**
+   * Account represents an automated bot.
+   *
+   * @generated from enum value: USER_ACCOUNT_KIND_BOT = 2;
+   */
+  BOT = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(UserAccountKind)
+proto3.util.setEnumType(UserAccountKind, "chatto.api.v1.UserAccountKind", [
+  { no: 0, name: "USER_ACCOUNT_KIND_UNSPECIFIED" },
+  { no: 1, name: "USER_ACCOUNT_KIND_HUMAN" },
+  { no: 2, name: "USER_ACCOUNT_KIND_BOT" },
+]);
+
+/**
  * Public user fields.
  *
  * @generated from message chatto.api.v1.User
@@ -63,6 +98,13 @@ export class User extends Message<User> {
    */
   customStatus?: CustomUserStatus;
 
+  /**
+   * Whether this identity represents a person or a bot.
+   *
+   * @generated from field: chatto.api.v1.UserAccountKind account_kind = 8;
+   */
+  accountKind = UserAccountKind.UNSPECIFIED;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -78,6 +120,7 @@ export class User extends Message<User> {
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
+    { no: 8, name: "account_kind", kind: "enum", T: proto3.getEnumType(UserAccountKind) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

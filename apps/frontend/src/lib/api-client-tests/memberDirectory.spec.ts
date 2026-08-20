@@ -5,6 +5,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -62,6 +63,7 @@ describe('createMemberDirectoryAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
+            accountKind: UserAccountKind.BOT,
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.AWAY,
             customStatus: {
@@ -90,6 +92,7 @@ describe('createMemberDirectoryAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           deleted: false,
+          accountKind: UserAccountKind.BOT,
           avatarUrl: 'https://cdn/avatar.webp',
           presenceStatus: PresenceStatus.AWAY,
           customStatus: {
@@ -186,6 +189,7 @@ describe('createMemberDirectoryAPI', () => {
           login: 'bob',
           displayName: 'Bob',
           deleted: false,
+          accountKind: UserAccountKind.UNSPECIFIED,
           avatarUrl: null,
           presenceStatus: PresenceStatus.DO_NOT_DISTURB,
           customStatus: null,

@@ -166,6 +166,8 @@ func isUserAuthEvent(event *corev1.Event) bool {
 	}
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated,
+		*corev1.Event_BotApiKeyCreated,
+		*corev1.Event_BotApiKeyRotated,
 		*corev1.Event_UserPasswordHashChanged,
 		*corev1.Event_UserOidcSubjectLinked,
 		*corev1.Event_UserExternalIdentityLinked,

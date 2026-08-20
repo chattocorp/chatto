@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { describe, expect, it } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import '../../app.css';
@@ -78,5 +79,14 @@ describe('UserAvatar', () => {
     const { container } = render(UserAvatarTestHarness, { size: 'xs', showPresence: true });
 
     expect(q(container, '[aria-label="Online"]')).toBeFalsy();
+  });
+
+  it('marks bot accounts with a robot badge', () => {
+    const { container } = render(UserAvatarTestHarness, {
+      size: 'md',
+      accountKind: UserAccountKind.BOT
+    });
+
+    expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
   });
 });

@@ -1,4 +1,5 @@
 import type { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 export type CustomUserStatusView = {
   emoji: string;
@@ -14,6 +15,7 @@ export type UserAvatarUserView = {
   login: string;
   displayName: string;
   deleted: boolean;
+  accountKind?: UserAccountKind;
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: CustomUserStatusView | null;

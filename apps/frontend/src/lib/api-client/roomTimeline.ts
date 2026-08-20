@@ -188,6 +188,7 @@ async function batchTimelineUsers(
         login: summary.login,
         displayName: summary.displayName,
         deleted: summary.deleted,
+        accountKind: summary.accountKind,
         avatarUrl: summary.avatarUrl ?? undefined
       } as User;
     }
@@ -231,6 +232,7 @@ function primeTimelineUserIncludes(config: RoomTimelineAPIConfig, users: Record<
       login: user.login,
       displayName: user.displayName,
       deleted: user.deleted,
+      accountKind: user.accountKind,
       avatarUrl: user.avatarUrl || null
     })),
     config.onUserSummaries
@@ -407,6 +409,7 @@ function userView(userId: string, users: Record<string, User>) {
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
+    accountKind: user.accountKind,
     avatarUrl: user.avatarUrl || null,
     presenceStatus: PresenceStatus.OFFLINE
   };

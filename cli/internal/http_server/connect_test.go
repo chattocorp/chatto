@@ -909,6 +909,41 @@ func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
 	}
 }
 
+func TestBearerPresentedCredentialAuthenticatesBotAPIKeys(t *testing.T) {
+	s, _ := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "bot-http-owner", "Bot HTTP Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "http_bot", "HTTP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	credential, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey)
+	if err != nil || !ok {
+		t.Fatalf("bearerPresentedCredential = %+v, %v, %v", credential, ok, err)
+	}
+	if credential.user.GetId() != bot.User.GetId() || credential.auth.Kind != authctx.RuntimeCredentialKindBotAPIKey {
+		t.Fatalf("bot credential = %+v", credential)
+	}
+	if credential.auth.Handle != bot.User.GetId() {
+		t.Fatalf("expected non-secret bot credential handle, got %q", credential.auth.Handle)
+	}
+
+	rotated, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey); err != nil || ok {
+		t.Fatalf("old bot key authenticated after rotation: ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, rotated.APIKey); err != nil || !ok {
+		t.Fatalf("rotated bot key did not authenticate: ok=%v err=%v", ok, err)
+	}
+}
+
 func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 	t.Run("uses configured public URL before request headers", func(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{

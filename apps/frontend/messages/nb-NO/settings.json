@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Skjerm",
       "notifications": "Varsler",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Botter"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,45 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Sletter..."
+      }
+    },
+    "bots": {
+      "title": "Botter",
+      "subtitle": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+      "singular": "bot",
+      "unsupported": "Denne serverversjonen støtter ikke bot-kontoer.",
+      "list_title": "Botkontoer",
+      "loading": "Laster inn roboter...",
+      "empty_title": "Ingen roboter ennå",
+      "empty_body": "Opprett en bot når en integrasjon trenger sin egen identitet og tillatelser.",
+      "create": "Opprett bot",
+      "create_title": "Opprett bot-konto",
+      "create_failed": "Kunne ikke opprette bot",
+      "created": "Bote opprettet",
+      "edit": "Rediger",
+      "edit_title": "Rediger botkonto",
+      "updated": "Bot oppdatert",
+      "update_failed": "Kunne ikke oppdatere bot",
+      "username": "Brukernavn",
+      "username_hint": "Botebrukernavn må ende på _bot.",
+      "display_name": "Visningsnavn",
+      "api_key_title": "Lagre denne API-nøkkelen",
+      "api_key_warning": "Denne nøkkelen vises bare én gang. Oppbevar det et sikkert sted før du lukker dette vinduet.",
+      "key_created": "API-nøkkel opprettet",
+      "key_rotated_at": "Sist rotert",
+      "key_copied": "API-nøkkel kopiert",
+      "rotate_key": "Roteringsnøkkel",
+      "rotate_title": "Roter API-nøkkel",
+      "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
+      "key_rotated": "API-nøkkel rotert",
+      "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "delete_title": "Slett bot",
+      "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
+      "deleted": "Bote slettet",
+      "delete_failed": "Kunne ikke slette bot",
+      "permissions": {
+        "owner_ceiling": "Botter får ingen tillatelser automatisk. En tillatelse fungerer bare mens botens eier har samme tillatelse i det omfanget; en lås markerer en konfigurert tillatelse som for øyeblikket er blokkert av dette taket.",
+        "save_failed": "Kunne ikke oppdatere bottillatelsen"
       }
     }
   }

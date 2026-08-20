@@ -85,6 +85,11 @@ survives restart but is not content/domain history. See
 | `link_preview_token.{hmac}` | Short-lived composer link-preview token JSON referencing a cached preview URL. Uses per-key 30-minute TTL; raw tokens are only returned to the client. |
 | `dek.{id}` | Wrapped purpose-scoped app DEK record (protobuf `UserDataEncryptionKey`). The complete object key is the content-key ref; it has no TTL and is shredded on account deletion. |
 
+Bot API keys do not create `RUNTIME_STATE` records. Their current HMAC
+verifier is a durable user-aggregate fact in `EVT`, projected by
+`UserAuthProjection`; this makes key creation and rotation part of the bot's
+replayable account history while keeping the raw key show-once.
+
 `ReadStateModel` mirrors both `read.*` key families through one filtered KV
 watcher per Chatto process. The initial latest-value watch delivery is a startup
 readiness barrier; subsequent local and remote revisions update the same

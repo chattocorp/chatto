@@ -29,6 +29,7 @@ const (
 	CategoryRole    PermissionCategory = "role"
 	CategoryAdmin   PermissionCategory = "admin"
 	CategoryUser    PermissionCategory = "user"
+	CategoryBot     PermissionCategory = "bot"
 )
 
 // Permission represents a permission in the permission model.
@@ -134,6 +135,14 @@ const (
 	// PermUserManagePermissions allows editing direct per-user permission
 	// overrides.
 	PermUserManagePermissions Permission = "user.manage-permissions"
+
+	// ===== Bot Account Permissions =====
+
+	// PermBotCreate allows a human user to create bot accounts they own.
+	PermBotCreate Permission = "bot.create"
+
+	// PermBotManage allows a human user to manage every bot on the server.
+	PermBotManage Permission = "bot.manage"
 )
 
 // PermissionMetadata provides display information and scope constraints for a permission.
@@ -179,6 +188,10 @@ var allPermissions = []PermissionMetadata{
 	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManageAccounts, "Manage User Accounts", "Create users, edit account identity, reset passwords, attach verified emails, and clear login cooldowns", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
+
+	// Bot accounts
+	{PermBotCreate, "Create Bots", "Create bot accounts owned by your account", CategoryBot, []PermissionScope{ScopeServer}},
+	{PermBotManage, "Manage Bots", "View and manage every bot account", CategoryBot, []PermissionScope{ScopeServer}},
 }
 
 // permissionIndex provides fast lookup of permission metadata by permission value.
@@ -265,6 +278,7 @@ func DefaultEveryonePermissions() []Permission {
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
+		PermBotCreate,
 	}
 }
 
@@ -300,6 +314,7 @@ func DefaultAdminPermissions() []Permission {
 		PermUserDeleteSelf,
 		PermUserManageAccounts,
 		PermUserManagePermissions,
+		PermBotManage,
 	}
 }
 

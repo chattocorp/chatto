@@ -25,6 +25,8 @@ to render an inert "—" cell with an explanation tooltip.
     inherited = 'neutral',
     applicable = true,
     disabled = false,
+    allowBlocked = false,
+    ceilingBlocked = false,
     updating = false,
     ariaLabel,
     title,
@@ -34,6 +36,10 @@ to render an inert "—" cell with an explanation tooltip.
     inherited?: State;
     applicable?: boolean;
     disabled?: boolean;
+    /** Skip the allow state when an external ceiling makes it invalid. */
+    allowBlocked?: boolean;
+    /** Marks a configured bot allow that is dormant under its owner's permission ceiling. */
+    ceilingBlocked?: boolean;
     updating?: boolean;
     ariaLabel: string;
     title?: string;
@@ -41,7 +47,7 @@ to render an inert "—" cell with an explanation tooltip.
   } = $props();
 
   function nextState(): State {
-    if (override === 'neutral') return 'allow';
+    if (override === 'neutral') return allowBlocked ? 'deny' : 'allow';
     if (override === 'allow') return 'deny';
     return 'neutral';
   }
@@ -92,8 +98,9 @@ to render an inert "—" cell with an explanation tooltip.
   <button
     type="button"
     class={[
-      'inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
-      updating ? 'bg-action/15 ring-2 ring-inset ring-action/40' : '',
+      'relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
+      updating ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
+      ceilingBlocked ? 'bg-warning/15 ring-2 ring-warning/50 ring-inset' : '',
       disabled || updating ? 'cursor-not-allowed' : '',
       disabled ? 'opacity-60' : ''
     ]}
@@ -111,10 +118,16 @@ to render an inert "—" cell with an explanation tooltip.
       ]}
     >
       {#if updating}
-        <span class="iconify h-4 w-4 animate-spin icon-[uil--spinner]" aria-hidden="true"></span>
+        <span class="iconify icon-[uil--spinner] h-4 w-4 animate-spin" aria-hidden="true"></span>
       {:else}
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}
     </span>
+    {#if ceilingBlocked && !updating}
+      <span
+        class="iconify absolute top-0.5 right-0.5 icon-[uil--lock] h-3 w-3 text-warning"
+        aria-hidden="true"
+      ></span>
+    {/if}
   </button>
 {/if}

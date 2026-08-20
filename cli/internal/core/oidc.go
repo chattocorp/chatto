@@ -56,6 +56,9 @@ func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject s
 // providers. providerID/providerType are event-time metadata and are not used
 // for lookup, so config changes do not break existing links. Idempotent for the same user.
 func (c *ChattoCore) LinkExternalIdentity(ctx context.Context, providerID, providerType, issuer, subject, userID string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_UserExternalIdentityLinked{
 		UserExternalIdentityLinked: &corev1.UserExternalIdentityLinkedEvent{
 			UserId:       userID,

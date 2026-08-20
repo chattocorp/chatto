@@ -3,7 +3,7 @@ import { AdminUserService } from '@chatto/api-types/admin/v1/members_connect';
 import type { AdminMember as APIAdminMember } from '@chatto/api-types/admin/v1/members_pb';
 import type { AdminRole as APIAdminRole } from '@chatto/api-types/admin/v1/roles_pb';
 import type { Role as APIRole } from '@chatto/api-types/api/v1/roles_pb';
-import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
+import { UserAccountKind, type User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 
 export type AdminUserManagementAPIConfig = {
   baseUrl: string;
@@ -16,6 +16,7 @@ export type AdminManagedUser = {
   login: string;
   displayName: string;
   avatarUrl?: string | null;
+  accountKind?: UserAccountKind;
 };
 
 export type AdminMember = AdminManagedUser & {
@@ -204,7 +205,8 @@ function adminManagedUser(user: APIUser | undefined): AdminManagedUser {
     id: user.id,
     login: user.login,
     displayName: user.displayName,
-    avatarUrl: user.avatarUrl ?? null
+    avatarUrl: user.avatarUrl ?? null,
+    ...(user.accountKind === UserAccountKind.BOT ? { accountKind: user.accountKind } : {})
   };
 }
 
@@ -218,6 +220,7 @@ function adminMember(member: APIAdminMember): AdminMember {
     login: summary.login,
     displayName: summary.displayName,
     avatarUrl: summary.avatarUrl ?? null,
+    ...(summary.accountKind === UserAccountKind.BOT ? { accountKind: summary.accountKind } : {}),
     roles: [...member.roles],
     createdAt: member.createdAt?.toDate().toISOString() ?? null,
     deleted: summary.deleted,

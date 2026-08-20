@@ -79,6 +79,7 @@ func TestDefaultServerEveryonePermissions(t *testing.T) {
 		PermMessagePostInThread,
 		PermMessageReact,
 		PermMessageEcho,
+		PermBotCreate,
 	}
 	permSet := make(map[Permission]bool)
 	for _, p := range perms {

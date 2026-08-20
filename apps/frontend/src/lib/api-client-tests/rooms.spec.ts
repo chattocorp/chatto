@@ -356,7 +356,8 @@ describe('createRoomCommandAPI', () => {
             description: 'General chat',
             archived: false,
             groupId: 'group-1',
-            universal: false
+            universal: false,
+            slowModeSeconds: undefined
           },
           userId: 'user-1',
           user: {
@@ -420,6 +421,7 @@ describe('createRoomCommandAPI', () => {
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: PresenceStatus.AWAY,
             customStatus: null,
+            accountKind: 0,
             roles: [],
             createdAt: '2026-01-01T09:00:00.000Z'
           },
@@ -432,6 +434,7 @@ describe('createRoomCommandAPI', () => {
             avatarUrl: null,
             presenceStatus: PresenceStatus.OFFLINE,
             customStatus: null,
+            accountKind: 0,
             roles: [],
             createdAt: null
           },

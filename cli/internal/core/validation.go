@@ -137,6 +137,29 @@ func ValidateLogin(login string) error {
 	return nil
 }
 
+// ValidateHumanLogin applies the shared username syntax and reserves `_bot`
+// for explicitly typed bot accounts.
+func ValidateHumanLogin(login string) error {
+	if err := ValidateLogin(login); err != nil {
+		return err
+	}
+	if strings.HasSuffix(strings.ToLower(login), "_bot") {
+		return ErrHumanLoginReservedForBot
+	}
+	return nil
+}
+
+// ValidateBotLogin applies the shared username syntax and requires `_bot`.
+func ValidateBotLogin(login string) error {
+	if err := ValidateLogin(login); err != nil {
+		return err
+	}
+	if !strings.HasSuffix(strings.ToLower(login), "_bot") {
+		return ErrBotLoginSuffixRequired
+	}
+	return nil
+}
+
 // ValidatePassword validates that a password meets length requirements.
 // Length is measured in bytes (len), not Unicode characters, so the upper bound
 // also bounds the work done by bcrypt and storage cost.

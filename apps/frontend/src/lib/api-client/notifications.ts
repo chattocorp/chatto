@@ -13,6 +13,7 @@ import {
   NotificationDeliveryMode
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
+import type { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 export type NotificationAPIConfig = {
   baseUrl: string;
@@ -25,6 +26,7 @@ export type NotificationActor = {
   login: string;
   displayName: string;
   deleted: boolean;
+  accountKind?: UserAccountKind;
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: {
@@ -475,6 +477,7 @@ function notificationActor(actor: APIUser | undefined): NotificationActor | null
     login: actor.login,
     displayName: actor.displayName,
     deleted: actor.deleted,
+    accountKind: actor.accountKind,
     avatarUrl: actor.avatarUrl ?? null,
     presenceStatus: presenceStatusOrOffline(actor.presenceStatus),
     customStatus: actor.customStatus

@@ -35,6 +35,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, a
 		Deleted:        user.GetDeleted(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
+		AccountKind:    apiUserAccountKind(user.GetAccountKind()),
 	}
 	avatarURL, err := userAvatarURL(ctx, api, user.GetId(), avatar)
 	if err != nil {
@@ -44,6 +45,13 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, a
 		summary.AvatarUrl = stringPtr(api.absolutizeAssetURL(ctx, avatarURL))
 	}
 	return summary, nil
+}
+
+func apiUserAccountKind(kind corev1.UserAccountKind) apiv1.UserAccountKind {
+	if kind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+		return apiv1.UserAccountKind_USER_ACCOUNT_KIND_BOT
+	}
+	return apiv1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN
 }
 
 func userAvatarURL(ctx context.Context, api *API, userID string, avatar *apiv1.ImageTransformOptions) (string, error) {

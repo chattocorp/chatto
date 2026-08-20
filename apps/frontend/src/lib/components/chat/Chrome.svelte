@@ -60,6 +60,11 @@
       icon: 'iconify icon-[uil--bell]'
     },
     {
+      href: resolve('/chat/[serverId]/settings/bots', { serverId: serverSegment }),
+      label: m('settings.nav.bots'),
+      icon: 'iconify icon-[uil--robot]'
+    },
+    {
       href: resolve('/chat/[serverId]/settings/account', { serverId: serverSegment }),
       label: m('settings.nav.account'),
       icon: 'iconify icon-[uil--setting]'

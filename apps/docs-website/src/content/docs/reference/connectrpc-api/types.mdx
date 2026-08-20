@@ -125,6 +125,7 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+| `account_kind` | [`UserAccountKind`](#chatto-api-v1-UserAccountKind) | Whether this identity represents a person or a bot. |
 
 <a id="chatto-api-v1-CapabilityGrant"></a>
 
@@ -525,6 +526,73 @@ for simple list browsing.
 | --- | --- | --- |
 | `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A managed bot account. The API key itself is returned only by creation and
+rotation responses.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
+| `owner_user_id` | `string` | Stable human owner user ID. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
+| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
+
+<a id="chatto-api-v1-BotPermissionCell"></a>
+
+### BotPermissionCell
+
+One bot permission at one scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `permission` | `string` | Stable permission key. |
+| `scope_id` | `string` | Matrix scope ID. |
+| `configured` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Explicit decision stored at this exact scope. |
+| `delegated` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot decision after its own scope inheritance, before the owner ceiling. |
+| `owner_granted` | `bool` | Whether the owner currently has this permission at the same scope. |
+| `effective_granted` | `bool` | Whether the bot can currently exercise the permission. |
+
+<a id="chatto-api-v1-BotPermissionMatrix"></a>
+
+### BotPermissionMatrix
+
+Permission matrix for one bot across server, room-group, and room scopes.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Bot user ID. |
+| `applicable_permissions` | `repeated string` | Permission rows. |
+| `scopes` | repeated [`BotPermissionMatrixScope`](#chatto-api-v1-BotPermissionMatrixScope) | Scope columns. |
+| `cells` | repeated [`BotPermissionCell`](#chatto-api-v1-BotPermissionCell) | Sparse permission cells. |
+
+<a id="chatto-api-v1-BotPermissionMatrixScope"></a>
+
+### BotPermissionMatrixScope
+
+One scope column in a bot permission matrix.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `id` | `string` | Stable matrix scope ID. |
+| `label` | `string` | Human-readable scope label. |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `parent_group_id` | `string` | Parent room-group ID for room scopes. |
+
+<a id="chatto-api-v1-BotPermissionScope"></a>
+
+### BotPermissionScope
+
+A server, room-group, or room permission scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
+| `id` | `string` | Group or room ID. Empty for server scope. |
 
 <a id="chatto-api-v1-DirectoryMember"></a>
 
@@ -1602,6 +1670,19 @@ the server's live presence record expire.
 | `PRESENCE_STATUS_DO_NOT_DISTURB` | `3` | The user does not want notifications while this live status is active. |
 | `PRESENCE_STATUS_OFFLINE` | `4` | The user has no active live presence record. |
 
+<a id="chatto-api-v1-UserAccountKind"></a>
+
+### UserAccountKind
+
+Public account kind for a user identity. Older servers may return
+UNSPECIFIED, which clients should render as a human account.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `USER_ACCOUNT_KIND_UNSPECIFIED` | `0` | Account kind was not reported; treat as HUMAN for compatibility. |
+| `USER_ACCOUNT_KIND_HUMAN` | `1` | Account represents a person. |
+| `USER_ACCOUNT_KIND_BOT` | `2` | Account represents an automated bot. |
+
 <a id="chatto-api-v1-TimeFormat"></a>
 
 ### TimeFormat
@@ -1640,6 +1721,32 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
+
+<a id="chatto-api-v1-BotPermissionDecision"></a>
+
+### BotPermissionDecision
+
+Explicit permission decision stored for a bot at one scope.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_DECISION_UNSPECIFIED` | `0` | Unspecified decision; rejected for writes. |
+| `BOT_PERMISSION_DECISION_ALLOW` | `1` | Explicit allow. |
+| `BOT_PERMISSION_DECISION_DENY` | `2` | Explicit deny. |
+| `BOT_PERMISSION_DECISION_NONE` | `3` | No explicit decision; clears the stored state on writes. |
+
+<a id="chatto-api-v1-BotPermissionScopeKind"></a>
+
+### BotPermissionScopeKind
+
+Scope tier for bot permission decisions.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | Unspecified scope; treated as server scope for compatibility. |
+| `BOT_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
+| `BOT_PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
+| `BOT_PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
 
 <a id="chatto-api-v1-MessageSearchOrder"></a>
 

@@ -257,6 +257,12 @@ func (c *ChattoCore) createAuthTokenWithSourceGeneration(ctx context.Context, us
 	if userID == "" {
 		return "", ErrAuthTokenNotFound
 	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) {
+			return "", ErrAuthTokenNotFound
+		}
+		return "", err
+	}
 	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
 			return "", ErrAuthTokenNotFound

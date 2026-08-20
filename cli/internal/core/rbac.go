@@ -223,6 +223,9 @@ func (c *ChattoCore) AssignServerRole(ctx context.Context, actorID, userID, role
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, false, event, func() error {
+		if kind, _, ok := c.userModel.accountKindAndOwner(userID); ok && kind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+			return ErrHumanAccountRequired
+		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}
@@ -258,6 +261,9 @@ func (c *ChattoCore) AssignServerRoleToExistingUser(ctx context.Context, actorID
 	}})
 
 	if _, err := c.appendRoleAssignmentEvent(ctx, userID, true, event, func() error {
+		if kind, _, ok := c.userModel.accountKindAndOwner(userID); ok && kind == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
+			return ErrHumanAccountRequired
+		}
 		if _, ok := c.rbacModel.role(roleName); !ok {
 			return ErrRoleNotFound
 		}

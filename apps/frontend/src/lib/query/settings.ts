@@ -10,5 +10,11 @@ export const settingsQueryKeys = {
   root: settingsRoot,
   externalIdentities(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'external-identities'] as const;
+  },
+  bots(serverId: string, connection: SettingsQueryConnection) {
+    return [...settingsRoot(serverId, connection), 'bots'] as const;
+  },
+  botPermissions(serverId: string, connection: SettingsQueryConnection, botUserId: string) {
+    return [...settingsRoot(serverId, connection), 'bots', botUserId, 'permissions'] as const;
   }
 };

@@ -6,7 +6,8 @@
       "profile": "Profile",
       "display": "Display",
       "notifications": "Notifications",
-      "account": "Account"
+      "account": "Account",
+      "bots": "Bots"
     },
     "profile": {
       "title": "Profile",
@@ -344,6 +345,45 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Cancel",
         "deleting": "Deleting..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Create API accounts and control exactly what they can do",
+      "singular": "bot",
+      "unsupported": "This server version does not support bot accounts.",
+      "list_title": "Bot Accounts",
+      "loading": "Loading bots...",
+      "empty_title": "No bots yet",
+      "empty_body": "Create a bot when an integration needs its own identity and permissions.",
+      "create": "Create Bot",
+      "create_title": "Create Bot Account",
+      "create_failed": "Failed to create bot",
+      "created": "Bot created",
+      "edit": "Edit",
+      "edit_title": "Edit Bot Account",
+      "updated": "Bot updated",
+      "update_failed": "Failed to update bot",
+      "username": "Username",
+      "username_hint": "Bot usernames must end in _bot.",
+      "display_name": "Display Name",
+      "api_key_title": "Save This API Key",
+      "api_key_warning": "This key is shown only once. Store it somewhere secure before closing this window.",
+      "key_created": "API key created",
+      "key_rotated_at": "Last rotated",
+      "key_copied": "API key copied",
+      "rotate_key": "Rotate Key",
+      "rotate_title": "Rotate API Key",
+      "rotate_warning": "The current key will stop working immediately. Any integration using it must be updated.",
+      "key_rotated": "API key rotated",
+      "rotate_failed": "Failed to rotate API key",
+      "delete_title": "Delete Bot",
+      "delete_warning": "Delete {name}? Its API key will stop working immediately and the account cannot be recovered.",
+      "deleted": "Bot deleted",
+      "delete_failed": "Failed to delete bot",
+      "permissions": {
+        "owner_ceiling": "Bots receive no permissions automatically. An allow works only while the bot's owner has the same permission at that scope; a lock marks a configured allow currently blocked by this ceiling.",
+        "save_failed": "Failed to update bot permission"
       }
     }
   }

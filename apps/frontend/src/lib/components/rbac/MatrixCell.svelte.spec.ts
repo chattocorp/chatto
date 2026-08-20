@@ -11,6 +11,8 @@ function renderCell(
     inherited: State;
     applicable: boolean;
     disabled: boolean;
+    allowBlocked: boolean;
+    ceilingBlocked: boolean;
     updating: boolean;
     ariaLabel: string;
     title: string;
@@ -46,6 +48,14 @@ describe('MatrixCell', () => {
     button.click();
     flushSync();
     expect(onCycle).toHaveBeenCalledWith('allow');
+  });
+
+  it('skips allow when an external permission ceiling blocks it', async () => {
+    const onCycle = vi.fn();
+    const { container } = renderCell({ override: 'neutral', allowBlocked: true, onCycle });
+    container.querySelector('button')!.click();
+    flushSync();
+    expect(onCycle).toHaveBeenCalledWith('deny');
   });
 
   it('cycles allow → deny on click', async () => {
@@ -98,7 +108,9 @@ describe('MatrixCell', () => {
     expect(button.disabled).toBe(true);
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(button.className).toContain('ring-action/40');
-    expect(button.querySelector('.h-4.w-4.animate-spin[class~="icon-[uil--spinner]"]')).not.toBeNull();
+    expect(
+      button.querySelector('.h-4.w-4.animate-spin[class~="icon-[uil--spinner]"]')
+    ).not.toBeNull();
     expect(button.querySelector('[class~="icon-[uil--minus]"]')).toBeNull();
 
     button.click();
@@ -124,5 +136,13 @@ describe('MatrixCell', () => {
     expect(container.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
     // But the cell is not "pressed" — it's a faded inherited cell.
     expect(container.querySelector('button')!.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('marks configured bot allows blocked by the owner ceiling', () => {
+    const { container } = renderCell({ override: 'allow', ceilingBlocked: true });
+    const button = container.querySelector('button')!;
+
+    expect(button.className).toContain('ring-warning/50');
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
   });
 });
