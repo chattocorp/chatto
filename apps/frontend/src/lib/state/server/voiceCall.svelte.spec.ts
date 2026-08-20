@@ -32,6 +32,7 @@ import {
   VoiceCallState
 } from './voiceCall.svelte';
 import { Room } from 'livekit-client';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 
 const calls: string[] = [];
 let lastRoomOptions: Record<string, unknown> | null = null;
@@ -1135,6 +1136,26 @@ describe('VoiceCallState', () => {
 
     expect(state.isParticipantLocallyMuted('remote-user')).toBe(false);
     expect(state.locallyMutedParticipantIds).toEqual({});
+  });
+
+  it('preserves bot identity from LiveKit participant metadata', async () => {
+    mockRemoteParticipants.set('automation-bot', {
+      identity: 'automation-bot',
+      name: 'Automation Bot',
+      metadata: `{"login":"automation_bot","accountKind":${UserAccountKind.BOT}}`,
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: vi.fn(),
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [])
+    });
+    const state = new VoiceCallState(createVoiceCallClient());
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(state.participants.find((participant) => participant.identity === 'automation-bot'))
+      .toMatchObject({ login: 'automation_bot', accountKind: UserAccountKind.BOT });
   });
 
   it('merges a companion screen-share publisher into its owning participant', async () => {

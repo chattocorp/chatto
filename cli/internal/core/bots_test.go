@@ -260,6 +260,43 @@ func TestBotPermissionMatrixFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing
 	}
 }
 
+func TestSetBotPermissionRejectsNonexistentScopesWithoutPersisting(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "scope-owner", "Scope Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "scope_bot", "Scope Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	for _, test := range []struct {
+		name  string
+		scope PermissionTargetScope
+	}{
+		{name: "group", scope: PermissionTargetScope{Kind: MatrixScopeGroup, ID: "missing-group"}},
+		{name: "room", scope: PermissionTargetScope{Kind: MatrixScopeRoom, ID: "missing-room"}},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			if _, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), test.scope, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("SetBotPermission nonexistent %s err = %v, want ErrInvalidArgument", test.name, err)
+			}
+			var decision DecisionKind
+			var err error
+			if test.scope.Kind == MatrixScopeGroup {
+				decision, err = c.GetUserExplicitGroupOverride(ctx, test.scope.ID, bot.User.GetId(), PermMessagePost)
+			} else {
+				decision, err = c.GetUserExplicitRoomOverride(ctx, test.scope.ID, bot.User.GetId(), PermMessagePost)
+			}
+			if err != nil || decision != DecisionNone {
+				t.Fatalf("persisted decision after rejected %s scope = %s, %v", test.name, decision, err)
+			}
+		})
+	}
+}
+
 func TestDeletingOwnerCascadesOwnedBots(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

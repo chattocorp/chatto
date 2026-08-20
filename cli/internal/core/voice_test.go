@@ -407,7 +407,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 	avatarURL := "https://example.com/avatar.jpg"
 	callID := "call789"
 
-	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, "e2ee-test-key", callID)
+	result, err := GenerateVoiceCallToken(apiKey, apiSecret, roomName, userID, displayName, login, avatarURL, corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT, "e2ee-test-key", callID)
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}
@@ -459,6 +459,9 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 		if !strings.Contains(md, `"avatarUrl":"https://example.com/avatar.jpg"`) {
 			t.Errorf("Token metadata missing avatarUrl: %s", md)
 		}
+		if !strings.Contains(md, `"accountKind":2`) {
+			t.Errorf("Token metadata missing bot account kind: %s", md)
+		}
 		if !strings.Contains(md, `"callId":"call789"`) {
 			t.Errorf("Token metadata missing callId: %s", md)
 		}
@@ -492,7 +495,7 @@ func TestGenerateVoiceCallToken(t *testing.T) {
 }
 
 func TestGenerateVoiceCallToken_NoAvatar(t *testing.T) {
-	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", "e2ee-test-key")
+	result, err := GenerateVoiceCallToken("key", "secret", "room", "user1", "User One", "userone", "", corev1.UserAccountKind_USER_ACCOUNT_KIND_HUMAN, "e2ee-test-key")
 	if err != nil {
 		t.Fatalf("GenerateVoiceCallToken() error = %v", err)
 	}

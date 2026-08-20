@@ -9,6 +9,7 @@
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
+import type { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import type { VoiceCallState } from '$lib/state/server/voiceCall.svelte';
 
 /** Participant info for display in the room list sidebar. */
@@ -17,6 +18,7 @@ export type CallRoomParticipant = {
   displayName: string;
   login: string;
   avatarUrl: string | null;
+  accountKind: UserAccountKind;
 };
 
 export type CallPresenceKind = 'voice' | 'video';
@@ -126,7 +128,8 @@ export class ActiveCallRoomsState {
               userId: user.id,
               displayName: user.displayName,
               login: user.login,
-              avatarUrl: user.avatarUrl ?? null
+              avatarUrl: user.avatarUrl ?? null,
+              accountKind: user.accountKind
             }
           ];
         })

@@ -395,6 +395,9 @@ timeline entries; participant join/leave facts remain hidden from room history.
 
 LiveKit room names include the active Chatto call ID suffix. Participant and
 room-finished observations therefore apply only to the matching call session.
+Join-token participant metadata carries the login, avatar URL, and account kind
+needed to preserve canonical user identity, including bot markers, while the
+client is rendering directly from LiveKit state.
 Only the replica holding `lease.livekit_reconciler` in `MEMORY_CACHE` runs the
 periodic reconciliation loop.
 

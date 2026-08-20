@@ -423,18 +423,48 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 	if !botPermissionDelegable(perm) {
 		return nil, fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
 	}
+	normalized := normalizePermissionScope(scope)
+	validateScope := func() error {
+		switch normalized.Kind {
+		case MatrixScopeServer:
+			normalized.ID = ""
+		case MatrixScopeGroup:
+			if normalized.ID == "" {
+				return fmt.Errorf("%w: group scope requires an ID", ErrInvalidArgument)
+			}
+			if _, err := c.GetRoomGroup(ctx, normalized.ID); err != nil {
+				return fmt.Errorf("%w: group scope %q does not exist", ErrInvalidArgument, normalized.ID)
+			}
+		case MatrixScopeRoom:
+			if normalized.ID == "" {
+				return fmt.Errorf("%w: room scope requires an ID", ErrInvalidArgument)
+			}
+			if _, err := c.GetRoom(ctx, KindChannel, normalized.ID); err != nil {
+				return fmt.Errorf("%w: room scope %q does not exist", ErrInvalidArgument, normalized.ID)
+			}
+		default:
+			return fmt.Errorf("%w: unsupported permission scope %q", ErrInvalidArgument, normalized.Kind)
+		}
+		return nil
+	}
 	check := func() error {
+		// applyUserPermissionState invokes this again inside its mutation path so
+		// neither manager authority nor the referenced scope is trusted from the
+		// earlier request-level check alone.
+		if err := validateScope(); err != nil {
+			return err
+		}
 		currentBot, err := c.requireBotManager(ctx, actorID, botID)
 		if err != nil {
 			return err
 		}
 		if state == PermissionStateAllow {
 			var decision DecisionKind
-			switch normalizePermissionScope(scope).Kind {
+			switch normalized.Kind {
 			case MatrixScopeGroup:
-				decision, err = c.PermResolver().ResolveGroup(ctx, currentBot.GetBotOwnerUserId(), KindChannel, scope.ID, perm)
+				decision, err = c.PermResolver().ResolveGroup(ctx, currentBot.GetBotOwnerUserId(), KindChannel, normalized.ID, perm)
 			case MatrixScopeRoom:
-				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindChannel, scope.ID, perm)
+				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindChannel, normalized.ID, perm)
 			default:
 				decision, err = c.PermResolver().Resolve(ctx, currentBot.GetBotOwnerUserId(), KindChannel, "", perm)
 			}
@@ -450,7 +480,6 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 	if err := check(); err != nil {
 		return nil, err
 	}
-	normalized := normalizePermissionScope(scope)
 	var coreScope PermissionScope
 	switch normalized.Kind {
 	case MatrixScopeGroup:

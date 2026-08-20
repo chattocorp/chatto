@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Component } from 'svelte';
 	import type { Track } from 'livekit-client';
+	import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 	import type { CallParticipantInfo } from '$lib/state/server/voiceCall.svelte';
 	import type { ServerPermissions } from '$lib/state/server/permissions';
 	import { createPresenceCache } from '$lib/state/presenceCache.svelte';
@@ -107,6 +108,7 @@
 			name,
 			login: identity,
 			avatarUrl: null,
+			accountKind: UserAccountKind.HUMAN,
 			isMuted: false,
 			isLocal: false,
 			connectionQuality: 'excellent',

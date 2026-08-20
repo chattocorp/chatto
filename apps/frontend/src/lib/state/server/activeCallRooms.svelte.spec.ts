@@ -1,10 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import { ActiveCall, CallParticipant } from '@chatto/api-types/api/v1/voice_calls_pb';
 import { RoomSummary } from '@chatto/api-types/api/v1/rooms_pb';
-import { User } from '@chatto/api-types/api/v1/users_pb';
+import { User, UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { ActiveCallRoomsState } from './activeCallRooms.svelte';
 
-function call(roomId: string, callId: string, userIds: string[]): ActiveCall {
+function call(
+  roomId: string,
+  callId: string,
+  userIds: string[],
+  accountKind = UserAccountKind.HUMAN
+): ActiveCall {
   return new ActiveCall({
     room: new RoomSummary({ id: roomId }),
     callId,
@@ -14,7 +19,8 @@ function call(roomId: string, callId: string, userIds: string[]): ActiveCall {
           user: new User({
             id: userId,
             login: userId.toLowerCase(),
-            displayName: userId
+            displayName: userId,
+            accountKind
           })
         })
     )
@@ -47,6 +53,14 @@ describe('ActiveCallRoomsState', () => {
     expect(state.getParticipants('R1')).toEqual([]);
     expect(state.findParticipantCall('U2')).toBeNull();
     expect(state.findParticipantCall('U3')).toEqual({ roomId: 'R2', callId: 'call-2' });
+  });
+
+  it('preserves bot identity from projected call participants', () => {
+    const state = new ActiveCallRoomsState(voiceCall());
+
+    state.replaceProjection([call('R1', 'call-1', ['BOT1'], UserAccountKind.BOT)]);
+
+    expect(state.getParticipants('R1')[0]?.accountKind).toBe(UserAccountKind.BOT);
   });
 
   it('optimistically removes only the failed local participant', () => {
