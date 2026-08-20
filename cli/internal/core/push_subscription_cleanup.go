@@ -260,7 +260,7 @@ func (m *pushSubscriptionCleanupModel) inspectPushEndpointOwner(
 	if err := proto.Unmarshal(subscriptionEntry.Value(), &subscription); err != nil {
 		return owner.UserID, entry.Revision(), true, nil
 	}
-	if subscriptionEntry.Revision() != owner.SubscriptionRevision || pushEndpointOwnerKey(subscription.GetEndpoint()) != key {
+	if subscriptionEntry.Revision() != owner.SubscriptionRevision || pushEndpointOwnerKey(pushSubscriptionEndpoint(&subscription)) != key {
 		return owner.UserID, entry.Revision(), true, nil
 	}
 	deleted, err := m.accountDeleted(ctx, owner.UserID, deletedAccounts)

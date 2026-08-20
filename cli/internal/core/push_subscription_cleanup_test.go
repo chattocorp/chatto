@@ -177,6 +177,47 @@ func TestSavePushSubscriptionRejectsCommittedAccountDeletion(t *testing.T) {
 	}
 }
 
+func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-cleanup-host-aware-user"
+	endpoint := "https://push.example.com/host-aware"
+	if _, err := chatto.SavePushSubscriptionForClient(
+		ctx,
+		userID,
+		endpoint,
+		"key",
+		"auth",
+		"browser",
+		"app.example.com",
+	); err != nil {
+		t.Fatalf("save host-aware subscription: %v", err)
+	}
+
+	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile active host-aware push state: %v", err)
+	}
+	if owned, err := chatto.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || !owned {
+		t.Fatalf("host-aware endpoint ownership after reconciliation = %v, err = %v", owned, err)
+	}
+	if _, err := chatto.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("host-aware subscription after reconciliation: %v", err)
+	}
+
+	// Simulate a later deletion by an older replica. It can remove the record,
+	// but it cannot recover the provider endpoint from legacy field 1 and will
+	// therefore leave the owner behind. The leased reconciler must repair it.
+	if err := chatto.storage.runtimeStateKV.Delete(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("simulate legacy subscription deletion: %v", err)
+	}
+	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
+		t.Fatalf("reconcile orphaned host-aware owner: %v", err)
+	}
+	if owned, err := chatto.PushSubscriptionOwnedByUser(ctx, userID, endpoint); err != nil || owned {
+		t.Fatalf("orphaned host-aware endpoint ownership after reconciliation = %v, err = %v", owned, err)
+	}
+}
+
 func TestPushSubscriptionCleanupRepairsOwnerOnlyCrashState(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := context.Background()
