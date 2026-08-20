@@ -250,11 +250,11 @@
         "description": "アクティビティの種類ごとに通知の強さを選択します。「継承」はサーバーの既定値を使用します。",
         "load_failed": "通知ポリシーを読み込めませんでした",
         "save_failed": "通知ポリシーを保存できませんでした",
-        "effective": "適用値：{intensity}",
-        "intensity": {
+        "effective": "適用値：{mode}",
+        "delivery_mode": {
           "inherit": "継承",
           "off": "オフ",
-          "badge": "バッジ",
+          "silent": "サイレント",
           "alert": "アラート"
         },
         "reason": {

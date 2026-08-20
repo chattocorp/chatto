@@ -219,7 +219,7 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 			ctx,
 			alice.Id,
 			corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		); err != nil {
 			t.Fatalf("SetServerNotificationMode: %v", err)
 		}

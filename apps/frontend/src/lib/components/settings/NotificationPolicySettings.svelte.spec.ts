@@ -73,8 +73,8 @@ describe('NotificationPolicySettings', () => {
       Promise.resolve([
         {
           category: NotificationPreferenceCategory.DIRECT_MESSAGE,
-          override: roomId ? NotificationDeliveryMode.BADGE : NotificationDeliveryMode.ALERT,
-          effective: roomId ? NotificationDeliveryMode.BADGE : NotificationDeliveryMode.ALERT
+          override: roomId ? NotificationDeliveryMode.SILENT : NotificationDeliveryMode.ALERT,
+          effective: roomId ? NotificationDeliveryMode.SILENT : NotificationDeliveryMode.ALERT
         }
       ])
     );
@@ -96,7 +96,7 @@ describe('NotificationPolicySettings', () => {
     const directMessages = container.querySelector(
       'select[aria-label="Direct messages"]'
     ) as HTMLSelectElement;
-    expect(directMessages.value).toBe(String(NotificationDeliveryMode.BADGE));
+    expect(directMessages.value).toBe(String(NotificationDeliveryMode.SILENT));
     directMessages.value = String(NotificationDeliveryMode.UNSPECIFIED);
     directMessages.dispatchEvent(new Event('change', { bubbles: true }));
 

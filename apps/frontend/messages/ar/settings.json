@@ -250,11 +250,11 @@
         "description": "اختر مستوى التنبيه لكل نوع من النشاط. يستخدم التوارث إعداد الخادم الافتراضي.",
         "load_failed": "تعذّر تحميل سياسة الإشعارات",
         "save_failed": "تعذّر حفظ سياسة الإشعارات",
-        "effective": "الفعلي: {intensity}",
-        "intensity": {
+        "effective": "الفعلي: {mode}",
+        "delivery_mode": {
           "inherit": "توريث",
           "off": "إيقاف",
-          "badge": "شارة",
+          "silent": "صامت",
           "alert": "تنبيه"
         },
         "reason": {

@@ -250,11 +250,11 @@
         "description": "選擇各類動態提醒你的程度。繼承將使用伺服器預設值。",
         "load_failed": "無法載入通知政策",
         "save_failed": "無法儲存通知政策",
-        "effective": "目前生效：{intensity}",
-        "intensity": {
+        "effective": "目前生效：{mode}",
+        "delivery_mode": {
           "inherit": "繼承",
           "off": "關閉",
-          "badge": "徽章",
+          "silent": "靜默",
           "alert": "提醒"
         },
         "reason": {

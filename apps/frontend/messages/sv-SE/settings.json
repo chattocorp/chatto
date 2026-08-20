@@ -250,11 +250,11 @@
         "description": "Välj hur mycket uppmärksamhet varje typ av aktivitet ska få. Ärv använder serverns standard.",
         "load_failed": "Det gick inte att läsa in aviseringspolicyn",
         "save_failed": "Det gick inte att spara aviseringspolicyn",
-        "effective": "Gäller: {intensity}",
-        "intensity": {
+        "effective": "Gäller: {mode}",
+        "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
-          "badge": "Märke",
+          "silent": "Tyst",
           "alert": "Avisering"
         },
         "reason": {

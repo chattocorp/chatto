@@ -123,9 +123,9 @@ export enum NotificationDeliveryMode {
   /**
    * Matching activity appears in the notification list without interruptive delivery.
    *
-   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_BADGE = 2;
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_SILENT = 2;
    */
-  BADGE = 2,
+  SILENT = 2,
 
   /**
    * Matching activity appears in the notification list and may trigger sound or push.
@@ -138,7 +138,7 @@ export enum NotificationDeliveryMode {
 proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDeliveryMode", [
   { no: 0, name: "NOTIFICATION_DELIVERY_MODE_UNSPECIFIED" },
   { no: 1, name: "NOTIFICATION_DELIVERY_MODE_OFF" },
-  { no: 2, name: "NOTIFICATION_DELIVERY_MODE_BADGE" },
+  { no: 2, name: "NOTIFICATION_DELIVERY_MODE_SILENT" },
   { no: 3, name: "NOTIFICATION_DELIVERY_MODE_ALERT" },
 ]);
 

@@ -115,7 +115,7 @@ const (
 	// Matching activity does not create a notification occurrence.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF NotificationDeliveryMode = 1
 	// Matching activity appears in the notification list without interruptive delivery.
-	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE NotificationDeliveryMode = 2
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT NotificationDeliveryMode = 2
 	// Matching activity appears in the notification list and may trigger sound or push.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT NotificationDeliveryMode = 3
 )
@@ -125,13 +125,13 @@ var (
 	NotificationDeliveryMode_name = map[int32]string{
 		0: "NOTIFICATION_DELIVERY_MODE_UNSPECIFIED",
 		1: "NOTIFICATION_DELIVERY_MODE_OFF",
-		2: "NOTIFICATION_DELIVERY_MODE_BADGE",
+		2: "NOTIFICATION_DELIVERY_MODE_SILENT",
 		3: "NOTIFICATION_DELIVERY_MODE_ALERT",
 	}
 	NotificationDeliveryMode_value = map[string]int32{
 		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED": 0,
 		"NOTIFICATION_DELIVERY_MODE_OFF":         1,
-		"NOTIFICATION_DELIVERY_MODE_BADGE":       2,
+		"NOTIFICATION_DELIVERY_MODE_SILENT":      2,
 		"NOTIFICATION_DELIVERY_MODE_ALERT":       3,
 	}
 )
@@ -2168,11 +2168,11 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"$NOTIFICATION_PREFERENCE_CATEGORY_ALL\x10\x06\x124\n" +
 	"0NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD\x10\a\x122\n" +
 	".NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM\x10\b\x12-\n" +
-	")NOTIFICATION_PREFERENCE_CATEGORY_REACTION\x10\t*\xb6\x01\n" +
+	")NOTIFICATION_PREFERENCE_CATEGORY_REACTION\x10\t*\xb7\x01\n" +
 	"\x18NotificationDeliveryMode\x12*\n" +
 	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
-	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12$\n" +
-	" NOTIFICATION_DELIVERY_MODE_BADGE\x10\x02\x12$\n" +
+	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12%\n" +
+	"!NOTIFICATION_DELIVERY_MODE_SILENT\x10\x02\x12$\n" +
 	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03*\xa0\x01\n" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +

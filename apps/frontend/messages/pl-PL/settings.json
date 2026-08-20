@@ -250,11 +250,11 @@
         "description": "Wybierz, jak mocno każdy rodzaj aktywności ma zwracać Twoją uwagę. Dziedziczenie używa ustawienia serwera.",
         "load_failed": "Nie udało się wczytać zasad powiadomień",
         "save_failed": "Nie udało się zapisać zasad powiadomień",
-        "effective": "Obowiązuje: {intensity}",
-        "intensity": {
+        "effective": "Obowiązuje: {mode}",
+        "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
-          "badge": "Znacznik",
+          "silent": "Cicho",
           "alert": "Alert"
         },
         "reason": {

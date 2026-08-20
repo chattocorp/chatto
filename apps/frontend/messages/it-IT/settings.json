@@ -250,11 +250,11 @@
         "description": "Scegli quanta attenzione deve ricevere ogni tipo di attività. Eredita usa il valore predefinito del server.",
         "load_failed": "Impossibile caricare le regole di notifica",
         "save_failed": "Impossibile salvare le regole di notifica",
-        "effective": "Effettivo: {intensity}",
-        "intensity": {
+        "effective": "Effettivo: {mode}",
+        "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
-          "badge": "Indicatore",
+          "silent": "Silenzioso",
           "alert": "Avviso"
         },
         "reason": {

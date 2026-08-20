@@ -59,7 +59,7 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
 		{Id: "badge", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE.Enum(),
+			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
 		}}},
 		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
 		{Id: "off", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
@@ -77,8 +77,8 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Boundary source: %v", err)
 	}
-	if got := atSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE {
-		t.Fatalf("source policy = %v, want BADGE", got)
+	if got := atSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
+		t.Fatalf("source policy = %v, want SILENT", got)
 	}
 	atLaterSource, err := p.Boundary(7, time.Now())
 	if err != nil {
@@ -129,7 +129,7 @@ func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 	inputs := newNotificationOccurrenceInputs(source, message, []notificationRecipientDecision{{
 		recipientID: "recipient",
 		category:    corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
-		mode:        corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		mode:        corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		roleNames:   []string{"moderator", "staff"},
 	}})
 	if len(inputs) != 1 {

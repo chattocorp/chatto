@@ -41,7 +41,7 @@ enum NotificationDeliveryMode {
   // Matching activity does not create a notification occurrence.
   NOTIFICATION_DELIVERY_MODE_OFF = 1;
   // Matching activity appears in the notification list without interruptive delivery.
-  NOTIFICATION_DELIVERY_MODE_BADGE = 2;
+  NOTIFICATION_DELIVERY_MODE_SILENT = 2;
   // Matching activity appears in the notification list and may trigger sound or push.
   NOTIFICATION_DELIVERY_MODE_ALERT = 3;
 }

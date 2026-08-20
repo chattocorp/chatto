@@ -250,11 +250,11 @@
         "description": "Lege fest, wie stark jede Art von Aktivität deine Aufmerksamkeit erhalten soll. Vererben verwendet die Servervorgabe.",
         "load_failed": "Benachrichtigungsrichtlinie konnte nicht geladen werden",
         "save_failed": "Benachrichtigungsrichtlinie konnte nicht gespeichert werden",
-        "effective": "Wirksam: {intensity}",
-        "intensity": {
+        "effective": "Wirksam: {mode}",
+        "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
-          "badge": "Abzeichen",
+          "silent": "Lautlos",
           "alert": "Hinweis"
         },
         "reason": {

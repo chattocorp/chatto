@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-20
 
 ## Context
 
@@ -79,8 +79,8 @@ Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery mode is `Off`, `Badge`, or `Alert`. `Off` creates
-no signal. `Badge` and `Alert` create the same durable list item; only `Alert`
+The source-time delivery mode is `Off`, `Silent`, or `Alert`. `Off` creates
+no signal. `Silent` and `Alert` create the same durable list item; only `Alert`
 is eligible for interruptive delivery. Visual attention is independent:
 reactions are currently Ambient and other current signals are Important.
 

@@ -250,11 +250,11 @@
         "description": "Elektu kiom forte ĉiu speco de aktiveco atentigu vin. Heredi uzas la servilan aprioron.",
         "load_failed": "Ne eblis ŝargi la sciigan politikon",
         "save_failed": "Ne eblis konservi la sciigan politikon",
-        "effective": "Efektiva: {intensity}",
-        "intensity": {
+        "effective": "Efektiva: {mode}",
+        "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
-          "badge": "Insigno",
+          "silent": "Silenta",
           "alert": "Alarmo"
         },
         "reason": {

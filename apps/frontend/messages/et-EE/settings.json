@@ -250,11 +250,11 @@
         "description": "Vali, kui tugevalt iga tegevuse liik sinu tähelepanu köidab. Pärimine kasutab serveri vaikeväärtust.",
         "load_failed": "Teavituste reeglite laadimine ebaõnnestus",
         "save_failed": "Teavituste reeglite salvestamine ebaõnnestus",
-        "effective": "Kehtiv: {intensity}",
-        "intensity": {
+        "effective": "Kehtiv: {mode}",
+        "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
-          "badge": "Märk",
+          "silent": "Vaikne",
           "alert": "Teavitus"
         },
         "reason": {

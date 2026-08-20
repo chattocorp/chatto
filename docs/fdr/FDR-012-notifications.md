@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -83,7 +83,7 @@ through a product default, a user/server override, and an optional room
 override:
 
 - **Off** — create no occurrence for this cause.
-- **Badge** — create an occurrence without interruptive delivery.
+- **Silent** — create an occurrence without interruptive delivery.
 - **Alert** — create the same occurrence and make it eligible for sound, Web
   Push, or native delivery.
 
@@ -95,9 +95,9 @@ override:
 | Role mention | Alert |
 | `@here` | Alert |
 | `@all` | Alert |
-| Followed thread activity | Badge |
+| Followed thread activity | Silent |
 | Followed room activity | Off |
-| Reaction to the user's message | Badge |
+| Reaction to the user's message | Silent |
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, room, and app indicators use
@@ -151,7 +151,7 @@ success.
 ### 6. Realtime delivery is a convergence hint
 
 **Decision:** Realtime notification updates tell clients to replace their
-finite notification view from authoritative server state. Badge totals remain
+finite notification view from authoritative server state. Unread totals remain
 exact even when rows are grouped. The client also performs quiet periodic
 reconciliation so a lost transient update cannot leave counts stale
 indefinitely.

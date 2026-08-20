@@ -26,7 +26,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 
@@ -85,7 +85,7 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
 		t.Fatal(err)
 	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@signal-recipient two causes", nil, "", "", nil, false)

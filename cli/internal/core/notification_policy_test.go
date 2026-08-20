@@ -264,15 +264,15 @@ func TestNotificationPolicyInheritanceByCause(t *testing.T) {
 
 	policy, err = preferences.SetRoomNotificationMode(ctx, user.Id, room.Id,
 		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 	)
 	if err != nil {
 		t.Fatalf("SetRoomNotificationMode: %v", err)
 	}
 	assertNotificationPolicyIntensity(t, policy, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM,
 		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 	)
 
 	policy, err = preferences.SetRoomNotificationMode(ctx, user.Id, room.Id,

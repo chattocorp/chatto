@@ -250,11 +250,11 @@
         "description": "Escolha quanta atenção deve receber cada tipo de atividade. Herdar usa a predefinição do servidor.",
         "load_failed": "Não foi possível carregar a política de notificações",
         "save_failed": "Não foi possível guardar a política de notificações",
-        "effective": "Efetivo: {intensity}",
-        "intensity": {
+        "effective": "Efetivo: {mode}",
+        "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
-          "badge": "Indicador",
+          "silent": "Silencioso",
           "alert": "Alerta"
         },
         "reason": {

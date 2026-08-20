@@ -250,11 +250,11 @@
         "description": "选择各类动态提醒你的程度。继承将使用服务器默认值。",
         "load_failed": "无法加载通知策略",
         "save_failed": "无法保存通知策略",
-        "effective": "当前生效：{intensity}",
-        "intensity": {
+        "effective": "当前生效：{mode}",
+        "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
-          "badge": "角标",
+          "silent": "静默",
           "alert": "提醒"
         },
         "reason": {

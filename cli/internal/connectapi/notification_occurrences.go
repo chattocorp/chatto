@@ -460,8 +460,8 @@ func apiNotificationDeliveryMode(mode corev1.NotificationDeliveryMode) (apiv1.No
 	switch mode {
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE:
-		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, nil
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, nil
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
 	default:
@@ -473,8 +473,8 @@ func coreNotificationDeliveryMode(mode apiv1.NotificationDeliveryMode) (corev1.N
 	switch mode {
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
-	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE, nil
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, nil
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
 	default:

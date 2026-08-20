@@ -250,11 +250,11 @@
         "description": "בחרו באיזו עוצמה כל סוג פעילות ימשוך את תשומת לבכם. ירושה משתמשת בברירת המחדל של השרת.",
         "load_failed": "טעינת מדיניות ההתראות נכשלה",
         "save_failed": "שמירת מדיניות ההתראות נכשלה",
-        "effective": "בתוקף: {intensity}",
-        "intensity": {
+        "effective": "בתוקף: {mode}",
+        "delivery_mode": {
           "inherit": "ירושה",
           "off": "כבוי",
-          "badge": "תג",
+          "silent": "שקט",
           "alert": "התראה"
         },
         "reason": {

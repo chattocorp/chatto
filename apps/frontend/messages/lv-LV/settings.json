@@ -250,11 +250,11 @@
         "description": "Izvēlieties, cik izteikti katram aktivitātes veidam jāpiesaista jūsu uzmanība. Mantošana izmanto servera noklusējumu.",
         "load_failed": "Neizdevās ielādēt paziņojumu noteikumus",
         "save_failed": "Neizdevās saglabāt paziņojumu noteikumus",
-        "effective": "Spēkā: {intensity}",
-        "intensity": {
+        "effective": "Spēkā: {mode}",
+        "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
-          "badge": "Žetons",
+          "silent": "Kluss",
           "alert": "Brīdinājums"
         },
         "reason": {

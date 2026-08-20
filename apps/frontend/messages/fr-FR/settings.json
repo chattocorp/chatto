@@ -250,11 +250,11 @@
         "description": "Choisissez le niveau d'attention accordé à chaque type d'activité. Hériter utilise la valeur par défaut du serveur.",
         "load_failed": "Impossible de charger la politique de notifications",
         "save_failed": "Impossible d'enregistrer la politique de notifications",
-        "effective": "Effectif : {intensity}",
-        "intensity": {
+        "effective": "Effectif : {mode}",
+        "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
-          "badge": "Badge",
+          "silent": "Silencieux",
           "alert": "Alerte"
         },
         "reason": {

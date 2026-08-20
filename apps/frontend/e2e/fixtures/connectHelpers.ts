@@ -56,7 +56,7 @@ export type E2ENotificationPreferenceCategory =
   | 'FOLLOWED_ROOM'
   | 'REACTION';
 
-export type E2ENotificationMode = 'UNSPECIFIED' | 'OFF' | 'BADGE' | 'ALERT';
+export type E2ENotificationMode = 'UNSPECIFIED' | 'OFF' | 'SILENT' | 'ALERT';
 
 export interface E2ENotificationPolicyPreference {
   category: E2ENotificationPreferenceCategory;
@@ -118,7 +118,7 @@ const notificationKindByNumber: Record<number, E2ENotificationPreferenceCategory
 const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
   1: 'OFF',
-  2: 'BADGE',
+  2: 'SILENT',
   3: 'ALERT'
 };
 

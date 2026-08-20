@@ -105,16 +105,16 @@
     }
   }
 
-  function intensityLabel(intensity: NotificationDeliveryMode): string {
-    switch (intensity) {
+  function deliveryModeLabel(mode: NotificationDeliveryMode): string {
+    switch (mode) {
       case NotificationDeliveryMode.OFF:
-        return m('settings.notifications.policy.intensity.off');
-      case NotificationDeliveryMode.BADGE:
-        return m('settings.notifications.policy.intensity.badge');
+        return m('settings.notifications.policy.delivery_mode.off');
+      case NotificationDeliveryMode.SILENT:
+        return m('settings.notifications.policy.delivery_mode.silent');
       case NotificationDeliveryMode.ALERT:
-        return m('settings.notifications.policy.intensity.alert');
+        return m('settings.notifications.policy.delivery_mode.alert');
       default:
-        return m('settings.notifications.policy.intensity.inherit');
+        return m('settings.notifications.policy.delivery_mode.inherit');
     }
   }
 </script>
@@ -147,7 +147,7 @@
             <span class="block font-medium">{kindLabel(kind)}</span>
             <span class="block text-xs text-muted">
               {m('settings.notifications.policy.effective', {
-                intensity: intensityLabel(
+                mode: deliveryModeLabel(
                   preference?.effective ?? NotificationDeliveryMode.OFF
                 )
               })}
@@ -163,16 +163,16 @@
             onchange={(event) => change(kind, event)}
           >
             <option value={String(NotificationDeliveryMode.UNSPECIFIED)}
-              >{intensityLabel(NotificationDeliveryMode.UNSPECIFIED)}</option
+              >{deliveryModeLabel(NotificationDeliveryMode.UNSPECIFIED)}</option
             >
             <option value={String(NotificationDeliveryMode.OFF)}
-              >{intensityLabel(NotificationDeliveryMode.OFF)}</option
+              >{deliveryModeLabel(NotificationDeliveryMode.OFF)}</option
             >
-            <option value={String(NotificationDeliveryMode.BADGE)}
-              >{intensityLabel(NotificationDeliveryMode.BADGE)}</option
+            <option value={String(NotificationDeliveryMode.SILENT)}
+              >{deliveryModeLabel(NotificationDeliveryMode.SILENT)}</option
             >
             <option value={String(NotificationDeliveryMode.ALERT)}
-              >{intensityLabel(NotificationDeliveryMode.ALERT)}</option
+              >{deliveryModeLabel(NotificationDeliveryMode.ALERT)}</option
             >
           </select>
         </label>

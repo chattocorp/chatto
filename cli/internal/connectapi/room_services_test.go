@@ -1559,7 +1559,7 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 
 	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
 		Category: apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
-		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE.Enum(),
+		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
 	}))
 	if err != nil {
 		t.Fatalf("SetNotificationPolicyPreference: %v", err)
@@ -1567,12 +1567,12 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 	found := false
 	for _, preference := range policy.Msg.GetPreferences() {
 		if preference.GetCategory() == apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION {
-			found = preference.GetOverride() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE &&
-				preference.GetEffective() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE
+			found = preference.GetOverride() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT &&
+				preference.GetEffective() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT
 		}
 	}
 	if !found {
-		t.Fatalf("notification policy = %+v, want direct mention Badge", policy.Msg.GetPreferences())
+		t.Fatalf("notification policy = %+v, want direct mention Silent", policy.Msg.GetPreferences())
 	}
 }
 
@@ -1644,7 +1644,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, dm.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
@@ -1778,7 +1778,7 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
 		Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 	}
@@ -1837,7 +1837,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
@@ -1892,7 +1892,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})

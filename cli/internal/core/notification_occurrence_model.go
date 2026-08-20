@@ -648,7 +648,7 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
 		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
 	default:
 		return invalidArgument("unsupported notification delivery mode")

@@ -250,11 +250,11 @@
         "description": "Her etkinlik türünün dikkatinizi ne ölçüde çekmesi gerektiğini seçin. Devral, sunucu varsayılanını kullanır.",
         "load_failed": "Bildirim politikası yüklenemedi",
         "save_failed": "Bildirim politikası kaydedilemedi",
-        "effective": "Geçerli: {intensity}",
-        "intensity": {
+        "effective": "Geçerli: {mode}",
+        "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
-          "badge": "Rozet",
+          "silent": "Sessiz",
           "alert": "Uyarı"
         },
         "reason": {

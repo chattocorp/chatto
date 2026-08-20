@@ -43,7 +43,7 @@ func TestVisibleNotificationOccurrencesPreservesUnsupportedFutureSignal(t *testi
 		SourceCreated:  posted.GetCreatedAt().AsTime(),
 		ActorID:        env.viewer.GetId(),
 		Signal:         testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.GetId(), posted.GetId()),
-		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_BADGE,
+		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	})

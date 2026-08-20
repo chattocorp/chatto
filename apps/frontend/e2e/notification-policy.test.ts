@@ -41,11 +41,11 @@ test.describe('Notification policy', () => {
     await chatPage.goto();
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
-    await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'BADGE');
+    await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'SILENT');
     let roomPolicy = await getNotificationPolicy(page, roomId);
     expect(roomPolicy.find(({ category }) => category === 'FOLLOWED_ROOM')).toMatchObject({
       override: 'UNSPECIFIED',
-      effective: 'BADGE'
+      effective: 'SILENT'
     });
 
     roomPolicy = await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', roomId);

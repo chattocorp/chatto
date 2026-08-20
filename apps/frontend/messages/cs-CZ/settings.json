@@ -250,11 +250,11 @@
         "description": "Zvolte, jak silně má každý druh aktivity upoutat vaši pozornost. Zdědit použije výchozí nastavení serveru.",
         "load_failed": "Pravidla oznámení se nepodařilo načíst",
         "save_failed": "Pravidla oznámení se nepodařilo uložit",
-        "effective": "Výsledné: {intensity}",
-        "intensity": {
+        "effective": "Výsledné: {mode}",
+        "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
-          "badge": "Odznak",
+          "silent": "Tiché",
           "alert": "Upozornění"
         },
         "reason": {

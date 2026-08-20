@@ -1806,7 +1806,7 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 		t.Fatalf("created room unread-occurrence counts = %+v, want one group for %s", counts, room.Id)
 	}
 	if replacement.GetPlayNotificationSound() {
-		t.Fatal("Badge-only followed-thread notification requested sound")
+		t.Fatal("Silent followed-thread notification requested sound")
 	}
 	operations := frame.GetProjectionEvent().GetOperations()
 	if len(operations) != 1 {
