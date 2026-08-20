@@ -1,11 +1,13 @@
 [settings.general]
 mise = true
+autostop_delay = "0s"
 
 [settings.proxy]
 enable = true
 port = 42443
 https = true
 auto_trust = true
+auto_start = false
 sync_hosts = false
 worktree = false
 
@@ -13,12 +15,14 @@ worktree = false
 run = "exec mailpit --listen 127.0.0.1:$PORT0 --smtp 127.0.0.1:$PORT1"
 port = { expect = [8025, 1025], bump = true }
 ready_output = "accessible via http://"
+auto = ["stop"]
 
 [daemons.mailpit-proxy]
-run = "workspace_slug=$(cat .context/dev/workspace-slug) && export XDG_DATA_HOME=\"$PWD/.context/dev/$workspace_slug/caddy\" && exec caddy reverse-proxy --from http://127.0.0.1:$PORT --to http://127.0.0.1:{{ daemons['mailpit-server'].port }}"
+run = "CHATTO_DEV_PROXY_UPSTREAM_PORT={{ daemons['mailpit-server'].port }} exec caddy run --config tools/dev-reverse-proxy.caddy --adapter caddyfile"
 port = { expect = [18025], bump = true }
-ready_output = "caddy proxying"
+ready_output = "serving initial configuration"
 depends = ["mailpit-server"]
+auto = ["stop"]
 
 [daemons.livekit-server]
 run = """
@@ -28,12 +32,14 @@ exec server --bind 127.0.0.1 --node-ip 127.0.0.1 --config-body "$livekit_config"
 """
 port = { expect = [7880, 7881, 7882], bump = true }
 ready_output = "starting LiveKit server"
+auto = ["stop"]
 
 [daemons.livekit-proxy]
-run = "workspace_slug=$(cat .context/dev/workspace-slug) && export XDG_DATA_HOME=\"$PWD/.context/dev/$workspace_slug/caddy\" && exec caddy reverse-proxy --from http://127.0.0.1:$PORT --to http://127.0.0.1:{{ daemons['livekit-server'].port }}"
+run = "CHATTO_DEV_PROXY_UPSTREAM_PORT={{ daemons['livekit-server'].port }} exec caddy run --config tools/dev-reverse-proxy.caddy --adapter caddyfile"
 port = { expect = [17880], bump = true }
-ready_output = "caddy proxying"
+ready_output = "serving initial configuration"
 depends = ["livekit-server"]
+auto = ["stop"]
 
 [daemons.authling]
 run = """
@@ -52,6 +58,7 @@ exec authling/bin/authling run
 port = { expect = [8080], bump = true }
 ready_output = "Authling is ready"
 depends = ["mailpit-server"]
+auto = ["stop"]
 env = {
   AUTHLING_HTTP_TRUST_PROXY_HEADERS = "true",
   AUTHLING_AUTHENTICATION_PASSWORD_MINIMUM_LENGTH = "10",
@@ -80,7 +87,7 @@ workspace_slug=$(cat ../.context/dev/workspace-slug)
 data_root="../.context/dev/$workspace_slug"
 mkdir -p internal/http_server/.client "$data_root/chatto/nats" "$data_root/chatto/search"
 touch internal/http_server/.client/.gitkeep
-go build -trimpath -tags 'bootstrap nomsgpack' -ldflags '-X main.Version=0.5.0-dev' -o bin/chatto-dev .
+go build -trimpath -tags 'bootstrap nomsgpack' -ldflags "-X main.Version=$CHATTO_DEVELOPMENT_VERSION" -o bin/chatto-dev .
 export CHATTO_WEBSERVER_PORT="$PORT"
 export CHATTO_WEBSERVER_URL="https://chatto-$workspace_slug.localhost:42443"
 export CHATTO_METRICS_PORT="$PORT1"
@@ -96,8 +103,8 @@ exec ./bin/chatto-dev start
 port = { expect = [4001, 9090, 9100], bump = true }
 ready_output = "Starting HTTP server"
 depends = ["authling", "livekit-proxy", "mailpit-server"]
+auto = ["stop"]
 env = {
-  CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev",
   CHATTO_LOG_LEVEL = "debug",
   CHATTO_LOG_FORMAT = "text",
   CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET = "871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3",
@@ -157,6 +164,7 @@ run = "mise setup-frontend && exec ./node_modules/.bin/vite dev --host 127.0.0.1
 port = { expect = [4000], bump = true }
 ready_output = "Local:"
 depends = ["chatto-backend", "api-types", "lingua"]
+auto = ["stop"]
 env = {
   CHATTO_BACKEND_URL = "http://127.0.0.1:{{ daemons['chatto-backend'].port }}",
   CHATTO_WEBSERVER_PORT = "{{ daemons['chatto-backend'].port }}",
@@ -173,6 +181,7 @@ watch = [
 [daemons.api-types]
 run = "mise setup-frontend && exec pnpm --filter @chatto/api-types exec tsc -p tsconfig.json --watch --preserveWatchOutput"
 ready_output = "Watching for file changes"
+auto = ["stop"]
 watch = [
   "package.json",
   "pnpm-lock.yaml",
@@ -183,6 +192,7 @@ watch = [
 [daemons.lingua]
 run = "mise setup-frontend && exec pnpm --filter @chatto/lingua exec tsc -p tsconfig.json --watch --preserveWatchOutput"
 ready_output = "Watching for file changes"
+auto = ["stop"]
 watch = [
   "package.json",
   "pnpm-lock.yaml",
@@ -198,6 +208,7 @@ port = { expect = [6006], bump = true }
 # Pitchfork's descendant-aware proxy detection on the stable HTTP listener.
 ready_delay = 3
 depends = ["api-types", "lingua"]
+auto = ["stop"]
 watch = [
   "package.json",
   "pnpm-lock.yaml",
@@ -208,16 +219,18 @@ watch = [
 ]
 
 [daemons.storybook-proxy]
-run = "workspace_slug=$(cat .context/dev/workspace-slug) && export XDG_DATA_HOME=\"$PWD/.context/dev/$workspace_slug/caddy\" && exec caddy reverse-proxy --from http://127.0.0.1:$PORT --to http://127.0.0.1:{{ daemons['storybook-server'].port }}"
+run = "CHATTO_DEV_PROXY_UPSTREAM_PORT={{ daemons['storybook-server'].port }} exec caddy run --config tools/dev-reverse-proxy.caddy --adapter caddyfile"
 port = { expect = [16006], bump = true }
-ready_output = "caddy proxying"
+ready_output = "serving initial configuration"
 depends = ["storybook-server"]
+auto = ["stop"]
 
 [daemons.docs-server]
 dir = "apps/docs-website"
 run = "mise setup-frontend && workspace_slug=$(cat ../../.context/dev/workspace-slug) && export CHATTO_DOCS_SITE_URL=https://docs-$workspace_slug.localhost:42443 && exec pnpm astro dev --host 127.0.0.1 --port $PORT"
 port = { expect = [4322], bump = true }
 ready_output = "Local"
+auto = ["stop"]
 watch = [
   "package.json",
   "pnpm-lock.yaml",
@@ -226,10 +239,11 @@ watch = [
 ]
 
 [daemons.docs-proxy]
-run = "workspace_slug=$(cat .context/dev/workspace-slug) && export XDG_DATA_HOME=\"$PWD/.context/dev/$workspace_slug/caddy\" && exec caddy reverse-proxy --from http://127.0.0.1:$PORT --to http://127.0.0.1:{{ daemons['docs-server'].port }}"
+run = "CHATTO_DEV_PROXY_UPSTREAM_PORT={{ daemons['docs-server'].port }} exec caddy run --config tools/dev-reverse-proxy.caddy --adapter caddyfile"
 port = { expect = [14322], bump = true }
-ready_output = "caddy proxying"
+ready_output = "serving initial configuration"
 depends = ["docs-server"]
+auto = ["stop"]
 
 [groups.dev]
 daemons = ["mailpit-proxy", "livekit-proxy", "authling", "chatto-backend", "chatto", "storybook-proxy", "docs-proxy"]

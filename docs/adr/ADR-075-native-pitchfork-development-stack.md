@@ -8,8 +8,8 @@ Accepted
 
 ## Context
 
-The repository's complete Conductor and Paseo development environment ran
-Chatto, Authling, Storybook, and the documentation website in Docker Compose.
+The repository's complete worktree development environment ran Chatto,
+Authling, Storybook, and the documentation website in Docker Compose.
 Ordinary source and dependency changes repeatedly invalidated development
 images or container-local dependency state. Even after bind-mount and package
 cache experiments, starting a workspace commonly took more than two minutes.
@@ -20,9 +20,9 @@ are native Vite, Storybook, and Astro development servers. Containers therefore
 added a build and filesystem-synchronisation layer without providing an
 essential development dependency.
 
-Multiple Conductor and Paseo worktrees must still run concurrently, use stable
-browser origins, preserve product-owned local state, start in dependency order,
-and stop without affecting another worktree.
+Multiple Conductor worktrees must still run concurrently, use stable browser
+origins, preserve product-owned local state, start in dependency order, and
+stop without affecting another worktree.
 
 ## Decision
 
@@ -35,38 +35,48 @@ website through one trusted HTTPS proxy on port `42443`.
 
 Each worktree registers workspace-specific `*-<workspace>.localhost` proxy
 slugs, whose workspace portion must be unique among active local workspaces.
-Conductor's workspace name is the public slug; outside Conductor the checkout
-directory name is used. Chatto and Authling retain separate embedded-NATS and
-search state beneath a matching gitignored `.context/dev/<workspace>/`
-directory, preventing an Authling issuer created under one public workspace
-identity from being reused under another. Vite, Storybook, and Astro consume
-the one root pnpm installation rather than maintaining per-container stores.
-Pitchfork also supervises TypeScript watch builds for the shared API types and
-Lingua packages, so their `dist` outputs stay current for Vite and Storybook.
-Mailpit and LiveKit run from their mise-managed native binaries.
+Pitchfork derives its internal daemon namespace from the checkout directory
+name. Conductor's current `CONDUCTOR_WORKSPACE_NAME` instead supplies the public
+workspace slug used by its preview URLs. `mise dev` records that slug in the
+gitignored `.context/dev/workspace-slug` file before starting Pitchfork; the
+daemon commands use the same value for Chatto, Authling, LiveKit, and Astro
+configuration. Outside Conductor, the checkout directory name is the fallback.
+Chatto and Authling retain separate embedded-NATS and search state beneath the
+matching `.context/dev/<workspace>/` directory, preventing issuer-bound state
+from being reused if the public workspace name changes. Vite, Storybook, and
+Astro consume the one root pnpm installation rather than maintaining
+per-container stores. Pitchfork also supervises TypeScript watch builds for the
+shared API types and Lingua packages, so their `dist` outputs stay current for
+Vite and Storybook. Mailpit and LiveKit run from their mise-managed native
+binaries.
 
 Pitchfork discovers a proxy target by inspecting a daemon's listening ports.
 That is ambiguous for multi-port servers such as Mailpit and LiveKit and for
 Node development servers that briefly open child-process ports. Pitchfork
 therefore supervises a small native Caddy reverse-proxy process in front of
 Mailpit's HTTP listener, LiveKit's HTTP/WebSocket listener, Storybook, and
-Astro. Each Caddy process exposes exactly one listener, making Pitchfork's
-public route deterministic while internal dependencies continue to use the
-underlying service's allocated ports directly.
+Astro. Each Caddy process exposes exactly one host-agnostic listener bound to
+loopback, making Pitchfork's public route deterministic regardless of the
+forwarded `Host` header while internal dependencies continue to use the
+underlying service's allocated ports directly. The adapters share one static
+Caddyfile and receive only their allocated upstream port through the
+environment; Caddy's admin API and automatic HTTPS are disabled because
+Pitchfork owns the public TLS endpoint. They restore Pitchfork's validated
+`X-Forwarded-Host` as the upstream `Host`, which preserves Mailpit's same-origin
+WebSocket protection.
 
-`mise dev`, the default Conductor run command, and Paseo's `dev` command all use
-the same Pitchfork stack. The `mise dev` task verifies that Pitchfork's
-already-running machine-wide proxy matches the required trusted
-`https://*.localhost:42443` endpoint and that every requested global slug is
-either unclaimed or already owned by this checkout. A private per-user file lock
-serializes that ownership check with route registration and archive cleanup,
-so concurrent workspaces cannot both claim the same slug. It refuses to
-overwrite another checkout's route. It then registers the routes, attaches to
-Pitchfork's logs, and stops only this workspace's daemons when the command
-exits; Pitchfork owns port allocation, readiness, dependencies, watching, and
-process supervision. Pitchfork starts its machine-wide supervisor automatically
-when needed. The `mise dev-archive` task removes only routes whose recorded
-owner is this checkout.
+`mise dev`, the default Conductor run command, registers global proxy slugs from
+the public workspace slug and enters a Pitchfork project session tied to the
+run process. It retires routes and processes from the previous public name when
+that name changes, then starts the development group and attaches to
+Pitchfork's logs. Every daemon is marked for auto-stop, so Pitchfork stops only
+that internal namespace when the project session leaves or its host process
+disappears; this remains reliable when Conductor force-terminates its run
+command. Pitchfork owns port allocation, readiness, dependencies, watching,
+and process supervision. Proxy-triggered daemon startup is disabled, so
+retained routes cannot resurrect a stopped workspace. Pitchfork starts its
+machine-wide supervisor automatically when needed, and `mise dev-archive`
+stops the namespace and removes both current and legacy directory-named routes.
 
 The obsolete root `compose.yml` and its development-only Docker build helpers
 are removed. The independently maintained `examples/dockercompose/` deployment
@@ -92,7 +102,7 @@ CIMD SSRF protections and canonical-origin checks remain the default.
 - Native processes share host CPU and memory limits rather than container
   limits, and developers must use the workspace command to stop or archive
   them cleanly.
-- The root development workflow is macOS-oriented because Conductor, Paseo,
+- The root development workflow is macOS-oriented because Conductor,
   `.localhost` routing, and the current native LiveKit installation target that
   environment. Production container and Docker Compose examples remain
   separate deployment artifacts.

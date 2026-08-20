@@ -22,27 +22,26 @@ machine-specific settings, and private prompts out of tracked files; use local
 settings such as `.conductor/settings.local.toml` or your tool's user-level
 configuration for those.
 
-## Local Development with Conductor or Paseo
+## Local Development with Conductor
 
-[Conductor](https://conductor.build) and [Paseo](https://paseo.sh) run the
-complete root [`pitchfork.toml`](pitchfork.toml) stack as native processes.
-Start the default **Dev stack** run mode or Paseo's `dev` script to launch
-Chatto, Authling, Mailpit, LiveKit, Storybook, and the docs website with
-workspace-specific `*.localhost:42443` HTTPS origins. For a worktree named
-`<workspace>`, Chatto is available at
+[Conductor](https://conductor.build) runs the complete root
+[`pitchfork.toml`](pitchfork.toml) stack as native processes. Start the default
+**Dev stack** run mode to launch Chatto, Authling, Mailpit, LiveKit, Storybook,
+and the docs website with workspace-specific `*.localhost:42443` HTTPS origins.
+For a Conductor workspace named `<workspace>`, Chatto is available at
 `https://chatto-<workspace>.localhost:42443`; the other origins follow the
 names listed in the [Complete Local Stack](README.md#complete-local-stack)
 section. Vite, Astro, and Storybook live-reload their sources. Pitchfork
 rebuilds and restarts the Go services after relevant source changes.
 
 The repository-level Conductor settings are shared in
-`.conductor/settings.toml`, the root `pitchfork.toml`, and the repository-level
-Paseo settings in `paseo.json`. They isolate concurrent workspaces. Put machine-specific
-Conductor overrides in `.conductor/settings.local.toml`; that file is
-gitignored and wins over shared settings on your machine. Both tools read
-`.worktreeinclude` to copy gitignored local environment files, such as `.env`
-and `.env.*`, into new workspaces. Archiving a workspace stops its Pitchfork
-daemons and removes its global proxy registrations.
+`.conductor/settings.toml`, while the root `pitchfork.toml` defines the native
+development stack. Together they isolate concurrent workspaces. Put
+machine-specific Conductor overrides in `.conductor/settings.local.toml`; that
+file is gitignored and wins over shared settings on your machine. Conductor
+reads `.worktreeinclude` to copy gitignored local environment files, such as
+`.env` and `.env.*`, into new workspaces. Archiving a workspace stops its
+Pitchfork daemons and removes its global proxy registrations.
 
 ## Developing Outside of Conductor
 
@@ -80,8 +79,8 @@ mise license-check
 
 `mise dev` uses Pitchfork's workspace-specific native ports and exposes the
 public services through HTTPS on port `42443`. `mise dev-docs-website` still
-uses `4000` when `CONDUCTOR_PORT`, `PASEO_PORT`, and
-`CHATTO_DOCS_WEBSITE_PORT` are unset. `mise run chatto run` uses the
+uses `4000` when `CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.
+`mise run chatto run` uses the
 bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
 `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
 CLI arguments after the task name, for example `mise chatto version`.

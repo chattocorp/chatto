@@ -106,17 +106,17 @@ description = "Build and run the Authling CLI command"
 depends = ["build"]
 raw_args = true
 env = {
-  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='8080'))}}",
-  AUTHLING_HTTP_PUBLIC_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='8080'))}}",
-  AUTHLING_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% elif env.PASEO_PORT is defined and env.PASEO_PORT != '' %}{{env.PASEO_PORT | int + 8}}{% else %}1025{% endif %}",
+  AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value='8080')}}",
+  AUTHLING_HTTP_PUBLIC_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='8080')}}",
+  AUTHLING_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% else %}1025{% endif %}",
 }
 run = "exec bin/authling"
 
 [tasks.mailpit]
 description = "Run Mailpit for Authling development email"
 env = {
-  AUTHLING_DEV_MAILPIT_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% elif env.PASEO_PORT is defined and env.PASEO_PORT != '' %}{{env.PASEO_PORT | int + 8}}{% else %}1025{% endif %}",
-  AUTHLING_DEV_MAILPIT_UI_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 9}}{% elif env.PASEO_PORT is defined and env.PASEO_PORT != '' %}{{env.PASEO_PORT | int + 9}}{% else %}8025{% endif %}",
+  AUTHLING_DEV_MAILPIT_SMTP_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 8}}{% else %}1025{% endif %}",
+  AUTHLING_DEV_MAILPIT_UI_PORT = "{% if env.CONDUCTOR_PORT is defined and env.CONDUCTOR_PORT != '' %}{{env.CONDUCTOR_PORT | int + 9}}{% else %}8025{% endif %}",
 }
 run = "exec mailpit --smtp \"127.0.0.1:$AUTHLING_DEV_MAILPIT_SMTP_PORT\" --listen \"127.0.0.1:$AUTHLING_DEV_MAILPIT_UI_PORT\""
 
