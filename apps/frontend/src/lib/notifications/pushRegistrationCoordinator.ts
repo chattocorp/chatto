@@ -1,11 +1,15 @@
 type RegistrationOperation = (signal: AbortSignal) => Promise<boolean>;
 type CleanupOperation = () => Promise<void>;
 type CrossTabSuspension = 'disabled' | 'leaving';
+type CrossTabSuspensionState = {
+  available: boolean;
+  suspension: CrossTabSuspension | null;
+};
 
 const crossTabSuspensionKeyPrefix = 'chatto.push-registration.suspended.';
 const operationTails = new Map<string, Promise<unknown>>();
 const registrationEpochs = new Map<string, number>();
-const suspendedServers = new Set<string>();
+const suspendedServers = new Map<string, { crossTabPersisted: boolean }>();
 const activeRegistrations = new Map<string, AbortController>();
 
 function epoch(serverId: string): number {
@@ -16,23 +20,39 @@ function crossTabSuspensionKey(serverId: string): string {
   return crossTabSuspensionKeyPrefix + serverId;
 }
 
-function crossTabSuspension(serverId: string): CrossTabSuspension | null {
-  if (typeof window === 'undefined') return null;
+function crossTabSuspensionState(serverId: string): CrossTabSuspensionState {
+  if (typeof window === 'undefined') return { available: false, suspension: null };
   try {
-    const value = window.localStorage?.getItem(crossTabSuspensionKey(serverId));
-    return value === 'disabled' || value === 'leaving' ? value : null;
+    const storage = window.localStorage;
+    if (!storage) return { available: false, suspension: null };
+    const value = storage.getItem(crossTabSuspensionKey(serverId));
+    return {
+      available: true,
+      suspension: value === 'disabled' || value === 'leaving' ? value : null
+    };
   } catch {
-    return null;
+    return { available: false, suspension: null };
   }
 }
 
-function setCrossTabSuspension(serverId: string, suspension: CrossTabSuspension | null): void {
-  if (typeof window === 'undefined') return;
+function crossTabSuspension(serverId: string): CrossTabSuspension | null {
+  return crossTabSuspensionState(serverId).suspension;
+}
+
+function setCrossTabSuspension(
+  serverId: string,
+  suspension: CrossTabSuspension | null
+): boolean {
+  if (typeof window === 'undefined') return false;
   try {
-    if (suspension) window.localStorage?.setItem(crossTabSuspensionKey(serverId), suspension);
-    else window.localStorage?.removeItem(crossTabSuspensionKey(serverId));
+    const storage = window.localStorage;
+    if (!storage) return false;
+    if (suspension) storage.setItem(crossTabSuspensionKey(serverId), suspension);
+    else storage.removeItem(crossTabSuspensionKey(serverId));
+    return true;
   } catch {
     // Local cancellation still protects this tab when browser storage is unavailable.
+    return false;
   }
 }
 
@@ -40,8 +60,8 @@ function isSuspended(serverId: string): boolean {
   return suspendedServers.has(serverId) || crossTabSuspension(serverId) !== null;
 }
 
-function suspendLocally(serverId: string): void {
-  suspendedServers.add(serverId);
+function suspendLocally(serverId: string, crossTabPersisted: boolean): void {
+  suspendedServers.set(serverId, { crossTabPersisted });
   registrationEpochs.set(serverId, epoch(serverId) + 1);
   activeRegistrations.get(serverId)?.abort();
 }
@@ -89,8 +109,8 @@ export function suspendPushRegistration(
   serverId: string,
   cleanup: CleanupOperation
 ): Promise<void> {
-  setCrossTabSuspension(serverId, 'disabled');
-  suspendLocally(serverId);
+  const crossTabPersisted = setCrossTabSuspension(serverId, 'disabled');
+  suspendLocally(serverId, crossTabPersisted);
   return enqueue(serverId, cleanup);
 }
 
@@ -99,14 +119,22 @@ export function suspendPushRegistrationBeforeLeaving(
   serverId: string,
   cleanup: CleanupOperation
 ): Promise<void> {
-  setCrossTabSuspension(serverId, 'leaving');
-  suspendLocally(serverId);
+  const crossTabPersisted = setCrossTabSuspension(serverId, 'leaving');
+  suspendLocally(serverId, crossTabPersisted);
   return enqueue(serverId, cleanup);
 }
 
 /** Reports cancellation to registration work after each browser/network await. */
 export function isPushRegistrationSuspended(serverId: string, signal?: AbortSignal): boolean {
   return signal?.aborted === true || isSuspended(serverId);
+}
+
+/** Whether stale work still owns cleanup after another realm may have resumed. */
+export function shouldInvalidateCancelledPushRegistration(serverId: string): boolean {
+  const shared = crossTabSuspensionState(serverId);
+  if (shared.suspension !== null) return true;
+  const local = suspendedServers.get(serverId);
+  return local !== undefined && (!local.crossTabPersisted || !shared.available);
 }
 
 /** Allows registration again after a new authenticated session is installed. */

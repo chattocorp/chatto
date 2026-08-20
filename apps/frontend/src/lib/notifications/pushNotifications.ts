@@ -18,6 +18,7 @@ import {
   enqueuePushRegistration,
   isPushRegistrationSuspended,
   resumePushRegistration,
+  shouldInvalidateCancelledPushRegistration,
   suspendPushRegistration,
   suspendPushRegistrationBeforeLeaving
 } from './pushRegistrationCoordinator';
@@ -318,7 +319,7 @@ async function ensureRegisteredOnce(
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
     subscription = await registration.pushManager.getSubscription();
     if (isPushRegistrationSuspended(serverId, signal)) {
-      if (subscription && isPushRegistrationSuspended(serverId)) {
+      if (subscription && shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
@@ -341,7 +342,7 @@ async function ensureRegisteredOnce(
       });
       createdSubscription = true;
       if (isPushRegistrationSuspended(serverId, signal)) {
-        if (isPushRegistrationSuspended(serverId)) {
+        if (shouldInvalidateCancelledPushRegistration(serverId)) {
           await invalidateSubscription(serverId, subscription);
         }
         return false;
@@ -363,7 +364,7 @@ async function ensureRegisteredOnce(
     };
     const api = pushAPI(serverId);
     if (isPushRegistrationSuspended(serverId, signal)) {
-      if (isPushRegistrationSuspended(serverId)) {
+      if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
@@ -376,7 +377,7 @@ async function ensureRegisteredOnce(
       : await api.subscribe(input, { signal });
 
     if (isPushRegistrationSuspended(serverId, signal)) {
-      if (isPushRegistrationSuspended(serverId)) {
+      if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
@@ -397,7 +398,7 @@ async function ensureRegisteredOnce(
     // acknowledges its client host. Fail closed when that acknowledgement
     // is indeterminate so a later push cannot open the wrong frontend.
     const cancelled = isPushRegistrationSuspended(serverId, signal);
-    const activeSuspension = isPushRegistrationSuspended(serverId);
+    const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
     if (
       subscription &&
       (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired)))

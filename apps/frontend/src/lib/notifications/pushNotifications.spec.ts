@@ -499,13 +499,15 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
     expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
 
-    resumePushRegistrationAfterAuthentication('remote');
     remoteSubscription.unsubscribe.mockClear();
     mocks.unsubscribePush.mockClear();
-    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(true);
+    // A different tab installs new authentication and clears shared suspension;
+    // this realm intentionally retains its local block and obsolete credentials.
+    window.localStorage.removeItem('chatto.push-registration.suspended.remote');
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
     // A transport that ignores abort may settle after a new session starts.
-    // Its stale continuation must not invalidate the new session's endpoint.
+    // Its stale continuation must not invalidate the other tab's replacement.
     firstSave.resolve({ subscribed: true });
     await firstSave.promise;
     await Promise.resolve();
