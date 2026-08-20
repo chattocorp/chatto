@@ -44,6 +44,15 @@ func (p *Publisher) AccountRegistryTail(ctx context.Context) (uint64, error) {
 	return p.log.LastSubjectSeq(ctx, accountRegistrySubject)
 }
 
+// AccountTail returns the current OCC token for one account aggregate.
+func (p *Publisher) AccountTail(ctx context.Context, accountID string) (uint64, error) {
+	subject, err := AccountSubject(accountID)
+	if err != nil {
+		return 0, err
+	}
+	return p.log.LastSubjectSeq(ctx, subject)
+}
+
 // AppendRegisteredAccount commits a local account against a previously read
 // registry tail.
 func (p *Publisher) AppendRegisteredAccount(ctx context.Context, accountEvent, claimEvent *corev1.Event, expectedRegistry uint64) (events.StreamPosition, error) {
@@ -98,6 +107,58 @@ func (p *Publisher) AppendAccountCreated(
 		return events.StreamPosition{}, err
 	}
 	sequence, err := p.log.AppendAt(ctx, subject, record, 0)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
+// AppendPasswordChanged replaces a credential at an explicitly observed
+// account tail so concurrent reset flows cannot overwrite each other.
+func (p *Publisher) AppendPasswordChanged(
+	ctx context.Context,
+	event *corev1.Event,
+	expectedTail uint64,
+) (events.StreamPosition, error) {
+	payload := event.GetPasswordChanged()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append password changed: event payload is not password_changed")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
+// AppendPasswordResetRequested records an accepted recovery request at an
+// explicitly observed account tail.
+func (p *Publisher) AppendPasswordResetRequested(
+	ctx context.Context,
+	event *corev1.Event,
+	expectedTail uint64,
+) (events.StreamPosition, error) {
+	payload := event.GetPasswordResetRequested()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append password reset requested: event payload is not password_reset_requested")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
 	if err != nil {
 		return events.StreamPosition{}, err
 	}
@@ -171,6 +232,19 @@ func validate(event *corev1.Event) error {
 	case *corev1.Event_EmailClaimed:
 		if !validSubjectToken(payload.EmailClaimed.GetAccountId()) {
 			return fmt.Errorf("invalid account id")
+		}
+	case *corev1.Event_PasswordChanged:
+		credential := payload.PasswordChanged
+		if !validSubjectToken(credential.GetAccountId()) || credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetPasswordVerifierNonce()) == 0 || len(credential.GetPasswordVerifierCiphertext()) == 0 {
+			return fmt.Errorf("password credential envelope is incomplete or unsupported")
+		}
+		if requestID := credential.GetPasswordResetRequestEventId(); requestID != "" && !validSubjectToken(requestID) {
+			return fmt.Errorf("password reset request event id is invalid")
+		}
+	case *corev1.Event_PasswordResetRequested:
+		request := payload.PasswordResetRequested
+		if !validSubjectToken(request.GetAccountId()) || !validSubjectToken(request.GetCredentialEventId()) {
+			return fmt.Errorf("password reset request is incomplete")
 		}
 	case *corev1.Event_IssuerEstablished:
 		if payload.IssuerEstablished.GetIssuer() == "" || payload.IssuerEstablished.GetSigningKeyRef() == "" || payload.IssuerEstablished.GetSigningKeyId() == "" {

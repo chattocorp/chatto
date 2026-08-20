@@ -21,6 +21,8 @@ message Event {
     AccountCreatedEvent account_created = 100;
     EmailClaimedEvent email_claimed = 101;
     IssuerEstablishedEvent issuer_established = 102;
+    PasswordChangedEvent password_changed = 103;
+    PasswordResetRequestedEvent password_reset_requested = 104;
   }
 }
 
@@ -52,4 +54,27 @@ message AccountCreatedEvent {
   uint32 credential_envelope_version = 6;
   bytes password_verifier_nonce = 7;
   bytes password_verifier_ciphertext = 8;
+}
+
+// PasswordChangedEvent replaces one local account's password verifier without
+// changing its stable account identity or verified email address.
+message PasswordChangedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 credential_envelope_version = 4;
+  bytes password_verifier_nonce = 5;
+  bytes password_verifier_ciphertext = 6;
+
+  // The audit event that initiated this recovery-driven change. Historical
+  // password changes written before request auditing leave this empty.
+  string password_reset_request_event_id = 7;
+}
+
+// PasswordResetRequestedEvent records an accepted recovery request for an
+// existing local account without retaining the submitted email or flow secret.
+// The envelope event ID is the opaque recovery request identifier.
+message PasswordResetRequestedEvent {
+  string account_id = 1;
+  string credential_event_id = 2;
 }

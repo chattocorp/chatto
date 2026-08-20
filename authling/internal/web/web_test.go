@@ -38,8 +38,30 @@ func TestLoginPageAutofocusesEmail(t *testing.T) {
 	if response.Code != http.StatusOK {
 		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
 	}
-	if body := response.Body.String(); !strings.Contains(body, `name="email" autocomplete="email" autofocus`) {
+	body := response.Body.String()
+	if !strings.Contains(body, `name="email" autocomplete="email" autofocus`) {
 		t.Fatalf("login page email input does not have autofocus: %q", body)
+	}
+	if !strings.Contains(body, `href="/password-reset"`) || !strings.Contains(body, "Forgot your password?") {
+		t.Fatalf("login page does not link to password reset: %q", body)
+	}
+}
+
+func TestPasswordResetPageRendersWithoutAccountDisclosure(t *testing.T) {
+	request := httptest.NewRequest(http.MethodGet, "/password-reset", nil)
+	response := httptest.NewRecorder()
+
+	Handler().ServeHTTP(response, request)
+
+	if response.Code != http.StatusOK {
+		t.Fatalf("status = %d, want %d", response.Code, http.StatusOK)
+	}
+	body := response.Body.String()
+	if !strings.Contains(body, "Reset your password") || !strings.Contains(body, `action="/password-reset"`) {
+		t.Fatalf("body does not contain the password reset form: %q", body)
+	}
+	if strings.Contains(body, "account exists") || strings.Contains(body, "account not found") || strings.Contains(body, "<script") {
+		t.Fatalf("password reset page has disclosure or script content: %q", body)
 	}
 }
 

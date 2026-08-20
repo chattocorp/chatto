@@ -37,6 +37,8 @@ type Event struct {
 	//	*Event_AccountCreated
 	//	*Event_EmailClaimed
 	//	*Event_IssuerEstablished
+	//	*Event_PasswordChanged
+	//	*Event_PasswordResetRequested
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -120,6 +122,24 @@ func (x *Event) GetIssuerEstablished() *IssuerEstablishedEvent {
 	return nil
 }
 
+func (x *Event) GetPasswordChanged() *PasswordChangedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_PasswordChanged); ok {
+			return x.PasswordChanged
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetPasswordResetRequested() *PasswordResetRequestedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_PasswordResetRequested); ok {
+			return x.PasswordResetRequested
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -136,11 +156,23 @@ type Event_IssuerEstablished struct {
 	IssuerEstablished *IssuerEstablishedEvent `protobuf:"bytes,102,opt,name=issuer_established,json=issuerEstablished,proto3,oneof"`
 }
 
+type Event_PasswordChanged struct {
+	PasswordChanged *PasswordChangedEvent `protobuf:"bytes,103,opt,name=password_changed,json=passwordChanged,proto3,oneof"`
+}
+
+type Event_PasswordResetRequested struct {
+	PasswordResetRequested *PasswordResetRequestedEvent `protobuf:"bytes,104,opt,name=password_reset_requested,json=passwordResetRequested,proto3,oneof"`
+}
+
 func (*Event_AccountCreated) isEvent_Event() {}
 
 func (*Event_EmailClaimed) isEvent_Event() {}
 
 func (*Event_IssuerEstablished) isEvent_Event() {}
+
+func (*Event_PasswordChanged) isEvent_Event() {}
+
+func (*Event_PasswordResetRequested) isEvent_Event() {}
 
 // IssuerEstablishedEvent permanently binds one Authling deployment to its
 // externally visible OpenID Connect issuer and initial signing-key identity.
@@ -354,18 +386,171 @@ func (x *AccountCreatedEvent) GetPasswordVerifierCiphertext() []byte {
 	return nil
 }
 
+// PasswordChangedEvent replaces one local account's password verifier without
+// changing its stable account identity or verified email address.
+type PasswordChangedEvent struct {
+	state                      protoimpl.MessageState `protogen:"open.v1"`
+	AccountId                  string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	UserKeyRef                 string                 `protobuf:"bytes,2,opt,name=user_key_ref,json=userKeyRef,proto3" json:"user_key_ref,omitempty"`
+	CredentialKeyRef           string                 `protobuf:"bytes,3,opt,name=credential_key_ref,json=credentialKeyRef,proto3" json:"credential_key_ref,omitempty"`
+	CredentialEnvelopeVersion  uint32                 `protobuf:"varint,4,opt,name=credential_envelope_version,json=credentialEnvelopeVersion,proto3" json:"credential_envelope_version,omitempty"`
+	PasswordVerifierNonce      []byte                 `protobuf:"bytes,5,opt,name=password_verifier_nonce,json=passwordVerifierNonce,proto3" json:"password_verifier_nonce,omitempty"`
+	PasswordVerifierCiphertext []byte                 `protobuf:"bytes,6,opt,name=password_verifier_ciphertext,json=passwordVerifierCiphertext,proto3" json:"password_verifier_ciphertext,omitempty"`
+	// The audit event that initiated this recovery-driven change. Historical
+	// password changes written before request auditing leave this empty.
+	PasswordResetRequestEventId string `protobuf:"bytes,7,opt,name=password_reset_request_event_id,json=passwordResetRequestEventId,proto3" json:"password_reset_request_event_id,omitempty"`
+	unknownFields               protoimpl.UnknownFields
+	sizeCache                   protoimpl.SizeCache
+}
+
+func (x *PasswordChangedEvent) Reset() {
+	*x = PasswordChangedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PasswordChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PasswordChangedEvent) ProtoMessage() {}
+
+func (x *PasswordChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PasswordChangedEvent.ProtoReflect.Descriptor instead.
+func (*PasswordChangedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *PasswordChangedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *PasswordChangedEvent) GetUserKeyRef() string {
+	if x != nil {
+		return x.UserKeyRef
+	}
+	return ""
+}
+
+func (x *PasswordChangedEvent) GetCredentialKeyRef() string {
+	if x != nil {
+		return x.CredentialKeyRef
+	}
+	return ""
+}
+
+func (x *PasswordChangedEvent) GetCredentialEnvelopeVersion() uint32 {
+	if x != nil {
+		return x.CredentialEnvelopeVersion
+	}
+	return 0
+}
+
+func (x *PasswordChangedEvent) GetPasswordVerifierNonce() []byte {
+	if x != nil {
+		return x.PasswordVerifierNonce
+	}
+	return nil
+}
+
+func (x *PasswordChangedEvent) GetPasswordVerifierCiphertext() []byte {
+	if x != nil {
+		return x.PasswordVerifierCiphertext
+	}
+	return nil
+}
+
+func (x *PasswordChangedEvent) GetPasswordResetRequestEventId() string {
+	if x != nil {
+		return x.PasswordResetRequestEventId
+	}
+	return ""
+}
+
+// PasswordResetRequestedEvent records an accepted recovery request for an
+// existing local account without retaining the submitted email or flow secret.
+// The envelope event ID is the opaque recovery request identifier.
+type PasswordResetRequestedEvent struct {
+	state             protoimpl.MessageState `protogen:"open.v1"`
+	AccountId         string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	CredentialEventId string                 `protobuf:"bytes,2,opt,name=credential_event_id,json=credentialEventId,proto3" json:"credential_event_id,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
+}
+
+func (x *PasswordResetRequestedEvent) Reset() {
+	*x = PasswordResetRequestedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PasswordResetRequestedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PasswordResetRequestedEvent) ProtoMessage() {}
+
+func (x *PasswordResetRequestedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PasswordResetRequestedEvent.ProtoReflect.Descriptor instead.
+func (*PasswordResetRequestedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *PasswordResetRequestedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *PasswordResetRequestedEvent) GetCredentialEventId() string {
+	if x != nil {
+		return x.CredentialEventId
+	}
+	return ""
+}
+
 var File_authling_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xd4\x02\n" +
+	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x94\x04\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
 	"created_at\x18\x02 \x01(\v2\x1a.google.protobuf.TimestampR\tcreatedAt\x12P\n" +
 	"\x0faccount_created\x18d \x01(\v2%.authling.core.v1.AccountCreatedEventH\x00R\x0eaccountCreated\x12J\n" +
 	"\remail_claimed\x18e \x01(\v2#.authling.core.v1.EmailClaimedEventH\x00R\femailClaimed\x12Y\n" +
-	"\x12issuer_established\x18f \x01(\v2(.authling.core.v1.IssuerEstablishedEventH\x00R\x11issuerEstablishedB\a\n" +
+	"\x12issuer_established\x18f \x01(\v2(.authling.core.v1.IssuerEstablishedEventH\x00R\x11issuerEstablished\x12S\n" +
+	"\x10password_changed\x18g \x01(\v2&.authling.core.v1.PasswordChangedEventH\x00R\x0fpasswordChanged\x12i\n" +
+	"\x18password_reset_requested\x18h \x01(\v2-.authling.core.v1.PasswordResetRequestedEventH\x00R\x16passwordResetRequestedB\a\n" +
 	"\x05event\"~\n" +
 	"\x16IssuerEstablishedEvent\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12&\n" +
@@ -385,7 +570,21 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x10email_ciphertext\x18\x05 \x01(\fR\x0femailCiphertext\x12>\n" +
 	"\x1bcredential_envelope_version\x18\x06 \x01(\rR\x19credentialEnvelopeVersion\x126\n" +
 	"\x17password_verifier_nonce\x18\a \x01(\fR\x15passwordVerifierNonce\x12@\n" +
-	"\x1cpassword_verifier_ciphertext\x18\b \x01(\fR\x1apasswordVerifierCiphertextB7Z5hmans.de/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
+	"\x1cpassword_verifier_ciphertext\x18\b \x01(\fR\x1apasswordVerifierCiphertext\"\x85\x03\n" +
+	"\x14PasswordChangedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12 \n" +
+	"\fuser_key_ref\x18\x02 \x01(\tR\n" +
+	"userKeyRef\x12,\n" +
+	"\x12credential_key_ref\x18\x03 \x01(\tR\x10credentialKeyRef\x12>\n" +
+	"\x1bcredential_envelope_version\x18\x04 \x01(\rR\x19credentialEnvelopeVersion\x126\n" +
+	"\x17password_verifier_nonce\x18\x05 \x01(\fR\x15passwordVerifierNonce\x12@\n" +
+	"\x1cpassword_verifier_ciphertext\x18\x06 \x01(\fR\x1apasswordVerifierCiphertext\x12D\n" +
+	"\x1fpassword_reset_request_event_id\x18\a \x01(\tR\x1bpasswordResetRequestEventId\"l\n" +
+	"\x1bPasswordResetRequestedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +
+	"\x13credential_event_id\x18\x02 \x01(\tR\x11credentialEventIdB7Z5hmans.de/authling/internal/pb/authling/core/v1;corev1b\x06proto3"
 
 var (
 	file_authling_core_v1_event_proto_rawDescOnce sync.Once
@@ -399,24 +598,28 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 	return file_authling_core_v1_event_proto_rawDescData
 }
 
-var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
+var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_authling_core_v1_event_proto_goTypes = []any{
-	(*Event)(nil),                  // 0: authling.core.v1.Event
-	(*IssuerEstablishedEvent)(nil), // 1: authling.core.v1.IssuerEstablishedEvent
-	(*EmailClaimedEvent)(nil),      // 2: authling.core.v1.EmailClaimedEvent
-	(*AccountCreatedEvent)(nil),    // 3: authling.core.v1.AccountCreatedEvent
-	(*timestamppb.Timestamp)(nil),  // 4: google.protobuf.Timestamp
+	(*Event)(nil),                       // 0: authling.core.v1.Event
+	(*IssuerEstablishedEvent)(nil),      // 1: authling.core.v1.IssuerEstablishedEvent
+	(*EmailClaimedEvent)(nil),           // 2: authling.core.v1.EmailClaimedEvent
+	(*AccountCreatedEvent)(nil),         // 3: authling.core.v1.AccountCreatedEvent
+	(*PasswordChangedEvent)(nil),        // 4: authling.core.v1.PasswordChangedEvent
+	(*PasswordResetRequestedEvent)(nil), // 5: authling.core.v1.PasswordResetRequestedEvent
+	(*timestamppb.Timestamp)(nil),       // 6: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	4, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	6, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
 	3, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
 	2, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
 	1, // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
-	4, // [4:4] is the sub-list for method output_type
-	4, // [4:4] is the sub-list for method input_type
-	4, // [4:4] is the sub-list for extension type_name
-	4, // [4:4] is the sub-list for extension extendee
-	0, // [0:4] is the sub-list for field type_name
+	4, // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
+	5, // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
+	6, // [6:6] is the sub-list for method output_type
+	6, // [6:6] is the sub-list for method input_type
+	6, // [6:6] is the sub-list for extension type_name
+	6, // [6:6] is the sub-list for extension extendee
+	0, // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -428,6 +631,8 @@ func file_authling_core_v1_event_proto_init() {
 		(*Event_AccountCreated)(nil),
 		(*Event_EmailClaimed)(nil),
 		(*Event_IssuerEstablished)(nil),
+		(*Event_PasswordChanged)(nil),
+		(*Event_PasswordResetRequested)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -435,7 +640,7 @@ func file_authling_core_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   4,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

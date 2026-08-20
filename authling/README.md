@@ -2,7 +2,7 @@
 
 Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
-credentials, password login, revocable browser sessions, and a small
+credentials, password login and reset, revocable browser sessions, and a small
 Authorization Code OpenID Provider for conventional and CIMD clients. It also
 stores only identity-provider state; application data and synchronization are
 outside its scope.
@@ -81,8 +81,9 @@ mise dev
 ```
 
 The development configuration serves Authling at <http://localhost:8080>, with
-signup at <http://localhost:8080/signup> and login at
-<http://localhost:8080/login>. Mailpit receives SMTP on port 1025 and shows
+signup at <http://localhost:8080/signup>, login at
+<http://localhost:8080/login>, and password reset at
+<http://localhost:8080/password-reset>. Mailpit receives SMTP on port 1025 and shows
 captured messages at <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
 `AUTHLING_HTTP_PUBLIC_URL` to its externally visible origin. The checked-in

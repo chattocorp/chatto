@@ -121,6 +121,26 @@ func TestSessionRejectsForgedTokensWithoutKVLookup(t *testing.T) {
 	}
 }
 
+func TestSessionRejectsAnOlderAuthenticationVersion(t *testing.T) {
+	service, _, cleanup := testService(t)
+	defer cleanup()
+	version := uint64(3)
+	service.authenticationVersion = func(accountID string) (uint64, bool) {
+		return version, accountID == "acc_versioned"
+	}
+	token, created, err := service.Create(t.Context(), "acc_versioned")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if created.AuthenticationVersion != version {
+		t.Fatalf("authentication version = %d, want %d", created.AuthenticationVersion, version)
+	}
+	version++
+	if _, err := service.Validate(t.Context(), token); !errors.Is(err, ErrNotFound) {
+		t.Fatalf("validate older authentication version error = %v, want ErrNotFound", err)
+	}
+}
+
 func testService(t *testing.T) (*Service, storage.Stores, func()) {
 	t.Helper()
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
@@ -147,7 +167,7 @@ func testService(t *testing.T) (*Service, storage.Stores, func()) {
 		connection.Close()
 		t.Fatal(err)
 	}
-	service := New(stores.RuntimeState, js, key)
+	service := New(stores.RuntimeState, js, key, nil)
 	clear(key)
 	return service, stores, func() {
 		cancel()

@@ -1,7 +1,7 @@
 # FDR-003: Local Login and Browser Sessions
 
 **Status:** Experimental
-**Last reviewed:** 2026-07-31
+**Last reviewed:** 2026-08-14
 
 ## Overview
 
@@ -31,6 +31,10 @@ experience.
   sessions.
 - Sessions remain valid across an Authling process restart when the browser
   still has its session cookie and runtime storage remains available.
+- Sessions carry the account's durable authentication version. Password reset
+  advances that version and invalidates every older Authling browser session,
+  including across process restarts; the completing browser receives a new
+  session.
 - Protected pages reject absent, expired, malformed, forged, and revoked
   sessions. Cross-origin login and logout submissions are rejected.
 - The configured public origin is canonical: requests for another host are
@@ -46,8 +50,8 @@ experience.
 **Decision:** The browser carries only an opaque random bearer; the account and
 lifetime state remain in expiring Authling runtime storage.
 
-**Why:** Server-side state makes logout and expiry authoritative, reveals no
-account data in the cookie, and leaves room for future account-wide revocation.
+**Why:** Server-side state makes logout, expiry, and password-reset invalidation
+authoritative and reveals no account data in the cookie.
 
 **Tradeoff:** Every authenticated browser request depends on runtime-storage
 availability.
@@ -97,11 +101,8 @@ attempt budget.
 
 ## Limitations
 
-- There is no "remember me", session list, remote session revocation,
-  password-change revocation, or user-visible authentication history yet.
-- The first slice does not accept return URLs. OIDC authorization will add
-  integrity-protected continuation state rather than an open redirect
-  parameter.
+- There is no "remember me", session list, selective remote session revocation,
+  signed-in password change, or user-visible authentication history yet.
 - Password-only login is a single-factor authentication ceremony. Authling
   does not yet implement MFA or phishing-resistant authenticators.
 - Authling's listener does not terminate TLS. Production operators must expose
@@ -114,7 +115,8 @@ attempt budget.
   [ADR-002](../adr/ADR-002-hierarchical-keys-and-cryptographic-erasure.md),
   [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md)
 - **Features:** [FDR-001](FDR-001-standalone-account-runtime.md),
-  [FDR-002](FDR-002-verified-email-signup.md)
+  [FDR-002](FDR-002-verified-email-signup.md),
+  [FDR-006](FDR-006-password-reset.md)
 - **Security baseline:** [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html),
   [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
   and [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)
