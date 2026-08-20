@@ -7,11 +7,6 @@ public_url = 'http://localhost:8080'
 [authentication]
 password_minimum_length = 10
 
-[[oidc.clients]]
-id = 'authling-dev'
-name = 'Authling development client'
-redirect_uris = ['http://127.0.0.1:9999/callback']
-
 [nats]
 replicas = 1
 

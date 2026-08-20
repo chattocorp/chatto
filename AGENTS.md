@@ -178,7 +178,7 @@ When an agent needs the long-running development stack, launch it as
 supervisor directly, and stop it before handing control back to the user. Never
 leave a dev stack running in a detached or yielded terminal session. After
 testing the Pitchfork stack, run `mise dev-archive` so this checkout's
-supervisor processes and global proxy routes are both removed.
+supervised processes and service proxy routes are removed.
 
 ## Chatto Backend Principles
 

@@ -24,15 +24,15 @@ configuration for those.
 
 ## Local Development with Conductor
 
-[Conductor](https://conductor.build) runs the complete root
+[Conductor](https://conductor.build) runs the regular root
 [`pitchfork.toml`](pitchfork.toml) stack as native processes. Start the default
-**Dev stack** run mode to launch Chatto, Authling, Mailpit, LiveKit, Storybook,
-and the docs website with workspace-specific `*.localhost:42443` HTTPS origins.
-For a Conductor workspace named `<workspace>`, Chatto is available at
-`https://chatto-<workspace>.localhost:42443`; the other origins follow the
-names listed in the [Complete Local Stack](README.md#complete-local-stack)
-section. Vite, Astro, and Storybook live-reload their sources. Pitchfork
-rebuilds and restarts the Go services after relevant source changes.
+**Dev stack** run mode to launch the Chatto backend and Vite frontend, Authling,
+Mailpit, and LiveKit on the workspace's ten allocated ports. Chatto is
+available at `https://chatto-<workspace>.localhost:42443`; Authling, Mailpit,
+and LiveKit use the same HTTPS URL shape with their respective service names.
+The [Local Development Stack](README.md#local-development-stack) section lists
+the complete layout. Vite live-reloads frontend source, and Pitchfork rebuilds
+and restarts the Go services after relevant source changes.
 
 The repository-level Conductor settings are shared in
 `.conductor/settings.toml`, while the root `pitchfork.toml` defines the native
@@ -41,7 +41,7 @@ machine-specific Conductor overrides in `.conductor/settings.local.toml`; that
 file is gitignored and wins over shared settings on your machine. Conductor
 reads `.worktreeinclude` to copy gitignored local environment files, such as
 `.env` and `.env.*`, into new workspaces. Archiving a workspace stops its
-Pitchfork daemons and removes its global proxy registrations.
+Pitchfork daemons and removes its service proxy routes.
 
 ## Developing Outside of Conductor
 
@@ -52,7 +52,7 @@ mise trust
 mise run setup
 ```
 
-To run the complete Pitchfork development stack outside Conductor after the
+To run the regular Pitchfork development stack outside Conductor after the
 setup described in the README:
 
 ```sh
@@ -77,9 +77,9 @@ To check SPDX/REUSE license metadata:
 mise license-check
 ```
 
-`mise dev` uses Pitchfork's workspace-specific native ports and exposes the
-public services through HTTPS on port `42443`. `mise dev-docs-website` still
-uses `4000` when `CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.
+`mise dev` uses Conductor's allocated port block and falls back to base port
+`4000` outside Conductor. `mise dev-docs-website` also uses `4000` when
+`CONDUCTOR_PORT` and `CHATTO_DOCS_WEBSITE_PORT` are unset.
 `mise run chatto run` uses the
 bundled-binary port layout: `4000` for Chatto, `4001` for embedded NATS,
 `4002` for Prometheus metrics, and `4003` for exporter metrics. Pass explicit
