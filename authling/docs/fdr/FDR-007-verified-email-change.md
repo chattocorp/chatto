@@ -144,11 +144,13 @@ Durable operational effects remain future work.
 - A failed verification, failed delivery, or abandoned flow leaves the old
   address authoritative. A failure after the atomic completion cannot restore
   the old address.
-- Completion attempts acquire a 30-second OCC-backed lease, so only one replica
-  can finish the flow at a time without permanently stranding it after a crash.
-  Recovery accepts an already committed result only while that exact email
-  change remains the current credential generation; a later password or email
-  mutation invalidates recovery.
+- Completion attempts acquire a 45-second OCC-backed lease. Lease acquisition,
+  identity mutation, notification, and cleanup use explicit deadlines whose
+  combined maximum remains below that lifetime, so another replica cannot
+  overlap a live owner while a crash remains retryable. Recovery and the
+  replacement browser session are both bound to the exact authentication
+  generation produced by the email change; a later password or email mutation
+  invalidates them.
 - All POST endpoints require Authling's canonical browser origin and use
   bounded request bodies.
 

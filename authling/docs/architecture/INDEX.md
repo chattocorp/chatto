@@ -204,11 +204,14 @@ batch commits; afterward Authling advances the durable authentication version,
 creates a fresh completing session, and attempts a best-effort security notice
 to the old address. A retry after an ambiguous process failure recognizes the
 committed request from the projected credential; notification recovery is
-at-least-once and can duplicate the notice. A 30-second OCC-backed completion
-lease prevents concurrent recovery from issuing multiple completing sessions,
-and a later credential generation invalidates recovery. The completion POST
-redirects to the account page with a refresh-safe success result and, when
-needed, the old-address delivery warning.
+at-least-once and can duplicate the notice. A 45-second OCC-backed completion
+lease encloses explicitly bounded lease acquisition, identity mutation,
+notification, and cleanup phases so concurrent recovery cannot overlap active
+completion. The replacement session is bound to the email change's exact
+authentication generation, and a later credential generation invalidates both
+recovery and session establishment. The completion POST redirects to the
+account page with a refresh-safe success result and, when needed, the
+old-address delivery warning.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,

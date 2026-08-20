@@ -67,8 +67,23 @@ func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, authenticati
 // Create starts a new authenticated browser session and returns its bearer
 // token. Only the token belongs in the browser cookie.
 func (s *Service) Create(ctx context.Context, accountID string) (string, Session, error) {
+	return s.create(ctx, accountID, nil)
+}
+
+// CreateAtAuthenticationVersion starts a browser session only for the exact
+// credential generation that authorized the surrounding operation. A
+// concurrent password or email change makes the new session stale instead of
+// silently upgrading it to the later generation.
+func (s *Service) CreateAtAuthenticationVersion(ctx context.Context, accountID string, expectedVersion uint64) (string, Session, error) {
+	return s.create(ctx, accountID, &expectedVersion)
+}
+
+func (s *Service) create(ctx context.Context, accountID string, expectedVersion *uint64) (string, Session, error) {
 	if strings.TrimSpace(accountID) == "" {
 		return "", Session{}, fmt.Errorf("account id is required")
+	}
+	if expectedVersion != nil && s.authenticationVersion == nil {
+		return "", Session{}, fmt.Errorf("create generation-bound session without an authentication version resolver")
 	}
 	random := make([]byte, tokenBytes)
 	if _, err := rand.Read(random); err != nil {
@@ -83,6 +98,9 @@ func (s *Service) Create(ctx context.Context, accountID string) (string, Session
 		if !ok {
 			return "", Session{}, fmt.Errorf("create session for absent account")
 		}
+		if expectedVersion != nil && version != *expectedVersion {
+			return "", Session{}, fmt.Errorf("create session after authentication generation changed")
+		}
 		state.AuthenticationVersion = version
 	}
 	key := s.sessionKey(token)
@@ -90,8 +108,18 @@ func (s *Service) Create(ctx context.Context, accountID string) (string, Session
 	if err != nil {
 		return "", Session{}, err
 	}
-	if _, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(AbsoluteLifetime)); err != nil {
+	revision, err := s.kv.Create(ctx, key, data, jetstream.KeyTTL(AbsoluteLifetime))
+	if err != nil {
 		return "", Session{}, fmt.Errorf("store session: %w", err)
+	}
+	if expectedVersion != nil {
+		version, ok := s.authenticationVersion(accountID)
+		if !ok || version != *expectedVersion {
+			cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+			defer cancel()
+			_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))
+			return "", Session{}, fmt.Errorf("create session while authentication generation changed")
+		}
 	}
 	return token, state, nil
 }

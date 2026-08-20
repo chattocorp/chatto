@@ -824,7 +824,8 @@ func TestCommittedEmailChangeRecoveryDoesNotCrossPasswordReset(t *testing.T) {
 	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err != nil {
+	completion, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow)
+	if err != nil {
 		t.Fatal(err)
 	}
 	if _, ok := runtime.Accounts.CompletedEmailChange(target, "recovery-new@example.com"); !ok {
@@ -843,6 +844,9 @@ func TestCommittedEmailChangeRecoveryDoesNotCrossPasswordReset(t *testing.T) {
 	}
 	if _, ok := runtime.Accounts.CompletedEmailChange(target, "recovery-new@example.com"); ok {
 		t.Fatal("email change recovery crossed the later password-reset generation")
+	}
+	if _, _, err := runtime.Sessions.CreateAtAuthenticationVersion(testContext(t), account.ID, completion.AuthenticationVersion); err == nil {
+		t.Fatal("email change completion established a session across the later password-reset generation")
 	}
 }
 

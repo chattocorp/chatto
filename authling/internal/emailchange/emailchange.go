@@ -29,8 +29,11 @@ const maxDeliveredCodes = 10
 const maxGlobalDeliveredCodes = 1000
 const maxConcurrentDeliveries = 8
 const maxConcurrentCompletions = 4
+const completionLeaseWriteTimeout = 5 * time.Second
+const completionWorkTimeout = 15 * time.Second
 const oldAddressNotificationTimeout = 10 * time.Second
-const completionLeaseLifetime = 30 * time.Second
+const completionCleanupTimeout = 5 * time.Second
+const completionLeaseLifetime = 45 * time.Second
 
 var (
 	ErrInvalidEmail   = errors.New("enter a valid email address")
@@ -60,6 +63,7 @@ type sealedState struct {
 // security notice to the previous address could be delivered.
 type Completion struct {
 	Account                      accounts.Account
+	AuthenticationVersion        uint64
 	OldAddressNotificationFailed bool
 }
 
@@ -184,40 +188,52 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 		state.CompletionAttempts++
 	}
 	state.CompletionLeaseUntil = now.Add(completionLeaseLifetime)
-	completionRevision, err := s.update(ctx, key, entry.Revision(), state)
+	leaseContext, cancelLease := context.WithTimeout(ctx, completionLeaseWriteTimeout)
+	completionRevision, err := s.update(leaseContext, key, entry.Revision(), state)
+	cancelLease()
 	if err != nil {
 		return Completion{}, errCompletionBusy
 	}
+	workContext, cancelWork := context.WithTimeout(ctx, completionWorkTimeout)
+	defer cancelWork()
+	committed, wasCommitted = s.accounts.CompletedEmailChange(state.Target, state.NewEmail)
 	if wasCommitted {
-		return s.finishCommitted(ctx, key, completionRevision, state, committed)
+		return s.finishCommitted(key, completionRevision, state, committed)
 	}
-	account, err := s.accounts.ChangeEmail(ctx, state.Target, state.NewEmail)
+	account, err := s.accounts.ChangeEmail(workContext, state.Target, state.NewEmail)
 	if err != nil {
-		if committed, ok := s.accounts.CompletedEmailChange(state.Target, state.NewEmail); ok {
-			return s.finishCommitted(ctx, key, completionRevision, state, committed)
+		if committed, ok := s.accounts.CompletedEmailChange(state.Target, state.NewEmail); ok && workContext.Err() == nil {
+			return s.finishCommitted(key, completionRevision, state, committed)
 		}
 		if errors.Is(err, accounts.ErrEmailClaimed) || errors.Is(err, accounts.ErrCredentialChanged) {
 			_ = s.kv.Delete(ctx, key, jetstream.LastRevision(completionRevision))
 			return Completion{}, ErrInvalidFlow
 		}
 		state.CompletionLeaseUntil = time.Time{}
-		_, _ = s.update(ctx, key, completionRevision, state)
+		cleanupContext, cancel := context.WithTimeout(context.Background(), completionCleanupTimeout)
+		defer cancel()
+		_, _ = s.update(cleanupContext, key, completionRevision, state)
 		return Completion{}, err
 	}
-	return s.finishCommitted(ctx, key, completionRevision, state, account)
+	if err := workContext.Err(); err != nil {
+		return Completion{}, err
+	}
+	return s.finishCommitted(key, completionRevision, state, account)
 }
 
-func (s *Service) finishCommitted(ctx context.Context, key string, revision uint64, state flowState, account accounts.Account) (Completion, error) {
+func (s *Service) finishCommitted(key string, revision uint64, state flowState, account accounts.Account) (Completion, error) {
 	message := email.Message{
 		To:      state.Target.OldEmail,
 		Subject: "Your Authling email address changed",
 		Body:    "The email address for your Authling account was changed. If you did not make this change, contact the operator of this Authling service immediately.\n",
 	}
-	notificationContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), oldAddressNotificationTimeout)
+	notificationContext, cancel := context.WithTimeout(context.Background(), oldAddressNotificationTimeout)
 	defer cancel()
 	notificationErr := s.send(notificationContext, message)
-	_ = s.kv.Delete(ctx, key, jetstream.LastRevision(revision))
-	return Completion{Account: account, OldAddressNotificationFailed: notificationErr != nil}, nil
+	cleanupContext, cleanupCancel := context.WithTimeout(context.Background(), completionCleanupTimeout)
+	defer cleanupCancel()
+	_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))
+	return Completion{Account: account, AuthenticationVersion: account.AuthenticationVersion, OldAddressNotificationFailed: notificationErr != nil}, nil
 }
 
 func (s *Service) flowKey(token string) string {

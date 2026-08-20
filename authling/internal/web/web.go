@@ -410,7 +410,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			render(w, r, http.StatusServiceUnavailable, emailChangeConfirmPage(flow, "We couldn't change your email address. Please try again."))
 			return
 		}
-		if err := establishSession(w, r, deps, completion.Account.ID); err != nil {
+		if err := establishSessionAtAuthenticationVersion(w, r, deps, completion.Account.ID, completion.AuthenticationVersion); err != nil {
 			clearSessionCookie(w, deps.SecureCookies)
 			http.Error(w, "email changed, but a new session could not be established", http.StatusServiceUnavailable)
 			return
@@ -578,7 +578,21 @@ func redirect(w http.ResponseWriter, r *http.Request, target string) {
 }
 
 func establishSession(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string) error {
-	token, _, err := deps.Sessions.Create(r.Context(), accountID)
+	return establishSessionForAuthenticationVersion(w, r, deps, accountID, nil)
+}
+
+func establishSessionAtAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion uint64) error {
+	return establishSessionForAuthenticationVersion(w, r, deps, accountID, &authenticationVersion)
+}
+
+func establishSessionForAuthenticationVersion(w http.ResponseWriter, r *http.Request, deps Dependencies, accountID string, authenticationVersion *uint64) error {
+	var token string
+	var err error
+	if authenticationVersion == nil {
+		token, _, err = deps.Sessions.Create(r.Context(), accountID)
+	} else {
+		token, _, err = deps.Sessions.CreateAtAuthenticationVersion(r.Context(), accountID, *authenticationVersion)
+	}
 	if err != nil {
 		return err
 	}
