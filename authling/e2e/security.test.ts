@@ -25,6 +25,7 @@ for (const path of [
   '/password-reset',
   '/password-reset/verify',
   '/password-reset/complete',
+  '/account/password',
   '/account/email',
   '/account/email/verify',
   '/account/email/complete',

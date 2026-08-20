@@ -600,6 +600,40 @@ func TestSignedInPasswordChangeToleratesAnAuditEventAfterReauthentication(t *tes
 	if changed.AuthenticationVersion != account.AuthenticationVersion+1 {
 		t.Fatalf("changed authentication version = %d, want %d", changed.AuthenticationVersion, account.AuthenticationVersion+1)
 	}
+	if _, err := runtime.Authentication.Login(testContext(t), "password-audit@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("original password after prepared change error = %v, want ErrInvalidCredentials", err)
+	}
+	if authenticated, err := runtime.Authentication.Login(testContext(t), "password-audit@example.com", "the replacement uncommon password"); err != nil || authenticated != changed {
+		t.Fatalf("prepared replacement login = %+v, %v; want %+v", authenticated, err, changed)
+	}
+}
+
+func TestSignedInPasswordChangeRejectsReauthenticationBeforeEmailChange(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "password-before-email@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	target, err := runtime.Accounts.PreparePasswordChange(testContext(t), account.ID, "the original uncommon password", "the replacement uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the original uncommon password", "password-after-email@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.Accounts.ChangePassword(testContext(t), target); !errors.Is(err, accounts.ErrCredentialChanged) {
+		t.Fatalf("pre-email-change reauthentication error = %v, want ErrCredentialChanged", err)
+	}
 }
 
 func TestPasswordResetHidesAbsentAccountsAndRejectsStaleConcurrentFlows(t *testing.T) {
