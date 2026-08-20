@@ -163,8 +163,9 @@
 
   // Push notifications state
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
-  let showOriginPushControls = $derived(pushEnabled && isOriginServer);
-  let showRemotePushNotice = $derived(pushEnabled && !isOriginServer);
+  let showPushControls = $derived(
+    pushEnabled && (isOriginServer || serverInfo.supportsFeature('remoteWebPush'))
+  );
   const pushCapability = getPushCapability();
   const pushSupported = pushCapability === 'supported';
   const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';
@@ -177,9 +178,9 @@
 
   // Check push subscription status on mount
   $effect(() => {
-    if (showOriginPushControls && pushSupported) {
+    if (showPushControls && pushSupported) {
       pushPermission = getPermission();
-      checkPushSubscription().then((subscribed) => {
+      checkPushSubscription(activeServerId).then((subscribed) => {
         pushSubscribed = subscribed;
       });
     }
@@ -196,7 +197,7 @@
     pushError = null;
 
     try {
-      const success = await ensureRegistered(vapidKey, { prompt: true });
+      const success = await ensureRegistered(activeServerId, vapidKey, { prompt: true });
       pushPermission = getPermission();
       if (success) {
         pushSubscribed = true;
@@ -217,7 +218,7 @@
     pushTestLoading = true;
     pushTestStatus = null;
     try {
-      pushTestStatus = (await sendTestNotification()) ? 'sent' : 'failed';
+      pushTestStatus = (await sendTestNotification(activeServerId)) ? 'sent' : 'failed';
     } catch {
       pushTestStatus = 'failed';
     } finally {
@@ -236,21 +237,7 @@
   <NotificationPolicySettings />
 
   <!-- Push Notifications Section (only show if enabled on server) -->
-  {#if showRemotePushNotice}
-    <div class="max-w-lg">
-      <h3 class="mb-4 text-sm font-semibold text-muted">
-        {m('settings.notifications.push.title')}
-      </h3>
-      <Hint tone="info">
-        <div>
-          <p class="font-medium">{m('settings.notifications.push.remote_title')}</p>
-          <p class="mt-1 text-sm text-muted">
-            {m('settings.notifications.push.remote_description')}
-          </p>
-        </div>
-      </Hint>
-    </div>
-  {:else if showOriginPushControls}
+  {#if showPushControls}
     <div class="max-w-lg">
       <h3 class="mb-4 text-sm font-semibold text-muted">
         {m('settings.notifications.push.title')}

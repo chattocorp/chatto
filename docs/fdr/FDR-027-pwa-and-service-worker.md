@@ -1,7 +1,7 @@
 # FDR-027: PWA & Service Worker
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -13,7 +13,7 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 
 ## Behavior
 
-- The service worker is registered by SvelteKit in production builds.
+- The root service worker is registered by SvelteKit in production builds. Web Push setup registers the same script under stable narrow scopes when an installed app needs independent subscriptions for remote servers.
 - A new worker activates promptly so an older request-intercepting worker does not remain attached to long-lived Chatto tabs.
 - The worker does not intercept frontend, navigation, API, authentication, live, webhook, or uploaded-asset requests.
 - Content-hashed JavaScript, CSS, and bundled font resources use normal immutable HTTP caching. Other frontend resources follow their server-provided cache policy.
@@ -40,11 +40,11 @@ Reconnect catch-up is owned by the foreground web app, not the service worker. W
 **Why:** A content hash gives each build resource a new URL when its bytes change, so normal browser caching can reuse it safely without duplicating the response in a worker-managed cache.
 **Tradeoff:** Cache retention is left to the browser, and non-hashed frontend resources are only reused according to their server-provided cache headers.
 
-### 3. SvelteKit owns registration
+### 3. SvelteKit owns the root registration
 
-**Decision:** The frontend relies on SvelteKit's production service-worker registration instead of registering manually from the push-notification setup component.
-**Why:** Registration and worker updates belong to the installed PWA lifecycle, while push setup can independently request a subscription when the user enables notifications.
-**Tradeoff:** Production users get the service worker even when they do not enable Web Push, though the dormant worker does not intercept their requests.
+**Decision:** The frontend relies on SvelteKit's production service-worker registration for the root worker. Push setup reuses that registration for the serving server and registers the same worker script under stable, server-specific narrow scopes for remote-server subscriptions.
+**Why:** The root worker and its updates belong to the installed PWA lifecycle. A Push API subscription is bound to one service-worker registration and one application-server key, so independent scopes let remote servers retain their own VAPID keys without changing which worker controls the application page.
+**Tradeoff:** Production users get the root worker even when they do not enable Web Push, and multi-server users can have additional dormant registrations after a remote subscription is removed. None of these workers intercept requests.
 
 ### 4. Protected assets bypass the worker
 

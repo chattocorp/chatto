@@ -47,7 +47,11 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 	if req.Msg.UserAgent != nil {
 		userAgent = req.Msg.GetUserAgent()
 	}
-	if _, err := s.api.core.SavePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent); err != nil {
+	navigationBaseURL := ""
+	if req.Msg.NavigationBaseUrl != nil {
+		navigationBaseURL = req.Msg.GetNavigationBaseUrl()
+	}
+	if _, err := s.api.core.SavePushSubscriptionForClient(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, navigationBaseURL); err != nil {
 		return nil, connectError(err)
 	}
 

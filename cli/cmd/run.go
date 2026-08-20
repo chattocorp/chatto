@@ -420,13 +420,15 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 		if len(subscriptions) == 0 {
 			return errors.New("no current push subscriptions registered")
 		}
-		results := sender.SendToMany(ctx, subscriptions, &push.Payload{
-			Title: "Test notification",
-			Body:  "Push notifications are working.",
-			URL:   cfg.Webserver.URL,
-			Icon:  "/icons/icon-192.png",
-			Badge: "/icons/icon-192.png",
-			Tag:   "push-test",
+		results := sender.SendToManyMapped(ctx, subscriptions, func(subscription *corev1.PushSubscription) *push.Payload {
+			return &push.Payload{
+				Title: "Test notification",
+				Body:  "Push notifications are working.",
+				URL:   push.NavigationBaseURL(subscription, cfg.Webserver.URL),
+				Icon:  "/icons/icon-192.png",
+				Badge: "/icons/icon-192.png",
+				Tag:   "push-test",
+			}
 		})
 		var sendErr error
 		accepted := false
@@ -454,7 +456,7 @@ func setupPushNotifications(chattoCore *core.ChattoCore, cfg config.ChattoConfig
 }
 
 type notificationPushSender interface {
-	SendToMany(context.Context, []*corev1.PushSubscription, *push.Payload) []*push.SendResult
+	SendToManyMapped(context.Context, []*corev1.PushSubscription, func(*corev1.PushSubscription) *push.Payload) []*push.SendResult
 }
 
 // notificationAlertHandler keeps the production provider seam independently
@@ -483,9 +485,10 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 				}
 			}
 		}
-		payload := push.BuildPayloadFromOccurrence(occurrence, actorName, cfg.Webserver.URL, fetchOccurrencePayloadContext(ctx, chattoCore, occurrence, logger))
+		payloadCtx := fetchOccurrencePayloadContext(ctx, chattoCore, occurrence, logger)
+		appBadge := ""
 		if count, countErr := chattoCore.NotificationOccurrences().UnreadCount(ctx, occurrence.GetRecipientId()); countErr == nil {
-			payload.AppBadge = strconv.Itoa(count)
+			appBadge = strconv.Itoa(count)
 		}
 
 		// Revalidate after hydration so a concurrent delete or visibility purge
@@ -516,10 +519,20 @@ func notificationAlertHandler(chattoCore *core.ChattoCore, cfg config.ChattoConf
 		if remaining <= 0 {
 			return core.ErrNotificationAlertSuppressed
 		}
-		payload.DeliveryDeadline = alertDeadline
 		sendCtx, cancel := context.WithDeadline(ctx, alertDeadline)
 		defer cancel()
-		results := sender.SendToMany(sendCtx, subscriptions, payload)
+		results := sender.SendToManyMapped(sendCtx, subscriptions, func(subscription *corev1.PushSubscription) *push.Payload {
+			payload := push.BuildPayloadFromOccurrenceForSubscription(
+				occurrence,
+				actorName,
+				cfg.Webserver.URL,
+				subscription,
+				payloadCtx,
+			)
+			payload.AppBadge = appBadge
+			payload.DeliveryDeadline = alertDeadline
+			return payload
+		})
 		var sendErr error
 		accepted := false
 		for _, result := range results {

@@ -196,8 +196,8 @@
 {#if idleState.isInAnyCall}
   <ScreenWakeLock />
 {/if}
+<PushNotificationSetup />
 {#if originSession}
-  <PushNotificationSetup />
   <PushNotificationPrompt userId={originSession.user.id} />
   <WelcomeBanner />
 {/if}

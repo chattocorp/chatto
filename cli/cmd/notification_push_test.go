@@ -28,12 +28,24 @@ type recordingNotificationPushSender struct {
 }
 
 func (s *recordingNotificationPushSender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *push.Payload) []*push.SendResult {
+	return s.SendToManyMapped(ctx, subscriptions, func(*corev1.PushSubscription) *push.Payload {
+		return payload
+	})
+}
+
+func (s *recordingNotificationPushSender) SendToManyMapped(
+	ctx context.Context,
+	subscriptions []*corev1.PushSubscription,
+	payloadFor func(*corev1.PushSubscription) *push.Payload,
+) []*push.SendResult {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.calls++
 	s.inputs = append(s.inputs, subscriptions)
-	copyPayload := *payload
-	s.payload = append(s.payload, &copyPayload)
+	if len(subscriptions) > 0 {
+		copyPayload := *payloadFor(subscriptions[0])
+		s.payload = append(s.payload, &copyPayload)
+	}
 	deadline, _ := ctx.Deadline()
 	s.deadlines = append(s.deadlines, deadline)
 	return s.results(subscriptions)

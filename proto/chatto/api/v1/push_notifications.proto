@@ -49,6 +49,12 @@ message SubscribePushRequest {
 
   // Optional browser user-agent string for device identification.
   optional string user_agent = 4 [(buf.validate.field).string.max_len = 512];
+
+  // Absolute client route that opens this server in the installed web app.
+  // This is stored per subscription because the same account can use clients
+  // hosted by different Chatto servers. It must use HTTPS, except for loopback
+  // development origins, and must not contain a query or fragment.
+  optional string navigation_base_url = 5 [(buf.validate.field).string.max_len = 2048];
 }
 
 // Response from storing a browser push subscription.

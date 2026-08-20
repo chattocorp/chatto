@@ -181,6 +181,75 @@ func TestSavePushSubscription(t *testing.T) {
 	})
 }
 
+func TestSavePushSubscriptionForClient(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	navigationBaseURL := "https://app.example.com/chat/remote.example.com"
+
+	sub, err := core.SavePushSubscriptionForClient(
+		ctx,
+		"push-user-client-route",
+		"https://push.example.com/client-route",
+		"key",
+		"auth",
+		"browser",
+		navigationBaseURL,
+	)
+	if err != nil {
+		t.Fatalf("SavePushSubscriptionForClient error: %v", err)
+	}
+	if sub.NavigationBaseUrl != navigationBaseURL {
+		t.Fatalf("NavigationBaseUrl = %q, want %q", sub.NavigationBaseUrl, navigationBaseURL)
+	}
+}
+
+func TestSavePushSubscriptionForClient_RejectsInvalidNavigationBaseURLs(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+
+	invalid := []string{
+		"http://app.example.com/chat/remote.example.com",
+		"https://user:password@app.example.com/chat/remote.example.com",
+		"https://app.example.com/chat/remote.example.com?source=push",
+		"https://app.example.com/chat/remote.example.com#fragment",
+		"/chat/remote.example.com",
+		strings.Repeat("x", MaxPushNavigationBaseURLLength+1),
+	}
+	for index, navigationBaseURL := range invalid {
+		_, err := core.SavePushSubscriptionForClient(
+			ctx,
+			fmt.Sprintf("push-user-invalid-navigation-%d", index),
+			fmt.Sprintf("https://push.example.com/invalid-navigation-%d", index),
+			"key",
+			"auth",
+			"browser",
+			navigationBaseURL,
+		)
+		if !errors.Is(err, ErrInvalidArgument) {
+			t.Errorf("navigation base URL %q: error = %v, want ErrInvalidArgument", navigationBaseURL, err)
+		}
+	}
+
+	for _, navigationBaseURL := range []string{
+		"https://app.example.com/chat/remote.example.com",
+		"http://localhost:5173/chat/remote.example.com",
+		"http://127.0.0.1:5173/chat/remote.example.com",
+	} {
+		_, err := core.SavePushSubscriptionForClient(
+			ctx,
+			"push-user-valid-navigation",
+			"https://push.example.com/valid-navigation-"+hashEndpoint(navigationBaseURL),
+			"key",
+			"auth",
+			"browser",
+			navigationBaseURL,
+		)
+		if err != nil {
+			t.Errorf("navigation base URL %q: %v", navigationBaseURL, err)
+		}
+	}
+}
+
 func TestSavePushSubscription_StringLengthLimits(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()

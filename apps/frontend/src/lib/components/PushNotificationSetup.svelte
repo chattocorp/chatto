@@ -4,33 +4,26 @@
 Refreshes the server-side Web Push subscription record when a browser already
 has notification permission. SvelteKit registers the service worker in production.
 
-Only active when push notifications are enabled in the server config.
-Include this component once in the authenticated layout.
+Only active for authenticated servers that have push notifications enabled.
+Include this component once in the chat root.
 -->
 <script lang="ts">
-  import { ensureRegistered } from '$lib/notifications/pushNotifications';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
-
-  const originId = serverRegistry.originServer?.id ?? '';
-  const originServerInfo = originId ? serverRegistry.getStore(originId).serverInfo : undefined;
-
-  function refreshPushSubscription() {
-    if (!originServerInfo?.pushNotificationsEnabled) return;
-    if (!originServerInfo.vapidPublicKey) return;
-
-    void ensureRegistered(originServerInfo.vapidPublicKey, { prompt: false });
-  }
+  import {
+    getPushRegistrationTargets,
+    refreshPushSubscriptions
+  } from '$lib/notifications/pushNotifications';
 
   $effect(() => {
-    if (!originServerInfo?.pushNotificationsEnabled) return;
-    if (!originServerInfo.vapidPublicKey) return;
+    const servers = getPushRegistrationTargets();
+    if (servers.length === 0) return;
 
-    refreshPushSubscription();
+    void refreshPushSubscriptions(servers);
     if (typeof navigator === 'undefined' || !('serviceWorker' in navigator)) return;
 
-    navigator.serviceWorker.addEventListener('controllerchange', refreshPushSubscription);
+    const refresh = () => void refreshPushSubscriptions();
+    navigator.serviceWorker.addEventListener('controllerchange', refresh);
     return () => {
-      navigator.serviceWorker.removeEventListener('controllerchange', refreshPushSubscription);
+      navigator.serviceWorker.removeEventListener('controllerchange', refresh);
     };
   });
 </script>

@@ -7,6 +7,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { clearLastRoom } from '$lib/storage/lastRoom';
   import { m } from '$lib/i18n/messages';
+  import { unsubscribe as unsubscribePush } from '$lib/notifications/pushNotifications';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
 
   let {
@@ -19,8 +20,9 @@
 
   const activeServerId = $derived(getActiveServer());
 
-  function removeServer() {
+  async function removeServer() {
     const removingActiveServer = modal.serverId === activeServerId;
+    await unsubscribePush(modal.serverId).catch(() => false);
     clearLastRoom(modal.serverId);
     serverRegistry.removeServer(modal.serverId);
 

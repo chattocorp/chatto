@@ -16,7 +16,8 @@ const mocks = vi.hoisted(() => ({
   },
   serverInfo: {
     pushNotificationsEnabled: false,
-    vapidPublicKey: null as string | null
+    vapidPublicKey: null as string | null,
+    supportsFeature: vi.fn(() => true)
   },
   pushNotifications: {
     ensureRegistered: vi.fn(),
@@ -117,6 +118,7 @@ describe('Notification settings page', () => {
     mocks.notifications.updatePolicy.mockResolvedValue(null);
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
+    mocks.serverInfo.supportsFeature.mockReturnValue(true);
     mocks.pushNotifications.ensureRegistered.mockReset();
     mocks.pushNotifications.ensureRegistered.mockResolvedValue(true);
     mocks.pushNotifications.getPermission.mockReset();
@@ -174,7 +176,7 @@ describe('Notification settings page', () => {
     expect(container.textContent).not.toContain('Disable');
   });
 
-  it('does not offer native push registration for remote servers', async () => {
+  it('offers an independent push subscription for compatible remote servers', async () => {
     mocks.activeServerId = 'remote';
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
@@ -184,16 +186,21 @@ describe('Notification settings page', () => {
     await settle();
 
     expect(container.textContent).toContain('Push Notifications');
-    expect(container.textContent).toContain('Native push is unavailable for remote servers');
-    expect(container.textContent).toContain('In-app notification badges and sounds still work');
-    expect(container.textContent).not.toContain('Get notified about new messages while Chatto');
-    expect(
-      Array.from(container.querySelectorAll('button')).some((button) =>
-        button.textContent?.includes('Enable')
-      )
-    ).toBe(false);
+    await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
+    expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('remote');
+  });
+
+  it('does not offer remote push to servers without scoped-subscription support', async () => {
+    mocks.activeServerId = 'remote';
+    mocks.serverInfo.pushNotificationsEnabled = true;
+    mocks.serverInfo.vapidPublicKey = 'vapid-key';
+    mocks.serverInfo.supportsFeature.mockReturnValue(false);
+
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    expect(container.textContent).not.toContain('Push Notifications');
     expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
-    expect(mocks.pushNotifications.ensureRegistered).not.toHaveBeenCalled();
   });
 
   it('shows iOS Home Screen guidance without checking or registering push', async () => {
@@ -234,9 +241,11 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Enable').click();
     await settle();
 
-    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith('vapid-key', {
-      prompt: true
-    });
+    expect(mocks.pushNotifications.ensureRegistered).toHaveBeenCalledWith(
+      'origin',
+      'vapid-key',
+      { prompt: true }
+    );
     expect(container.textContent).toContain('Push notifications enabled');
     expect(container.textContent).toContain('disable them for this site');
     expect(container.textContent).not.toContain('Disable');
@@ -254,7 +263,7 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Send test notification').click();
     await settle();
 
-    expect(mocks.pushNotifications.sendTestNotification).toHaveBeenCalledOnce();
+    expect(mocks.pushNotifications.sendTestNotification).toHaveBeenCalledWith('origin');
     expect(container.textContent).toContain('Test notification sent.');
   });
 

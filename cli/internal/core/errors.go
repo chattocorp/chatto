@@ -303,6 +303,8 @@ const (
 
 	// MaxPushEndpointLength is the maximum length of a Push API endpoint URL in bytes.
 	MaxPushEndpointLength = 4096
+	// MaxPushNavigationBaseURLLength bounds the client route stored with a browser subscription.
+	MaxPushNavigationBaseURLLength = 2048
 
 	// MaxPushKeyLength is the maximum length of a Push API p256dh public key in bytes.
 	MaxPushKeyLength = 256

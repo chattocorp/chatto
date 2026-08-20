@@ -7,14 +7,21 @@
  */
 
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
+import { serverIdToSegment } from '$lib/navigation';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
 } from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
+import { serverRegistry } from '$lib/state/server/registry.svelte';
 
 type EnsureRegisteredOptions = {
   prompt: boolean;
+};
+
+export type PushRegistrationTarget = {
+  serverId: string;
+  vapidPublicKey: string;
 };
 
 export type PushCapability = 'supported' | 'ios_home_screen_required' | 'unsupported';
@@ -22,6 +29,9 @@ export type PushCapability = 'supported' | 'ios_home_screen_required' | 'unsuppo
 type StandaloneNavigator = Navigator & {
   standalone?: boolean;
 };
+
+const serviceWorkerScriptPath = '/service-worker.js';
+const remotePushScopePrefix = '/__chatto/push/';
 
 function isIosBrowserContext(): boolean {
   if (typeof navigator === 'undefined') return false;
@@ -67,25 +77,93 @@ export function isSupported(): boolean {
 }
 
 /**
- * Get the current service worker registration.
+ * Get the service worker registration that owns a server's push subscription.
+ * The origin server retains the historical root registration. Remote servers
+ * use stable narrow scopes so each can bind a subscription to its own VAPID
+ * key without changing which worker controls the application page.
  */
-async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+async function getServiceWorkerRegistration(
+  serverId: string,
+  options: { create: boolean }
+): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
     return null;
   }
 
   try {
-    return await navigator.serviceWorker.ready;
+    if (serverRegistry.isOriginServer(serverId)) {
+      if (options.create) return await navigator.serviceWorker.ready;
+      return await findExactServiceWorkerRegistration(window.location.origin + '/');
+    }
+
+    const server = serverRegistry.getServer(serverId);
+    if (!server) return null;
+
+    const scopeKey = await stableScopeKey(new URL(server.url).origin);
+    const scope = `${remotePushScopePrefix}${scopeKey}/`;
+    if (!options.create) {
+      return await findExactServiceWorkerRegistration(
+        new URL(scope, window.location.origin).toString()
+      );
+    }
+    const registration = await navigator.serviceWorker.register(serviceWorkerScriptPath, {
+      scope,
+      type: 'module'
+    });
+    await waitForActiveWorker(registration);
+    return registration;
   } catch {
     return null;
   }
 }
 
+async function findExactServiceWorkerRegistration(
+  expectedScope: string
+): Promise<ServiceWorkerRegistration | null> {
+  const registrations = await navigator.serviceWorker.getRegistrations();
+  return registrations.find((registration) => registration.scope === expectedScope) ?? null;
+}
+
+async function stableScopeKey(value: string): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
+
+async function waitForActiveWorker(registration: ServiceWorkerRegistration): Promise<void> {
+  if (registration.active) return;
+
+  const worker = registration.installing ?? registration.waiting;
+  if (!worker) throw new Error('Service worker did not install');
+
+  await new Promise<void>((resolve, reject) => {
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error('Service worker activation timed out'));
+    }, 15_000);
+    const onStateChange = () => {
+      if (worker.state === 'activated') {
+        cleanup();
+        resolve();
+      } else if (worker.state === 'redundant') {
+        cleanup();
+        reject(new Error('Service worker became redundant'));
+      }
+    };
+    const cleanup = () => {
+      window.clearTimeout(timeout);
+      worker.removeEventListener('statechange', onStateChange);
+    };
+
+    worker.addEventListener('statechange', onStateChange);
+    onStateChange();
+  });
+}
+
 /**
  * Get the current push subscription, if any.
  */
-export async function getSubscription(): Promise<PushSubscription | null> {
-  const registration = await getServiceWorkerRegistration();
+export async function getSubscription(serverId: string): Promise<PushSubscription | null> {
+  const registration = await getServiceWorkerRegistration(serverId, { create: false });
   if (!registration) {
     return null;
   }
@@ -100,14 +178,14 @@ export async function getSubscription(): Promise<PushSubscription | null> {
 /**
  * Check if push notifications are currently subscribed.
  */
-export async function isSubscribed(): Promise<boolean> {
-  const subscription = await getSubscription();
+export async function isSubscribed(serverId: string): Promise<boolean> {
+  const subscription = await getSubscription(serverId);
   return subscription !== null;
 }
 
 /** Sends a real Web Push notification to this browser's current subscription. */
-export async function sendTestNotification(): Promise<boolean> {
-  return originPushAPI().sendTestNotification();
+export async function sendTestNotification(serverId: string): Promise<boolean> {
+  return pushAPI(serverId).sendTestNotification();
 }
 
 export function getPermission(): NotificationPermission | null {
@@ -115,6 +193,32 @@ export function getPermission(): NotificationPermission | null {
     return null;
   }
   return Notification.permission;
+}
+
+/** Return authenticated servers that can accept this client's Web Push route. */
+export function getPushRegistrationTargets(): PushRegistrationTarget[] {
+  return serverRegistry.servers.flatMap((server) => {
+    const store = serverRegistry.tryGetStore(server.id);
+    const info = store?.serverInfo;
+    if (!store?.isAuthenticated || !info?.pushNotificationsEnabled || !info.vapidPublicKey) {
+      return [];
+    }
+    if (!serverRegistry.isOriginServer(server.id) && !info.supportsFeature('remoteWebPush')) {
+      return [];
+    }
+    return [{ serverId: server.id, vapidPublicKey: info.vapidPublicKey }];
+  });
+}
+
+/** Refresh every configured server after permission or worker lifecycle changes. */
+export async function refreshPushSubscriptions(
+  targets = getPushRegistrationTargets()
+): Promise<void> {
+  await Promise.all(
+    targets.map(({ serverId, vapidPublicKey }) =>
+      ensureRegistered(serverId, vapidPublicKey, { prompt: false })
+    )
+  );
 }
 
 /**
@@ -141,6 +245,7 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array<ArrayBuffer> {
  * prompting the user.
  */
 export async function ensureRegistered(
+  serverId: string,
   vapidPublicKey: string,
   options: EnsureRegisteredOptions
 ): Promise<boolean> {
@@ -162,20 +267,30 @@ export async function ensureRegistered(
     return false;
   }
 
-  const registration = await getServiceWorkerRegistration();
+  const registration = await getServiceWorkerRegistration(serverId, { create: true });
   if (!registration) {
     console.error('No service worker registration');
     return false;
   }
 
   try {
+    const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
     let subscription = await registration.pushManager.getSubscription();
     let createdSubscription = false;
+
+    if (
+      subscription?.options.applicationServerKey &&
+      !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
+    ) {
+      await pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => false);
+      await subscription.unsubscribe();
+      subscription = null;
+    }
 
     if (!subscription) {
       subscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey)
+        applicationServerKey
       });
       createdSubscription = true;
     }
@@ -187,11 +302,12 @@ export async function ensureRegistered(
       return false;
     }
 
-    const saved = await originPushAPI().subscribe({
+    const saved = await pushAPI(serverId).subscribe({
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
-      userAgent: navigator.userAgent
+      userAgent: navigator.userAgent,
+      navigationBaseUrl: navigationBaseURL(serverId)
     });
 
     if (!saved) {
@@ -215,8 +331,8 @@ export async function ensureRegistered(
  * @param vapidPublicKey - The server's VAPID public key
  * @returns true if subscription was successful
  */
-export async function subscribe(vapidPublicKey: string): Promise<boolean> {
-  return ensureRegistered(vapidPublicKey, { prompt: true });
+export async function subscribe(serverId: string, vapidPublicKey: string): Promise<boolean> {
+  return ensureRegistered(serverId, vapidPublicKey, { prompt: true });
 }
 
 /**
@@ -227,8 +343,9 @@ export async function subscribe(vapidPublicKey: string): Promise<boolean> {
  *
  * @returns true if unsubscription was successful
  */
-export async function unsubscribe(): Promise<boolean> {
-  const subscription = await getSubscription();
+export async function unsubscribe(serverId: string): Promise<boolean> {
+  const api = pushAPI(serverId);
+  const subscription = await getSubscription(serverId);
   if (!subscription) {
     // Already unsubscribed
     return true;
@@ -236,7 +353,7 @@ export async function unsubscribe(): Promise<boolean> {
 
   try {
     // Remove from server first
-    const removed = await originPushAPI().unsubscribe(subscription.endpoint);
+    const removed = await api.unsubscribe(subscription.endpoint);
 
     if (!removed) {
       console.error('Failed to remove push subscription from server');
@@ -252,8 +369,19 @@ export async function unsubscribe(): Promise<boolean> {
   }
 }
 
-function originPushAPI() {
-  return serverConnectionManager.originClient.getAPI(createPushNotificationAPI);
+function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): boolean {
+  const leftBytes = new Uint8Array(left);
+  if (leftBytes.length !== right.length) return false;
+  return leftBytes.every((byte, index) => byte === right[index]);
+}
+
+function navigationBaseURL(serverId: string): string {
+  const serverSegment = encodeURIComponent(serverIdToSegment(serverId));
+  return new URL(`/chat/${serverSegment}`, window.location.origin).toString();
+}
+
+function pushAPI(serverId: string) {
+  return serverConnectionManager.getClient(serverId).getAPI(createPushNotificationAPI);
 }
 
 /**

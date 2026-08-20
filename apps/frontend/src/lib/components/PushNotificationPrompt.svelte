@@ -8,7 +8,8 @@ have not made a browser permission choice yet.
   import {
     ensureRegistered,
     getPushCapability,
-    getPermission
+    getPermission,
+    refreshPushSubscriptions
   } from '$lib/notifications/pushNotifications';
   import { Codecs, serverSlot } from '$lib/storage/slot';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
@@ -54,10 +55,11 @@ have not made a browser permission choice yet.
 
     loading = true;
     try {
-      const enabled = await ensureRegistered(vapidKey, { prompt: true });
+      const enabled = await ensureRegistered(originId, vapidKey, { prompt: true });
       permission = getPermission();
 
       if (enabled) {
+        await refreshPushSubscriptions();
         toast.success(m('settings.notifications.push_prompt.enabled'));
         return;
       }

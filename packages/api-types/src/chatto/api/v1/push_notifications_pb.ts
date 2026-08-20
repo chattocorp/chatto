@@ -41,6 +41,16 @@ export class SubscribePushRequest extends Message<SubscribePushRequest> {
    */
   userAgent?: string;
 
+  /**
+   * Absolute client route that opens this server in the installed web app.
+   * This is stored per subscription because the same account can use clients
+   * hosted by different Chatto servers. It must use HTTPS, except for loopback
+   * development origins, and must not contain a query or fragment.
+   *
+   * @generated from field: optional string navigation_base_url = 5;
+   */
+  navigationBaseUrl?: string;
+
   constructor(data?: PartialMessage<SubscribePushRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -53,6 +63,7 @@ export class SubscribePushRequest extends Message<SubscribePushRequest> {
     { no: 2, name: "p256dh", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "auth", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "user_agent", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
+    { no: 5, name: "navigation_base_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SubscribePushRequest {

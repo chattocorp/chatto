@@ -552,6 +552,36 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 }
 
+func TestBuildPayloadFromOccurrenceForSubscription(t *testing.T) {
+	notif := notificationOccurrenceForTest(
+		"notif-remote",
+		"",
+		"",
+		"room-remote",
+		"event-remote",
+		"",
+		notificationTestSignalDirectMention,
+	)
+	subscription := &corev1.PushSubscription{
+		NavigationBaseUrl: "https://app.example.com/chat/remote.example.com",
+	}
+
+	payload := BuildPayloadFromOccurrenceForSubscription(
+		notif,
+		"Alice",
+		"https://remote.example.com",
+		subscription,
+		nil,
+	)
+
+	if payload.URL != "https://app.example.com/chat/remote.example.com/room-remote?highlight=event-remote" {
+		t.Fatalf("URL = %q", payload.URL)
+	}
+	if payload.Icon != "https://remote.example.com/icons/icon-192.png" {
+		t.Fatalf("Icon = %q", payload.Icon)
+	}
+}
+
 func TestOccurrenceTag(t *testing.T) {
 	t.Run("returns DM tag with event ID", func(t *testing.T) {
 		notif := notificationOccurrenceForTest("", "", "", "room-123", "event-abc", "", notificationTestSignalDirectMessage)

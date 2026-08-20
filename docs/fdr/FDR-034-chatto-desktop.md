@@ -1,7 +1,7 @@
 # FDR-034: Chatto Desktop
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-18
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -191,10 +191,29 @@ qualities increase native encoding and upload cost. These are explicit
 control-plane costs in exchange for a materially shorter and more efficient
 media path that can adapt to each receiver.
 
+### 9. Keep background notification transport host-owned
+
+**Decision:** Browser Web Push subscriptions remain a browser/PWA transport and
+are not generalized into a cross-platform notification endpoint. A future
+Desktop background-notification implementation will use a narrow host
+capability and a Desktop-owned device registration or background connection,
+while reusing Chatto's persistent notification facts, per-server routing, and
+click targets above that transport boundary.
+**Why:** Electron does not provide a portable Web Push path that can wake an
+application after its process has exited. Keeping the current API honest about
+browser subscriptions avoids persisting speculative Desktop fields or making
+Desktop depend on service-worker scope and VAPID semantics. It also leaves each
+platform free to choose a reliable native wake mechanism without changing the
+shared notification behavior.
+**Tradeoff:** PWA and Desktop delivery registrations will be separate and may
+need a small server-side fan-out abstraction when Desktop background delivery
+is implemented. That work is deferred; current Desktop notifications still
+depend on the renderer being alive.
+
 ## Related
 
 - **ADRs:** ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-server client architecture), ADR-064 (separate frontend server catalogue and sessions), ADR-065 (runtime JSON client internationalization), ADR-067 (Electron desktop packaging), ADR-072 (optional host capabilities)
-- **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
+- **FDRs:** FDR-008 (File Attachments & Video Processing), FDR-013 (Web Push Notifications), FDR-016 (Voice Calls), FDR-023 (Authentication & Sessions), FDR-027 (PWA & Service Worker), FDR-031 (Client–Server Compatibility Discovery)
 
 ## Open Questions
 

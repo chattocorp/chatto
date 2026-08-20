@@ -34,9 +34,14 @@ type SubscribePushRequest struct {
 	// Authentication secret from PushSubscription.keys.auth.
 	Auth string `protobuf:"bytes,3,opt,name=auth,proto3" json:"auth,omitempty"`
 	// Optional browser user-agent string for device identification.
-	UserAgent     *string `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	UserAgent *string `protobuf:"bytes,4,opt,name=user_agent,json=userAgent,proto3,oneof" json:"user_agent,omitempty"`
+	// Absolute client route that opens this server in the installed web app.
+	// This is stored per subscription because the same account can use clients
+	// hosted by different Chatto servers. It must use HTTPS, except for loopback
+	// development origins, and must not contain a query or fragment.
+	NavigationBaseUrl *string `protobuf:"bytes,5,opt,name=navigation_base_url,json=navigationBaseUrl,proto3,oneof" json:"navigation_base_url,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *SubscribePushRequest) Reset() {
@@ -93,6 +98,13 @@ func (x *SubscribePushRequest) GetAuth() string {
 func (x *SubscribePushRequest) GetUserAgent() string {
 	if x != nil && x.UserAgent != nil {
 		return *x.UserAgent
+	}
+	return ""
+}
+
+func (x *SubscribePushRequest) GetNavigationBaseUrl() string {
+	if x != nil && x.NavigationBaseUrl != nil {
+		return *x.NavigationBaseUrl
 	}
 	return ""
 }
@@ -322,7 +334,7 @@ var File_chatto_api_v1_push_notifications_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\n" +
-	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xbf\x01\n" +
+	"&chatto/api/v1/push_notifications.proto\x12\rchatto.api.v1\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\x96\x02\n" +
 	"\x14SubscribePushRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\x12\"\n" +
@@ -331,8 +343,10 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\x04auth\x18\x03 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12,\n" +
 	"\n" +
-	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01B\r\n" +
-	"\v_user_agent\"7\n" +
+	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01\x12=\n" +
+	"\x13navigation_base_url\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10H\x01R\x11navigationBaseUrl\x88\x01\x01B\r\n" +
+	"\v_user_agentB\x16\n" +
+	"\x14_navigation_base_url\"7\n" +
 	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +

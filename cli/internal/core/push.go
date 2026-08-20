@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"strings"
 	"time"
 
@@ -87,7 +89,18 @@ func (c *ChattoCore) SavePushSubscription(
 	userID string,
 	endpoint, p256dh, auth, userAgent string,
 ) (*corev1.PushSubscription, error) {
-	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent); err != nil {
+	return c.SavePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "")
+}
+
+// SavePushSubscriptionForClient stores or updates a browser subscription with
+// the route used to open its hosting web client. An empty navigation base keeps
+// the legacy bundled-client routing behaviour.
+func (c *ChattoCore) SavePushSubscriptionForClient(
+	ctx context.Context,
+	userID string,
+	endpoint, p256dh, auth, userAgent, navigationBaseURL string,
+) (*corev1.PushSubscription, error) {
+	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, navigationBaseURL); err != nil {
 		return nil, err
 	}
 	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
@@ -98,11 +111,12 @@ func (c *ChattoCore) SavePushSubscription(
 	}
 
 	subscription := &corev1.PushSubscription{
-		Endpoint:  endpoint,
-		P256Dh:    p256dh,
-		Auth:      auth,
-		CreatedAt: timestamppb.New(time.Now()),
-		UserAgent: userAgent,
+		Endpoint:          endpoint,
+		P256Dh:            p256dh,
+		Auth:              auth,
+		CreatedAt:         timestamppb.New(time.Now()),
+		UserAgent:         userAgent,
+		NavigationBaseUrl: navigationBaseURL,
 	}
 
 	data, err := proto.Marshal(subscription)
@@ -368,7 +382,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 	return fmt.Errorf("failed to release push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
 }
 
-func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
+func validatePushSubscription(endpoint, p256dh, auth, userAgent, navigationBaseURL string) error {
 	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
 		return err
 	}
@@ -384,7 +398,42 @@ func validatePushSubscription(endpoint, p256dh, auth, userAgent string) error {
 	if err := validateStringMaxLength("push user agent", userAgent, MaxPushUserAgentLength); err != nil {
 		return err
 	}
+	if err := validatePushNavigationBaseURL(navigationBaseURL); err != nil {
+		return err
+	}
 	return nil
+}
+
+func validatePushNavigationBaseURL(value string) error {
+	if err := validateStringMaxLength("push navigation base URL", value, MaxPushNavigationBaseURLLength); err != nil {
+		return err
+	}
+	if value == "" {
+		return nil
+	}
+
+	if strings.Contains(value, "#") {
+		return fmt.Errorf("%w: push navigation base URL must not contain a fragment", ErrInvalidArgument)
+	}
+	parsed, err := url.ParseRequestURI(value)
+	if err != nil || !parsed.IsAbs() || parsed.Hostname() == "" || parsed.User != nil || parsed.RawQuery != "" || parsed.Fragment != "" {
+		return fmt.Errorf("%w: push navigation base URL must be an absolute web URL without credentials, query, or fragment", ErrInvalidArgument)
+	}
+	if parsed.Scheme == "https" {
+		return nil
+	}
+	if parsed.Scheme != "http" || !isLoopbackHostname(parsed.Hostname()) {
+		return fmt.Errorf("%w: push navigation base URL must use HTTPS except on loopback", ErrInvalidArgument)
+	}
+	return nil
+}
+
+func isLoopbackHostname(hostname string) bool {
+	if strings.EqualFold(hostname, "localhost") {
+		return true
+	}
+	ip := net.ParseIP(hostname)
+	return ip != nil && ip.IsLoopback()
 }
 
 // DeletePushSubscription removes a push subscription by endpoint.

@@ -313,7 +313,7 @@ describe('ChatRoot', () => {
       PresenceStatus.AWAY
     );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
 
     unmount();
 

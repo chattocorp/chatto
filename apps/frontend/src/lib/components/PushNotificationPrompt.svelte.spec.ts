@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => ({
   ensureRegistered: vi.fn(),
   getPushCapability: vi.fn(),
   getPermission: vi.fn(),
+  refreshPushSubscriptions: vi.fn(),
   toastSuccess: vi.fn(),
   toastWarning: vi.fn(),
   toastError: vi.fn(),
@@ -19,7 +20,8 @@ const mocks = vi.hoisted(() => ({
 vi.mock('$lib/notifications/pushNotifications', () => ({
   ensureRegistered: mocks.ensureRegistered,
   getPushCapability: mocks.getPushCapability,
-  getPermission: mocks.getPermission
+  getPermission: mocks.getPermission,
+  refreshPushSubscriptions: mocks.refreshPushSubscriptions
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -62,6 +64,8 @@ describe('PushNotificationPrompt', () => {
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
     mocks.ensureRegistered.mockReset();
     mocks.ensureRegistered.mockResolvedValue(true);
+    mocks.refreshPushSubscriptions.mockReset();
+    mocks.refreshPushSubscriptions.mockResolvedValue(undefined);
     mocks.getPermission.mockReset();
     mocks.getPermission.mockReturnValue('default');
     mocks.getPushCapability.mockReset();
@@ -141,7 +145,8 @@ describe('PushNotificationPrompt', () => {
     buttonWithText(container, 'Enable').click();
     await settle();
 
-    expect(mocks.ensureRegistered).toHaveBeenCalledWith('vapid-key', { prompt: true });
+    expect(mocks.ensureRegistered).toHaveBeenCalledWith('origin', 'vapid-key', { prompt: true });
+    expect(mocks.refreshPushSubscriptions).toHaveBeenCalledOnce();
     expect(mocks.toastSuccess).toHaveBeenCalledWith('Push notifications enabled');
     expect(container.textContent).not.toContain('Enable push notifications');
   });

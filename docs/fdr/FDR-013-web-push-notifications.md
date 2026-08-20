@@ -1,7 +1,7 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-20
 
 ## Overview
 
@@ -14,9 +14,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - On granting permission, the browser creates a subscription using the server's VAPID public key. The subscription details (endpoint URL, keys) are sent to the server and stored.
 - When a signed-in user opens Chatto and browser notification permission is already granted, Chatto refreshes the server's copy of the current browser subscription without prompting again.
 - A browser push endpoint is active for only the account that most recently registered it. Switching accounts in the same browser transfers delivery to the current account; stale records for the previous account are not delivered.
-- In multi-server mode, native Web Push controls are shown only for the server that served the installed app. Remote servers can still update in-app notification badges and sounds while Chatto is open, but they do not offer direct browser push registration from another server's app origin.
+- In multi-server mode, each compatible authenticated server gets its own browser subscription under a stable, server-scoped service-worker registration. Each server uses its own VAPID key and sends directly to the browser push endpoint; no serving-server relay is involved.
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state.
-- Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, and user agent 512 bytes.
+- Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, user agent 512 bytes, and client navigation base URL 2,048 bytes.
 - Push endpoints must be absolute HTTPS URLs without user information or fragments. Delivery bypasses environment proxies, rejects redirects, and blocks private and other special-use network addresses after resolving the hostname immediately before connecting.
 - A user can have up to 16 active devices subscribed simultaneously — every current device is attempted for each push. Once any device accepts an occurrence, Chatto does not retry the whole device set merely because another endpoint failed, avoiding duplicate alerts on healthy devices.
 - Test notifications are limited to one attempt per account every 10 seconds across server replicas. Delivery failures expose neither provider response bodies nor low-level network errors through the public API.
@@ -34,6 +34,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
   renewable lease leader performs startup/periodic reconciliation without a
   fixed whole-pass deadline, using that permanent fact to erase late writes and
   repair orphaned endpoint-owner records without a second deletion marker.
+- Signing out of or removing a server best-effort unsubscribes that server's browser subscription on the current device before discarding its local credentials.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
 
 ## Design Decisions
@@ -84,11 +85,11 @@ device after the occurrence is triaged until the person dismisses it there.
 **Why:** Whether push is useful depends on the device. Dismissing the prompt on a desktop browser should not suppress the prompt on an iOS PWA where push may be more valuable.
 **Tradeoff:** The same user may see the prompt again on another browser or device. That is intentional; each device has its own push subscription and OS permission.
 
-### 8. Origin-bound native push registration
+### 8. One native push registration per server
 
-**Decision:** Direct browser push registration is offered only for the Chatto server that served the installed web app.
-**Why:** A browser push subscription belongs to a service worker origin and is created with a single application server key. Registering arbitrary remote servers from another server's app origin would imply cross-origin routing and VAPID-key behavior that Chatto has not designed yet.
-**Tradeoff:** Users connected to remote servers do not get native OS notifications for those servers through this app origin. They still get realtime in-app badges and notification sounds while Chatto is open, and remote-native push can be revisited with an explicit relay or shared-key design.
+**Decision:** The serving server retains the root service-worker registration used by existing installations. Every compatible remote server uses another registration of the same worker script under a stable narrow scope, giving that server an independent browser subscription bound to its own VAPID key. The client stores its route to that server with the subscription so notification clicks reopen the correct installed app and server.
+**Why:** Push subscriptions belong to service-worker registrations, not to an origin as a single undifferentiated slot. Separate scopes let one installed PWA receive direct pushes from multiple servers without sharing private VAPID keys or routing notifications through the server that hosted the frontend. Per-subscription navigation context also supports the same server account from PWAs hosted at different origins.
+**Tradeoff:** Each server consumes one of the account's 16 stored subscription slots for each installed client origin. Remote registration requires a server version that understands the navigation context; older remote servers remain in-app-only. The origin registration remains a deliberate compatibility exception until existing root subscriptions can be migrated safely.
 
 ### 9. Declarative-compatible payloads with service-worker notification fallback
 

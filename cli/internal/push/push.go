@@ -325,6 +325,18 @@ func EndpointLogID(endpoint string) string {
 // SendToMany sends a push notification to multiple subscriptions.
 // Returns results for each subscription.
 func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSubscription, payload *Payload) []*SendResult {
+	return s.SendToManyMapped(ctx, subscriptions, func(*corev1.PushSubscription) *Payload {
+		return payload
+	})
+}
+
+// SendToManyMapped sends a destination-specific payload to each subscription.
+// It is used when click routes differ between installed web clients.
+func (s *Sender) SendToManyMapped(
+	ctx context.Context,
+	subscriptions []*corev1.PushSubscription,
+	payloadFor func(*corev1.PushSubscription) *Payload,
+) []*SendResult {
 	if len(subscriptions) > pushendpoint.MaxSubscriptionsPerUser {
 		subscriptions = subscriptions[:pushendpoint.MaxSubscriptionsPerUser]
 	}
@@ -341,7 +353,7 @@ func (s *Sender) SendToMany(ctx context.Context, subscriptions []*corev1.PushSub
 		go func() {
 			defer workers.Done()
 			for i := range jobs {
-				results[i] = s.Send(ctx, subscriptions[i], payload)
+				results[i] = s.Send(ctx, subscriptions[i], payloadFor(subscriptions[i]))
 			}
 		}()
 	}
@@ -372,7 +384,7 @@ func buildAppURL(baseURL string, segments []string, queryKey, queryValue string)
 }
 
 func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string) string {
-	segments := []string{"chat", "-"}
+	segments := []string{}
 	if roomID != "" {
 		segments = append(segments, roomID)
 	}
@@ -386,10 +398,50 @@ func buildNotificationURL(baseURL, roomID, threadRootID, highlightEventID string
 // The baseURL is used to build navigation URLs (e.g., "https://chatto.example.com").
 // The optional payloadCtx provides message preview and room name for richer notifications.
 func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actorDisplayName, baseURL string, payloadCtx *PayloadContext) *Payload {
+	return buildPayloadFromOccurrence(
+		occurrence,
+		actorDisplayName,
+		baseURL,
+		buildAppURL(baseURL, []string{"chat", "-"}, "", ""),
+		payloadCtx,
+	)
+}
+
+// BuildPayloadFromOccurrenceForSubscription creates a payload whose click
+// target opens the server in the web client that owns this subscription.
+func BuildPayloadFromOccurrenceForSubscription(
+	occurrence *corev1.NotificationOccurrence,
+	actorDisplayName, serverBaseURL string,
+	subscription *corev1.PushSubscription,
+	payloadCtx *PayloadContext,
+) *Payload {
+	return buildPayloadFromOccurrence(
+		occurrence,
+		actorDisplayName,
+		serverBaseURL,
+		NavigationBaseURL(subscription, serverBaseURL),
+		payloadCtx,
+	)
+}
+
+// NavigationBaseURL returns the client route stored with a subscription, or
+// the legacy bundled-client route for subscriptions created by older clients.
+func NavigationBaseURL(subscription *corev1.PushSubscription, serverBaseURL string) string {
+	if subscription != nil && subscription.NavigationBaseUrl != "" {
+		return subscription.NavigationBaseUrl
+	}
+	return buildAppURL(serverBaseURL, []string{"chat", "-"}, "", "")
+}
+
+func buildPayloadFromOccurrence(
+	occurrence *corev1.NotificationOccurrence,
+	actorDisplayName, serverBaseURL, navigationBaseURL string,
+	payloadCtx *PayloadContext,
+) *Payload {
 	payload := &Payload{
 		NotificationID: occurrence.GetId(),
-		Icon:           buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""),
-		Badge:          buildAppURL(baseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
+		Icon:           buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""),
+		Badge:          buildAppURL(serverBaseURL, []string{"icons", "icon-192.png"}, "", ""), // Badge should be monochrome, but use same for now
 	}
 
 	// Get preview from context, truncate if needed
@@ -412,7 +464,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		payload.Title = fmt.Sprintf("@%s sent you a new DM", actorDisplayName)
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), "", "")
+		payload.URL = buildNotificationURL(navigationBaseURL, target.GetRoomId(), "", "")
 
 	case occurrenceHasMentionReason(occurrence):
 		if roomName != "" {
@@ -422,7 +474,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		}
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
+		payload.URL = buildNotificationURL(navigationBaseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
 	case occurrence.GetSignal().GetReactionReceived() != nil:
 		if roomName != "" {
@@ -438,7 +490,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 			}
 		}
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
+		payload.URL = buildNotificationURL(navigationBaseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
 	case occurrence.GetSignal().GetReplyReceived() != nil:
 		if roomName != "" {
@@ -448,7 +500,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		}
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
+		payload.URL = buildNotificationURL(navigationBaseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 
 	default:
 		if roomName != "" {
@@ -458,7 +510,7 @@ func BuildPayloadFromOccurrence(occurrence *corev1.NotificationOccurrence, actor
 		}
 		payload.Body = preview
 		payload.Tag = OccurrenceTag(occurrence)
-		payload.URL = buildNotificationURL(baseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
+		payload.URL = buildNotificationURL(navigationBaseURL, target.GetRoomId(), target.GetThreadRootEventId(), target.GetEventId())
 	}
 
 	return payload

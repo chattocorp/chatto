@@ -12,6 +12,7 @@ export type SubscribePushInput = {
   p256dh: string;
   auth: string;
   userAgent?: string;
+  navigationBaseUrl?: string;
 };
 
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {

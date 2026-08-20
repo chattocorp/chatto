@@ -97,7 +97,7 @@ Use a `mailto:` or HTTPS contact URI for `vapid_subject`. Keep the private key s
 
 ## Device Behavior
 
-Each browser or installed PWA creates its own subscription. A user can have up to 16 subscribed devices, and Chatto attempts every current device for each push. Once any device accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
+Each browser or installed PWA creates its own subscription for each connected server. A user can have up to 16 active subscriptions on a server, and Chatto attempts every current endpoint for each push. Once any endpoint accepts a notification, Chatto does not retry the complete device set merely because another endpoint failed; this avoids repeatedly alerting healthy devices.
 
 When a user reopens Chatto, the app refreshes the server's stored subscription for that browser. Expired subscriptions are cleaned up automatically when push providers report them as gone.
 
@@ -108,7 +108,7 @@ For security, Chatto connects directly only to absolute HTTPS push endpoints wit
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 
 <Aside type="note">
-  In multi-server use, native Web Push registration is offered only for the server that served the installed web app. Remote servers can still update in-app badges and play sounds while Chatto is open.
+  In multi-server use, a compatible remote server registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it.
 </Aside>
 
 ## Operator Checklist
