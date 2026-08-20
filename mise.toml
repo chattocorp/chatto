@@ -6,7 +6,7 @@ buf = "latest"
 go = "1.26.7"
 goreleaser = "latest"
 node = "22"
-pitchfork = "2.21.0"
+pitchfork = "2.22.0"
 "go:github.com/livekit/livekit-server/cmd/server" = "1.13.5"
 uv = "0.11.30"
 
@@ -261,7 +261,7 @@ description = "Run the Storybook design-system catalog on the workspace port"
 depends = ["setup-frontend", "build-api-types"]
 dir = "apps/frontend"
 env = {
-  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')))}}",
+  CHATTO_STORYBOOK_PORT = "{{env.CHATTO_STORYBOOK_PORT | default(value=env.CONDUCTOR_PORT | default(value='4000'))}}",
 }
 run = "exec pnpm exec storybook dev --host 127.0.0.1 --port \"$CHATTO_STORYBOOK_PORT\" --no-open"
 
@@ -286,7 +286,7 @@ run = "pnpm dev"
 [tasks.dev-livekit]
 description = "Run a local LiveKit server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_LIVEKIT_KEYS = "devkey: devsecret",
   CHATTO_DEV_LIVEKIT_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 5}}",
   CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
@@ -297,7 +297,7 @@ run = "exec livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$
 [tasks.dev-mailpit]
 description = "Run a local Mailpit SMTP server with workspace-safe ports"
 env = {
-  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
+  CHATTO_DEV_PORT_BASE = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 8}}",
   CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 9}}",
 }
@@ -305,85 +305,52 @@ run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen 
 
 [tasks.dev]
 description = "Run the complete local development stack with Pitchfork"
+depends = ["setup-frontend"]
 run = """
 set -eu
 
 project_dir=$(pwd -P)
-workspace_name=${CONDUCTOR_WORKSPACE_NAME:-${PASEO_WORKSPACE_NAME:-$(basename "$project_dir")}}
-workspace_slug=$(printf '%s' "$workspace_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
+workspace_slug=${CONDUCTOR_WORKSPACE_NAME:-$(basename "$project_dir")}
+workspace_slug=$(printf '%s' "$workspace_slug" | tr '[:upper:]' '[:lower:]')
 
-if [ -z "$workspace_slug" ]; then
-    echo "cannot derive a URL-safe workspace name from $workspace_name" >&2
+if ! printf '%s\n' "$workspace_slug" | grep -Eq '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$' || printf '%s\n' "$workspace_slug" | grep -q -- '--'; then
+    echo "Conductor workspace name '$workspace_slug' is not valid in a preview hostname" >&2
     exit 2
 fi
-
-if ! pitchfork supervisor status >/dev/null 2>&1; then
-    pitchfork supervisor start >/dev/null
-fi
-if [ -z "${TMPDIR:-}" ]; then
-    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
-    exit 2
-fi
-proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
-
-# Pitchfork proxy routes are shared by every workspace using this user's
-# supervisor. Keep the ownership check and all updates in one transaction so
-# concurrently starting workspaces cannot race.
-(
-if ! lockf -s -t 5 9; then
-    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev" >&2
-    exit 2
-fi
-
-proxy_status=$(pitchfork proxy status --json)
-PITCHFORK_PROXY_STATUS="$proxy_status" node -e '
-const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
-if (!status.enabled || status.scheme !== "https" || status.tld !== "localhost" || status.port !== 42443 || !status.trusted) {
-  console.error(`Pitchfork proxy mismatch: expected trusted https://*.localhost:42443, got ${status.scheme}://*.${status.tld}:${status.port} (enabled=${status.enabled}, trusted=${status.trusted}).`)
-  console.error("Stop other Pitchfork projects, run `pitchfork supervisor stop`, then retry `mise dev` so this project can start it with the required settings.")
-  process.exit(1)
-}
-'
-
-proxy_slug_owner() {
-    PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$1" node -e '
-const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
-const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
-process.stdout.write(route?.dir ?? "")
-'
-}
 
 mkdir -p .context/dev
-previous_workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
-if [ -n "$previous_workspace_slug" ] && [ "$previous_workspace_slug" != "$workspace_slug" ]; then
+workspace_slug_file=.context/dev/workspace-slug
+old_workspace_slug=$(sed -n '1p' "$workspace_slug_file" 2>/dev/null || true)
+old_workspace_slug=${old_workspace_slug:-$(basename "$project_dir")}
+if [ "$old_workspace_slug" != "$workspace_slug" ]; then
+    pitchfork stop --local >/dev/null 2>&1 || true
     for service in chatto authling mailpit livekit storybook docs; do
-        slug="$service-$previous_workspace_slug"
-        if [ "$(proxy_slug_owner "$slug")" = "$project_dir" ]; then
-            pitchfork proxy remove "$slug" >/dev/null
-        fi
+        pitchfork proxy remove "$service-$old_workspace_slug" >/dev/null 2>&1 || true
     done
 fi
-printf '%s\n' "$workspace_slug" >.context/dev/workspace-slug
 
-for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
-    service=${mapping%%:*}
-    slug="$service-$workspace_slug"
-    owner=$(proxy_slug_owner "$slug")
-    if [ -n "$owner" ] && [ "$owner" != "$project_dir" ]; then
-        echo "Pitchfork proxy slug '$slug' already belongs to $owner; rename this workspace or archive the conflicting one." >&2
-        exit 2
-    fi
-done
+directory_slug=$(basename "$project_dir")
+if [ "$directory_slug" != "$workspace_slug" ]; then
+    for service in chatto authling mailpit livekit storybook docs; do
+        pitchfork proxy remove "$service-$directory_slug" >/dev/null 2>&1 || true
+    done
+fi
+
+printf '%s\n' "$workspace_slug" >"$workspace_slug_file"
 for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
     service=${mapping%%:*}
     daemon=${mapping#*:}
-    slug="$service-$workspace_slug"
-    pitchfork proxy add "$slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
+    pitchfork proxy add "$service-$workspace_slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
 done
-) 9>>"$proxy_lock_file"
 
-mise setup-frontend
-trap 'pitchfork stop --local >/dev/null 2>&1 || true' EXIT INT TERM
+host_pid=$PPID
+pitchfork project enter --pid "$host_pid" --directory "$project_dir"
+leave_project() {
+    trap - EXIT HUP INT TERM
+    pitchfork project leave --pid "$host_pid" --directory "$project_dir" >/dev/null 2>&1 || true
+}
+trap leave_project EXIT HUP INT TERM
+
 pitchfork start --group dev
 pitchfork logs mailpit-server mailpit-proxy livekit-server livekit-proxy authling chatto-backend api-types lingua chatto storybook-server storybook-proxy docs-server docs-proxy --tail --since 2min --no-pager
 """
@@ -394,39 +361,18 @@ run = """
 set -eu
 
 project_dir=$(pwd -P)
-workspace_name=${CONDUCTOR_WORKSPACE_NAME:-${PASEO_WORKSPACE_NAME:-$(basename "$project_dir")}}
-workspace_slug=$(printf '%s' "$workspace_name" | tr '[:upper:]' '[:lower:]' | sed -E 's/[^a-z0-9]+/-/g; s/^-+//; s/-+$//')
-if [ -s .context/dev/workspace-slug ]; then
-    workspace_slug=$(sed -n '1p' .context/dev/workspace-slug)
-fi
-
+workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
+workspace_slug=${workspace_slug:-$(basename "$project_dir")}
 pitchfork stop --local >/dev/null 2>&1 || true
-if [ -z "${TMPDIR:-}" ]; then
-    echo "TMPDIR must identify a private per-user directory for the Pitchfork proxy lock" >&2
-    exit 2
-fi
-proxy_lock_file="${TMPDIR%/}/chatto-pitchfork-proxy-routes.lock"
-
-# Serialize cleanup with route registration by other Chatto workspaces.
-(
-if ! lockf -s -t 5 9; then
-    echo "timed out waiting to update the shared Pitchfork proxy routes; retry mise dev-archive" >&2
-    exit 2
-fi
-
-proxy_status=$(pitchfork proxy status --json 2>/dev/null || printf '{"slugs":[]}')
 for service in chatto authling mailpit livekit storybook docs; do
-    slug="$service-$workspace_slug"
-    owner=$(PITCHFORK_PROXY_STATUS="$proxy_status" PITCHFORK_PROXY_SLUG="$slug" node -e '
-const status = JSON.parse(process.env.PITCHFORK_PROXY_STATUS)
-const route = status.slugs.find(({ slug }) => slug === process.env.PITCHFORK_PROXY_SLUG)
-process.stdout.write(route?.dir ?? "")
-')
-    if [ "$owner" = "$project_dir" ]; then
-        pitchfork proxy remove "$slug" >/dev/null 2>&1 || true
-    fi
+    pitchfork proxy remove "$service-$workspace_slug" >/dev/null 2>&1 || true
 done
-) 9>>"$proxy_lock_file"
+directory_slug=$(basename "$project_dir")
+if [ "$directory_slug" != "$workspace_slug" ]; then
+    for service in chatto authling mailpit livekit storybook docs; do
+        pitchfork proxy remove "$service-$directory_slug" >/dev/null 2>&1 || true
+    done
+fi
 """
 
 [tasks.dev-docs-website]
@@ -435,7 +381,7 @@ depends = ["setup-frontend"]
 dir = "apps/docs-website"
 raw = true
 run = """
-workspace_port_base="${CONDUCTOR_PORT:-${PASEO_PORT:-4000}}"
+workspace_port_base="${CONDUCTOR_PORT:-4000}"
 docs_website_port="${CHATTO_DOCS_WEBSITE_PORT:-$workspace_port_base}"
 
 exec pnpm astro dev --host 127.0.0.1 --port "$docs_website_port"
@@ -446,26 +392,26 @@ description = "Build and run the bundled Chatto CLI command with workspace-safe 
 depends = ["build-dev-cli"]
 dir = "cli"
 env = {
-  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
-  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000'))}}",
-  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
-  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 1}}",
+  CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_WEBSERVER_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000')}}",
+  CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
+  CHATTO_NATS_CLIENT_URL = "nats://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
   CHATTO_METRICS_ENABLED = "true",
   CHATTO_METRICS_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 2}}",
+  CHATTO_METRICS_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   CHATTO_METRICS_PATH = "/metrics",
   CHATTO_EXPORTER_ENABLED = "true",
   CHATTO_EXPORTER_BIND_ADDRESS = "127.0.0.1",
-  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 3}}",
+  CHATTO_EXPORTER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 3}}",
   CHATTO_EXPORTER_PATH = "/metrics",
   CHATTO_LIVEKIT_ENABLED = "true",
-  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 5}}",
+  CHATTO_LIVEKIT_URL = "ws://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
   CHATTO_LIVEKIT_API_KEY = "devkey",
   CHATTO_LIVEKIT_API_SECRET = "devsecret",
-  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int}}/webhooks/livekit",
+  CHATTO_LIVEKIT_WEBHOOK_URL = "http://localhost:{{env.CONDUCTOR_PORT | default(value='4000') | int}}/webhooks/livekit",
   CHATTO_SMTP_ENABLED = "true",
   CHATTO_SMTP_HOST = "127.0.0.1",
-  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value=env.PASEO_PORT | default(value='4000')) | int + 8}}",
+  CHATTO_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
   CHATTO_SMTP_TLS = "opportunistic",
   CHATTO_SMTP_FROM = "chatto-dev@chatto.localhost",
 }

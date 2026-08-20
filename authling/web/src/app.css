@@ -25,3 +25,45 @@
     @apply bg-slate-50 text-slate-900 antialiased dark:bg-slate-950 dark:text-slate-100;
   }
 }
+
+@layer components {
+  .otp-code {
+    --otp-cell-size: clamp(1.8rem, 9vw, 3.5rem);
+    --otp-gap: clamp(0.25rem, 1.5vw, 0.75rem);
+
+    @apply relative block max-w-full;
+    width: calc(var(--otp-cell-size) * 6 + var(--otp-gap) * 5);
+    height: var(--otp-cell-size);
+  }
+
+  .otp-code-boxes {
+    @apply grid h-full;
+    grid-template-columns: repeat(6, var(--otp-cell-size));
+    gap: var(--otp-gap);
+  }
+
+  .otp-code-boxes > span {
+    @apply border border-slate-300 bg-transparent transition-colors dark:border-slate-700;
+    border-radius: clamp(0.5rem, 2vw, 0.75rem);
+  }
+
+  .otp-code:focus-within .otp-code-boxes > span {
+    @apply border-authling-500 ring-2 ring-authling-500/25;
+  }
+
+  .otp-code-input {
+    @apply absolute inset-0 h-full border-0 bg-transparent font-mono font-semibold text-slate-900 shadow-none outline-none dark:text-slate-100;
+    box-sizing: border-box;
+    width: calc(100% + var(--otp-gap) + (var(--otp-cell-size) - 1ch) / 2);
+    padding: 0 0 0 calc((var(--otp-cell-size) - 1ch) / 2);
+    font-size: clamp(1.25rem, 5vw, 1.5rem);
+    line-height: var(--otp-cell-size);
+    letter-spacing: calc(var(--otp-cell-size) + var(--otp-gap) - 1ch);
+    caret-color: var(--color-authling-500);
+    clip-path: inset(0 calc(var(--otp-gap) + (var(--otp-cell-size) - 1ch) / 2) 0 0);
+  }
+
+  .otp-code-input:focus {
+    @apply border-0 ring-0 outline-none;
+  }
+}

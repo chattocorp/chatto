@@ -43,14 +43,15 @@ mise setup
 mise dev
 ```
 
-Conductor and Paseo perform setup and proxy registration automatically. Vite,
-Astro, and Storybook reload their own source changes; Pitchfork rebuilds and
-restarts the Go services when their sources change and keeps the shared API
+`mise dev` registers the proxy routes and starts a Pitchfork project session.
+Vite, Astro, and Storybook reload their own source changes; Pitchfork rebuilds
+and restarts the Go services when their sources change and keeps the shared API
 types and Lingua packages compiled in watch mode. Chatto and Authling keep
 separate embedded-NATS state beneath `.context/dev/`.
 
-For a checkout in a directory named `<workspace>`, open these Pitchfork-managed
-HTTPS origins:
+For public workspace slug `<workspace>` (the Conductor workspace name, or the
+checkout directory name outside Conductor), open these Pitchfork-managed HTTPS
+origins:
 
 - Chatto: `https://chatto-<workspace>.localhost:42443`
 - Authling: `https://authling-<workspace>.localhost:42443`
@@ -59,11 +60,12 @@ HTTPS origins:
 - Storybook: `https://storybook-<workspace>.localhost:42443`
 - Docs website: `https://docs-<workspace>.localhost:42443`
 
-Workspace names share the slug registry of their user's Pitchfork supervisor.
-`mise dev` serializes route updates and refuses to overwrite a route owned by another
-checkout; rename or archive the conflicting workspace if that happens. It also
-stops with recovery instructions if an existing Pitchfork supervisor uses
-proxy settings other than the trusted HTTPS endpoint above.
+Pitchfork derives each daemon namespace from the checkout directory name.
+`mise dev` uses Conductor's current workspace name for proxy routes and public
+service URLs, falling back to the directory name outside Conductor. Proxy
+routes share the global slug registry of the user's Pitchfork supervisor.
+Pitchfork does not auto-start stopped daemons from proxy requests, and
+`mise dev-archive` removes the current checkout's routes.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first
@@ -76,8 +78,9 @@ server. Chatto's server catalogue, login tokens, and cached user details stay
 on the current device; Authling stores identity-provider state only.
 
 The checked-in credentials and bootstrap accounts are for local development
-only. Stop the attached run command to stop the workspace's processes. Remove
-`.context/dev/` while the stack is stopped to delete both products' data and
+only. Stop the attached run command to leave its Pitchfork project session and
+stop the workspace's processes. Remove `.context/dev/` while the stack is
+stopped to delete every local workspace identity and both products' data, then
 establish a fresh Authling issuer on the next start. Pitchfork installs its
 local certificate authority in the macOS login keychain so browsers and the Go
 OIDC clients trust its HTTPS origins. This is not a production deployment

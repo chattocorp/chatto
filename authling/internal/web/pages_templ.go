@@ -409,7 +409,7 @@ func passwordResetCodePage(flow, message, oidcRequest string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<label class=\"block\"><span class=\"font-medium\">Password reset code</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<label class=\"block\"><span class=\"font-medium\">Password reset code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -741,7 +741,7 @@ func emailChangeCodePage(flow, message string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\"> <label class=\"block\"><span class=\"font-medium\">Email change code</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\"> <label class=\"block\"><span class=\"font-medium\">Email change code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1063,7 +1063,7 @@ func codePage(flow, message string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <label class=\"block\"><span class=\"font-medium\">Verification code</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify email</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <label class=\"block\"><span class=\"font-medium\">Verification code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify email</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
