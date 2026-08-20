@@ -21,14 +21,12 @@
     refreshPushSubscriptions,
     sendTestNotification
   } from '$lib/notifications/pushNotifications';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
 
   const activeServerId = $derived(serverScope.serverId);
   const serverInfo = $derived(serverScope.store.serverInfo);
-  const isOriginServer = $derived(serverRegistry.isOriginServer(activeServerId));
 
   function selectSound(soundId: NotificationSoundId) {
     userPreferences.notificationSound = soundId;
@@ -165,11 +163,7 @@
 
   // Push notifications state
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
-  let showPushControls = $derived(
-    isBrowserWebPushRuntime() &&
-      pushEnabled &&
-      (isOriginServer || serverInfo.supportsFeature('remoteWebPush'))
-  );
+  let showPushControls = $derived(isBrowserWebPushRuntime() && pushEnabled);
   const pushCapability = getPushCapability();
   const pushSupported = pushCapability === 'supported';
   const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';

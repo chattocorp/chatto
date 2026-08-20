@@ -201,62 +201,8 @@ func TestSavePushSubscriptionForClient(t *testing.T) {
 	if sub.ClientHost != clientHost {
 		t.Fatalf("ClientHost = %q, want %q", sub.ClientHost, clientHost)
 	}
-	if sub.Endpoint != "" || sub.DeliveryEndpoint != "https://push.example.com/client-host" {
-		t.Fatalf("client-host endpoint fields = legacy %q delivery %q, want empty legacy endpoint", sub.Endpoint, sub.DeliveryEndpoint)
-	}
-}
-
-func TestClientHostPushSubscriptionFailsClosedForLegacyReplica(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := context.Background()
-	userID := "push-user-client-host-rollout"
-	endpoint := "https://push.example.com/client-host-rollout"
-
-	subscription, err := core.SavePushSubscriptionForClient(
-		ctx,
-		userID,
-		endpoint,
-		"key",
-		"auth",
-		"browser",
-		"app.example.com",
-	)
-	if err != nil {
-		t.Fatalf("SavePushSubscriptionForClient: %v", err)
-	}
-
-	entry, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint))
-	if err != nil {
-		t.Fatalf("get subscription: %v", err)
-	}
-	var stored corev1.PushSubscription
-	if err := proto.Unmarshal(entry.Value(), &stored); err != nil {
-		t.Fatalf("unmarshal subscription: %v", err)
-	}
-	// Every older sender reads only field 1, including versions predating the
-	// endpoint-owner claim. Keeping it empty makes those senders reject delivery.
-	if stored.Endpoint != "" {
-		t.Fatalf("legacy replica sees endpoint %q, want empty so every old sender skips delivery", stored.Endpoint)
-	}
-	if stored.DeliveryEndpoint != endpoint {
-		t.Fatalf("delivery endpoint = %q, want %q", stored.DeliveryEndpoint, endpoint)
-	}
-
-	current, err := core.PushSubscriptionCurrentForUser(ctx, userID, subscription)
-	if err != nil || !current {
-		t.Fatalf("new replica should recognize client-host owner: current=%t err=%v", current, err)
-	}
-
-	// Unsubscribe remained wire-compatible, so an older replica can still clean
-	// up both the host-aware record and its ordinary owner claim.
-	if err := core.DeletePushSubscription(ctx, userID, endpoint); err != nil {
-		t.Fatalf("DeletePushSubscription: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint)); !isPushRuntimeStateKeyAbsent(err) {
-		t.Fatalf("subscription still exists after legacy-compatible cleanup: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint)); !isPushRuntimeStateKeyAbsent(err) {
-		t.Fatalf("owner still exists after legacy-compatible cleanup: %v", err)
+	if sub.Endpoint != "https://push.example.com/client-host" {
+		t.Fatalf("Endpoint = %q, want provider endpoint", sub.Endpoint)
 	}
 }
 

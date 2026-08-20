@@ -108,7 +108,7 @@ For security, Chatto connects directly only to absolute HTTPS push endpoints wit
 On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safari tabs that are not installed as an app may not receive native push.
 
 <Aside type="note">
-  In multi-server use, a compatible remote server registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it.
+  In multi-server use, each remote server registers its own browser subscription under the installed app's origin and continues to use its own VAPID keys. Push traffic travels directly from that server to the browser push service; the server hosting the app does not relay it. This requires a 0.5 client and server.
 </Aside>
 
 ## Operator Checklist

@@ -10,16 +10,14 @@ const mocks = vi.hoisted(() => ({
       isAuthenticated: true,
       serverInfo: {
         pushNotificationsEnabled: true,
-        vapidPublicKey: 'origin-vapid' as string | null,
-        supportsFeature: vi.fn((_feature: string) => true)
+        vapidPublicKey: 'origin-vapid' as string | null
       }
     },
     remote: {
       isAuthenticated: true,
       serverInfo: {
         pushNotificationsEnabled: false,
-        vapidPublicKey: null as string | null,
-        supportsFeature: vi.fn((_feature: string) => true)
+        vapidPublicKey: null as string | null
       }
     }
   }
@@ -37,7 +35,6 @@ vi.mock('$lib/notifications/pushNotifications', () => ({
       ) {
         continue;
       }
-      if (serverId === 'remote' && !store.serverInfo.supportsFeature('remoteWebPush')) continue;
       targets.push({ serverId, vapidPublicKey: store.serverInfo.vapidPublicKey });
     }
     return targets;
@@ -97,7 +94,6 @@ describe('PushNotificationSetup', () => {
     mocks.stores.remote.isAuthenticated = true;
     mocks.stores.remote.serverInfo.pushNotificationsEnabled = false;
     mocks.stores.remote.serverInfo.vapidPublicKey = null;
-    mocks.stores.remote.serverInfo.supportsFeature.mockReturnValue(true);
   });
 
   it('refreshes granted-permission subscriptions on startup and service worker controller changes', async () => {
@@ -131,7 +127,7 @@ describe('PushNotificationSetup', () => {
     expect(serviceWorker.listenerCount()).toBe(0);
   });
 
-  it('reconciles compatible authenticated remote servers independently', async () => {
+  it('reconciles authenticated remote servers independently', async () => {
     installServiceWorkerStub();
     mocks.stores.origin.isAuthenticated = false;
     mocks.stores.remote.serverInfo.pushNotificationsEnabled = true;
@@ -143,19 +139,5 @@ describe('PushNotificationSetup', () => {
     expect(mocks.refreshPushSubscriptions).toHaveBeenCalledWith([
       { serverId: 'remote', vapidPublicKey: 'remote-vapid' }
     ]);
-  });
-
-  it('does not register remote push against an incompatible server', async () => {
-    const serviceWorker = installServiceWorkerStub();
-    mocks.stores.origin.isAuthenticated = false;
-    mocks.stores.remote.serverInfo.pushNotificationsEnabled = true;
-    mocks.stores.remote.serverInfo.vapidPublicKey = 'remote-vapid';
-    mocks.stores.remote.serverInfo.supportsFeature.mockReturnValue(false);
-
-    render(PushNotificationSetup);
-    await settle();
-
-    expect(mocks.refreshPushSubscriptions).not.toHaveBeenCalled();
-    expect(serviceWorker.listenerCount()).toBe(0);
   });
 });

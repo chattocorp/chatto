@@ -5,7 +5,6 @@ const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
   subscribe: vi.fn(),
-  subscribeForClient: vi.fn(),
   unsubscribe: vi.fn(),
   deleteSubscriptionByCapability: vi.fn()
 }));
@@ -27,13 +26,11 @@ describe('createPushNotificationAPI', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.subscribe.mockReset();
-    mocks.subscribeForClient.mockReset();
     mocks.unsubscribe.mockReset();
     mocks.deleteSubscriptionByCapability.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       subscribe: mocks.subscribe,
-      subscribeForClient: mocks.subscribeForClient,
       unsubscribe: mocks.unsubscribe,
       deleteSubscriptionByCapability: mocks.deleteSubscriptionByCapability
     });
@@ -41,7 +38,6 @@ describe('createPushNotificationAPI', () => {
 
   it('subscribes and unsubscribes with bearer auth', async () => {
     mocks.subscribe.mockResolvedValue({ subscribed: true });
-    mocks.subscribeForClient.mockResolvedValue({ subscribed: true });
     mocks.unsubscribe.mockResolvedValue({ unsubscribed: true });
     mocks.deleteSubscriptionByCapability.mockResolvedValue({ completed: true });
 
@@ -52,22 +48,14 @@ describe('createPushNotificationAPI', () => {
     const controller = new AbortController();
 
     await expect(
-      api.subscribe({
-        endpoint: 'https://push.example/sub',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        cleanupToken: '0123456789abcdef0123456789abcdef',
-        userAgent: 'browser'
-      })
-    ).resolves.toEqual({ subscribed: true });
-    await expect(
-      api.subscribeForClient(
+      api.subscribe(
         {
-          endpoint: 'https://push.example/remote',
+          endpoint: 'https://push.example/sub',
           p256dh: 'p256dh-key',
           auth: 'auth-secret',
-          cleanupToken: 'fedcba9876543210fedcba9876543210',
-          clientHost: 'app.example'
+          clientHost: 'app.example',
+          cleanupToken: '0123456789abcdef0123456789abcdef',
+          userAgent: 'browser'
         },
         { signal: controller.signal }
       )
@@ -90,24 +78,15 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        clientHost: 'app.example',
         cleanupToken: '0123456789abcdef0123456789abcdef',
         userAgent: 'browser'
       },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
     expect(mocks.unsubscribe).toHaveBeenCalledWith(
       { endpoint: 'https://push.example/sub' },
       { headers: { Authorization: 'Bearer token' } }
-    );
-    expect(mocks.subscribeForClient).toHaveBeenCalledWith(
-      {
-        endpoint: 'https://push.example/remote',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        cleanupToken: 'fedcba9876543210fedcba9876543210',
-        clientHost: 'app.example'
-      },
-      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
     expect(mocks.deleteSubscriptionByCapability).toHaveBeenCalledWith({
       endpoint: 'https://push.example/stale',
@@ -129,6 +108,7 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        clientHost: 'app.example',
         cleanupToken: '0123456789abcdef0123456789abcdef'
       })
     ).resolves.toEqual({ subscribed: true });
@@ -138,6 +118,7 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        clientHost: 'app.example',
         cleanupToken: '0123456789abcdef0123456789abcdef'
       },
       { headers: undefined }

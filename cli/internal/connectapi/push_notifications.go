@@ -47,38 +47,13 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 	if req.Msg.UserAgent != nil {
 		userAgent = req.Msg.GetUserAgent()
 	}
-	var saveErr error
-	if req.Msg.GetCleanupToken() == "" {
-		_, saveErr = s.api.core.SavePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent)
-	} else {
-		_, saveErr = s.api.core.SavePushSubscriptionWithCleanupToken(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetCleanupToken())
-	}
-	if saveErr != nil {
-		return nil, connectError(saveErr)
-	}
-
-	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
-}
-
-func (s *pushNotificationService) SubscribeForClient(ctx context.Context, req *connect.Request[apiv1.SubscribePushRequest]) (*connect.Response[apiv1.SubscribePushResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if !s.api.config.Push.IsConfigured() {
-		return nil, connect.NewError(connect.CodeFailedPrecondition, errors.New("push notifications are not enabled on this instance"))
-	}
-	if req.Msg.ClientHost == nil || req.Msg.GetClientHost() == "" {
+	if req.Msg.GetClientHost() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("client host is required"))
 	}
-	if req.Msg.CleanupToken == nil || req.Msg.GetCleanupToken() == "" {
+	if req.Msg.GetCleanupToken() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("cleanup token is required"))
 	}
 
-	userAgent := ""
-	if req.Msg.UserAgent != nil {
-		userAgent = req.Msg.GetUserAgent()
-	}
 	if _, err := s.api.core.SavePushSubscriptionForClientWithCleanupToken(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetClientHost(), req.Msg.GetCleanupToken()); err != nil {
 		return nil, connectError(err)
 	}

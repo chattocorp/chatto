@@ -54,16 +54,6 @@ type pushEndpointOwner struct {
 	SubscriptionRevision uint64 `json:"subscription_revision"`
 }
 
-func pushSubscriptionEndpoint(subscription *corev1.PushSubscription) string {
-	if subscription != nil && subscription.DeliveryEndpoint != "" {
-		return subscription.DeliveryEndpoint
-	}
-	if subscription == nil {
-		return ""
-	}
-	return subscription.Endpoint
-}
-
 // pushSubscriptionKey returns the KV key for a push subscription.
 // Format: push_subscription.{userId}.{hash}
 // The hash is derived from the endpoint URL to allow multiple devices per user.
@@ -104,8 +94,8 @@ func (c *ChattoCore) SavePushSubscription(
 	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "", "")
 }
 
-// SavePushSubscriptionWithCleanupToken stores a legacy-routed subscription
-// with a capability that identifies only this save generation.
+// SavePushSubscriptionWithCleanupToken stores a subscription with a capability
+// that identifies only this save generation.
 func (c *ChattoCore) SavePushSubscriptionWithCleanupToken(
 	ctx context.Context,
 	userID string,
@@ -118,8 +108,7 @@ func (c *ChattoCore) SavePushSubscriptionWithCleanupToken(
 }
 
 // SavePushSubscriptionForClient stores or updates a browser subscription with
-// the URL host of its serving Chatto client. An empty client host keeps the
-// legacy bundled-client routing behaviour.
+// the URL host of its serving Chatto client.
 func (c *ChattoCore) SavePushSubscriptionForClient(
 	ctx context.Context,
 	userID string,
@@ -165,11 +154,6 @@ func (c *ChattoCore) savePushSubscriptionForClient(
 		ClientHost:   clientHost,
 		CleanupToken: cleanupToken,
 	}
-	if clientHost != "" {
-		subscription.Endpoint = ""
-		subscription.DeliveryEndpoint = endpoint
-	}
-
 	data, err := proto.Marshal(subscription)
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal push subscription: %w", err)
@@ -180,7 +164,7 @@ func (c *ChattoCore) savePushSubscriptionForClient(
 	if err != nil {
 		return nil, fmt.Errorf("failed to store push subscription: %w", err)
 	}
-	if err := c.claimPushEndpointOwnership(ctx, userID, endpoint, clientHost); err != nil {
+	if err := c.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
 		return nil, err
 	}
 	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
@@ -216,7 +200,7 @@ func (c *ChattoCore) checkPushSubscriptionCapacity(ctx context.Context, userID, 
 		return fmt.Errorf("failed to check push subscription capacity: %w", err)
 	}
 	for _, subscription := range subscriptions {
-		if pushSubscriptionEndpoint(subscription) == endpoint {
+		if subscription.GetEndpoint() == endpoint {
 			return nil
 		}
 	}
@@ -273,7 +257,7 @@ func listPushRuntimeStateKeys(ctx context.Context, kv jetstream.KeyValue, filter
 	}
 }
 
-func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, endpoint, clientHost string) error {
+func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, endpoint string) error {
 	ownerKey := pushEndpointOwnerKey(endpoint)
 	subscriptionKey := pushSubscriptionKey(userID, endpoint)
 	for range pushEndpointOwnerMaxRetries {
@@ -289,7 +273,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 		if err := proto.Unmarshal(subscriptionEntry.Value(), &currentSubscription); err != nil {
 			return fmt.Errorf("failed to unmarshal current push subscription: %w", err)
 		}
-		if pushSubscriptionEndpoint(&currentSubscription) != endpoint || currentSubscription.ClientHost != clientHost {
+		if currentSubscription.GetEndpoint() != endpoint {
 			return nil
 		}
 
@@ -370,7 +354,7 @@ func (c *ChattoCore) PushSubscriptionOwnedByUser(ctx context.Context, userID, en
 // delivery because browsers can transfer or rotate a subscription while a push
 // is being prepared.
 func (c *ChattoCore) PushSubscriptionCurrentForUser(ctx context.Context, userID string, subscription *corev1.PushSubscription) (bool, error) {
-	endpoint := pushSubscriptionEndpoint(subscription)
+	endpoint := subscription.GetEndpoint()
 	key := pushSubscriptionKey(userID, endpoint)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if isPushRuntimeStateKeyAbsent(err) {
@@ -580,7 +564,7 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 	if err := proto.Unmarshal(entry.Value(), &subscription); err != nil {
 		return fmt.Errorf("failed to unmarshal push subscription for capability cleanup: %w", err)
 	}
-	if pushSubscriptionEndpoint(&subscription) != endpoint ||
+	if subscription.GetEndpoint() != endpoint ||
 		subtle.ConstantTimeCompare([]byte(subscription.Auth), []byte(auth)) != 1 ||
 		subtle.ConstantTimeCompare([]byte(subscription.CleanupToken), []byte(cleanupToken)) != 1 {
 		return nil
@@ -615,7 +599,7 @@ func (c *ChattoCore) GetUserPushSubscriptions(ctx context.Context, userID string
 		if err := proto.Unmarshal(entry.Value(), &sub); err != nil {
 			return nil, fmt.Errorf("failed to unmarshal push subscription %s: %w", key, err)
 		}
-		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, pushSubscriptionEndpoint(&sub), entry.Revision())
+		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.GetEndpoint(), entry.Revision())
 		if err != nil {
 			return nil, err
 		}
@@ -663,7 +647,7 @@ func (c *ChattoCore) DeleteAllUserPushSubscriptions(ctx context.Context, userID 
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("delete undecodable push subscription %s: %w", key, deleteErr))
 			continue
 		}
-		if err := c.releasePushEndpointOwnership(ctx, userID, pushSubscriptionEndpoint(&sub), entry.Revision()); err != nil {
+		if err := c.releasePushEndpointOwnership(ctx, userID, sub.GetEndpoint(), entry.Revision()); err != nil {
 			// Retain the subscription so redelivery can still recover its endpoint
 			// and retry the owner-first deletion ordering.
 			cleanupErrors = append(cleanupErrors, fmt.Errorf("release push endpoint owner for %s: %w", key, err))
@@ -720,7 +704,7 @@ func (c *ChattoCore) GetAllPushSubscriptions(ctx context.Context) ([]*PushSubscr
 		if userID == "" {
 			continue
 		}
-		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, pushSubscriptionEndpoint(&sub), entry.Revision())
+		owned, err := c.pushSubscriptionRevisionOwnedByUser(ctx, userID, sub.GetEndpoint(), entry.Revision())
 		if err != nil {
 			return nil, err
 		}

@@ -2087,52 +2087,41 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		VAPIDPrivateKey: "private-key",
 		VAPIDSubject:    "mailto:admin@example.com",
 	}
-	legacyEndpoint := "https://push.example.test/legacy-client"
-	legacyResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
-		Endpoint: legacyEndpoint,
-		P256Dh:   "p256dh-key",
-		Auth:     "auth-secret",
-	}))
-	if err != nil || !legacyResp.Msg.GetSubscribed() {
-		t.Fatalf("legacy Subscribe without cleanup token: response=%v err=%v", legacyResp, err)
-	}
-	if _, err := env.push.Unsubscribe(ctx, connect.NewRequest(&apiv1.UnsubscribePushRequest{Endpoint: legacyEndpoint})); err != nil {
-		t.Fatalf("remove legacy subscription fixture: %v", err)
-	}
-	if _, err := env.push.SubscribeForClient(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint: "https://push.example.test/client-host-required",
 		P256Dh:   "p256dh-key",
 		Auth:     "auth-secret",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("missing client host SubscribeForClient code = %v, want invalid_argument", connect.CodeOf(err))
+		t.Fatalf("missing client host Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	if _, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint:     "http://127.0.0.1/internal",
 		P256Dh:       "p256dh-key",
 		Auth:         "auth-secret",
-		CleanupToken: stringPtr("0123456789abcdef0123456789abcdef"),
+		ClientHost:   "app.example.test",
+		CleanupToken: "0123456789abcdef0123456789abcdef",
 	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("unsafe endpoint Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
-	subResp, err := env.push.SubscribeForClient(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
+	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
 		Endpoint:     "https://push.example.test/sub",
 		P256Dh:       "p256dh-key",
 		Auth:         "auth-secret",
 		UserAgent:    stringPtr("test-agent"),
-		ClientHost:   stringPtr("app.example.test"),
-		CleanupToken: stringPtr("0123456789abcdef0123456789abcdef"),
+		ClientHost:   "app.example.test",
+		CleanupToken: "0123456789abcdef0123456789abcdef",
 	}))
 	if err != nil {
-		t.Fatalf("SubscribeForClient: %v", err)
+		t.Fatalf("Subscribe: %v", err)
 	}
 	if !subResp.Msg.GetSubscribed() {
-		t.Fatalf("SubscribeForClient response = %+v, want subscription acknowledgement", subResp.Msg)
+		t.Fatalf("Subscribe response = %+v, want subscription acknowledgement", subResp.Msg)
 	}
 	subs, err := env.core.GetUserPushSubscriptions(env.ctx, env.viewer.Id)
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions: %v", err)
 	}
-	if len(subs) != 1 || subs[0].GetEndpoint() != "" || subs[0].GetDeliveryEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" || subs[0].GetClientHost() != "app.example.test" || subs[0].GetCleanupToken() != "0123456789abcdef0123456789abcdef" {
+	if len(subs) != 1 || subs[0].GetEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" || subs[0].GetClientHost() != "app.example.test" || subs[0].GetCleanupToken() != "0123456789abcdef0123456789abcdef" {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 

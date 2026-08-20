@@ -152,7 +152,7 @@ func TestPushSubscriptionCleanupReconcilesLateWriteAfterCompletedDeletionDeliver
 	if _, err := chatto.storage.runtimeStateKV.Put(ctx, pushSubscriptionKey(userID, endpoint), data); err != nil {
 		t.Fatalf("store late subscription: %v", err)
 	}
-	if err := chatto.claimPushEndpointOwnership(ctx, userID, endpoint, ""); err != nil {
+	if err := chatto.claimPushEndpointOwnership(ctx, userID, endpoint); err != nil {
 		t.Fatalf("claim late endpoint ownership: %v", err)
 	}
 
@@ -204,11 +204,10 @@ func TestPushSubscriptionCleanupPreservesHostAwareEndpointOwner(t *testing.T) {
 		t.Fatalf("host-aware subscription after reconciliation: %v", err)
 	}
 
-	// Simulate a later deletion by an older replica. It can remove the record,
-	// but it cannot recover the provider endpoint from legacy field 1 and will
-	// therefore leave the owner behind. The leased reconciler must repair it.
+	// Simulate a subscription record disappearing after its owner claim was
+	// written. The leased reconciler must repair the orphaned owner.
 	if err := chatto.storage.runtimeStateKV.Delete(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
-		t.Fatalf("simulate legacy subscription deletion: %v", err)
+		t.Fatalf("delete subscription fixture: %v", err)
 	}
 	if err := chatto.pushSubscriptionCleanup.reconcileDeletedAccountPushState(ctx); err != nil {
 		t.Fatalf("reconcile orphaned host-aware owner: %v", err)

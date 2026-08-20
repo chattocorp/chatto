@@ -8,7 +8,6 @@ const serverFeatureMinimumVersions = {
   messageSearch: '0.5.0-0',
   pinnedMessages: '0.5.0-0',
   realtimeProjection: '0.5.0-0',
-  remoteWebPush: '0.5.0-0',
   roomManagement: '0.5.0-0',
   serverInvitations: '0.5.0-0',
   threadCreation: '0.5.0-0'

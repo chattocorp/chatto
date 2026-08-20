@@ -22,7 +22,6 @@ import {
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
   subscribePush: vi.fn(),
-  subscribeForClientPush: vi.fn(),
   unsubscribePush: vi.fn(),
   deleteByCapabilityPush: vi.fn(),
   appUi: {
@@ -42,8 +41,7 @@ const mocks = vi.hoisted(() => ({
       currentUser: { user: { id: 'origin-user' } },
       serverInfo: {
         pushNotificationsEnabled: true,
-        vapidPublicKey: 'origin-vapid',
-        supportsFeature: vi.fn((_feature: string) => true)
+        vapidPublicKey: 'origin-vapid'
       }
     },
     remote: {
@@ -51,8 +49,7 @@ const mocks = vi.hoisted(() => ({
       currentUser: { user: { id: 'remote-user' } },
       serverInfo: {
         pushNotificationsEnabled: true,
-        vapidPublicKey: 'remote-vapid',
-        supportsFeature: vi.fn((_feature: string) => true)
+        vapidPublicKey: 'remote-vapid'
       }
     }
   }
@@ -347,25 +344,21 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
     mocks.serverStores.origin.serverInfo.pushNotificationsEnabled = true;
     mocks.serverStores.remote.isAuthenticated = true;
     mocks.serverStores.remote.serverInfo.pushNotificationsEnabled = true;
-    mocks.serverStores.remote.serverInfo.supportsFeature.mockReturnValue(true);
   });
 
-  it('includes compatible authenticated origin and remote servers', () => {
+  it('includes authenticated origin and remote servers', () => {
     expect(getPushRegistrationTargets()).toEqual([
       { serverId: 'origin', userId: 'origin-user', vapidPublicKey: 'origin-vapid' },
       { serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }
     ]);
   });
 
-  it('supports a remote-only authenticated client and excludes incompatible remotes', () => {
+  it('supports a remote-only authenticated client', () => {
     mocks.serverStores.origin.isAuthenticated = false;
 
     expect(getPushRegistrationTargets()).toEqual([
       { serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }
     ]);
-
-    mocks.serverStores.remote.serverInfo.supportsFeature.mockReturnValue(false);
-    expect(getPushRegistrationTargets()).toEqual([]);
   });
 });
 
@@ -378,14 +371,11 @@ describe('pushNotifications.ensureRegistered', () => {
     mocks.createPushNotificationAPI.mockReset();
     mocks.createPushNotificationAPI.mockReturnValue({
       subscribe: mocks.subscribePush,
-      subscribeForClient: mocks.subscribeForClientPush,
       unsubscribe: mocks.unsubscribePush,
       deleteByCapability: mocks.deleteByCapabilityPush
     });
     mocks.subscribePush.mockReset();
     mocks.subscribePush.mockResolvedValue({ subscribed: true });
-    mocks.subscribeForClientPush.mockReset();
-    mocks.subscribeForClientPush.mockResolvedValue({ subscribed: true });
     mocks.unsubscribePush.mockReset();
     mocks.unsubscribePush.mockResolvedValue(true);
     mocks.deleteByCapabilityPush.mockReset();
@@ -425,12 +415,12 @@ describe('pushNotifications.ensureRegistered', () => {
         endpoint: 'https://push.example/existing',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        clientHost: 'app.test',
         cleanupToken: expect.stringMatching(/^[a-f0-9]{32}$/),
         userAgent: 'test-agent'
       },
       { signal: expect.any(AbortSignal) }
     );
-    expect(mocks.subscribeForClientPush).not.toHaveBeenCalled();
   });
 
   it('creates and saves a subscription when permission is granted and none exists', async () => {
@@ -476,14 +466,13 @@ describe('pushNotifications.ensureRegistered', () => {
       baseUrl: 'https://remote.test/api/connect',
       bearerToken: 'remote-token'
     });
-    expect(mocks.subscribeForClientPush).toHaveBeenCalledWith(
+    expect(mocks.subscribePush).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'https://push.example/remote',
         clientHost: 'app.test'
       }),
       { signal: expect.any(AbortSignal) }
     );
-    expect(mocks.subscribePush).not.toHaveBeenCalled();
   });
 
   it('serializes concurrent registration refreshes for the same server', async () => {
@@ -498,20 +487,20 @@ describe('pushNotifications.ensureRegistered', () => {
     });
     Object.assign(navigator.serviceWorker, { register });
     const firstSave = deferred<{ subscribed: boolean }>();
-    mocks.subscribeForClientPush
+    mocks.subscribePush
       .mockReturnValueOnce(firstSave.promise)
       .mockResolvedValue({ subscribed: true });
 
     const first = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
-    await vi.waitFor(() => expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.subscribePush).toHaveBeenCalledOnce());
     const second = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
     await Promise.resolve();
-    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
+    expect(mocks.subscribePush).toHaveBeenCalledOnce();
 
     firstSave.resolve({ subscribed: true });
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
-    expect(mocks.subscribeForClientPush).toHaveBeenCalledTimes(2);
+    expect(mocks.subscribePush).toHaveBeenCalledTimes(2);
   });
 
   it('aborts an unbounded active refresh, cancels queued work, and cleans up before leaving', async () => {
@@ -538,10 +527,10 @@ describe('pushNotifications.ensureRegistered', () => {
       register,
       getRegistrations: vi.fn().mockImplementation(async () => [remoteRegistration])
     });
-    mocks.subscribeForClientPush.mockReturnValueOnce(firstSave.promise);
+    mocks.subscribePush.mockReturnValueOnce(firstSave.promise);
 
     const activeRefresh = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
-    await vi.waitFor(() => expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce());
+    await vi.waitFor(() => expect(mocks.subscribePush).toHaveBeenCalledOnce());
     const queuedRefresh = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
     const leaving = unsubscribeBeforeLeaving('remote');
 
@@ -549,8 +538,8 @@ describe('pushNotifications.ensureRegistered', () => {
     await expect(queuedRefresh).resolves.toBe(false);
     await expect(leaving).resolves.toBeUndefined();
 
-    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
-    expect(mocks.subscribeForClientPush.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
+    expect(mocks.subscribePush).toHaveBeenCalledOnce();
+    expect(mocks.subscribePush.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
     expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
     expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
 
@@ -572,7 +561,7 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.deleteByCapabilityPush).toHaveBeenCalledWith(
       remoteSubscription.endpoint,
       'auth-secret',
-      mocks.subscribeForClientPush.mock.calls[0]?.[0].cleanupToken
+      mocks.subscribePush.mock.calls[0]?.[0].cleanupToken
     );
 
     const refreshKey = 'chatto.push-registration.refresh.remote';
@@ -604,15 +593,15 @@ describe('pushNotifications.ensureRegistered', () => {
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: true })).resolves.toBe(false);
     expect(requestPermission).not.toHaveBeenCalled();
     expect(register).not.toHaveBeenCalled();
-    expect(mocks.subscribeForClientPush).not.toHaveBeenCalled();
+    expect(mocks.subscribePush).not.toHaveBeenCalled();
 
     resumePushRegistrationAfterAuthentication('remote');
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(true);
-    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
+    expect(mocks.subscribePush).toHaveBeenCalledOnce();
   });
 
-  it('does not let delayed leaving cleanup remove another tab\'s replacement', async () => {
+  it("does not let delayed leaving cleanup remove another tab's replacement", async () => {
     permission = 'granted';
     const replacement = makeSubscription('https://push.example/cross-tab-replacement');
     const delayedLookup = deferred<PushSubscription | null>();
@@ -656,26 +645,7 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.unsubscribePush).not.toHaveBeenCalled();
   });
 
-  it('rejects and removes a remote subscription when the route-aware RPC is unavailable', async () => {
-    permission = 'granted';
-    const remoteSubscription = makeSubscription('https://push.example/remote-old-server');
-    const register = vi.fn().mockResolvedValue({
-      active: {},
-      pushManager: {
-        getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
-        subscribe: vi.fn()
-      }
-    });
-    Object.assign(navigator.serviceWorker, { register });
-    mocks.subscribeForClientPush.mockRejectedValueOnce(new Error('unimplemented'));
-
-    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
-
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
-    expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
-  });
-
-  it('removes a remote subscription when client-host acknowledgement is indeterminate', async () => {
+  it('keeps an existing remote subscription when saving it fails', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-failed-response');
     const register = vi.fn().mockResolvedValue({
@@ -686,12 +656,12 @@ describe('pushNotifications.ensureRegistered', () => {
       }
     });
     Object.assign(navigator.serviceWorker, { register });
-    mocks.subscribeForClientPush.mockRejectedValueOnce(new Error('response lost'));
+    mocks.subscribePush.mockRejectedValueOnce(new Error('response lost'));
 
     await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
 
-    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
-    expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+    expect(remoteSubscription.unsubscribe).not.toHaveBeenCalled();
   });
 
   it('prompts during explicit enable when permission is default', async () => {

@@ -237,9 +237,6 @@ export function getPushRegistrationTargets(): PushRegistrationTarget[] {
     ) {
       return [];
     }
-    if (!serverRegistry.isOriginServer(server.id) && !info.supportsFeature('remoteWebPush')) {
-      return [];
-    }
     return [{ serverId: server.id, userId, vapidPublicKey: info.vapidPublicKey }];
   });
 }
@@ -339,7 +336,6 @@ async function ensureRegisteredOnce(
     return false;
   }
 
-  const clientHostRequired = !serverRegistry.isOriginServer(serverId);
   let subscription: PushSubscription | null = null;
   let subscriptionAuth: string | null = null;
   let cleanupToken: string | null = null;
@@ -361,7 +357,9 @@ async function ensureRegisteredOnce(
       !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
     ) {
       await subscription.unsubscribe();
-      void pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => false);
+      void pushAPI(serverId)
+        .unsubscribe(subscription.endpoint)
+        .catch(() => false);
       subscription = null;
       if (isPushRegistrationSuspended(serverId, signal)) return false;
     }
@@ -393,6 +391,7 @@ async function ensureRegisteredOnce(
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
+      clientHost: window.location.host,
       cleanupToken,
       userAgent: navigator.userAgent
     };
@@ -403,12 +402,7 @@ async function ensureRegisteredOnce(
       }
       return false;
     }
-    const saved = clientHostRequired
-      ? await api.subscribeForClient(
-          { ...input, clientHost: window.location.host },
-          { signal }
-        )
-      : await api.subscribe(input, { signal });
+    const saved = await api.subscribe(input, { signal });
 
     if (isPushRegistrationSuspended(serverId, signal)) {
       if (shouldInvalidateCancelledPushRegistration(serverId)) {
@@ -427,7 +421,7 @@ async function ensureRegisteredOnce(
 
     if (!saved.subscribed) {
       console.error('Failed to save push subscription');
-      if (createdSubscription || clientHostRequired) {
+      if (createdSubscription) {
         await invalidateSubscription(serverId, subscription);
       }
       return false;
@@ -436,13 +430,10 @@ async function ensureRegisteredOnce(
     return true;
   } catch (error) {
     console.error('Failed to subscribe to push:', error);
-    // A remote subscription is unusable until the server positively
-    // acknowledges its client host. Fail closed when that acknowledgement
-    // is indeterminate so a later push cannot open the wrong frontend.
     const cancelled = isPushRegistrationSuspended(serverId, signal);
     const activeSuspension = shouldInvalidateCancelledPushRegistration(serverId);
     if (subscription) {
-      if (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired))) {
+      if (activeSuspension || (!cancelled && createdSubscription)) {
         await invalidateSubscription(serverId, subscription);
       } else if (cancelled && api) {
         if (subscriptionAuth && cleanupToken) {
@@ -492,7 +483,9 @@ async function invalidateSubscription(
     // The subscription is already unusable from this client's perspective.
   }
   try {
-    void pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => undefined);
+    void pushAPI(serverId)
+      .unsubscribe(subscription.endpoint)
+      .catch(() => undefined);
   } catch {
     // Constructing the API is also best-effort after local invalidation.
   }

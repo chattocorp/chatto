@@ -199,7 +199,7 @@ describe('Notification settings page', () => {
     expect(container.textContent).not.toContain('Disable');
   });
 
-  it('offers an independent push subscription for compatible remote servers', async () => {
+  it('offers an independent push subscription for remote servers', async () => {
     mocks.activeServerId = 'remote';
     mocks.serverInfo.pushNotificationsEnabled = true;
     mocks.serverInfo.vapidPublicKey = 'vapid-key';
@@ -211,19 +211,6 @@ describe('Notification settings page', () => {
     expect(container.textContent).toContain('Push Notifications');
     await expect.element(buttonWithText(container, 'Enable')).toBeVisible();
     expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('remote');
-  });
-
-  it('does not offer remote push to servers without scoped-subscription support', async () => {
-    mocks.activeServerId = 'remote';
-    mocks.serverInfo.pushNotificationsEnabled = true;
-    mocks.serverInfo.vapidPublicKey = 'vapid-key';
-    mocks.serverInfo.supportsFeature.mockReturnValue(false);
-
-    const { container } = render(NotificationsPage);
-    await settle();
-
-    expect(container.textContent).not.toContain('Push Notifications');
-    expect(mocks.pushNotifications.isSubscribed).not.toHaveBeenCalled();
   });
 
   it('does not offer browser Web Push controls inside Chatto Desktop', async () => {

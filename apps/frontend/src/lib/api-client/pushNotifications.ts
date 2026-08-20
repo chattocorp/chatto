@@ -11,12 +11,9 @@ export type SubscribePushInput = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  clientHost: string;
   cleanupToken: string;
   userAgent?: string;
-};
-
-export type SubscribeForClientPushInput = SubscribePushInput & {
-  clientHost: string;
 };
 
 export type SubscribePushResult = {
@@ -45,25 +42,17 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       };
     },
 
-    async subscribeForClient(
-      input: SubscribeForClientPushInput,
-      options: PushRequestOptions = {}
-    ): Promise<SubscribePushResult> {
-      const response = await client.subscribeForClient(input, {
-        headers: headers(),
-        ...(options.signal ? { signal: options.signal } : {})
-      });
-      return {
-        subscribed: response.subscribed
-      };
-    },
-
     async unsubscribe(endpoint: string): Promise<boolean> {
       return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
     },
 
-    async deleteByCapability(endpoint: string, auth: string, cleanupToken: string): Promise<boolean> {
-      return (await client.deleteSubscriptionByCapability({ endpoint, auth, cleanupToken })).completed;
+    async deleteByCapability(
+      endpoint: string,
+      auth: string,
+      cleanupToken: string
+    ): Promise<boolean> {
+      return (await client.deleteSubscriptionByCapability({ endpoint, auth, cleanupToken }))
+        .completed;
     },
 
     async sendTestNotification(): Promise<boolean> {
