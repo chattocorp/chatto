@@ -6,7 +6,6 @@ go = "1.26.7"
 goreleaser = "latest"
 node = "22"
 pitchfork = "2.22.0"
-"go:github.com/livekit/livekit-server/cmd/server" = "1.13.5"
 uv = "0.11.30"
 
 [env]
@@ -291,7 +290,7 @@ env = {
   CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
   CHATTO_DEV_LIVEKIT_UDP_PORTS = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
 }
-run = "exec server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
+run = "exec mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
 
 [tasks.dev-mailpit]
 description = "Run a local Mailpit SMTP server with workspace-safe ports"
