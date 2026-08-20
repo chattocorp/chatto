@@ -23,7 +23,7 @@ import {
   type RegisteredServer
 } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment } from '$lib/navigation';
-import { resumePushRegistration } from '$lib/notifications/pushRegistrationCoordinator';
+import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
 
@@ -264,7 +264,6 @@ export async function completeServerOAuthFlow(
     (server) => server.url.toLowerCase() === flow.remoteUrl.toLowerCase()
   );
   if (existing) {
-    resumePushRegistration(existing.id);
     serverRegistry.updateRegistration(existing.id, {
       name: flow.serverName || existing.name,
       iconUrl: flow.serverIconUrl ?? existing.iconUrl
@@ -277,6 +276,7 @@ export async function completeServerOAuthFlow(
       userAvatarUrl: result.user?.avatarUrl ?? null,
       reauthRequiredAt: null
     });
+    resumePushRegistrationAfterAuthentication(existing.id);
     await serverRegistry.getStore(existing.id).serverInfo.init();
     return existing.id;
   }
@@ -285,7 +285,6 @@ export async function completeServerOAuthFlow(
     flow.remoteUrl,
     serverRegistry.servers.map((server) => server.id)
   );
-  resumePushRegistration(id);
   serverRegistry.addServer(
     {
       id,
@@ -303,6 +302,7 @@ export async function completeServerOAuthFlow(
       reauthRequiredAt: null
     }
   );
+  resumePushRegistrationAfterAuthentication(id);
   // Registration creates the retained store immediately, but discovery is
   // otherwise fire-and-forget. Complete server discovery before routing to the
   // new server so the transport coordinator can deterministically include its

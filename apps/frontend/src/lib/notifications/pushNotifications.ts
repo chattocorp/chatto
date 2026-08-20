@@ -16,8 +16,10 @@ import { serverConnectionManager } from '$lib/state/server/serverConnection.svel
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import {
   enqueuePushRegistration,
+  isPushRegistrationSuspended,
   resumePushRegistration,
-  suspendPushRegistration
+  suspendPushRegistration,
+  suspendPushRegistrationBeforeLeaving
 } from './pushRegistrationCoordinator';
 
 type EnsureRegisteredOptions = {
@@ -271,15 +273,16 @@ export function ensureRegistered(
   options: EnsureRegisteredOptions
 ): Promise<boolean> {
   if (options.prompt) resumePushRegistration(serverId);
-  return enqueuePushRegistration(serverId, () =>
-    ensureRegisteredOnce(serverId, vapidPublicKey, options)
+  return enqueuePushRegistration(serverId, (signal) =>
+    ensureRegisteredOnce(serverId, vapidPublicKey, options, signal)
   );
 }
 
 async function ensureRegisteredOnce(
   serverId: string,
   vapidPublicKey: string,
-  options: EnsureRegisteredOptions
+  options: EnsureRegisteredOptions,
+  signal: AbortSignal
 ): Promise<boolean> {
   if (!isSupported()) {
     console.warn('Push notifications not supported');
@@ -292,6 +295,7 @@ async function ensureRegisteredOnce(
       return false;
     }
     permission = await Notification.requestPermission();
+    if (isPushRegistrationSuspended(serverId, signal)) return false;
   }
 
   if (permission !== 'granted') {
@@ -300,6 +304,7 @@ async function ensureRegisteredOnce(
   }
 
   const registration = await getServiceWorkerRegistration(serverId, { create: true });
+  if (isPushRegistrationSuspended(serverId, signal)) return false;
   if (!registration) {
     console.error('No service worker registration');
     return false;
@@ -312,16 +317,21 @@ async function ensureRegisteredOnce(
   try {
     const applicationServerKey = urlBase64ToUint8Array(vapidPublicKey);
     subscription = await registration.pushManager.getSubscription();
+    if (isPushRegistrationSuspended(serverId, signal)) {
+      if (subscription && isPushRegistrationSuspended(serverId)) {
+        await invalidateSubscription(serverId, subscription);
+      }
+      return false;
+    }
 
     if (
       subscription?.options.applicationServerKey &&
       !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
     ) {
-      await pushAPI(serverId)
-        .unsubscribe(subscription.endpoint)
-        .catch(() => false);
       await subscription.unsubscribe();
+      void pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => false);
       subscription = null;
+      if (isPushRegistrationSuspended(serverId, signal)) return false;
     }
 
     if (!subscription) {
@@ -330,6 +340,12 @@ async function ensureRegisteredOnce(
         applicationServerKey
       });
       createdSubscription = true;
+      if (isPushRegistrationSuspended(serverId, signal)) {
+        if (isPushRegistrationSuspended(serverId)) {
+          await invalidateSubscription(serverId, subscription);
+        }
+        return false;
+      }
     }
 
     // Extract subscription details
@@ -346,9 +362,25 @@ async function ensureRegisteredOnce(
       userAgent: navigator.userAgent
     };
     const api = pushAPI(serverId);
+    if (isPushRegistrationSuspended(serverId, signal)) {
+      if (isPushRegistrationSuspended(serverId)) {
+        await invalidateSubscription(serverId, subscription);
+      }
+      return false;
+    }
     const saved = clientHostRequired
-      ? await api.subscribeForClient({ ...input, clientHost: window.location.host })
-      : await api.subscribe(input);
+      ? await api.subscribeForClient(
+          { ...input, clientHost: window.location.host },
+          { signal }
+        )
+      : await api.subscribe(input, { signal });
+
+    if (isPushRegistrationSuspended(serverId, signal)) {
+      if (isPushRegistrationSuspended(serverId)) {
+        await invalidateSubscription(serverId, subscription);
+      }
+      return false;
+    }
 
     if (!saved.subscribed) {
       console.error('Failed to save push subscription');
@@ -364,7 +396,12 @@ async function ensureRegisteredOnce(
     // A remote subscription is unusable until the server positively
     // acknowledges its client host. Fail closed when that acknowledgement
     // is indeterminate so a later push cannot open the wrong frontend.
-    if (subscription && (createdSubscription || clientHostRequired)) {
+    const cancelled = isPushRegistrationSuspended(serverId, signal);
+    const activeSuspension = isPushRegistrationSuspended(serverId);
+    if (
+      subscription &&
+      (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired)))
+    ) {
       await invalidateSubscription(serverId, subscription);
     }
     return false;
@@ -381,9 +418,9 @@ async function invalidateSubscription(
     // The subscription is already unusable from this client's perspective.
   }
   try {
-    await pushAPI(serverId).unsubscribe(subscription.endpoint);
+    void pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => undefined);
   } catch {
-    // Local invalidation has already stopped this browser receiving pushes.
+    // Constructing the API is also best-effort after local invalidation.
   }
 }
 
@@ -416,7 +453,7 @@ export async function unsubscribe(serverId: string): Promise<boolean> {
 
 /** Invalidates browser delivery before navigation and backgrounds server cleanup. */
 export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
-  return suspendPushRegistration(serverId, async () => {
+  return suspendPushRegistrationBeforeLeaving(serverId, async () => {
     const cleanup = await beginUnsubscribe(serverId);
     void cleanup.removeFromServer;
   });

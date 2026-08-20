@@ -22,20 +22,36 @@ export type SubscribePushResult = {
   subscribed: boolean;
 };
 
+export type PushRequestOptions = {
+  signal?: AbortSignal;
+};
+
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
   const client = createChattoClient(PushNotificationService, config);
   const headers = () => authHeaders(config);
 
   return {
-    async subscribe(input: SubscribePushInput): Promise<SubscribePushResult> {
-      const response = await client.subscribe(input, { headers: headers() });
+    async subscribe(
+      input: SubscribePushInput,
+      options: PushRequestOptions = {}
+    ): Promise<SubscribePushResult> {
+      const response = await client.subscribe(input, {
+        headers: headers(),
+        ...(options.signal ? { signal: options.signal } : {})
+      });
       return {
         subscribed: response.subscribed
       };
     },
 
-    async subscribeForClient(input: SubscribeForClientPushInput): Promise<SubscribePushResult> {
-      const response = await client.subscribeForClient(input, { headers: headers() });
+    async subscribeForClient(
+      input: SubscribeForClientPushInput,
+      options: PushRequestOptions = {}
+    ): Promise<SubscribePushResult> {
+      const response = await client.subscribeForClient(input, {
+        headers: headers(),
+        ...(options.signal ? { signal: options.signal } : {})
+      });
       return {
         subscribed: response.subscribed
       };

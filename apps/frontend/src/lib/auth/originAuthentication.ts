@@ -1,6 +1,6 @@
 import { invalidateAll } from '$app/navigation';
 import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
-import { resumePushRegistration } from '$lib/notifications/pushRegistrationCoordinator';
+import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavigation';
 
 /**
@@ -25,8 +25,8 @@ export async function completeOriginAuthentication(
   ]);
 
   const originServerId = serverRegistry.originServer?.id;
-  if (originServerId) resumePushRegistration(originServerId);
   serverRegistry.authenticateOrigin(token, user);
+  if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);
   clearCachedUser();
   await invalidateAll();
 

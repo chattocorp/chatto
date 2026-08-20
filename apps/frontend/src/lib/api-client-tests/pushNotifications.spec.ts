@@ -45,6 +45,7 @@ describe('createPushNotificationAPI', () => {
       baseUrl: 'https://origin.test/api/connect',
       bearerToken: 'token'
     });
+    const controller = new AbortController();
 
     await expect(
       api.subscribe({
@@ -55,12 +56,15 @@ describe('createPushNotificationAPI', () => {
       })
     ).resolves.toEqual({ subscribed: true });
     await expect(
-      api.subscribeForClient({
-        endpoint: 'https://push.example/remote',
-        p256dh: 'p256dh-key',
-        auth: 'auth-secret',
-        clientHost: 'app.example'
-      })
+      api.subscribeForClient(
+        {
+          endpoint: 'https://push.example/remote',
+          p256dh: 'p256dh-key',
+          auth: 'auth-secret',
+          clientHost: 'app.example'
+        },
+        { signal: controller.signal }
+      )
     ).resolves.toEqual({ subscribed: true });
     await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
 
@@ -88,7 +92,7 @@ describe('createPushNotificationAPI', () => {
         auth: 'auth-secret',
         clientHost: 'app.example'
       },
-      { headers: { Authorization: 'Bearer token' } }
+      { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
   });
 

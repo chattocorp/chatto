@@ -13,7 +13,10 @@ import {
   prepareUiForNotificationPath,
   prepareUiForNotificationTarget
 } from './notificationNavigationUi';
-import { resumePushRegistration } from './pushRegistrationCoordinator';
+import {
+  resumePushRegistration,
+  resumePushRegistrationAfterAuthentication
+} from './pushRegistrationCoordinator';
 
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
@@ -124,6 +127,13 @@ function makeSubscription(endpoint: string): TestPushSubscription {
 }
 
 function installPushGlobals() {
+  const storage = new Map<string, string>();
+  const localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key)
+  };
+  vi.stubGlobal('localStorage', localStorage);
   requestPermission = vi.fn(async () => {
     permission = 'granted';
     return permission;
@@ -148,7 +158,8 @@ function installPushGlobals() {
     Notification,
     PushManager: class PushManager {},
     atob: (value: string) => Buffer.from(value, 'base64').toString('binary'),
-    location: { origin: 'https://app.test', host: 'app.test', protocol: 'https:' }
+    location: { origin: 'https://app.test', host: 'app.test', protocol: 'https:' },
+    localStorage
   });
   vi.stubGlobal('navigator', {
     serviceWorker: {
@@ -309,10 +320,10 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
 
 describe('pushNotifications.ensureRegistered', () => {
   beforeEach(() => {
-    resumePushRegistration('origin');
-    resumePushRegistration('remote');
     permission = 'default';
     installPushGlobals();
+    resumePushRegistrationAfterAuthentication('origin');
+    resumePushRegistrationAfterAuthentication('remote');
     mocks.createPushNotificationAPI.mockReset();
     mocks.createPushNotificationAPI.mockReturnValue({
       subscribe: mocks.subscribePush,
@@ -355,12 +366,15 @@ describe('pushNotifications.ensureRegistered', () => {
       baseUrl: 'https://origin.test/api/connect',
       bearerToken: 'origin-token'
     });
-    expect(mocks.subscribePush).toHaveBeenCalledWith({
-      endpoint: 'https://push.example/existing',
-      p256dh: 'p256dh-key',
-      auth: 'auth-secret',
-      userAgent: 'test-agent'
-    });
+    expect(mocks.subscribePush).toHaveBeenCalledWith(
+      {
+        endpoint: 'https://push.example/existing',
+        p256dh: 'p256dh-key',
+        auth: 'auth-secret',
+        userAgent: 'test-agent'
+      },
+      { signal: expect.any(AbortSignal) }
+    );
     expect(mocks.subscribeForClientPush).not.toHaveBeenCalled();
   });
 
@@ -378,7 +392,8 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.subscribePush).toHaveBeenCalledWith(
       expect.objectContaining({
         endpoint: 'https://push.example/created'
-      })
+      }),
+      { signal: expect.any(AbortSignal) }
     );
   });
 
@@ -410,7 +425,8 @@ describe('pushNotifications.ensureRegistered', () => {
       expect.objectContaining({
         endpoint: 'https://push.example/remote',
         clientHost: 'app.test'
-      })
+      }),
+      { signal: expect.any(AbortSignal) }
     );
     expect(mocks.subscribePush).not.toHaveBeenCalled();
   });
@@ -443,7 +459,7 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.subscribeForClientPush).toHaveBeenCalledTimes(2);
   });
 
-  it('cancels queued refreshes and cleans up after an active registration before leaving', async () => {
+  it('aborts an unbounded active refresh, cancels queued work, and cleans up before leaving', async () => {
     permission = 'granted';
     const remoteSubscription = makeSubscription('https://push.example/remote-leaving-race');
     const firstSave = deferred<{ subscribed: boolean }>();
@@ -474,14 +490,55 @@ describe('pushNotifications.ensureRegistered', () => {
     const queuedRefresh = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
     const leaving = unsubscribeBeforeLeaving('remote');
 
-    firstSave.resolve({ subscribed: true });
-    await expect(activeRefresh).resolves.toBe(true);
+    await expect(activeRefresh).resolves.toBe(false);
     await expect(queuedRefresh).resolves.toBe(false);
     await expect(leaving).resolves.toBeUndefined();
 
     expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
+    expect(mocks.subscribeForClientPush.mock.calls[0]?.[1]?.signal.aborted).toBe(true);
     expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
     expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
+
+    resumePushRegistrationAfterAuthentication('remote');
+    remoteSubscription.unsubscribe.mockClear();
+    mocks.unsubscribePush.mockClear();
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(true);
+
+    // A transport that ignores abort may settle after a new session starts.
+    // Its stale continuation must not invalidate the new session's endpoint.
+    firstSave.resolve({ subscribed: true });
+    await firstSave.promise;
+    await Promise.resolve();
+    expect(remoteSubscription.unsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+  });
+
+  it('keeps leaving suspension visible across tabs until new authentication is installed', async () => {
+    permission = 'granted';
+    const remoteSubscription = makeSubscription('https://push.example/remote-reauthenticated');
+    const register = vi.fn().mockResolvedValue({
+      active: {},
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
+        subscribe: vi.fn()
+      }
+    });
+    Object.assign(navigator.serviceWorker, { register });
+
+    await expect(unsubscribeBeforeLeaving('remote')).resolves.toBeUndefined();
+    // A different realm has independent in-memory state, modelled by clearing
+    // only this module's local suspension while retaining the shared tombstone.
+    resumePushRegistration('remote');
+
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: true })).resolves.toBe(false);
+    expect(requestPermission).not.toHaveBeenCalled();
+    expect(register).not.toHaveBeenCalled();
+    expect(mocks.subscribeForClientPush).not.toHaveBeenCalled();
+
+    resumePushRegistrationAfterAuthentication('remote');
+
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(true);
+    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
   });
 
   it('rejects and removes a remote subscription when the route-aware RPC is unavailable', async () => {
