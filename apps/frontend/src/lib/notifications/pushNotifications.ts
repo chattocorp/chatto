@@ -14,12 +14,15 @@ import {
 } from '$lib/pwa/notificationClick.worker';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import {
+  enqueuePushRegistration,
+  resumePushRegistration,
+  suspendPushRegistration
+} from './pushRegistrationCoordinator';
 
 type EnsureRegisteredOptions = {
   prompt: boolean;
 };
-
-const registrationTails = new Map<string, Promise<boolean>>();
 
 export type PushRegistrationTarget = {
   serverId: string;
@@ -267,14 +270,10 @@ export function ensureRegistered(
   vapidPublicKey: string,
   options: EnsureRegisteredOptions
 ): Promise<boolean> {
-  const previous = registrationTails.get(serverId) ?? Promise.resolve(false);
-  const current = previous
-    .catch(() => false)
-    .then(() => ensureRegisteredOnce(serverId, vapidPublicKey, options));
-  registrationTails.set(serverId, current);
-  return current.finally(() => {
-    if (registrationTails.get(serverId) === current) registrationTails.delete(serverId);
-  });
+  if (options.prompt) resumePushRegistration(serverId);
+  return enqueuePushRegistration(serverId, () =>
+    ensureRegisteredOnce(serverId, vapidPublicKey, options)
+  );
 }
 
 async function ensureRegisteredOnce(
@@ -407,14 +406,20 @@ export async function subscribe(serverId: string, vapidPublicKey: string): Promi
  * @returns true if unsubscription was successful
  */
 export async function unsubscribe(serverId: string): Promise<boolean> {
-  const cleanup = await beginUnsubscribe(serverId);
-  return cleanup.removedFromBrowser && (await cleanup.removeFromServer);
+  let result = false;
+  await suspendPushRegistration(serverId, async () => {
+    const cleanup = await beginUnsubscribe(serverId);
+    result = cleanup.removedFromBrowser && (await cleanup.removeFromServer);
+  });
+  return result;
 }
 
 /** Invalidates browser delivery before navigation and backgrounds server cleanup. */
-export async function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
-  const cleanup = await beginUnsubscribe(serverId);
-  void cleanup.removeFromServer;
+export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
+  return suspendPushRegistration(serverId, async () => {
+    const cleanup = await beginUnsubscribe(serverId);
+    void cleanup.removeFromServer;
+  });
 }
 
 async function beginUnsubscribe(serverId: string): Promise<{

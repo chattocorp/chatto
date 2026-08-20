@@ -51,6 +51,7 @@ var (
 type pushEndpointOwner struct {
 	UserID               string `json:"user_id"`
 	SubscriptionRevision uint64 `json:"subscription_revision"`
+	Endpoint             string `json:"endpoint,omitempty"`
 }
 
 func pushSubscriptionEndpoint(subscription *corev1.PushSubscription) string {
@@ -257,7 +258,7 @@ func (c *ChattoCore) claimPushEndpointOwnership(ctx context.Context, userID, end
 			return nil
 		}
 
-		owner := pushEndpointOwner{UserID: userID, SubscriptionRevision: subscriptionEntry.Revision()}
+		owner := pushEndpointOwner{UserID: userID, SubscriptionRevision: subscriptionEntry.Revision(), Endpoint: endpoint}
 		value, err := json.Marshal(owner)
 		if err != nil {
 			return fmt.Errorf("failed to marshal push endpoint owner: %w", err)
@@ -317,6 +318,57 @@ func (c *ChattoCore) deleteStalePushEndpointOwner(ctx context.Context, key strin
 		return nil
 	}
 	return fmt.Errorf("failed to remove stale push endpoint owner: %w", err)
+}
+
+// ReconcilePushEndpointOwners removes endpoint claims whose subscription was
+// deleted by an older replica that could not read delivery_endpoint. Claims
+// written before endpoint reconciliation was introduced are left untouched
+// because their endpoint cannot be recovered from the hashed key.
+func (c *ChattoCore) ReconcilePushEndpointOwners(ctx context.Context) error {
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, pushEndpointOwnerKeyPrefix+">")
+	if err != nil {
+		if errors.Is(err, jetstream.ErrNoKeysFound) {
+			return nil
+		}
+		return fmt.Errorf("failed to list push endpoint owners: %w", err)
+	}
+
+	for key := range lister.Keys() {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if isPushRuntimeStateKeyAbsent(err) {
+			continue
+		}
+		if err != nil {
+			c.logger.Warn("Failed to read push endpoint owner during reconciliation", "owner_key", key, "error", err)
+			continue
+		}
+		var owner pushEndpointOwner
+		if err := json.Unmarshal(entry.Value(), &owner); err != nil {
+			c.logger.Warn("Failed to decode push endpoint owner during reconciliation", "owner_key", key, "error", err)
+			continue
+		}
+		if owner.Endpoint == "" {
+			continue
+		}
+
+		subscriptionEntry, err := c.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(owner.UserID, owner.Endpoint))
+		current := err == nil && subscriptionEntry.Revision() == owner.SubscriptionRevision
+		if current {
+			var subscription corev1.PushSubscription
+			current = proto.Unmarshal(subscriptionEntry.Value(), &subscription) == nil && pushSubscriptionEndpoint(&subscription) == owner.Endpoint
+		}
+		if current {
+			continue
+		}
+		if err != nil && !isPushRuntimeStateKeyAbsent(err) {
+			c.logger.Warn("Failed to read push subscription during owner reconciliation", "owner_key", key, "error", err)
+			continue
+		}
+		if err := c.storage.runtimeStateKV.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err != nil && !isPushRuntimeStateKeyAbsent(err) && !jetstreamutil.IsSequenceConflict(err) {
+			c.logger.Warn("Failed to remove orphaned push endpoint owner", "owner_key", key, "error", err)
+		}
+	}
+	return nil
 }
 
 // PushSubscriptionOwnedByUser reports whether the endpoint is currently claimed

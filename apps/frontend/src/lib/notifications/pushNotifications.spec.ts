@@ -13,6 +13,7 @@ import {
   prepareUiForNotificationPath,
   prepareUiForNotificationTarget
 } from './notificationNavigationUi';
+import { resumePushRegistration } from './pushRegistrationCoordinator';
 
 const mocks = vi.hoisted(() => ({
   createPushNotificationAPI: vi.fn(),
@@ -308,6 +309,8 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
 
 describe('pushNotifications.ensureRegistered', () => {
   beforeEach(() => {
+    resumePushRegistration('origin');
+    resumePushRegistration('remote');
     permission = 'default';
     installPushGlobals();
     mocks.createPushNotificationAPI.mockReset();
@@ -438,6 +441,47 @@ describe('pushNotifications.ensureRegistered', () => {
     await expect(first).resolves.toBe(true);
     await expect(second).resolves.toBe(true);
     expect(mocks.subscribeForClientPush).toHaveBeenCalledTimes(2);
+  });
+
+  it('cancels queued refreshes and cleans up after an active registration before leaving', async () => {
+    permission = 'granted';
+    const remoteSubscription = makeSubscription('https://push.example/remote-leaving-race');
+    const firstSave = deferred<{ subscribed: boolean }>();
+    const remoteGetSubscription = vi
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValue(remoteSubscription);
+    const remoteRegistration = {
+      scope: '',
+      active: {},
+      pushManager: {
+        getSubscription: remoteGetSubscription,
+        subscribe: vi.fn().mockResolvedValue(remoteSubscription)
+      }
+    };
+    const register = vi.fn(async (_script: string, options: RegistrationOptions) => {
+      remoteRegistration.scope = new URL(options.scope ?? '/', window.location.origin).toString();
+      return remoteRegistration;
+    });
+    Object.assign(navigator.serviceWorker, {
+      register,
+      getRegistrations: vi.fn().mockImplementation(async () => [remoteRegistration])
+    });
+    mocks.subscribeForClientPush.mockReturnValueOnce(firstSave.promise);
+
+    const activeRefresh = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
+    await vi.waitFor(() => expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce());
+    const queuedRefresh = ensureRegistered('remote', 'dmFwaWQ', { prompt: false });
+    const leaving = unsubscribeBeforeLeaving('remote');
+
+    firstSave.resolve({ subscribed: true });
+    await expect(activeRefresh).resolves.toBe(true);
+    await expect(queuedRefresh).resolves.toBe(false);
+    await expect(leaving).resolves.toBeUndefined();
+
+    expect(mocks.subscribeForClientPush).toHaveBeenCalledOnce();
+    expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
   });
 
   it('rejects and removes a remote subscription when the route-aware RPC is unavailable', async () => {

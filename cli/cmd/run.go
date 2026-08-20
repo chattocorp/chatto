@@ -178,6 +178,9 @@ func runServer(configPath string) {
 		exitCode = 1
 		return
 	}
+	if err := chattoCore.ReconcilePushEndpointOwners(ctx); err != nil {
+		log.Warn("Failed to reconcile push endpoint owners", "error", err)
+	}
 
 	// Set asset base URL for absolute asset URLs (required for cross-origin clients)
 	if cfg.Webserver.URL != "" {

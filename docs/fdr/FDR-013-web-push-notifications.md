@@ -34,7 +34,7 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
   renewable lease leader performs startup/periodic reconciliation without a
   fixed whole-pass deadline, using that permanent fact to erase late writes and
   repair orphaned endpoint-owner records without a second deletion marker.
-- Signing out of or removing a server invalidates that server's browser subscription on the current device before discarding its local credentials, then removes the server record on a best-effort basis.
+- Signing out of or removing a server suspends and drains that server's queued registration work, invalidates its browser subscription on the current device before discarding local credentials, then removes the server record on a best-effort basis. A newly authenticated session resumes registration.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
 
 ## Design Decisions

@@ -23,6 +23,7 @@ import {
   type RegisteredServer
 } from '$lib/state/server/registry.svelte';
 import { serverIdToSegment } from '$lib/navigation';
+import { resumePushRegistration } from '$lib/notifications/pushRegistrationCoordinator';
 import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
 
@@ -263,6 +264,7 @@ export async function completeServerOAuthFlow(
     (server) => server.url.toLowerCase() === flow.remoteUrl.toLowerCase()
   );
   if (existing) {
+    resumePushRegistration(existing.id);
     serverRegistry.updateRegistration(existing.id, {
       name: flow.serverName || existing.name,
       iconUrl: flow.serverIconUrl ?? existing.iconUrl
@@ -283,6 +285,7 @@ export async function completeServerOAuthFlow(
     flow.remoteUrl,
     serverRegistry.servers.map((server) => server.id)
   );
+  resumePushRegistration(id);
   serverRegistry.addServer(
     {
       id,

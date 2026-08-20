@@ -260,6 +260,40 @@ func TestClientHostPushSubscriptionFailsClosedForLegacyReplica(t *testing.T) {
 	}
 }
 
+func TestReconcilePushEndpointOwnersRemovesLegacyReplicaAccountDeletionOrphan(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := context.Background()
+	userID := "push-user-client-host-old-account-delete"
+	endpoint := "https://push.example.com/client-host-old-account-delete"
+
+	if _, err := core.SavePushSubscriptionForClient(ctx, userID, endpoint, "key", "auth", "browser", "app.example.com"); err != nil {
+		t.Fatalf("SavePushSubscriptionForClient: %v", err)
+	}
+	entry, err := core.storage.runtimeStateKV.Get(ctx, pushSubscriptionKey(userID, endpoint))
+	if err != nil {
+		t.Fatalf("get subscription: %v", err)
+	}
+
+	// Simulate the pre-change DeleteAll path: it sees field 1 as empty, tries
+	// to release ownership for that empty value, then deletes the user record.
+	if err := core.releasePushEndpointOwnership(ctx, userID, "", entry.Revision()); err != nil {
+		t.Fatalf("legacy releasePushEndpointOwnership: %v", err)
+	}
+	if err := core.storage.runtimeStateKV.Delete(ctx, pushSubscriptionKey(userID, endpoint)); err != nil {
+		t.Fatalf("legacy subscription delete: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint)); err != nil {
+		t.Fatalf("legacy account deletion unexpectedly removed owner: %v", err)
+	}
+
+	if err := core.ReconcilePushEndpointOwners(ctx); err != nil {
+		t.Fatalf("ReconcilePushEndpointOwners: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, pushEndpointOwnerKey(endpoint)); !isPushRuntimeStateKeyAbsent(err) {
+		t.Fatalf("orphan owner still exists after reconciliation: %v", err)
+	}
+}
+
 func TestSavePushSubscriptionForClient_ValidatesClientHosts(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
