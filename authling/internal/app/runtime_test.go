@@ -804,6 +804,93 @@ func TestEmailChangeKeepsCommittedIdentityWhenOldAddressNoticeFails(t *testing.T
 	}
 }
 
+func TestCommittedEmailChangeRecoveryDoesNotCrossPasswordReset(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "recovery-old@example.com", "the recovery original password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the recovery original password", "recovery-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	requestEvent, _ := lastAccountEvent(t, runtime, account.ID)
+	target := accounts.EmailChangeTarget{
+		AccountID: account.ID, CredentialEventID: requestEvent.GetEmailChangeRequested().GetCredentialEventId(), RequestEventID: requestEvent.GetId(),
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := runtime.Accounts.CompletedEmailChange(target, "recovery-new@example.com"); !ok {
+		t.Fatal("committed email change was not recoverable before password reset")
+	}
+	resetFlow, err := runtime.PasswordReset.Start(testContext(t), "recovery-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	resetCode := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.PasswordReset.Verify(testContext(t), resetFlow, resetCode); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.PasswordReset.Complete(testContext(t), resetFlow, "the recovery replacement password"); err != nil {
+		t.Fatal(err)
+	}
+	if _, ok := runtime.Accounts.CompletedEmailChange(target, "recovery-new@example.com"); ok {
+		t.Fatal("email change recovery crossed the later password-reset generation")
+	}
+}
+
+func TestConcurrentEmailChangeCompletionHasOneActiveLease(t *testing.T) {
+	sender := newBlockingNotificationSender()
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "lease-old@example.com", "the completion lease password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := runtime.EmailChange.Start(testContext(t), account.ID, "the completion lease password", "lease-new@example.com")
+	if err != nil {
+		t.Fatal(err)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.EmailChange.Verify(testContext(t), account.ID, flow, code); err != nil {
+		t.Fatal(err)
+	}
+	firstResult := make(chan error, 1)
+	completionContext := testContext(t)
+	go func() {
+		_, err := runtime.EmailChange.Complete(completionContext, account.ID, flow)
+		firstResult <- err
+	}()
+	select {
+	case <-sender.notificationStarted:
+	case <-time.After(5 * time.Second):
+		t.Fatal("first completion did not reach old-address notification")
+	}
+	if _, err := runtime.EmailChange.Complete(testContext(t), account.ID, flow); err == nil {
+		t.Fatal("concurrent email change completion bypassed the active lease")
+	}
+	close(sender.releaseNotification)
+	if err := <-firstResult; err != nil {
+		t.Fatalf("leased email change completion: %v", err)
+	}
+	var notices int
+	for _, message := range sender.all() {
+		if message.Subject == "Your Authling email address changed" {
+			notices++
+		}
+	}
+	if notices != 1 {
+		t.Fatalf("old-address notices = %d, want 1", notices)
+	}
+}
+
 func TestEmailChangeDeliveryFailureLeavesIdentityUnchangedAndCanRetry(t *testing.T) {
 	sender := &failingFirstEmailChangeCodeSender{}
 	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
@@ -1022,6 +1109,29 @@ type failingNotificationSender struct{ capturingSender }
 type failingFirstEmailChangeCodeSender struct {
 	capturingSender
 	failed bool
+}
+
+type blockingNotificationSender struct {
+	capturingSender
+	notificationStarted chan struct{}
+	releaseNotification chan struct{}
+	startOnce           sync.Once
+}
+
+func newBlockingNotificationSender() *blockingNotificationSender {
+	return &blockingNotificationSender{notificationStarted: make(chan struct{}), releaseNotification: make(chan struct{})}
+}
+
+func (s *blockingNotificationSender) SendContext(ctx context.Context, message email.Message) error {
+	if message.Subject == "Your Authling email address changed" {
+		s.startOnce.Do(func() { close(s.notificationStarted) })
+		select {
+		case <-s.releaseNotification:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return s.capturingSender.SendContext(ctx, message)
 }
 
 func (s *failingFirstEmailChangeCodeSender) SendContext(ctx context.Context, message email.Message) error {

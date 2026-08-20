@@ -83,6 +83,7 @@ type protectedCredential struct {
 	emailCiphertext            []byte
 	emailAAD                   []byte
 	emailChangeRequestEventID  string
+	emailChangeEventID         string
 	passwordVerifierNonce      []byte
 	passwordVerifierCiphertext []byte
 	passwordVerifierAAD        []byte
@@ -268,6 +269,7 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 		staged.emailCiphertext = append([]byte(nil), changed.GetEmailCiphertext()...)
 		staged.emailAAD = emailAAD
 		staged.emailChangeRequestEventID = changed.GetEmailChangeRequestEventId()
+		staged.emailChangeEventID = event.GetId()
 
 		p.Lock()
 		defer p.Unlock()
@@ -445,7 +447,7 @@ func (p *Projection) completedEmailChange(target EmailChangeTarget, newEmail str
 	p.RLock()
 	defer p.RUnlock()
 	credential, ok := p.credentials[target.AccountID]
-	if !ok || credential.emailChangeRequestEventID != target.RequestEventID || credential.emailDigest != digest(p.indexKey, NormalizeEmail(newEmail)) {
+	if !ok || credential.eventID != credential.emailChangeEventID || credential.emailChangeRequestEventID != target.RequestEventID || credential.emailDigest != digest(p.indexKey, NormalizeEmail(newEmail)) {
 		return Account{}, false
 	}
 	account, ok := p.accounts[target.AccountID]

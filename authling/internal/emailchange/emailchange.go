@@ -30,6 +30,7 @@ const maxGlobalDeliveredCodes = 1000
 const maxConcurrentDeliveries = 8
 const maxConcurrentCompletions = 4
 const oldAddressNotificationTimeout = 10 * time.Second
+const completionLeaseLifetime = 30 * time.Second
 
 var (
 	ErrInvalidEmail   = errors.New("enter a valid email address")
@@ -40,13 +41,14 @@ var (
 )
 
 type flowState struct {
-	Target             accounts.EmailChangeTarget `json:"target"`
-	NewEmail           string                     `json:"new_email"`
-	CodeDigest         []byte                     `json:"code_digest"`
-	WrongAttempts      int                        `json:"wrong_attempts"`
-	Verified           bool                       `json:"verified"`
-	CompletionAttempts int                        `json:"completion_attempts"`
-	ExpiresAt          time.Time                  `json:"expires_at"`
+	Target               accounts.EmailChangeTarget `json:"target"`
+	NewEmail             string                     `json:"new_email"`
+	CodeDigest           []byte                     `json:"code_digest"`
+	WrongAttempts        int                        `json:"wrong_attempts"`
+	Verified             bool                       `json:"verified"`
+	CompletionAttempts   int                        `json:"completion_attempts"`
+	CompletionLeaseUntil time.Time                  `json:"completion_lease_until"`
+	ExpiresAt            time.Time                  `json:"expires_at"`
 }
 
 type sealedState struct {
@@ -162,10 +164,12 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 	if err != nil || state.Target.AccountID != accountID || !time.Now().Before(state.ExpiresAt) || !state.Verified {
 		return Completion{}, ErrInvalidFlow
 	}
-	if state.CompletionAttempts >= maxCompletionAttempts {
-		if account, ok := s.accounts.CompletedEmailChange(state.Target, state.NewEmail); ok {
-			return s.finishCommitted(ctx, key, entry.Revision(), state, account)
-		}
+	now := time.Now().UTC()
+	if state.CompletionLeaseUntil.After(now) {
+		return Completion{}, errCompletionBusy
+	}
+	committed, wasCommitted := s.accounts.CompletedEmailChange(state.Target, state.NewEmail)
+	if state.CompletionAttempts >= maxCompletionAttempts && !wasCommitted {
 		return Completion{}, ErrInvalidFlow
 	}
 	select {
@@ -176,10 +180,16 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 	default:
 		return Completion{}, errCompletionBusy
 	}
-	state.CompletionAttempts++
+	if !wasCommitted {
+		state.CompletionAttempts++
+	}
+	state.CompletionLeaseUntil = now.Add(completionLeaseLifetime)
 	completionRevision, err := s.update(ctx, key, entry.Revision(), state)
 	if err != nil {
-		return Completion{}, ErrInvalidFlow
+		return Completion{}, errCompletionBusy
+	}
+	if wasCommitted {
+		return s.finishCommitted(ctx, key, completionRevision, state, committed)
 	}
 	account, err := s.accounts.ChangeEmail(ctx, state.Target, state.NewEmail)
 	if err != nil {
@@ -190,6 +200,8 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 			_ = s.kv.Delete(ctx, key, jetstream.LastRevision(completionRevision))
 			return Completion{}, ErrInvalidFlow
 		}
+		state.CompletionLeaseUntil = time.Time{}
+		_, _ = s.update(ctx, key, completionRevision, state)
 		return Completion{}, err
 	}
 	return s.finishCommitted(ctx, key, completionRevision, state, account)
