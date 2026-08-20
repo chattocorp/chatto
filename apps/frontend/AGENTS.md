@@ -57,6 +57,12 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   state, has multiple consumers, or needs a lifecycle independent of the
   component tree. Prefer attachments and mountable components over a reactive
   class used only to arrange setup and cleanup.
+- For a simple component-lifetime timer, render the headless
+  `$lib/lifecycle/Interval.svelte` or `$lib/lifecycle/Deadline.svelte` component
+  instead of repeating timer setup and cleanup in a feature `$effect`. Keep
+  debounce timers, request timeouts, animation scheduling, and timers owned by
+  stores or protocol lifecycles with those owners; the headless components are
+  specifically for behavior whose lifetime follows conditional markup.
 - Do not mirror SvelteKit `load` data into stores from component `$effect`; set
   the store in the owner that already has the data.
 - Wrap async/context getters in `$derived` when their result must update.
