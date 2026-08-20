@@ -49,19 +49,31 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Use runes and Svelte 5 idioms; no legacy reactive statements.
 - Avoid `$effect` unless synchronizing with DOM, subscriptions, timers, network
   calls, or other external systems. Use `$derived` for computed state.
+- Choose the smallest lifecycle owner for reusable browser and DOM behavior:
+  use a Svelte attachment when behavior belongs to one element; use a mountable,
+  possibly headless component when behavior should follow conditional rendering
+  or use Svelte markup lifecycle such as `<svelte:window>` or
+  `<svelte:document>`; use a reactive class when behavior owns complex or shared
+  state, has multiple consumers, or needs a lifecycle independent of the
+  component tree. Prefer attachments and mountable components over a reactive
+  class used only to arrange setup and cleanup.
 - Do not mirror SvelteKit `load` data into stores from component `$effect`; set
   the store in the owner that already has the data.
 - Wrap async/context getters in `$derived` when their result must update.
 - Pass reactive values as getter functions to hooks that read them inside an
   effect; never suppress `state_referenced_locally`.
 - Keep long-lived module state in `<script module>`, not instance `<script>`.
+- Document a component for Svelte Language Server hover text with a markup
+  `<!-- @component ... -->` comment. JSDoc inside `<script>` documents the
+  adjacent JavaScript declaration, not the component itself.
 - Use `Snippet<[Args]>` for reusable layout/render snippets.
 - Prefer attachments (`{@attach}`) over legacy actions for new reusable DOM
   behavior.
 - Prefer Svelte template event attributes such as `onclick` and `onpointerdown`
-  for component-owned DOM event handling. Reserve imperative event listeners for
-  reusable actions, attachments, subscriptions, and external targets such as
-  `window`, `document`, or third-party libraries.
+  for component-owned DOM event handling. Use `<svelte:window>` and
+  `<svelte:document>` for component-owned handlers on those global targets.
+  Reserve imperative event listeners for reusable actions, attachments,
+  subscriptions, and third-party libraries.
 
 ## Routing And Navigation
 
