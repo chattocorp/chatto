@@ -143,6 +143,40 @@ func TestConfigModelUpdateSubjectNoEventsIsNoop(t *testing.T) {
 	}
 }
 
+func TestConfigModelUpdateSubjectRetriesNoopAfterSequenceChange(t *testing.T) {
+	harness := newTestEventHarness(t)
+	projection := NewConfigProjection()
+	projector := harness.projector(projection)
+	startTestProjector(t, projector)
+	service := newTestConfigModel(t, harness.publisher, projector, projection)
+	ctx := testContext(t)
+	attempts := 0
+
+	err := service.updateSubject(ctx, ConfigSubjectServer, func(agg evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		attempts++
+		if attempts == 1 {
+			conflicting := newEvent(SystemActorID, &corev1.Event{
+				Event: &corev1.Event_ServerNameChanged{
+					ServerNameChanged: &corev1.ServerNameChangedEvent{Name: "concurrent write"},
+				},
+			})
+			if _, err := harness.publisher.AppendEventually(ctx, agg.SubjectFor(conflicting), conflicting); err != nil {
+				return nil, err
+			}
+		}
+		return nil, nil
+	})
+	if err != nil {
+		t.Fatalf("updateSubject no-op returned error: %v", err)
+	}
+	if attempts != 2 {
+		t.Fatalf("attempts = %d, want 2 so the no-op is re-evaluated after the conflicting write", attempts)
+	}
+	if got := service.GetEffectiveServerName(); got != "concurrent write" {
+		t.Fatalf("EffectiveServerName = %q, want concurrent write", got)
+	}
+}
+
 func TestConfigModelUpdateSubjectPropagatesBuildError(t *testing.T) {
 	harness := newTestEventHarness(t)
 	projection := NewConfigProjection()

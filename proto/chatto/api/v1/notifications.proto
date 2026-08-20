@@ -345,7 +345,7 @@ service NotificationService {
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
   // Gets explicit and effective modes for every supported signal class.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
-  // Sets or clears one server- or room-scoped signal-class override.
+  // Atomically sets or clears selected server- or room-scoped signal-class overrides.
   rpc UpdateNotificationPolicy(UpdateNotificationPolicyRequest) returns (UpdateNotificationPolicyResponse) {
     option idempotency_level = IDEMPOTENT;
   }

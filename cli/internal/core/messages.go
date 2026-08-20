@@ -1035,7 +1035,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 			directMentionSignal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{}}}
 			for _, userID := range directMentionRecipients(event.GetMessagePosted().GetMentions()) {
-				if c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal) > corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+				if notificationModeProducesOccurrence(c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal)) {
 					directMentionFollowers = append(directMentionFollowers, userID)
 				}
 			}

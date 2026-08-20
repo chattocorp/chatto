@@ -124,7 +124,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets or clears one server- or room-scoped signal-class override.
+     * Atomically sets or clears selected server- or room-scoped signal-class overrides.
      *
      * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationPolicy
      */

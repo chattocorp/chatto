@@ -674,7 +674,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	}
 	signal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: reference, Emoji: reaction.GetEmoji()}}}
 	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), signal)
-	if mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if !notificationModeProducesOccurrence(mode) {
 		return nil
 	}
 	inputs := newNotificationOccurrenceInputs(event, []notificationRecipientDecision{{

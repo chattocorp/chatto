@@ -237,8 +237,8 @@ type RoomMentionResolution struct {
 }
 
 // ResolveRoomMentionKinds resolves @handles in a message to concrete
-// room-member user IDs and distinct notification policy kinds. Handles share
-// one namespace across users, roles, and virtual
+// room-member user IDs while retaining each typed mention's provenance.
+// Handles share one namespace across users, roles, and virtual
 // room-scoped broadcasts:
 //   - @all: every current room member
 //   - @here: current room members whose presence is not OFFLINE

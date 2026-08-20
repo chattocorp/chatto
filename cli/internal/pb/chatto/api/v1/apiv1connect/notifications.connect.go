@@ -98,7 +98,7 @@ type NotificationServiceClient interface {
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets explicit and effective modes for every supported signal class.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
-	// Sets or clears one server- or room-scoped signal-class override.
+	// Atomically sets or clears selected server- or room-scoped signal-class overrides.
 	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 
@@ -272,7 +272,7 @@ type NotificationServiceHandler interface {
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
 	// Gets explicit and effective modes for every supported signal class.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
-	// Sets or clears one server- or room-scoped signal-class override.
+	// Atomically sets or clears selected server- or room-scoped signal-class overrides.
 	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 

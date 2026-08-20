@@ -175,7 +175,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 		for _, identity := range identities {
 			signal := signalsByRecipient[userID][identity]
 			mode := snapshot.effectiveNotificationMode(userID, roomID, signal)
-			if mode > corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+			if notificationModeProducesOccurrence(mode) {
 				decisions = append(decisions, notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode})
 			}
 		}

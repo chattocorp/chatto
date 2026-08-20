@@ -63,6 +63,19 @@ func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
 		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
 }
 
+// notificationModeProducesOccurrence accepts only modes this binary knows how
+// to materialize. Unknown future enum values fail closed during version skew
+// instead of entering the durable worker's retry loop.
+func notificationModeProducesOccurrence(mode corev1.NotificationDeliveryMode) bool {
+	switch mode {
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
+		return true
+	default:
+		return false
+	}
+}
+
 func validateNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) error {
 	if modes == nil {
 		return nil
@@ -292,7 +305,24 @@ func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, 
 			return nil, err
 		}
 		if proto.Equal(current, next) {
-			return s.GetNotificationPolicy(ctx, actorID, roomID)
+			unchanged, err := s.core.configModel.subjectSequenceUnchanged(ctx, filter, expectedSeq)
+			if err != nil {
+				return nil, fmt.Errorf("revalidate room notification policy: %w", err)
+			}
+			if unchanged {
+				// Recheck access at the no-op linearization boundary. A no-op has
+				// no authorization-fenced append to perform this validation for us.
+				if _, err := s.prepareRoomAccess(ctx, actorID, roomID); err != nil {
+					return nil, err
+				}
+				return s.GetNotificationPolicy(ctx, actorID, roomID)
+			}
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+			}
+			continue
 		}
 		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
 			UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{

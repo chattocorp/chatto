@@ -390,7 +390,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		if err := validateNotificationCreateInput(input); err != nil {
 			return nil, err
 		}
-		active = active || (input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED && input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF)
+		active = active || notificationModeProducesOccurrence(input.Mode)
 	}
 	if !active {
 		return results, nil
@@ -403,7 +403,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 	prepared := make([]preparedNotificationCreateInput, 0, len(inputs))
 	refs := make([]notificationOccurrenceRef, 0, len(inputs))
 	for i, input := range inputs {
-		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED || input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+		if !notificationModeProducesOccurrence(input.Mode) {
 			continue
 		}
 		expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
@@ -583,14 +583,8 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "" {
 		return invalidArgument("a supported notification signal with an exact message is required")
 	}
-	switch input.Mode {
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
+	if !notificationModeProducesOccurrence(input.Mode) {
 		return nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
-	default:
-		return invalidArgument("unsupported notification delivery mode")
 	}
 	if input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT && input.AttentionLevel != corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT {
 		return invalidArgument("a concrete notification attention level is required")

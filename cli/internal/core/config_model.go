@@ -88,7 +88,19 @@ func (s *ConfigModel) updateSubject(
 			return err
 		}
 		if len(evs) == 0 {
-			return nil
+			unchanged, err := s.subjectSequenceUnchanged(ctx, filter, expectedSeq)
+			if err != nil {
+				return err
+			}
+			if unchanged {
+				return nil
+			}
+			select {
+			case <-ctx.Done():
+				return ctx.Err()
+			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+			}
+			continue
 		}
 		if err := s.appendEventsAt(ctx, agg, filter, expectedSeq, evs); err == nil {
 			return nil
@@ -102,6 +114,17 @@ func (s *ConfigModel) updateSubject(
 		}
 	}
 	return ErrConfigConflict
+}
+
+// subjectSequenceUnchanged gives no-op mutations an OCC linearization point.
+// Without this final check, a writer could change the subject after the
+// projection read and before a nominally successful no-op returned.
+func (s *ConfigModel) subjectSequenceUnchanged(ctx context.Context, filter string, expectedSeq uint64) (bool, error) {
+	actualSeq, err := s.publisher.LastSubjectSeq(ctx, filter)
+	if err != nil {
+		return false, fmt.Errorf("revalidate config OCC seq: %w", err)
+	}
+	return actualSeq == expectedSeq, nil
 }
 
 func (s *ConfigModel) waitFor(ctx context.Context, pos events.StreamPosition) error {
