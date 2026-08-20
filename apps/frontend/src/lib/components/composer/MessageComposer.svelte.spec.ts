@@ -443,6 +443,25 @@ describe('MessageComposer', () => {
       expect(toolbar?.contains(q(container, 'button[aria-label="Send message"]'))).toBe(true);
     });
 
+    it('preserves an editor selection when a mouse drag ends over composer padding', async () => {
+      const { container } = renderMessageComposer({ roomId: 'room-selection-padding' });
+      const editor = await findEditor(container);
+      const surface = q(container, '[data-testid="composer-input-surface"]')!;
+      await typeInEditor(editor, 'keep this selected');
+      await selectEditorContents(editor);
+
+      editor.dispatchEvent(
+        new PointerEvent('pointerdown', { bubbles: true, button: 0, pointerType: 'mouse' })
+      );
+      surface.dispatchEvent(
+        new PointerEvent('pointerup', { bubbles: true, button: 0, pointerType: 'mouse' })
+      );
+      surface.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }));
+      await tick();
+
+      expect(window.getSelection()?.toString()).toBe('keep this selected');
+    });
+
     it('uses the composer width to control labels and keeps formatting controls on one row', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
 

@@ -130,13 +130,19 @@
   });
 </script>
 
-<!-- svelte-ignore a11y_click_events_have_key_events -->
 <!-- svelte-ignore a11y_no_static_element_interactions -->
 <div
   {@attach composer.observeResize}
   class="flex flex-col gap-2 p-2"
-  onclick={(event) => {
-    if (!(event.target as HTMLElement).closest('button, a, input, label, select, .tiptap')) {
+  onpointerdown={(event) => {
+    const target = event.target;
+    // Keep this on pointerdown: a release-time click after selecting into the
+    // padding would refocus the editor and collapse the selection.
+    if (
+      event.button === 0 &&
+      target instanceof Element &&
+      !target.closest('button, a, input, label, select, .tiptap')
+    ) {
       composer.editorApi?.focus();
     }
   }}

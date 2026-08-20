@@ -12,6 +12,7 @@
   import AuthStatusNotice from '$lib/components/AuthStatusNotice.svelte';
   import PushNotificationPrompt from '$lib/components/PushNotificationPrompt.svelte';
   import PushNotificationSetup from '$lib/components/PushNotificationSetup.svelte';
+  import ScreenWakeLock from '$lib/components/ScreenWakeLock.svelte';
   import WelcomeBanner from '$lib/components/WelcomeBanner.svelte';
   import { useProjectionEvent, useSessionTerminated } from '$lib/hooks/useEvent.svelte';
   import { initPresenceTracking } from '$lib/presenceTracking';
@@ -21,6 +22,7 @@
     type PresenceCache
   } from '$lib/state/presenceCache.svelte';
   import { presencePreference } from '$lib/state/presencePreference.svelte';
+  import { idleState } from '$lib/state/idle.svelte';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
   import {
@@ -191,6 +193,9 @@
 </script>
 
 <AuthStatusNotice />
+{#if idleState.isInAnyCall}
+  <ScreenWakeLock />
+{/if}
 {#if originSession}
   <PushNotificationSetup />
   <PushNotificationPrompt userId={originSession.user.id} />
