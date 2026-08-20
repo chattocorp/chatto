@@ -42,10 +42,10 @@ to its own repository.
   issuers remain first-class.
 - The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
-  sessions, and logout, and provides the narrow OpenID Connect surface recorded
-  in FDR-004. It has no public account-management, application-data, document,
-  or synchronization API. Do not document other planned identity-provider
-  behavior as implemented.
+  sessions, password reset, and logout, and provides the narrow OpenID Connect
+  surface recorded in FDR-004. It has no public account-management,
+  application-data, document, or synchronization API. Do not document other
+  planned identity-provider behavior as implemented.
 
 ## Code And Dependency Boundaries
 
@@ -129,6 +129,39 @@ repository skills as non-product infrastructure.
 - Default to least privilege and fail closed when identity, key, issuer, or
   authorization state is unavailable.
 
+## Identity Events And Recovery
+
+- Treat `authling.core.v1.Event` and every reachable event payload as a
+  persisted storage contract. Existing fields and oneof tags must never be
+  removed, renumbered, reused, or incompatibly retyped. New event variants
+  require historical-replay and mixed-version rollout reasoning.
+- Durable, PII-free identity and security facts belong in `AUTHLING_EVT`.
+  Expiring OTP digests, recovery bearers, attempt counters, delivery limits,
+  and other workflow coordination belong in encrypted
+  `AUTHLING_RUNTIME_STATE`, not permanent event history.
+- Never put raw email addresses, login identifiers, provider subjects, IP
+  addresses, user agents, OTPs, recovery bearers, reset links, or equivalent
+  sensitive material in event envelopes, event payloads, subjects, runtime
+  keys, URLs, or logs. Correlate related durable facts with opaque identifiers.
+- When auditability requires an event before an external effect, commit the
+  event before creating the dependent workflow or performing that effect.
+  State precisely what the event proves, such as request acceptance rather
+  than successful email delivery.
+- Commands that append to an existing aggregate must use subject-level OCC.
+  After a conflict, wait for and re-read the authoritative projection, then
+  decide from the command's semantic preconditions. An audit-only event may
+  advance an aggregate tail without changing its credential or identity state.
+- Projectors must validate and deterministically replay every historical event.
+  An audit-only event may intentionally leave the materialized account model
+  unchanged, but it must not be silently ignored or weaken replay validation.
+- Account recovery and identity mutations must explicitly define their effect
+  on stable account IDs and OIDC `sub` values, verified identifiers, Authling
+  browser sessions, issued OIDC tokens, and relying-party sessions.
+- Enumeration resistance covers the complete observable flow, including HTTP
+  status, browser copy, delivery behavior, storage failures, and timing where
+  practical. Do not preserve attacker-controlled failures permanently merely
+  to make them auditable; use bounded operational or runtime state instead.
+
 ## Releases And Compatibility
 
 - Authling's Release Please component is `authling/`, its version source is
@@ -149,6 +182,7 @@ Run Authling's own `mise` tasks from the `authling/` directory:
 
 ```sh
 cd authling
+mise codegen
 mise test
 mise test-e2e
 mise build
@@ -165,3 +199,8 @@ protocol tests when behavior crosses HTTP, OIDC, NATS, JetStream, cryptographic,
 or process-lifecycle boundaries. Browser end-to-end tests use a dedicated
 Authling process, Mailpit process, port range, and temporary data directory per
 test; do not point them at development state or share a process across tests.
+Persisted-event and recovery changes require relevant malformed-event,
+historical replay or restart, OCC conflict, enumeration-resistance, and
+PII/recovery-material leakage tests. Regenerate and commit derived protobuf or
+templ output after changing its source. Review visible Authling browser changes
+with Chrome DevTools MCP in addition to running the relevant automated tests.

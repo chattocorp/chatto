@@ -21,6 +21,7 @@ import (
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/natsruntime"
 	"hmans.de/authling/internal/oidcprovider"
+	"hmans.de/authling/internal/passwordreset"
 	"hmans.de/authling/internal/registration"
 	"hmans.de/authling/internal/sessions"
 	"hmans.de/authling/internal/storage"
@@ -39,6 +40,8 @@ type Runtime struct {
 	Accounts *accounts.Service
 	// Registration owns the verified-email signup workflow.
 	Registration *registration.Service
+	// PasswordReset owns verified-email password recovery.
+	PasswordReset *passwordreset.Service
 	// Authentication owns local login throttling and credential verification.
 	Authentication *authentication.Service
 	// Sessions owns first-party browser session runtime state.
@@ -102,7 +105,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 	if err != nil {
 		return closeOnError(fmt.Errorf("open account service: %w", err))
 	}
-	sessionService := sessions.New(stores.RuntimeState, js, workflowKey)
+	sessionService := sessions.New(stores.RuntimeState, js, workflowKey, accountService.AuthenticationVersion)
 	issuerProjection := issuer.NewProjection()
 	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault())
@@ -124,6 +127,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		issuer:         issuerService,
 		Accounts:       accountService,
 		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
+		PasswordReset:  passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 		Authentication: authentication.New(stores.RuntimeState, js, workflowKey, accountService),
 		Sessions:       sessionService,
 		OIDC:           oidcService,
@@ -198,6 +202,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			Accounts:          runtime.Accounts,
 			Authentication:    runtime.Authentication,
 			Registration:      runtime.Registration,
+			PasswordReset:     runtime.PasswordReset,
 			Sessions:          runtime.Sessions,
 			OIDC:              runtime.OIDC,
 			SecureCookies:     cfg.HTTP.SecureCookies(),

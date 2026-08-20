@@ -1,6 +1,7 @@
 package web
 
 import (
+	"net/url"
 	"strconv"
 	"hmans.de/authling/internal/oidcprovider"
 )
@@ -53,7 +54,77 @@ templ loginPage(message, oidcRequest string) {
 			<label class="block"><span class="font-medium">Password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="current-password" maxlength="1024" required/></label>
 			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Sign in</button>
 		</form>
+		<p class="mt-4 text-sm"><a class="font-semibold text-authling-700 underline dark:text-authling-200" href={ passwordResetURL(oidcRequest) }>Forgot your password?</a></p>
 		<p class="mt-6 text-sm text-slate-500">No account yet? <a class="font-semibold text-authling-700 underline dark:text-authling-200" href="/signup">Create one</a>.</p>
+	}
+}
+
+func passwordResetURL(oidcRequest string) string {
+	if oidcRequest == "" {
+		return "/password-reset"
+	}
+	return "/password-reset?id=" + url.QueryEscape(oidcRequest)
+}
+
+templ passwordResetPage(message, oidcRequest string) {
+	@layout("Reset your password") {
+		<h1 class="text-3xl font-semibold tracking-tight">Reset your password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit password reset code.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset">
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Email address</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="email" name="email" autocomplete="email" autofocus required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Email me a reset code</button>
+		</form>
+		<p class="mt-6 text-sm text-slate-500"><a class="font-semibold text-authling-700 underline dark:text-authling-200" href="/login">Return to sign in</a>.</p>
+	}
+}
+
+templ passwordResetCodePage(flow, message, oidcRequest string) {
+	@layout("Enter your password reset code") {
+		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset/verify">
+			<input type="hidden" name="flow" value={ flow }/>
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">Password reset code</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 font-mono tracking-[0.4em]" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" autofocus required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Verify code</button>
+		</form>
+	}
+}
+
+templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
+	@layout("Choose a new password") {
+		<h1 class="text-3xl font-semibold tracking-tight">Choose a new password</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Changing your password signs out your other Authling browser sessions.</p>
+		if message != "" {
+			<p role="alert" class="mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/password-reset/complete">
+			<input type="hidden" name="flow" value={ flow }/>
+			if oidcRequest != "" {
+				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
+			}
+			<label class="block"><span class="font-medium">New password</span><input class="mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" autofocus required/></label>
+			<button class="w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" type="submit">Reset password</button>
+		</form>
+	}
+}
+
+templ passwordResetCompletePage() {
+	@layout("Password reset") {
+		<h1 class="text-3xl font-semibold tracking-tight">Your password was reset</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">Your new password is ready. Sign in to continue.</p>
+		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
 	}
 }
 

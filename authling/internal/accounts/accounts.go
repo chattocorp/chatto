@@ -58,10 +58,15 @@ func (commonPasswordError) Is(target error) bool { return target == ErrInvalidPa
 // mismatches so callers cannot disclose which email addresses are registered.
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
+// ErrCredentialChanged indicates that a recovery flow was issued for an older
+// password credential and must not overwrite the current one.
+var ErrCredentialChanged = errors.New("password credential changed")
+
 // Account is the current projected structural state of an Authling account.
 type Account struct {
-	ID        string
-	CreatedAt time.Time
+	ID                    string
+	CreatedAt             time.Time
+	AuthenticationVersion uint64
 }
 
 type protectedCredential struct {
@@ -71,6 +76,15 @@ type protectedCredential struct {
 	credentialKeyRef           string
 	passwordVerifierNonce      []byte
 	passwordVerifierCiphertext []byte
+	passwordVerifierAAD        []byte
+}
+
+// PasswordResetTarget binds an expiring recovery flow to the credential that
+// was current when the email challenge was issued.
+type PasswordResetTarget struct {
+	AccountID         string
+	CredentialEventID string
+	RequestEventID    string
 }
 
 // Projection rebuilds the active account registry from durable events.
@@ -97,6 +111,39 @@ func (*Projection) Subjects() []string {
 
 // Apply adds one durable account fact to the in-memory registry.
 func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
+	if requested := event.GetPasswordResetRequested(); requested != nil {
+		p.RLock()
+		defer p.RUnlock()
+		account, ok := p.accounts[requested.GetAccountId()]
+		if !ok {
+			return fmt.Errorf("password reset request references an absent account")
+		}
+		credential, ok := p.credentials[account.ID]
+		if !ok || credential.eventID != requested.GetCredentialEventId() {
+			return fmt.Errorf("password reset request references another credential")
+		}
+		return nil
+	}
+	if changed := event.GetPasswordChanged(); changed != nil {
+		p.Lock()
+		defer p.Unlock()
+		account, ok := p.accounts[changed.GetAccountId()]
+		if !ok {
+			return fmt.Errorf("password change references an absent account")
+		}
+		credential, ok := p.credentials[account.ID]
+		if !ok || credential.userKeyRef != changed.GetUserKeyRef() || credential.credentialKeyRef != changed.GetCredentialKeyRef() {
+			return fmt.Errorf("password change references another credential hierarchy")
+		}
+		credential.eventID = event.GetId()
+		credential.passwordVerifierNonce = append([]byte(nil), changed.GetPasswordVerifierNonce()...)
+		credential.passwordVerifierCiphertext = append([]byte(nil), changed.GetPasswordVerifierCiphertext()...)
+		credential.passwordVerifierAAD = passwordChangedAAD(event.GetId(), account.ID, credential.userKeyRef, credential.credentialKeyRef)
+		p.credentials[account.ID] = credential
+		account.AuthenticationVersion++
+		p.accounts[account.ID] = account
+		return nil
+	}
 	payload := event.GetAccountCreated()
 	if payload == nil {
 		claim := event.GetEmailClaimed()
@@ -177,6 +224,7 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 			credentialKeyRef:           payload.GetCredentialKeyRef(),
 			passwordVerifierNonce:      append([]byte(nil), payload.GetPasswordVerifierNonce()...),
 			passwordVerifierCiphertext: append([]byte(nil), payload.GetPasswordVerifierCiphertext()...),
+			passwordVerifierAAD:        credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "password-verifier"),
 		}
 		p.keyReferences[payload.GetUserKeyRef()] = struct{}{}
 		p.keyReferences[payload.GetCredentialKeyRef()] = struct{}{}
@@ -215,12 +263,36 @@ func (p *Projection) credentialForEmail(email string) (protectedCredential, bool
 	return credential, ok
 }
 
+func (p *Projection) credentialForAccount(accountID string) (protectedCredential, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	credential, ok := p.credentials[accountID]
+	return credential, ok
+}
+
+func (p *Projection) passwordResetTarget(email string) (PasswordResetTarget, bool) {
+	credential, ok := p.credentialForEmail(email)
+	if !ok {
+		return PasswordResetTarget{}, false
+	}
+	return PasswordResetTarget{AccountID: credential.accountID, CredentialEventID: credential.eventID}, true
+}
+
 // Get returns one projected account.
 func (p *Projection) Get(accountID string) (Account, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	account, ok := p.accounts[accountID]
 	return account, ok
+}
+
+// AuthenticationVersion returns the durable credential generation used to
+// invalidate browser sessions created before a password change.
+func (p *Projection) AuthenticationVersion(accountID string) (uint64, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	account, ok := p.accounts[accountID]
+	return account.AuthenticationVersion, ok
 }
 
 // UserKeyRef returns the opaque user-key reference for an account that has a
@@ -282,6 +354,7 @@ func NewService(
 		dummyCredential: protectedCredential{
 			accountID: accountID, eventID: eventID, userKeyRef: userRef, credentialKeyRef: dataRef,
 			passwordVerifierNonce: sealed.Nonce, passwordVerifierCiphertext: sealed.Ciphertext,
+			passwordVerifierAAD: credentialAAD(eventID, accountID, userRef, dataRef, "password-verifier"),
 		},
 	}, nil
 }
@@ -324,15 +397,12 @@ func (s *Service) Create(ctx context.Context) (Account, error) {
 // establish email ownership before invoking this command.
 func (s *Service) CreateLocal(ctx context.Context, email, password string) (Account, error) {
 	email = NormalizeEmail(email)
-	password = norm.NFC.String(password)
 	if s.handle.Projection().HasEmail(email) {
 		return Account{}, ErrEmailClaimed
 	}
-	if utf8.RuneCountInString(password) < s.passwordMinimumLength || len(password) > 1024 {
-		return Account{}, invalidPasswordError{minimumLength: s.passwordMinimumLength}
-	}
-	if isCommonPassword(password) {
-		return Account{}, commonPasswordError{}
+	password, err := validatePassword(password, s.passwordMinimumLength)
+	if err != nil {
+		return Account{}, err
 	}
 	verifier, err := hashPassword(password)
 	if err != nil {
@@ -429,6 +499,21 @@ func credentialAAD(eventID, accountID, userRef, dataRef, field string) []byte {
 	return []byte("authling:event:v1\x00AccountCreated\x00" + eventID + "\x00" + accountID + "\x00credentials\x001\x00" + userRef + "\x00" + dataRef + "\x00" + field)
 }
 
+func passwordChangedAAD(eventID, accountID, userRef, dataRef string) []byte {
+	return []byte("authling:event:v1\x00PasswordChanged\x00" + eventID + "\x00" + accountID + "\x00credentials\x001\x00" + userRef + "\x00" + dataRef + "\x00password-verifier")
+}
+
+func validatePassword(password string, minimumLength int) (string, error) {
+	password = norm.NFC.String(password)
+	if utf8.RuneCountInString(password) < minimumLength || len(password) > 1024 {
+		return "", invalidPasswordError{minimumLength: minimumLength}
+	}
+	if isCommonPassword(password) {
+		return "", commonPasswordError{}
+	}
+	return password, nil
+}
+
 func hashPassword(password string) (string, error) {
 	salt := make([]byte, 16)
 	if _, err := rand.Read(salt); err != nil {
@@ -453,6 +538,147 @@ func (s *Service) HasEmail(email string) bool {
 	return s.handle.Projection().HasEmail(NormalizeEmail(email))
 }
 
+// RecordPasswordResetRequested appends an account-scoped audit fact for an
+// existing normalized local email and returns the credential binding for the
+// recovery flow. Callers must not expose whether a target exists.
+func (s *Service) RecordPasswordResetRequested(ctx context.Context, email string) (PasswordResetTarget, bool, error) {
+	email = NormalizeEmail(email)
+	eventID, err := ids.New("evt")
+	if err != nil {
+		return PasswordResetTarget{}, false, err
+	}
+	createdAt := timestamppb.Now()
+	for range 5 {
+		target, ok := s.handle.Projection().passwordResetTarget(email)
+		if !ok {
+			return PasswordResetTarget{}, false, nil
+		}
+		accountID := target.AccountID
+		tail, err := s.publisher.AccountTail(ctx, accountID)
+		if err != nil {
+			return PasswordResetTarget{}, false, fmt.Errorf("read password reset account tail: %w", err)
+		}
+		subject, err := evtstream.AccountSubject(accountID)
+		if err != nil {
+			return PasswordResetTarget{}, false, fmt.Errorf("resolve password reset account subject: %w", err)
+		}
+		if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
+			return PasswordResetTarget{}, false, fmt.Errorf("wait for password reset account: %w", err)
+		}
+		target, ok = s.handle.Projection().passwordResetTarget(email)
+		if !ok {
+			return PasswordResetTarget{}, false, nil
+		}
+		if target.AccountID != accountID {
+			continue
+		}
+		event := &corev1.Event{Id: eventID, CreatedAt: createdAt, Event: &corev1.Event_PasswordResetRequested{PasswordResetRequested: &corev1.PasswordResetRequestedEvent{
+			AccountId: target.AccountID, CredentialEventId: target.CredentialEventID,
+		}}}
+		position, err := s.publisher.AppendPasswordResetRequested(ctx, event, tail)
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
+		if err != nil {
+			return PasswordResetTarget{}, false, fmt.Errorf("commit password reset request: %w", err)
+		}
+		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
+			return PasswordResetTarget{}, false, fmt.Errorf("wait for password reset request: %w", err)
+		}
+		target.RequestEventID = eventID
+		return target, true, nil
+	}
+	return PasswordResetTarget{}, false, fmt.Errorf("password reset request conflict")
+}
+
+// AuthenticationVersion returns the generation embedded in new browser
+// sessions. Password changes advance it durably.
+func (s *Service) AuthenticationVersion(accountID string) (uint64, bool) {
+	return s.handle.Projection().AuthenticationVersion(accountID)
+}
+
+// ResetPassword replaces a local password only if the credential bound to the
+// recovery flow is still current. The stable account ID and email are unchanged.
+func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget, password string) (Account, error) {
+	if target.AccountID == "" || target.CredentialEventID == "" || target.RequestEventID == "" {
+		return Account{}, ErrCredentialChanged
+	}
+	password, err := validatePassword(password, s.passwordMinimumLength)
+	if err != nil {
+		return Account{}, err
+	}
+	tail, credential, err := s.passwordResetCredentialAtTail(ctx, target)
+	if err != nil {
+		return Account{}, err
+	}
+	verifier, err := hashPassword(password)
+	if err != nil {
+		return Account{}, err
+	}
+	dataKey, err := s.vault.ResolveDataKey(ctx, credential.credentialKeyRef, credential.userKeyRef)
+	if err != nil {
+		return Account{}, fmt.Errorf("resolve password credential key: %w", err)
+	}
+	defer clear(dataKey)
+	eventID, err := ids.New("evt")
+	if err != nil {
+		return Account{}, err
+	}
+	sealedVerifier, err := datacrypto.Seal(dataKey, []byte(verifier), passwordChangedAAD(eventID, target.AccountID, credential.userKeyRef, credential.credentialKeyRef))
+	if err != nil {
+		return Account{}, err
+	}
+	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_PasswordChanged{PasswordChanged: &corev1.PasswordChangedEvent{
+		AccountId: target.AccountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef,
+		CredentialEnvelopeVersion: 1, PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
+		PasswordResetRequestEventId: target.RequestEventID,
+	}}}
+	for range 5 {
+		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
+		if errors.Is(err, events.ErrConflict) {
+			tail, _, err = s.passwordResetCredentialAtTail(ctx, target)
+			if err != nil {
+				return Account{}, err
+			}
+			continue
+		}
+		if err != nil {
+			return Account{}, fmt.Errorf("commit password change: %w", err)
+		}
+		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
+			return Account{}, fmt.Errorf("wait for password change: %w", err)
+		}
+		account, ok := s.handle.Projection().Get(target.AccountID)
+		if !ok {
+			return Account{}, fmt.Errorf("reset account is absent from projection")
+		}
+		return account, nil
+	}
+	return Account{}, fmt.Errorf("password change conflict")
+}
+
+func (s *Service) passwordResetCredentialAtTail(ctx context.Context, target PasswordResetTarget) (uint64, protectedCredential, error) {
+	tail, err := s.publisher.AccountTail(ctx, target.AccountID)
+	if err != nil {
+		return 0, protectedCredential{}, fmt.Errorf("read account tail: %w", err)
+	}
+	if tail == 0 {
+		return 0, protectedCredential{}, ErrCredentialChanged
+	}
+	subject, err := evtstream.AccountSubject(target.AccountID)
+	if err != nil {
+		return 0, protectedCredential{}, ErrCredentialChanged
+	}
+	if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
+		return 0, protectedCredential{}, fmt.Errorf("wait for account credential: %w", err)
+	}
+	credential, ok := s.handle.Projection().credentialForAccount(target.AccountID)
+	if !ok || credential.eventID != target.CredentialEventID {
+		return 0, protectedCredential{}, ErrCredentialChanged
+	}
+	return tail, credential, nil
+}
+
 // AuthenticateLocal verifies an email/password credential without retaining
 // plaintext protected data in the projection. Absent accounts still perform
 // the same Argon2id work as password mismatches.
@@ -472,7 +698,7 @@ func (s *Service) AuthenticateLocal(ctx context.Context, email, password string)
 		dataKey,
 		credential.passwordVerifierCiphertext,
 		credential.passwordVerifierNonce,
-		credentialAAD(credential.eventID, credential.accountID, credential.userKeyRef, credential.credentialKeyRef, "password-verifier"),
+		credential.passwordVerifierAAD,
 	)
 	if err != nil {
 		return Account{}, fmt.Errorf("decrypt password verifier: %w", err)

@@ -1,9 +1,11 @@
 package app
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -20,8 +22,13 @@ import (
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
+	"hmans.de/authling/internal/evtstream"
 	"hmans.de/authling/internal/logging"
+	"hmans.de/authling/internal/passwordreset"
+	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
 	"hmans.de/authling/internal/registration"
+	"hmans.de/authling/internal/sessions"
+	"hmans.de/authling/internal/storage"
 	"hmans.de/authling/internal/web"
 )
 
@@ -414,6 +421,143 @@ func TestBrowserSessionSurvivesRestartAndCanBeRevoked(t *testing.T) {
 	stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
 }
 
+func TestPasswordResetChangesCredentialAndInvalidatesOlderSessionsAcrossRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	sender := &capturingSender{}
+	first, cancelFirst, firstErrors := startTestRuntime(t, cfg, sender)
+	account, err := first.Accounts.CreateLocal(testContext(t), "recover@example.com", "the original uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	oldSession, _, err := first.Sessions.Create(testContext(t), account.ID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	flow, err := first.PasswordReset.Start(testContext(t), " Recover@Example.com ")
+	if err != nil {
+		t.Fatalf("start password reset: %v", err)
+	}
+	if sender.last().Subject != "Your Authling password reset code" {
+		t.Fatalf("password reset subject = %q", sender.last().Subject)
+	}
+	code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	requestEvent, requestRecord := lastAccountEvent(t, first, account.ID)
+	request := requestEvent.GetPasswordResetRequested()
+	if request == nil || request.GetAccountId() != account.ID || request.GetCredentialEventId() == "" {
+		t.Fatalf("password reset request audit event = %+v", requestEvent)
+	}
+	if bytes.Contains(requestRecord, []byte("recover@example.com")) || bytes.Contains(requestRecord, []byte(code)) {
+		t.Fatal("password reset request audit event contains email or recovery code")
+	}
+	if err := first.PasswordReset.Verify(testContext(t), flow, code); err != nil {
+		t.Fatalf("verify password reset: %v", err)
+	}
+	if _, err := first.PasswordReset.Complete(testContext(t), flow, "short"); !errors.Is(err, accounts.ErrInvalidPassword) {
+		t.Fatalf("short replacement password error = %v, want ErrInvalidPassword", err)
+	}
+	changed, err := first.PasswordReset.Complete(testContext(t), flow, "the replacement uncommon password")
+	if err != nil {
+		t.Fatalf("complete password reset: %v", err)
+	}
+	if changed.ID != account.ID || changed.AuthenticationVersion != account.AuthenticationVersion+1 {
+		t.Fatalf("changed account = %+v, original = %+v", changed, account)
+	}
+	changeEvent, _ := lastAccountEvent(t, first, account.ID)
+	if got := changeEvent.GetPasswordChanged().GetPasswordResetRequestEventId(); got != requestEvent.GetId() {
+		t.Fatalf("password change request event ID = %q, want %q", got, requestEvent.GetId())
+	}
+	if _, err := first.Authentication.Login(testContext(t), "recover@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("old password login error = %v, want ErrInvalidCredentials", err)
+	}
+	if authenticated, err := first.Authentication.Login(testContext(t), "recover@example.com", "the replacement uncommon password"); err != nil || authenticated != changed {
+		t.Fatalf("new password login = %+v, %v; want %+v", authenticated, err, changed)
+	}
+	if _, err := first.Sessions.Validate(testContext(t), oldSession); !errors.Is(err, sessions.ErrNotFound) {
+		t.Fatalf("older session validation error = %v, want ErrNotFound", err)
+	}
+	if _, err := first.PasswordReset.Complete(testContext(t), flow, "another replacement password"); !errors.Is(err, passwordreset.ErrInvalidFlow) {
+		t.Fatalf("reused reset error = %v, want ErrInvalidFlow", err)
+	}
+	stopTestRuntime(t, first, cancelFirst, firstErrors)
+
+	restarted, cancelRestarted, restartedErrors := startTestRuntime(t, cfg, sender)
+	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
+	if authenticated, err := restarted.Authentication.Login(testContext(t), "recover@example.com", "the replacement uncommon password"); err != nil || authenticated.ID != account.ID || authenticated.AuthenticationVersion != 1 {
+		t.Fatalf("restarted login = %+v, %v", authenticated, err)
+	}
+	if _, err := restarted.Sessions.Validate(testContext(t), oldSession); !errors.Is(err, sessions.ErrNotFound) {
+		t.Fatalf("restarted older session validation error = %v, want ErrNotFound", err)
+	}
+}
+
+func TestPasswordResetHidesAbsentAccountsAndRejectsStaleConcurrentFlows(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "race-reset@example.com", "the original reset race password"); err != nil {
+		t.Fatal(err)
+	}
+
+	flows := make([]string, 2)
+	for i := range flows {
+		flow, err := runtime.PasswordReset.Start(testContext(t), "race-reset@example.com")
+		if err != nil {
+			t.Fatalf("start reset %d: %v", i, err)
+		}
+		flows[i] = flow
+	}
+	for i, message := range sender.all() {
+		code := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(message.Body)
+		if err := runtime.PasswordReset.Verify(testContext(t), flows[i], code); err != nil {
+			t.Fatalf("verify reset %d: %v", i, err)
+		}
+	}
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for i, flow := range flows {
+		go func() {
+			<-start
+			_, err := runtime.PasswordReset.Complete(testContext(t), flow, fmt.Sprintf("replacement reset race password %d", i))
+			results <- err
+		}()
+	}
+	close(start)
+	var successes, stale int
+	for range 2 {
+		err := <-results
+		if err == nil {
+			successes++
+		} else if errors.Is(err, passwordreset.ErrInvalidFlow) {
+			stale++
+		} else {
+			t.Fatalf("concurrent reset error = %v", err)
+		}
+	}
+	if successes != 1 || stale != 1 {
+		t.Fatalf("concurrent reset successes=%d stale=%d, want 1/1", successes, stale)
+	}
+
+	beforeAbsent := sender.count()
+	eventsBeforeAbsent := eventCount(t, runtime)
+	absentFlow, err := runtime.PasswordReset.Start(testContext(t), "absent-reset@example.com")
+	if err != nil {
+		t.Fatalf("start absent reset: %v", err)
+	}
+	if sender.count() != beforeAbsent+1 {
+		t.Fatal("absent account did not follow the email-delivery path")
+	}
+	if got := eventCount(t, runtime); got != eventsBeforeAbsent {
+		t.Fatalf("absent account added %d durable audit events", got-eventsBeforeAbsent)
+	}
+	absentCode := regexp.MustCompile(`\b[0-9]{6}\b`).FindString(sender.last().Body)
+	if err := runtime.PasswordReset.Verify(testContext(t), absentFlow, absentCode); err != nil {
+		t.Fatalf("verify absent reset: %v", err)
+	}
+	if _, err := runtime.PasswordReset.Complete(testContext(t), absentFlow, "a sufficiently long absent password"); !errors.Is(err, passwordreset.ErrInvalidFlow) {
+		t.Fatalf("complete absent reset error = %v, want ErrInvalidFlow", err)
+	}
+}
+
 func TestLoginThrottlesAfterTenFailedAttempts(t *testing.T) {
 	sender := &capturingSender{}
 	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
@@ -644,4 +788,38 @@ func testContext(t *testing.T) context.Context {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	t.Cleanup(cancel)
 	return ctx
+}
+
+func lastAccountEvent(t *testing.T, runtime *Runtime, accountID string) (*corev1.Event, []byte) {
+	t.Helper()
+	js, err := runtime.connection.NATS.JetStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	subject, err := evtstream.AccountSubject(accountID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	record, err := js.GetLastMsg(storage.EventStreamName, subject)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := evtstream.Decode(record.Data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return decoded.Event, record.Data
+}
+
+func eventCount(t *testing.T, runtime *Runtime) uint64 {
+	t.Helper()
+	js, err := runtime.connection.NATS.JetStream()
+	if err != nil {
+		t.Fatal(err)
+	}
+	info, err := js.StreamInfo(storage.EventStreamName)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return info.State.Msgs
 }

@@ -30,6 +30,36 @@ export async function waitForVerificationCode(
   mailpitURL: string,
   timeoutMs = 10_000
 ): Promise<string> {
+  return waitForCode(
+    request,
+    mailpitURL,
+    'Your Authling verification code',
+    /verification code is ([0-9]{6})\./,
+    timeoutMs
+  );
+}
+
+export async function waitForPasswordResetCode(
+  request: APIRequestContext,
+  mailpitURL: string,
+  timeoutMs = 10_000
+): Promise<string> {
+  return waitForCode(
+    request,
+    mailpitURL,
+    'Your Authling password reset code',
+    /password reset code is ([0-9]{6})\./,
+    timeoutMs
+  );
+}
+
+async function waitForCode(
+  request: APIRequestContext,
+  mailpitURL: string,
+  subject: string,
+  pattern: RegExp,
+  timeoutMs: number
+): Promise<string> {
   const deadline = Date.now() + timeoutMs;
   while (Date.now() < deadline) {
     const response = await request.get(`${mailpitURL}/api/v1/messages`);
@@ -40,8 +70,8 @@ export async function waitForVerificationCode(
         const messageResponse = await request.get(`${mailpitURL}/api/v1/message/${latest.ID}`);
         if (messageResponse.ok()) {
           const message = (await messageResponse.json()) as Message;
-          if (message.Subject === 'Your Authling verification code') {
-            const match = /verification code is ([0-9]{6})\./.exec(message.Text);
+          if (message.Subject === subject) {
+            const match = pattern.exec(message.Text);
             if (match) return match[1];
           }
         }
@@ -49,5 +79,5 @@ export async function waitForVerificationCode(
     }
     await new Promise((resolve) => setTimeout(resolve, 25));
   }
-  throw new Error(`Mailpit did not receive an Authling verification code within ${timeoutMs}ms`);
+  throw new Error(`Mailpit did not receive ${subject} within ${timeoutMs}ms`);
 }

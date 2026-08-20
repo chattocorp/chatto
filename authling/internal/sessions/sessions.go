@@ -33,11 +33,16 @@ var ErrNotFound = errors.New("session not found")
 
 // Session is the authenticated server-side browser state.
 type Session struct {
-	AccountID  string    `json:"account_id"`
-	CreatedAt  time.Time `json:"created_at"`
-	LastSeenAt time.Time `json:"last_seen_at"`
-	ExpiresAt  time.Time `json:"expires_at"`
+	AccountID             string    `json:"account_id"`
+	AuthenticationVersion uint64    `json:"authentication_version,omitempty"`
+	CreatedAt             time.Time `json:"created_at"`
+	LastSeenAt            time.Time `json:"last_seen_at"`
+	ExpiresAt             time.Time `json:"expires_at"`
 }
+
+// AuthenticationVersionResolver returns the durable credential generation for
+// an account. A changed generation invalidates sessions issued before it.
+type AuthenticationVersionResolver func(accountID string) (uint64, bool)
 
 type sealedState struct {
 	Version    int    `json:"version"`
@@ -47,15 +52,16 @@ type sealedState struct {
 
 // Service stores encrypted session state in Authling's runtime KV bucket.
 type Service struct {
-	kv  jetstream.KeyValue
-	js  jetstream.JetStream
-	key []byte
-	now func() time.Time
+	kv                    jetstream.KeyValue
+	js                    jetstream.JetStream
+	key                   []byte
+	now                   func() time.Time
+	authenticationVersion AuthenticationVersionResolver
 }
 
 // New constructs the browser-session boundary.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte) *Service {
-	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), now: time.Now}
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, authenticationVersion AuthenticationVersionResolver) *Service {
+	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), now: time.Now, authenticationVersion: authenticationVersion}
 }
 
 // Create starts a new authenticated browser session and returns its bearer
@@ -72,6 +78,13 @@ func (s *Service) Create(ctx context.Context, accountID string) (string, Session
 	clear(random)
 	now := s.now().UTC()
 	state := Session{AccountID: accountID, CreatedAt: now, LastSeenAt: now, ExpiresAt: now.Add(AbsoluteLifetime)}
+	if s.authenticationVersion != nil {
+		version, ok := s.authenticationVersion(accountID)
+		if !ok {
+			return "", Session{}, fmt.Errorf("create session for absent account")
+		}
+		state.AuthenticationVersion = version
+	}
 	key := s.sessionKey(token)
 	data, err := s.seal(key, state)
 	if err != nil {
@@ -109,6 +122,13 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 		if !now.Before(state.ExpiresAt) || now.Sub(state.LastSeenAt) >= InactivityLifetime {
 			_ = s.kv.Delete(ctx, key)
 			return Session{}, ErrNotFound
+		}
+		if s.authenticationVersion != nil {
+			version, ok := s.authenticationVersion(state.AccountID)
+			if !ok || version != state.AuthenticationVersion {
+				_ = s.kv.Delete(ctx, key)
+				return Session{}, ErrNotFound
+			}
 		}
 		if !touch {
 			return state, nil
