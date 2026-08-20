@@ -158,19 +158,15 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if allowed, err := c.CanCreateBots(ctx, bot.User.GetId()); err != nil || allowed {
 		t.Fatalf("bot CanCreateBots = %v, %v; want false", allowed, err)
 	}
-	if _, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("delegate bot.create err = %v, want ErrInvalidArgument", err)
 	}
 	if err := c.AssignServerRoleToExistingUser(ctx, SystemActorID, bot.User.GetId(), RoleAdmin); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("assign bot role err = %v, want ErrHumanAccountRequired", err)
 	}
 
-	cell, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow)
-	if err != nil {
-		t.Fatalf("SetBotPermission allow: %v", err)
-	}
-	if !cell.OwnerGranted || !cell.EffectiveGranted || cell.Delegated != MatrixDecisionAllow {
-		t.Fatalf("allowed cell = %+v", cell)
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState allow: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionAllow {
 		t.Fatalf("configured bot message.post = %s, %v; want allow", decision, err)
@@ -182,26 +178,76 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.post = %s, %v; want deny", decision, err)
 	}
-	matrix, err := c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
+	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
-		t.Fatalf("GetBotPermissionMatrix: %v", err)
+		t.Fatalf("GetUserPermissionMatrix: %v", err)
 	}
-	var found *BotPermissionCell
+	var found *PermissionMatrixCell
 	for i := range matrix.Cells {
 		if matrix.Cells[i].ScopeID == "server" && matrix.Cells[i].Permission == string(PermMessagePost) {
 			found = &matrix.Cells[i]
 			break
 		}
 	}
-	if found == nil || found.Configured != MatrixDecisionAllow || found.Delegated != MatrixDecisionAllow || found.OwnerGranted || found.EffectiveGranted {
+	if found == nil || found.Override != MatrixDecisionAllow || found.Effective != MatrixDecisionDeny || found.AllowPermitted == nil || *found.AllowPermitted {
 		t.Fatalf("dormant grant cell = %+v", found)
 	}
-	if _, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrBotOwnerPermissionCeiling) {
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrBotOwnerPermissionCeiling) {
 		t.Fatalf("over-ceiling grant err = %v, want ErrBotOwnerPermissionCeiling", err)
 	}
 }
 
-func TestBotPermissionMatrixFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing.T) {
+func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "canonical-owner", "Canonical Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	manager, err := c.CreateUser(ctx, SystemActorID, "canonical-manager", "Canonical Manager", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "canonical_bot", "Canonical Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermUserManagePermissions); err != nil {
+		t.Fatalf("GrantUserPermission user.manage-permissions: %v", err)
+	}
+	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("user permission manager reading bot matrix err = %v, want ErrPermissionDenied", err)
+	}
+	if err := c.SetUserPermissionState(ctx, manager.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("user permission manager writing bot matrix err = %v, want ErrPermissionDenied", err)
+	}
+
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("GrantUserPermission bot.manage: %v", err)
+	}
+	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("bot manager GetUserPermissionMatrix: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, manager.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); err != nil {
+		t.Fatalf("bot manager SetUserPermissionState: %v", err)
+	}
+
+	if _, err := c.GetUserPermissionMatrix(ctx, bot.User.GetId(), bot.User.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("bot caller GetUserPermissionMatrix err = %v, want ErrHumanAccountRequired", err)
+	}
+	if err := c.SetUserPermissionState(ctx, bot.User.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("bot caller SetUserPermissionState err = %v, want ErrHumanAccountRequired", err)
+	}
+	if _, err := c.GetUserPermissionMatrix(ctx, "", "missing-user"); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("unauthenticated GetUserPermissionMatrix err = %v, want ErrNotAuthenticated", err)
+	}
+	if err := c.SetUserPermissionState(ctx, "", "missing-user", PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrNotAuthenticated) {
+		t.Fatalf("unauthenticated SetUserPermissionState err = %v, want ErrNotAuthenticated", err)
+	}
+}
+
+func TestCanonicalUserPermissionMatrixForBotFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "matrix-owner", "Matrix Owner", "password123")
@@ -224,9 +270,9 @@ func TestBotPermissionMatrixFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing
 		t.Fatalf("DenyRoomPermission: %v", err)
 	}
 
-	matrix, err := c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
+	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
-		t.Fatalf("GetBotPermissionMatrix: %v", err)
+		t.Fatalf("GetUserPermissionMatrix: %v", err)
 	}
 	groupFound := false
 	for _, scope := range matrix.Scopes {
@@ -248,19 +294,30 @@ func TestBotPermissionMatrixFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing
 	if err := c.GrantUserGroupPermission(ctx, SystemActorID, empty.GetId(), owner.GetId(), PermRoomCreate); err != nil {
 		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
 	}
-	cell, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
+	err = c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
 		Kind: MatrixScopeGroup,
 		ID:   empty.GetId(),
 	}, PermRoomCreate, PermissionStateAllow)
 	if err != nil {
-		t.Fatalf("SetBotPermission empty group room.create: %v", err)
+		t.Fatalf("SetUserPermissionState empty group room.create: %v", err)
 	}
-	if !cell.OwnerGranted || !cell.EffectiveGranted {
+	matrix, err = c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetUserPermissionMatrix after group grant: %v", err)
+	}
+	var cell *PermissionMatrixCell
+	for i := range matrix.Cells {
+		if matrix.Cells[i].ScopeID == "group:"+empty.GetId() && matrix.Cells[i].Permission == string(PermRoomCreate) {
+			cell = &matrix.Cells[i]
+			break
+		}
+	}
+	if cell == nil || cell.Override != MatrixDecisionAllow || cell.Effective != MatrixDecisionAllow || cell.AllowPermitted == nil || !*cell.AllowPermitted {
 		t.Fatalf("empty group room.create cell = %+v, want effective owner-bounded allow", cell)
 	}
 }
 
-func TestSetBotPermissionRejectsNonexistentScopesWithoutPersisting(t *testing.T) {
+func TestSetUserPermissionRejectsNonexistentBotScopesWithoutPersisting(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "scope-owner", "Scope Owner", "password123")
@@ -280,8 +337,8 @@ func TestSetBotPermissionRejectsNonexistentScopesWithoutPersisting(t *testing.T)
 		{name: "room", scope: PermissionTargetScope{Kind: MatrixScopeRoom, ID: "missing-room"}},
 	} {
 		t.Run(test.name, func(t *testing.T) {
-			if _, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), test.scope, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
-				t.Fatalf("SetBotPermission nonexistent %s err = %v, want ErrInvalidArgument", test.name, err)
+			if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), test.scope, PermMessagePost, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
+				t.Fatalf("SetUserPermissionState nonexistent %s err = %v, want ErrInvalidArgument", test.name, err)
 			}
 			var decision DecisionKind
 			var err error
@@ -297,7 +354,7 @@ func TestSetBotPermissionRejectsNonexistentScopesWithoutPersisting(t *testing.T)
 	}
 }
 
-func TestSetBotPermissionUsesCurrentRoomGroupForOwnerCeiling(t *testing.T) {
+func TestSetUserPermissionUsesCurrentRoomGroupForBotOwnerCeiling(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "moving-room-owner", "Moving Room Owner", "password123")
@@ -327,12 +384,12 @@ func TestSetBotPermissionUsesCurrentRoomGroupForOwnerCeiling(t *testing.T) {
 		t.Fatalf("MoveRoomToGroup: %v", err)
 	}
 
-	_, err = c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
+	err = c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
 		Kind: MatrixScopeRoom,
 		ID:   room.GetId(),
 	}, PermRoomManage, PermissionStateAllow)
 	if !errors.Is(err, ErrBotOwnerPermissionCeiling) {
-		t.Fatalf("SetBotPermission after room move err = %v, want ErrBotOwnerPermissionCeiling", err)
+		t.Fatalf("SetUserPermissionState after room move err = %v, want ErrBotOwnerPermissionCeiling", err)
 	}
 }
 

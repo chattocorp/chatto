@@ -3,7 +3,7 @@
   import { createBotAPI } from '$lib/api-client/bots';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { Panel } from '$lib/components/admin';
-  import { BotPermissionsMatrix } from '$lib/components/rbac';
+  import { UserPermissionsMatrix } from '$lib/components/rbac';
   import { m } from '$lib/i18n/messages';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
@@ -270,7 +270,11 @@
           </dl>
         </Panel>
 
-        <BotPermissionsMatrix botUserId={selectedBot.id} />
+        <UserPermissionsMatrix
+          userId={selectedBot.id}
+          subjectKind={m('settings.bots.singular')}
+          ownerCapped
+        />
       {/if}
     </div>
   {/if}

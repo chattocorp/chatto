@@ -4,7 +4,6 @@ import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
-import BotPermissionsMatrix from './BotPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
@@ -13,17 +12,11 @@ const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
   getUserPermissionMatrix: vi.fn(),
   setRolePermission: vi.fn(),
-  setUserPermission: vi.fn(),
-  getPermissionMatrix: vi.fn(),
-  setPermission: vi.fn()
+  setUserPermission: vi.fn()
 }));
 
 vi.mock('$lib/api-client/permissions', () => ({
   createPermissionAPI: () => permissionMocks
-}));
-
-vi.mock('$lib/api-client/bots', () => ({
-  createBotAPI: () => permissionMocks
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -73,27 +66,27 @@ beforeEach(() => {
   permissionMocks.getRolePermissionMatrix.mockImplementation((roleName: string) =>
     Promise.resolve(matrix({ roleName }))
   );
-  permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
-    Promise.resolve(matrix({ userId }))
-  );
+  permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) => {
+    if (userId === 'bot-a') {
+      return Promise.resolve({
+        userId,
+        applicablePermissions: ['message.post'],
+        scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+        cells: [
+          {
+            permission: 'message.post',
+            scopeId: 'server',
+            override: 'ALLOW',
+            effective: 'DENY',
+            allowPermitted: false
+          }
+        ]
+      });
+    }
+    return Promise.resolve(matrix({ userId }));
+  });
   permissionMocks.setRolePermission.mockResolvedValue({});
   permissionMocks.setUserPermission.mockResolvedValue({});
-  permissionMocks.getPermissionMatrix.mockResolvedValue({
-    botUserId: 'bot-a',
-    applicablePermissions: ['message.post'],
-    scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
-    cells: [
-      {
-        permission: 'message.post',
-        scopeId: 'server',
-        configured: 'ALLOW',
-        delegated: 'ALLOW',
-        ownerGranted: false,
-        effectiveGranted: false
-      }
-    ]
-  });
-  permissionMocks.setPermission.mockResolvedValue({});
 });
 
 afterEach(() => queryClient.clear());
@@ -251,8 +244,10 @@ describe('subject permission loaders', () => {
     });
   });
 
-  it('shows the owner ceiling and writes bot decisions through BotService', async () => {
-    const rendered = render(BotPermissionsMatrix, { props: { botUserId: 'bot-a' } });
+  it('shows the owner ceiling and writes bot decisions through the user permission API', async () => {
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'bot-a', subjectKind: 'bot', ownerCapped: true }
+    });
     await settle();
 
     const button = cellButton(rendered.container, 'message.post');
@@ -261,11 +256,11 @@ describe('subject permission loaders', () => {
 
     button.click();
     await settle();
-    expect(permissionMocks.setPermission).toHaveBeenCalledWith({
-      botUserId: 'bot-a',
+    expect(permissionMocks.setUserPermission).toHaveBeenCalledWith({
+      userId: 'bot-a',
       permission: 'message.post',
       scope: { tier: 'server' },
-      decision: 'DENY'
+      state: 'deny'
     });
   });
 });

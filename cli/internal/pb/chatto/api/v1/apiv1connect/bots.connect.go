@@ -48,12 +48,6 @@ const (
 	// BotServiceRotateBotApiKeyProcedure is the fully-qualified name of the BotService's
 	// RotateBotApiKey RPC.
 	BotServiceRotateBotApiKeyProcedure = "/chatto.api.v1.BotService/RotateBotApiKey"
-	// BotServiceGetBotPermissionMatrixProcedure is the fully-qualified name of the BotService's
-	// GetBotPermissionMatrix RPC.
-	BotServiceGetBotPermissionMatrixProcedure = "/chatto.api.v1.BotService/GetBotPermissionMatrix"
-	// BotServiceSetBotPermissionProcedure is the fully-qualified name of the BotService's
-	// SetBotPermission RPC.
-	BotServiceSetBotPermissionProcedure = "/chatto.api.v1.BotService/SetBotPermission"
 )
 
 // BotServiceClient is a client for the chatto.api.v1.BotService service.
@@ -73,10 +67,6 @@ type BotServiceClient interface {
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Rotates the bot's sole API key and immediately invalidates the old key.
 	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
-	// Gets the bot's explicit permission matrix and dynamic owner ceiling.
-	GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error)
-	// Sets or clears one explicit bot permission decision.
-	SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error)
 }
 
 // NewBotServiceClient constructs a client for the chatto.api.v1.BotService service. By default, it
@@ -133,32 +123,18 @@ func NewBotServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...
 			connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
 			connect.WithClientOptions(opts...),
 		),
-		getBotPermissionMatrix: connect.NewClient[v1.GetBotPermissionMatrixRequest, v1.GetBotPermissionMatrixResponse](
-			httpClient,
-			baseURL+BotServiceGetBotPermissionMatrixProcedure,
-			connect.WithSchema(botServiceMethods.ByName("GetBotPermissionMatrix")),
-			connect.WithClientOptions(opts...),
-		),
-		setBotPermission: connect.NewClient[v1.SetBotPermissionRequest, v1.SetBotPermissionResponse](
-			httpClient,
-			baseURL+BotServiceSetBotPermissionProcedure,
-			connect.WithSchema(botServiceMethods.ByName("SetBotPermission")),
-			connect.WithClientOptions(opts...),
-		),
 	}
 }
 
 // botServiceClient implements BotServiceClient.
 type botServiceClient struct {
-	listBots               *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
-	getBot                 *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
-	batchGetBots           *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
-	createBot              *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
-	updateBot              *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
-	deleteBot              *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
-	rotateBotApiKey        *connect.Client[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse]
-	getBotPermissionMatrix *connect.Client[v1.GetBotPermissionMatrixRequest, v1.GetBotPermissionMatrixResponse]
-	setBotPermission       *connect.Client[v1.SetBotPermissionRequest, v1.SetBotPermissionResponse]
+	listBots        *connect.Client[v1.ListBotsRequest, v1.ListBotsResponse]
+	getBot          *connect.Client[v1.GetBotRequest, v1.GetBotResponse]
+	batchGetBots    *connect.Client[v1.BatchGetBotsRequest, v1.BatchGetBotsResponse]
+	createBot       *connect.Client[v1.CreateBotRequest, v1.CreateBotResponse]
+	updateBot       *connect.Client[v1.UpdateBotRequest, v1.UpdateBotResponse]
+	deleteBot       *connect.Client[v1.DeleteBotRequest, v1.DeleteBotResponse]
+	rotateBotApiKey *connect.Client[v1.RotateBotApiKeyRequest, v1.RotateBotApiKeyResponse]
 }
 
 // ListBots calls chatto.api.v1.BotService.ListBots.
@@ -196,16 +172,6 @@ func (c *botServiceClient) RotateBotApiKey(ctx context.Context, req *connect.Req
 	return c.rotateBotApiKey.CallUnary(ctx, req)
 }
 
-// GetBotPermissionMatrix calls chatto.api.v1.BotService.GetBotPermissionMatrix.
-func (c *botServiceClient) GetBotPermissionMatrix(ctx context.Context, req *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error) {
-	return c.getBotPermissionMatrix.CallUnary(ctx, req)
-}
-
-// SetBotPermission calls chatto.api.v1.BotService.SetBotPermission.
-func (c *botServiceClient) SetBotPermission(ctx context.Context, req *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error) {
-	return c.setBotPermission.CallUnary(ctx, req)
-}
-
 // BotServiceHandler is an implementation of the chatto.api.v1.BotService service.
 type BotServiceHandler interface {
 	// Lists bots visible to the authenticated caller.
@@ -223,10 +189,6 @@ type BotServiceHandler interface {
 	DeleteBot(context.Context, *connect.Request[v1.DeleteBotRequest]) (*connect.Response[v1.DeleteBotResponse], error)
 	// Rotates the bot's sole API key and immediately invalidates the old key.
 	RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error)
-	// Gets the bot's explicit permission matrix and dynamic owner ceiling.
-	GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error)
-	// Sets or clears one explicit bot permission decision.
-	SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error)
 }
 
 // NewBotServiceHandler builds an HTTP handler from the service implementation. It returns the path
@@ -279,18 +241,6 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 		connect.WithSchema(botServiceMethods.ByName("RotateBotApiKey")),
 		connect.WithHandlerOptions(opts...),
 	)
-	botServiceGetBotPermissionMatrixHandler := connect.NewUnaryHandler(
-		BotServiceGetBotPermissionMatrixProcedure,
-		svc.GetBotPermissionMatrix,
-		connect.WithSchema(botServiceMethods.ByName("GetBotPermissionMatrix")),
-		connect.WithHandlerOptions(opts...),
-	)
-	botServiceSetBotPermissionHandler := connect.NewUnaryHandler(
-		BotServiceSetBotPermissionProcedure,
-		svc.SetBotPermission,
-		connect.WithSchema(botServiceMethods.ByName("SetBotPermission")),
-		connect.WithHandlerOptions(opts...),
-	)
 	return "/chatto.api.v1.BotService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case BotServiceListBotsProcedure:
@@ -307,10 +257,6 @@ func NewBotServiceHandler(svc BotServiceHandler, opts ...connect.HandlerOption) 
 			botServiceDeleteBotHandler.ServeHTTP(w, r)
 		case BotServiceRotateBotApiKeyProcedure:
 			botServiceRotateBotApiKeyHandler.ServeHTTP(w, r)
-		case BotServiceGetBotPermissionMatrixProcedure:
-			botServiceGetBotPermissionMatrixHandler.ServeHTTP(w, r)
-		case BotServiceSetBotPermissionProcedure:
-			botServiceSetBotPermissionHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -346,12 +292,4 @@ func (UnimplementedBotServiceHandler) DeleteBot(context.Context, *connect.Reques
 
 func (UnimplementedBotServiceHandler) RotateBotApiKey(context.Context, *connect.Request[v1.RotateBotApiKeyRequest]) (*connect.Response[v1.RotateBotApiKeyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.RotateBotApiKey is not implemented"))
-}
-
-func (UnimplementedBotServiceHandler) GetBotPermissionMatrix(context.Context, *connect.Request[v1.GetBotPermissionMatrixRequest]) (*connect.Response[v1.GetBotPermissionMatrixResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.GetBotPermissionMatrix is not implemented"))
-}
-
-func (UnimplementedBotServiceHandler) SetBotPermission(context.Context, *connect.Request[v1.SetBotPermissionRequest]) (*connect.Response[v1.SetBotPermissionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.BotService.SetBotPermission is not implemented"))
 }

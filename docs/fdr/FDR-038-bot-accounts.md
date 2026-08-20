@@ -94,9 +94,9 @@ eligible for a password or external identity.
 
 ### 3. Explicit allowlist instead of normal role inheritance
 
-**Decision:** Bots receive permissions only from their bot permission matrix.
-They do not receive the implicit `everyone` baseline or named-role grants, and
-absence means deny.
+**Decision:** Bots receive permissions only from explicit decisions in the
+canonical user permission matrix. They do not receive the implicit `everyone`
+baseline or named-role grants, and absence means deny.
 **Why:** API keys are long-lived automation credentials and should start with
 no ambient authority. Owners should be able to explain a bot's access from one
 explicit matrix rather than by combining roles and server defaults.
@@ -185,6 +185,9 @@ override, but bots themselves cannot exercise bot-management operations.
 
 - `User.account_kind`, the `UserAccountKind` enum, and `BotService` are additive
   public API changes for Chatto 0.5.0.
+- The existing `AdminPermissionService` user-permission operations accept bot
+  user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
+  a target-specific delegation ceiling prevents an explicit allow.
 - `USER_ACCOUNT_KIND_UNSPECIFIED` is rendered as human for old persisted users
   and version-skew tolerance. Older clients ignore the additive field and may
   render bot identities without a bot marker.

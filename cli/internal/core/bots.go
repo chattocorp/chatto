@@ -29,24 +29,6 @@ type Bot struct {
 	APIKeyRotatedAt time.Time
 }
 
-// BotPermissionCell explains a bot decision before and after its owner ceiling.
-type BotPermissionCell struct {
-	Permission       string
-	ScopeID          string
-	Configured       MatrixDecision
-	Delegated        MatrixDecision
-	OwnerGranted     bool
-	EffectiveGranted bool
-}
-
-// BotPermissionMatrix is the complete direct-grant matrix for one bot.
-type BotPermissionMatrix struct {
-	BotUserID             string
-	ApplicablePermissions []string
-	Scopes                []PermissionMatrixScope
-	Cells                 []BotPermissionCell
-}
-
 func parseBotAPIKey(token string) (string, bool) {
 	if !strings.HasPrefix(token, botAPIKeyPrefix) {
 		return "", false
@@ -331,97 +313,15 @@ func (c *ChattoCore) DeleteBot(ctx context.Context, actorID, botID string) (bool
 	return true, nil
 }
 
-func (c *ChattoCore) GetBotPermissionMatrix(ctx context.Context, actorID, botID string) (*BotPermissionMatrix, error) {
-	bot, err := c.requireBotManager(ctx, actorID, botID)
+// setBotUserPermissionState applies bot-specific management authorization and
+// owner-ceiling checks before writing through the canonical user RBAC path.
+func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, botID string, scope PermissionTargetScope, perm Permission, state PermissionState) error {
+	_, err := c.requireBotManager(ctx, actorID, botID)
 	if err != nil {
-		return nil, err
-	}
-	allPermissions := matrixApplicablePermissions()
-	applicable := make([]string, 0, len(allPermissions))
-	for _, permission := range allPermissions {
-		if botPermissionDelegable(Permission(permission)) {
-			applicable = append(applicable, permission)
-		}
-	}
-	scopes, err := c.buildBotMatrixScopes(ctx, bot.GetBotOwnerUserId(), actorID)
-	if err != nil {
-		return nil, err
-	}
-	cells := make([]BotPermissionCell, 0, len(applicable)*len(scopes))
-	for _, permission := range applicable {
-		for _, scope := range scopes {
-			cell, ok, err := c.buildBotPermissionCell(ctx, bot, Permission(permission), scope)
-			if err != nil {
-				return nil, err
-			}
-			if ok {
-				cells = append(cells, cell)
-			}
-		}
-	}
-	return &BotPermissionMatrix{BotUserID: botID, ApplicablePermissions: applicable, Scopes: scopes, Cells: cells}, nil
-}
-
-func (c *ChattoCore) buildBotPermissionCell(ctx context.Context, bot *corev1.User, perm Permission, scope PermissionMatrixScope) (BotPermissionCell, bool, error) {
-	var configured, delegated, owner DecisionKind
-	var err error
-	switch scope.Kind {
-	case MatrixScopeServer:
-		if !PermissionAppliesAtScope(perm, ScopeServer) {
-			return BotPermissionCell{}, false, nil
-		}
-		configured, err = c.GetUserExplicitServerOverride(ctx, bot.GetId(), perm)
-		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, "", "", perm)
-		if err == nil {
-			owner, err = c.PermResolver().Resolve(ctx, bot.GetBotOwnerUserId(), KindChannel, "", perm)
-		}
-	case MatrixScopeGroup:
-		if !PermissionAppliesAtScope(perm, ScopeGroup) {
-			return BotPermissionCell{}, false, nil
-		}
-		id := scopeRefID(scope.ID, "group:")
-		configured, err = c.GetUserExplicitGroupOverride(ctx, id, bot.GetId(), perm)
-		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, "", id, perm)
-		if err == nil {
-			owner, err = c.PermResolver().ResolveGroup(ctx, bot.GetBotOwnerUserId(), KindChannel, id, perm)
-		}
-	case MatrixScopeRoom:
-		if !PermissionAppliesAtScope(perm, ScopeRoom) {
-			return BotPermissionCell{}, false, nil
-		}
-		id := scopeRefID(scope.ID, "room:")
-		configured, err = c.GetUserExplicitRoomOverride(ctx, id, bot.GetId(), perm)
-		groupID, groupErr := c.lookupRoomGroupID(ctx, id)
-		if err == nil {
-			err = groupErr
-		}
-		delegated = c.PermResolver().botDelegatedDecision(bot.GetId(), KindChannel, id, groupID, perm)
-		if err == nil {
-			owner, err = c.PermResolver().Resolve(ctx, bot.GetBotOwnerUserId(), KindChannel, id, perm)
-		}
-	default:
-		return BotPermissionCell{}, false, ErrInvalidArgument
-	}
-	if err != nil {
-		return BotPermissionCell{}, false, err
-	}
-	return BotPermissionCell{
-		Permission: string(perm), ScopeID: scope.ID,
-		Configured: matrixDecisionFromCoreDecision(configured), Delegated: matrixDecisionFromCoreDecision(delegated),
-		OwnerGranted: owner == DecisionAllow, EffectiveGranted: delegated == DecisionAllow && owner == DecisionAllow,
-	}, true, nil
-}
-
-// SetBotPermission stores one direct bot decision. New allows are rejected
-// while the owner lacks that permission; existing grants become dormant when
-// the owner later loses permission and reactivate if the owner regains it.
-func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string, scope PermissionTargetScope, perm Permission, state PermissionState) (*BotPermissionCell, error) {
-	bot, err := c.requireBotManager(ctx, actorID, botID)
-	if err != nil {
-		return nil, err
+		return err
 	}
 	if !botPermissionDelegable(perm) {
-		return nil, fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
+		return fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
 	}
 	normalized := normalizePermissionScope(scope)
 	validateScope := func() error {
@@ -504,7 +404,7 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 		return nil
 	}
 	if err := check(); err != nil {
-		return nil, err
+		return err
 	}
 	var coreScope PermissionScope
 	switch normalized.Kind {
@@ -517,23 +417,9 @@ func (c *ChattoCore) SetBotPermission(ctx context.Context, actorID, botID string
 		normalized.ID = ""
 	}
 	if err := c.applyUserPermissionState(ctx, actorID, coreScope, normalized.ID, botID, perm, state, check); err != nil {
-		return nil, err
+		return err
 	}
-	matrixScope := PermissionMatrixScope{Kind: normalized.Kind, ID: "server"}
-	if normalized.Kind == MatrixScopeGroup {
-		matrixScope.ID = "group:" + normalized.ID
-	}
-	if normalized.Kind == MatrixScopeRoom {
-		matrixScope.ID = "room:" + normalized.ID
-	}
-	cell, ok, err := c.buildBotPermissionCell(ctx, bot, perm, matrixScope)
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, ErrInvalidArgument
-	}
-	return &cell, nil
+	return nil
 }
 
 func botPermissionDelegable(perm Permission) bool {

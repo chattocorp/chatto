@@ -1,6 +1,5 @@
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { BotPermissionDecision, BotPermissionScopeKind } from '@chatto/api-types/api/v1/bots_pb';
 import { createBotAPI } from '$lib/api-client/bots';
 
 const mocks = vi.hoisted(() => ({
@@ -8,9 +7,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   listBots: vi.fn(),
   createBot: vi.fn(),
-  rotateBotApiKey: vi.fn(),
-  getBotPermissionMatrix: vi.fn(),
-  setBotPermission: vi.fn()
+  rotateBotApiKey: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -29,9 +26,7 @@ describe('createBotAPI', () => {
     mocks.createClient.mockReturnValue({
       listBots: mocks.listBots,
       createBot: mocks.createBot,
-      rotateBotApiKey: mocks.rotateBotApiKey,
-      getBotPermissionMatrix: mocks.getBotPermissionMatrix,
-      setBotPermission: mocks.setBotPermission
+      rotateBotApiKey: mocks.rotateBotApiKey
     });
   });
 
@@ -70,72 +65,6 @@ describe('createBotAPI', () => {
     expect(mocks.listBots).toHaveBeenCalledWith(
       { page: { limit: 100, offset: 0 } },
       { headers: { Authorization: 'Bearer token' }, signal }
-    );
-  });
-
-  it('maps the delegated permission matrix and sends scoped decisions', async () => {
-    mocks.getBotPermissionMatrix.mockResolvedValue({
-      matrix: {
-        botUserId: 'U-bot',
-        applicablePermissions: ['message.post'],
-        scopes: [
-          {
-            id: 'R1',
-            label: 'General',
-            kind: BotPermissionScopeKind.ROOM,
-            parentGroupId: ''
-          }
-        ],
-        cells: [
-          {
-            permission: 'message.post',
-            scopeId: 'R1',
-            configured: BotPermissionDecision.ALLOW,
-            delegated: BotPermissionDecision.ALLOW,
-            ownerGranted: false,
-            effectiveGranted: false
-          }
-        ]
-      }
-    });
-    mocks.setBotPermission.mockResolvedValue({
-      cell: {
-        permission: 'message.post',
-        scopeId: 'R1',
-        configured: BotPermissionDecision.DENY,
-        delegated: BotPermissionDecision.DENY,
-        ownerGranted: true,
-        effectiveGranted: false
-      }
-    });
-    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
-
-    const matrix = await api.getPermissionMatrix('U-bot');
-    expect(matrix.cells[0]).toEqual({
-      permission: 'message.post',
-      scopeId: 'R1',
-      configured: 'ALLOW',
-      delegated: 'ALLOW',
-      ownerGranted: false,
-      effectiveGranted: false
-    });
-
-    await expect(
-      api.setPermission({
-        botUserId: 'U-bot',
-        permission: 'message.post',
-        scope: { tier: 'room', roomId: 'R1' },
-        decision: 'DENY'
-      })
-    ).resolves.toMatchObject({ configured: 'DENY', effectiveGranted: false });
-    expect(mocks.setBotPermission).toHaveBeenCalledWith(
-      {
-        botUserId: 'U-bot',
-        permission: 'message.post',
-        scope: { kind: BotPermissionScopeKind.ROOM, id: 'R1' },
-        decision: BotPermissionDecision.DENY
-      },
-      { headers: { Authorization: 'Bearer token' } }
     );
   });
 

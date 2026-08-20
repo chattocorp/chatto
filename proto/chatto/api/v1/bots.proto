@@ -8,78 +8,6 @@ import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 
-// Explicit permission decision stored for a bot at one scope.
-enum BotPermissionDecision {
-  // Unspecified decision; rejected for writes.
-  BOT_PERMISSION_DECISION_UNSPECIFIED = 0;
-  // Explicit allow.
-  BOT_PERMISSION_DECISION_ALLOW = 1;
-  // Explicit deny.
-  BOT_PERMISSION_DECISION_DENY = 2;
-  // No explicit decision; clears the stored state on writes.
-  BOT_PERMISSION_DECISION_NONE = 3;
-}
-
-// Scope tier for bot permission decisions.
-enum BotPermissionScopeKind {
-  // Unspecified scope; treated as server scope for compatibility.
-  BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED = 0;
-  // Server tier.
-  BOT_PERMISSION_SCOPE_KIND_SERVER = 1;
-  // Room-group tier.
-  BOT_PERMISSION_SCOPE_KIND_GROUP = 2;
-  // Room tier.
-  BOT_PERMISSION_SCOPE_KIND_ROOM = 3;
-}
-
-// A server, room-group, or room permission scope.
-message BotPermissionScope {
-  // Scope tier.
-  BotPermissionScopeKind kind = 1 [(buf.validate.field).enum.defined_only = true];
-  // Group or room ID. Empty for server scope.
-  string id = 2;
-}
-
-// One scope column in a bot permission matrix.
-message BotPermissionMatrixScope {
-  // Stable matrix scope ID.
-  string id = 1;
-  // Human-readable scope label.
-  string label = 2;
-  // Scope tier.
-  BotPermissionScopeKind kind = 3;
-  // Parent room-group ID for room scopes.
-  string parent_group_id = 4;
-}
-
-// One bot permission at one scope.
-message BotPermissionCell {
-  // Stable permission key.
-  string permission = 1;
-  // Matrix scope ID.
-  string scope_id = 2;
-  // Explicit decision stored at this exact scope.
-  BotPermissionDecision configured = 3;
-  // Bot decision after its own scope inheritance, before the owner ceiling.
-  BotPermissionDecision delegated = 4;
-  // Whether the owner currently has this permission at the same scope.
-  bool owner_granted = 5;
-  // Whether the bot can currently exercise the permission.
-  bool effective_granted = 6;
-}
-
-// Permission matrix for one bot across server, room-group, and room scopes.
-message BotPermissionMatrix {
-  // Bot user ID.
-  string bot_user_id = 1;
-  // Permission rows.
-  repeated string applicable_permissions = 2;
-  // Scope columns.
-  repeated BotPermissionMatrixScope scopes = 3;
-  // Sparse permission cells.
-  repeated BotPermissionCell cells = 4;
-}
-
 // A managed bot account. The API key itself is returned only by creation and
 // rotation responses.
 message Bot {
@@ -199,39 +127,6 @@ message RotateBotApiKeyResponse {
   string api_key = 2;
 }
 
-// Request the complete permission matrix for one bot.
-message GetBotPermissionMatrixRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-}
-
-// Response containing the bot's permission matrix and owner ceiling.
-message GetBotPermissionMatrixResponse {
-  // Requested matrix.
-  BotPermissionMatrix matrix = 1;
-}
-
-// Request one explicit bot permission decision.
-message SetBotPermissionRequest {
-  // Required bot user ID.
-  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Permission key.
-  string permission = 2 [(buf.validate.field).string.min_len = 1];
-  // Target scope.
-  BotPermissionScope scope = 3;
-  // Explicit decision to store or clear.
-  BotPermissionDecision decision = 4 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-}
-
-// Result of updating one bot permission.
-message SetBotPermissionResponse {
-  // Updated cell after applying inheritance and the owner ceiling.
-  BotPermissionCell cell = 1;
-}
-
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service.
 service BotService {
@@ -252,8 +147,4 @@ service BotService {
   }
   // Rotates the bot's sole API key and immediately invalidates the old key.
   rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
-  // Gets the bot's explicit permission matrix and dynamic owner ceiling.
-  rpc GetBotPermissionMatrix(GetBotPermissionMatrixRequest) returns (GetBotPermissionMatrixResponse);
-  // Sets or clears one explicit bot permission decision.
-  rpc SetBotPermission(SetBotPermissionRequest) returns (SetBotPermissionResponse);
 }

@@ -1,6 +1,6 @@
 ---
 title: BotService
-description: Bot account lifecycle, API-key rotation, and delegated permission RPCs.
+description: Bot account lifecycle and API-key management RPCs.
 editUrl: false
 ---
 
@@ -253,70 +253,3 @@ retrieved later.
 | --- | --- | --- |
 | `bot` | [`Bot`](/reference/connectrpc-api/types/#chatto-api-v1-Bot) | Updated bot metadata. |
 | `api_key` | `string` | Newly issued API key. |
-
-
-<a id="chatto-api-v1-BotService-GetBotPermissionMatrix"></a>
-
-### GetBotPermissionMatrix
-
-Gets the bot's explicit permission matrix and dynamic owner ceiling.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/GetBotPermissionMatrix
-```
-
-<a id="chatto-api-v1-GetBotPermissionMatrixRequest"></a>
-
-#### Input: GetBotPermissionMatrixRequest
-
-Request the complete permission matrix for one bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-
-
-<a id="chatto-api-v1-GetBotPermissionMatrixResponse"></a>
-
-#### Result: GetBotPermissionMatrixResponse
-
-Response containing the bot's permission matrix and owner ceiling.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `matrix` | [`BotPermissionMatrix`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionMatrix) | Requested matrix. |
-
-
-<a id="chatto-api-v1-BotService-SetBotPermission"></a>
-
-### SetBotPermission
-
-Sets or clears one explicit bot permission decision.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/SetBotPermission
-```
-
-<a id="chatto-api-v1-SetBotPermissionRequest"></a>
-
-#### Input: SetBotPermissionRequest
-
-Request one explicit bot permission decision.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `permission` | `string` | Permission key. |
-| `scope` | [`BotPermissionScope`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionScope) | Target scope. |
-| `decision` | [`BotPermissionDecision`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionDecision) | Explicit decision to store or clear. |
-
-
-<a id="chatto-api-v1-SetBotPermissionResponse"></a>
-
-#### Result: SetBotPermissionResponse
-
-Result of updating one bot permission.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `cell` | [`BotPermissionCell`](/reference/connectrpc-api/types/#chatto-api-v1-BotPermissionCell) | Updated cell after applying inheritance and the owner ceiling. |

@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotPermissionMatrixRequest, GetBotPermissionMatrixResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, SetBotPermissionRequest, SetBotPermissionResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -92,28 +92,6 @@ export const BotService = {
       name: "RotateBotApiKey",
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Gets the bot's explicit permission matrix and dynamic owner ceiling.
-     *
-     * @generated from rpc chatto.api.v1.BotService.GetBotPermissionMatrix
-     */
-    getBotPermissionMatrix: {
-      name: "GetBotPermissionMatrix",
-      I: GetBotPermissionMatrixRequest,
-      O: GetBotPermissionMatrixResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Sets or clears one explicit bot permission decision.
-     *
-     * @generated from rpc chatto.api.v1.BotService.SetBotPermission
-     */
-    setBotPermission: {
-      name: "SetBotPermission",
-      I: SetBotPermissionRequest,
-      O: SetBotPermissionResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -71,7 +71,7 @@ const categories = [
         name: 'BotService',
         slug: 'bots',
         title: 'Bots',
-        description: 'Bot account lifecycle, API-key rotation, and delegated permission RPCs.'
+        description: 'Bot account lifecycle and API-key management RPCs.'
       },
       {
         name: 'MessageService',

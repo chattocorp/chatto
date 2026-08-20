@@ -972,73 +972,6 @@ retrieved later.
 | `api_key` | `string` | Newly issued API key. |
 
 
-<a id="chatto-api-v1-BotService-GetBotPermissionMatrix"></a>
-
-### GetBotPermissionMatrix
-
-Gets the bot's explicit permission matrix and dynamic owner ceiling.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/GetBotPermissionMatrix
-```
-
-<a id="chatto-api-v1-GetBotPermissionMatrixRequest"></a>
-
-#### Input: GetBotPermissionMatrixRequest
-
-Request the complete permission matrix for one bot.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-
-
-<a id="chatto-api-v1-GetBotPermissionMatrixResponse"></a>
-
-#### Result: GetBotPermissionMatrixResponse
-
-Response containing the bot's permission matrix and owner ceiling.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `matrix` | [`BotPermissionMatrix`](#chatto-api-v1-BotPermissionMatrix) | Requested matrix. |
-
-
-<a id="chatto-api-v1-BotService-SetBotPermission"></a>
-
-### SetBotPermission
-
-Sets or clears one explicit bot permission decision.
-
-```http
-POST /api/connect/chatto.api.v1.BotService/SetBotPermission
-```
-
-<a id="chatto-api-v1-SetBotPermissionRequest"></a>
-
-#### Input: SetBotPermissionRequest
-
-Request one explicit bot permission decision.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Required bot user ID. |
-| `permission` | `string` | Permission key. |
-| `scope` | [`BotPermissionScope`](#chatto-api-v1-BotPermissionScope) | Target scope. |
-| `decision` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Explicit decision to store or clear. |
-
-
-<a id="chatto-api-v1-SetBotPermissionResponse"></a>
-
-#### Result: SetBotPermissionResponse
-
-Result of updating one bot permission.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `cell` | [`BotPermissionCell`](#chatto-api-v1-BotPermissionCell) | Updated cell after applying inheritance and the owner ceiling. |
-
-
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -4368,66 +4301,6 @@ rotation responses.
 
 
 
-<a id="chatto-api-v1-BotPermissionCell"></a>
-
-### BotPermissionCell
-
-One bot permission at one scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `permission` | `string` | Stable permission key. |
-| `scope_id` | `string` | Matrix scope ID. |
-| `configured` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Explicit decision stored at this exact scope. |
-| `delegated` | [`BotPermissionDecision`](#chatto-api-v1-BotPermissionDecision) | Bot decision after its own scope inheritance, before the owner ceiling. |
-| `owner_granted` | `bool` | Whether the owner currently has this permission at the same scope. |
-| `effective_granted` | `bool` | Whether the bot can currently exercise the permission. |
-
-
-
-<a id="chatto-api-v1-BotPermissionMatrix"></a>
-
-### BotPermissionMatrix
-
-Permission matrix for one bot across server, room-group, and room scopes.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `bot_user_id` | `string` | Bot user ID. |
-| `applicable_permissions` | `repeated string` | Permission rows. |
-| `scopes` | repeated [`BotPermissionMatrixScope`](#chatto-api-v1-BotPermissionMatrixScope) | Scope columns. |
-| `cells` | repeated [`BotPermissionCell`](#chatto-api-v1-BotPermissionCell) | Sparse permission cells. |
-
-
-
-<a id="chatto-api-v1-BotPermissionMatrixScope"></a>
-
-### BotPermissionMatrixScope
-
-One scope column in a bot permission matrix.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `id` | `string` | Stable matrix scope ID. |
-| `label` | `string` | Human-readable scope label. |
-| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
-| `parent_group_id` | `string` | Parent room-group ID for room scopes. |
-
-
-
-<a id="chatto-api-v1-BotPermissionScope"></a>
-
-### BotPermissionScope
-
-A server, room-group, or room permission scope.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `kind` | [`BotPermissionScopeKind`](#chatto-api-v1-BotPermissionScopeKind) | Scope tier. |
-| `id` | `string` | Group or room ID. Empty for server scope. |
-
-
-
 <a id="chatto-api-v1-DirectoryMember"></a>
 
 ### DirectoryMember
@@ -5136,34 +5009,6 @@ Upload lifecycle state for a room-scoped attachment upload.
 | `ASSET_UPLOAD_STATUS_OPEN` | `1` | The upload accepts more chunks. |
 | `ASSET_UPLOAD_STATUS_COMPLETED` | `2` | The upload has been completed and produced an attachment asset. |
 | `ASSET_UPLOAD_STATUS_CANCELLED` | `3` | The upload was cancelled or expired. |
-
-
-<a id="chatto-api-v1-BotPermissionDecision"></a>
-
-### BotPermissionDecision
-
-Explicit permission decision stored for a bot at one scope.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `BOT_PERMISSION_DECISION_UNSPECIFIED` | `0` | Unspecified decision; rejected for writes. |
-| `BOT_PERMISSION_DECISION_ALLOW` | `1` | Explicit allow. |
-| `BOT_PERMISSION_DECISION_DENY` | `2` | Explicit deny. |
-| `BOT_PERMISSION_DECISION_NONE` | `3` | No explicit decision; clears the stored state on writes. |
-
-
-<a id="chatto-api-v1-BotPermissionScopeKind"></a>
-
-### BotPermissionScopeKind
-
-Scope tier for bot permission decisions.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `BOT_PERMISSION_SCOPE_KIND_UNSPECIFIED` | `0` | Unspecified scope; treated as server scope for compatibility. |
-| `BOT_PERMISSION_SCOPE_KIND_SERVER` | `1` | Server tier. |
-| `BOT_PERMISSION_SCOPE_KIND_GROUP` | `2` | Room-group tier. |
-| `BOT_PERMISSION_SCOPE_KIND_ROOM` | `3` | Room tier. |
 
 
 <a id="chatto-api-v1-MessageSearchOrder"></a>

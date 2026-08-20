@@ -5,10 +5,11 @@ import (
 
 	"connectrpc.com/connect"
 	"hmans.de/chatto/internal/core"
+	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
-func TestBotServiceLifecycleAndPermissionMatrix(t *testing.T) {
+func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	service := &botService{api: env.api}
 	ctx := withCaller(env.ctx, env.viewer)
@@ -34,17 +35,21 @@ func TestBotServiceLifecycleAndPermissionMatrix(t *testing.T) {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
 
-	set, err := service.SetBotPermission(ctx, connect.NewRequest(&apiv1.SetBotPermissionRequest{
-		BotUserId: bot.GetUser().GetId(), Permission: string(core.PermMessagePost),
-		Scope:    &apiv1.BotPermissionScope{Kind: apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER},
-		Decision: apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_ALLOW,
+	_, err = env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+		UserId: bot.GetUser().GetId(), Permission: string(core.PermMessagePost),
+		Scope:    &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
+		Decision: adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
 	}))
-	if err != nil || !set.Msg.GetCell().GetOwnerGranted() || !set.Msg.GetCell().GetEffectiveGranted() {
-		t.Fatalf("SetBotPermission = %+v, %v", set, err)
+	if err != nil {
+		t.Fatalf("SetUserPermission: %v", err)
 	}
-	matrix, err := service.GetBotPermissionMatrix(ctx, connect.NewRequest(&apiv1.GetBotPermissionMatrixRequest{BotUserId: bot.GetUser().GetId()}))
-	if err != nil || matrix.Msg.GetMatrix().GetBotUserId() != bot.GetUser().GetId() {
-		t.Fatalf("GetBotPermissionMatrix = %+v, %v", matrix, err)
+	matrix, err := env.permissions.GetUserPermissionMatrix(ctx, connect.NewRequest(&adminv1.GetUserPermissionMatrixRequest{UserId: bot.GetUser().GetId()}))
+	if err != nil || matrix.Msg.GetMatrix().GetUserId() != bot.GetUser().GetId() {
+		t.Fatalf("GetUserPermissionMatrix = %+v, %v", matrix, err)
+	}
+	cell := findAPIPermissionCell(matrix.Msg.GetMatrix().GetCells(), "server", string(core.PermMessagePost))
+	if cell == nil || cell.GetOverride() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.GetEffective() != adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW || cell.AllowPermitted == nil || !cell.GetAllowPermitted() {
+		t.Fatalf("bot user permission matrix cell = %+v", cell)
 	}
 	botCore, err := env.core.GetUser(env.ctx, bot.GetUser().GetId())
 	if err != nil {
@@ -96,10 +101,10 @@ func TestBotServiceRejectsInvalidSuffixAndOwnerCeiling(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
-	_, err = service.SetBotPermission(ctx, connect.NewRequest(&apiv1.SetBotPermissionRequest{
-		BotUserId: created.Msg.GetBot().GetUser().GetId(), Permission: string(core.PermRoomCreate),
-		Scope:    &apiv1.BotPermissionScope{Kind: apiv1.BotPermissionScopeKind_BOT_PERMISSION_SCOPE_KIND_SERVER},
-		Decision: apiv1.BotPermissionDecision_BOT_PERMISSION_DECISION_ALLOW,
+	_, err = env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
+		UserId: created.Msg.GetBot().GetUser().GetId(), Permission: string(core.PermRoomCreate),
+		Scope:    &adminv1.PermissionScope{Kind: adminv1.PermissionScopeKind_PERMISSION_SCOPE_KIND_SERVER},
+		Decision: adminv1.PermissionDecision_PERMISSION_DECISION_ALLOW,
 	}))
 	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("over-ceiling code = %v, want failed precondition", connect.CodeOf(err))

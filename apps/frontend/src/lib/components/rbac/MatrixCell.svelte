@@ -36,9 +36,9 @@ to render an inert "—" cell with an explanation tooltip.
     inherited?: State;
     applicable?: boolean;
     disabled?: boolean;
-    /** Skip the allow state when an external ceiling makes it invalid. */
+    /** Skip the allow state when a delegation ceiling makes it invalid. */
     allowBlocked?: boolean;
-    /** Marks a configured bot allow that is dormant under its owner's permission ceiling. */
+    /** Marks a configured allow that is dormant under a delegation ceiling. */
     ceilingBlocked?: boolean;
     updating?: boolean;
     ariaLabel: string;

@@ -1,9 +1,9 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the ConnectRPC query for the user's
-matrix and the mutation dispatch for cell clicks; delegates rendering to
-`SubjectPermissionsMatrix`.
+Per-user permission matrix loader for human and bot accounts. Owns the
+canonical ConnectRPC query and mutation dispatch for cell clicks; delegates
+rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
@@ -28,7 +28,11 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
   type Matrix = MatrixData & { userId: string };
 
-  let { userId }: { userId: string } = $props();
+  let {
+    userId,
+    subjectKind = 'user',
+    ownerCapped = false
+  }: { userId: string; subjectKind?: string; ownerCapped?: boolean } = $props();
 
   const serverScope = useServerScope();
 
@@ -120,6 +124,10 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   }
 </script>
 
+{#if ownerCapped}
+  <Hint tone="info">{m('settings.bots.permissions.owner_ceiling')}</Hint>
+{/if}
+
 {#if visibleMutationError || loadError}
   <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
 {/if}
@@ -133,7 +141,7 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     {data}
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
-    subjectKind="user"
+    {subjectKind}
     readOnly={visibleUpdatingKey !== null}
   />
 {/if}
