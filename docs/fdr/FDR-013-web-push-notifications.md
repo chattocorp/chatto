@@ -34,7 +34,8 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
   renewable lease leader performs startup/periodic reconciliation without a
   fixed whole-pass deadline, using that permanent fact to erase late writes and
   repair orphaned endpoint-owner records without a second deletion marker.
-- Disabling push, signing out, or removing a server writes a same-origin cross-tab suspension before cancelling active registration and queued refreshes. Local browser invalidation is therefore not held up by an unreachable registration RPC, and another tab cannot recreate the shared service-worker subscription after cleanup. Sign-out/removal discards local credentials only after invalidation begins; server-record cleanup remains best-effort. Explicit re-enabling clears a disabled suspension, while only a newly authenticated session clears a sign-out/removal suspension.
+- Browser push requires the Web Locks API so registration and cleanup can be serialized safely across tabs.
+- Disabling push, signing out, or removing a server writes a same-origin cross-tab suspension before cancelling active registration and queued refreshes. Per-server Web Locks serialize registration and cleanup across tabs, while storage events and a cross-tab cancellation signal release the lock even when registration is blocked on an unreachable RPC. Another tab therefore cannot recreate or adopt the shared service-worker subscription in the middle of cleanup. Sign-out/removal discards local credentials only after invalidation begins; server-record cleanup remains best-effort. Explicit re-enabling clears a disabled suspension, while only a newly authenticated session clears a sign-out/removal suspension.
 - If the server isn't configured with VAPID keys, the push UI is hidden entirely — no opt-in prompt, no settings toggle.
 
 ## Design Decisions

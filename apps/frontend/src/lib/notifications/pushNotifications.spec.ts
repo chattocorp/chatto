@@ -128,6 +128,7 @@ function makeSubscription(endpoint: string): TestPushSubscription {
 
 function installPushGlobals() {
   const storage = new Map<string, string>();
+  const lockTails = new Map<string, Promise<unknown>>();
   const localStorage = {
     getItem: (key: string) => storage.get(key) ?? null,
     setItem: (key: string, value: string) => storage.set(key, value),
@@ -166,6 +167,16 @@ function installPushGlobals() {
       getRegistrations: vi.fn().mockResolvedValue([rootRegistration]),
       ready: Promise.resolve(rootRegistration)
     },
+    locks: {
+      request: vi.fn(<T>(name: string, callback: () => Promise<T> | T): Promise<T> => {
+        const previous = lockTails.get(name) ?? Promise.resolve();
+        const current = previous.catch(() => undefined).then(callback);
+        lockTails.set(name, current);
+        return current.finally(() => {
+          if (lockTails.get(name) === current) lockTails.delete(name);
+        });
+      })
+    },
     userAgent: 'test-agent'
   });
 }
@@ -175,6 +186,7 @@ function installCapabilityGlobals(options: {
   platform?: string;
   maxTouchPoints?: number;
   hasPushManager?: boolean;
+  hasWebLocks?: boolean;
   standalone?: boolean;
   displayModeStandalone?: boolean;
   protocol?: string;
@@ -200,6 +212,7 @@ function installCapabilityGlobals(options: {
   });
   vi.stubGlobal('navigator', {
     serviceWorker: {},
+    ...(options.hasWebLocks === false ? {} : { locks: {} }),
     userAgent: options.userAgent,
     platform: options.platform ?? '',
     maxTouchPoints: options.maxTouchPoints ?? 0,
@@ -272,6 +285,16 @@ describe('pushNotifications.getPushCapability', () => {
       userAgent: 'Mozilla/5.0 Firefox/120.0',
       platform: 'Linux x86_64',
       hasPushManager: false
+    });
+
+    expect(getPushCapability()).toBe('unsupported');
+  });
+
+  it('returns unsupported when cross-tab registration cannot be serialized', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 Chrome/125.0',
+      platform: 'Linux x86_64',
+      hasWebLocks: false
     });
 
     expect(getPushCapability()).toBe('unsupported');
@@ -558,6 +581,32 @@ describe('pushNotifications.ensureRegistered', () => {
 
     await expect(leaving).resolves.toBeUndefined();
     expect(replacement.unsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+  });
+
+  it('holds the cross-tab lock until browser cleanup hands off to reauthentication', async () => {
+    permission = 'granted';
+    const existing = makeSubscription('https://push.example/cross-tab-lock');
+    const browserCleanup = deferred<boolean>();
+    existing.unsubscribe.mockReturnValue(browserCleanup.promise);
+    getSubscription.mockResolvedValue(existing);
+
+    const leaving = unsubscribeBeforeLeaving('origin');
+    await vi.waitFor(() => expect(existing.unsubscribe).toHaveBeenCalledOnce());
+
+    window.localStorage.removeItem('chatto.push-registration.suspended.origin');
+    let replacementStarted = false;
+    const replacement = navigator.locks.request('chatto.push-registration.origin', async () => {
+      replacementStarted = true;
+    });
+    await Promise.resolve();
+    expect(replacementStarted).toBe(false);
+
+    browserCleanup.resolve(true);
+    await expect(leaving).resolves.toBeUndefined();
+    await replacement;
+
+    expect(replacementStarted).toBe(true);
     expect(mocks.unsubscribePush).not.toHaveBeenCalled();
   });
 

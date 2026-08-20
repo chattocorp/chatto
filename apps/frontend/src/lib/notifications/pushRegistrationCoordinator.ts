@@ -7,10 +7,14 @@ type CrossTabSuspensionState = {
 };
 
 const crossTabSuspensionKeyPrefix = 'chatto.push-registration.suspended.';
+const crossTabLockNamePrefix = 'chatto.push-registration.';
+const crossTabChannelName = 'chatto-push-registration';
 const operationTails = new Map<string, Promise<unknown>>();
 const registrationEpochs = new Map<string, number>();
 const suspendedServers = new Map<string, { crossTabPersisted: boolean }>();
 const activeRegistrations = new Map<string, AbortController>();
+let coordinationChannel: BroadcastChannel | null | undefined;
+let storageListenerInstalled = false;
 
 function epoch(serverId: string): number {
   return registrationEpochs.get(serverId) ?? 0;
@@ -66,9 +70,66 @@ function suspendLocally(serverId: string, crossTabPersisted: boolean): void {
   activeRegistrations.get(serverId)?.abort();
 }
 
+function ensureCrossTabCoordination(): void {
+  if (typeof window === 'undefined') return;
+
+  if (!storageListenerInstalled && typeof window.addEventListener === 'function') {
+    window.addEventListener('storage', (event) => {
+      if (
+        event.key === null ||
+        !event.key.startsWith(crossTabSuspensionKeyPrefix) ||
+        (event.newValue !== 'disabled' && event.newValue !== 'leaving')
+      ) {
+        return;
+      }
+
+      const serverId = event.key.slice(crossTabSuspensionKeyPrefix.length);
+      if (serverId) suspendLocally(serverId, true);
+    });
+    storageListenerInstalled = true;
+  }
+
+  if (coordinationChannel !== undefined) return;
+  coordinationChannel = null;
+  if (typeof window.BroadcastChannel === 'undefined') return;
+
+  try {
+    coordinationChannel = new window.BroadcastChannel(crossTabChannelName);
+    coordinationChannel.addEventListener('message', (event: MessageEvent<unknown>) => {
+      if (event.data === null || typeof event.data !== 'object') return;
+      const message = event.data as {
+        type?: unknown;
+        serverId?: unknown;
+        crossTabPersisted?: unknown;
+      };
+      if (message.type !== 'suspend' || typeof message.serverId !== 'string') return;
+      suspendLocally(message.serverId, message.crossTabPersisted === true);
+    });
+  } catch {
+    coordinationChannel = null;
+  }
+}
+
+function broadcastSuspension(serverId: string, crossTabPersisted: boolean): void {
+  ensureCrossTabCoordination();
+  try {
+    coordinationChannel?.postMessage({ type: 'suspend', serverId, crossTabPersisted });
+  } catch {
+    // Storage events still propagate the suspension when messaging is unavailable.
+  }
+}
+
+function withCrossTabLock<T>(serverId: string, operation: () => Promise<T>): Promise<T> {
+  if (typeof navigator === 'undefined' || !navigator.locks) return operation();
+  return navigator.locks.request(crossTabLockNamePrefix + serverId, () => operation());
+}
+
 function enqueue<T>(serverId: string, operation: () => Promise<T>): Promise<T> {
+  ensureCrossTabCoordination();
   const previous = operationTails.get(serverId) ?? Promise.resolve();
-  const current = previous.catch(() => undefined).then(operation);
+  const current = previous
+    .catch(() => undefined)
+    .then(() => withCrossTabLock(serverId, operation));
   operationTails.set(serverId, current);
   return current.finally(() => {
     if (operationTails.get(serverId) === current) operationTails.delete(serverId);
@@ -111,6 +172,7 @@ export function suspendPushRegistration(
 ): Promise<void> {
   const crossTabPersisted = setCrossTabSuspension(serverId, 'disabled');
   suspendLocally(serverId, crossTabPersisted);
+  broadcastSuspension(serverId, crossTabPersisted);
   return enqueue(serverId, cleanup);
 }
 
@@ -121,6 +183,7 @@ export function suspendPushRegistrationBeforeLeaving(
 ): Promise<void> {
   const crossTabPersisted = setCrossTabSuspension(serverId, 'leaving');
   suspendLocally(serverId, crossTabPersisted);
+  broadcastSuspension(serverId, crossTabPersisted);
   return enqueue(serverId, cleanup);
 }
 

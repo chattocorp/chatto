@@ -66,6 +66,7 @@ export function getPushCapability(): PushCapability {
   if (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
+    'locks' in navigator &&
     'PushManager' in window &&
     'Notification' in window
   ) {
@@ -81,7 +82,7 @@ export function getPushCapability(): PushCapability {
 
 /**
  * Check if push notifications are supported in this browser.
- * Requires Service Worker and Push API support.
+ * Requires Service Worker, Push, and Web Locks API support.
  */
 export function isSupported(): boolean {
   return getPushCapability() === 'supported';
