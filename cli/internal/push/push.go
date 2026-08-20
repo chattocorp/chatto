@@ -35,10 +35,15 @@ type Sender struct {
 }
 
 const (
-	pushRecordSize            uint32 = 2048
-	declarativeWebPushValue          = 8030
-	pushRequestTimeout               = 10 * time.Second
-	maxConcurrentPushRequests        = 16
+	// Keep ordinary encrypted requests compact, but grow for a longer installed
+	// client route without reaching push providers' common 4 KiB body ceiling.
+	pushRecordSize    uint32 = 2048
+	maxPushRecordSize uint32 = 3990
+	// aes128gcm framing uses 86 header bytes, a delimiter, and a 16-byte tag.
+	pushRecordOverhead        = 103
+	declarativeWebPushValue   = 8030
+	pushRequestTimeout        = 10 * time.Second
+	maxConcurrentPushRequests = 16
 )
 
 // NewSender creates a new push notification sender.
@@ -250,6 +255,11 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		result.Error = fmt.Errorf("failed to marshal payload: %w", err)
 		return result
 	}
+	recordSize, err := recordSizeForPayload(len(payloadJSON))
+	if err != nil {
+		result.Error = err
+		return result
+	}
 
 	// Create webpush subscription from our proto
 	subscription := &webpush.Subscription{
@@ -267,7 +277,7 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 		VAPIDPrivateKey: s.config.VAPIDPrivateKey,
 		TTL:             ttl,
 		Urgency:         payload.deliveryUrgency(),
-		RecordSize:      pushRecordSize,
+		RecordSize:      recordSize,
 		HTTPClient:      s.httpClient,
 	})
 	if err != nil {
@@ -299,6 +309,17 @@ func (s *Sender) Send(ctx context.Context, sub *corev1.PushSubscription, payload
 	}
 
 	return result
+}
+
+func recordSizeForPayload(payloadLength int) (uint32, error) {
+	required := payloadLength + pushRecordOverhead
+	if required > int(maxPushRecordSize) {
+		return 0, errors.New("push delivery failed: payload too large")
+	}
+	if required <= int(pushRecordSize) {
+		return pushRecordSize, nil
+	}
+	return uint32(required), nil
 }
 
 func normalizeVAPIDSubject(subject string) string {

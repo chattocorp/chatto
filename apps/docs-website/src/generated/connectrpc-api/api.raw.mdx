@@ -2516,6 +2516,7 @@ Response from storing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `subscribed` | `bool` | True when the subscription was stored. |
+| `navigation_base_url_stored` | `bool` | True when the server persisted navigation_base_url. New clients use this acknowledgement before trusting a remote server to route notification clicks back through the installed web app. |
 
 
 <a id="chatto-api-v1-PushNotificationService-Unsubscribe"></a>

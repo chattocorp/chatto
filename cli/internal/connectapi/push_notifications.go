@@ -55,7 +55,10 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 		return nil, connectError(err)
 	}
 
-	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
+	return connect.NewResponse(&apiv1.SubscribePushResponse{
+		Subscribed:              true,
+		NavigationBaseUrlStored: navigationBaseURL != "",
+	}), nil
 }
 
 func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.Request[apiv1.UnsubscribePushRequest]) (*connect.Response[apiv1.UnsubscribePushResponse], error) {

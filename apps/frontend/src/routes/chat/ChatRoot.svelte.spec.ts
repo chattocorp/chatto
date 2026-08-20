@@ -102,6 +102,13 @@ vi.mock('$lib/navigation', () => ({
   serverIdToSegment: (serverId: string) => `${serverId}.example.test`
 }));
 
+vi.mock('$lib/notifications/pushNotifications', () => ({
+  getPushRegistrationTargets: () =>
+    mocks.originCurrentUser.user
+      ? [{ serverId: 'origin', userId: 'origin-user', vapidPublicKey: 'origin-vapid' }]
+      : [{ serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }]
+}));
+
 vi.mock('$lib/hooks/useEvent.svelte', () => ({
   useProjectionEvent: (...args: unknown[]) => {
     mocks.lifecycle.push('projection');
@@ -313,7 +320,7 @@ describe('ChatRoot', () => {
       PresenceStatus.AWAY
     );
     expect(container.querySelector('[data-testid="chat-root-child"]')).not.toBeNull();
-    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-testid="chat-root-component-stub"]')).toHaveLength(3);
 
     unmount();
 

@@ -234,6 +234,7 @@ func TestSavePushSubscriptionForClient_RejectsInvalidNavigationBaseURLs(t *testi
 		"https://app.example.com/chat/remote.example.com",
 		"http://localhost:5173/chat/remote.example.com",
 		"http://127.0.0.1:5173/chat/remote.example.com",
+		"https://app.example.com/chat/" + strings.Repeat("x", MaxPushNavigationBaseURLLength-len("https://app.example.com/chat/")),
 	} {
 		_, err := core.SavePushSubscriptionForClient(
 			ctx,

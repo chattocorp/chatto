@@ -2095,22 +2095,23 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 		t.Fatalf("unsafe endpoint Subscribe code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 	subResp, err := env.push.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{
-		Endpoint:  "https://push.example.test/sub",
-		P256Dh:    "p256dh-key",
-		Auth:      "auth-secret",
-		UserAgent: stringPtr("test-agent"),
+		Endpoint:          "https://push.example.test/sub",
+		P256Dh:            "p256dh-key",
+		Auth:              "auth-secret",
+		UserAgent:         stringPtr("test-agent"),
+		NavigationBaseUrl: stringPtr("https://app.example.test/chat/remote.example.test"),
 	}))
 	if err != nil {
 		t.Fatalf("Subscribe: %v", err)
 	}
-	if !subResp.Msg.GetSubscribed() {
-		t.Fatal("Subscribe subscribed = false, want true")
+	if !subResp.Msg.GetSubscribed() || !subResp.Msg.GetNavigationBaseUrlStored() {
+		t.Fatalf("Subscribe response = %+v, want subscription and route acknowledgement", subResp.Msg)
 	}
 	subs, err := env.core.GetUserPushSubscriptions(env.ctx, env.viewer.Id)
 	if err != nil {
 		t.Fatalf("GetUserPushSubscriptions: %v", err)
 	}
-	if len(subs) != 1 || subs[0].GetEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" {
+	if len(subs) != 1 || subs[0].GetEndpoint() != "https://push.example.test/sub" || subs[0].GetUserAgent() != "test-agent" || subs[0].GetNavigationBaseUrl() != "https://app.example.test/chat/remote.example.test" {
 		t.Fatalf("stored subscriptions = %+v, want one saved subscription", subs)
 	}
 

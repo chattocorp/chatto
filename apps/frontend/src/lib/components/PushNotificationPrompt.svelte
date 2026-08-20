@@ -12,18 +12,19 @@ have not made a browser permission choice yet.
     refreshPushSubscriptions
   } from '$lib/notifications/pushNotifications';
   import { Codecs, serverSlot } from '$lib/storage/slot';
-  import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { TopOverlayNotice } from '$lib/ui';
   import { toast } from '$lib/ui/toast';
   import { m } from '$lib/i18n/messages';
 
-  let { userId }: { userId: string } = $props();
+  let {
+    serverId,
+    userId,
+    vapidPublicKey
+  }: { serverId: string; userId: string; vapidPublicKey: string } = $props();
 
-  const originId = serverRegistry.originServer?.id ?? '';
-  const originServerInfo = originId ? serverRegistry.getStore(originId).serverInfo : undefined;
   // svelte-ignore state_referenced_locally
   const dismissedSlot = serverSlot(
-    originId,
+    serverId,
     `user:${userId}:pushPromptDismissed`,
     false,
     Codecs.boolean
@@ -36,10 +37,7 @@ have not made a browser permission choice yet.
   const pushCapability = getPushCapability();
   const supported = pushCapability === 'supported';
   const needsIosHomeScreen = pushCapability === 'ios_home_screen_required';
-  const vapidKey = $derived(originServerInfo?.vapidPublicKey ?? null);
-  const canShowPushPrompt = $derived(
-    Boolean(originServerInfo?.pushNotificationsEnabled && vapidKey && !dismissed)
-  );
+  const canShowPushPrompt = $derived(Boolean(vapidPublicKey && !dismissed));
   const shouldShowEnablePrompt = $derived(
     canShowPushPrompt && supported && permission === 'default'
   );
@@ -51,11 +49,11 @@ have not made a browser permission choice yet.
   }
 
   async function enablePush() {
-    if (!vapidKey) return;
+    if (!vapidPublicKey) return;
 
     loading = true;
     try {
-      const enabled = await ensureRegistered(originId, vapidKey, { prompt: true });
+      const enabled = await ensureRegistered(serverId, vapidPublicKey, { prompt: true });
       permission = getPermission();
 
       if (enabled) {

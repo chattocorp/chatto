@@ -1,5 +1,5 @@
-import { authHeaders, createChattoClient } from "./connect.js";
-import { PushNotificationService } from "@chatto/api-types/api/v1/push_notifications_connect";
+import { authHeaders, createChattoClient } from './connect.js';
+import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
 
 export type PushNotificationAPIConfig = {
   baseUrl: string;
@@ -15,23 +15,31 @@ export type SubscribePushInput = {
   navigationBaseUrl?: string;
 };
 
+export type SubscribePushResult = {
+  subscribed: boolean;
+  navigationBaseUrlStored: boolean;
+};
+
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
   const client = createChattoClient(PushNotificationService, config);
   const headers = () => authHeaders(config);
 
   return {
-    async subscribe(input: SubscribePushInput): Promise<boolean> {
-      return (await client.subscribe(input, { headers: headers() })).subscribed;
+    async subscribe(input: SubscribePushInput): Promise<SubscribePushResult> {
+      const response = await client.subscribe(input, { headers: headers() });
+      return {
+        subscribed: response.subscribed,
+        navigationBaseUrlStored: response.navigationBaseUrlStored
+      };
     },
 
     async unsubscribe(endpoint: string): Promise<boolean> {
-      return (await client.unsubscribe({ endpoint }, { headers: headers() }))
-        .unsubscribed;
+      return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
     },
 
     async sendTestNotification(): Promise<boolean> {
       return (await client.sendTestNotification({}, { headers: headers() })).sent;
-    },
+    }
   };
 }
 

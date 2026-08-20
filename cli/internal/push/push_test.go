@@ -21,6 +21,7 @@ import (
 	"github.com/charmbracelet/log"
 
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/core"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/internal/pushendpoint"
 )
@@ -863,6 +864,54 @@ func TestSend(t *testing.T) {
 		}
 	})
 
+	t.Run("sends a notification at the accepted client route boundary", func(t *testing.T) {
+		var bodyLen int
+		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			body, err := io.ReadAll(r.Body)
+			if err != nil {
+				t.Errorf("ReadAll request body: %v", err)
+				w.WriteHeader(http.StatusInternalServerError)
+				return
+			}
+			bodyLen = len(body)
+			w.WriteHeader(http.StatusCreated)
+		}))
+		defer server.Close()
+
+		prefix := "https://app.example.com/chat/remote.example.com/"
+		navigationBaseURL := prefix + strings.Repeat("x", core.MaxPushNavigationBaseURLLength-len(prefix))
+		payload := BuildPayloadFromOccurrenceForSubscription(
+			notificationOccurrenceForTest(
+				strings.Repeat("n", 64),
+				"",
+				"",
+				strings.Repeat("r", 64),
+				strings.Repeat("e", 64),
+				strings.Repeat("t", 64),
+				notificationTestSignalDirectMention,
+			),
+			strings.Repeat("a", 80),
+			"https://remote.example.com",
+			&corev1.PushSubscription{NavigationBaseUrl: navigationBaseURL},
+			&PayloadContext{
+				MessagePreview: strings.Repeat("p", maxPreviewLength),
+				RoomName:       strings.Repeat("q", 100),
+			},
+		)
+
+		sender := newTestSender(t, server.Client())
+		result := sender.Send(context.Background(), newTestPushSubscription(t, server.URL), payload)
+		if result.Error != nil || !result.Success {
+			t.Fatalf("Send at route boundary = %+v, want success", result)
+		}
+		if bodyLen <= int(pushRecordSize) {
+			t.Fatalf("request body length = %d, want adaptive record above %d", bodyLen, pushRecordSize)
+		}
+		if bodyLen > int(maxPushRecordSize) {
+			t.Fatalf("request body length = %d, want at most %d", bodyLen, maxPushRecordSize)
+		}
+	})
+
 	t.Run("uses normal urgency for silent dismiss pushes", func(t *testing.T) {
 		var urgency string
 		server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -955,6 +1004,22 @@ func TestSend(t *testing.T) {
 			})
 		}
 	})
+}
+
+func TestRecordSizeForPayload(t *testing.T) {
+	if got, err := recordSizeForPayload(100); err != nil || got != pushRecordSize {
+		t.Fatalf("compact record = %d, %v; want %d, nil", got, err, pushRecordSize)
+	}
+
+	expandedPayloadLength := int(pushRecordSize) - pushRecordOverhead + 1
+	if got, err := recordSizeForPayload(expandedPayloadLength); err != nil || got != uint32(expandedPayloadLength+pushRecordOverhead) {
+		t.Fatalf("expanded record = %d, %v; want %d, nil", got, err, expandedPayloadLength+pushRecordOverhead)
+	}
+
+	tooLargePayloadLength := int(maxPushRecordSize) - pushRecordOverhead + 1
+	if _, err := recordSizeForPayload(tooLargePayloadLength); err == nil {
+		t.Fatal("oversized payload error = nil, want rejection")
+	}
 }
 
 func TestSendToMany(t *testing.T) {

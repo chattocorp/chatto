@@ -31,6 +31,7 @@ const mocks = vi.hoisted(() => ({
   serverStores: {
     origin: {
       isAuthenticated: true,
+      currentUser: { user: { id: 'origin-user' } },
       serverInfo: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'origin-vapid',
@@ -39,6 +40,7 @@ const mocks = vi.hoisted(() => ({
     },
     remote: {
       isAuthenticated: true,
+      currentUser: { user: { id: 'remote-user' } },
       serverInfo: {
         pushNotificationsEnabled: true,
         vapidPublicKey: 'remote-vapid',
@@ -143,7 +145,7 @@ function installPushGlobals() {
     Notification,
     PushManager: class PushManager {},
     atob: (value: string) => Buffer.from(value, 'base64').toString('binary'),
-    location: { origin: 'https://app.test' }
+    location: { origin: 'https://app.test', protocol: 'https:' }
   });
   vi.stubGlobal('navigator', {
     serviceWorker: {
@@ -161,6 +163,7 @@ function installCapabilityGlobals(options: {
   hasPushManager?: boolean;
   standalone?: boolean;
   displayModeStandalone?: boolean;
+  protocol?: string;
 }) {
   vi.stubGlobal('Notification', {
     permission: 'default',
@@ -178,7 +181,8 @@ function installCapabilityGlobals(options: {
       addListener: vi.fn(),
       removeListener: vi.fn(),
       dispatchEvent: vi.fn()
-    }))
+    })),
+    location: { protocol: options.protocol ?? 'https:' }
   });
   vi.stubGlobal('navigator', {
     serviceWorker: {},
@@ -258,6 +262,17 @@ describe('pushNotifications.getPushCapability', () => {
 
     expect(getPushCapability()).toBe('unsupported');
   });
+
+  it('returns unsupported on a native Desktop origin even if Electron exposes browser APIs', () => {
+    installCapabilityGlobals({
+      userAgent: 'Chatto Desktop',
+      platform: 'MacIntel',
+      protocol: 'chatto:'
+    });
+
+    expect(getPushCapability()).toBe('unsupported');
+    expect(getPushRegistrationTargets()).toEqual([]);
+  });
 });
 
 describe('pushNotifications.getPushRegistrationTargets', () => {
@@ -271,8 +286,8 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
 
   it('includes compatible authenticated origin and remote servers', () => {
     expect(getPushRegistrationTargets()).toEqual([
-      { serverId: 'origin', vapidPublicKey: 'origin-vapid' },
-      { serverId: 'remote', vapidPublicKey: 'remote-vapid' }
+      { serverId: 'origin', userId: 'origin-user', vapidPublicKey: 'origin-vapid' },
+      { serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }
     ]);
   });
 
@@ -280,7 +295,7 @@ describe('pushNotifications.getPushRegistrationTargets', () => {
     mocks.serverStores.origin.isAuthenticated = false;
 
     expect(getPushRegistrationTargets()).toEqual([
-      { serverId: 'remote', vapidPublicKey: 'remote-vapid' }
+      { serverId: 'remote', userId: 'remote-user', vapidPublicKey: 'remote-vapid' }
     ]);
 
     mocks.serverStores.remote.serverInfo.supportsFeature.mockReturnValue(false);
@@ -298,7 +313,10 @@ describe('pushNotifications.ensureRegistered', () => {
       unsubscribe: mocks.unsubscribePush
     });
     mocks.subscribePush.mockReset();
-    mocks.subscribePush.mockResolvedValue(true);
+    mocks.subscribePush.mockResolvedValue({
+      subscribed: true,
+      navigationBaseUrlStored: true
+    });
     mocks.unsubscribePush.mockReset();
     mocks.unsubscribePush.mockResolvedValue(true);
   });
@@ -372,9 +390,7 @@ describe('pushNotifications.ensureRegistered', () => {
     });
     Object.assign(navigator.serviceWorker, { register });
 
-    await expect(
-      ensureRegistered('remote', 'dmFwaWQ', { prompt: false })
-    ).resolves.toBe(true);
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(true);
 
     expect(register).toHaveBeenCalledWith('/service-worker.js', {
       scope: expect.stringMatching(/^\/__chatto\/push\/[a-f0-9]{64}\/$/),
@@ -392,6 +408,28 @@ describe('pushNotifications.ensureRegistered', () => {
     );
   });
 
+  it('rejects and removes a remote subscription when an older server omits route acknowledgement', async () => {
+    permission = 'granted';
+    const remoteSubscription = makeSubscription('https://push.example/remote-old-server');
+    const register = vi.fn().mockResolvedValue({
+      active: {},
+      pushManager: {
+        getSubscription: vi.fn().mockResolvedValue(remoteSubscription),
+        subscribe: vi.fn()
+      }
+    });
+    Object.assign(navigator.serviceWorker, { register });
+    mocks.subscribePush.mockResolvedValueOnce({
+      subscribed: true,
+      navigationBaseUrlStored: false
+    });
+
+    await expect(ensureRegistered('remote', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
+
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(remoteSubscription.endpoint);
+    expect(remoteSubscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
   it('prompts during explicit enable when permission is default', async () => {
     const subscription = makeSubscription('https://push.example/prompted');
     getSubscription.mockResolvedValue(null);
@@ -407,7 +445,10 @@ describe('pushNotifications.ensureRegistered', () => {
     permission = 'granted';
     const existingSubscription = makeSubscription('https://push.example/existing');
     getSubscription.mockResolvedValueOnce(existingSubscription);
-    mocks.subscribePush.mockResolvedValueOnce(false);
+    mocks.subscribePush.mockResolvedValueOnce({
+      subscribed: false,
+      navigationBaseUrlStored: false
+    });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(existingSubscription.unsubscribe).not.toHaveBeenCalled();
@@ -415,7 +456,10 @@ describe('pushNotifications.ensureRegistered', () => {
     const createdSubscription = makeSubscription('https://push.example/created');
     getSubscription.mockResolvedValueOnce(null);
     subscribe.mockResolvedValueOnce(createdSubscription);
-    mocks.subscribePush.mockResolvedValueOnce(false);
+    mocks.subscribePush.mockResolvedValueOnce({
+      subscribed: false,
+      navigationBaseUrlStored: false
+    });
 
     await expect(ensureRegistered('origin', 'dmFwaWQ', { prompt: false })).resolves.toBe(false);
     expect(createdSubscription.unsubscribe).toHaveBeenCalledOnce();
@@ -429,6 +473,18 @@ describe('pushNotifications.ensureRegistered', () => {
     await expect(unsubscribe('origin')).resolves.toBe(true);
 
     expect(mocks.unsubscribePush).toHaveBeenCalledWith('https://push.example/existing');
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+  });
+
+  it('still unsubscribes the browser when server cleanup fails', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/server-offline');
+    getSubscription.mockResolvedValue(subscription);
+    mocks.unsubscribePush.mockRejectedValueOnce(new Error('server offline'));
+
+    await expect(unsubscribe('origin')).resolves.toBe(false);
+
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
     expect(subscription.unsubscribe).toHaveBeenCalledOnce();
   });
 });

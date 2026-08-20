@@ -54,13 +54,18 @@ message SubscribePushRequest {
   // This is stored per subscription because the same account can use clients
   // hosted by different Chatto servers. It must use HTTPS, except for loopback
   // development origins, and must not contain a query or fragment.
-  optional string navigation_base_url = 5 [(buf.validate.field).string.max_len = 2048];
+  optional string navigation_base_url = 5 [(buf.validate.field).string.max_len = 512];
 }
 
 // Response from storing a browser push subscription.
 message SubscribePushResponse {
   // True when the subscription was stored.
   bool subscribed = 1;
+
+  // True when the server persisted navigation_base_url. New clients use this
+  // acknowledgement before trusting a remote server to route notification
+  // clicks back through the installed web app.
+  bool navigation_base_url_stored = 2;
 }
 
 // Request to remove a browser push subscription.

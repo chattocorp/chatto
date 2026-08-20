@@ -14,6 +14,7 @@
   } from '$lib/audio/notificationSounds';
   import {
     ensureRegistered,
+    isBrowserWebPushRuntime,
     getPushCapability,
     getPermission,
     isSubscribed as checkPushSubscription,
@@ -164,7 +165,9 @@
   // Push notifications state
   let pushEnabled = $derived(serverInfo.pushNotificationsEnabled);
   let showPushControls = $derived(
-    pushEnabled && (isOriginServer || serverInfo.supportsFeature('remoteWebPush'))
+    isBrowserWebPushRuntime() &&
+      pushEnabled &&
+      (isOriginServer || serverInfo.supportsFeature('remoteWebPush'))
   );
   const pushCapability = getPushCapability();
   const pushSupported = pushCapability === 'supported';
@@ -178,15 +181,22 @@
 
   // Check push subscription status on mount
   $effect(() => {
+    const serverId = activeServerId;
+    pushSubscribed = false;
+    pushLoading = false;
+    pushError = null;
+    pushTestLoading = false;
+    pushTestStatus = null;
     if (showPushControls && pushSupported) {
       pushPermission = getPermission();
-      checkPushSubscription(activeServerId).then((subscribed) => {
-        pushSubscribed = subscribed;
+      checkPushSubscription(serverId).then((subscribed) => {
+        if (activeServerId === serverId) pushSubscribed = subscribed;
       });
     }
   });
 
   async function handleEnablePush() {
+    const serverId = activeServerId;
     const vapidKey = serverInfo.vapidPublicKey;
     if (!vapidKey) {
       pushError = m('settings.notifications.push.not_configured');
@@ -197,7 +207,8 @@
     pushError = null;
 
     try {
-      const success = await ensureRegistered(activeServerId, vapidKey, { prompt: true });
+      const success = await ensureRegistered(serverId, vapidKey, { prompt: true });
+      if (activeServerId !== serverId) return;
       pushPermission = getPermission();
       if (success) {
         pushSubscribed = true;
@@ -208,21 +219,25 @@
             : m('settings.notifications.push.enable_failed');
       }
     } catch {
-      pushError = m('settings.notifications.push.enable_error');
+      if (activeServerId === serverId) {
+        pushError = m('settings.notifications.push.enable_error');
+      }
     } finally {
-      pushLoading = false;
+      if (activeServerId === serverId) pushLoading = false;
     }
   }
 
   async function handleTestPush() {
+    const serverId = activeServerId;
     pushTestLoading = true;
     pushTestStatus = null;
     try {
-      pushTestStatus = (await sendTestNotification(activeServerId)) ? 'sent' : 'failed';
+      const sent = await sendTestNotification(serverId);
+      if (activeServerId === serverId) pushTestStatus = sent ? 'sent' : 'failed';
     } catch {
-      pushTestStatus = 'failed';
+      if (activeServerId === serverId) pushTestStatus = 'failed';
     } finally {
-      pushTestLoading = false;
+      if (activeServerId === serverId) pushTestLoading = false;
     }
   }
 </script>

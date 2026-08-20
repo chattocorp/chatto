@@ -85,4 +85,10 @@ describe('server compatibility evaluation', () => {
     expect(supportsServerFeature('0.4.19', 'messageSearch')).toBe(false);
     expect(supportsServerFeature('custom-build', 'adminApi')).toBe(false);
   });
+
+  it('distinguishes remote Web Push from older 0.5 development snapshots', () => {
+    expect(supportsServerFeature('0.5.0-dev', 'remoteWebPush')).toBe(false);
+    expect(supportsServerFeature('0.5.0-dev.1', 'remoteWebPush')).toBe(true);
+    expect(supportsServerFeature('0.5.0', 'remoteWebPush')).toBe(true);
+  });
 });

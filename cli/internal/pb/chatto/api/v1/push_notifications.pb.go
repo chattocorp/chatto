@@ -113,9 +113,13 @@ func (x *SubscribePushRequest) GetNavigationBaseUrl() string {
 type SubscribePushResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the subscription was stored.
-	Subscribed    bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Subscribed bool `protobuf:"varint,1,opt,name=subscribed,proto3" json:"subscribed,omitempty"`
+	// True when the server persisted navigation_base_url. New clients use this
+	// acknowledgement before trusting a remote server to route notification
+	// clicks back through the installed web app.
+	NavigationBaseUrlStored bool `protobuf:"varint,2,opt,name=navigation_base_url_stored,json=navigationBaseUrlStored,proto3" json:"navigation_base_url_stored,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
 }
 
 func (x *SubscribePushResponse) Reset() {
@@ -151,6 +155,13 @@ func (*SubscribePushResponse) Descriptor() ([]byte, []int) {
 func (x *SubscribePushResponse) GetSubscribed() bool {
 	if x != nil {
 		return x.Subscribed
+	}
+	return false
+}
+
+func (x *SubscribePushResponse) GetNavigationBaseUrlStored() bool {
+	if x != nil {
+		return x.NavigationBaseUrlStored
 	}
 	return false
 }
@@ -344,13 +355,14 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12,\n" +
 	"\n" +
 	"user_agent\x18\x04 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x00R\tuserAgent\x88\x01\x01\x12=\n" +
-	"\x13navigation_base_url\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x10H\x01R\x11navigationBaseUrl\x88\x01\x01B\r\n" +
+	"\x13navigation_base_url\x18\x05 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x04H\x01R\x11navigationBaseUrl\x88\x01\x01B\r\n" +
 	"\v_user_agentB\x16\n" +
-	"\x14_navigation_base_url\"7\n" +
+	"\x14_navigation_base_url\"t\n" +
 	"\x15SubscribePushResponse\x12\x1e\n" +
 	"\n" +
 	"subscribed\x18\x01 \x01(\bR\n" +
-	"subscribed\"@\n" +
+	"subscribed\x12;\n" +
+	"\x1anavigation_base_url_stored\x18\x02 \x01(\bR\x17navigationBaseUrlStored\"@\n" +
 	"\x16UnsubscribePushRequest\x12&\n" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"=\n" +

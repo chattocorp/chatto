@@ -8,6 +8,7 @@
 
 import { createPushNotificationAPI } from '$lib/api-client/pushNotifications';
 import { serverIdToSegment } from '$lib/navigation';
+import { isBackendCapableOrigin } from '$lib/runtimeOrigin';
 import {
   NOTIFICATION_CLICK_ACK_MESSAGE_TYPE,
   NOTIFICATION_CLICK_MESSAGE_TYPE
@@ -21,6 +22,7 @@ type EnsureRegisteredOptions = {
 
 export type PushRegistrationTarget = {
   serverId: string;
+  userId: string;
   vapidPublicKey: string;
 };
 
@@ -52,6 +54,8 @@ function isStandaloneDisplayMode(): boolean {
 }
 
 export function getPushCapability(): PushCapability {
+  if (!isBrowserWebPushRuntime()) return 'unsupported';
+
   if (
     typeof window !== 'undefined' &&
     'serviceWorker' in navigator &&
@@ -74,6 +78,11 @@ export function getPushCapability(): PushCapability {
  */
 export function isSupported(): boolean {
   return getPushCapability() === 'supported';
+}
+
+/** Browser Web Push belongs to HTTP(S) PWA origins, never native app origins. */
+export function isBrowserWebPushRuntime(): boolean {
+  return typeof window !== 'undefined' && isBackendCapableOrigin(window.location);
 }
 
 /**
@@ -197,16 +206,24 @@ export function getPermission(): NotificationPermission | null {
 
 /** Return authenticated servers that can accept this client's Web Push route. */
 export function getPushRegistrationTargets(): PushRegistrationTarget[] {
+  if (!isBrowserWebPushRuntime()) return [];
+
   return serverRegistry.servers.flatMap((server) => {
     const store = serverRegistry.tryGetStore(server.id);
     const info = store?.serverInfo;
-    if (!store?.isAuthenticated || !info?.pushNotificationsEnabled || !info.vapidPublicKey) {
+    const userId = store?.currentUser.user?.id;
+    if (
+      !store?.isAuthenticated ||
+      !userId ||
+      !info?.pushNotificationsEnabled ||
+      !info.vapidPublicKey
+    ) {
       return [];
     }
     if (!serverRegistry.isOriginServer(server.id) && !info.supportsFeature('remoteWebPush')) {
       return [];
     }
-    return [{ serverId: server.id, vapidPublicKey: info.vapidPublicKey }];
+    return [{ serverId: server.id, userId, vapidPublicKey: info.vapidPublicKey }];
   });
 }
 
@@ -282,7 +299,9 @@ export async function ensureRegistered(
       subscription?.options.applicationServerKey &&
       !arrayBuffersEqual(subscription.options.applicationServerKey, applicationServerKey)
     ) {
-      await pushAPI(serverId).unsubscribe(subscription.endpoint).catch(() => false);
+      await pushAPI(serverId)
+        .unsubscribe(subscription.endpoint)
+        .catch(() => false);
       await subscription.unsubscribe();
       subscription = null;
     }
@@ -302,17 +321,22 @@ export async function ensureRegistered(
       return false;
     }
 
+    const route = navigationBaseURL(serverId);
     const saved = await pushAPI(serverId).subscribe({
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
       userAgent: navigator.userAgent,
-      navigationBaseUrl: navigationBaseURL(serverId)
+      navigationBaseUrl: route
     });
 
-    if (!saved) {
+    const routeRequired = !serverRegistry.isOriginServer(serverId);
+    if (!saved.subscribed || (routeRequired && !saved.navigationBaseUrlStored)) {
       console.error('Failed to save push subscription');
-      if (createdSubscription) {
+      if (createdSubscription || routeRequired) {
+        await pushAPI(serverId)
+          .unsubscribe(subscription.endpoint)
+          .catch(() => false);
         await subscription.unsubscribe();
       }
       return false;
@@ -351,22 +375,22 @@ export async function unsubscribe(serverId: string): Promise<boolean> {
     return true;
   }
 
+  let removedFromServer = false;
   try {
-    // Remove from server first
-    const removed = await api.unsubscribe(subscription.endpoint);
-
-    if (!removed) {
-      console.error('Failed to remove push subscription from server');
-      // Continue to unsubscribe from browser anyway
-    }
-
-    // Unsubscribe from browser
-    await subscription.unsubscribe();
-    return true;
+    removedFromServer = await api.unsubscribe(subscription.endpoint);
+    if (!removedFromServer) console.error('Failed to remove push subscription from server');
   } catch (error) {
-    console.error('Failed to unsubscribe from push:', error);
-    return false;
+    console.error('Failed to remove push subscription from server:', error);
   }
+
+  let removedFromBrowser = false;
+  try {
+    removedFromBrowser = await subscription.unsubscribe();
+  } catch (error) {
+    console.error('Failed to unsubscribe from browser push:', error);
+  }
+
+  return removedFromServer && removedFromBrowser;
 }
 
 function arrayBuffersEqual(left: ArrayBuffer, right: Uint8Array<ArrayBuffer>): boolean {

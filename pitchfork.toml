@@ -80,7 +80,7 @@ workspace_slug=$(cat ../.context/dev/workspace-slug)
 data_root="../.context/dev/$workspace_slug"
 mkdir -p internal/http_server/.client "$data_root/chatto/nats" "$data_root/chatto/search"
 touch internal/http_server/.client/.gitkeep
-go build -trimpath -tags 'bootstrap nomsgpack' -ldflags '-X main.Version=0.5.0-dev' -o bin/chatto-dev .
+go build -trimpath -tags 'bootstrap nomsgpack' -ldflags '-X main.Version=0.5.0-dev.1' -o bin/chatto-dev .
 export CHATTO_WEBSERVER_PORT="$PORT"
 export CHATTO_WEBSERVER_URL="https://chatto-$workspace_slug.localhost:42443"
 export CHATTO_METRICS_PORT="$PORT1"
@@ -97,7 +97,7 @@ port = { expect = [4001, 9090, 9100], bump = true }
 ready_output = "Starting HTTP server"
 depends = ["authling", "livekit-proxy", "mailpit-server"]
 env = {
-  CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev",
+  CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev.1",
   CHATTO_LOG_LEVEL = "debug",
   CHATTO_LOG_FORMAT = "text",
   CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET = "871a846584490a6153305533cce100b8e6f39d4184c2fb499d2ed198a9ed37a3",

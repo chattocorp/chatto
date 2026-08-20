@@ -12,7 +12,7 @@ uv = "0.11.30"
 
 [env]
 _.file = '.env'
-CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev"
+CHATTO_DEVELOPMENT_VERSION = "0.5.0-dev.1"
 
 # =============================================================================
 # Setup
