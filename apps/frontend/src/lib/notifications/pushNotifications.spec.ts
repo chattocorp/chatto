@@ -187,10 +187,17 @@ function installCapabilityGlobals(options: {
   maxTouchPoints?: number;
   hasPushManager?: boolean;
   hasWebLocks?: boolean;
+  hasLocalStorage?: boolean;
   standalone?: boolean;
   displayModeStandalone?: boolean;
   protocol?: string;
 }) {
+  const storage = new Map<string, string>();
+  const localStorage = {
+    getItem: (key: string) => storage.get(key) ?? null,
+    setItem: (key: string, value: string) => storage.set(key, value),
+    removeItem: (key: string) => storage.delete(key)
+  };
   vi.stubGlobal('Notification', {
     permission: 'default',
     requestPermission: vi.fn()
@@ -198,6 +205,7 @@ function installCapabilityGlobals(options: {
   vi.stubGlobal('window', {
     Notification,
     ...(options.hasPushManager === false ? {} : { PushManager: class PushManager {} }),
+    ...(options.hasLocalStorage === false ? {} : { localStorage }),
     matchMedia: vi.fn((query: string) => ({
       matches: query === '(display-mode: standalone)' && options.displayModeStandalone === true,
       media: query,
@@ -251,7 +259,7 @@ afterEach(() => {
 });
 
 describe('pushNotifications.getPushCapability', () => {
-  it('returns supported when service worker, notifications, and Push API are available', () => {
+  it('returns supported when browser push and durable coordination APIs are available', () => {
     installCapabilityGlobals({
       userAgent: 'Mozilla/5.0 Chrome/125.0',
       platform: 'Linux x86_64'
@@ -295,6 +303,21 @@ describe('pushNotifications.getPushCapability', () => {
       userAgent: 'Mozilla/5.0 Chrome/125.0',
       platform: 'Linux x86_64',
       hasWebLocks: false
+    });
+
+    expect(getPushCapability()).toBe('unsupported');
+  });
+
+  it('returns unsupported when cross-tab suspension cannot survive a reload', () => {
+    installCapabilityGlobals({
+      userAgent: 'Mozilla/5.0 Chrome/125.0',
+      platform: 'Linux x86_64'
+    });
+    Object.defineProperty(window, 'localStorage', {
+      configurable: true,
+      get: () => {
+        throw new DOMException('storage denied', 'SecurityError');
+      }
     });
 
     expect(getPushCapability()).toBe('unsupported');

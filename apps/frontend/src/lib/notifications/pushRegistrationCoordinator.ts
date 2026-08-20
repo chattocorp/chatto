@@ -7,6 +7,7 @@ type CrossTabSuspensionState = {
 };
 
 const crossTabSuspensionKeyPrefix = 'chatto.push-registration.suspended.';
+const crossTabStorageProbeKeyPrefix = 'chatto.push-registration.storage-probe.';
 const crossTabLockNamePrefix = 'chatto.push-registration.';
 const crossTabChannelName = 'chatto-push-registration';
 const operationTails = new Map<string, Promise<unknown>>();
@@ -15,6 +16,23 @@ const suspendedServers = new Map<string, { crossTabPersisted: boolean }>();
 const activeRegistrations = new Map<string, AbortController>();
 let coordinationChannel: BroadcastChannel | null | undefined;
 let storageListenerInstalled = false;
+
+/** Whether push opt-out state can survive reloads and coordinate future tabs. */
+export function hasDurablePushCoordinationStorage(): boolean {
+  if (typeof window === 'undefined') return false;
+  const key =
+    crossTabStorageProbeKeyPrefix + Date.now().toString(36) + Math.random().toString(36).slice(2);
+  try {
+    const storage = window.localStorage;
+    if (!storage) return false;
+    storage.setItem(key, '1');
+    const stored = storage.getItem(key) === '1';
+    storage.removeItem(key);
+    return stored;
+  } catch {
+    return false;
+  }
+}
 
 function epoch(serverId: string): number {
   return registrationEpochs.get(serverId) ?? 0;

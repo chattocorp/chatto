@@ -16,6 +16,7 @@ import { serverConnectionManager } from '$lib/state/server/serverConnection.svel
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import {
   enqueuePushRegistration,
+  hasDurablePushCoordinationStorage,
   isPushRegistrationSuspended,
   resumePushRegistration,
   shouldInvalidateCancelledPushRegistration,
@@ -64,12 +65,16 @@ export function getPushCapability(): PushCapability {
   if (!isBrowserWebPushRuntime()) return 'unsupported';
 
   if (
-    typeof window !== 'undefined' &&
-    'serviceWorker' in navigator &&
-    'locks' in navigator &&
-    'PushManager' in window &&
-    'Notification' in window
+    typeof window === 'undefined' ||
+    !('serviceWorker' in navigator) ||
+    !('locks' in navigator) ||
+    !hasDurablePushCoordinationStorage() ||
+    !('Notification' in window)
   ) {
+    return 'unsupported';
+  }
+
+  if ('PushManager' in window) {
     return 'supported';
   }
 
@@ -82,7 +87,7 @@ export function getPushCapability(): PushCapability {
 
 /**
  * Check if push notifications are supported in this browser.
- * Requires Service Worker, Push, and Web Locks API support.
+ * Requires Service Worker, Push, Web Locks, and durable local storage support.
  */
 export function isSupported(): boolean {
   return getPushCapability() === 'supported';
