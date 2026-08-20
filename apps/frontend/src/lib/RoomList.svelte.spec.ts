@@ -3,7 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
 
-import { NotificationSignalKind } from '$lib/api-client/notifications';
+import {
+  NotificationDeliveryMode,
+  NotificationSignalKind,
+  type NotificationPolicy,
+  type NotificationPolicyOverrides
+} from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -36,7 +41,9 @@ const { mocks } = vi.hoisted(() => ({
           notification: null
         }),
         markRead: vi.fn(),
-        getCleanPath: vi.fn().mockReturnValue('/chat/-/room')
+        getCleanPath: vi.fn().mockReturnValue('/chat/-/room'),
+        getPolicy: vi.fn(),
+        updatePolicy: vi.fn()
       },
       roomUnread: {
         roomIsUnread: vi.fn((roomId: string) => mocks.unreadRoomIds.has(roomId)),
@@ -158,6 +165,27 @@ function notification(id: string, roomId: string, isDM = false) {
   };
 }
 
+function notificationModes<Value>(value: Value) {
+  return {
+    directMessages: value,
+    directMentions: value,
+    replies: value,
+    roleMentions: value,
+    hereMentions: value,
+    allMentions: value,
+    followedThreads: value,
+    followedRooms: value,
+    reactions: value
+  };
+}
+
+function notificationPolicy(mode: NotificationDeliveryMode): NotificationPolicy {
+  return {
+    overrides: notificationModes(mode) as NotificationPolicyOverrides,
+    effective: notificationModes(mode)
+  };
+}
+
 function user(id: string, login: string, displayName: string) {
   return {
     id,
@@ -272,6 +300,12 @@ beforeEach(() => {
     notification: null
   });
   mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
+  mocks.store.notifications.getPolicy.mockResolvedValue(
+    notificationPolicy(NotificationDeliveryMode.ALERT)
+  );
+  mocks.store.notifications.updatePolicy.mockResolvedValue(
+    notificationPolicy(NotificationDeliveryMode.SILENT)
+  );
   mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
   mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
@@ -388,6 +422,27 @@ describe('RoomList', () => {
     expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
   });
 
+  it('applies a notification preset to the selected room', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Silent'));
+
+    const silent = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Silent'
+    );
+    silent!.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.updatePolicy).toHaveBeenCalledWith(
+        notificationModes(NotificationDeliveryMode.SILENT),
+        'channel-1'
+      );
+    });
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain('Leave room'));
+  });
+
   it('offers a join action for a visible non-member room', async () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
@@ -407,6 +462,7 @@ describe('RoomList', () => {
     await expect.element(join ?? null).toBeEnabled();
     expect(markRead).toBeUndefined();
     expect(leave).toBeUndefined();
+    expect(document.body.textContent).not.toContain('Notifications');
 
     join!.click();
     await vi.waitFor(() =>

@@ -7,6 +7,7 @@ presentation-only.
 -->
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
+  import type { Snippet } from 'svelte';
 
   let {
     kind,
@@ -16,10 +17,12 @@ presentation-only.
     canMarkRead,
     canConfigure = false,
     canLeave = true,
+    showAdditionalActions = false,
     onJoin = () => {},
     onMarkRead,
     onConfigure,
-    onLeave
+    onLeave,
+    children
   }: {
     kind: 'server' | 'room';
     isRoomMember?: boolean;
@@ -28,10 +31,12 @@ presentation-only.
     canMarkRead: boolean;
     canConfigure?: boolean;
     canLeave?: boolean;
+    showAdditionalActions?: boolean;
     onJoin?: () => void;
     onMarkRead: () => void;
     onConfigure?: () => void;
     onLeave: () => void;
+    children?: Snippet;
   } = $props();
 </script>
 
@@ -68,8 +73,12 @@ presentation-only.
       </button>
     {/if}
 
+    {#if showAdditionalActions && children}
+      {@render children()}
+    {/if}
+
     {#if isRoomMember && canLeave}
-      {#if showMarkRead || (canConfigure && onConfigure)}
+      {#if showMarkRead || (canConfigure && onConfigure) || (showAdditionalActions && children)}
         <div role="separator" class="mx-2 my-1 border-t border-text/10"></div>
       {/if}
       <button

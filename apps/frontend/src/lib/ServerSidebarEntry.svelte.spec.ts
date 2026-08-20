@@ -2,7 +2,12 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
-import { NotificationSignalKind } from '$lib/api-client/notifications';
+import {
+  NotificationDeliveryMode,
+  NotificationSignalKind,
+  type NotificationPolicy,
+  type NotificationPolicyOverrides
+} from '$lib/api-client/notifications';
 import { q } from '$lib/test-utils';
 
 const { mocks } = vi.hoisted(() => {
@@ -18,6 +23,7 @@ const { mocks } = vi.hoisted(() => {
       startRemoteReauthentication: vi.fn(),
       beginOriginReauthentication: vi.fn(),
       isOriginServer: vi.fn(() => false),
+      toastSuccess: vi.fn(),
       toastError: vi.fn(),
       appUi: {
         disableRoomCallWideFor: vi.fn()
@@ -47,7 +53,9 @@ const { mocks } = vi.hoisted(() => {
           getNonDMNotification: vi.fn().mockReturnValue(null),
           getDMNotification: vi.fn().mockReturnValue(null),
           markRead: vi.fn(),
-          getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1')
+          getCleanPath: vi.fn().mockReturnValue('/chat/remote.example.com/room-1'),
+          getPolicy: vi.fn(),
+          updatePolicy: vi.fn()
         },
         roomUnread: {
           hasAnyUnread: true,
@@ -157,7 +165,7 @@ vi.mock('$lib/auth/reauth', () => ({
 }));
 
 vi.mock('$lib/ui/toast', () => ({
-  toast: { error: mocks.toastError }
+  toast: { success: mocks.toastSuccess, error: mocks.toastError }
 }));
 
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
@@ -193,6 +201,27 @@ function viewerState(overrides: Record<string, unknown> = {}) {
   };
 }
 
+function notificationModes<Value>(value: Value) {
+  return {
+    directMessages: value,
+    directMentions: value,
+    replies: value,
+    roleMentions: value,
+    hereMentions: value,
+    allMentions: value,
+    followedThreads: value,
+    followedRooms: value,
+    reactions: value
+  };
+}
+
+function notificationPolicy(mode: NotificationDeliveryMode): NotificationPolicy {
+  return {
+    overrides: notificationModes(mode) as NotificationPolicyOverrides,
+    effective: notificationModes(mode)
+  };
+}
+
 describe('ServerSidebarEntry', () => {
   let consoleErrorSpy: ReturnType<typeof vi.spyOn>;
   let consoleWarnSpy: ReturnType<typeof vi.spyOn>;
@@ -216,6 +245,7 @@ describe('ServerSidebarEntry', () => {
     mocks.beginOriginReauthentication.mockReset();
     mocks.isOriginServer.mockReset();
     mocks.isOriginServer.mockReturnValue(false);
+    mocks.toastSuccess.mockReset();
     mocks.toastError.mockReset();
     mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
@@ -232,6 +262,12 @@ describe('ServerSidebarEntry', () => {
     mocks.store.notifications.getDMNotification.mockReturnValue(null);
     mocks.store.notifications.markRead.mockClear();
     mocks.store.notifications.getCleanPath.mockReturnValue('/chat/remote.example.com/room-1');
+    mocks.store.notifications.getPolicy.mockResolvedValue(
+      notificationPolicy(NotificationDeliveryMode.ALERT)
+    );
+    mocks.store.notifications.updatePolicy.mockResolvedValue(
+      notificationPolicy(NotificationDeliveryMode.OFF)
+    );
     mocks.store.roomUnread.clear.mockClear();
     mocks.store.roomUnread.captureSnapshotRevision.mockClear();
     mocks.store.roomUnread.captureSnapshotRevision.mockReturnValue(0);
@@ -283,6 +319,29 @@ describe('ServerSidebarEntry', () => {
     markRead!.click();
 
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
+  });
+
+  it('applies a notification preset to the selected server', async () => {
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Off'));
+
+    const off = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Off'
+    );
+    off!.click();
+
+    await vi.waitFor(() => {
+      expect(mocks.store.notifications.updatePolicy).toHaveBeenCalledWith(
+        notificationModes(NotificationDeliveryMode.OFF),
+        undefined
+      );
+    });
+    await vi.waitFor(() => expect(document.body.textContent).not.toContain('Remove server'));
   });
 
   it('opens server actions from the overlaid unread badge', async () => {

@@ -105,6 +105,11 @@ notification orange when at least one contributing unread occurrence is
 Important and a neutral treatment when every contributing occurrence is
 Ambient. Attention levels are not user-configurable in this iteration.
 
+The bundled client exposes `Alert`, `Silent`, and `Off` as scope-wide shortcuts
+in authenticated server and joined-room context menus. A shortcut updates every
+built-in signal-class override for that scope atomically. Mixed per-class rules
+remain configurable on the notification settings page.
+
 **Why:** Whether activity is stored, whether it may interrupt, and how strongly
 it is presented are different choices. Keeping them separate leaves room for
 future per-cause configuration without changing occurrence identity.
