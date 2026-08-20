@@ -525,6 +525,21 @@ describe('ModalContainer sign out modal', () => {
     });
   });
 
+  it('keeps the session when push cleanup cannot establish a delivery fence', async () => {
+    mocks.modal = { type: 'logout' };
+    mocks.signOutCurrentAccount.mockRejectedValueOnce(new Error('push cleanup unavailable'));
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Current Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith('Network error. Please try again.');
+      expect(findButton(container, 'Current Server').hasAttribute('aria-busy')).toBe(false);
+    });
+    expect(mocks.goto).not.toHaveBeenCalled();
+    expect(mocks.hardRedirectAfterSignOut).not.toHaveBeenCalled();
+  });
+
   it('signs out of all registered servers', async () => {
     const remote = {
       id: 'remote',
@@ -719,6 +734,29 @@ describe('ModalContainer remove server modal', () => {
       expect(mocks.removeServer).toHaveBeenCalledWith('remote');
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-');
     });
+  });
+
+  it('keeps a server registered when push cleanup cannot establish a delivery fence', async () => {
+    const remote = {
+      id: 'remote',
+      url: 'https://remote.example.test',
+      name: 'Remote',
+      token: 'token'
+    };
+    mocks.servers = [mocks.originServer!, remote];
+    mocks.modal = { type: 'removeServer', serverId: 'remote', spaceName: 'Remote' };
+    mocks.unsubscribePushBeforeLeaving.mockRejectedValueOnce(new Error('push cleanup unavailable'));
+
+    const { container } = render(ModalContainer);
+    clickButton(container, 'Remove Server');
+
+    await vi.waitFor(() => {
+      expect(mocks.toastError).toHaveBeenCalledWith('Network error. Please try again.');
+      expect(findButton(container, 'Remove Server').hasAttribute('aria-busy')).toBe(false);
+    });
+    expect(mocks.clearLastRoom).not.toHaveBeenCalled();
+    expect(mocks.removeServer).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 });
 

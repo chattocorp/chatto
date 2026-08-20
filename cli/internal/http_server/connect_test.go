@@ -32,6 +32,8 @@ import (
 	"hmans.de/chatto/internal/pb/chatto/admin/v1/adminv1connect"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 	"hmans.de/chatto/internal/pb/chatto/api/v1/apiv1connect"
+	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
+	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	discoveryv1 "hmans.de/chatto/internal/pb/chatto/discovery/v1"
 	"hmans.de/chatto/internal/pb/chatto/discovery/v1/discoveryv1connect"
@@ -643,6 +645,45 @@ func TestConnectServerServiceProfileAndRuntimeConfigRequireAuth(t *testing.T) {
 	_, err = client.GetRuntimeConfig(context.Background(), connect.NewRequest(&apiv1.GetRuntimeConfigRequest{}))
 	if connect.CodeOf(err) != connect.CodeUnauthenticated {
 		t.Fatalf("GetRuntimeConfig code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+}
+
+func TestConnectPushSubscriptionCapabilityCleanupIsPublic(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "push-cleanup", "Push Cleanup", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	const (
+		endpoint = "https://push.example.test/capability-cleanup"
+		auth     = "capability-auth"
+		token    = "0123456789abcdef0123456789abcdef"
+	)
+	if _, err := s.core.SavePushSubscriptionWithCleanupToken(ctx, user.GetId(), endpoint, "p256dh-key", auth, "test-agent", token); err != nil {
+		t.Fatalf("SavePushSubscriptionWithCleanupToken: %v", err)
+	}
+
+	cleanupClient := authv1connect.NewPushSubscriptionCleanupServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	cleanup, err := cleanupClient.DeleteSubscription(ctx, connect.NewRequest(&authv1.DeleteSubscriptionRequest{
+		Endpoint:     endpoint,
+		Auth:         auth,
+		CleanupToken: token,
+	}))
+	if err != nil {
+		t.Fatalf("unauthenticated DeleteSubscription: %v", err)
+	}
+	if !cleanup.Msg.GetCompleted() {
+		t.Fatal("DeleteSubscription completed = false, want true")
+	}
+	if owned, err := s.core.PushSubscriptionOwnedByUser(ctx, user.GetId(), endpoint); err != nil || owned {
+		t.Fatalf("subscription ownership after cleanup = %t, err = %v", owned, err)
+	}
+
+	pushClient := apiv1connect.NewPushNotificationServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	_, err = pushClient.Subscribe(ctx, connect.NewRequest(&apiv1.SubscribePushRequest{}))
+	if connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated Subscribe code = %v, want unauthenticated", connect.CodeOf(err))
 	}
 }
 

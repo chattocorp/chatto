@@ -39,8 +39,8 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 The public HTTP edge mounts every handler returned by `connectapi.API.Handlers`.
 Authenticated services are wrapped with `connectrpc.com/authn` before protobuf
 decoding and validation. `ExternalIdentityAuthService`,
-`ServerDiscoveryService`, and reflection are public; all other public-listener
-services require an authenticated user. The Operator API uses
+`PushSubscriptionCleanupService`, `ServerDiscoveryService`, and reflection are
+public; all other public-listener services require an authenticated user. The Operator API uses
 `connectapi.API.OperatorHandlers` and is mounted only on the configured Unix
 socket.
 
@@ -48,7 +48,7 @@ socket.
 
 | Package | Public services | Auth policy |
 | ------- | --------------- | ----------- |
-| `chatto.auth.v1` | `ExternalIdentityAuthService` | Public capability-token flows |
+| `chatto.auth.v1` | `ExternalIdentityAuthService`, `PushSubscriptionCleanupService` | Public capability-token flows |
 | `chatto.discovery.v1` | `ServerDiscoveryService` | Public discovery |
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |

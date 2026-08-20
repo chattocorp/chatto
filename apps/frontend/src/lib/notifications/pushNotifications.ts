@@ -112,35 +112,42 @@ async function getServiceWorkerRegistration(
   serverId: string,
   options: { create: boolean }
 ): Promise<ServiceWorkerRegistration | null> {
+  try {
+    return await lookupServiceWorkerRegistration(serverId, options);
+  } catch {
+    return null;
+  }
+}
+
+async function lookupServiceWorkerRegistration(
+  serverId: string,
+  options: { create: boolean }
+): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) {
     return null;
   }
 
-  try {
-    if (serverRegistry.isOriginServer(serverId)) {
-      if (options.create) return await navigator.serviceWorker.ready;
-      return await findExactServiceWorkerRegistration(window.location.origin + '/');
-    }
-
-    const server = serverRegistry.getServer(serverId);
-    if (!server) return null;
-
-    const scopeKey = await stableScopeKey(new URL(server.url).origin);
-    const scope = `${remotePushScopePrefix}${scopeKey}/`;
-    if (!options.create) {
-      return await findExactServiceWorkerRegistration(
-        new URL(scope, window.location.origin).toString()
-      );
-    }
-    const registration = await navigator.serviceWorker.register(serviceWorkerScriptPath, {
-      scope,
-      type: 'module'
-    });
-    await waitForActiveWorker(registration);
-    return registration;
-  } catch {
-    return null;
+  if (serverRegistry.isOriginServer(serverId)) {
+    if (options.create) return await navigator.serviceWorker.ready;
+    return await findExactServiceWorkerRegistration(window.location.origin + '/');
   }
+
+  const server = serverRegistry.getServer(serverId);
+  if (!server) return null;
+
+  const scopeKey = await stableScopeKey(new URL(server.url).origin);
+  const scope = `${remotePushScopePrefix}${scopeKey}/`;
+  if (!options.create) {
+    return await findExactServiceWorkerRegistration(
+      new URL(scope, window.location.origin).toString()
+    );
+  }
+  const registration = await navigator.serviceWorker.register(serviceWorkerScriptPath, {
+    scope,
+    type: 'module'
+  });
+  await waitForActiveWorker(registration);
+  return registration;
 }
 
 async function findExactServiceWorkerRegistration(
@@ -199,6 +206,13 @@ export async function getSubscription(serverId: string): Promise<PushSubscriptio
   } catch {
     return null;
   }
+}
+
+/** Looks up a subscription for a privacy boundary and preserves browser errors. */
+async function getSubscriptionForCleanup(serverId: string): Promise<PushSubscription | null> {
+  const registration = await lookupServiceWorkerRegistration(serverId, { create: false });
+  if (!registration) return null;
+  return registration.pushManager.getSubscription();
 }
 
 /**
@@ -518,11 +532,17 @@ export async function unsubscribe(serverId: string): Promise<boolean> {
   return result;
 }
 
-/** Invalidates browser delivery before navigation and backgrounds server cleanup. */
+/** Establishes a local or server-side delivery fence before navigation. */
 export function unsubscribeBeforeLeaving(serverId: string): Promise<void> {
   return suspendPushRegistrationBeforeLeaving(serverId, async () => {
     const cleanup = await beginUnsubscribe(serverId);
-    void cleanup.removeFromServer;
+    if (cleanup.removedFromBrowser) {
+      void cleanup.removeFromServer;
+      return;
+    }
+    if (!(await cleanup.removeFromServer)) {
+      throw new Error('Push delivery could not be disabled before leaving the server');
+    }
   });
 }
 
@@ -531,7 +551,7 @@ async function beginUnsubscribe(serverId: string): Promise<{
   removeFromServer: Promise<boolean>;
 }> {
   const api = pushAPI(serverId);
-  const subscription = await getSubscription(serverId);
+  const subscription = await getSubscriptionForCleanup(serverId);
   if (!subscription) {
     return { removedFromBrowser: true, removeFromServer: Promise.resolve(true) };
   }

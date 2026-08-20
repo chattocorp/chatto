@@ -32,6 +32,12 @@ const categories = [
         slug: 'external-identity-auth',
         title: 'External Identity Auth',
         description: 'Public external-identity confirmation and capability-token auth-flow RPCs.'
+      },
+      {
+        name: 'PushSubscriptionCleanupService',
+        slug: 'push-subscription-cleanup',
+        title: 'Push Subscription Cleanup',
+        description: 'Public capability-authenticated cleanup for exact browser push subscriptions.'
       }
     ]
   },

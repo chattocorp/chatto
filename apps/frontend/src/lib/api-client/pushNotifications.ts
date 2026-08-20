@@ -1,5 +1,6 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { PushNotificationService } from '@chatto/api-types/api/v1/push_notifications_connect';
+import { PushSubscriptionCleanupService } from '@chatto/api-types/chatto/auth/v1/push_subscription_cleanup_connect';
 
 export type PushNotificationAPIConfig = {
   baseUrl: string;
@@ -26,6 +27,9 @@ export type PushRequestOptions = {
 
 export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
   const client = createChattoClient(PushNotificationService, config);
+  const cleanupClient = createChattoClient(PushSubscriptionCleanupService, {
+    baseUrl: config.baseUrl
+  });
   const headers = () => authHeaders(config);
 
   return {
@@ -51,8 +55,7 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       auth: string,
       cleanupToken: string
     ): Promise<boolean> {
-      return (await client.deleteSubscriptionByCapability({ endpoint, auth, cleanupToken }))
-        .completed;
+      return (await cleanupClient.deleteSubscription({ endpoint, auth, cleanupToken })).completed;
     },
 
     async sendTestNotification(): Promise<boolean> {

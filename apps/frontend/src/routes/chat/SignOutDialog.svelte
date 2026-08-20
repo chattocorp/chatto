@@ -10,6 +10,7 @@
   import { m } from '$lib/i18n/messages';
   import Dialog from '$lib/ui/Dialog.svelte';
   import { Button } from '$lib/ui/form';
+  import { toast } from '$lib/ui/toast';
 
   let {
     onclose
@@ -59,13 +60,23 @@
     if (!activeSignOutServer || !signedOutServerId) return;
 
     signingOutCurrent = true;
-    const navigation = await clientAccount.signOutCurrentServer(signedOutServerId);
-    if (navigation) applyNavigation(navigation);
+    try {
+      const navigation = await clientAccount.signOutCurrentServer(signedOutServerId);
+      if (navigation) applyNavigation(navigation);
+    } catch {
+      signingOutCurrent = false;
+      toast.error(m('common.error.network'));
+    }
   }
 
   async function handleSignOutAllServers() {
     signingOutAll = true;
-    applyNavigation(await clientAccount.signOutAllServers());
+    try {
+      applyNavigation(await clientAccount.signOutAllServers());
+    } catch {
+      signingOutAll = false;
+      toast.error(m('common.error.network'));
+    }
   }
 </script>
 

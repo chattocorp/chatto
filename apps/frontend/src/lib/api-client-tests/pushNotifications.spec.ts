@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   createConnectTransport: vi.fn(),
   subscribe: vi.fn(),
   unsubscribe: vi.fn(),
-  deleteSubscriptionByCapability: vi.fn()
+  deleteSubscription: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -27,19 +27,19 @@ describe('createPushNotificationAPI', () => {
     mocks.createConnectTransport.mockReset();
     mocks.subscribe.mockReset();
     mocks.unsubscribe.mockReset();
-    mocks.deleteSubscriptionByCapability.mockReset();
+    mocks.deleteSubscription.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({
       subscribe: mocks.subscribe,
       unsubscribe: mocks.unsubscribe,
-      deleteSubscriptionByCapability: mocks.deleteSubscriptionByCapability
+      deleteSubscription: mocks.deleteSubscription
     });
   });
 
   it('subscribes and unsubscribes with bearer auth', async () => {
     mocks.subscribe.mockResolvedValue({ subscribed: true });
     mocks.unsubscribe.mockResolvedValue({ unsubscribed: true });
-    mocks.deleteSubscriptionByCapability.mockResolvedValue({ completed: true });
+    mocks.deleteSubscription.mockResolvedValue({ completed: true });
 
     const api = createPushNotificationAPI({
       baseUrl: 'https://origin.test/api/connect',
@@ -69,7 +69,12 @@ describe('createPushNotificationAPI', () => {
       )
     ).resolves.toBe(true);
 
-    expect(mocks.createConnectTransport).toHaveBeenCalledWith({
+    expect(mocks.createConnectTransport).toHaveBeenCalledTimes(2);
+    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(1, {
+      baseUrl: 'https://origin.test/api/connect',
+      useBinaryFormat: true
+    });
+    expect(mocks.createConnectTransport).toHaveBeenNthCalledWith(2, {
       baseUrl: 'https://origin.test/api/connect',
       useBinaryFormat: true
     });
@@ -88,7 +93,7 @@ describe('createPushNotificationAPI', () => {
       { endpoint: 'https://push.example/sub' },
       { headers: { Authorization: 'Bearer token' } }
     );
-    expect(mocks.deleteSubscriptionByCapability).toHaveBeenCalledWith({
+    expect(mocks.deleteSubscription).toHaveBeenCalledWith({
       endpoint: 'https://push.example/stale',
       auth: 'stale-auth-secret',
       cleanupToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'

@@ -16,8 +16,8 @@ class ClientAccountCoordinator {
     if (!server) return null;
 
     const origin = serverRegistry.isOriginServer(serverId);
+    await unsubscribePushBeforeLeaving(serverId);
     if (origin) beginExplicitSignOutRedirect();
-    await unsubscribePushBeforeLeaving(serverId).catch(() => undefined);
     await signOutServer(server, origin).catch(() => undefined);
     clearLastRoom(serverId);
 
@@ -38,10 +38,10 @@ class ClientAccountCoordinator {
   }
 
   async signOutAllServers(): Promise<ClientAccountNavigation> {
-    beginExplicitSignOutRedirect();
     for (const server of serverRegistry.servers) {
-      await unsubscribePushBeforeLeaving(server.id).catch(() => undefined);
+      await unsubscribePushBeforeLeaving(server.id);
     }
+    beginExplicitSignOutRedirect();
     await signOutServers([...serverRegistry.servers], (serverId) =>
       serverRegistry.isOriginServer(serverId)
     );

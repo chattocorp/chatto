@@ -19,6 +19,7 @@ import (
 
 var publicReflectionServiceNames = []string{
 	authv1connect.ExternalIdentityAuthServiceName,
+	authv1connect.PushSubscriptionCleanupServiceName,
 	discoveryv1connect.ServerDiscoveryServiceName,
 	apiv1connect.MyAccountServiceName,
 	apiv1connect.AssetServiceName,

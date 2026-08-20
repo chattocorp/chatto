@@ -9,6 +9,7 @@
   import { m } from '$lib/i18n/messages';
   import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
+  import { toast } from '$lib/ui/toast';
 
   let {
     modal,
@@ -26,7 +27,7 @@
     removing = true;
     try {
       const removingActiveServer = modal.serverId === activeServerId;
-      await unsubscribePushBeforeLeaving(modal.serverId).catch(() => undefined);
+      await unsubscribePushBeforeLeaving(modal.serverId);
       clearLastRoom(modal.serverId);
       serverRegistry.removeServer(modal.serverId);
 
@@ -43,6 +44,7 @@
       }
     } catch {
       removing = false;
+      toast.error(m('common.error.network'));
     }
   }
 </script>

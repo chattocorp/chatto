@@ -120,7 +120,10 @@ export default defineConfig({
             "reference/connectrpc-api",
             {
               label: "chatto.auth.v1",
-              items: ["reference/connectrpc-api/external-identity-auth"],
+              items: [
+                "reference/connectrpc-api/external-identity-auth",
+                "reference/connectrpc-api/push-subscription-cleanup",
+              ],
             },
             {
               label: "chatto.discovery.v1",

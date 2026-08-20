@@ -17,6 +17,7 @@ import (
 	"hmans.de/chatto/internal/core/subjects"
 	adminv1 "hmans.de/chatto/internal/pb/chatto/admin/v1"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
+	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -2173,16 +2174,16 @@ func TestPushNotificationServiceSubscribeAndUnsubscribe(t *testing.T) {
 	if _, err := env.core.SavePushSubscriptionWithCleanupToken(env.ctx, env.viewer.Id, capabilityEndpoint, "p256dh-key", "capability-auth", "test-agent", capabilityToken); err != nil {
 		t.Fatalf("save capability cleanup fixture: %v", err)
 	}
-	cleanupResp, err := env.push.DeleteSubscriptionByCapability(context.Background(), connect.NewRequest(&apiv1.DeletePushSubscriptionByCapabilityRequest{
+	cleanupResp, err := env.pushCleanup.DeleteSubscription(context.Background(), connect.NewRequest(&authv1.DeleteSubscriptionRequest{
 		Endpoint:     capabilityEndpoint,
 		Auth:         "capability-auth",
 		CleanupToken: capabilityToken,
 	}))
 	if err != nil {
-		t.Fatalf("unauthenticated DeleteSubscriptionByCapability: %v", err)
+		t.Fatalf("capability-authenticated DeleteSubscription: %v", err)
 	}
 	if !cleanupResp.Msg.GetCompleted() {
-		t.Fatal("DeleteSubscriptionByCapability completed = false, want true")
+		t.Fatal("DeleteSubscription completed = false, want true")
 	}
 	if owned, err := env.core.PushSubscriptionOwnedByUser(env.ctx, env.viewer.Id, capabilityEndpoint); err != nil || owned {
 		t.Fatalf("capability cleanup ownership = %t, err = %v", owned, err)

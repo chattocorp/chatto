@@ -2477,8 +2477,7 @@ Complete supported notification policy after a sparse update.
 
 ## PushNotificationService
 
-Browser Web Push subscription commands. Account mutations authenticate the
-current user; late-save cleanup uses the exact subscription's capability.
+Browser Web Push subscription commands for the authenticated user.
 
 <a id="chatto-api-v1-PushNotificationService-Subscribe"></a>
 
@@ -2552,43 +2551,6 @@ Response from removing a browser push subscription.
 | Field | Type | Description |
 | --- | --- | --- |
 | `unsubscribed` | `bool` | True when the request completed. |
-
-
-<a id="chatto-api-v1-PushNotificationService-DeleteSubscriptionByCapability"></a>
-
-### DeleteSubscriptionByCapability
-
-Removes the exact current subscription when its Push API auth secret and
-per-save cleanup token match. This capability-based cleanup does not use
-the current account session, allowing cancelled registration to finish
-safely after sign-out.
-
-```http
-POST /api/connect/chatto.api.v1.PushNotificationService/DeleteSubscriptionByCapability
-```
-
-<a id="chatto-api-v1-DeletePushSubscriptionByCapabilityRequest"></a>
-
-#### Input: DeletePushSubscriptionByCapabilityRequest
-
-Capability-authenticated request to remove an exact push subscription.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `endpoint` | `string` | Complete push service endpoint URL. Its opaque path identifies the exact browser subscription; a provider host alone is not unique. |
-| `auth` | `string` | Authentication secret from the same browser PushSubscription. |
-| `cleanup_token` | `string` | Per-save capability supplied with the original Subscribe request. Cleanup is a no-op after any later save replaces this token. |
-
-
-<a id="chatto-api-v1-DeletePushSubscriptionByCapabilityResponse"></a>
-
-#### Result: DeletePushSubscriptionByCapabilityResponse
-
-Response from capability-authenticated subscription cleanup.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `completed` | `bool` | True when the idempotent cleanup request completed. It does not reveal whether a matching subscription existed. |
 
 
 <a id="chatto-api-v1-PushNotificationService-SendTestNotification"></a>

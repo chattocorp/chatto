@@ -73,10 +73,3 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 
 	return connect.NewResponse(&apiv1.UnsubscribePushResponse{Unsubscribed: true}), nil
 }
-
-func (s *pushNotificationService) DeleteSubscriptionByCapability(ctx context.Context, req *connect.Request[apiv1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[apiv1.DeletePushSubscriptionByCapabilityResponse], error) {
-	if err := s.api.core.DeletePushSubscriptionByCapability(ctx, req.Msg.GetEndpoint(), req.Msg.GetAuth(), req.Msg.GetCleanupToken()); err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.DeletePushSubscriptionByCapabilityResponse{Completed: true}), nil
-}

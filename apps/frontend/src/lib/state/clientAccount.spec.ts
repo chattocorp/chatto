@@ -91,14 +91,33 @@ describe('ClientAccountCoordinator', () => {
     expect(result).toEqual({ kind: 'hard' });
   });
 
-  it('continues sign-out after local push cleanup', async () => {
+  it('preserves authentication when push cleanup cannot establish a delivery fence', async () => {
+    mocks.unsubscribePushBeforeLeaving.mockRejectedValueOnce(new Error('browser lookup failed'));
 
-    await expect(clientAccount.signOutCurrentServer('remote')).resolves.toEqual({
-      kind: 'soft',
-      serverId: 'origin'
-    });
-    await expect(clientAccount.signOutAllServers()).resolves.toEqual({ kind: 'hard' });
+    await expect(clientAccount.signOutCurrentServer('origin')).rejects.toThrow(
+      'browser lookup failed'
+    );
 
-    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(3);
+    expect(mocks.beginExplicitSignOutRedirect).not.toHaveBeenCalled();
+    expect(mocks.signOutServer).not.toHaveBeenCalled();
+    expect(mocks.clearLastRoom).not.toHaveBeenCalled();
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.notifyLogout).not.toHaveBeenCalled();
+  });
+
+  it('preserves all-server authentication when any push cleanup cannot establish a delivery fence', async () => {
+    mocks.unsubscribePushBeforeLeaving
+      .mockResolvedValueOnce(undefined)
+      .mockRejectedValueOnce(new Error('remote browser lookup failed'));
+
+    await expect(clientAccount.signOutAllServers()).rejects.toThrow(
+      'remote browser lookup failed'
+    );
+
+    expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
+    expect(mocks.beginExplicitSignOutRedirect).not.toHaveBeenCalled();
+    expect(mocks.signOutServers).not.toHaveBeenCalled();
+    expect(mocks.resetToOrigin).not.toHaveBeenCalled();
+    expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 });

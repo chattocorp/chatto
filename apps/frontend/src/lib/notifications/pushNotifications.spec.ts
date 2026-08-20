@@ -736,6 +736,62 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
   });
 
+  it('keeps leaving incomplete when service-worker lookup fails and succeeds on retry', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/lookup-retry');
+    const getRegistrations = vi.mocked(navigator.serviceWorker.getRegistrations);
+    getRegistrations.mockRejectedValueOnce(new DOMException('worker database unavailable'));
+    getSubscription.mockResolvedValue(subscription);
+
+    await expect(unsubscribeBeforeLeaving('origin')).rejects.toThrow('worker database unavailable');
+    expect(subscription.unsubscribe).not.toHaveBeenCalled();
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+
+    await expect(unsubscribeBeforeLeaving('origin')).resolves.toBeUndefined();
+    expect(subscription.unsubscribe).toHaveBeenCalledOnce();
+    expect(mocks.unsubscribePush).toHaveBeenCalledWith(subscription.endpoint);
+  });
+
+  it('keeps leaving incomplete when PushManager lookup fails', async () => {
+    permission = 'granted';
+    getSubscription.mockRejectedValueOnce(new DOMException('push database unavailable'));
+
+    await expect(unsubscribeBeforeLeaving('origin')).rejects.toThrow('push database unavailable');
+    expect(mocks.unsubscribePush).not.toHaveBeenCalled();
+  });
+
+  it('waits for server deletion when browser invalidation fails', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/browser-cleanup-failed');
+    subscription.unsubscribe.mockResolvedValue(false);
+    const serverCleanup = deferred<boolean>();
+    getSubscription.mockResolvedValue(subscription);
+    mocks.unsubscribePush.mockReturnValueOnce(serverCleanup.promise);
+
+    let left = false;
+    const leaving = unsubscribeBeforeLeaving('origin').then(() => {
+      left = true;
+    });
+    await vi.waitFor(() => expect(mocks.unsubscribePush).toHaveBeenCalledOnce());
+    expect(left).toBe(false);
+
+    serverCleanup.resolve(true);
+    await leaving;
+    expect(left).toBe(true);
+  });
+
+  it('keeps leaving incomplete when neither browser nor server delivery can be disabled', async () => {
+    permission = 'granted';
+    const subscription = makeSubscription('https://push.example/cleanup-unavailable');
+    subscription.unsubscribe.mockRejectedValueOnce(new DOMException('push database unavailable'));
+    getSubscription.mockResolvedValue(subscription);
+    mocks.unsubscribePush.mockRejectedValueOnce(new Error('server unavailable'));
+
+    await expect(unsubscribeBeforeLeaving('origin')).rejects.toThrow(
+      'Push delivery could not be disabled before leaving the server'
+    );
+  });
+
   it('finishes local invalidation before leaving without waiting for server cleanup', async () => {
     permission = 'granted';
     const subscription = makeSubscription('https://push.example/leaving');

@@ -257,119 +257,6 @@ func (x *UnsubscribePushResponse) GetUnsubscribed() bool {
 	return false
 }
 
-// Capability-authenticated request to remove an exact push subscription.
-type DeletePushSubscriptionByCapabilityRequest struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Complete push service endpoint URL. Its opaque path identifies the exact
-	// browser subscription; a provider host alone is not unique.
-	Endpoint string `protobuf:"bytes,1,opt,name=endpoint,proto3" json:"endpoint,omitempty"`
-	// Authentication secret from the same browser PushSubscription.
-	Auth string `protobuf:"bytes,2,opt,name=auth,proto3" json:"auth,omitempty"`
-	// Per-save capability supplied with the original Subscribe request. Cleanup
-	// is a no-op after any later save replaces this token.
-	CleanupToken  string `protobuf:"bytes,3,opt,name=cleanup_token,json=cleanupToken,proto3" json:"cleanup_token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) Reset() {
-	*x = DeletePushSubscriptionByCapabilityRequest{}
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeletePushSubscriptionByCapabilityRequest) ProtoMessage() {}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeletePushSubscriptionByCapabilityRequest.ProtoReflect.Descriptor instead.
-func (*DeletePushSubscriptionByCapabilityRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{4}
-}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) GetEndpoint() string {
-	if x != nil {
-		return x.Endpoint
-	}
-	return ""
-}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) GetAuth() string {
-	if x != nil {
-		return x.Auth
-	}
-	return ""
-}
-
-func (x *DeletePushSubscriptionByCapabilityRequest) GetCleanupToken() string {
-	if x != nil {
-		return x.CleanupToken
-	}
-	return ""
-}
-
-// Response from capability-authenticated subscription cleanup.
-type DeletePushSubscriptionByCapabilityResponse struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// True when the idempotent cleanup request completed. It does not reveal
-	// whether a matching subscription existed.
-	Completed     bool `protobuf:"varint,1,opt,name=completed,proto3" json:"completed,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
-}
-
-func (x *DeletePushSubscriptionByCapabilityResponse) Reset() {
-	*x = DeletePushSubscriptionByCapabilityResponse{}
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
-	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-	ms.StoreMessageInfo(mi)
-}
-
-func (x *DeletePushSubscriptionByCapabilityResponse) String() string {
-	return protoimpl.X.MessageStringOf(x)
-}
-
-func (*DeletePushSubscriptionByCapabilityResponse) ProtoMessage() {}
-
-func (x *DeletePushSubscriptionByCapabilityResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
-	if x != nil {
-		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
-		if ms.LoadMessageInfo() == nil {
-			ms.StoreMessageInfo(mi)
-		}
-		return ms
-	}
-	return mi.MessageOf(x)
-}
-
-// Deprecated: Use DeletePushSubscriptionByCapabilityResponse.ProtoReflect.Descriptor instead.
-func (*DeletePushSubscriptionByCapabilityResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{5}
-}
-
-func (x *DeletePushSubscriptionByCapabilityResponse) GetCompleted() bool {
-	if x != nil {
-		return x.Completed
-	}
-	return false
-}
-
 // Request to test the current user's registered browser push subscriptions.
 type SendTestPushNotificationRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -379,7 +266,7 @@ type SendTestPushNotificationRequest struct {
 
 func (x *SendTestPushNotificationRequest) Reset() {
 	*x = SendTestPushNotificationRequest{}
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -391,7 +278,7 @@ func (x *SendTestPushNotificationRequest) String() string {
 func (*SendTestPushNotificationRequest) ProtoMessage() {}
 
 func (x *SendTestPushNotificationRequest) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[6]
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[4]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -404,7 +291,7 @@ func (x *SendTestPushNotificationRequest) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendTestPushNotificationRequest.ProtoReflect.Descriptor instead.
 func (*SendTestPushNotificationRequest) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{6}
+	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{4}
 }
 
 // Result of sending a test Web Push notification.
@@ -418,7 +305,7 @@ type SendTestPushNotificationResponse struct {
 
 func (x *SendTestPushNotificationResponse) Reset() {
 	*x = SendTestPushNotificationResponse{}
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -430,7 +317,7 @@ func (x *SendTestPushNotificationResponse) String() string {
 func (*SendTestPushNotificationResponse) ProtoMessage() {}
 
 func (x *SendTestPushNotificationResponse) ProtoReflect() protoreflect.Message {
-	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[7]
+	mi := &file_chatto_api_v1_push_notifications_proto_msgTypes[5]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -443,7 +330,7 @@ func (x *SendTestPushNotificationResponse) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use SendTestPushNotificationResponse.ProtoReflect.Descriptor instead.
 func (*SendTestPushNotificationResponse) Descriptor() ([]byte, []int) {
-	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{7}
+	return file_chatto_api_v1_push_notifications_proto_rawDescGZIP(), []int{5}
 }
 
 func (x *SendTestPushNotificationResponse) GetSent() bool {
@@ -481,23 +368,13 @@ const file_chatto_api_v1_push_notifications_proto_rawDesc = "" +
 	"\bendpoint\x18\x01 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\"=\n" +
 	"\x17UnsubscribePushResponse\x12\"\n" +
-	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed\"\xa4\x01\n" +
-	")DeletePushSubscriptionByCapabilityRequest\x12&\n" +
-	"\bendpoint\x18\x01 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80 R\bendpoint\x12\x1e\n" +
-	"\x04auth\x18\x02 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x01R\x04auth\x12/\n" +
-	"\rcleanup_token\x18\x03 \x01(\tB\n" +
-	"\xbaH\ar\x05\x10 \x18\x80\x01R\fcleanupToken\"J\n" +
-	"*DeletePushSubscriptionByCapabilityResponse\x12\x1c\n" +
-	"\tcompleted\x18\x01 \x01(\bR\tcompleted\"!\n" +
+	"\funsubscribed\x18\x01 \x01(\bR\funsubscribed\"!\n" +
 	"\x1fSendTestPushNotificationRequest\"6\n" +
 	" SendTestPushNotificationResponse\x12\x12\n" +
-	"\x04sent\x18\x01 \x01(\bR\x04sent2\xea\x03\n" +
+	"\x04sent\x18\x01 \x01(\bR\x04sent2\xcd\x02\n" +
 	"\x17PushNotificationService\x12V\n" +
 	"\tSubscribe\x12#.chatto.api.v1.SubscribePushRequest\x1a$.chatto.api.v1.SubscribePushResponse\x12a\n" +
-	"\vUnsubscribe\x12%.chatto.api.v1.UnsubscribePushRequest\x1a&.chatto.api.v1.UnsubscribePushResponse\"\x03\x90\x02\x02\x12\x9a\x01\n" +
-	"\x1eDeleteSubscriptionByCapability\x128.chatto.api.v1.DeletePushSubscriptionByCapabilityRequest\x1a9.chatto.api.v1.DeletePushSubscriptionByCapabilityResponse\"\x03\x90\x02\x02\x12w\n" +
+	"\vUnsubscribe\x12%.chatto.api.v1.UnsubscribePushRequest\x1a&.chatto.api.v1.UnsubscribePushResponse\"\x03\x90\x02\x02\x12w\n" +
 	"\x14SendTestNotification\x12..chatto.api.v1.SendTestPushNotificationRequest\x1a/.chatto.api.v1.SendTestPushNotificationResponseB\xb2\x01\n" +
 	"\x11com.chatto.api.v1B\x16PushNotificationsProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"
 
@@ -513,28 +390,24 @@ func file_chatto_api_v1_push_notifications_proto_rawDescGZIP() []byte {
 	return file_chatto_api_v1_push_notifications_proto_rawDescData
 }
 
-var file_chatto_api_v1_push_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_chatto_api_v1_push_notifications_proto_msgTypes = make([]protoimpl.MessageInfo, 6)
 var file_chatto_api_v1_push_notifications_proto_goTypes = []any{
-	(*SubscribePushRequest)(nil),                       // 0: chatto.api.v1.SubscribePushRequest
-	(*SubscribePushResponse)(nil),                      // 1: chatto.api.v1.SubscribePushResponse
-	(*UnsubscribePushRequest)(nil),                     // 2: chatto.api.v1.UnsubscribePushRequest
-	(*UnsubscribePushResponse)(nil),                    // 3: chatto.api.v1.UnsubscribePushResponse
-	(*DeletePushSubscriptionByCapabilityRequest)(nil),  // 4: chatto.api.v1.DeletePushSubscriptionByCapabilityRequest
-	(*DeletePushSubscriptionByCapabilityResponse)(nil), // 5: chatto.api.v1.DeletePushSubscriptionByCapabilityResponse
-	(*SendTestPushNotificationRequest)(nil),            // 6: chatto.api.v1.SendTestPushNotificationRequest
-	(*SendTestPushNotificationResponse)(nil),           // 7: chatto.api.v1.SendTestPushNotificationResponse
+	(*SubscribePushRequest)(nil),             // 0: chatto.api.v1.SubscribePushRequest
+	(*SubscribePushResponse)(nil),            // 1: chatto.api.v1.SubscribePushResponse
+	(*UnsubscribePushRequest)(nil),           // 2: chatto.api.v1.UnsubscribePushRequest
+	(*UnsubscribePushResponse)(nil),          // 3: chatto.api.v1.UnsubscribePushResponse
+	(*SendTestPushNotificationRequest)(nil),  // 4: chatto.api.v1.SendTestPushNotificationRequest
+	(*SendTestPushNotificationResponse)(nil), // 5: chatto.api.v1.SendTestPushNotificationResponse
 }
 var file_chatto_api_v1_push_notifications_proto_depIdxs = []int32{
 	0, // 0: chatto.api.v1.PushNotificationService.Subscribe:input_type -> chatto.api.v1.SubscribePushRequest
 	2, // 1: chatto.api.v1.PushNotificationService.Unsubscribe:input_type -> chatto.api.v1.UnsubscribePushRequest
-	4, // 2: chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability:input_type -> chatto.api.v1.DeletePushSubscriptionByCapabilityRequest
-	6, // 3: chatto.api.v1.PushNotificationService.SendTestNotification:input_type -> chatto.api.v1.SendTestPushNotificationRequest
-	1, // 4: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribePushResponse
-	3, // 5: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribePushResponse
-	5, // 6: chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability:output_type -> chatto.api.v1.DeletePushSubscriptionByCapabilityResponse
-	7, // 7: chatto.api.v1.PushNotificationService.SendTestNotification:output_type -> chatto.api.v1.SendTestPushNotificationResponse
-	4, // [4:8] is the sub-list for method output_type
-	0, // [0:4] is the sub-list for method input_type
+	4, // 2: chatto.api.v1.PushNotificationService.SendTestNotification:input_type -> chatto.api.v1.SendTestPushNotificationRequest
+	1, // 3: chatto.api.v1.PushNotificationService.Subscribe:output_type -> chatto.api.v1.SubscribePushResponse
+	3, // 4: chatto.api.v1.PushNotificationService.Unsubscribe:output_type -> chatto.api.v1.UnsubscribePushResponse
+	5, // 5: chatto.api.v1.PushNotificationService.SendTestNotification:output_type -> chatto.api.v1.SendTestPushNotificationResponse
+	3, // [3:6] is the sub-list for method output_type
+	0, // [0:3] is the sub-list for method input_type
 	0, // [0:0] is the sub-list for extension type_name
 	0, // [0:0] is the sub-list for extension extendee
 	0, // [0:0] is the sub-list for field type_name
@@ -552,7 +425,7 @@ func file_chatto_api_v1_push_notifications_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_api_v1_push_notifications_proto_rawDesc), len(file_chatto_api_v1_push_notifications_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   8,
+			NumMessages:   6,
 			NumExtensions: 0,
 			NumServices:   1,
 		},
