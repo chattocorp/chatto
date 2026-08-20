@@ -261,10 +261,12 @@ authorization, live events, backup/restore, and backend tests.
   target aggregate's OCC retry. Request-time authorization is the default: a
   conflict-free command may finish after a concurrent cross-aggregate
   revocation. Commands that require strict commit-time revocation semantics
-  must also guard the narrow authorization fence and keep its writer
-  classification complete. Use ADR-068's whole-EVT boundary only for a genuine
-  stream-wide invariant whose cost is worth contention with unrelated `evt.>`
-  traffic, and record exceptional consistency choices in the relevant ADR/FDR.
+  must also guard the narrow authorization fence, keep its writer classification
+  complete, and wait every projection consulted by authorization through the
+  relevant captured subject tail inside the retry. Use ADR-068's whole-EVT
+  boundary only for a genuine stream-wide invariant whose cost is worth
+  contention with unrelated `evt.>` traffic, and record exceptional consistency
+  choices in the relevant ADR/FDR.
 
 ## Admin Interface
 

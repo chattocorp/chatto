@@ -229,6 +229,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Pagination, Lists, And Realtime UI
 
+- When adapting canonical users or members for avatar-bearing UI, preserve
+  identity fields such as `accountKind`; prefer the shared `UserAvatar` and
+  `UserAvatarUserView` shapes over surface-local copies.
+
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query
   keys by server and connection session, keep the cache memory-only, and purge
