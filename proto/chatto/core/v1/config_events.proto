@@ -70,7 +70,7 @@ message UserTimeFormatClearedEvent {
 }
 
 // Legacy Notifications 1.0 fact retained only so existing EVT histories remain
-// decodable. Current writers emit UserNotificationPreferenceChangedEvent.
+// decodable. Current writers emit UserNotificationPolicyChangedEvent.
 message UserServerNotificationLevelSetEvent {
   string user_id = 1;
   NotificationLevel level = 2;
@@ -94,13 +94,12 @@ message UserRoomNotificationLevelClearedEvent {
   string room_id = 2;
 }
 
-// Records one server- or room-scoped notification policy override. An absent
-// room_id selects server scope; an absent override clears it.
-message UserNotificationPreferenceChangedEvent {
+// Replaces the complete server- or room-scoped notification policy overrides.
+// An absent room_id selects server scope.
+message UserNotificationPolicyChangedEvent {
   string user_id = 1;
-  NotificationPreferenceCategory category = 2;
-  optional NotificationDeliveryMode override = 3;
-  optional string room_id = 4;
+  NotificationDeliveryModes overrides = 2;
+  optional string room_id = 3;
 }
 
 // Notifies clients that server configuration was updated.

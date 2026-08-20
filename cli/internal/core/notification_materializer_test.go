@@ -26,7 +26,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, notificationTestSignalAll, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 
@@ -60,7 +60,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 		t.Fatalf("WaitCurrent: %v", err)
 	}
 	occurrences := testNotificationOccurrences(t, chattoCore, lateMember.Id)
-	if len(occurrences) != 1 || notificationSignalPreferenceCategory(occurrences[0].GetSignal()) != corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL {
+	if len(occurrences) != 1 || notificationTestSignalKind(notificationSignalIdentity(occurrences[0].GetSignal())) != notificationTestSignalAll {
 		t.Fatalf("late member occurrences = %+v", occurrences)
 	}
 }
@@ -85,7 +85,7 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
 		t.Fatal(err)
 	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@signal-recipient two causes", nil, "", "", nil, false)
@@ -99,14 +99,14 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 	if len(occurrences) != 2 {
 		t.Fatalf("occurrences = %+v, want two exact signals", occurrences)
 	}
-	kinds := []corev1.NotificationPreferenceCategory{
-		notificationSignalPreferenceCategory(occurrences[0].GetSignal()),
-		notificationSignalPreferenceCategory(occurrences[1].GetSignal()),
+	kinds := []notificationTestSignalKind{
+		notificationTestSignalKind(notificationSignalIdentity(occurrences[0].GetSignal())),
+		notificationTestSignalKind(notificationSignalIdentity(occurrences[1].GetSignal())),
 	}
 	slices.Sort(kinds)
-	want := []corev1.NotificationPreferenceCategory{
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM,
+	want := []notificationTestSignalKind{
+		notificationTestSignalDirectMention,
+		notificationTestSignalFollowedRoom,
 	}
 	if !slices.Equal(kinds, want) || occurrences[0].GetSourceEventId() != posted.GetId() || occurrences[0].GetId() == occurrences[1].GetId() {
 		t.Fatalf("signal kinds/identities = (%v, %+v)", kinds, occurrences)

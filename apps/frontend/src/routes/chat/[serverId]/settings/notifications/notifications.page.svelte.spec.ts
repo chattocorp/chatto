@@ -11,8 +11,8 @@ const mocks = vi.hoisted(() => ({
   playNotificationSound: vi.fn(),
   activeServerId: 'origin',
   notifications: {
-    getPolicy: vi.fn().mockResolvedValue([]),
-    setPolicyPreference: vi.fn().mockResolvedValue([])
+    getPolicy: vi.fn().mockResolvedValue(null),
+    updatePolicy: vi.fn().mockResolvedValue(null)
   },
   serverInfo: {
     pushNotificationsEnabled: false,
@@ -112,9 +112,9 @@ describe('Notification settings page', () => {
     mocks.activeServerId = 'origin';
     mocks.playNotificationSound.mockClear();
     mocks.notifications.getPolicy.mockClear();
-    mocks.notifications.getPolicy.mockResolvedValue([]);
-    mocks.notifications.setPolicyPreference.mockClear();
-    mocks.notifications.setPolicyPreference.mockResolvedValue([]);
+    mocks.notifications.getPolicy.mockResolvedValue(null);
+    mocks.notifications.updatePolicy.mockClear();
+    mocks.notifications.updatePolicy.mockResolvedValue(null);
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
     mocks.pushNotifications.ensureRegistered.mockReset();

@@ -115,6 +115,12 @@ For public API packages:
   nested message and add an `exists` boolean to recover that distinction; add a
   scalar existence field only when presence and existence are independent facts.
 - Avoid parallel `*_present` booleans for simple scalar presence.
+- Prefer schema over meta-schema for finite, product-defined concepts. When
+  callers independently configure a closed set of capabilities, model each
+  capability as an explicit field instead of repeated enum-keyed rows. Use
+  keyed rows for intentionally dynamic or externally extensible keyspaces. If
+  an enum mirrors the branches of a `oneof`, treat that as a design smell and
+  document why the mirrored taxonomy is an independent domain concept.
 - Use enums or oneofs only when modeling multiple meaningful availability states
   or mutually exclusive request targets.
 - When one operation targets the same resource by multiple equivalent

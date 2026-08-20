@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 
 	"hmans.de/chatto/internal/config"
@@ -712,12 +713,14 @@ func TestConnectServicesRejectDMOutsiders(t *testing.T) {
 	}))
 	checkInaccessible("GetNotificationPolicy", err)
 
-	_, err = env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
-		RoomId:   &roomID,
-		Category: apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
-		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
+	_, err = env.notifications.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.UpdateNotificationPolicyRequest{
+		RoomId: &roomID,
+		Overrides: &apiv1.NotificationDeliveryModes{
+			DirectMessages: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 	}))
-	checkInaccessible("SetNotificationPolicyPreference", err)
+	checkInaccessible("UpdateNotificationPolicy", err)
 }
 
 func TestRoomDirectoryServiceListRoomsVisibilityAndDMs(t *testing.T) {
@@ -1557,22 +1560,18 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 		t.Fatalf("list after delete all = %+v, %v, want empty", afterDeleteAll, err)
 	}
 
-	policy, err := env.notifications.SetNotificationPolicyPreference(ctx, connect.NewRequest(&apiv1.SetNotificationPolicyPreferenceRequest{
-		Category: apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
-		Override: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
+	policy, err := env.notifications.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.UpdateNotificationPolicyRequest{
+		Overrides: &apiv1.NotificationDeliveryModes{
+			DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
+		},
+		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"direct_mentions"}},
 	}))
 	if err != nil {
-		t.Fatalf("SetNotificationPolicyPreference: %v", err)
+		t.Fatalf("UpdateNotificationPolicy: %v", err)
 	}
-	found := false
-	for _, preference := range policy.Msg.GetPreferences() {
-		if preference.GetCategory() == apiv1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION {
-			found = preference.GetOverride() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT &&
-				preference.GetEffective() == apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT
-		}
-	}
-	if !found {
-		t.Fatalf("notification policy = %+v, want direct mention Silent", policy.Msg.GetPreferences())
+	if policy.Msg.GetPolicy().GetOverrides().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT ||
+		policy.Msg.GetPolicy().GetEffective().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
+		t.Fatalf("notification policy = %+v, want direct mention Silent", policy.Msg.GetPolicy())
 	}
 }
 
@@ -1643,7 +1642,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceCreated:        posted.GetCreatedAt().AsTime(),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, dm.Id, posted.Id),
+			Signal:               testNotificationSignal(notificationTestSignalDirectMention, dm.Id, posted.Id),
 			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
@@ -1777,7 +1776,7 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceCreated:        posted.GetCreatedAt().AsTime(),
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
-		Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
 		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
@@ -1836,7 +1835,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceCreated:        baseTime.Add(-time.Duration(index) * time.Second),
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
 			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
@@ -1891,7 +1890,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceCreated:        sourceCreated,
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
-			Signal:               testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.Id),
+			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
 			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -251,7 +252,7 @@ func applyNotificationDecisionState(
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_UserNotificationPreferenceChanged:
+	case *corev1.Event_UserNotificationPolicyChanged:
 		if err := config.Apply(event, seq); err != nil {
 			return err
 		}
@@ -559,12 +560,24 @@ func notificationPolicyEntryCount(config *ConfigProjection) int64 {
 	config.RLock()
 	defer config.RUnlock()
 	for _, user := range config.users {
-		entries += int64(len(user.serverModeByCategory))
-		for _, room := range user.roomModeByRoomAndCategory {
-			entries += int64(len(room))
+		entries += notificationDeliveryModeFieldCount(user.serverModes)
+		for _, room := range user.roomModesByRoom {
+			entries += notificationDeliveryModeFieldCount(room)
 		}
 	}
 	return entries
+}
+
+func notificationDeliveryModeFieldCount(modes *corev1.NotificationDeliveryModes) int64 {
+	if modes == nil {
+		return 0
+	}
+	var count int64
+	modes.ProtoReflect().Range(func(protoreflect.FieldDescriptor, protoreflect.Value) bool {
+		count++
+		return true
+	})
+	return count
 }
 
 // cappedNotificationDecisionSnapshotSource prevents projection restore from
@@ -649,18 +662,18 @@ func (s *notificationDecisionSnapshot) threadFollowState(userID, roomID, threadR
 	return s.threadFollows[userID+"\x00"+threadFollowKeyPart(roomID, threadRootEventID)].state
 }
 
-func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, kind corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
+func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID string, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
 	s.config.RLock()
 	defer s.config.RUnlock()
 	if user := s.config.users[userID]; user != nil {
-		if mode := user.roomModeByRoomAndCategory[roomID][kind]; mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
-		if mode := user.serverModeByCategory[kind]; mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+		if mode := notificationModeForSignal(user.serverModes, signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
 		}
 	}
-	return defaultNotificationMode(kind)
+	return notificationModeForSignal(effectiveNotificationDeliveryModes(nil, nil), signal)
 }
 
 func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) bool {

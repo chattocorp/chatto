@@ -45,31 +45,30 @@ export interface E2EServerRole {
   permissionDenials: string[];
 }
 
-export type E2ENotificationPreferenceCategory =
-  | 'DIRECT_MESSAGE'
-  | 'DIRECT_MENTION'
-  | 'REPLY'
-  | 'ROLE_MENTION'
-  | 'HERE'
-  | 'ALL'
-  | 'FOLLOWED_THREAD'
-  | 'FOLLOWED_ROOM'
-  | 'REACTION';
-
 export type E2ENotificationMode = 'UNSPECIFIED' | 'OFF' | 'SILENT' | 'ALERT';
 
-export interface E2ENotificationPolicyPreference {
-  category: E2ENotificationPreferenceCategory;
-  override: E2ENotificationMode;
-  effective: E2ENotificationMode;
+type E2ENotificationPolicyShape<Value> = {
+  directMessages: Value;
+  directMentions: Value;
+  replies: Value;
+  roleMentions: Value;
+  hereMentions: Value;
+  allMentions: Value;
+  followedThreads: Value;
+  followedRooms: Value;
+  reactions: Value;
+};
+
+export interface E2ENotificationPolicy {
+  overrides: E2ENotificationPolicyShape<E2ENotificationMode | null>;
+  effective: E2ENotificationPolicyShape<E2ENotificationMode>;
 }
 
 interface NotificationPolicyResponse {
-  preferences?: Array<{
-    category?: unknown;
-    override?: unknown;
-    effective?: unknown;
-  }>;
+  policy?: {
+    overrides?: Partial<E2ENotificationPolicyShape<unknown>>;
+    effective?: Partial<E2ENotificationPolicyShape<unknown>>;
+  };
 }
 
 interface ListRoomsResponse {
@@ -102,18 +101,6 @@ interface ViewerResponse {
 interface GetUserResponse {
   user?: { profile?: { user?: { id?: string } } };
 }
-
-const notificationKindByNumber: Record<number, E2ENotificationPreferenceCategory> = {
-  1: 'DIRECT_MESSAGE',
-  2: 'DIRECT_MENTION',
-  3: 'REPLY',
-  4: 'ROLE_MENTION',
-  5: 'HERE',
-  6: 'ALL',
-  7: 'FOLLOWED_THREAD',
-  8: 'FOLLOWED_ROOM',
-  9: 'REACTION'
-};
 
 const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
@@ -388,7 +375,7 @@ async function postMessageWithConnectInput(page: Page, input: ConnectRequest): P
 export async function getNotificationPolicy(
   page: Page,
   roomId?: string
-): Promise<E2ENotificationPolicyPreference[]> {
+): Promise<E2ENotificationPolicy> {
   const data = await connectPost<NotificationPolicyResponse>(
     page,
     'chatto.api.v1.NotificationService/GetNotificationPolicy',
@@ -397,48 +384,63 @@ export async function getNotificationPolicy(
   return normalizeNotificationPolicy(data);
 }
 
-export async function setNotificationPolicyPreference(
+export async function updateNotificationPolicy(
   page: Page,
-  category: E2ENotificationPreferenceCategory,
-  mode: E2ENotificationMode,
+  patch: Partial<E2ENotificationPolicyShape<E2ENotificationMode | null>>,
   roomId?: string
-): Promise<E2ENotificationPolicyPreference[]> {
+): Promise<E2ENotificationPolicy> {
+  const fields = Object.keys(patch) as Array<keyof typeof patch>;
+  const overrides = Object.fromEntries(
+    fields.flatMap((field) => {
+      const mode = patch[field];
+      return mode === null || mode === undefined
+        ? []
+        : [[field, `NOTIFICATION_DELIVERY_MODE_${mode}`]];
+    })
+  );
   const data = await connectPost<NotificationPolicyResponse>(
     page,
-    'chatto.api.v1.NotificationService/SetNotificationPolicyPreference',
+    'chatto.api.v1.NotificationService/UpdateNotificationPolicy',
     {
       ...(roomId ? { roomId } : {}),
-      category: `NOTIFICATION_PREFERENCE_CATEGORY_${category}`,
-      ...(mode === 'UNSPECIFIED'
-        ? {}
-        : { override: `NOTIFICATION_DELIVERY_MODE_${mode}` })
+      overrides,
+      updateMask: fields.join(',')
     }
   );
   return normalizeNotificationPolicy(data);
 }
 
-function normalizeNotificationPolicy(
-  data: NotificationPolicyResponse
-): E2ENotificationPolicyPreference[] {
-  return (data.preferences ?? []).map((preference) => ({
-    category: normalizeNotificationPreferenceCategory(preference.category),
-    override: normalizeNotificationMode(preference.override),
-    effective: normalizeNotificationMode(preference.effective)
-  }));
+function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotificationPolicy {
+  const overrides = data.policy?.overrides;
+  const effective = data.policy?.effective;
+  return {
+    overrides: {
+      directMessages: normalizeNotificationOverride(overrides?.directMessages),
+      directMentions: normalizeNotificationOverride(overrides?.directMentions),
+      replies: normalizeNotificationOverride(overrides?.replies),
+      roleMentions: normalizeNotificationOverride(overrides?.roleMentions),
+      hereMentions: normalizeNotificationOverride(overrides?.hereMentions),
+      allMentions: normalizeNotificationOverride(overrides?.allMentions),
+      followedThreads: normalizeNotificationOverride(overrides?.followedThreads),
+      followedRooms: normalizeNotificationOverride(overrides?.followedRooms),
+      reactions: normalizeNotificationOverride(overrides?.reactions)
+    },
+    effective: {
+      directMessages: normalizeNotificationMode(effective?.directMessages),
+      directMentions: normalizeNotificationMode(effective?.directMentions),
+      replies: normalizeNotificationMode(effective?.replies),
+      roleMentions: normalizeNotificationMode(effective?.roleMentions),
+      hereMentions: normalizeNotificationMode(effective?.hereMentions),
+      allMentions: normalizeNotificationMode(effective?.allMentions),
+      followedThreads: normalizeNotificationMode(effective?.followedThreads),
+      followedRooms: normalizeNotificationMode(effective?.followedRooms),
+      reactions: normalizeNotificationMode(effective?.reactions)
+    }
+  };
 }
 
-function normalizeNotificationPreferenceCategory(value: unknown): E2ENotificationPreferenceCategory {
-  if (typeof value === 'number' && Number.isInteger(value)) {
-    const kind = notificationKindByNumber[value];
-    if (kind) return kind;
-  }
-
-  if (typeof value === 'string') {
-    const compact = value.replace(/^NOTIFICATION_PREFERENCE_CATEGORY_/, '') as E2ENotificationPreferenceCategory;
-    if (Object.values(notificationKindByNumber).includes(compact)) return compact;
-  }
-
-  throw new Error(`Unexpected notification policy category: ${String(value)}`);
+function normalizeNotificationOverride(value: unknown): E2ENotificationMode | null {
+  return value === undefined || value === null ? null : normalizeNotificationMode(value);
 }
 
 function normalizeNotificationMode(value: unknown): E2ENotificationMode {
@@ -449,10 +451,7 @@ function normalizeNotificationMode(value: unknown): E2ENotificationMode {
   }
 
   if (typeof value === 'string') {
-    const compact = value.replace(
-      /^NOTIFICATION_DELIVERY_MODE_/,
-      ''
-    ) as E2ENotificationMode;
+    const compact = value.replace(/^NOTIFICATION_DELIVERY_MODE_/, '') as E2ENotificationMode;
     if (Object.values(notificationModeByNumber).includes(compact)) return compact;
   }
 

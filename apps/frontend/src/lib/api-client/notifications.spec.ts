@@ -3,20 +3,51 @@ import {
   createNotificationAPI,
   groupNotificationOccurrences,
   NotificationAttentionLevel,
+  NotificationDeliveryMode,
   NotificationSignalKind,
   type NotificationOccurrenceItem
 } from './notifications';
 
 const batchDeleteNotificationOccurrences = vi.hoisted(() => vi.fn());
+const getNotificationPolicy = vi.hoisted(() => vi.fn());
+const updateNotificationPolicy = vi.hoisted(() => vi.fn());
 
 vi.mock('./connect.js', () => ({
   authHeaders: () => new Headers(),
-  createChattoClient: () => ({ batchDeleteNotificationOccurrences })
+  createChattoClient: () => ({
+    batchDeleteNotificationOccurrences,
+    getNotificationPolicy,
+    updateNotificationPolicy
+  })
 }));
 
 beforeEach(() => {
   batchDeleteNotificationOccurrences.mockReset();
+  getNotificationPolicy.mockReset();
+  updateNotificationPolicy.mockReset();
 });
+
+function policyResponse() {
+  return {
+    policy: {
+      overrides: {
+        directMessages: NotificationDeliveryMode.ALERT,
+        followedRooms: NotificationDeliveryMode.SILENT
+      },
+      effective: {
+        directMessages: NotificationDeliveryMode.ALERT,
+        directMentions: NotificationDeliveryMode.ALERT,
+        replies: NotificationDeliveryMode.ALERT,
+        roleMentions: NotificationDeliveryMode.ALERT,
+        hereMentions: NotificationDeliveryMode.ALERT,
+        allMentions: NotificationDeliveryMode.ALERT,
+        followedThreads: NotificationDeliveryMode.SILENT,
+        followedRooms: NotificationDeliveryMode.SILENT,
+        reactions: NotificationDeliveryMode.SILENT
+      }
+    }
+  };
+}
 
 function occurrence(
   id: string,
@@ -154,5 +185,63 @@ describe('notification deletion API', () => {
     ).rejects.toThrow('second chunk failed');
 
     expect(batchDeleteNotificationOccurrences).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe('notification policy API', () => {
+  it('normalizes explicit policy fields and absent overrides', async () => {
+    getNotificationPolicy.mockResolvedValue(policyResponse());
+
+    const policy = await createNotificationAPI({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    }).getNotificationPolicy('room-1');
+
+    expect(getNotificationPolicy).toHaveBeenCalledWith(
+      { roomId: 'room-1' },
+      { headers: expect.any(Headers) }
+    );
+    expect(policy.overrides).toMatchObject({
+      directMessages: NotificationDeliveryMode.ALERT,
+      directMentions: null,
+      followedRooms: NotificationDeliveryMode.SILENT,
+      reactions: null
+    });
+    expect(policy.effective.reactions).toBe(NotificationDeliveryMode.SILENT);
+  });
+
+  it('sends exact field-mask paths and omits cleared override values', async () => {
+    updateNotificationPolicy.mockResolvedValue(policyResponse());
+
+    await createNotificationAPI({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    }).updateNotificationPolicy(
+      {
+        directMessages: NotificationDeliveryMode.OFF,
+        reactions: null
+      },
+      'room-1'
+    );
+
+    expect(updateNotificationPolicy).toHaveBeenCalledWith(
+      {
+        roomId: 'room-1',
+        overrides: { directMessages: NotificationDeliveryMode.OFF },
+        updateMask: { paths: ['direct_messages', 'reactions'] }
+      },
+      { headers: expect.any(Headers) }
+    );
+  });
+
+  it('rejects an empty policy patch without issuing a request', async () => {
+    await expect(
+      createNotificationAPI({
+        baseUrl: '/api/connect',
+        bearerToken: null
+      }).updateNotificationPolicy({})
+    ).rejects.toThrow('Notification policy update is empty');
+
+    expect(updateNotificationPolicy).not.toHaveBeenCalled();
   });
 });

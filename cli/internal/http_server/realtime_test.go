@@ -16,6 +16,7 @@ import (
 
 	"github.com/gorilla/websocket"
 	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/connectapi"
@@ -2321,14 +2322,16 @@ func TestRealtimeWebSocketThreadReplyUpdatesRootSummary(t *testing.T) {
 	if err != nil || !following {
 		t.Fatalf("IsFollowingThread after FollowThread = %v, %v, want true", following, err)
 	}
-	if _, err := env.core.NotificationPolicy().SetRoomNotificationMode(
+	if _, err := env.core.NotificationPolicy().UpdateNotificationPolicy(
 		env.ctx,
 		user.Id,
 		room.Id,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		&corev1.NotificationDeliveryModes{
+			FollowedThreads: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
+		},
+		&fieldmaskpb.FieldMask{Paths: []string{"followed_threads"}},
 	); err != nil {
-		t.Fatalf("SetRoomNotificationMode: %v", err)
+		t.Fatalf("UpdateNotificationPolicy: %v", err)
 	}
 	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
 	if err != nil {

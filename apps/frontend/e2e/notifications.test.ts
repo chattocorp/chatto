@@ -13,10 +13,7 @@ import {
 } from './fixtures/serverUser';
 import * as routes from './routes';
 import { POLLING_INTERVALS, TIMEOUTS } from './constants';
-import {
-  getRoomIdByNameViaConnect,
-  setNotificationPolicyPreference
-} from './fixtures/connectHelpers';
+import { getRoomIdByNameViaConnect, updateNotificationPolicy } from './fixtures/connectHelpers';
 
 test.describe('Mention Notifications', () => {
   // Note: Toast notifications for mentions were removed - the bell icon with notification badge
@@ -163,7 +160,7 @@ test.describe('Followed room notifications', () => {
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
-    await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', generalRoomId);
+    await updateNotificationPolicy(page, { followedRooms: 'ALERT' }, generalRoomId);
 
     await chatPage.goto();
     await chatPage.enterRoom('announcements');

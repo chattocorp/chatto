@@ -594,7 +594,7 @@ func (x *UserTimeFormatClearedEvent) GetUserId() string {
 }
 
 // Legacy Notifications 1.0 fact retained only so existing EVT histories remain
-// decodable. Current writers emit UserNotificationPreferenceChangedEvent.
+// decodable. Current writers emit UserNotificationPolicyChangedEvent.
 type UserServerNotificationLevelSetEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -806,32 +806,31 @@ func (x *UserRoomNotificationLevelClearedEvent) GetRoomId() string {
 	return ""
 }
 
-// Records one server- or room-scoped notification policy override. An absent
-// room_id selects server scope; an absent override clears it.
-type UserNotificationPreferenceChangedEvent struct {
-	state         protoimpl.MessageState         `protogen:"open.v1"`
-	UserId        string                         `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
-	Category      NotificationPreferenceCategory `protobuf:"varint,2,opt,name=category,proto3,enum=chatto.core.v1.NotificationPreferenceCategory" json:"category,omitempty"`
-	Override      *NotificationDeliveryMode      `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.core.v1.NotificationDeliveryMode,oneof" json:"override,omitempty"`
-	RoomId        *string                        `protobuf:"bytes,4,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
+// Replaces the complete server- or room-scoped notification policy overrides.
+// An absent room_id selects server scope.
+type UserNotificationPolicyChangedEvent struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	UserId        string                     `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	Overrides     *NotificationDeliveryModes `protobuf:"bytes,2,opt,name=overrides,proto3" json:"overrides,omitempty"`
+	RoomId        *string                    `protobuf:"bytes,3,opt,name=room_id,json=roomId,proto3,oneof" json:"room_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
 
-func (x *UserNotificationPreferenceChangedEvent) Reset() {
-	*x = UserNotificationPreferenceChangedEvent{}
+func (x *UserNotificationPolicyChangedEvent) Reset() {
+	*x = UserNotificationPolicyChangedEvent{}
 	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
 
-func (x *UserNotificationPreferenceChangedEvent) String() string {
+func (x *UserNotificationPolicyChangedEvent) String() string {
 	return protoimpl.X.MessageStringOf(x)
 }
 
-func (*UserNotificationPreferenceChangedEvent) ProtoMessage() {}
+func (*UserNotificationPolicyChangedEvent) ProtoMessage() {}
 
-func (x *UserNotificationPreferenceChangedEvent) ProtoReflect() protoreflect.Message {
+func (x *UserNotificationPolicyChangedEvent) ProtoReflect() protoreflect.Message {
 	mi := &file_chatto_core_v1_config_events_proto_msgTypes[17]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
@@ -843,33 +842,26 @@ func (x *UserNotificationPreferenceChangedEvent) ProtoReflect() protoreflect.Mes
 	return mi.MessageOf(x)
 }
 
-// Deprecated: Use UserNotificationPreferenceChangedEvent.ProtoReflect.Descriptor instead.
-func (*UserNotificationPreferenceChangedEvent) Descriptor() ([]byte, []int) {
+// Deprecated: Use UserNotificationPolicyChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserNotificationPolicyChangedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{17}
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetUserId() string {
+func (x *UserNotificationPolicyChangedEvent) GetUserId() string {
 	if x != nil {
 		return x.UserId
 	}
 	return ""
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetCategory() NotificationPreferenceCategory {
+func (x *UserNotificationPolicyChangedEvent) GetOverrides() *NotificationDeliveryModes {
 	if x != nil {
-		return x.Category
+		return x.Overrides
 	}
-	return NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
+	return nil
 }
 
-func (x *UserNotificationPreferenceChangedEvent) GetOverride() NotificationDeliveryMode {
-	if x != nil && x.Override != nil {
-		return *x.Override
-	}
-	return NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-}
-
-func (x *UserNotificationPreferenceChangedEvent) GetRoomId() string {
+func (x *UserNotificationPolicyChangedEvent) GetRoomId() string {
 	if x != nil && x.RoomId != nil {
 		return *x.RoomId
 	}
@@ -919,13 +911,11 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\x05level\x18\x03 \x01(\x0e2!.chatto.core.v1.NotificationLevelR\x05level\"Y\n" +
 	"%UserRoomNotificationLevelClearedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x17\n" +
-	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\x8f\x02\n" +
-	"&UserNotificationPreferenceChangedEvent\x12\x17\n" +
-	"\auser_id\x18\x01 \x01(\tR\x06userId\x12J\n" +
-	"\bcategory\x18\x02 \x01(\x0e2..chatto.core.v1.NotificationPreferenceCategoryR\bcategory\x12I\n" +
-	"\boverride\x18\x03 \x01(\x0e2(.chatto.core.v1.NotificationDeliveryModeH\x00R\boverride\x88\x01\x01\x12\x1c\n" +
-	"\aroom_id\x18\x04 \x01(\tH\x01R\x06roomId\x88\x01\x01B\v\n" +
-	"\t_overrideB\n" +
+	"\aroom_id\x18\x02 \x01(\tR\x06roomId\"\xb0\x01\n" +
+	"\"UserNotificationPolicyChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12G\n" +
+	"\toverrides\x18\x02 \x01(\v2).chatto.core.v1.NotificationDeliveryModesR\toverrides\x12\x1c\n" +
+	"\aroom_id\x18\x03 \x01(\tH\x00R\x06roomId\x88\x01\x01B\n" +
 	"\n" +
 	"\b_room_idB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
@@ -961,12 +951,11 @@ var file_chatto_core_v1_config_events_proto_goTypes = []any{
 	(*UserServerNotificationLevelClearedEvent)(nil), // 14: chatto.core.v1.UserServerNotificationLevelClearedEvent
 	(*UserRoomNotificationLevelSetEvent)(nil),       // 15: chatto.core.v1.UserRoomNotificationLevelSetEvent
 	(*UserRoomNotificationLevelClearedEvent)(nil),   // 16: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*UserNotificationPreferenceChangedEvent)(nil),  // 17: chatto.core.v1.UserNotificationPreferenceChangedEvent
+	(*UserNotificationPolicyChangedEvent)(nil),      // 17: chatto.core.v1.UserNotificationPolicyChangedEvent
 	(*AssetRecord)(nil),                             // 18: chatto.core.v1.AssetRecord
 	(TimeFormat)(0),                                 // 19: chatto.core.v1.TimeFormat
 	(NotificationLevel)(0),                          // 20: chatto.core.v1.NotificationLevel
-	(NotificationPreferenceCategory)(0),             // 21: chatto.core.v1.NotificationPreferenceCategory
-	(NotificationDeliveryMode)(0),                   // 22: chatto.core.v1.NotificationDeliveryMode
+	(*NotificationDeliveryModes)(nil),               // 21: chatto.core.v1.NotificationDeliveryModes
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
 	18, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
@@ -974,13 +963,12 @@ var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
 	19, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
 	20, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
 	20, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	21, // 5: chatto.core.v1.UserNotificationPreferenceChangedEvent.category:type_name -> chatto.core.v1.NotificationPreferenceCategory
-	22, // 6: chatto.core.v1.UserNotificationPreferenceChangedEvent.override:type_name -> chatto.core.v1.NotificationDeliveryMode
-	7,  // [7:7] is the sub-list for method output_type
-	7,  // [7:7] is the sub-list for method input_type
-	7,  // [7:7] is the sub-list for extension type_name
-	7,  // [7:7] is the sub-list for extension extendee
-	0,  // [0:7] is the sub-list for field type_name
+	21, // 5: chatto.core.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.v1.NotificationDeliveryModes
+	6,  // [6:6] is the sub-list for method output_type
+	6,  // [6:6] is the sub-list for method input_type
+	6,  // [6:6] is the sub-list for extension type_name
+	6,  // [6:6] is the sub-list for extension extendee
+	0,  // [0:6] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_config_events_proto_init() }

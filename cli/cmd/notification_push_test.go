@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/charmbracelet/log"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/config"
 	"hmans.de/chatto/internal/core"
@@ -215,13 +216,14 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 		if _, err := chattoCore.SavePushSubscription(ctx, alice.Id, "https://push.example.test/policy", "key", "auth", "browser"); err != nil {
 			t.Fatalf("SavePushSubscription: %v", err)
 		}
-		if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(
+		if _, err := chattoCore.NotificationPolicy().UpdateNotificationPolicy(
 			ctx,
 			alice.Id,
-			corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+			"",
+			&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+			&fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 		); err != nil {
-			t.Fatalf("SetServerNotificationMode: %v", err)
+			t.Fatalf("UpdateNotificationPolicy: %v", err)
 		}
 		sender := &recordingNotificationPushSender{results: func([]*corev1.PushSubscription) []*push.SendResult {
 			t.Fatal("policy-downgraded occurrence contacted provider")

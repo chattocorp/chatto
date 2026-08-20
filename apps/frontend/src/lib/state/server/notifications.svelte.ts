@@ -3,12 +3,11 @@ import { resolve } from '$app/paths';
 import { serverIdToSegment } from '$lib/navigation';
 import {
   NotificationAttentionLevel,
-  NotificationDeliveryMode,
   type NotificationAPI,
   type NotificationOccurrenceItem,
   type NotificationOccurrencePage,
-  type NotificationPolicyItem,
-  NotificationPreferenceCategory,
+  type NotificationPolicy,
+  type NotificationPolicyPatch,
   NotificationSignalKind
 } from '$lib/api-client/notifications';
 
@@ -528,16 +527,12 @@ export class NotificationStore {
     }
   }
 
-  getPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
+  getPolicy(roomId?: string): Promise<NotificationPolicy> {
     return this.#api.getNotificationPolicy(roomId);
   }
 
-  setPolicyPreference(
-    kind: NotificationPreferenceCategory,
-    override: NotificationDeliveryMode | null,
-    roomId?: string
-  ): Promise<NotificationPolicyItem[]> {
-    return this.#api.setNotificationPolicyPreference(kind, override, roomId);
+  updatePolicy(patch: NotificationPolicyPatch, roomId?: string): Promise<NotificationPolicy> {
+    return this.#api.updateNotificationPolicy(patch, roomId);
   }
 
   /**

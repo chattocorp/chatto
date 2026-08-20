@@ -139,7 +139,7 @@ func (m *NotificationOccurrenceModel) occurrenceCoveredByBoundary(occurrence *co
 	if message == nil {
 		return false
 	}
-	if notificationOccurrenceHasPreferenceCategory(occurrence, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION) {
+	if occurrence.GetSignal().GetReactionReceived() != nil {
 		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
 		return ok && targetEntry.StreamSeq <= boundary.targetSequence && occurrence.GetSourceStreamSequence() <= boundary.observedSequence
 	}

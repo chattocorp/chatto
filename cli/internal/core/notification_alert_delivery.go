@@ -214,9 +214,8 @@ func (c *ChattoCore) NotificationAlertEligible(ctx context.Context, occurrence *
 
 func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.NotificationOccurrence) bool {
 	message := notificationSignalMessage(occurrence.GetSignal())
-	category := notificationSignalPreferenceCategory(occurrence.GetSignal())
-	if message == nil || category == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED {
+	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	return d.core.GetEffectiveNotificationMode(occurrence.GetRecipientId(), message.GetRoomId(), category) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
+	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
 }

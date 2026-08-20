@@ -102,7 +102,7 @@ type Event struct {
 	//	*Event_UserServerNotificationLevelCleared
 	//	*Event_UserRoomNotificationLevelSet
 	//	*Event_UserRoomNotificationLevelCleared
-	//	*Event_UserNotificationPreferenceChanged
+	//	*Event_UserNotificationPolicyChanged
 	//	*Event_RoomGroupCreated
 	//	*Event_RoomGroupUpdated
 	//	*Event_RoomGroupDeleted
@@ -652,10 +652,10 @@ func (x *Event) GetUserRoomNotificationLevelCleared() *UserRoomNotificationLevel
 	return nil
 }
 
-func (x *Event) GetUserNotificationPreferenceChanged() *UserNotificationPreferenceChangedEvent {
+func (x *Event) GetUserNotificationPolicyChanged() *UserNotificationPolicyChangedEvent {
 	if x != nil {
-		if x, ok := x.Event.(*Event_UserNotificationPreferenceChanged); ok {
-			return x.UserNotificationPreferenceChanged
+		if x, ok := x.Event.(*Event_UserNotificationPolicyChanged); ok {
+			return x.UserNotificationPolicyChanged
 		}
 	}
 	return nil
@@ -1488,8 +1488,8 @@ type Event_UserRoomNotificationLevelCleared struct {
 	UserRoomNotificationLevelCleared *UserRoomNotificationLevelClearedEvent `protobuf:"bytes,517,opt,name=user_room_notification_level_cleared,json=userRoomNotificationLevelCleared,proto3,oneof"`
 }
 
-type Event_UserNotificationPreferenceChanged struct {
-	UserNotificationPreferenceChanged *UserNotificationPreferenceChangedEvent `protobuf:"bytes,518,opt,name=user_notification_preference_changed,json=userNotificationPreferenceChanged,proto3,oneof"`
+type Event_UserNotificationPolicyChanged struct {
+	UserNotificationPolicyChanged *UserNotificationPolicyChangedEvent `protobuf:"bytes,518,opt,name=user_notification_policy_changed,json=userNotificationPolicyChanged,proto3,oneof"`
 }
 
 type Event_RoomGroupCreated struct {
@@ -1880,7 +1880,7 @@ func (*Event_UserRoomNotificationLevelSet) isEvent_Event() {}
 
 func (*Event_UserRoomNotificationLevelCleared) isEvent_Event() {}
 
-func (*Event_UserNotificationPreferenceChanged) isEvent_Event() {}
+func (*Event_UserNotificationPolicyChanged) isEvent_Event() {}
 
 func (*Event_RoomGroupCreated) isEvent_Event() {}
 
@@ -2022,7 +2022,7 @@ var File_chatto_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\x1a(chatto/core/v1/oauth_client_events.proto\"\x86_\n" +
+	"\x1achatto/core/v1/event.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\x1a chatto/core/v1/auth_events.proto\x1a)chatto/core/v1/authorization_events.proto\x1a!chatto/core/v1/asset_events.proto\x1a#chatto/core/v1/message_events.proto\x1a&chatto/core/v1/moderation_events.proto\x1a chatto/core/v1/rbac_events.proto\x1a$chatto/core/v1/reaction_events.proto\x1a chatto/core/v1/room_events.proto\x1a&chatto/core/v1/room_group_events.proto\x1a\"chatto/core/v1/config_events.proto\x1a\"chatto/core/v1/thread_events.proto\x1a chatto/core/v1/user_events.proto\x1a&chatto/core/v1/invitation_events.proto\x1a(chatto/core/v1/oauth_client_events.proto\"\xf9^\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -2073,8 +2073,8 @@ const file_chatto_core_v1_event_proto_rawDesc = "" +
 	"\"user_server_notification_level_set\x18\x82\x04 \x01(\v23.chatto.core.v1.UserServerNotificationLevelSetEventB\x02\x18\x01H\x00R\x1euserServerNotificationLevelSet\x12\x92\x01\n" +
 	"&user_server_notification_level_cleared\x18\x83\x04 \x01(\v27.chatto.core.v1.UserServerNotificationLevelClearedEventB\x02\x18\x01H\x00R\"userServerNotificationLevelCleared\x12\x80\x01\n" +
 	" user_room_notification_level_set\x18\x84\x04 \x01(\v21.chatto.core.v1.UserRoomNotificationLevelSetEventB\x02\x18\x01H\x00R\x1cuserRoomNotificationLevelSet\x12\x8c\x01\n" +
-	"$user_room_notification_level_cleared\x18\x85\x04 \x01(\v25.chatto.core.v1.UserRoomNotificationLevelClearedEventB\x02\x18\x01H\x00R userRoomNotificationLevelCleared\x12\x8a\x01\n" +
-	"$user_notification_preference_changed\x18\x86\x04 \x01(\v26.chatto.core.v1.UserNotificationPreferenceChangedEventH\x00R!userNotificationPreferenceChanged\x12V\n" +
+	"$user_room_notification_level_cleared\x18\x85\x04 \x01(\v25.chatto.core.v1.UserRoomNotificationLevelClearedEventB\x02\x18\x01H\x00R userRoomNotificationLevelCleared\x12~\n" +
+	" user_notification_policy_changed\x18\x86\x04 \x01(\v22.chatto.core.v1.UserNotificationPolicyChangedEventH\x00R\x1duserNotificationPolicyChanged\x12V\n" +
 	"\x12room_group_created\x18\xd8\x04 \x01(\v2%.chatto.core.v1.RoomGroupCreatedEventH\x00R\x10roomGroupCreated\x12V\n" +
 	"\x12room_group_updated\x18\xd9\x04 \x01(\v2%.chatto.core.v1.RoomGroupUpdatedEventH\x00R\x10roomGroupUpdated\x12V\n" +
 	"\x12room_group_deleted\x18\xda\x04 \x01(\v2%.chatto.core.v1.RoomGroupDeletedEventH\x00R\x10roomGroupDeleted\x12W\n" +
@@ -2209,7 +2209,7 @@ var file_chatto_core_v1_event_proto_goTypes = []any{
 	(*UserServerNotificationLevelClearedEvent)(nil), // 45: chatto.core.v1.UserServerNotificationLevelClearedEvent
 	(*UserRoomNotificationLevelSetEvent)(nil),       // 46: chatto.core.v1.UserRoomNotificationLevelSetEvent
 	(*UserRoomNotificationLevelClearedEvent)(nil),   // 47: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*UserNotificationPreferenceChangedEvent)(nil),  // 48: chatto.core.v1.UserNotificationPreferenceChangedEvent
+	(*UserNotificationPolicyChangedEvent)(nil),      // 48: chatto.core.v1.UserNotificationPolicyChangedEvent
 	(*RoomGroupCreatedEvent)(nil),                   // 49: chatto.core.v1.RoomGroupCreatedEvent
 	(*RoomGroupUpdatedEvent)(nil),                   // 50: chatto.core.v1.RoomGroupUpdatedEvent
 	(*RoomGroupDeletedEvent)(nil),                   // 51: chatto.core.v1.RoomGroupDeletedEvent
@@ -2327,7 +2327,7 @@ var file_chatto_core_v1_event_proto_depIdxs = []int32{
 	45,  // 44: chatto.core.v1.Event.user_server_notification_level_cleared:type_name -> chatto.core.v1.UserServerNotificationLevelClearedEvent
 	46,  // 45: chatto.core.v1.Event.user_room_notification_level_set:type_name -> chatto.core.v1.UserRoomNotificationLevelSetEvent
 	47,  // 46: chatto.core.v1.Event.user_room_notification_level_cleared:type_name -> chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	48,  // 47: chatto.core.v1.Event.user_notification_preference_changed:type_name -> chatto.core.v1.UserNotificationPreferenceChangedEvent
+	48,  // 47: chatto.core.v1.Event.user_notification_policy_changed:type_name -> chatto.core.v1.UserNotificationPolicyChangedEvent
 	49,  // 48: chatto.core.v1.Event.room_group_created:type_name -> chatto.core.v1.RoomGroupCreatedEvent
 	50,  // 49: chatto.core.v1.Event.room_group_updated:type_name -> chatto.core.v1.RoomGroupUpdatedEvent
 	51,  // 50: chatto.core.v1.Event.room_group_deleted:type_name -> chatto.core.v1.RoomGroupDeletedEvent
@@ -2469,7 +2469,7 @@ func file_chatto_core_v1_event_proto_init() {
 		(*Event_UserServerNotificationLevelCleared)(nil),
 		(*Event_UserRoomNotificationLevelSet)(nil),
 		(*Event_UserRoomNotificationLevelCleared)(nil),
-		(*Event_UserNotificationPreferenceChanged)(nil),
+		(*Event_UserNotificationPolicyChanged)(nil),
 		(*Event_RoomGroupCreated)(nil),
 		(*Event_RoomGroupUpdated)(nil),
 		(*Event_RoomGroupDeleted)(nil),

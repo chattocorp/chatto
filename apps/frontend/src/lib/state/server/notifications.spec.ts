@@ -15,7 +15,7 @@ type MockNotificationAPI = NotificationAPI & {
   batchDeleteNotificationOccurrences: ReturnType<typeof vi.fn>;
   deleteAllNotificationOccurrences: ReturnType<typeof vi.fn>;
   getNotificationPolicy: ReturnType<typeof vi.fn>;
-  setNotificationPolicyPreference: ReturnType<typeof vi.fn>;
+  updateNotificationPolicy: ReturnType<typeof vi.fn>;
 };
 
 type NotificationPageFixture = {
@@ -24,7 +24,10 @@ type NotificationPageFixture = {
   hasMore: boolean;
 };
 
-function page(items: NotificationOccurrenceItem[], totalCount = items.length): NotificationPageFixture {
+function page(
+  items: NotificationOccurrenceItem[],
+  totalCount = items.length
+): NotificationPageFixture {
   return {
     items,
     totalCount,
@@ -80,31 +83,30 @@ function makeAPI(
     batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(0),
     deleteAllNotificationOccurrences: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
-    setNotificationPolicyPreference: vi.fn().mockResolvedValue([])
+    updateNotificationPolicy: vi.fn().mockResolvedValue([])
   };
 }
 
-const mention = (id: string): NotificationOccurrenceItem =>
-  ({
-    id,
-    createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
-    actor: {
-      id: 'a',
-      login: 'tester',
-      displayName: 'Tester',
-      deleted: false,
-      avatarUrl: null,
-      presenceStatus: PresenceStatus.OFFLINE
-    },
-    room: { id: 'r1', name: 'general' },
-    eventId: 'evt',
-    threadRootId: null,
-    signalKind: NotificationSignalKind.DIRECT_MENTION,
-    targetSupported: true,
-    attentionLevel: NotificationAttentionLevel.IMPORTANT,
-    unread: true,
-    reactionEmoji: null
-  });
+const mention = (id: string): NotificationOccurrenceItem => ({
+  id,
+  createdAt: new Date('2026-04-29T12:00:00Z').toISOString(),
+  actor: {
+    id: 'a',
+    login: 'tester',
+    displayName: 'Tester',
+    deleted: false,
+    avatarUrl: null,
+    presenceStatus: PresenceStatus.OFFLINE
+  },
+  room: { id: 'r1', name: 'general' },
+  eventId: 'evt',
+  threadRootId: null,
+  signalKind: NotificationSignalKind.DIRECT_MENTION,
+  targetSupported: true,
+  attentionLevel: NotificationAttentionLevel.IMPORTANT,
+  unread: true,
+  reactionEmoji: null
+});
 
 describe('NotificationStore', () => {
   let consoleError: ReturnType<typeof vi.spyOn>;

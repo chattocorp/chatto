@@ -67,6 +67,8 @@ Inspect changes that schema tooling cannot fully protect:
 - authentication, authorization, CORS, and visibility boundaries
 - validation becoming stricter
 - enum/string meaning changes and unknown-value handling
+- repeated enum-keyed rows for closed product concepts, and enums that mirror a
+  `oneof` without representing an independent domain concept
 - pagination, cursor, ordering, and retry interpretation
 - request fields silently ignored by older servers
 - realtime hello, heartbeat, reconnect, and catch-up behaviour

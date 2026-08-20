@@ -2,13 +2,17 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
-import { NotificationDeliveryMode, NotificationPreferenceCategory } from '$lib/api-client/notifications';
+import {
+  NotificationDeliveryMode,
+  type NotificationPolicy,
+  type NotificationPolicyOverrides
+} from '$lib/api-client/notifications';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     notifications: {
       getPolicy: vi.fn(),
-      setPolicyPreference: vi.fn()
+      updatePolicy: vi.fn()
     }
   }
 }));
@@ -27,19 +31,47 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 
 import NotificationPolicySettings from './NotificationPolicySettings.svelte';
 
+function notificationPolicy(
+  overrides: Partial<NotificationPolicyOverrides> = {},
+  effectiveOverrides: Partial<NotificationPolicy['effective']> = {}
+): NotificationPolicy {
+  return {
+    overrides: {
+      directMessages: null,
+      directMentions: null,
+      replies: null,
+      roleMentions: null,
+      hereMentions: null,
+      allMentions: null,
+      followedThreads: null,
+      followedRooms: null,
+      reactions: null,
+      ...overrides
+    },
+    effective: {
+      directMessages: NotificationDeliveryMode.ALERT,
+      directMentions: NotificationDeliveryMode.ALERT,
+      replies: NotificationDeliveryMode.ALERT,
+      roleMentions: NotificationDeliveryMode.ALERT,
+      hereMentions: NotificationDeliveryMode.ALERT,
+      allMentions: NotificationDeliveryMode.ALERT,
+      followedThreads: NotificationDeliveryMode.SILENT,
+      followedRooms: NotificationDeliveryMode.OFF,
+      reactions: NotificationDeliveryMode.SILENT,
+      ...effectiveOverrides
+    }
+  };
+}
+
 describe('NotificationPolicySettings', () => {
   beforeEach(async () => {
     vi.clearAllMocks();
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
-    mocks.notifications.getPolicy.mockResolvedValue([
-      {
-        category: NotificationPreferenceCategory.DIRECT_MESSAGE,
-        override: NotificationDeliveryMode.ALERT,
-        effective: NotificationDeliveryMode.ALERT
-      }
-    ]);
-    mocks.notifications.setPolicyPreference.mockRejectedValue(new Error('save rejected'));
+    mocks.notifications.getPolicy.mockResolvedValue(
+      notificationPolicy({ directMessages: NotificationDeliveryMode.ALERT })
+    );
+    mocks.notifications.updatePolicy.mockRejectedValue(new Error('save rejected'));
   });
 
   it('shows only implemented causes and restores a rejected selection', async () => {
@@ -58,9 +90,8 @@ describe('NotificationPolicySettings', () => {
     select.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationPreferenceCategory.DIRECT_MESSAGE,
-        NotificationDeliveryMode.OFF,
+      expect(mocks.notifications.updatePolicy).toHaveBeenCalledWith(
+        { directMessages: NotificationDeliveryMode.OFF },
         undefined
       );
       expect(select.value).toBe(String(NotificationDeliveryMode.ALERT));
@@ -70,15 +101,22 @@ describe('NotificationPolicySettings', () => {
 
   it('loads, changes, and clears policy at room scope', async () => {
     mocks.notifications.getPolicy.mockImplementation((roomId?: string) =>
-      Promise.resolve([
-        {
-          category: NotificationPreferenceCategory.DIRECT_MESSAGE,
-          override: roomId ? NotificationDeliveryMode.SILENT : NotificationDeliveryMode.ALERT,
-          effective: roomId ? NotificationDeliveryMode.SILENT : NotificationDeliveryMode.ALERT
-        }
-      ])
+      Promise.resolve(
+        notificationPolicy(
+          {
+            directMessages: roomId
+              ? NotificationDeliveryMode.SILENT
+              : NotificationDeliveryMode.ALERT
+          },
+          {
+            directMessages: roomId
+              ? NotificationDeliveryMode.SILENT
+              : NotificationDeliveryMode.ALERT
+          }
+        )
+      )
     );
-    mocks.notifications.setPolicyPreference.mockResolvedValue([]);
+    mocks.notifications.updatePolicy.mockResolvedValue(notificationPolicy());
     const { container } = render(NotificationPolicySettings);
     const scope = await vi.waitFor(() => {
       const element = container.querySelector(
@@ -101,9 +139,8 @@ describe('NotificationPolicySettings', () => {
     directMessages.dispatchEvent(new Event('change', { bubbles: true }));
 
     await vi.waitFor(() => {
-      expect(mocks.notifications.setPolicyPreference).toHaveBeenCalledWith(
-        NotificationPreferenceCategory.DIRECT_MESSAGE,
-        null,
+      expect(mocks.notifications.updatePolicy).toHaveBeenCalledWith(
+        { directMessages: null },
         'room-1'
       );
     });

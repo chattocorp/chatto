@@ -7,34 +7,10 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
-// Stable preference key for one class of notification signal. Notification
-// content uses NotificationSignal instead of this enum.
-enum NotificationPreferenceCategory {
-  // No cause was specified. This value is not valid in preference writes.
-  NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED = 0;
-  // A message was posted in a direct-message conversation.
-  NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE = 1;
-  // The viewer's username was mentioned directly.
-  NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION = 2;
-  // Activity replied directly to the viewer's message.
-  NOTIFICATION_PREFERENCE_CATEGORY_REPLY = 3;
-  // A role held by the viewer was mentioned.
-  NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION = 4;
-  // An `@here` mention included the viewer.
-  NOTIFICATION_PREFERENCE_CATEGORY_HERE = 5;
-  // An `@all` mention included the viewer.
-  NOTIFICATION_PREFERENCE_CATEGORY_ALL = 6;
-  // New activity appeared in a thread followed by the viewer.
-  NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD = 7;
-  // New activity appeared in a room followed by the viewer.
-  NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM = 8;
-  // Someone reacted to the viewer's message.
-  NOTIFICATION_PREFERENCE_CATEGORY_REACTION = 9;
-}
-
-// Delivery behavior for one notification preference category.
+// Delivery behavior for one notification signal class.
 enum NotificationDeliveryMode {
   // No delivery mode was specified. This value is not a valid override.
   NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
@@ -44,6 +20,20 @@ enum NotificationDeliveryMode {
   NOTIFICATION_DELIVERY_MODE_SILENT = 2;
   // Matching activity appears in the notification list and may trigger sound or push.
   NOTIFICATION_DELIVERY_MODE_ALERT = 3;
+}
+
+// Delivery modes for Chatto's finite built-in notification signal classes.
+// Presence is significant: absent fields inherit in a stored policy.
+message NotificationDeliveryModes {
+  optional NotificationDeliveryMode direct_messages = 1;
+  optional NotificationDeliveryMode direct_mentions = 2;
+  optional NotificationDeliveryMode replies = 3;
+  optional NotificationDeliveryMode role_mentions = 4;
+  optional NotificationDeliveryMode here_mentions = 5;
+  optional NotificationDeliveryMode all_mentions = 6;
+  optional NotificationDeliveryMode followed_threads = 7;
+  optional NotificationDeliveryMode followed_rooms = 8;
+  optional NotificationDeliveryMode reactions = 9;
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -270,14 +260,12 @@ message DeleteAllNotificationOccurrencesResponse {
   int32 deleted_count = 1;
 }
 
-// Explicit and effective delivery policy for one notification preference category.
-message NotificationPolicyPreference {
-  // Preference category controlled by this row.
-  NotificationPreferenceCategory category = 1;
-  // Explicit override at the requested scope. Absence means Inherit.
-  optional NotificationDeliveryMode override = 2;
-  // Effective mode after applying product, server, and room inheritance.
-  NotificationDeliveryMode effective = 3;
+// Explicit and effective delivery modes for one notification policy scope.
+message NotificationPolicy {
+  // Explicit modes at the requested scope. Missing fields mean Inherit.
+  NotificationDeliveryModes overrides = 1;
+  // Complete modes after applying product, server, and room inheritance.
+  NotificationDeliveryModes effective = 2;
 }
 
 // Request the authenticated viewer's notification policy.
@@ -291,32 +279,28 @@ message GetNotificationPolicyRequest {
 message GetNotificationPolicyResponse {
   // Room scope when requested; absent for server scope.
   optional string room_id = 1;
-  // One row for every supported notification signal class.
-  repeated NotificationPolicyPreference preferences = 2;
+  // Explicit and effective policy for the requested scope.
+  NotificationPolicy policy = 2;
 }
 
-// Set or clear one notification preference override.
-message SetNotificationPolicyPreferenceRequest {
+// Sparsely update notification policy overrides.
+message UpdateNotificationPolicyRequest {
   // Room scope to change; absent changes the server scope.
   optional string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required notification preference category.
-  NotificationPreferenceCategory category = 2 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
-  // Override at the selected scope. Absence clears it to Inherit.
-  optional NotificationDeliveryMode override = 3 [(buf.validate.field).enum = {
-    defined_only: true
-    not_in: [0]
-  }];
+  // Sparse override values. Fields selected by update_mask but absent here are
+  // cleared to Inherit.
+  NotificationDeliveryModes overrides = 2;
+  // Fields to set or clear, relative to overrides. The mask must contain at
+  // least one supported delivery-mode field.
+  google.protobuf.FieldMask update_mask = 3;
 }
 
-// Complete supported notification policy after one preference change.
-message SetNotificationPolicyPreferenceResponse {
+// Complete supported notification policy after a sparse update.
+message UpdateNotificationPolicyResponse {
   // Room scope when changed; absent for server scope.
   optional string room_id = 1;
-  // One row for every supported notification signal class.
-  repeated NotificationPolicyPreference preferences = 2;
+  // Explicit and effective policy after the update.
+  NotificationPolicy policy = 2;
 }
 
 // Reads, marks read, and deletes notifications for the authenticated viewer.
@@ -359,10 +343,10 @@ service NotificationService {
   // Returns UNIMPLEMENTED rather than partially deleting a signal kind this
   // server cannot validate.
   rpc DeleteAllNotificationOccurrences(DeleteAllNotificationOccurrencesRequest) returns (DeleteAllNotificationOccurrencesResponse);
-  // Gets every supported preference category and its effective delivery mode.
+  // Gets explicit and effective modes for every supported signal class.
   rpc GetNotificationPolicy(GetNotificationPolicyRequest) returns (GetNotificationPolicyResponse);
   // Sets or clears one server- or room-scoped signal-class override.
-  rpc SetNotificationPolicyPreference(SetNotificationPolicyPreferenceRequest) returns (SetNotificationPolicyPreferenceResponse) {
+  rpc UpdateNotificationPolicy(UpdateNotificationPolicyRequest) returns (UpdateNotificationPolicyResponse) {
     option idempotency_level = IDEMPOTENT;
   }
 

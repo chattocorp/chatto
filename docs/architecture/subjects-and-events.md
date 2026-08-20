@@ -274,7 +274,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_room_notification_level_set`      | `UserRoomNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_room_notification_level_cleared`  | `UserRoomNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
-| `evt.config.{subject}.user_notification_preference_changed`  | `UserNotificationPreferenceChangedEvent` (sole active notification-policy write) |
+| `evt.config.{subject}.user_notification_policy_changed`      | `UserNotificationPolicyChangedEvent` (complete overrides for one user/scope) |
 | `evt.group.{groupId}.group_created`                         | `RoomGroupCreatedEvent`                             |
 | `evt.group.{groupId}.group_updated`                         | `RoomGroupUpdatedEvent`                             |
 | `evt.group.{groupId}.group_deleted`                         | `RoomGroupDeletedEvent`                             |

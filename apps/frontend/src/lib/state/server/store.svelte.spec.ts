@@ -227,7 +227,7 @@ vi.mock('$lib/api-client/notifications', async (importActual) => {
       deleteNotificationOccurrence: vi.fn(),
       batchDeleteNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(() => Promise.resolve([])),
-      setNotificationPolicyPreference: vi.fn(() => Promise.resolve([]))
+      updateNotificationPolicy: vi.fn(() => Promise.resolve([]))
     }))
   };
 });

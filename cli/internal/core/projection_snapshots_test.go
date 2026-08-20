@@ -194,7 +194,13 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			format := corev1.TimeFormat_TIME_FORMAT_24H
 			p.server.serverName = "Chatto"
 			p.server.blockedUsernames = &blocked
-			p.users["U1"] = &userConfigState{timezone: &timezone, timeFormat: &format}
+			p.users["U1"] = &userConfigState{
+				timezone: &timezone, timeFormat: &format,
+				serverModes: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT.Enum()},
+				roomModesByRoom: map[string]*corev1.NotificationDeliveryModes{
+					"R1": {DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+				},
+			}
 		}},
 		{"room_group_layout", func() snapshotProjection { return NewRoomGroupLayoutProjection() }, func(raw snapshotProjection) {
 			p := raw.(*RoomGroupLayoutProjection)
@@ -221,7 +227,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 				RecipientId:                "U1",
 				SourceEventId:              "E1",
 				SourceCreatedAt:            timestamppb.New(now),
-				Signal:                     testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"),
+				Signal:                     testNotificationSignal(notificationTestSignalReply, "R1", "E1"),
 				ExpiresAt:                  timestamppb.New(expiresAt),
 				NotificationStreamSequence: 41,
 			}

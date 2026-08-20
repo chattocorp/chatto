@@ -28,7 +28,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 		SourceCreated: now,
 		ActorID:       "U-notification-actor",
 		Signal: testNotificationSignal(
-			corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
+			notificationTestSignalDirectMention,
 			"R-notification-room",
 			"E-notification-source",
 		),
@@ -108,7 +108,7 @@ func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
 		recipientID := fmt.Sprintf("U-batch-%d", i)
 		inputs[i] = CreateNotificationOccurrenceInput{
 			RecipientID: recipientID, SourceEventID: "E-batch-source", SourceCreated: now, ActorID: "U-actor",
-			Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, "R-batch", "E-batch-source"),
+			Signal: testNotificationSignal(notificationTestSignalAll, "R-batch", "E-batch-source"),
 			Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup: true,
 		}
@@ -162,7 +162,7 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 	}
 	input := CreateNotificationOccurrenceInput{
 		RecipientID: reader.Id, SourceEventID: posted.GetId(), SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
-		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, room.Id, posted.GetId()),
+		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.GetId()),
 		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
 	}
@@ -203,7 +203,7 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Millisecond)
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: "U-delete-race", SourceEventID: "E-delete-race", SourceCreated: now, ActorID: "U-actor",
-		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, "R-delete-race", "E-delete-race"),
+		Signal: testNotificationSignal(notificationTestSignalDirectMention, "R-delete-race", "E-delete-race"),
 		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	})
@@ -247,7 +247,7 @@ func TestNotificationProjectionExpiresOccurrencesAndTombstones(t *testing.T) {
 		RecipientId:     "U1",
 		SourceEventId:   "E1",
 		SourceCreatedAt: timestamp(now.Add(-time.Hour)),
-		Signal:          testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"),
+		Signal:          testNotificationSignal(notificationTestSignalReply, "R1", "E1"),
 		ExpiresAt:       timestamp(now.Add(time.Minute)),
 	}
 	if err := p.Apply(notificationSignalledEvent("NE1", occurrence, now.Add(time.Minute)), 7); err != nil {
@@ -307,7 +307,7 @@ func TestNotificationProjectionColdReplayRetainsExpiredDismissalCleanupCoordinat
 	expiresAt := now.Add(-time.Minute)
 	occurrence := &corev1.NotificationOccurrence{
 		Id: "N-expired", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now.Add(-notificationTTL)),
-		Signal: testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY, "R1", "E1"), ExpiresAt: timestamp(expiresAt),
+		Signal: testNotificationSignal(notificationTestSignalReply, "R1", "E1"), ExpiresAt: timestamp(expiresAt),
 	}
 	if err := p.Apply(notificationSignalledEvent("signal-expired", occurrence, expiresAt), 7); err != nil {
 		t.Fatalf("Apply expired signal: %v", err)
@@ -332,7 +332,7 @@ func TestNotificationProjectionKeepsFirstAlertResolution(t *testing.T) {
 	p.now = func() time.Time { return now }
 	occurrence := &corev1.NotificationOccurrence{
 		Id: "N1", RecipientId: "U1", SourceEventId: "E1", SourceCreatedAt: timestamp(now),
-		Signal:    testNotificationSignal(corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, "R1", "E1"),
+		Signal:    testNotificationSignal(notificationTestSignalDirectMention, "R1", "E1"),
 		ExpiresAt: timestamp(now.Add(time.Hour)), AlertExpiresAt: timestamp(now.Add(time.Minute)),
 	}
 	if err := p.Apply(notificationSignalledEvent("signal", occurrence, now.Add(time.Hour)), 1); err != nil {

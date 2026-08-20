@@ -68,10 +68,20 @@ the recipient. The record
 references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
-`NotificationPreferenceCategory` remains a small enum because it is a stable
-preference key. It is not the notification payload. Future notification
-features, such as room invitations, add a rich signal branch and define their
-authorization, lifecycle, rendering, navigation, and delivery behavior.
+Notification policy uses one explicit field per built-in signal class instead
+of mirroring the signal `oneof` with an enum-keyed table. Missing override
+fields inherit from the broader scope, while effective policy populates every
+supported field. Future notification features, such as room invitations, add
+a rich signal branch and, when independently configurable, an additive policy
+field with defined authorization, lifecycle, rendering, navigation, and
+delivery behavior.
+
+Policy updates are sparse: a field mask selects the override fields being
+changed, a selected value sets an override, and a selected absent value clears
+it to inherit. The service applies that patch to the latest projected scope
+inside the per-user config OCC retry and commits the complete resulting scope
+as one fact. Concurrent updates to different fields therefore compose instead
+of replacing one another, and older clients leave future fields untouched.
 
 One source fact may generate several notification signals for the same user.
 For example, one message may independently be a reply and a direct mention.

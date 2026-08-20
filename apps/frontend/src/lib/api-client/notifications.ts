@@ -3,13 +3,14 @@ import { authHeaders, createChattoClient } from './connect.js';
 import { NotificationService } from '@chatto/api-types/api/v1/notifications_connect';
 import type {
   ListNotificationOccurrencesResponse,
+  NotificationDeliveryModes as APINotificationDeliveryModes,
   NotificationMessageReference,
-  NotificationOccurrence as APINotificationOccurrence
+  NotificationOccurrence as APINotificationOccurrence,
+  NotificationPolicy as APINotificationPolicy
 } from '@chatto/api-types/api/v1/notifications_pb';
 import {
   NotificationAttentionLevel,
-  NotificationDeliveryMode,
-  NotificationPreferenceCategory
+  NotificationDeliveryMode
 } from '@chatto/api-types/api/v1/notifications_pb';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
@@ -73,7 +74,7 @@ export type NotificationOccurrencePage = {
   nextExpiryAt?: string | null;
 };
 
-export { NotificationAttentionLevel, NotificationDeliveryMode, NotificationPreferenceCategory };
+export { NotificationAttentionLevel, NotificationDeliveryMode };
 
 export const NotificationSignalKind = {
   DIRECT_MESSAGE: 'directMessageReceived',
@@ -91,10 +92,26 @@ export const NotificationSignalKind = {
 export type NotificationSignalKind =
   (typeof NotificationSignalKind)[keyof typeof NotificationSignalKind];
 
-export type NotificationPolicyItem = {
-  category: NotificationPreferenceCategory;
-  override: NotificationDeliveryMode | null;
-  effective: NotificationDeliveryMode;
+type NotificationPolicyShape<Value> = {
+  directMessages: Value;
+  directMentions: Value;
+  replies: Value;
+  roleMentions: Value;
+  hereMentions: Value;
+  allMentions: Value;
+  followedThreads: Value;
+  followedRooms: Value;
+  reactions: Value;
+};
+
+export type NotificationPolicyModes = NotificationPolicyShape<NotificationDeliveryMode>;
+export type NotificationPolicyOverrides = NotificationPolicyShape<NotificationDeliveryMode | null>;
+export type NotificationPolicyField = keyof NotificationPolicyOverrides;
+export type NotificationPolicyPatch = Partial<NotificationPolicyOverrides>;
+
+export type NotificationPolicy = {
+  overrides: NotificationPolicyOverrides;
+  effective: NotificationPolicyModes;
 };
 
 export function createNotificationAPI(config: NotificationAPIConfig) {
@@ -139,34 +156,119 @@ export function createNotificationAPI(config: NotificationAPIConfig) {
       );
     },
 
-    async getNotificationPolicy(roomId?: string): Promise<NotificationPolicyItem[]> {
+    async getNotificationPolicy(roomId?: string): Promise<NotificationPolicy> {
       const response = await client.getNotificationPolicy({ roomId }, { headers: headers() });
-      return response.preferences.map((preference) => ({
-        category: preference.category,
-        override: preference.override ?? null,
-        effective: preference.effective
-      }));
+      return notificationPolicy(response.policy);
     },
 
-    async setNotificationPolicyPreference(
-      category: NotificationPreferenceCategory,
-      override: NotificationDeliveryMode | null,
+    async updateNotificationPolicy(
+      patch: NotificationPolicyPatch,
       roomId?: string
-    ): Promise<NotificationPolicyItem[]> {
-      const response = await client.setNotificationPolicyPreference(
-        { category, override: override ?? undefined, roomId },
+    ): Promise<NotificationPolicy> {
+      const { overrides, paths } = notificationPolicyUpdate(patch);
+      if (paths.length === 0) throw new Error('Notification policy update is empty');
+      const response = await client.updateNotificationPolicy(
+        { roomId, overrides, updateMask: { paths } },
         { headers: headers() }
       );
-      return response.preferences.map((preference) => ({
-        category: preference.category,
-        override: preference.override ?? null,
-        effective: preference.effective
-      }));
+      return notificationPolicy(response.policy);
     }
   };
 }
 
 export type NotificationAPI = ReturnType<typeof createNotificationAPI>;
+
+function notificationPolicy(policy: APINotificationPolicy | undefined): NotificationPolicy {
+  return {
+    overrides: {
+      directMessages: policy?.overrides?.directMessages ?? null,
+      directMentions: policy?.overrides?.directMentions ?? null,
+      replies: policy?.overrides?.replies ?? null,
+      roleMentions: policy?.overrides?.roleMentions ?? null,
+      hereMentions: policy?.overrides?.hereMentions ?? null,
+      allMentions: policy?.overrides?.allMentions ?? null,
+      followedThreads: policy?.overrides?.followedThreads ?? null,
+      followedRooms: policy?.overrides?.followedRooms ?? null,
+      reactions: policy?.overrides?.reactions ?? null
+    },
+    effective: {
+      directMessages: requiredNotificationDeliveryMode(
+        policy?.effective?.directMessages,
+        'direct_messages'
+      ),
+      directMentions: requiredNotificationDeliveryMode(
+        policy?.effective?.directMentions,
+        'direct_mentions'
+      ),
+      replies: requiredNotificationDeliveryMode(policy?.effective?.replies, 'replies'),
+      roleMentions: requiredNotificationDeliveryMode(
+        policy?.effective?.roleMentions,
+        'role_mentions'
+      ),
+      hereMentions: requiredNotificationDeliveryMode(
+        policy?.effective?.hereMentions,
+        'here_mentions'
+      ),
+      allMentions: requiredNotificationDeliveryMode(policy?.effective?.allMentions, 'all_mentions'),
+      followedThreads: requiredNotificationDeliveryMode(
+        policy?.effective?.followedThreads,
+        'followed_threads'
+      ),
+      followedRooms: requiredNotificationDeliveryMode(
+        policy?.effective?.followedRooms,
+        'followed_rooms'
+      ),
+      reactions: requiredNotificationDeliveryMode(policy?.effective?.reactions, 'reactions')
+    }
+  };
+}
+
+function requiredNotificationDeliveryMode(
+  mode: NotificationDeliveryMode | undefined,
+  field: string
+): NotificationDeliveryMode {
+  if (
+    mode !== NotificationDeliveryMode.OFF &&
+    mode !== NotificationDeliveryMode.SILENT &&
+    mode !== NotificationDeliveryMode.ALERT
+  ) {
+    throw new Error(`Notification policy is missing an effective ${field} mode`);
+  }
+  return mode;
+}
+
+function notificationPolicyUpdate(patch: NotificationPolicyPatch): {
+  overrides: Partial<APINotificationDeliveryModes>;
+  paths: string[];
+} {
+  const overrides: Partial<APINotificationDeliveryModes> = {};
+  const paths: string[] = [];
+
+  addNotificationPolicyUpdate(patch, overrides, paths, 'directMessages', 'direct_messages');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'directMentions', 'direct_mentions');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'replies', 'replies');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'roleMentions', 'role_mentions');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'hereMentions', 'here_mentions');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'allMentions', 'all_mentions');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'followedThreads', 'followed_threads');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'followedRooms', 'followed_rooms');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'reactions', 'reactions');
+
+  return { overrides, paths };
+}
+
+function addNotificationPolicyUpdate(
+  patch: NotificationPolicyPatch,
+  overrides: Partial<APINotificationDeliveryModes>,
+  paths: string[],
+  field: NotificationPolicyField,
+  path: string
+) {
+  if (!Object.hasOwn(patch, field)) return;
+  paths.push(path);
+  const mode = patch[field];
+  if (mode !== null && mode !== undefined) overrides[field] = mode;
+}
 
 export function mapNotificationOccurrencePage(
   response: ListNotificationOccurrencesResponse

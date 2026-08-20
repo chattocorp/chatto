@@ -294,67 +294,6 @@ func NotificationOccurrenceMessageReference(occurrence *corev1.NotificationOccur
 	return notificationSignalMessage(occurrence.GetSignal())
 }
 
-func notificationSignalPreferenceCategory(signal *corev1.NotificationSignal) corev1.NotificationPreferenceCategory {
-	if signal == nil {
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
-	}
-	switch signal.GetKind().(type) {
-	case *corev1.NotificationSignal_DirectMessageReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE
-	case *corev1.NotificationSignal_DirectMentionReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION
-	case *corev1.NotificationSignal_ReplyReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY
-	case *corev1.NotificationSignal_RoleMentionReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION
-	case *corev1.NotificationSignal_HereMentionReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE
-	case *corev1.NotificationSignal_AllMentionReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL
-	case *corev1.NotificationSignal_FollowedThreadActivity:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD
-	case *corev1.NotificationSignal_FollowedRoomActivity:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM
-	case *corev1.NotificationSignal_ReactionReceived:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION
-	default:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
-	}
-}
-
-func notificationSignalForPreferenceCategory(category corev1.NotificationPreferenceCategory, message *corev1.NotificationMessageReference, emoji string) *corev1.NotificationSignal {
-	if message == nil {
-		return nil
-	}
-	cloned := func() *corev1.NotificationMessageReference {
-		return proto.Clone(message).(*corev1.NotificationMessageReference)
-	}
-	signal := &corev1.NotificationSignal{}
-	switch category {
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE:
-		signal.Kind = &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION:
-		signal.Kind = &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY:
-		signal.Kind = &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION:
-		signal.Kind = &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE:
-		signal.Kind = &corev1.NotificationSignal_HereMentionReceived{HereMentionReceived: &corev1.HereMentionReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL:
-		signal.Kind = &corev1.NotificationSignal_AllMentionReceived{AllMentionReceived: &corev1.AllMentionReceived{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD:
-		signal.Kind = &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM:
-		signal.Kind = &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: cloned()}}
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION:
-		signal.Kind = &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: cloned(), Emoji: emoji}}
-	default:
-		return nil
-	}
-	return signal
-}
-
 func notificationSignalIdentity(signal *corev1.NotificationSignal) string {
 	if signal == nil {
 		return ""
@@ -641,7 +580,7 @@ func validateNotificationCreateInput(input CreateNotificationOccurrenceInput) er
 		return invalidArgument("recipient_id, source_event_id, and source_created_at are required")
 	}
 	message := notificationSignalMessage(input.Signal)
-	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalPreferenceCategory(input.Signal) == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED || notificationSignalIdentity(input.Signal) == "" {
+	if message == nil || message.GetRoomId() == "" || message.GetEventId() == "" || notificationSignalIdentity(input.Signal) == "" {
 		return invalidArgument("a supported notification signal with an exact message is required")
 	}
 	switch input.Mode {
@@ -1045,10 +984,6 @@ func (m *NotificationOccurrenceModel) RemoveReaction(ctx context.Context, recipi
 		matches = append(matches, occurrence)
 	}
 	return m.deleteOccurrences(ctx, matches)
-}
-
-func notificationOccurrenceHasPreferenceCategory(occurrence *corev1.NotificationOccurrence, category corev1.NotificationPreferenceCategory) bool {
-	return occurrence != nil && notificationSignalPreferenceCategory(occurrence.GetSignal()) == category
 }
 
 func (m *NotificationOccurrenceModel) RemoveRoomForUser(ctx context.Context, userID, roomID string, removedThroughSequence uint64) (int, error) {

@@ -761,6 +761,25 @@ An `@here` message that included the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
+<a id="chatto-api-v1-NotificationDeliveryModes"></a>
+
+### NotificationDeliveryModes
+
+Delivery modes for Chatto's finite built-in notification signal classes.
+Presence is significant: absent fields inherit in a stored policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `direct_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `direct_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `replies` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `role_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `here_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `all_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `followed_threads` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+
 <a id="chatto-api-v1-NotificationMessageReference"></a>
 
 ### NotificationMessageReference
@@ -789,17 +808,16 @@ One exact Notifications 2.0 source occurrence.
 | `expires_at` | `google.protobuf.Timestamp` | Absolute expiry, 90 days after the source activity. |
 | `attention_level` | [`NotificationAttentionLevel`](#chatto-api-v1-NotificationAttentionLevel) | Source-time visual importance of this occurrence. |
 
-<a id="chatto-api-v1-NotificationPolicyPreference"></a>
+<a id="chatto-api-v1-NotificationPolicy"></a>
 
-### NotificationPolicyPreference
+### NotificationPolicy
 
-Explicit and effective delivery policy for one notification preference category.
+Explicit and effective delivery modes for one notification policy scope.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `category` | [`NotificationPreferenceCategory`](#chatto-api-v1-NotificationPreferenceCategory) | Preference category controlled by this row. |
-| `override` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Explicit override at the requested scope. Absence means Inherit. |
-| `effective` | [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Effective mode after applying product, server, and room inheritance. |
+| `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Explicit modes at the requested scope. Missing fields mean Inherit. |
+| `effective` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Complete modes after applying product, server, and room inheritance. |
 
 <a id="chatto-api-v1-NotificationRoomUnreadCount"></a>
 
@@ -1680,7 +1698,7 @@ whether the notification is eligible for sound or push delivery.
 
 ### NotificationDeliveryMode
 
-Delivery behavior for one notification preference category.
+Delivery behavior for one notification signal class.
 
 | Name | Number | Description |
 | --- | --- | --- |
@@ -1688,26 +1706,6 @@ Delivery behavior for one notification preference category.
 | `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create a notification occurrence. |
 | `NOTIFICATION_DELIVERY_MODE_SILENT` | `2` | Matching activity appears in the notification list without interruptive delivery. |
 | `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
-
-<a id="chatto-api-v1-NotificationPreferenceCategory"></a>
-
-### NotificationPreferenceCategory
-
-Stable preference key for one class of notification signal. Notification
-content uses NotificationSignal instead of this enum.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED` | `0` | No cause was specified. This value is not valid in preference writes. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE` | `1` | A message was posted in a direct-message conversation. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION` | `2` | The viewer's username was mentioned directly. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_REPLY` | `3` | Activity replied directly to the viewer's message. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION` | `4` | A role held by the viewer was mentioned. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_HERE` | `5` | An `@here` mention included the viewer. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_ALL` | `6` | An `@all` mention included the viewer. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD` | `7` | New activity appeared in a thread followed by the viewer. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM` | `8` | New activity appeared in a room followed by the viewer. |
-| `NOTIFICATION_PREFERENCE_CATEGORY_REACTION` | `9` | Someone reacted to the viewer's message. |
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>
 

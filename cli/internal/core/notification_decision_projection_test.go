@@ -58,12 +58,12 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
-		{Id: "badge", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
+		{Id: "silent", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
+			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
 		}}},
 		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
-		{Id: "off", Event: &corev1.Event_UserNotificationPreferenceChanged{UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-			UserId: userID, RoomId: &roomScope, Category: corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, Override: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum(),
+		{Id: "off", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
+			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 		}}},
 		{Id: "later-source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
 	}
@@ -77,14 +77,15 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Boundary source: %v", err)
 	}
-	if got := atSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
+	directMentionSignal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
+	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
 		t.Fatalf("source policy = %v, want SILENT", got)
 	}
 	atLaterSource, err := p.Boundary(7, time.Now())
 	if err != nil {
 		t.Fatalf("Boundary later source: %v", err)
 	}
-	if got := atLaterSource.effectiveNotificationMode(userID, roomID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+	if got := atLaterSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("later source policy = %v, want OFF", got)
 	}
 }
@@ -126,11 +127,12 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 	source := &corev1.Event{Id: "source", ActorId: "actor", CreatedAt: timestamppb.Now()}
 	message := &corev1.NotificationMessageReference{RoomId: "room", EventId: "source"}
-	inputs := newNotificationOccurrenceInputs(source, message, []notificationRecipientDecision{{
+	inputs := newNotificationOccurrenceInputs(source, []notificationRecipientDecision{{
 		recipientID: "recipient",
-		category:    corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
-		mode:        corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
-		roleNames:   []string{"moderator", "staff"},
+		signal: &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{
+			Message: message, RoleNames: []string{"moderator", "staff"},
+		}}},
+		mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
 	}})
 	if len(inputs) != 1 {
 		t.Fatalf("inputs = %d, want 1", len(inputs))

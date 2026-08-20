@@ -637,11 +637,7 @@ func (m *NotificationMaterializer) materializeMessage(ctx context.Context, event
 	if err != nil {
 		return fmt.Errorf("derive message notification decisions: %w", err)
 	}
-	reference := newNotificationMessageReference(message.GetRoomId(), event.GetId())
-	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
-		reference.ThreadRootEventId = &threadRootEventID
-	}
-	return m.materializeInputs(ctx, newNotificationOccurrenceInputs(event, reference, decisions), streamSequence)
+	return m.materializeInputs(ctx, newNotificationOccurrenceInputs(event, decisions), streamSequence)
 }
 
 func (m *NotificationMaterializer) materializeReaction(ctx context.Context, event *corev1.Event, reaction *corev1.ReactionAddedEvent, streamSequence uint64, evaluatedAt time.Time) error {
@@ -672,23 +668,21 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.membershipExists(recipientID, reaction.GetRoomId()) {
 		return nil
 	}
-	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION)
-	if mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
-		return nil
-	}
 	reference := newNotificationMessageReference(reaction.GetRoomId(), reaction.GetMessageEventId())
 	if threadRootEventID := target.GetMessagePosted().GetInThread(); threadRootEventID != "" {
 		reference.ThreadRootEventId = &threadRootEventID
 	}
-	inputs := newNotificationOccurrenceInputs(event, reference, []notificationRecipientDecision{{
+	signal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: reference, Emoji: reaction.GetEmoji()}}}
+	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), signal)
+	if mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+		return nil
+	}
+	inputs := newNotificationOccurrenceInputs(event, []notificationRecipientDecision{{
 		recipientID: recipientID,
-		category:    corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION,
+		signal:      signal,
 		mode:        mode,
 	}})
 	for _, input := range inputs {
-		if reactionSignal := input.Signal.GetReactionReceived(); reactionSignal != nil {
-			reactionSignal.Emoji = reaction.GetEmoji()
-		}
 		if err := m.materializeInput(ctx, input, streamSequence); err != nil {
 			return err
 		}

@@ -267,7 +267,7 @@ Result of deleting every currently visible notification occurrence.
 
 ### GetNotificationPolicy
 
-Gets every supported preference category and its effective delivery mode.
+Gets explicit and effective modes for every supported signal class.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationPolicy
@@ -293,39 +293,39 @@ Complete supported notification policy for one scope.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope when requested; absent for server scope. |
-| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification signal class. |
+| `policy` | [`NotificationPolicy`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicy) | Explicit and effective policy for the requested scope. |
 
 
-<a id="chatto-api-v1-NotificationService-SetNotificationPolicyPreference"></a>
+<a id="chatto-api-v1-NotificationService-UpdateNotificationPolicy"></a>
 
-### SetNotificationPolicyPreference
+### UpdateNotificationPolicy
 
 Sets or clears one server- or room-scoped signal-class override.
 
 ```http
-POST /api/connect/chatto.api.v1.NotificationService/SetNotificationPolicyPreference
+POST /api/connect/chatto.api.v1.NotificationService/UpdateNotificationPolicy
 ```
 
-<a id="chatto-api-v1-SetNotificationPolicyPreferenceRequest"></a>
+<a id="chatto-api-v1-UpdateNotificationPolicyRequest"></a>
 
-#### Input: SetNotificationPolicyPreferenceRequest
+#### Input: UpdateNotificationPolicyRequest
 
-Set or clear one notification preference override.
+Sparsely update notification policy overrides.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope to change; absent changes the server scope. |
-| `category` | [`NotificationPreferenceCategory`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPreferenceCategory) | Required notification preference category. |
-| `override` | optional [`NotificationDeliveryMode`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryMode) | Override at the selected scope. Absence clears it to Inherit. |
+| `overrides` | [`NotificationDeliveryModes`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
 
 
-<a id="chatto-api-v1-SetNotificationPolicyPreferenceResponse"></a>
+<a id="chatto-api-v1-UpdateNotificationPolicyResponse"></a>
 
-#### Result: SetNotificationPolicyPreferenceResponse
+#### Result: UpdateNotificationPolicyResponse
 
-Complete supported notification policy after one preference change.
+Complete supported notification policy after a sparse update.
 
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `optional string` | Room scope when changed; absent for server scope. |
-| `preferences` | repeated [`NotificationPolicyPreference`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicyPreference) | One row for every supported notification signal class. |
+| `policy` | [`NotificationPolicy`](/reference/connectrpc-api/types/#chatto-api-v1-NotificationPolicy) | Explicit and effective policy after the update. |

@@ -484,7 +484,7 @@ describe('notifications page', () => {
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
-      setNotificationPolicyPreference: vi.fn()
+      updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
     (mocks.store as { notifications: unknown }).notifications = notificationStore;
@@ -531,7 +531,7 @@ describe('notifications page', () => {
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
-      setNotificationPolicyPreference: vi.fn()
+      updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
     (mocks.store as { notifications: unknown }).notifications = notificationStore;
@@ -569,7 +569,7 @@ describe('notifications page', () => {
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
-      setNotificationPolicyPreference: vi.fn()
+      updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
     (mocks.store as { notifications: unknown }).notifications = notificationStore;
@@ -623,7 +623,7 @@ describe('notifications page', () => {
       batchDeleteNotificationOccurrences: vi.fn(),
       deleteAllNotificationOccurrences: vi.fn(),
       getNotificationPolicy: vi.fn(),
-      setNotificationPolicyPreference: vi.fn()
+      updateNotificationPolicy: vi.fn()
     };
     const notificationStore = new NotificationStore(api as never);
     (mocks.store as { notifications: unknown }).notifications = notificationStore;

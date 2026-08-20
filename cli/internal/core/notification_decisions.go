@@ -4,6 +4,8 @@ import (
 	"context"
 	"sort"
 
+	"google.golang.org/protobuf/proto"
+
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -12,26 +14,32 @@ import (
 // rich notification signal remains independently addressable.
 type notificationRecipientDecision struct {
 	recipientID string
-	category    corev1.NotificationPreferenceCategory
+	signal      *corev1.NotificationSignal
 	mode        corev1.NotificationDeliveryMode
-	roleNames   []string
 }
 
-func notificationPreferenceCategoryForMention(mention *corev1.MessageMention) corev1.NotificationPreferenceCategory {
-	if mention == nil {
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
+func notificationSignalForMention(mention *corev1.MessageMention, message *corev1.NotificationMessageReference) *corev1.NotificationSignal {
+	if mention == nil || message == nil {
+		return nil
+	}
+	cloned := func() *corev1.NotificationMessageReference {
+		return proto.Clone(message).(*corev1.NotificationMessageReference)
 	}
 	switch mention.GetCause().(type) {
 	case *corev1.MessageMention_Direct:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION
+		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: cloned()}}}
 	case *corev1.MessageMention_Role:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION
+		roleNames := []string(nil)
+		if role := mention.GetRole(); role.GetRoleName() != "" {
+			roleNames = []string{role.GetRoleName()}
+		}
+		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{Message: cloned(), RoleNames: roleNames}}}
 	case *corev1.MessageMention_Here:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE
+		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_HereMentionReceived{HereMentionReceived: &corev1.HereMentionReceived{Message: cloned()}}}
 	case *corev1.MessageMention_All:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL
+		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_AllMentionReceived{AllMentionReceived: &corev1.AllMentionReceived{Message: cloned()}}}
 	default:
-		return corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED
+		return nil
 	}
 }
 
@@ -57,6 +65,21 @@ func directMentionRecipients(mentions []*corev1.MessageMention) []string {
 	return result
 }
 
+func sortedUniqueStrings(values []string) []string {
+	seen := make(map[string]struct{}, len(values))
+	for _, value := range values {
+		if value != "" {
+			seen[value] = struct{}{}
+		}
+	}
+	result := make([]string, 0, len(seen))
+	for value := range seen {
+		result = append(result, value)
+	}
+	sort.Strings(result)
+	return result
+}
+
 func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	ctx context.Context,
 	snapshot *notificationDecisionSnapshot,
@@ -71,29 +94,33 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	if !exists {
 		return nil, nil
 	}
-	kindsByRecipient := make(map[string]map[corev1.NotificationPreferenceCategory]struct{})
-	roleNamesByRecipient := make(map[string]map[string]struct{})
-	add := func(userID string, policyKind corev1.NotificationPreferenceCategory) {
+	reference := newNotificationMessageReference(roomID, source.GetId())
+	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
+		reference.ThreadRootEventId = &threadRootEventID
+	}
+	signalsByRecipient := make(map[string]map[string]*corev1.NotificationSignal)
+	add := func(userID string, signal *corev1.NotificationSignal) {
 		_, active := snapshot.activeUsers[userID]
-		if userID == "" || !active || userID == source.GetActorId() || policyKind == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED || !snapshot.membershipExists(userID, roomID) {
+		identity := notificationSignalIdentity(signal)
+		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.membershipExists(userID, roomID) {
 			return
 		}
-		if kindsByRecipient[userID] == nil {
-			kindsByRecipient[userID] = make(map[corev1.NotificationPreferenceCategory]struct{})
+		if signalsByRecipient[userID] == nil {
+			signalsByRecipient[userID] = make(map[string]*corev1.NotificationSignal)
 		}
-		kindsByRecipient[userID][policyKind] = struct{}{}
+		if existing := signalsByRecipient[userID][identity]; existing != nil {
+			if role := existing.GetRoleMentionReceived(); role != nil {
+				incoming := signal.GetRoleMentionReceived()
+				role.RoleNames = sortedUniqueStrings(append(role.RoleNames, incoming.GetRoleNames()...))
+			}
+			return
+		}
+		signalsByRecipient[userID][identity] = signal
 	}
 
 	if len(message.GetMentions()) > 0 {
 		for _, mention := range message.GetMentions() {
-			category := notificationPreferenceCategoryForMention(mention)
-			add(mention.GetUserId(), category)
-			if role := mention.GetRole(); category == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION && role.GetRoleName() != "" {
-				if roleNamesByRecipient[mention.GetUserId()] == nil {
-					roleNamesByRecipient[mention.GetUserId()] = make(map[string]struct{})
-				}
-				roleNamesByRecipient[mention.GetUserId()][role.GetRoleName()] = struct{}{}
-			}
+			add(mention.GetUserId(), notificationSignalForMention(mention, reference))
 		}
 	} else {
 		// Writers predating rich provenance flattened direct, role, @here, and
@@ -104,11 +131,11 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 
 	if roomKind == KindDM {
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
-			add(userID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE)
+			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 	} else if message.GetInThread() == "" {
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
-			add(userID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM)
+			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 	}
 
@@ -118,13 +145,13 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			return nil, err
 		}
 		if parent != nil {
-			add(parent.GetActorId(), corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY)
+			add(parent.GetActorId(), &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReplyReceived{ReplyReceived: &corev1.ReplyReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 	}
 
 	if threadRootEventID := message.GetInThread(); threadRootEventID != "" {
 		for _, userID := range snapshot.threadFollowerIDs(roomID, threadRootEventID) {
-			add(userID, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD)
+			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 		if snapshot.replyCounts[threadRootEventID] == 1 {
 			root, err := c.GetRoomEventByEventID(ctx, roomKind, roomID, threadRootEventID)
@@ -132,27 +159,24 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 				return nil, err
 			}
 			if root != nil && snapshot.threadFollowState(root.GetActorId(), roomID, threadRootEventID) == ThreadFollowStateNone {
-				add(root.GetActorId(), corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD)
+				add(root.GetActorId(), &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 			}
 		}
 	}
 
-	recipientIDs := sortedMapKeys(kindsByRecipient)
+	recipientIDs := sortedMapKeys(signalsByRecipient)
 	decisions := make([]notificationRecipientDecision, 0)
 	for _, userID := range recipientIDs {
-		policyKinds := make([]corev1.NotificationPreferenceCategory, 0, len(kindsByRecipient[userID]))
-		for policyKind := range kindsByRecipient[userID] {
-			policyKinds = append(policyKinds, policyKind)
+		identities := make([]string, 0, len(signalsByRecipient[userID]))
+		for identity := range signalsByRecipient[userID] {
+			identities = append(identities, identity)
 		}
-		sort.Slice(policyKinds, func(i, j int) bool { return policyKinds[i] < policyKinds[j] })
-		for _, policyKind := range policyKinds {
-			mode := snapshot.effectiveNotificationMode(userID, roomID, policyKind)
+		sort.Strings(identities)
+		for _, identity := range identities {
+			signal := signalsByRecipient[userID][identity]
+			mode := snapshot.effectiveNotificationMode(userID, roomID, signal)
 			if mode > corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
-				decision := notificationRecipientDecision{recipientID: userID, category: policyKind, mode: mode}
-				if policyKind == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION {
-					decision.roleNames = sortedMapKeys(roleNamesByRecipient[userID])
-				}
-				decisions = append(decisions, decision)
+				decisions = append(decisions, notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode})
 			}
 		}
 	}
@@ -161,23 +185,19 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 
 func newNotificationOccurrenceInputs(
 	source *corev1.Event,
-	message *corev1.NotificationMessageReference,
 	decisions []notificationRecipientDecision,
 ) []CreateNotificationOccurrenceInput {
-	if source == nil || source.GetCreatedAt() == nil || message == nil {
+	if source == nil || source.GetCreatedAt() == nil {
 		return nil
 	}
 	result := make([]CreateNotificationOccurrenceInput, 0, len(decisions))
 	for _, decision := range decisions {
-		signal := notificationSignalForPreferenceCategory(decision.category, message, "")
+		signal := decision.signal
 		if signal == nil {
 			continue
 		}
-		if role := signal.GetRoleMentionReceived(); role != nil {
-			role.RoleNames = append([]string(nil), decision.roleNames...)
-		}
 		attention := corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT
-		if decision.category == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION {
+		if signal.GetReactionReceived() != nil {
 			attention = corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_AMBIENT
 		}
 		result = append(result, CreateNotificationOccurrenceInput{

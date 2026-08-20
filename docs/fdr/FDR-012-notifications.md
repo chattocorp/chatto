@@ -78,7 +78,7 @@ replay cannot recreate a deleted item.
 
 ### 3. Delivery policy is separate from attention level
 
-**Decision:** Each notification preference category resolves independently
+**Decision:** Each configurable notification signal class resolves independently
 through a product default, a user/server override, and an optional room
 override:
 

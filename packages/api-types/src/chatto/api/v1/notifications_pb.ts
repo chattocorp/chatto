@@ -4,104 +4,13 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { FieldMask, Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { RoomSummary } from "./rooms_pb.js";
 import { User } from "./users_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 
 /**
- * Stable preference key for one class of notification signal. Notification
- * content uses NotificationSignal instead of this enum.
- *
- * @generated from enum chatto.api.v1.NotificationPreferenceCategory
- */
-export enum NotificationPreferenceCategory {
-  /**
-   * No cause was specified. This value is not valid in preference writes.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * A message was posted in a direct-message conversation.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE = 1;
-   */
-  DIRECT_MESSAGE = 1,
-
-  /**
-   * The viewer's username was mentioned directly.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION = 2;
-   */
-  DIRECT_MENTION = 2,
-
-  /**
-   * Activity replied directly to the viewer's message.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_REPLY = 3;
-   */
-  REPLY = 3,
-
-  /**
-   * A role held by the viewer was mentioned.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION = 4;
-   */
-  ROLE_MENTION = 4,
-
-  /**
-   * An `@here` mention included the viewer.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_HERE = 5;
-   */
-  HERE = 5,
-
-  /**
-   * An `@all` mention included the viewer.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_ALL = 6;
-   */
-  ALL = 6,
-
-  /**
-   * New activity appeared in a thread followed by the viewer.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD = 7;
-   */
-  FOLLOWED_THREAD = 7,
-
-  /**
-   * New activity appeared in a room followed by the viewer.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM = 8;
-   */
-  FOLLOWED_ROOM = 8,
-
-  /**
-   * Someone reacted to the viewer's message.
-   *
-   * @generated from enum value: NOTIFICATION_PREFERENCE_CATEGORY_REACTION = 9;
-   */
-  REACTION = 9,
-}
-// Retrieve enum metadata with: proto3.getEnumType(NotificationPreferenceCategory)
-proto3.util.setEnumType(NotificationPreferenceCategory, "chatto.api.v1.NotificationPreferenceCategory", [
-  { no: 0, name: "NOTIFICATION_PREFERENCE_CATEGORY_UNSPECIFIED" },
-  { no: 1, name: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE" },
-  { no: 2, name: "NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION" },
-  { no: 3, name: "NOTIFICATION_PREFERENCE_CATEGORY_REPLY" },
-  { no: 4, name: "NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION" },
-  { no: 5, name: "NOTIFICATION_PREFERENCE_CATEGORY_HERE" },
-  { no: 6, name: "NOTIFICATION_PREFERENCE_CATEGORY_ALL" },
-  { no: 7, name: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD" },
-  { no: 8, name: "NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM" },
-  { no: 9, name: "NOTIFICATION_PREFERENCE_CATEGORY_REACTION" },
-]);
-
-/**
- * Delivery behavior for one notification preference category.
+ * Delivery behavior for one notification signal class.
  *
  * @generated from enum chatto.api.v1.NotificationDeliveryMode
  */
@@ -176,6 +85,94 @@ proto3.util.setEnumType(NotificationAttentionLevel, "chatto.api.v1.NotificationA
   { no: 1, name: "NOTIFICATION_ATTENTION_LEVEL_AMBIENT" },
   { no: 2, name: "NOTIFICATION_ATTENTION_LEVEL_IMPORTANT" },
 ]);
+
+/**
+ * Delivery modes for Chatto's finite built-in notification signal classes.
+ * Presence is significant: absent fields inherit in a stored policy.
+ *
+ * @generated from message chatto.api.v1.NotificationDeliveryModes
+ */
+export class NotificationDeliveryModes extends Message<NotificationDeliveryModes> {
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode direct_messages = 1;
+   */
+  directMessages?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode direct_mentions = 2;
+   */
+  directMentions?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode replies = 3;
+   */
+  replies?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode role_mentions = 4;
+   */
+  roleMentions?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode here_mentions = 5;
+   */
+  hereMentions?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode all_mentions = 6;
+   */
+  allMentions?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_threads = 7;
+   */
+  followedThreads?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8;
+   */
+  followedRooms?: NotificationDeliveryMode;
+
+  /**
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode reactions = 9;
+   */
+  reactions?: NotificationDeliveryMode;
+
+  constructor(data?: PartialMessage<NotificationDeliveryModes>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.NotificationDeliveryModes";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "direct_messages", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 2, name: "direct_mentions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 3, name: "replies", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 4, name: "role_mentions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 5, name: "here_mentions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 6, name: "all_mentions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 7, name: "followed_threads", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 8, name: "followed_rooms", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 9, name: "reactions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationDeliveryModes {
+    return new NotificationDeliveryModes().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationDeliveryModes {
+    return new NotificationDeliveryModes().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationDeliveryModes {
+    return new NotificationDeliveryModes().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: NotificationDeliveryModes | PlainMessage<NotificationDeliveryModes> | undefined, b: NotificationDeliveryModes | PlainMessage<NotificationDeliveryModes> | undefined): boolean {
+    return proto3.util.equals(NotificationDeliveryModes, a, b);
+  }
+}
 
 /**
  * Exact visible message destination carried by a notification signal.
@@ -1463,59 +1460,51 @@ export class DeleteAllNotificationOccurrencesResponse extends Message<DeleteAllN
 }
 
 /**
- * Explicit and effective delivery policy for one notification preference category.
+ * Explicit and effective delivery modes for one notification policy scope.
  *
- * @generated from message chatto.api.v1.NotificationPolicyPreference
+ * @generated from message chatto.api.v1.NotificationPolicy
  */
-export class NotificationPolicyPreference extends Message<NotificationPolicyPreference> {
+export class NotificationPolicy extends Message<NotificationPolicy> {
   /**
-   * Preference category controlled by this row.
+   * Explicit modes at the requested scope. Missing fields mean Inherit.
    *
-   * @generated from field: chatto.api.v1.NotificationPreferenceCategory category = 1;
+   * @generated from field: chatto.api.v1.NotificationDeliveryModes overrides = 1;
    */
-  category = NotificationPreferenceCategory.UNSPECIFIED;
+  overrides?: NotificationDeliveryModes;
 
   /**
-   * Explicit override at the requested scope. Absence means Inherit.
+   * Complete modes after applying product, server, and room inheritance.
    *
-   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode override = 2;
+   * @generated from field: chatto.api.v1.NotificationDeliveryModes effective = 2;
    */
-  override?: NotificationDeliveryMode;
+  effective?: NotificationDeliveryModes;
 
-  /**
-   * Effective mode after applying product, server, and room inheritance.
-   *
-   * @generated from field: chatto.api.v1.NotificationDeliveryMode effective = 3;
-   */
-  effective = NotificationDeliveryMode.UNSPECIFIED;
-
-  constructor(data?: PartialMessage<NotificationPolicyPreference>) {
+  constructor(data?: PartialMessage<NotificationPolicy>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.NotificationPolicyPreference";
+  static readonly typeName = "chatto.api.v1.NotificationPolicy";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
-    { no: 1, name: "category", kind: "enum", T: proto3.getEnumType(NotificationPreferenceCategory) },
-    { no: 2, name: "override", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
-    { no: 3, name: "effective", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode) },
+    { no: 1, name: "overrides", kind: "message", T: NotificationDeliveryModes },
+    { no: 2, name: "effective", kind: "message", T: NotificationDeliveryModes },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationPolicyPreference {
-    return new NotificationPolicyPreference().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationPolicy {
+    return new NotificationPolicy().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationPolicyPreference {
-    return new NotificationPolicyPreference().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): NotificationPolicy {
+    return new NotificationPolicy().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationPolicyPreference {
-    return new NotificationPolicyPreference().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): NotificationPolicy {
+    return new NotificationPolicy().fromJsonString(jsonString, options);
   }
 
-  static equals(a: NotificationPolicyPreference | PlainMessage<NotificationPolicyPreference> | undefined, b: NotificationPolicyPreference | PlainMessage<NotificationPolicyPreference> | undefined): boolean {
-    return proto3.util.equals(NotificationPolicyPreference, a, b);
+  static equals(a: NotificationPolicy | PlainMessage<NotificationPolicy> | undefined, b: NotificationPolicy | PlainMessage<NotificationPolicy> | undefined): boolean {
+    return proto3.util.equals(NotificationPolicy, a, b);
   }
 }
 
@@ -1575,11 +1564,11 @@ export class GetNotificationPolicyResponse extends Message<GetNotificationPolicy
   roomId?: string;
 
   /**
-   * One row for every supported notification signal class.
+   * Explicit and effective policy for the requested scope.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
+   * @generated from field: chatto.api.v1.NotificationPolicy policy = 2;
    */
-  preferences: NotificationPolicyPreference[] = [];
+  policy?: NotificationPolicy;
 
   constructor(data?: PartialMessage<GetNotificationPolicyResponse>) {
     super();
@@ -1590,7 +1579,7 @@ export class GetNotificationPolicyResponse extends Message<GetNotificationPolicy
   static readonly typeName = "chatto.api.v1.GetNotificationPolicyResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "preferences", kind: "message", T: NotificationPolicyPreference, repeated: true },
+    { no: 2, name: "policy", kind: "message", T: NotificationPolicy },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetNotificationPolicyResponse {
@@ -1611,11 +1600,11 @@ export class GetNotificationPolicyResponse extends Message<GetNotificationPolicy
 }
 
 /**
- * Set or clear one notification preference override.
+ * Sparsely update notification policy overrides.
  *
- * @generated from message chatto.api.v1.SetNotificationPolicyPreferenceRequest
+ * @generated from message chatto.api.v1.UpdateNotificationPolicyRequest
  */
-export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificationPolicyPreferenceRequest> {
+export class UpdateNotificationPolicyRequest extends Message<UpdateNotificationPolicyRequest> {
   /**
    * Room scope to change; absent changes the server scope.
    *
@@ -1624,55 +1613,57 @@ export class SetNotificationPolicyPreferenceRequest extends Message<SetNotificat
   roomId?: string;
 
   /**
-   * Required notification preference category.
+   * Sparse override values. Fields selected by update_mask but absent here are
+   * cleared to Inherit.
    *
-   * @generated from field: chatto.api.v1.NotificationPreferenceCategory category = 2;
+   * @generated from field: chatto.api.v1.NotificationDeliveryModes overrides = 2;
    */
-  category = NotificationPreferenceCategory.UNSPECIFIED;
+  overrides?: NotificationDeliveryModes;
 
   /**
-   * Override at the selected scope. Absence clears it to Inherit.
+   * Fields to set or clear, relative to overrides. The mask must contain at
+   * least one supported delivery-mode field.
    *
-   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode override = 3;
+   * @generated from field: google.protobuf.FieldMask update_mask = 3;
    */
-  override?: NotificationDeliveryMode;
+  updateMask?: FieldMask;
 
-  constructor(data?: PartialMessage<SetNotificationPolicyPreferenceRequest>) {
+  constructor(data?: PartialMessage<UpdateNotificationPolicyRequest>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceRequest";
+  static readonly typeName = "chatto.api.v1.UpdateNotificationPolicyRequest";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "category", kind: "enum", T: proto3.getEnumType(NotificationPreferenceCategory) },
-    { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 2, name: "overrides", kind: "message", T: NotificationDeliveryModes },
+    { no: 3, name: "update_mask", kind: "message", T: FieldMask },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNotificationPolicyPreferenceRequest {
-    return new SetNotificationPolicyPreferenceRequest().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationPolicyRequest {
+    return new UpdateNotificationPolicyRequest().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceRequest {
-    return new SetNotificationPolicyPreferenceRequest().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationPolicyRequest {
+    return new UpdateNotificationPolicyRequest().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceRequest {
-    return new SetNotificationPolicyPreferenceRequest().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationPolicyRequest {
+    return new UpdateNotificationPolicyRequest().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetNotificationPolicyPreferenceRequest | PlainMessage<SetNotificationPolicyPreferenceRequest> | undefined, b: SetNotificationPolicyPreferenceRequest | PlainMessage<SetNotificationPolicyPreferenceRequest> | undefined): boolean {
-    return proto3.util.equals(SetNotificationPolicyPreferenceRequest, a, b);
+  static equals(a: UpdateNotificationPolicyRequest | PlainMessage<UpdateNotificationPolicyRequest> | undefined, b: UpdateNotificationPolicyRequest | PlainMessage<UpdateNotificationPolicyRequest> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationPolicyRequest, a, b);
   }
 }
 
 /**
- * Complete supported notification policy after one preference change.
+ * Complete supported notification policy after a sparse update.
  *
- * @generated from message chatto.api.v1.SetNotificationPolicyPreferenceResponse
+ * @generated from message chatto.api.v1.UpdateNotificationPolicyResponse
  */
-export class SetNotificationPolicyPreferenceResponse extends Message<SetNotificationPolicyPreferenceResponse> {
+export class UpdateNotificationPolicyResponse extends Message<UpdateNotificationPolicyResponse> {
   /**
    * Room scope when changed; absent for server scope.
    *
@@ -1681,37 +1672,37 @@ export class SetNotificationPolicyPreferenceResponse extends Message<SetNotifica
   roomId?: string;
 
   /**
-   * One row for every supported notification signal class.
+   * Explicit and effective policy after the update.
    *
-   * @generated from field: repeated chatto.api.v1.NotificationPolicyPreference preferences = 2;
+   * @generated from field: chatto.api.v1.NotificationPolicy policy = 2;
    */
-  preferences: NotificationPolicyPreference[] = [];
+  policy?: NotificationPolicy;
 
-  constructor(data?: PartialMessage<SetNotificationPolicyPreferenceResponse>) {
+  constructor(data?: PartialMessage<UpdateNotificationPolicyResponse>) {
     super();
     proto3.util.initPartial(data, this);
   }
 
   static readonly runtime: typeof proto3 = proto3;
-  static readonly typeName = "chatto.api.v1.SetNotificationPolicyPreferenceResponse";
+  static readonly typeName = "chatto.api.v1.UpdateNotificationPolicyResponse";
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
-    { no: 2, name: "preferences", kind: "message", T: NotificationPolicyPreference, repeated: true },
+    { no: 2, name: "policy", kind: "message", T: NotificationPolicy },
   ]);
 
-  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): SetNotificationPolicyPreferenceResponse {
-    return new SetNotificationPolicyPreferenceResponse().fromBinary(bytes, options);
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateNotificationPolicyResponse {
+    return new UpdateNotificationPolicyResponse().fromBinary(bytes, options);
   }
 
-  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceResponse {
-    return new SetNotificationPolicyPreferenceResponse().fromJson(jsonValue, options);
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UpdateNotificationPolicyResponse {
+    return new UpdateNotificationPolicyResponse().fromJson(jsonValue, options);
   }
 
-  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): SetNotificationPolicyPreferenceResponse {
-    return new SetNotificationPolicyPreferenceResponse().fromJsonString(jsonString, options);
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UpdateNotificationPolicyResponse {
+    return new UpdateNotificationPolicyResponse().fromJsonString(jsonString, options);
   }
 
-  static equals(a: SetNotificationPolicyPreferenceResponse | PlainMessage<SetNotificationPolicyPreferenceResponse> | undefined, b: SetNotificationPolicyPreferenceResponse | PlainMessage<SetNotificationPolicyPreferenceResponse> | undefined): boolean {
-    return proto3.util.equals(SetNotificationPolicyPreferenceResponse, a, b);
+  static equals(a: UpdateNotificationPolicyResponse | PlainMessage<UpdateNotificationPolicyResponse> | undefined, b: UpdateNotificationPolicyResponse | PlainMessage<UpdateNotificationPolicyResponse> | undefined): boolean {
+    return proto3.util.equals(UpdateNotificationPolicyResponse, a, b);
   }
 }

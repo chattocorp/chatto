@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/yuin/goldmark"
@@ -231,9 +232,8 @@ func (c *ChattoCore) ResolveMentions(ctx context.Context, usernames []string) ([
 // source fact so @here presence and overlapping handles are not re-evaluated
 // later by notification materialization.
 type RoomMentionResolution struct {
-	RecipientIDs     []string
-	CategoriesByUser map[string][]corev1.NotificationPreferenceCategory
-	Mentions         []*corev1.MessageMention
+	RecipientIDs []string
+	Mentions     []*corev1.MessageMention
 }
 
 // ResolveRoomMentionKinds resolves @handles in a message to concrete
@@ -247,7 +247,7 @@ type RoomMentionResolution struct {
 //
 // Invalid handles are silently ignored, matching existing @user behavior.
 func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind, roomID string, handles []string) (*RoomMentionResolution, error) {
-	result := &RoomMentionResolution{CategoriesByUser: make(map[string][]corev1.NotificationPreferenceCategory)}
+	result := &RoomMentionResolution{}
 	if len(handles) == 0 {
 		return result, nil
 	}
@@ -264,9 +264,8 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 	}
 
 	seenRecipients := make(map[string]struct{})
-	seenCategories := make(map[string]map[corev1.NotificationPreferenceCategory]struct{})
 	seenMentions := make(map[string]struct{})
-	add := func(userID string, category corev1.NotificationPreferenceCategory, causeKey string, mention *corev1.MessageMention) {
+	add := func(userID string, causeKey string, mention *corev1.MessageMention) {
 		if userID == "" {
 			return
 		}
@@ -277,13 +276,6 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 			seenRecipients[userID] = struct{}{}
 			result.RecipientIDs = append(result.RecipientIDs, userID)
 		}
-		if seenCategories[userID] == nil {
-			seenCategories[userID] = make(map[corev1.NotificationPreferenceCategory]struct{})
-		}
-		if _, duplicate := seenCategories[userID][category]; !duplicate {
-			seenCategories[userID][category] = struct{}{}
-			result.CategoriesByUser[userID] = append(result.CategoriesByUser[userID], category)
-		}
 		mentionKey := userID + "\x00" + causeKey
 		if _, duplicate := seenMentions[mentionKey]; duplicate {
 			return
@@ -292,9 +284,9 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 		mention.UserId = userID
 		result.Mentions = append(result.Mentions, mention)
 	}
-	addMembers := func(candidates []string, category corev1.NotificationPreferenceCategory, causeKey string, cause func() *corev1.MessageMention) {
+	addMembers := func(candidates []string, causeKey string, cause func() *corev1.MessageMention) {
 		for _, userID := range candidates {
-			add(userID, category, causeKey, cause())
+			add(userID, causeKey, cause())
 		}
 	}
 
@@ -304,7 +296,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 		case MentionHandleAll:
 			for _, member := range members {
 				if member != nil {
-					add(member.UserId, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL, "all", &corev1.MessageMention{Cause: &corev1.MessageMention_All{All: &corev1.AllMessageMention{}}})
+					add(member.UserId, "all", &corev1.MessageMention{Cause: &corev1.MessageMention_All{All: &corev1.AllMessageMention{}}})
 				}
 			}
 			continue
@@ -318,7 +310,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 					return nil, fmt.Errorf("resolve @here presence: %w", err)
 				}
 				if status != PresenceStatusOffline {
-					add(member.UserId, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE, "here", &corev1.MessageMention{Cause: &corev1.MessageMention_Here{Here: &corev1.HereMessageMention{}}})
+					add(member.UserId, "here", &corev1.MessageMention{Cause: &corev1.MessageMention_Here{Here: &corev1.HereMessageMention{}}})
 				}
 			}
 			continue
@@ -339,7 +331,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 				}
 				return nil, fmt.Errorf("resolve role mention: %w", err)
 			}
-			addMembers(roleUsers, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION, "role:"+normalized, func() *corev1.MessageMention {
+			addMembers(roleUsers, "role:"+normalized, func() *corev1.MessageMention {
 				return &corev1.MessageMention{Cause: &corev1.MessageMention_Role{Role: &corev1.RoleMessageMention{RoleName: normalized}}}
 			})
 			continue
@@ -352,7 +344,7 @@ func (c *ChattoCore) ResolveRoomMentionKinds(ctx context.Context, kind RoomKind,
 			}
 			return nil, fmt.Errorf("resolve user mention: %w", err)
 		}
-		add(user.Id, corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION, "direct", &corev1.MessageMention{Cause: &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}}})
+		add(user.Id, "direct", &corev1.MessageMention{Cause: &corev1.MessageMention_Direct{Direct: &corev1.DirectUserMention{}}})
 	}
 
 	return result, nil
@@ -375,15 +367,16 @@ func (c *ChattoCore) ResolveDirectRoomMentions(ctx context.Context, kind RoomKin
 	if err != nil {
 		return nil, err
 	}
-	userIDs := make([]string, 0, len(resolved.RecipientIDs))
-	for _, userID := range resolved.RecipientIDs {
-		for _, policyKind := range resolved.CategoriesByUser[userID] {
-			if policyKind == corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION {
-				userIDs = append(userIDs, userID)
-				break
-			}
+	seen := make(map[string]struct{})
+	for _, mention := range resolved.Mentions {
+		if _, direct := mention.GetCause().(*corev1.MessageMention_Direct); direct {
+			seen[mention.GetUserId()] = struct{}{}
 		}
 	}
-
+	userIDs := make([]string, 0, len(seen))
+	for userID := range seen {
+		userIDs = append(userIDs, userID)
+	}
+	sort.Strings(userIDs)
 	return userIDs, nil
 }

@@ -4,7 +4,7 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import {
   getNotificationPolicy,
   getRoomIdByNameViaConnect,
-  setNotificationPolicyPreference
+  updateNotificationPolicy
 } from './fixtures/connectHelpers';
 import { test } from './setup';
 import * as routes from './routes';
@@ -41,17 +41,13 @@ test.describe('Notification policy', () => {
     await chatPage.goto();
     const roomId = await getRoomIdByNameViaConnect(page, 'general');
 
-    await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'SILENT');
+    await updateNotificationPolicy(page, { followedRooms: 'SILENT' });
     let roomPolicy = await getNotificationPolicy(page, roomId);
-    expect(roomPolicy.find(({ category }) => category === 'FOLLOWED_ROOM')).toMatchObject({
-      override: 'UNSPECIFIED',
-      effective: 'SILENT'
-    });
+    expect(roomPolicy.overrides.followedRooms).toBeNull();
+    expect(roomPolicy.effective.followedRooms).toBe('SILENT');
 
-    roomPolicy = await setNotificationPolicyPreference(page, 'FOLLOWED_ROOM', 'ALERT', roomId);
-    expect(roomPolicy.find(({ category }) => category === 'FOLLOWED_ROOM')).toMatchObject({
-      override: 'ALERT',
-      effective: 'ALERT'
-    });
+    roomPolicy = await updateNotificationPolicy(page, { followedRooms: 'ALERT' }, roomId);
+    expect(roomPolicy.overrides.followedRooms).toBe('ALERT');
+    expect(roomPolicy.effective.followedRooms).toBe('ALERT');
   });
 });

@@ -209,18 +209,13 @@ message UserConfigSnapshot {
   string user_id = 1;
   optional string timezone = 2;
   optional TimeFormat time_format = 3;
-  repeated NotificationPreferenceSnapshot server_notification_preferences = 4;
-  repeated RoomNotificationPreferenceSnapshot room_notification_preferences = 5;
+  NotificationDeliveryModes server_notification_modes = 4;
+  repeated RoomNotificationModesSnapshot room_notification_modes = 5;
 }
 
-message NotificationPreferenceSnapshot {
-  NotificationPreferenceCategory category = 1;
-  NotificationDeliveryMode mode = 2;
-}
-
-message RoomNotificationPreferenceSnapshot {
+message RoomNotificationModesSnapshot {
   string room_id = 1;
-  repeated NotificationPreferenceSnapshot preferences = 2;
+  NotificationDeliveryModes modes = 2;
 }
 
 message NotificationProjectionSnapshot {

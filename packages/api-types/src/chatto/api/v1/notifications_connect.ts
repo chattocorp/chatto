@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, SetNotificationPolicyPreferenceRequest, SetNotificationPolicyPreferenceResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, UpdateNotificationPolicyRequest, UpdateNotificationPolicyResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -113,7 +113,7 @@ export const NotificationService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets every supported preference category and its effective delivery mode.
+     * Gets explicit and effective modes for every supported signal class.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationPolicy
      */
@@ -126,12 +126,12 @@ export const NotificationService = {
     /**
      * Sets or clears one server- or room-scoped signal-class override.
      *
-     * @generated from rpc chatto.api.v1.NotificationService.SetNotificationPolicyPreference
+     * @generated from rpc chatto.api.v1.NotificationService.UpdateNotificationPolicy
      */
-    setNotificationPolicyPreference: {
-      name: "SetNotificationPolicyPreference",
-      I: SetNotificationPolicyPreferenceRequest,
-      O: SetNotificationPolicyPreferenceResponse,
+    updateNotificationPolicy: {
+      name: "UpdateNotificationPolicy",
+      I: UpdateNotificationPolicyRequest,
+      O: UpdateNotificationPolicyResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

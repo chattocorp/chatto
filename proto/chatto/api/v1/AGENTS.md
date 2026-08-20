@@ -82,6 +82,9 @@ first consumer.
 - For extensible key spaces such as permissions, avoid one protobuf field per
   key. Use repeated keyed rows, for example `{ permission, granted }`, so
   built-in and integration-defined keys share one forward-compatible shape.
+- For finite product-defined keyspaces, prefer one explicit field per
+  independently configurable concept. Repeated keyed rows are for dynamic or
+  integration-defined keys.
 
 ## Absence Semantics
 

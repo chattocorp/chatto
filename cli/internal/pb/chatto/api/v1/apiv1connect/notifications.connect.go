@@ -57,9 +57,9 @@ const (
 	// NotificationServiceGetNotificationPolicyProcedure is the fully-qualified name of the
 	// NotificationService's GetNotificationPolicy RPC.
 	NotificationServiceGetNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/GetNotificationPolicy"
-	// NotificationServiceSetNotificationPolicyPreferenceProcedure is the fully-qualified name of the
-	// NotificationService's SetNotificationPolicyPreference RPC.
-	NotificationServiceSetNotificationPolicyPreferenceProcedure = "/chatto.api.v1.NotificationService/SetNotificationPolicyPreference"
+	// NotificationServiceUpdateNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationService's UpdateNotificationPolicy RPC.
+	NotificationServiceUpdateNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/UpdateNotificationPolicy"
 )
 
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
@@ -96,10 +96,10 @@ type NotificationServiceClient interface {
 	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported preference category and its effective delivery mode.
+	// Gets explicit and effective modes for every supported signal class.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped signal-class override.
-	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 
 // NewNotificationServiceClient constructs a client for the chatto.api.v1.NotificationService
@@ -164,10 +164,10 @@ func NewNotificationServiceClient(httpClient connect.HTTPClient, baseURL string,
 			connect.WithSchema(notificationServiceMethods.ByName("GetNotificationPolicy")),
 			connect.WithClientOptions(opts...),
 		),
-		setNotificationPolicyPreference: connect.NewClient[v1.SetNotificationPolicyPreferenceRequest, v1.SetNotificationPolicyPreferenceResponse](
+		updateNotificationPolicy: connect.NewClient[v1.UpdateNotificationPolicyRequest, v1.UpdateNotificationPolicyResponse](
 			httpClient,
-			baseURL+NotificationServiceSetNotificationPolicyPreferenceProcedure,
-			connect.WithSchema(notificationServiceMethods.ByName("SetNotificationPolicyPreference")),
+			baseURL+NotificationServiceUpdateNotificationPolicyProcedure,
+			connect.WithSchema(notificationServiceMethods.ByName("UpdateNotificationPolicy")),
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
@@ -184,7 +184,7 @@ type notificationServiceClient struct {
 	batchDeleteNotificationOccurrences *connect.Client[v1.BatchDeleteNotificationOccurrencesRequest, v1.BatchDeleteNotificationOccurrencesResponse]
 	deleteAllNotificationOccurrences   *connect.Client[v1.DeleteAllNotificationOccurrencesRequest, v1.DeleteAllNotificationOccurrencesResponse]
 	getNotificationPolicy              *connect.Client[v1.GetNotificationPolicyRequest, v1.GetNotificationPolicyResponse]
-	setNotificationPolicyPreference    *connect.Client[v1.SetNotificationPolicyPreferenceRequest, v1.SetNotificationPolicyPreferenceResponse]
+	updateNotificationPolicy           *connect.Client[v1.UpdateNotificationPolicyRequest, v1.UpdateNotificationPolicyResponse]
 }
 
 // GetNotificationOccurrence calls chatto.api.v1.NotificationService.GetNotificationOccurrence.
@@ -231,10 +231,9 @@ func (c *notificationServiceClient) GetNotificationPolicy(ctx context.Context, r
 	return c.getNotificationPolicy.CallUnary(ctx, req)
 }
 
-// SetNotificationPolicyPreference calls
-// chatto.api.v1.NotificationService.SetNotificationPolicyPreference.
-func (c *notificationServiceClient) SetNotificationPolicyPreference(ctx context.Context, req *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error) {
-	return c.setNotificationPolicyPreference.CallUnary(ctx, req)
+// UpdateNotificationPolicy calls chatto.api.v1.NotificationService.UpdateNotificationPolicy.
+func (c *notificationServiceClient) UpdateNotificationPolicy(ctx context.Context, req *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error) {
+	return c.updateNotificationPolicy.CallUnary(ctx, req)
 }
 
 // NotificationServiceHandler is an implementation of the chatto.api.v1.NotificationService service.
@@ -271,10 +270,10 @@ type NotificationServiceHandler interface {
 	// Returns UNIMPLEMENTED rather than partially deleting a signal kind this
 	// server cannot validate.
 	DeleteAllNotificationOccurrences(context.Context, *connect.Request[v1.DeleteAllNotificationOccurrencesRequest]) (*connect.Response[v1.DeleteAllNotificationOccurrencesResponse], error)
-	// Gets every supported preference category and its effective delivery mode.
+	// Gets explicit and effective modes for every supported signal class.
 	GetNotificationPolicy(context.Context, *connect.Request[v1.GetNotificationPolicyRequest]) (*connect.Response[v1.GetNotificationPolicyResponse], error)
 	// Sets or clears one server- or room-scoped signal-class override.
-	SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error)
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error)
 }
 
 // NewNotificationServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -335,10 +334,10 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 		connect.WithSchema(notificationServiceMethods.ByName("GetNotificationPolicy")),
 		connect.WithHandlerOptions(opts...),
 	)
-	notificationServiceSetNotificationPolicyPreferenceHandler := connect.NewUnaryHandler(
-		NotificationServiceSetNotificationPolicyPreferenceProcedure,
-		svc.SetNotificationPolicyPreference,
-		connect.WithSchema(notificationServiceMethods.ByName("SetNotificationPolicyPreference")),
+	notificationServiceUpdateNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationServiceUpdateNotificationPolicyProcedure,
+		svc.UpdateNotificationPolicy,
+		connect.WithSchema(notificationServiceMethods.ByName("UpdateNotificationPolicy")),
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
@@ -360,8 +359,8 @@ func NewNotificationServiceHandler(svc NotificationServiceHandler, opts ...conne
 			notificationServiceDeleteAllNotificationOccurrencesHandler.ServeHTTP(w, r)
 		case NotificationServiceGetNotificationPolicyProcedure:
 			notificationServiceGetNotificationPolicyHandler.ServeHTTP(w, r)
-		case NotificationServiceSetNotificationPolicyPreferenceProcedure:
-			notificationServiceSetNotificationPolicyPreferenceHandler.ServeHTTP(w, r)
+		case NotificationServiceUpdateNotificationPolicyProcedure:
+			notificationServiceUpdateNotificationPolicyHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -403,6 +402,6 @@ func (UnimplementedNotificationServiceHandler) GetNotificationPolicy(context.Con
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.GetNotificationPolicy is not implemented"))
 }
 
-func (UnimplementedNotificationServiceHandler) SetNotificationPolicyPreference(context.Context, *connect.Request[v1.SetNotificationPolicyPreferenceRequest]) (*connect.Response[v1.SetNotificationPolicyPreferenceResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.SetNotificationPolicyPreference is not implemented"))
+func (UnimplementedNotificationServiceHandler) UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.UpdateNotificationPolicy is not implemented"))
 }

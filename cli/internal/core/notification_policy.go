@@ -4,32 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
+
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
 
-var notificationPreferenceCategories = []corev1.NotificationPreferenceCategory{
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM,
-	corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION,
-}
-
-// NotificationPolicyPreference is one category's override and effective policy
-// at the requested server or room scope.
-type NotificationPolicyPreference struct {
+// NotificationPolicy is the complete explicit and effective policy at one
+// server or room scope.
+type NotificationPolicy struct {
 	RoomID    string
-	Category  corev1.NotificationPreferenceCategory
-	Override  *corev1.NotificationDeliveryMode
-	Effective corev1.NotificationDeliveryMode
+	Overrides *corev1.NotificationDeliveryModes
+	Effective *corev1.NotificationDeliveryModes
 }
 
 // NotificationPolicyModel owns authenticated Notifications 2.0 policy reads
@@ -44,81 +36,173 @@ func (c *ChattoCore) NotificationPolicy() *NotificationPolicyModel {
 	return c.notificationPolicy
 }
 
-func defaultNotificationMode(category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
-	switch category {
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_THREAD,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REACTION:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_FOLLOWED_ROOM:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF
-	case corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MESSAGE,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_DIRECT_MENTION,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_REPLY,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ROLE_MENTION,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_HERE,
-		corev1.NotificationPreferenceCategory_NOTIFICATION_PREFERENCE_CATEGORY_ALL:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
+func cloneNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) *corev1.NotificationDeliveryModes {
+	if modes == nil {
+		return &corev1.NotificationDeliveryModes{}
+	}
+	return proto.Clone(modes).(*corev1.NotificationDeliveryModes)
+}
+
+func notificationDeliveryModesEmpty(modes *corev1.NotificationDeliveryModes) bool {
+	if modes == nil {
+		return true
+	}
+	if len(modes.ProtoReflect().GetUnknown()) > 0 {
+		return false
+	}
+	empty := true
+	modes.ProtoReflect().Range(func(protoreflect.FieldDescriptor, protoreflect.Value) bool {
+		empty = false
+		return false
+	})
+	return empty
+}
+
+func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
+	return mode >= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF &&
+		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
+}
+
+func validateNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) error {
+	if modes == nil {
+		return nil
+	}
+	var validationErr error
+	modes.ProtoReflect().Range(func(field protoreflect.FieldDescriptor, value protoreflect.Value) bool {
+		if field.Kind() != protoreflect.EnumKind || !validNotificationMode(corev1.NotificationDeliveryMode(value.Enum())) {
+			validationErr = invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", field.Name()))
+			return false
+		}
+		return true
+	})
+	return validationErr
+}
+
+func applyNotificationDeliveryModesPatch(current, patch *corev1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*corev1.NotificationDeliveryModes, error) {
+	if mask == nil || len(mask.GetPaths()) == 0 {
+		return nil, invalidArgument("notification policy update mask must select at least one field")
+	}
+	result := cloneNotificationDeliveryModes(current)
+	patchMessage := cloneNotificationDeliveryModes(patch).ProtoReflect()
+	resultMessage := result.ProtoReflect()
+	fields := resultMessage.Descriptor().Fields()
+	seen := make(map[string]struct{}, len(mask.GetPaths()))
+	for _, path := range mask.GetPaths() {
+		if path == "" || strings.Contains(path, ".") {
+			return nil, invalidArgument(fmt.Sprintf("unsupported notification policy field %q", path))
+		}
+		if _, duplicate := seen[path]; duplicate {
+			continue
+		}
+		seen[path] = struct{}{}
+		field := fields.ByName(protoreflect.Name(path))
+		if field == nil || field.Kind() != protoreflect.EnumKind || !field.HasPresence() {
+			return nil, invalidArgument(fmt.Sprintf("unsupported notification policy field %q", path))
+		}
+		if patchMessage.Has(field) {
+			mode := corev1.NotificationDeliveryMode(patchMessage.Get(field).Enum())
+			if !validNotificationMode(mode) {
+				return nil, invalidArgument(fmt.Sprintf("invalid notification delivery mode for %s", path))
+			}
+			resultMessage.Set(field, patchMessage.Get(field))
+		} else {
+			resultMessage.Clear(field)
+		}
+	}
+	return result, nil
+}
+
+func (cm *ConfigModel) notificationServerModes(userID string) *corev1.NotificationDeliveryModes {
+	if cm == nil || cm.config.Projection() == nil {
+		return &corev1.NotificationDeliveryModes{}
+	}
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
+	if u == nil {
+		return &corev1.NotificationDeliveryModes{}
+	}
+	return cloneNotificationDeliveryModes(u.serverModes)
+}
+
+func (cm *ConfigModel) notificationRoomModes(userID, roomID string) *corev1.NotificationDeliveryModes {
+	if cm == nil || cm.config.Projection() == nil {
+		return &corev1.NotificationDeliveryModes{}
+	}
+	cm.config.Projection().RLock()
+	defer cm.config.Projection().RUnlock()
+	u := cm.config.Projection().users[userID]
+	if u == nil {
+		return &corev1.NotificationDeliveryModes{}
+	}
+	return cloneNotificationDeliveryModes(u.roomModesByRoom[roomID])
+}
+
+func resolvedNotificationMode(room, server *corev1.NotificationDeliveryMode, fallback corev1.NotificationDeliveryMode) corev1.NotificationDeliveryMode {
+	if room != nil {
+		return *room
+	}
+	if server != nil {
+		return *server
+	}
+	return fallback
+}
+
+func effectiveNotificationDeliveryModes(server, room *corev1.NotificationDeliveryModes) *corev1.NotificationDeliveryModes {
+	server = cloneNotificationDeliveryModes(server)
+	room = cloneNotificationDeliveryModes(room)
+	return &corev1.NotificationDeliveryModes{
+		DirectMessages:  resolvedNotificationMode(room.DirectMessages, server.DirectMessages, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		DirectMentions:  resolvedNotificationMode(room.DirectMentions, server.DirectMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		Replies:         resolvedNotificationMode(room.Replies, server.Replies, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		RoleMentions:    resolvedNotificationMode(room.RoleMentions, server.RoleMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		HereMentions:    resolvedNotificationMode(room.HereMentions, server.HereMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		AllMentions:     resolvedNotificationMode(room.AllMentions, server.AllMentions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT).Enum(),
+		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, server.FollowedThreads, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT).Enum(),
+		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, server.FollowedRooms, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
+		Reactions:       resolvedNotificationMode(room.Reactions, server.Reactions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT).Enum(),
+	}
+}
+
+func notificationModeForSignal(modes *corev1.NotificationDeliveryModes, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
+	if modes == nil || signal == nil {
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
+	}
+	switch signal.GetKind().(type) {
+	case *corev1.NotificationSignal_DirectMessageReceived:
+		return modes.GetDirectMessages()
+	case *corev1.NotificationSignal_DirectMentionReceived:
+		return modes.GetDirectMentions()
+	case *corev1.NotificationSignal_ReplyReceived:
+		return modes.GetReplies()
+	case *corev1.NotificationSignal_RoleMentionReceived:
+		return modes.GetRoleMentions()
+	case *corev1.NotificationSignal_HereMentionReceived:
+		return modes.GetHereMentions()
+	case *corev1.NotificationSignal_AllMentionReceived:
+		return modes.GetAllMentions()
+	case *corev1.NotificationSignal_FollowedThreadActivity:
+		return modes.GetFollowedThreads()
+	case *corev1.NotificationSignal_FollowedRoomActivity:
+		return modes.GetFollowedRooms()
+	case *corev1.NotificationSignal_ReactionReceived:
+		return modes.GetReactions()
 	default:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}
 }
 
-func validNotificationPreferenceCategory(category corev1.NotificationPreferenceCategory) bool {
-	return defaultNotificationMode(category) != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-}
-
-func validNotificationMode(mode corev1.NotificationDeliveryMode, allowInherit bool) bool {
-	if allowInherit && mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-		return true
-	}
-	return mode >= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF &&
-		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
-}
-
-func (cm *ConfigModel) notificationServerMode(userID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
-	if cm == nil || cm.config.Projection() == nil {
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-	}
-	cm.config.Projection().RLock()
-	defer cm.config.Projection().RUnlock()
-	u := cm.config.Projection().users[userID]
-	if u == nil {
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-	}
-	return u.serverModeByCategory[category]
-}
-
-func (cm *ConfigModel) notificationRoomMode(userID, roomID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
-	if cm == nil || cm.config.Projection() == nil {
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-	}
-	cm.config.Projection().RLock()
-	defer cm.config.Projection().RUnlock()
-	u := cm.config.Projection().users[userID]
-	if u == nil {
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
-	}
-	return u.roomModeByRoomAndCategory[roomID][category]
-}
-
-// GetEffectiveNotificationMode resolves room override, then server
-// override, then the product default for one signal class.
-func (c *ChattoCore) GetEffectiveNotificationMode(userID, roomID string, category corev1.NotificationPreferenceCategory) corev1.NotificationDeliveryMode {
-	if roomID != "" {
-		if mode := c.configModel.notificationRoomMode(userID, roomID, category); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-			return mode
-		}
-	}
-	if mode := c.configModel.notificationServerMode(userID, category); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-		return mode
-	}
-	return defaultNotificationMode(category)
+// GetEffectiveNotificationModeForSignal resolves room override, then server
+// override, then the product default for the rich signal variant.
+func (c *ChattoCore) GetEffectiveNotificationModeForSignal(userID, roomID string, signal *corev1.NotificationSignal) corev1.NotificationDeliveryMode {
+	return notificationModeForSignal(effectiveNotificationDeliveryModes(
+		c.configModel.notificationServerModes(userID),
+		c.configModel.notificationRoomModes(userID, roomID),
+	), signal)
 }
 
 // waitForCurrentNotificationPolicy makes source-time policy evaluation observe
-// every preference fact committed before this attempt captured the config
-// boundary. A preference write that overlaps the source command may linearize
-// on either side of that capture; every OCC retry captures it again.
+// every policy fact committed before this attempt captured the config boundary.
 func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error {
 	position, err := c.EventPublisher.LastSubjectPosition(ctx, evtstream.ConfigSubjectFilter())
 	if err != nil {
@@ -133,27 +217,9 @@ func (c *ChattoCore) waitForCurrentNotificationPolicy(ctx context.Context) error
 	return nil
 }
 
-func (c *ChattoCore) setServerNotificationMode(ctx context.Context, userID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) error {
-	if !validNotificationPreferenceCategory(category) || !validNotificationMode(mode, true) {
-		return invalidArgument("invalid notification preference category or delivery mode")
-	}
-	return c.configModel.updateSubject(ctx, userID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
-		if c.configModel.notificationServerMode(userID, category) == mode {
-			return nil, nil
-		}
-		var override *corev1.NotificationDeliveryMode
-		if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-			override = &mode
-		}
-		return []*corev1.Event{newEvent(userID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
-			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{UserId: userID, Category: category, Override: override},
-		}})}, nil
-	})
-}
-
-// GetNotificationPolicy returns every supported signal class with its explicit and
-// effective values. If roomID is set, the actor must be a room member.
-func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) ([]NotificationPolicyPreference, error) {
+// GetNotificationPolicy returns the explicit and effective modes at one scope.
+// If roomID is set, the actor must be a current room member.
+func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, actorID, roomID string) (*NotificationPolicy, error) {
 	if err := requireAuthenticatedActor(actorID); err != nil {
 		return nil, err
 	}
@@ -165,41 +231,52 @@ func (s *NotificationPolicyModel) GetNotificationPolicy(ctx context.Context, act
 			return nil, err
 		}
 	}
-	result := make([]NotificationPolicyPreference, 0, len(notificationPreferenceCategories))
-	for _, category := range notificationPreferenceCategories {
-		explicit := s.core.configModel.notificationServerMode(actorID, category)
-		if roomID != "" {
-			explicit = s.core.configModel.notificationRoomMode(actorID, roomID, category)
-		}
-		var override *corev1.NotificationDeliveryMode
-		if explicit != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-			override = &explicit
-		}
-		result = append(result, NotificationPolicyPreference{
-			RoomID: roomID, Category: category, Override: override,
-			Effective: s.core.GetEffectiveNotificationMode(actorID, roomID, category),
+	server := s.core.configModel.notificationServerModes(actorID)
+	overrides := server
+	room := &corev1.NotificationDeliveryModes{}
+	if roomID != "" {
+		room = s.core.configModel.notificationRoomModes(actorID, roomID)
+		overrides = room
+	}
+	return &NotificationPolicy{
+		RoomID: roomID, Overrides: overrides,
+		Effective: effectiveNotificationDeliveryModes(server, room),
+	}, nil
+}
+
+// UpdateNotificationPolicy sparsely sets or clears server- or room-scoped
+// overrides. The complete resulting scope is committed as one OCC-protected
+// domain fact so multi-field updates are atomic.
+func (s *NotificationPolicyModel) UpdateNotificationPolicy(ctx context.Context, actorID, roomID string, patch *corev1.NotificationDeliveryModes, mask *fieldmaskpb.FieldMask) (*NotificationPolicy, error) {
+	if err := requireAuthenticatedActor(actorID); err != nil {
+		return nil, err
+	}
+	if err := validateNotificationDeliveryModes(patch); err != nil {
+		return nil, err
+	}
+	if _, err := applyNotificationDeliveryModesPatch(nil, patch, mask); err != nil {
+		return nil, err
+	}
+	if roomID == "" {
+		err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+			current := s.core.configModel.notificationServerModes(actorID)
+			next, err := applyNotificationDeliveryModesPatch(current, patch, mask)
+			if err != nil {
+				return nil, err
+			}
+			if proto.Equal(current, next) {
+				return nil, nil
+			}
+			return []*corev1.Event{newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
+				UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{UserId: actorID, Overrides: next},
+			}})}, nil
 		})
+		if err != nil {
+			return nil, fmt.Errorf("update server notification policy: %w", err)
+		}
+		return s.GetNotificationPolicy(ctx, actorID, "")
 	}
-	return result, nil
-}
 
-func (s *NotificationPolicyModel) SetServerNotificationMode(ctx context.Context, actorID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) ([]NotificationPolicyPreference, error) {
-	if err := requireAuthenticatedActor(actorID); err != nil {
-		return nil, err
-	}
-	if err := s.core.setServerNotificationMode(ctx, actorID, category, mode); err != nil {
-		return nil, fmt.Errorf("set server notification preference: %w", err)
-	}
-	return s.GetNotificationPolicy(ctx, actorID, "")
-}
-
-func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, actorID, roomID string, category corev1.NotificationPreferenceCategory, mode corev1.NotificationDeliveryMode) ([]NotificationPolicyPreference, error) {
-	if err := requireAuthenticatedActor(actorID); err != nil {
-		return nil, err
-	}
-	if !validNotificationPreferenceCategory(category) || !validNotificationMode(mode, true) {
-		return nil, invalidArgument("invalid notification preference category or delivery mode")
-	}
 	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
 		authorizationSeq, err := s.prepareRoomAccess(ctx, actorID, roomID)
 		if err != nil {
@@ -207,18 +284,19 @@ func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, a
 		}
 		agg, filter, expectedSeq, err := s.core.configModel.prepareSubject(ctx, actorID)
 		if err != nil {
-			return nil, fmt.Errorf("prepare room notification preference: %w", err)
+			return nil, fmt.Errorf("prepare room notification policy: %w", err)
 		}
-		if s.core.configModel.notificationRoomMode(actorID, roomID, category) == mode {
+		current := s.core.configModel.notificationRoomModes(actorID, roomID)
+		next, err := applyNotificationDeliveryModesPatch(current, patch, mask)
+		if err != nil {
+			return nil, err
+		}
+		if proto.Equal(current, next) {
 			return s.GetNotificationPolicy(ctx, actorID, roomID)
 		}
-		var override *corev1.NotificationDeliveryMode
-		if mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-			override = &mode
-		}
-		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPreferenceChanged{
-			UserNotificationPreferenceChanged: &corev1.UserNotificationPreferenceChangedEvent{
-				UserId: actorID, RoomId: &roomID, Category: category, Override: override,
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserNotificationPolicyChanged{
+			UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
+				UserId: actorID, RoomId: &roomID, Overrides: next,
 			},
 		}})
 		subject := agg.SubjectFor(event)
@@ -234,13 +312,13 @@ func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, a
 			continue
 		}
 		if err != nil {
-			return nil, fmt.Errorf("set room notification preference: %w", err)
+			return nil, fmt.Errorf("update room notification policy: %w", err)
 		}
 		if len(seqs) == 0 {
-			return nil, errors.New("room notification preference committed no event")
+			return nil, errors.New("room notification policy committed no event")
 		}
 		if err := s.core.configModel.waitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
-			return nil, fmt.Errorf("wait for room notification preference: %w", err)
+			return nil, fmt.Errorf("wait for room notification policy: %w", err)
 		}
 		return s.GetNotificationPolicy(ctx, actorID, roomID)
 	}
@@ -248,9 +326,7 @@ func (s *NotificationPolicyModel) SetRoomNotificationMode(ctx context.Context, a
 }
 
 // prepareRoomAccess returns the authorization-fence position that must remain
-// unchanged through a room-scoped preference write. Capturing it first makes
-// the following projection boundaries include every authorization fact it
-// represents; a later membership/group/RBAC change conflicts at commit.
+// unchanged through a room-scoped policy write.
 func (s *NotificationPolicyModel) prepareRoomAccess(ctx context.Context, actorID, roomID string) (uint64, error) {
 	authorizationSeq, err := s.core.authorizationFenceSeq(ctx)
 	if err != nil {

@@ -29,10 +29,10 @@ type serverConfigState struct {
 }
 
 type userConfigState struct {
-	timezone                  *string
-	timeFormat                *corev1.TimeFormat
-	serverModeByCategory      map[corev1.NotificationPreferenceCategory]corev1.NotificationDeliveryMode
-	roomModeByRoomAndCategory map[string]map[corev1.NotificationPreferenceCategory]corev1.NotificationDeliveryMode
+	timezone        *string
+	timeFormat      *corev1.TimeFormat
+	serverModes     *corev1.NotificationDeliveryModes
+	roomModesByRoom map[string]*corev1.NotificationDeliveryModes
 }
 
 func NewConfigProjection() *ConfigProjection {
@@ -86,35 +86,23 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 		u.timeFormat = &tf
 	case *corev1.Event_UserTimeFormatCleared:
 		p.ensureUserLocked(e.UserTimeFormatCleared.GetUserId()).timeFormat = nil
-	case *corev1.Event_UserNotificationPreferenceChanged:
-		preference := e.UserNotificationPreferenceChanged
-		u := p.ensureUserLocked(preference.GetUserId())
-		if preference.RoomId == nil {
-			if preference.Override == nil {
-				delete(u.serverModeByCategory, preference.GetCategory())
-				break
-			}
-			if u.serverModeByCategory == nil {
-				u.serverModeByCategory = make(map[corev1.NotificationPreferenceCategory]corev1.NotificationDeliveryMode)
-			}
-			u.serverModeByCategory[preference.GetCategory()] = preference.GetOverride()
+	case *corev1.Event_UserNotificationPolicyChanged:
+		policy := e.UserNotificationPolicyChanged
+		u := p.ensureUserLocked(policy.GetUserId())
+		modes := cloneNotificationDeliveryModes(policy.GetOverrides())
+		if policy.RoomId == nil {
+			u.serverModes = modes
 			break
 		}
-		roomID := preference.GetRoomId()
-		if preference.Override == nil {
-			delete(u.roomModeByRoomAndCategory[roomID], preference.GetCategory())
-			if len(u.roomModeByRoomAndCategory[roomID]) == 0 {
-				delete(u.roomModeByRoomAndCategory, roomID)
-			}
-			break
+		if u.roomModesByRoom == nil {
+			u.roomModesByRoom = make(map[string]*corev1.NotificationDeliveryModes)
 		}
-		if u.roomModeByRoomAndCategory == nil {
-			u.roomModeByRoomAndCategory = make(map[string]map[corev1.NotificationPreferenceCategory]corev1.NotificationDeliveryMode)
+		roomID := policy.GetRoomId()
+		if notificationDeliveryModesEmpty(modes) {
+			delete(u.roomModesByRoom, roomID)
+		} else {
+			u.roomModesByRoom[roomID] = modes
 		}
-		if u.roomModeByRoomAndCategory[roomID] == nil {
-			u.roomModeByRoomAndCategory[roomID] = make(map[corev1.NotificationPreferenceCategory]corev1.NotificationDeliveryMode)
-		}
-		u.roomModeByRoomAndCategory[roomID][preference.GetCategory()] = preference.GetOverride()
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)
 	case *corev1.Event_UserAccountDeleted:
