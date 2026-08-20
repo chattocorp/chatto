@@ -348,6 +348,9 @@ supervisor processes and global proxy routes are both removed.
   test should still return the early error.
 - Svelte runtime errors, hydration issues, missing context, and `$effect` loops
   require mounting a component or browser verification.
+- Do not run frontend checks, tests, builds, or other commands that invoke
+  SvelteKit sync concurrently in the same checkout. They share generated
+  `.svelte-kit` state and can produce transient missing-type failures.
 - Native macOS Desktop helper behavior should have focused Swift tests wired
   into a macOS CI step. Desktop JavaScript checks and production helper builds
   do not compile Swift test targets.
