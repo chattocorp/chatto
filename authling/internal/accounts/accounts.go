@@ -794,6 +794,9 @@ func (s *Service) RecordEmailChangeRequested(ctx context.Context, target EmailCh
 
 // ChangeEmail atomically replaces a verified local login address and claims
 // its global registry entry if the reauthenticated credential is still current.
+// The returned account is accepted only while the email-change event remains
+// the current credential generation, so callers never inherit a later password
+// or email mutation that raced the projection wait.
 func (s *Service) ChangeEmail(ctx context.Context, target EmailChangeTarget, newEmail string) (Account, error) {
 	newEmail = NormalizeEmail(newEmail)
 	if target.AccountID == "" || target.CredentialEventID == "" || target.RequestEventID == "" || newEmail == "" {
@@ -876,9 +879,9 @@ func (s *Service) ChangeEmail(ctx context.Context, target EmailChangeTarget, new
 		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
 			return Account{}, fmt.Errorf("wait for email change: %w", err)
 		}
-		account, ok := s.handle.Projection().Get(target.AccountID)
+		account, ok := s.handle.Projection().completedEmailChange(target, newEmail)
 		if !ok {
-			return Account{}, fmt.Errorf("changed account is absent from projection")
+			return Account{}, ErrCredentialChanged
 		}
 		return account, nil
 	}
