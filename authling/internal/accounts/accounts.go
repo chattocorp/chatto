@@ -62,9 +62,9 @@ func (commonPasswordError) Is(target error) bool { return target == ErrInvalidPa
 // mismatches so callers cannot disclose which email addresses are registered.
 var ErrInvalidCredentials = errors.New("invalid email or password")
 
-// ErrCredentialChanged indicates that a recovery flow was issued for an older
-// password credential and must not overwrite the current one.
-var ErrCredentialChanged = errors.New("password credential changed")
+// ErrCredentialChanged indicates that an identity workflow was issued for an
+// older local credential or unavailable request and must not overwrite it.
+var ErrCredentialChanged = errors.New("local credential changed")
 
 // Account is the current projected structural state of an Authling account.
 type Account struct {
@@ -82,6 +82,7 @@ type protectedCredential struct {
 	emailNonce                 []byte
 	emailCiphertext            []byte
 	emailAAD                   []byte
+	emailChangeRequestEventID  string
 	passwordVerifierNonce      []byte
 	passwordVerifierCiphertext []byte
 	passwordVerifierAAD        []byte
@@ -111,12 +112,22 @@ type pendingEmail struct {
 	replaces   bool
 }
 
+type emailChangeRequest struct {
+	credentialEventID string
+	sequence          uint64
+}
+
+// This comfortably exceeds the global number of code deliveries possible
+// during one flow lifetime while bounding replay memory for abandoned audits.
+const maxTrackedEmailChangeRequestsPerAccount = 4096
+
 // Projection rebuilds the active account registry from durable events.
 type Projection struct {
 	events.MemoryProjection
 	accounts      map[string]Account
 	emails        map[[32]byte]string
 	pendingEmails map[string]pendingEmail
+	emailChanges  map[string]map[string]emailChangeRequest
 	credentials   map[string]protectedCredential
 	keyReferences map[string]struct{}
 	vault         *keyvault.Vault
@@ -134,7 +145,7 @@ func (*Projection) Subjects() []string {
 }
 
 // Apply adds one durable account fact to the in-memory registry.
-func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
+func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 	if requested := event.GetPasswordResetRequested(); requested != nil {
 		p.RLock()
 		defer p.RUnlock()
@@ -149,8 +160,8 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		return nil
 	}
 	if requested := event.GetEmailChangeRequested(); requested != nil {
-		p.RLock()
-		defer p.RUnlock()
+		p.Lock()
+		defer p.Unlock()
 		account, ok := p.accounts[requested.GetAccountId()]
 		if !ok {
 			return fmt.Errorf("email change request references an absent account")
@@ -159,6 +170,25 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		if !ok || credential.eventID != requested.GetCredentialEventId() {
 			return fmt.Errorf("email change request references another credential")
 		}
+		if p.emailChanges == nil {
+			p.emailChanges = make(map[string]map[string]emailChangeRequest)
+		}
+		requests := p.emailChanges[account.ID]
+		if requests == nil {
+			requests = make(map[string]emailChangeRequest)
+			p.emailChanges[account.ID] = requests
+		}
+		if len(requests) >= maxTrackedEmailChangeRequestsPerAccount {
+			var oldestID string
+			oldestSequence := ^uint64(0)
+			for id, request := range requests {
+				if request.sequence < oldestSequence {
+					oldestID, oldestSequence = id, request.sequence
+				}
+			}
+			delete(requests, oldestID)
+		}
+		requests[event.GetId()] = emailChangeRequest{credentialEventID: requested.GetCredentialEventId(), sequence: sequence}
 		return nil
 	}
 	if changed := event.GetPasswordChanged(); changed != nil {
@@ -177,6 +207,7 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		credential.passwordVerifierCiphertext = append([]byte(nil), changed.GetPasswordVerifierCiphertext()...)
 		credential.passwordVerifierAAD = passwordChangedAAD(event.GetId(), account.ID, credential.userKeyRef, credential.credentialKeyRef)
 		p.credentials[account.ID] = credential
+		delete(p.emailChanges, account.ID)
 		account.AuthenticationVersion++
 		p.accounts[account.ID] = account
 		return nil
@@ -197,6 +228,11 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 			p.RUnlock()
 			return fmt.Errorf("email change overlaps an unclaimed credential")
 		}
+		request, ok := p.emailChanges[account.ID][changed.GetEmailChangeRequestEventId()]
+		if !ok || request.credentialEventID != changed.GetPriorCredentialEventId() {
+			p.RUnlock()
+			return fmt.Errorf("email change references another reauthentication request")
+		}
 		p.RUnlock()
 		if changed.GetCredentialEnvelopeVersion() != 1 || p.vault == nil || len(p.indexKey) == 0 {
 			return fmt.Errorf("unsupported or unavailable changed email credential envelope")
@@ -208,7 +244,14 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 			return fmt.Errorf("resolve changed email credential key: %w", err)
 		}
 		defer clear(dataKey)
-		emailAAD := emailChangedAAD(event.GetId(), account.ID, credential.userKeyRef, credential.credentialKeyRef)
+		emailAAD := emailChangedAAD(
+			event.GetId(),
+			account.ID,
+			credential.userKeyRef,
+			credential.credentialKeyRef,
+			changed.GetEmailChangeRequestEventId(),
+			changed.GetPriorCredentialEventId(),
+		)
 		plaintext, err := datacrypto.Open(dataKey, changed.GetEmailCiphertext(), changed.GetEmailNonce(), emailAAD)
 		if err != nil {
 			return fmt.Errorf("decrypt changed account email: %w", err)
@@ -224,6 +267,7 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		staged.emailNonce = append([]byte(nil), changed.GetEmailNonce()...)
 		staged.emailCiphertext = append([]byte(nil), changed.GetEmailCiphertext()...)
 		staged.emailAAD = emailAAD
+		staged.emailChangeRequestEventID = changed.GetEmailChangeRequestEventId()
 
 		p.Lock()
 		defer p.Unlock()
@@ -233,6 +277,10 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		}
 		if _, exists := p.pendingEmails[account.ID]; exists {
 			return fmt.Errorf("email change overlaps an unclaimed credential")
+		}
+		currentRequest, ok := p.emailChanges[account.ID][changed.GetEmailChangeRequestEventId()]
+		if !ok || currentRequest != request {
+			return fmt.Errorf("email change reauthentication request changed while decrypting")
 		}
 		p.pendingEmails[account.ID] = pendingEmail{eventID: event.GetId(), digest: staged.emailDigest, credential: staged, replaces: true}
 		return nil
@@ -252,6 +300,9 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 		if credentialEventID := claim.GetCredentialEventId(); credentialEventID != "" && credentialEventID != pending.eventID {
 			return fmt.Errorf("email claim references another staged credential")
 		}
+		if pending.replaces && claim.GetCredentialEventId() == "" {
+			return fmt.Errorf("email replacement claim is missing credential correlation")
+		}
 		if p.emails == nil {
 			p.emails = make(map[[32]byte]string)
 		}
@@ -268,6 +319,7 @@ func (p *Projection) Apply(event *corev1.Event, _ uint64) error {
 			account := p.accounts[claim.GetAccountId()]
 			account.AuthenticationVersion++
 			p.accounts[claim.GetAccountId()] = account
+			delete(p.emailChanges, claim.GetAccountId())
 		}
 		p.emails[pending.digest] = claim.GetAccountId()
 		delete(p.pendingEmails, claim.GetAccountId())
@@ -380,6 +432,24 @@ func (p *Projection) credentialForAccount(accountID string) (protectedCredential
 	defer p.RUnlock()
 	credential, ok := p.credentials[accountID]
 	return credential, ok
+}
+
+func (p *Projection) hasEmailChangeRequest(target EmailChangeTarget) bool {
+	p.RLock()
+	defer p.RUnlock()
+	request, ok := p.emailChanges[target.AccountID][target.RequestEventID]
+	return ok && request.credentialEventID == target.CredentialEventID
+}
+
+func (p *Projection) completedEmailChange(target EmailChangeTarget, newEmail string) (Account, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	credential, ok := p.credentials[target.AccountID]
+	if !ok || credential.emailChangeRequestEventID != target.RequestEventID || credential.emailDigest != digest(p.indexKey, NormalizeEmail(newEmail)) {
+		return Account{}, false
+	}
+	account, ok := p.accounts[target.AccountID]
+	return account, ok
 }
 
 func (p *Projection) passwordResetTarget(email string) (PasswordResetTarget, bool) {
@@ -615,8 +685,8 @@ func passwordChangedAAD(eventID, accountID, userRef, dataRef string) []byte {
 	return []byte("authling:event:v1\x00PasswordChanged\x00" + eventID + "\x00" + accountID + "\x00credentials\x001\x00" + userRef + "\x00" + dataRef + "\x00password-verifier")
 }
 
-func emailChangedAAD(eventID, accountID, userRef, dataRef string) []byte {
-	return []byte("authling:event:v1\x00EmailChanged\x00" + eventID + "\x00" + accountID + "\x00credentials\x001\x00" + userRef + "\x00" + dataRef + "\x00email")
+func emailChangedAAD(eventID, accountID, userRef, dataRef, requestEventID, priorCredentialEventID string) []byte {
+	return []byte("authling:event:v1\x00EmailChanged\x00" + eventID + "\x00" + accountID + "\x00credentials\x001\x00" + userRef + "\x00" + dataRef + "\x00email\x00" + requestEventID + "\x00" + priorCredentialEventID)
 }
 
 func validatePassword(password string, minimumLength int) (string, error) {
@@ -654,10 +724,10 @@ func (s *Service) HasEmail(email string) bool {
 	return s.handle.Projection().HasEmail(NormalizeEmail(email))
 }
 
-// BeginEmailChange reauthenticates one local account against its current
-// password, rejects a no-op address, and records a PII-free request event before
-// any verification workflow or email delivery is created.
-func (s *Service) BeginEmailChange(ctx context.Context, accountID, password, newEmail string) (EmailChangeTarget, error) {
+// PrepareEmailChange reauthenticates one local account against its current
+// password and binds a prospective change to that exact credential version.
+// Callers must apply distributed guessing and concurrency limits around it.
+func (s *Service) PrepareEmailChange(ctx context.Context, accountID, password, newEmail string) (EmailChangeTarget, error) {
 	credential, ok := s.handle.Projection().credentialForAccount(accountID)
 	if !ok {
 		return EmailChangeTarget{}, ErrInvalidCredentials
@@ -672,27 +742,35 @@ func (s *Service) BeginEmailChange(ctx context.Context, accountID, password, new
 	if NormalizeEmail(oldEmail) == NormalizeEmail(newEmail) {
 		return EmailChangeTarget{}, ErrEmailUnchanged
 	}
-	target := EmailChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID, OldEmail: oldEmail}
+	return EmailChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID, OldEmail: oldEmail}, nil
+}
+
+// RecordEmailChangeRequested commits the PII-free request audit fact only if
+// the credential reauthenticated by PrepareEmailChange is still current.
+func (s *Service) RecordEmailChangeRequested(ctx context.Context, target EmailChangeTarget) (EmailChangeTarget, error) {
+	if target.AccountID == "" || target.CredentialEventID == "" {
+		return EmailChangeTarget{}, ErrCredentialChanged
+	}
 	eventID, err := ids.New("evt")
 	if err != nil {
 		return EmailChangeTarget{}, err
 	}
 	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_EmailChangeRequested{EmailChangeRequested: &corev1.EmailChangeRequestedEvent{
-		AccountId: accountID, CredentialEventId: credential.eventID,
+		AccountId: target.AccountID, CredentialEventId: target.CredentialEventID,
 	}}}
 	for range 5 {
-		tail, err := s.publisher.AccountTail(ctx, accountID)
+		tail, err := s.publisher.AccountTail(ctx, target.AccountID)
 		if err != nil {
 			return EmailChangeTarget{}, fmt.Errorf("read email-change account tail: %w", err)
 		}
-		subject, err := evtstream.AccountSubject(accountID)
+		subject, err := evtstream.AccountSubject(target.AccountID)
 		if err != nil {
 			return EmailChangeTarget{}, ErrCredentialChanged
 		}
 		if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
 			return EmailChangeTarget{}, fmt.Errorf("wait for email-change account: %w", err)
 		}
-		current, ok := s.handle.Projection().credentialForAccount(accountID)
+		current, ok := s.handle.Projection().credentialForAccount(target.AccountID)
 		if !ok || current.eventID != target.CredentialEventID {
 			return EmailChangeTarget{}, ErrCredentialChanged
 		}
@@ -754,6 +832,9 @@ func (s *Service) ChangeEmail(ctx context.Context, target EmailChangeTarget, new
 		if !ok || credential.eventID != target.CredentialEventID {
 			return Account{}, ErrCredentialChanged
 		}
+		if !s.handle.Projection().hasEmailChangeRequest(target) {
+			return Account{}, ErrCredentialChanged
+		}
 		if s.handle.Projection().HasEmail(newEmail) {
 			return Account{}, ErrEmailClaimed
 		}
@@ -762,7 +843,14 @@ func (s *Service) ChangeEmail(ctx context.Context, target EmailChangeTarget, new
 			if err != nil {
 				return Account{}, fmt.Errorf("resolve email credential key: %w", err)
 			}
-			sealedEmail, sealErr := datacrypto.Seal(dataKey, []byte(newEmail), emailChangedAAD(eventID, target.AccountID, credential.userKeyRef, credential.credentialKeyRef))
+			sealedEmail, sealErr := datacrypto.Seal(dataKey, []byte(newEmail), emailChangedAAD(
+				eventID,
+				target.AccountID,
+				credential.userKeyRef,
+				credential.credentialKeyRef,
+				target.RequestEventID,
+				target.CredentialEventID,
+			))
 			clear(dataKey)
 			if sealErr != nil {
 				return Account{}, sealErr
@@ -793,6 +881,13 @@ func (s *Service) ChangeEmail(ctx context.Context, target EmailChangeTarget, new
 		return account, nil
 	}
 	return Account{}, fmt.Errorf("email change conflict")
+}
+
+// CompletedEmailChange reports whether the current protected credential was
+// installed by this exact request. Completion recovery uses it to resolve an
+// ambiguous process failure after the atomic event batch committed.
+func (s *Service) CompletedEmailChange(target EmailChangeTarget, newEmail string) (Account, bool) {
+	return s.handle.Projection().completedEmailChange(target, newEmail)
 }
 
 // RecordPasswordResetRequested appends an account-scoped audit fact for an
@@ -849,7 +944,7 @@ func (s *Service) RecordPasswordResetRequested(ctx context.Context, email string
 }
 
 // AuthenticationVersion returns the generation embedded in new browser
-// sessions. Password changes advance it durably.
+// sessions. Password and verified-email changes advance it durably.
 func (s *Service) AuthenticationVersion(accountID string) (uint64, bool) {
 	return s.handle.Projection().AuthenticationVersion(accountID)
 }

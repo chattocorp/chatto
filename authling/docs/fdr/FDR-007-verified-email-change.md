@@ -13,13 +13,16 @@ mailbox. The account ID and OpenID Connect `sub` remain unchanged.
 
 - The account page links to email change. Starting the flow requires a valid
   Authling browser session, the current local password, and a syntactically
-  valid address different from the current normalized address.
+  valid address different from the current normalized address. Password checks
+  share Authling's distributed attempt limits and bounded Argon2 capacity.
 - Authling records a PII-free `EmailChangeRequestedEvent` after successful
   reauthentication and before it creates the flow or sends email. The event
   identifies only the account and credential version that was reauthenticated.
 - Authling sends a six-digit code to the requested address. The encrypted flow
   and code expire after 15 minutes, five incorrect attempts exhaust the code,
   and delivery and completion work are bounded.
+- Multiple flows may coexist for one credential. The first committed identity
+  mutation makes every other flow for that older credential stale.
 - A claimed address follows the same code-delivery and verification path as an
   available address. Completion returns the same expired-or-unavailable result
   used for a stale flow and does not reveal the conflicting account.
@@ -58,8 +61,9 @@ delivers only to the currently verified address.
 
 **Decision:** The request event contains no address. `EmailChangedEvent`
 contains the replacement address only as authenticated ciphertext under the
-existing credential data key. The adjacent registry event contains opaque
-account and credential-event IDs only.
+existing credential data key. Its authenticated metadata binds the account,
+key hierarchy, accepted request, and prior credential. The adjacent registry
+event contains opaque account and credential-event IDs only.
 
 **Why:** Durable audit and uniqueness do not require exposing login identifiers
 in stream subjects or plaintext event payloads.
@@ -85,15 +89,19 @@ correctness outweigh claim-write throughput.
 ### 4. Bind the flow to the reauthenticated credential
 
 **Decision:** The flow records the credential event current during password
-verification. A password change or another email change makes the flow stale;
-audit-only account events may advance the tail without invalidating it.
+verification. The model retains a bounded set of accepted email-change request
+IDs so replay can validate the request and credential correlation. A password
+or email change makes every flow for the older credential stale; unrelated
+audit-only events may advance the tail without invalidating a flow.
 
 **Why:** An old password must not authorize an email change after a concurrent
-credential mutation, and competing verified flows must not overwrite the first
-committed change.
+credential mutation, and competing verified flows must not overwrite or bypass
+the request correlation replay validates.
 
-**Tradeoff:** A person must restart email change after any intervening password
-or email mutation.
+**Tradeoff:** The replay model retains up to 4,096 request correlations per
+account. This exceeds the number allowed by the global 15-minute delivery
+budget while preventing abandoned audit requests from growing memory without
+bound.
 
 ### 5. Revoke browser sessions by durable generation
 
@@ -118,8 +126,11 @@ completing browser but does not undo the committed change.
 SMTP failure cannot safely reverse a durable identity mutation after its new
 claim may already be observed.
 
-**Tradeoff:** Notifications are not yet durable effects and are not retried
-after process failure. Durable operational effects remain future work.
+**Tradeoff:** Notifications are not yet durable effects. Completion recovery
+may retry a notification after an ambiguous crash, so the old mailbox can
+receive a duplicate. Recovery is browser-driven, so a crash can still lose the
+best-effort effect when no completion retry reaches the restarted process.
+Durable operational effects remain future work.
 
 ## Security and Failure Behavior
 
@@ -133,6 +144,9 @@ after process failure. Durable operational effects remain future work.
 - A failed verification, failed delivery, or abandoned flow leaves the old
   address authoritative. A failure after the atomic completion cannot restore
   the old address.
+- Completion attempts are OCC-guarded but not permanently locked to one
+  process. After a crash, Authling checks the projected request correlation to
+  distinguish an uncommitted retry from an already committed identity change.
 - All POST endpoints require Authling's canonical browser origin and use
   bounded request bodies.
 

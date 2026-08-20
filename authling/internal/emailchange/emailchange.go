@@ -16,6 +16,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/authentication"
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/storage"
 	"hmans.de/chatto/pkg/datacrypto"
@@ -44,7 +45,6 @@ type flowState struct {
 	CodeDigest         []byte                     `json:"code_digest"`
 	WrongAttempts      int                        `json:"wrong_attempts"`
 	Verified           bool                       `json:"verified"`
-	Completing         bool                       `json:"completing"`
 	CompletionAttempts int                        `json:"completion_attempts"`
 	ExpiresAt          time.Time                  `json:"expires_at"`
 }
@@ -69,13 +69,14 @@ type Service struct {
 	key             []byte
 	sender          email.Sender
 	accounts        *accounts.Service
+	authentication  *authentication.Service
 	deliverySlots   chan struct{}
 	completionSlots chan struct{}
 }
 
 // New constructs the verified email-change workflow.
-func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service) *Service {
-	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions)}
+func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email.Sender, accountService *accounts.Service, authenticationService *authentication.Service) *Service {
+	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), sender: sender, accounts: accountService, authentication: authenticationService, deliverySlots: make(chan struct{}, maxConcurrentDeliveries), completionSlots: make(chan struct{}, maxConcurrentCompletions)}
 }
 
 // Start reauthenticates the account, records the accepted request, and sends a
@@ -83,6 +84,10 @@ func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, sender email
 // follow the same delivery path.
 func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail string) (string, error) {
 	newEmail, err := normalizeAndValidateEmail(rawNewEmail)
+	if err != nil {
+		return "", err
+	}
+	target, err := s.authentication.ReauthenticateEmailChange(ctx, accountID, password, newEmail)
 	if err != nil {
 		return "", err
 	}
@@ -98,7 +103,7 @@ func (s *Service) Start(ctx context.Context, accountID, password, rawNewEmail st
 			_ = s.rollbackDelivery(cleanupContext, newEmail)
 		}
 	}()
-	target, err := s.accounts.BeginEmailChange(ctx, accountID, password, newEmail)
+	target, err = s.accounts.RecordEmailChangeRequested(ctx, target)
 	if err != nil {
 		return "", err
 	}
@@ -154,7 +159,13 @@ func (s *Service) Verify(ctx context.Context, accountID, token, code string) err
 func (s *Service) Complete(ctx context.Context, accountID, token string) (Completion, error) {
 	key := s.flowKey(token)
 	entry, state, err := s.read(ctx, key)
-	if err != nil || state.Target.AccountID != accountID || !time.Now().Before(state.ExpiresAt) || !state.Verified || state.Completing || state.CompletionAttempts >= maxCompletionAttempts {
+	if err != nil || state.Target.AccountID != accountID || !time.Now().Before(state.ExpiresAt) || !state.Verified {
+		return Completion{}, ErrInvalidFlow
+	}
+	if state.CompletionAttempts >= maxCompletionAttempts {
+		if account, ok := s.accounts.CompletedEmailChange(state.Target, state.NewEmail); ok {
+			return s.finishCommitted(ctx, key, entry.Revision(), state, account)
+		}
 		return Completion{}, ErrInvalidFlow
 	}
 	select {
@@ -165,7 +176,6 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 	default:
 		return Completion{}, errCompletionBusy
 	}
-	state.Completing = true
 	state.CompletionAttempts++
 	completionRevision, err := s.update(ctx, key, entry.Revision(), state)
 	if err != nil {
@@ -173,15 +183,19 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 	}
 	account, err := s.accounts.ChangeEmail(ctx, state.Target, state.NewEmail)
 	if err != nil {
+		if committed, ok := s.accounts.CompletedEmailChange(state.Target, state.NewEmail); ok {
+			return s.finishCommitted(ctx, key, completionRevision, state, committed)
+		}
 		if errors.Is(err, accounts.ErrEmailClaimed) || errors.Is(err, accounts.ErrCredentialChanged) {
 			_ = s.kv.Delete(ctx, key, jetstream.LastRevision(completionRevision))
 			return Completion{}, ErrInvalidFlow
 		}
-		state.Completing = false
-		_, _ = s.update(ctx, key, completionRevision, state)
 		return Completion{}, err
 	}
-	_ = s.kv.Delete(ctx, key, jetstream.LastRevision(completionRevision))
+	return s.finishCommitted(ctx, key, completionRevision, state, account)
+}
+
+func (s *Service) finishCommitted(ctx context.Context, key string, revision uint64, state flowState, account accounts.Account) (Completion, error) {
 	message := email.Message{
 		To:      state.Target.OldEmail,
 		Subject: "Your Authling email address changed",
@@ -190,6 +204,7 @@ func (s *Service) Complete(ctx context.Context, accountID, token string) (Comple
 	notificationContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), oldAddressNotificationTimeout)
 	defer cancel()
 	notificationErr := s.send(notificationContext, message)
+	_ = s.kv.Delete(ctx, key, jetstream.LastRevision(revision))
 	return Completion{Account: account, OldAddressNotificationFailed: notificationErr != nil}, nil
 }
 
@@ -300,21 +315,31 @@ func (s *Service) rollbackDelivery(ctx context.Context, address string) error {
 }
 
 func (s *Service) rollbackCounter(ctx context.Context, key string) error {
-	entry, err := s.kv.Get(ctx, key)
-	if err != nil {
-		return nil
+	for range 16 {
+		entry, err := s.kv.Get(ctx, key)
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		var counter deliveryCounter
+		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
+			return fmt.Errorf("decode email change delivery limit for rollback")
+		}
+		if counter.Count == 1 {
+			if err := s.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err == nil {
+				return nil
+			}
+			continue
+		}
+		counter.Count--
+		data, _ := json.Marshal(counter)
+		if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL); err == nil {
+			return nil
+		}
 	}
-	var counter deliveryCounter
-	if json.Unmarshal(entry.Value(), &counter) != nil {
-		return nil
-	}
-	if counter.Count <= 1 {
-		return s.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision()))
-	}
-	counter.Count--
-	data, _ := json.Marshal(counter)
-	_, err = storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), FlowTTL)
-	return err
+	return fmt.Errorf("rollback email change delivery limit after repeated conflicts")
 }
 
 func (s *Service) send(ctx context.Context, message email.Message) error {

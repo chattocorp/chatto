@@ -32,6 +32,7 @@ type attemptCounter struct {
 
 type accountAuthenticator interface {
 	AuthenticateLocal(context.Context, string, string) (accounts.Account, error)
+	PrepareEmailChange(context.Context, string, string, string) (accounts.EmailChangeTarget, error)
 }
 
 type limitState struct {
@@ -63,17 +64,15 @@ func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, accountServi
 // Login verifies one local credential. Every identifier follows the same
 // durable throttling and password-hashing path.
 func (s *Service) Login(ctx context.Context, email, password string) (accounts.Account, error) {
-	select {
-	case s.slots <- struct{}{}:
-		defer func() { <-s.slots }()
-	case <-ctx.Done():
-		return accounts.Account{}, ctx.Err()
-	default:
-		return accounts.Account{}, ErrBusy
+	release, err := s.acquirePasswordSlot(ctx)
+	if err != nil {
+		return accounts.Account{}, err
 	}
+	defer release()
 
 	normalized := accounts.NormalizeEmail(email)
-	limit, err := s.readLimit(ctx, normalized)
+	key := s.attemptKey("login-attempt", normalized)
+	limit, err := s.readLimit(ctx, key)
 	if err != nil {
 		return accounts.Account{}, fmt.Errorf("read login attempt limit: %w", err)
 	}
@@ -83,7 +82,7 @@ func (s *Service) Login(ctx context.Context, email, password string) (accounts.A
 			return accounts.Account{}, authErr
 		}
 		if !limit.limited {
-			if err := s.recordFailure(ctx, normalized); err != nil {
+			if err := s.recordFailure(ctx, key); err != nil {
 				return accounts.Account{}, fmt.Errorf("record failed login: %w", err)
 			}
 		}
@@ -100,8 +99,54 @@ func (s *Service) Login(ctx context.Context, email, password string) (accounts.A
 	return account, nil
 }
 
-func (s *Service) readLimit(ctx context.Context, email string) (limitState, error) {
-	key := s.attemptKey(email)
+// ReauthenticateEmailChange applies the same distributed guessing and local
+// Argon2 concurrency defenses as login while binding the proof to an account.
+func (s *Service) ReauthenticateEmailChange(ctx context.Context, accountID, password, newEmail string) (accounts.EmailChangeTarget, error) {
+	release, err := s.acquirePasswordSlot(ctx)
+	if err != nil {
+		return accounts.EmailChangeTarget{}, err
+	}
+	defer release()
+
+	key := s.attemptKey("email-change-reauth-attempt", accountID)
+	limit, err := s.readLimit(ctx, key)
+	if err != nil {
+		return accounts.EmailChangeTarget{}, fmt.Errorf("read email change reauthentication limit: %w", err)
+	}
+	target, authErr := s.accounts.PrepareEmailChange(ctx, accountID, password, newEmail)
+	passwordAccepted := authErr == nil || errors.Is(authErr, accounts.ErrEmailUnchanged)
+	if !passwordAccepted {
+		if !errors.Is(authErr, accounts.ErrInvalidCredentials) {
+			return accounts.EmailChangeTarget{}, authErr
+		}
+		if !limit.limited {
+			if err := s.recordFailure(ctx, key); err != nil {
+				return accounts.EmailChangeTarget{}, fmt.Errorf("record failed email change reauthentication: %w", err)
+			}
+		}
+		return accounts.EmailChangeTarget{}, accounts.ErrInvalidCredentials
+	}
+	if limit.limited {
+		return accounts.EmailChangeTarget{}, accounts.ErrInvalidCredentials
+	}
+	if limit.revision > 0 {
+		_ = s.kv.Delete(ctx, limit.key, jetstream.LastRevision(limit.revision))
+	}
+	return target, authErr
+}
+
+func (s *Service) acquirePasswordSlot(ctx context.Context) (func(), error) {
+	select {
+	case s.slots <- struct{}{}:
+		return func() { <-s.slots }, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	default:
+		return nil, ErrBusy
+	}
+}
+
+func (s *Service) readLimit(ctx context.Context, key string) (limitState, error) {
 	entry, err := s.kv.Get(ctx, key)
 	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 		return limitState{key: key}, nil
@@ -111,13 +156,12 @@ func (s *Service) readLimit(ctx context.Context, email string) (limitState, erro
 	}
 	var counter attemptCounter
 	if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-		return limitState{}, fmt.Errorf("decode login attempt counter")
+		return limitState{}, fmt.Errorf("decode password attempt counter")
 	}
 	return limitState{key: key, revision: entry.Revision(), limited: counter.Count >= maxFailedAttempts}, nil
 }
 
-func (s *Service) recordFailure(ctx context.Context, email string) error {
-	key := s.attemptKey(email)
+func (s *Service) recordFailure(ctx context.Context, key string) error {
 	for range 16 {
 		entry, err := s.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
@@ -133,7 +177,7 @@ func (s *Service) recordFailure(ctx context.Context, email string) error {
 		}
 		var counter attemptCounter
 		if json.Unmarshal(entry.Value(), &counter) != nil || counter.Count < 1 {
-			return fmt.Errorf("decode login attempt counter")
+			return fmt.Errorf("decode password attempt counter")
 		}
 		if counter.Count >= maxFailedAttempts {
 			return nil
@@ -148,8 +192,8 @@ func (s *Service) recordFailure(ctx context.Context, email string) error {
 	return fmt.Errorf("update login attempt counter after repeated conflicts")
 }
 
-func (s *Service) attemptKey(email string) string {
+func (s *Service) attemptKey(namespace, identifier string) string {
 	digest := hmac.New(sha256.New, s.key)
-	_, _ = digest.Write([]byte("login-attempt\x00" + email))
+	_, _ = digest.Write([]byte(namespace + "\x00" + identifier))
 	return "login-limit." + base64.RawURLEncoding.EncodeToString(digest.Sum(nil))
 }

@@ -31,7 +31,8 @@ durable account fact.
 **Email change flow** — Short-lived, encrypted runtime state that binds a
 signed-in account and reauthenticated credential to its old and requested new
 addresses and an email challenge. It expires after 15 minutes and is not a
-durable account fact.
+durable account fact. The first credential mutation makes other flows bound to
+the older credential stale.
 
 **Browser session** — Short-lived, server-side runtime state that binds an
 opaque browser cookie to one account after signup or login. A session is not a

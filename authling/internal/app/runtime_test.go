@@ -594,13 +594,16 @@ func TestEmailChangePreservesAccountAndInvalidatesSessionsAcrossRestart(t *testi
 	stopTestRuntime(t, first, cancelFirst, firstErrors)
 
 	restarted, cancelRestarted, restartedErrors := startTestRuntime(t, cfg, sender)
-	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
 	completion, err := restarted.EmailChange.Complete(testContext(t), account.ID, flow)
 	if err != nil {
 		t.Fatalf("complete email change after restart: %v", err)
 	}
 	if completion.OldAddressNotificationFailed || completion.Account.ID != account.ID || completion.Account.AuthenticationVersion != account.AuthenticationVersion+1 {
 		t.Fatalf("email change completion = %+v, original = %+v", completion, account)
+	}
+	recoveryTarget := accounts.EmailChangeTarget{AccountID: account.ID, CredentialEventID: request.GetCredentialEventId(), RequestEventID: requestEvent.GetId()}
+	if recovered, ok := restarted.Accounts.CompletedEmailChange(recoveryTarget, "after@example.com"); !ok || recovered != completion.Account {
+		t.Fatalf("recover committed email change = %+v, %v; want %+v", recovered, ok, completion.Account)
 	}
 	notice := sender.last()
 	if notice.To != "before@example.com" || notice.Subject != "Your Authling email address changed" || strings.Contains(notice.Body, "after@example.com") {
@@ -614,16 +617,20 @@ func TestEmailChangePreservesAccountAndInvalidatesSessionsAcrossRestart(t *testi
 	if bytes.Contains(changeRecord, []byte("before@example.com")) || bytes.Contains(changeRecord, []byte("after@example.com")) || bytes.Contains(changeRecord, []byte(code)) {
 		t.Fatal("email change event contains plaintext identity or verification material")
 	}
-	if _, err := restarted.Authentication.Login(testContext(t), "before@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+	stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
+
+	replayed, cancelReplayed, replayedErrors := startTestRuntime(t, cfg, sender)
+	defer stopTestRuntime(t, replayed, cancelReplayed, replayedErrors)
+	if _, err := replayed.Authentication.Login(testContext(t), "before@example.com", "the original uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("old-address login error = %v, want ErrInvalidCredentials", err)
 	}
-	if authenticated, err := restarted.Authentication.Login(testContext(t), "after@example.com", "the original uncommon password"); err != nil || authenticated != completion.Account {
+	if authenticated, err := replayed.Authentication.Login(testContext(t), "after@example.com", "the original uncommon password"); err != nil || authenticated != completion.Account {
 		t.Fatalf("new-address login = %+v, %v; want %+v", authenticated, err, completion.Account)
 	}
-	if _, err := restarted.Sessions.Validate(testContext(t), oldSession); !errors.Is(err, sessions.ErrNotFound) {
+	if _, err := replayed.Sessions.Validate(testContext(t), oldSession); !errors.Is(err, sessions.ErrNotFound) {
 		t.Fatalf("older session validation error = %v, want ErrNotFound", err)
 	}
-	if _, err := restarted.EmailChange.Complete(testContext(t), account.ID, flow); !errors.Is(err, emailchange.ErrInvalidFlow) {
+	if _, err := replayed.EmailChange.Complete(testContext(t), account.ID, flow); !errors.Is(err, emailchange.ErrInvalidFlow) {
 		t.Fatalf("reused email change error = %v, want ErrInvalidFlow", err)
 	}
 }
@@ -682,6 +689,30 @@ func TestEmailChangeHidesClaimedAddressAndRejectsStaleFlows(t *testing.T) {
 	}
 	if _, err := runtime.Authentication.Login(testContext(t), "new-two@example.com", "the first uncommon password"); !errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("stale changed address login error = %v, want ErrInvalidCredentials", err)
+	}
+}
+
+func TestEmailChangeReauthenticationThrottlesWithoutConsumingDeliveryBudget(t *testing.T) {
+	sender := &capturingSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "reauth-limit@example.com", "the correct reauthentication password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for range 10 {
+		if _, err := runtime.EmailChange.Start(testContext(t), account.ID, "the wrong reauthentication password", "reauth-target@example.com"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+			t.Fatalf("failed email change reauthentication error = %v", err)
+		}
+	}
+	if sender.count() != 0 {
+		t.Fatalf("wrong-password email deliveries = %d, want 0", sender.count())
+	}
+	if _, err := runtime.EmailChange.Start(testContext(t), account.ID, "the correct reauthentication password", "reauth-target@example.com"); !errors.Is(err, accounts.ErrInvalidCredentials) {
+		t.Fatalf("throttled email change reauthentication error = %v", err)
+	}
+	if sender.count() != 0 {
+		t.Fatalf("throttled email deliveries = %d, want 0", sender.count())
 	}
 }
 
@@ -770,6 +801,33 @@ func TestEmailChangeKeepsCommittedIdentityWhenOldAddressNoticeFails(t *testing.T
 	}
 	if _, err := runtime.Authentication.Login(testContext(t), "notify-new@example.com", "the notification failure password"); err != nil {
 		t.Fatalf("changed identity after notification failure: %v", err)
+	}
+}
+
+func TestEmailChangeDeliveryFailureLeavesIdentityUnchangedAndCanRetry(t *testing.T) {
+	sender := &failingFirstEmailChangeCodeSender{}
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t), sender)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "delivery-old@example.com", "the delivery failure password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	before := eventCount(t, runtime)
+	if _, err := runtime.EmailChange.Start(testContext(t), account.ID, "the delivery failure password", "delivery-new@example.com"); err == nil {
+		t.Fatal("email change with failed code delivery succeeded")
+	}
+	request, _ := lastAccountEvent(t, runtime, account.ID)
+	if request.GetEmailChangeRequested() == nil || eventCount(t, runtime) != before+1 {
+		t.Fatalf("failed-delivery audit event = %+v", request)
+	}
+	if _, err := runtime.Authentication.Login(testContext(t), "delivery-old@example.com", "the delivery failure password"); err != nil {
+		t.Fatalf("old identity after delivery failure: %v", err)
+	}
+	if runtime.Accounts.HasEmail("delivery-new@example.com") {
+		t.Fatal("failed code delivery changed the active identity")
+	}
+	if _, err := runtime.EmailChange.Start(testContext(t), account.ID, "the delivery failure password", "delivery-new@example.com"); err != nil {
+		t.Fatalf("retry after failed code delivery: %v", err)
 	}
 }
 
@@ -960,6 +1018,22 @@ type capturingSender struct {
 }
 
 type failingNotificationSender struct{ capturingSender }
+
+type failingFirstEmailChangeCodeSender struct {
+	capturingSender
+	failed bool
+}
+
+func (s *failingFirstEmailChangeCodeSender) SendContext(ctx context.Context, message email.Message) error {
+	s.mu.Lock()
+	if message.Subject == "Your Authling email change code" && !s.failed {
+		s.failed = true
+		s.mu.Unlock()
+		return errors.New("email change code delivery failed")
+	}
+	s.mu.Unlock()
+	return s.capturingSender.SendContext(ctx, message)
+}
 
 func (s *failingNotificationSender) SendContext(ctx context.Context, message email.Message) error {
 	if message.Subject == "Your Authling email address changed" {

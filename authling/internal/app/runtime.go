@@ -124,6 +124,7 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService)
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage)
+	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{
 		connection:     connection,
 		projectors:     []*events.Projector{handle.Projector(), issuerHandle.Projector()},
@@ -131,8 +132,8 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 		Accounts:       accountService,
 		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
 		PasswordReset:  passwordreset.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService),
-		Authentication: authentication.New(stores.RuntimeState, js, workflowKey, accountService),
+		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService),
+		Authentication: authenticationService,
 		Sessions:       sessionService,
 		OIDC:           oidcService,
 	}, nil

@@ -120,13 +120,16 @@ opaque key references, but neither plaintext email nor plaintext password
 verifiers. Password-reset requests validate their account and credential
 binding without adding derived model state. Password changes replace the
 current encrypted verifier and advance a durable account authentication
-version. Email-change requests likewise validate without adding model state.
-An email-change account event stages its encrypted replacement; the adjacent
-correlated registry event swaps the active digest and credential and advances
-the authentication version. Local authentication resolves and decrypts a
-verifier only for one bounded Argon2id comparison; absent accounts resolve a
-persistent synthetic key hierarchy and encrypted dummy verifier through the
-same storage path.
+version. The model retains a bounded set of email-change requests per account
+so replay can require the exact reauthentication audit chain without retaining
+abandoned request IDs without bound. An email-change account event stages its
+encrypted replacement; the adjacent correlated registry event swaps the active
+digest and credential and advances the authentication version. Local
+authentication and email-change reauthentication share distributed attempt
+limits and bounded Argon2 capacity. They resolve and decrypt a verifier only
+for one bounded Argon2id comparison; absent login accounts resolve a persistent
+synthetic key hierarchy and encrypted dummy verifier through the same storage
+path.
 
 The runtime does not become ready until the projection has replayed its captured
 startup history. A decode or apply failure fails the projection and runtime.
@@ -193,13 +196,17 @@ email change. Three POST endpoints reauthenticate the current password, verify
 a six-digit code delivered to the requested address, and confirm completion.
 `EmailChangeRequestedEvent` commits before flow creation or delivery and stores
 no address. The encrypted flow binds both addresses and the requested change to
-the reauthenticated credential. Completion atomically appends an encrypted
-`EmailChangedEvent` and PII-free correlated `EmailClaimedEvent` under account
-and registry OCC. The old address remains authoritative until that batch
-commits; afterward Authling advances the durable authentication version,
+the reauthenticated credential. Multiple flows can coexist, but the first
+credential mutation makes the others stale. Completion atomically appends an
+encrypted `EmailChangedEvent` and PII-free correlated `EmailClaimedEvent` under
+account and registry OCC. The old address remains authoritative until that
+batch commits; afterward Authling advances the durable authentication version,
 creates a fresh completing session, and attempts a best-effort security notice
-to the old address. The completion POST redirects to the account page with a
-refresh-safe success result and, when needed, the old-address delivery warning.
+to the old address. A retry after an ambiguous process failure recognizes the
+committed request from the projected credential; notification recovery is
+at-least-once and can duplicate the notice. The completion POST redirects to
+the account page with a refresh-safe success result and, when needed, the
+old-address delivery warning.
 
 OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,

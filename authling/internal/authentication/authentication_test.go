@@ -21,6 +21,10 @@ func (s *stubAuthenticator) AuthenticateLocal(context.Context, string, string) (
 	return accounts.Account{}, s.err
 }
 
+func (s *stubAuthenticator) PrepareEmailChange(context.Context, string, string, string) (accounts.EmailChangeTarget, error) {
+	return accounts.EmailChangeTarget{}, s.err
+}
+
 func TestOperationalFailureDoesNotConsumeAttemptBudget(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
 	defer cancel()
@@ -48,7 +52,7 @@ func TestOperationalFailureDoesNotConsumeAttemptBudget(t *testing.T) {
 	if _, err := service.Login(ctx, "person@example.com", "password"); err == nil || errors.Is(err, accounts.ErrInvalidCredentials) {
 		t.Fatalf("operational login error = %v", err)
 	}
-	keyName := service.attemptKey("person@example.com")
+	keyName := service.attemptKey("login-attempt", "person@example.com")
 	if _, err := stores.RuntimeState.Get(ctx, keyName); !errors.Is(err, jetstream.ErrKeyNotFound) {
 		t.Fatalf("attempt counter after operational error = %v, want absent", err)
 	}
