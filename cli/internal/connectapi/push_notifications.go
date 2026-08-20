@@ -47,8 +47,14 @@ func (s *pushNotificationService) Subscribe(ctx context.Context, req *connect.Re
 	if req.Msg.UserAgent != nil {
 		userAgent = req.Msg.GetUserAgent()
 	}
-	if _, err := s.api.core.SavePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent); err != nil {
-		return nil, connectError(err)
+	var saveErr error
+	if req.Msg.GetCleanupToken() == "" {
+		_, saveErr = s.api.core.SavePushSubscription(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent)
+	} else {
+		_, saveErr = s.api.core.SavePushSubscriptionWithCleanupToken(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetCleanupToken())
+	}
+	if saveErr != nil {
+		return nil, connectError(saveErr)
 	}
 
 	return connect.NewResponse(&apiv1.SubscribePushResponse{Subscribed: true}), nil
@@ -65,12 +71,15 @@ func (s *pushNotificationService) SubscribeForClient(ctx context.Context, req *c
 	if req.Msg.ClientHost == nil || req.Msg.GetClientHost() == "" {
 		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("client host is required"))
 	}
+	if req.Msg.CleanupToken == nil || req.Msg.GetCleanupToken() == "" {
+		return nil, connect.NewError(connect.CodeInvalidArgument, errors.New("cleanup token is required"))
+	}
 
 	userAgent := ""
 	if req.Msg.UserAgent != nil {
 		userAgent = req.Msg.GetUserAgent()
 	}
-	if _, err := s.api.core.SavePushSubscriptionForClient(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetClientHost()); err != nil {
+	if _, err := s.api.core.SavePushSubscriptionForClientWithCleanupToken(ctx, caller.UserID, req.Msg.GetEndpoint(), req.Msg.GetP256Dh(), req.Msg.GetAuth(), userAgent, req.Msg.GetClientHost(), req.Msg.GetCleanupToken()); err != nil {
 		return nil, connectError(err)
 	}
 
@@ -91,7 +100,7 @@ func (s *pushNotificationService) Unsubscribe(ctx context.Context, req *connect.
 }
 
 func (s *pushNotificationService) DeleteSubscriptionByCapability(ctx context.Context, req *connect.Request[apiv1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[apiv1.DeletePushSubscriptionByCapabilityResponse], error) {
-	if err := s.api.core.DeletePushSubscriptionByCapability(ctx, req.Msg.GetEndpoint(), req.Msg.GetAuth()); err != nil {
+	if err := s.api.core.DeletePushSubscriptionByCapability(ctx, req.Msg.GetEndpoint(), req.Msg.GetAuth(), req.Msg.GetCleanupToken()); err != nil {
 		return nil, connectError(err)
 	}
 	return connect.NewResponse(&apiv1.DeletePushSubscriptionByCapabilityResponse{Completed: true}), nil

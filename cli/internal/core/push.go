@@ -101,7 +101,20 @@ func (c *ChattoCore) SavePushSubscription(
 	userID string,
 	endpoint, p256dh, auth, userAgent string,
 ) (*corev1.PushSubscription, error) {
-	return c.SavePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "")
+	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "", "")
+}
+
+// SavePushSubscriptionWithCleanupToken stores a legacy-routed subscription
+// with a capability that identifies only this save generation.
+func (c *ChattoCore) SavePushSubscriptionWithCleanupToken(
+	ctx context.Context,
+	userID string,
+	endpoint, p256dh, auth, userAgent, cleanupToken string,
+) (*corev1.PushSubscription, error) {
+	if err := validatePushCleanupToken(cleanupToken); err != nil {
+		return nil, err
+	}
+	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, "", cleanupToken)
 }
 
 // SavePushSubscriptionForClient stores or updates a browser subscription with
@@ -112,7 +125,28 @@ func (c *ChattoCore) SavePushSubscriptionForClient(
 	userID string,
 	endpoint, p256dh, auth, userAgent, clientHost string,
 ) (*corev1.PushSubscription, error) {
-	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost); err != nil {
+	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, clientHost, "")
+}
+
+// SavePushSubscriptionForClientWithCleanupToken stores a host-aware
+// subscription with a capability that identifies only this save generation.
+func (c *ChattoCore) SavePushSubscriptionForClientWithCleanupToken(
+	ctx context.Context,
+	userID string,
+	endpoint, p256dh, auth, userAgent, clientHost, cleanupToken string,
+) (*corev1.PushSubscription, error) {
+	if err := validatePushCleanupToken(cleanupToken); err != nil {
+		return nil, err
+	}
+	return c.savePushSubscriptionForClient(ctx, userID, endpoint, p256dh, auth, userAgent, clientHost, cleanupToken)
+}
+
+func (c *ChattoCore) savePushSubscriptionForClient(
+	ctx context.Context,
+	userID string,
+	endpoint, p256dh, auth, userAgent, clientHost, cleanupToken string,
+) (*corev1.PushSubscription, error) {
+	if err := validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost, cleanupToken); err != nil {
 		return nil, err
 	}
 	if err := c.requirePushSubscriptionAccountActive(ctx, userID); err != nil {
@@ -123,12 +157,13 @@ func (c *ChattoCore) SavePushSubscriptionForClient(
 	}
 
 	subscription := &corev1.PushSubscription{
-		Endpoint:   endpoint,
-		P256Dh:     p256dh,
-		Auth:       auth,
-		CreatedAt:  timestamppb.New(time.Now()),
-		UserAgent:  userAgent,
-		ClientHost: clientHost,
+		Endpoint:     endpoint,
+		P256Dh:       p256dh,
+		Auth:         auth,
+		CreatedAt:    timestamppb.New(time.Now()),
+		UserAgent:    userAgent,
+		ClientHost:   clientHost,
+		CleanupToken: cleanupToken,
 	}
 	if clientHost != "" {
 		subscription.Endpoint = ""
@@ -407,7 +442,7 @@ func (c *ChattoCore) releasePushEndpointOwnership(ctx context.Context, userID, e
 	return fmt.Errorf("failed to release push endpoint ownership after %d concurrent updates", pushEndpointOwnerMaxRetries)
 }
 
-func validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost string) error {
+func validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost, cleanupToken string) error {
 	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
 		return err
 	}
@@ -426,7 +461,19 @@ func validatePushSubscription(endpoint, p256dh, auth, userAgent, clientHost stri
 	if err := validatePushClientHost(clientHost); err != nil {
 		return err
 	}
+	if cleanupToken != "" {
+		if err := validatePushCleanupToken(cleanupToken); err != nil {
+			return err
+		}
+	}
 	return nil
+}
+
+func validatePushCleanupToken(value string) error {
+	if len(value) < MinPushCleanupTokenLength {
+		return fmt.Errorf("%w: push cleanup token must be at least %d bytes", ErrInvalidArgument, MinPushCleanupTokenLength)
+	}
+	return validateStringMaxLength("push cleanup token", value, MaxPushCleanupTokenLength)
 }
 
 func validatePushClientHost(value string) error {
@@ -492,10 +539,11 @@ func (c *ChattoCore) DeletePushSubscription(ctx context.Context, userID, endpoin
 }
 
 // DeletePushSubscriptionByCapability removes only the exact current endpoint
-// owner whose browser Push API auth secret matches. It is safe to call without
-// an account session after a cancelled registration settles: concurrent
-// ownership transfers and credential rotations fail the revision/auth checks.
-func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, endpoint, auth string) error {
+// owner whose browser Push API auth secret and per-save token match. It is safe
+// to call without an account session after a cancelled registration settles:
+// later saves fail the token/revision checks even when they reuse the same
+// browser subscription credentials.
+func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, endpoint, auth, cleanupToken string) error {
 	if err := validateStringMaxLength("push endpoint", endpoint, MaxPushEndpointLength); err != nil {
 		return err
 	}
@@ -506,6 +554,9 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 		return fmt.Errorf("%w: push auth secret is required", ErrInvalidArgument)
 	}
 	if err := validateStringMaxLength("push auth secret", auth, MaxPushAuthLength); err != nil {
+		return err
+	}
+	if err := validatePushCleanupToken(cleanupToken); err != nil {
 		return err
 	}
 
@@ -529,7 +580,9 @@ func (c *ChattoCore) DeletePushSubscriptionByCapability(ctx context.Context, end
 	if err := proto.Unmarshal(entry.Value(), &subscription); err != nil {
 		return fmt.Errorf("failed to unmarshal push subscription for capability cleanup: %w", err)
 	}
-	if pushSubscriptionEndpoint(&subscription) != endpoint || subtle.ConstantTimeCompare([]byte(subscription.Auth), []byte(auth)) != 1 {
+	if pushSubscriptionEndpoint(&subscription) != endpoint ||
+		subtle.ConstantTimeCompare([]byte(subscription.Auth), []byte(auth)) != 1 ||
+		subtle.ConstantTimeCompare([]byte(subscription.CleanupToken), []byte(cleanupToken)) != 1 {
 		return nil
 	}
 

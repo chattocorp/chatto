@@ -16,10 +16,12 @@ import {
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import {
+  completePushRegistrationRefresh,
   enqueuePushRegistration,
   hasDurablePushCoordinationStorage,
   isPushRegistrationSuspended,
   onPushRegistrationRefresh,
+  pendingPushRegistrationRefresh,
   requestPushRegistrationRefresh,
   resumePushRegistration,
   shouldInvalidateCancelledPushRegistration,
@@ -247,16 +249,29 @@ export async function refreshPushSubscriptions(
   targets = getPushRegistrationTargets()
 ): Promise<void> {
   await Promise.all(
-    targets.map(({ serverId, vapidPublicKey }) =>
-      ensureRegistered(serverId, vapidPublicKey, { prompt: false })
-    )
+    targets.map(async ({ serverId, vapidPublicKey }) => {
+      const requestId = pendingPushRegistrationRefresh(serverId);
+      const registered = await ensureRegistered(serverId, vapidPublicKey, { prompt: false });
+      if (registered && requestId) completePushRegistrationRefresh(serverId, requestId);
+    })
   );
 }
 
-onPushRegistrationRefresh((serverId) => {
+onPushRegistrationRefresh((serverId, requestId) => {
   const target = getPushRegistrationTargets().find((candidate) => candidate.serverId === serverId);
-  if (target) void refreshPushSubscriptions([target]);
+  if (!target) return;
+  void ensureRegistered(target.serverId, target.vapidPublicKey, { prompt: false }).then(
+    (registered) => {
+      if (registered) completePushRegistrationRefresh(serverId, requestId);
+    }
+  );
 });
+
+/** Creates a 128-bit capability that identifies one server save generation. */
+function createPushCleanupToken(): string {
+  const bytes = globalThis.crypto.getRandomValues(new Uint8Array(16));
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
+}
 
 /**
  * Convert base64url string to Uint8Array (for VAPID key).
@@ -327,6 +342,7 @@ async function ensureRegisteredOnce(
   const clientHostRequired = !serverRegistry.isOriginServer(serverId);
   let subscription: PushSubscription | null = null;
   let subscriptionAuth: string | null = null;
+  let cleanupToken: string | null = null;
   let createdSubscription = false;
   let api: PushNotificationAPI | null = null;
 
@@ -371,11 +387,13 @@ async function ensureRegisteredOnce(
       return false;
     }
     subscriptionAuth = json.keys.auth;
+    cleanupToken = createPushCleanupToken();
 
     const input = {
       endpoint: json.endpoint,
       p256dh: json.keys.p256dh,
       auth: json.keys.auth,
+      cleanupToken,
       userAgent: navigator.userAgent
     };
     api = pushAPI(serverId);
@@ -396,7 +414,13 @@ async function ensureRegisteredOnce(
       if (shouldInvalidateCancelledPushRegistration(serverId)) {
         await invalidateSubscription(serverId, subscription);
       } else {
-        await removeStaleServerSubscription(serverId, api, subscription.endpoint, input.auth);
+        await removeStaleServerSubscription(
+          serverId,
+          api,
+          subscription.endpoint,
+          input.auth,
+          input.cleanupToken
+        );
       }
       return false;
     }
@@ -421,12 +445,13 @@ async function ensureRegisteredOnce(
       if (activeSuspension || (!cancelled && (createdSubscription || clientHostRequired))) {
         await invalidateSubscription(serverId, subscription);
       } else if (cancelled && api) {
-        if (subscriptionAuth) {
+        if (subscriptionAuth && cleanupToken) {
           await removeStaleServerSubscription(
             serverId,
             api,
             subscription.endpoint,
-            subscriptionAuth
+            subscriptionAuth,
+            cleanupToken
           );
         }
       }
@@ -437,18 +462,19 @@ async function ensureRegisteredOnce(
 
 /**
  * Removes only the exact subscription created by the cancelled save. Cleanup
- * uses the browser Push API auth secret rather than the current account session,
- * so cookie changes or revoked bearer tokens cannot redirect it at another
- * account. Server-side secret, revision, and owner checks protect replacements.
+ * uses the browser Push API auth secret plus a random per-save token rather than
+ * the current account session. Cookie changes, revoked bearer tokens, and later
+ * saves of the same browser subscription therefore cannot redirect cleanup.
  */
 async function removeStaleServerSubscription(
   serverId: string,
   api: PushNotificationAPI,
   endpoint: string,
-  auth: string
+  auth: string,
+  cleanupToken: string
 ): Promise<void> {
   try {
-    await api.deleteByCapability(endpoint, auth);
+    await api.deleteByCapability(endpoint, auth, cleanupToken);
   } catch {
     // Browser invalidation during suspension still makes the endpoint unusable.
   } finally {

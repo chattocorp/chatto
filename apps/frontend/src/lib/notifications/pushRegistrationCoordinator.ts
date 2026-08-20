@@ -7,6 +7,7 @@ type CrossTabSuspensionState = {
 };
 
 const crossTabSuspensionKeyPrefix = 'chatto.push-registration.suspended.';
+const crossTabRefreshKeyPrefix = 'chatto.push-registration.refresh.';
 const crossTabStorageProbeKeyPrefix = 'chatto.push-registration.storage-probe.';
 const crossTabLockNamePrefix = 'chatto.push-registration.';
 const crossTabChannelName = 'chatto-push-registration';
@@ -14,7 +15,7 @@ const operationTails = new Map<string, Promise<unknown>>();
 const registrationEpochs = new Map<string, number>();
 const suspendedServers = new Map<string, { crossTabPersisted: boolean }>();
 const activeRegistrations = new Map<string, AbortController>();
-const refreshListeners = new Set<(serverId: string) => void>();
+const refreshListeners = new Set<(serverId: string, requestId: string) => void>();
 let coordinationChannel: BroadcastChannel | null | undefined;
 let storageListenerInstalled = false;
 
@@ -41,6 +42,10 @@ function epoch(serverId: string): number {
 
 function crossTabSuspensionKey(serverId: string): string {
   return crossTabSuspensionKeyPrefix + serverId;
+}
+
+function crossTabRefreshKey(serverId: string): string {
+  return crossTabRefreshKeyPrefix + serverId;
 }
 
 function crossTabSuspensionState(serverId: string): CrossTabSuspensionState {
@@ -94,16 +99,14 @@ function ensureCrossTabCoordination(): void {
 
   if (!storageListenerInstalled && typeof window.addEventListener === 'function') {
     window.addEventListener('storage', (event) => {
-      if (
-        event.key === null ||
-        !event.key.startsWith(crossTabSuspensionKeyPrefix) ||
-        (event.newValue !== 'disabled' && event.newValue !== 'leaving')
-      ) {
-        return;
+      if (event.key?.startsWith(crossTabSuspensionKeyPrefix)) {
+        if (event.newValue !== 'disabled' && event.newValue !== 'leaving') return;
+        const serverId = event.key.slice(crossTabSuspensionKeyPrefix.length);
+        if (serverId) suspendLocally(serverId, true);
+      } else if (event.key?.startsWith(crossTabRefreshKeyPrefix) && event.newValue) {
+        const serverId = event.key.slice(crossTabRefreshKeyPrefix.length);
+        if (serverId) notifyRefreshListeners(serverId, event.newValue);
       }
-
-      const serverId = event.key.slice(crossTabSuspensionKeyPrefix.length);
-      if (serverId) suspendLocally(serverId, true);
     });
     storageListenerInstalled = true;
   }
@@ -124,8 +127,6 @@ function ensureCrossTabCoordination(): void {
       if (typeof message.serverId !== 'string') return;
       if (message.type === 'suspend') {
         suspendLocally(message.serverId, message.crossTabPersisted === true);
-      } else if (message.type === 'refresh') {
-        notifyRefreshListeners(message.serverId);
       }
     });
   } catch {
@@ -133,23 +134,47 @@ function ensureCrossTabCoordination(): void {
   }
 }
 
-function notifyRefreshListeners(serverId: string): void {
-  for (const listener of refreshListeners) listener(serverId);
+function notifyRefreshListeners(serverId: string, requestId: string): void {
+  for (const listener of refreshListeners) listener(serverId, requestId);
 }
 
-/** Requests that active same-origin realms reassert one server subscription. */
-export function requestPushRegistrationRefresh(serverId: string): void {
-  ensureCrossTabCoordination();
-  notifyRefreshListeners(serverId);
+/** Returns the durable reassertion request currently pending for one server. */
+export function pendingPushRegistrationRefresh(serverId: string): string | null {
+  if (typeof window === 'undefined') return null;
   try {
-    coordinationChannel?.postMessage({ type: 'refresh', serverId });
+    return window.localStorage?.getItem(crossTabRefreshKey(serverId)) ?? null;
   } catch {
-    // A foreground realm or its next startup refresh can still repair state.
+    return null;
   }
 }
 
+/** Clears a reassertion request only after the save covering it succeeds. */
+export function completePushRegistrationRefresh(serverId: string, requestId: string): void {
+  if (typeof window === 'undefined') return;
+  try {
+    const key = crossTabRefreshKey(serverId);
+    if (window.localStorage?.getItem(key) === requestId) window.localStorage.removeItem(key);
+  } catch {
+    // A later startup refresh remains safe when the marker cannot be cleared.
+  }
+}
+
+/** Durably requests that active same-origin realms reassert one subscription. */
+export function requestPushRegistrationRefresh(serverId: string): void {
+  ensureCrossTabCoordination();
+  const requestId = Date.now().toString(36) + Math.random().toString(36).slice(2);
+  try {
+    window.localStorage?.setItem(crossTabRefreshKey(serverId), requestId);
+  } catch {
+    // The local foreground realm can still repair state immediately.
+  }
+  notifyRefreshListeners(serverId, requestId);
+}
+
 /** Subscribes a long-lived registration owner to cross-tab refresh requests. */
-export function onPushRegistrationRefresh(listener: (serverId: string) => void): () => void {
+export function onPushRegistrationRefresh(
+  listener: (serverId: string, requestId: string) => void
+): () => void {
   refreshListeners.add(listener);
   ensureCrossTabCoordination();
   return () => refreshListeners.delete(listener);

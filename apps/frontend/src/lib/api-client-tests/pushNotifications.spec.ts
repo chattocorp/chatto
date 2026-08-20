@@ -56,6 +56,7 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        cleanupToken: '0123456789abcdef0123456789abcdef',
         userAgent: 'browser'
       })
     ).resolves.toEqual({ subscribed: true });
@@ -65,6 +66,7 @@ describe('createPushNotificationAPI', () => {
           endpoint: 'https://push.example/remote',
           p256dh: 'p256dh-key',
           auth: 'auth-secret',
+          cleanupToken: 'fedcba9876543210fedcba9876543210',
           clientHost: 'app.example'
         },
         { signal: controller.signal }
@@ -72,7 +74,11 @@ describe('createPushNotificationAPI', () => {
     ).resolves.toEqual({ subscribed: true });
     await expect(api.unsubscribe('https://push.example/sub')).resolves.toBe(true);
     await expect(
-      api.deleteByCapability('https://push.example/stale', 'stale-auth-secret')
+      api.deleteByCapability(
+        'https://push.example/stale',
+        'stale-auth-secret',
+        'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
+      )
     ).resolves.toBe(true);
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -84,6 +90,7 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        cleanupToken: '0123456789abcdef0123456789abcdef',
         userAgent: 'browser'
       },
       { headers: { Authorization: 'Bearer token' } }
@@ -97,13 +104,15 @@ describe('createPushNotificationAPI', () => {
         endpoint: 'https://push.example/remote',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        cleanupToken: 'fedcba9876543210fedcba9876543210',
         clientHost: 'app.example'
       },
       { headers: { Authorization: 'Bearer token' }, signal: controller.signal }
     );
     expect(mocks.deleteSubscriptionByCapability).toHaveBeenCalledWith({
       endpoint: 'https://push.example/stale',
-      auth: 'stale-auth-secret'
+      auth: 'stale-auth-secret',
+      cleanupToken: 'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'
     });
   });
 
@@ -119,7 +128,8 @@ describe('createPushNotificationAPI', () => {
       api.subscribe({
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
-        auth: 'auth-secret'
+        auth: 'auth-secret',
+        cleanupToken: '0123456789abcdef0123456789abcdef'
       })
     ).resolves.toEqual({ subscribed: true });
 
@@ -127,7 +137,8 @@ describe('createPushNotificationAPI', () => {
       {
         endpoint: 'https://push.example/sub',
         p256dh: 'p256dh-key',
-        auth: 'auth-secret'
+        auth: 'auth-secret',
+        cleanupToken: '0123456789abcdef0123456789abcdef'
       },
       { headers: undefined }
     );

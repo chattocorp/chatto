@@ -11,6 +11,7 @@ export type SubscribePushInput = {
   endpoint: string;
   p256dh: string;
   auth: string;
+  cleanupToken: string;
   userAgent?: string;
 };
 
@@ -61,8 +62,8 @@ export function createPushNotificationAPI(config: PushNotificationAPIConfig) {
       return (await client.unsubscribe({ endpoint }, { headers: headers() })).unsubscribed;
     },
 
-    async deleteByCapability(endpoint: string, auth: string): Promise<boolean> {
-      return (await client.deleteSubscriptionByCapability({ endpoint, auth })).completed;
+    async deleteByCapability(endpoint: string, auth: string, cleanupToken: string): Promise<boolean> {
+      return (await client.deleteSubscriptionByCapability({ endpoint, auth, cleanupToken })).completed;
     },
 
     async sendTestNotification(): Promise<boolean> {

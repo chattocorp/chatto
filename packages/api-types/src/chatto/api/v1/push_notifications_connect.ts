@@ -57,9 +57,10 @@ export const PushNotificationService = {
       idempotency: MethodIdempotency.Idempotent,
     },
     /**
-     * Removes the exact current subscription when its Push API auth secret
-     * matches. This capability-based cleanup does not use the current account's
-     * session, allowing cancelled registration to finish safely after sign-out.
+     * Removes the exact current subscription when its Push API auth secret and
+     * per-save cleanup token match. This capability-based cleanup does not use
+     * the current account session, allowing cancelled registration to finish
+     * safely after sign-out.
      *
      * @generated from rpc chatto.api.v1.PushNotificationService.DeleteSubscriptionByCapability
      */

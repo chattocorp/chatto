@@ -49,8 +49,11 @@ type PushSubscription struct {
 	// senders prefer this field; older senders cannot mistake it for a legacy
 	// subscription that they know how to route.
 	DeliveryEndpoint string `protobuf:"bytes,7,opt,name=delivery_endpoint,json=deliveryEndpoint,proto3" json:"delivery_endpoint,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// Random per-save capability used to remove a cancelled registration without
+	// relying on whichever account session is current when its request settles.
+	CleanupToken  string `protobuf:"bytes,8,opt,name=cleanup_token,json=cleanupToken,proto3" json:"cleanup_token,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PushSubscription) Reset() {
@@ -132,11 +135,18 @@ func (x *PushSubscription) GetDeliveryEndpoint() string {
 	return ""
 }
 
+func (x *PushSubscription) GetCleanupToken() string {
+	if x != nil {
+		return x.CleanupToken
+	}
+	return ""
+}
+
 var File_chatto_core_v1_push_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_push_proto_rawDesc = "" +
 	"\n" +
-	"\x19chatto/core/v1/push.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x82\x02\n" +
+	"\x19chatto/core/v1/push.proto\x12\x0echatto.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xa7\x02\n" +
 	"\x10PushSubscription\x12\x1a\n" +
 	"\bendpoint\x18\x01 \x01(\tR\bendpoint\x12\x16\n" +
 	"\x06p256dh\x18\x02 \x01(\tR\x06p256dh\x12\x12\n" +
@@ -147,7 +157,8 @@ const file_chatto_core_v1_push_proto_rawDesc = "" +
 	"user_agent\x18\x05 \x01(\tR\tuserAgent\x12\x1f\n" +
 	"\vclient_host\x18\x06 \x01(\tR\n" +
 	"clientHost\x12+\n" +
-	"\x11delivery_endpoint\x18\a \x01(\tR\x10deliveryEndpointB\xac\x01\n" +
+	"\x11delivery_endpoint\x18\a \x01(\tR\x10deliveryEndpoint\x12#\n" +
+	"\rcleanup_token\x18\b \x01(\tR\fcleanupTokenB\xac\x01\n" +
 	"\x12com.chatto.core.v1B\tPushProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (

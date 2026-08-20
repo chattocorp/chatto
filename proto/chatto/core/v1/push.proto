@@ -40,4 +40,8 @@ message PushSubscription {
   // senders prefer this field; older senders cannot mistake it for a legacy
   // subscription that they know how to route.
   string delivery_endpoint = 7;
+
+  // Random per-save capability used to remove a cancelled registration without
+  // relying on whichever account session is current when its request settles.
+  string cleanup_token = 8;
 }

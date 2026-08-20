@@ -5,6 +5,7 @@ import {
   getPushRegistrationTargets,
   getSubscription as getPushSubscription,
   onNotificationClick,
+  refreshPushSubscriptions,
   unsubscribe,
   unsubscribeBeforeLeaving
 } from './pushNotifications';
@@ -424,6 +425,7 @@ describe('pushNotifications.ensureRegistered', () => {
         endpoint: 'https://push.example/existing',
         p256dh: 'p256dh-key',
         auth: 'auth-secret',
+        cleanupToken: expect.stringMatching(/^[a-f0-9]{32}$/),
         userAgent: 'test-agent'
       },
       { signal: expect.any(AbortSignal) }
@@ -569,8 +571,17 @@ describe('pushNotifications.ensureRegistered', () => {
     expect(mocks.unsubscribePush).not.toHaveBeenCalled();
     expect(mocks.deleteByCapabilityPush).toHaveBeenCalledWith(
       remoteSubscription.endpoint,
-      'auth-secret'
+      'auth-secret',
+      mocks.subscribeForClientPush.mock.calls[0]?.[0].cleanupToken
     );
+
+    const refreshKey = 'chatto.push-registration.refresh.remote';
+    expect(window.localStorage.getItem(refreshKey)).toEqual(expect.any(String));
+    resumePushRegistrationAfterAuthentication('remote');
+    await refreshPushSubscriptions([
+      { serverId: 'remote', userId: 'replacement-user', vapidPublicKey: 'dmFwaWQ' }
+    ]);
+    expect(window.localStorage.getItem(refreshKey)).toBeNull();
   });
 
   it('keeps leaving suspension visible across tabs until new authentication is installed', async () => {

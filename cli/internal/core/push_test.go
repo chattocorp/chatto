@@ -622,21 +622,30 @@ func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.
 	endpoint := "https://push.example.com/capability-cleanup"
 	userA := "push-capability-user-a"
 	userB := "push-capability-user-b"
+	auth := "shared-browser-auth"
+	tokenA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	tokenB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
-	if _, err := core.SavePushSubscription(ctx, userA, endpoint, "key-a", "auth-a", "browser-a"); err != nil {
+	if _, err := core.SavePushSubscriptionWithCleanupToken(ctx, userA, endpoint, "key-a", auth, "browser-a", tokenA); err != nil {
 		t.Fatalf("SavePushSubscription user A: %v", err)
 	}
-	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "wrong-auth"); err != nil {
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "wrong-auth", tokenA); err != nil {
 		t.Fatalf("DeletePushSubscriptionByCapability wrong auth: %v", err)
 	}
 	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userA, endpoint); err != nil || !owned {
 		t.Fatalf("wrong capability changed A ownership: owned=%t err=%v", owned, err)
 	}
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, "cccccccccccccccccccccccccccccccc"); err != nil {
+		t.Fatalf("DeletePushSubscriptionByCapability wrong token: %v", err)
+	}
+	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userA, endpoint); err != nil || !owned {
+		t.Fatalf("wrong cleanup token changed A ownership: owned=%t err=%v", owned, err)
+	}
 
-	if _, err := core.SavePushSubscription(ctx, userB, endpoint, "key-b", "auth-b", "browser-b"); err != nil {
+	if _, err := core.SavePushSubscriptionWithCleanupToken(ctx, userB, endpoint, "key-b", auth, "browser-b", tokenB); err != nil {
 		t.Fatalf("SavePushSubscription user B: %v", err)
 	}
-	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "auth-a"); err != nil {
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, tokenA); err != nil {
 		t.Fatalf("DeletePushSubscriptionByCapability stale auth: %v", err)
 	}
 	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || !owned {
@@ -646,7 +655,7 @@ func TestDeletePushSubscriptionByCapabilityPreservesReplacementOwner(t *testing.
 		t.Fatalf("stale capability removed B subscription: count=%d err=%v", len(subscriptions), err)
 	}
 
-	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, "auth-b"); err != nil {
+	if err := core.DeletePushSubscriptionByCapability(ctx, endpoint, auth, tokenB); err != nil {
 		t.Fatalf("DeletePushSubscriptionByCapability current auth: %v", err)
 	}
 	if owned, err := core.PushSubscriptionOwnedByUser(ctx, userB, endpoint); err != nil || owned {

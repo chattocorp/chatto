@@ -65,9 +65,10 @@ type PushNotificationServiceClient interface {
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
-	// Removes the exact current subscription when its Push API auth secret
-	// matches. This capability-based cleanup does not use the current account's
-	// session, allowing cancelled registration to finish safely after sign-out.
+	// Removes the exact current subscription when its Push API auth secret and
+	// per-save cleanup token match. This capability-based cleanup does not use
+	// the current account session, allowing cancelled registration to finish
+	// safely after sign-out.
 	DeleteSubscriptionByCapability(context.Context, *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
@@ -172,9 +173,10 @@ type PushNotificationServiceHandler interface {
 	//
 	// The call is idempotent: removing an unknown endpoint still succeeds.
 	Unsubscribe(context.Context, *connect.Request[v1.UnsubscribePushRequest]) (*connect.Response[v1.UnsubscribePushResponse], error)
-	// Removes the exact current subscription when its Push API auth secret
-	// matches. This capability-based cleanup does not use the current account's
-	// session, allowing cancelled registration to finish safely after sign-out.
+	// Removes the exact current subscription when its Push API auth secret and
+	// per-save cleanup token match. This capability-based cleanup does not use
+	// the current account session, allowing cancelled registration to finish
+	// safely after sign-out.
 	DeleteSubscriptionByCapability(context.Context, *connect.Request[v1.DeletePushSubscriptionByCapabilityRequest]) (*connect.Response[v1.DeletePushSubscriptionByCapabilityResponse], error)
 	// Sends a test notification to the caller's registered browser subscriptions.
 	// Calls are rate-limited per account. Delivery failures return a generic
