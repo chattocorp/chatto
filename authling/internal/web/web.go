@@ -298,7 +298,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		render(w, r, http.StatusOK, accountPage(account.ID, passwordChanged, emailChanged, emailChanged && r.URL.Query().Get("email_notice_failed") == "1"))
 	})
 	mux.HandleFunc("GET /account/password", func(w http.ResponseWriter, r *http.Request) {
-		account, err := authenticatedAccount(r, deps)
+		_, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
@@ -311,7 +311,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "password change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		render(w, r, http.StatusOK, passwordChangePage(account.ID, "", deps.Accounts.PasswordMinimumLength()))
+		render(w, r, http.StatusOK, passwordChangePage("", deps.Accounts.PasswordMinimumLength()))
 	})
 	mux.HandleFunc("POST /account/password", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Accounts == nil || deps.Authentication == nil || deps.Sessions == nil {
@@ -334,28 +334,28 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, passwordChangePage(account.ID, "Invalid form submission.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusBadRequest, passwordChangePage("Invalid form submission.", deps.Accounts.PasswordMinimumLength()))
 			return
 		}
 		newPassword := r.FormValue("new_password")
 		if newPassword != r.FormValue("new_password_confirmation") {
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(account.ID, "New passwords do not match.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("New passwords do not match.", deps.Accounts.PasswordMinimumLength()))
 			return
 		}
 		changed, err := deps.Authentication.ChangePassword(r.Context(), account.ID, r.FormValue("current_password"), newPassword)
 		switch {
 		case errors.Is(err, accounts.ErrInvalidCredentials):
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(account.ID, "The current password is incorrect.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("The current password is incorrect.", deps.Accounts.PasswordMinimumLength()))
 			return
 		case errors.Is(err, accounts.ErrInvalidPassword), errors.Is(err, accounts.ErrPasswordUnchanged):
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(account.ID, err.Error(), deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(err.Error(), deps.Accounts.PasswordMinimumLength()))
 			return
 		case errors.Is(err, accounts.ErrCredentialChanged):
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
 			return
 		case err != nil:
-			render(w, r, http.StatusServiceUnavailable, passwordChangePage(account.ID, "We couldn't change your password. Please try again later.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusServiceUnavailable, passwordChangePage("We couldn't change your password. Please try again later.", deps.Accounts.PasswordMinimumLength()))
 			return
 		}
 		if err := establishSessionAtAuthenticationVersion(w, r, deps, changed.ID, changed.AuthenticationVersion); err != nil {
