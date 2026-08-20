@@ -1,6 +1,6 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
-  import { createBotAPI, type Bot } from '$lib/api-client/bots';
+  import { createBotAPI } from '$lib/api-client/bots';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { Panel } from '$lib/components/admin';
   import { BotPermissionsMatrix } from '$lib/components/rbac';
