@@ -356,6 +356,7 @@
       "loading": "Bottide laadimine...",
       "empty_title": "Roboteid veel pole",
       "empty_body": "Looge robot, kui integratsioon vajab oma identiteeti ja õigusi.",
+      "create_permission_required": "Saate olemasolevaid roboteid hallata, kuid teil pole õigust uut luua.",
       "create": "Loo robot",
       "create_title": "Looge roboti konto",
       "create_failed": "Boti loomine ebaõnnestus",

@@ -356,6 +356,7 @@
       "loading": "Načítání robotů...",
       "empty_title": "Zatím žádní roboti",
       "empty_body": "Vytvořte robota, když integrace potřebuje vlastní identitu a oprávnění.",
+      "create_permission_required": "Můžete spravovat existující roboty, ale nemáte oprávnění vytvořit nového.",
       "create": "Vytvořit robota",
       "create_title": "Vytvořit účet robota",
       "create_failed": "Nepodařilo se vytvořit robota",

@@ -356,6 +356,7 @@
       "loading": "正在載入機器人...",
       "empty_title": "還沒有機器人",
       "empty_body": "當整合需要自己的身分和權限時創建機器人。",
+      "create_permission_required": "你可以管理現有機器人，但沒有建立新機器人的權限。",
       "create": "創建機器人",
       "create_title": "建立機器人帳號",
       "create_failed": "創建機器人失敗",

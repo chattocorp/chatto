@@ -11,7 +11,7 @@ or thread pane. Shows small avatars of typing users with animated dots.
 <script lang="ts">
   import { fade } from 'svelte/transition';
   import { type RoomMember } from '$lib/state/room';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
 
   let {
     typingUserIds,
@@ -36,15 +36,7 @@ or thread pane. Shows small avatars of typing users with animated dots.
     transition:fade={{ duration: 150 }}
   >
     {#each typingMembers as member (member.id)}
-      {#if member.avatarUrl}
-        <SkeletonImg src={member.avatarUrl} alt={member.displayName} class="size-5 rounded-full" />
-      {:else}
-        <div
-          class="flex size-5 items-center justify-center rounded-full bg-muted/20 text-[8px] font-medium text-muted"
-        >
-          {member.displayName?.charAt(0).toUpperCase() ?? '?'}
-        </div>
-      {/if}
+      <UserAvatar user={member} size="xs" useLiveProfile={false} />
     {/each}
     <span class="typing-dots ms-0.5 inline-flex items-center gap-0.5">
       <span class="typing-dot"></span>

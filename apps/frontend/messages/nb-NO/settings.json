@@ -356,6 +356,7 @@
       "loading": "Laster inn roboter...",
       "empty_title": "Ingen roboter ennå",
       "empty_body": "Opprett en bot når en integrasjon trenger sin egen identitet og tillatelser.",
+      "create_permission_required": "Du kan administrere eksisterende boter, men du har ikke tillatelse til å opprette en ny.",
       "create": "Opprett bot",
       "create_title": "Opprett bot-konto",
       "create_failed": "Kunne ikke opprette bot",

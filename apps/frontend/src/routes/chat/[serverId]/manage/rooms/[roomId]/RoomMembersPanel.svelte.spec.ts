@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { RoomViewerState, RoomWithViewerState } from '@chatto/api-types/api/v1/room_directory_pb';
 import { Room } from '@chatto/api-types/api/v1/rooms_pb';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -30,6 +31,15 @@ const mocks = vi.hoisted(() => ({
   commandAPI: null as RoomCommandAPI | null,
   queryScope: 'session-1',
   scopeCurrent: true
+}));
+
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
 }));
 
 vi.mock('$lib/state/server/scope.svelte', () => ({
@@ -241,6 +251,14 @@ describe('RoomMembersPanel', () => {
     await vi.waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith('Removed Alice from the room')
     );
+  });
+
+  it('marks bots in room membership management', async () => {
+    setup({ members: [{ ...member('helper_bot', 'Helper Bot'), accountKind: UserAccountKind.BOT }] });
+    const { container } = renderPanel();
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
   });
 
   it('hides editing controls without room.manage permission', async () => {

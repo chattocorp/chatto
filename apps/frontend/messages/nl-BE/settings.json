@@ -356,6 +356,7 @@
       "loading": "Bots laden...",
       "empty_title": "Nog geen bots",
       "empty_body": "Maak een bot wanneer een integratie een eigen identiteit en rechten nodig heeft.",
+      "create_permission_required": "Je kunt bestaande bots beheren, maar je hebt geen toestemming om een nieuwe te maken.",
       "create": "Bot maken",
       "create_title": "Bot-account maken",
       "create_failed": "Kan geen bot maken",

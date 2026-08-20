@@ -1,6 +1,7 @@
 <script lang="ts">
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
+  import { untrack } from 'svelte';
   import { m } from '$lib/i18n/messages';
   import type { UserAvatarUserView } from '$lib/render/users';
   import { getLiveAvatarUrl, getLiveCustomStatus } from '$lib/state/userProfiles.svelte';
@@ -70,6 +71,7 @@
     size = 'md',
     showPresence = false,
     showStatus = false,
+    useLiveProfile = true,
     class: className = ''
   }: {
     user: AvatarUser;
@@ -78,17 +80,26 @@
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
+    /** Disable app-context profile/presence lookups for static directory renderers. */
+    useLiveProfile?: boolean;
     class?: string;
   } = $props();
 
-  const presenceCache = getPresenceCache();
+  // Context capture is an initialization concern; callers do not switch one
+  // mounted avatar between static and live modes.
+  const liveProfileEnabled = untrack(() => useLiveProfile);
+  const presenceCache = liveProfileEnabled ? getPresenceCache() : null;
   // Guard all derived computations against null user — during tab resume/reconnect,
   // fragment data can be transiently null. An unguarded crash here poisons Svelte 5's
   // reactive graph and deadlocks the entire UI.
   const initials = $derived(user ? getAvatarInitials(user.displayName, user.login) : '');
 
   const avatarUrl = $derived(
-    user && !user.deleted ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null) : null
+    user && !user.deleted
+      ? liveProfileEnabled
+        ? getLiveAvatarUrl(user.id, user.avatarUrl ?? null)
+        : (user.avatarUrl ?? null)
+      : null
   );
 
   // Use live presence from global cache if available, otherwise fall back to the initial value.
@@ -96,13 +107,17 @@
   // newly-mounted ones like popovers — see the latest presence immediately.
   const presence = $derived.by(() => {
     if (!user || user.deleted) return undefined;
-    return serverId
+    return serverId && presenceCache
       ? presenceCache.get({ serverId, userId: user.id }, user.presenceStatus)
       : user.presenceStatus;
   });
 
   const customStatus = $derived(
-    user && !user.deleted ? getLiveCustomStatus(user.id, user.customStatus) : null
+    user && !user.deleted
+      ? liveProfileEnabled
+        ? getLiveCustomStatus(user.id, user.customStatus)
+        : (user.customStatus ?? null)
+      : null
   );
   const showCustomStatusBadge = $derived(!!user && showStatus && !user.deleted);
   const showPresenceDot = $derived(!!presence && showPresence && size !== 'xs');

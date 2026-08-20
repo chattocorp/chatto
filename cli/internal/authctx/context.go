@@ -30,12 +30,15 @@ const (
 // sessions, but a stable, non-secret identifier for credentials such as bot
 // API keys. OAuthClientID is present only for OAuth access tokens and lets
 // long-lived transports enforce client policy after their initial
-// authentication.
+// authentication. BotAPIKeyVerifier is the non-secret HMAC verifier generation
+// for a bot key; it lets those transports observe durable key rotation without
+// retaining the raw key.
 type RuntimeCredential struct {
-	Kind          RuntimeCredentialKind
-	UserID        string
-	Handle        string
-	OAuthClientID string
+	Kind              RuntimeCredentialKind
+	UserID            string
+	Handle            string
+	OAuthClientID     string
+	BotAPIKeyVerifier []byte
 }
 
 // ForContext extracts the authenticated user from the request context.

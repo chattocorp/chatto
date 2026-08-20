@@ -35,6 +35,14 @@ application, so a block racing connection setup cannot leave an authorized
 socket behind. Cookie sessions, first-party bearer sessions, and OAuth sessions
 issued to other clients are unaffected.
 
+Bot API-key connections similarly retain only the non-secret HMAC verifier
+generation accepted during the hello. Each connection registers atomically
+with the durable user-auth projection. When a key-rotation fact reaches a
+replica, that projection closes watchers for the superseded generation; the
+handler cancels authorized work, sends a terminal `authentication_required`
+close when possible, and tears down the socket. The raw API key is not retained
+in request or connection context.
+
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
 behavioural protocol version. Protocol 2 is the server-scoped projection
 stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on

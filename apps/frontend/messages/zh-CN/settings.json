@@ -356,6 +356,7 @@
       "loading": "正在加载机器人...",
       "empty_title": "还没有机器人",
       "empty_body": "当集成需要自己的身份和权限时创建机器人。",
+      "create_permission_required": "你可以管理现有机器人，但没有创建新机器人的权限。",
       "create": "创建机器人",
       "create_title": "创建机器人帐户",
       "create_failed": "创建机器人失败",

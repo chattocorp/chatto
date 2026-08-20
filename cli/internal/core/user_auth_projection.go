@@ -1,7 +1,9 @@
 package core
 
 import (
+	"bytes"
 	"sort"
+	"sync"
 	"time"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,9 +18,16 @@ import (
 // authentication material by construction.
 type UserAuthProjection struct {
 	events.MemoryProjection
-	users         map[string]*projectedUserAuth
-	identityIndex map[string]string
-	replayGuard   projectionReplayGuard
+	users                   map[string]*projectedUserAuth
+	identityIndex           map[string]string
+	replayGuard             projectionReplayGuard
+	nextBotAPIKeyWatcherID  uint64
+	botAPIKeyWatchersByUser map[string]map[uint64]botAPIKeyWatcher
+}
+
+type botAPIKeyWatcher struct {
+	verifier    []byte
+	invalidated chan struct{}
 }
 
 type projectedUserAuth struct {
@@ -37,9 +46,10 @@ type projectedUserAuth struct {
 
 func newUserAuthProjection() *UserAuthProjection {
 	return &UserAuthProjection{
-		users:         make(map[string]*projectedUserAuth),
-		identityIndex: make(map[string]string),
-		replayGuard:   newProjectionReplayGuard(),
+		users:                   make(map[string]*projectedUserAuth),
+		identityIndex:           make(map[string]string),
+		replayGuard:             newProjectionReplayGuard(),
+		botAPIKeyWatchersByUser: make(map[string]map[uint64]botAPIKeyWatcher),
 	}
 }
 
@@ -233,6 +243,7 @@ func (p *UserAuthProjection) applyAccountDeleted(e *corev1.UserAccountDeletedEve
 	u.botAPIKeyVerifier = nil
 	u.botAPIKeyCreatedAt = time.Time{}
 	u.botAPIKeyRotatedAt = time.Time{}
+	p.closeBotAPIKeyWatchersLocked(e.GetUserId())
 	p.deleteIdentityIndexLocked(e.GetUserId())
 }
 
@@ -250,6 +261,7 @@ func (p *UserAuthProjection) applyKeyShredded(userID string, seq uint64) {
 	u.botAPIKeyVerifier = nil
 	u.botAPIKeyCreatedAt = time.Time{}
 	u.botAPIKeyRotatedAt = time.Time{}
+	p.closeBotAPIKeyWatchersLocked(userID)
 	p.deleteIdentityIndexLocked(userID)
 }
 
@@ -274,7 +286,18 @@ func (p *UserAuthProjection) applyBotAPIKeyRotated(e *corev1.BotApiKeyRotatedEve
 	if u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT || len(u.botAPIKeyVerifier) == 0 {
 		return
 	}
-	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], e.GetVerifier()...)
+	nextVerifier := e.GetVerifier()
+	for watcherID, watcher := range p.botAPIKeyWatchersByUser[e.GetUserId()] {
+		if bytes.Equal(watcher.verifier, nextVerifier) {
+			continue
+		}
+		close(watcher.invalidated)
+		delete(p.botAPIKeyWatchersByUser[e.GetUserId()], watcherID)
+	}
+	if len(p.botAPIKeyWatchersByUser[e.GetUserId()]) == 0 {
+		delete(p.botAPIKeyWatchersByUser, e.GetUserId())
+	}
+	u.botAPIKeyVerifier = append(u.botAPIKeyVerifier[:0], nextVerifier...)
 	u.botAPIKeyRotatedAt = timestampTime(createdAt)
 }
 
@@ -304,6 +327,55 @@ func (p *UserAuthProjection) BotAPIKeyCredential(userID string) (BotAPIKeyCreden
 		CreatedAt: u.botAPIKeyCreatedAt,
 		RotatedAt: u.botAPIKeyRotatedAt,
 	}, true
+}
+
+// watchBotAPIKeyInvalidated registers a process-local notification backed by
+// the durable user-auth projection. Registration and the current-verifier
+// check share the projection lock, so a concurrent rotation cannot leave a
+// stale realtime connection unwatched.
+func (p *UserAuthProjection) watchBotAPIKeyInvalidated(userID string, verifier []byte) (<-chan struct{}, func()) {
+	invalidated := make(chan struct{})
+	p.Lock()
+	u := p.users[userID]
+	if u == nil || u.deleted || u.accountKind != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT ||
+		!bytes.Equal(u.botAPIKeyVerifier, verifier) {
+		close(invalidated)
+		p.Unlock()
+		return invalidated, func() {}
+	}
+	p.nextBotAPIKeyWatcherID++
+	watcherID := p.nextBotAPIKeyWatcherID
+	watchers := p.botAPIKeyWatchersByUser[userID]
+	if watchers == nil {
+		watchers = make(map[uint64]botAPIKeyWatcher)
+		p.botAPIKeyWatchersByUser[userID] = watchers
+	}
+	watchers[watcherID] = botAPIKeyWatcher{
+		verifier:    append([]byte(nil), verifier...),
+		invalidated: invalidated,
+	}
+	p.Unlock()
+
+	var cancelOnce sync.Once
+	return invalidated, func() {
+		cancelOnce.Do(func() {
+			p.Lock()
+			if watchers := p.botAPIKeyWatchersByUser[userID]; watchers != nil {
+				delete(watchers, watcherID)
+				if len(watchers) == 0 {
+					delete(p.botAPIKeyWatchersByUser, userID)
+				}
+			}
+			p.Unlock()
+		})
+	}
+}
+
+func (p *UserAuthProjection) closeBotAPIKeyWatchersLocked(userID string) {
+	for _, watcher := range p.botAPIKeyWatchersByUser[userID] {
+		close(watcher.invalidated)
+	}
+	delete(p.botAPIKeyWatchersByUser, userID)
 }
 
 func (p *UserAuthProjection) deleteIdentityIndexLocked(userID string) {

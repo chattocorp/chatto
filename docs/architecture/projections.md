@@ -320,5 +320,8 @@ serialization cannot reach authentication state.
 Bot account kind and owner ID are durable user-aggregate fields projected by
 `UserProjection`; it also maintains the owner-to-bot index used for management
 and cascade deletion. `UserAuthProjection` replays the latest bot API-key
-verifier and creation/rotation timestamps from EVT. The raw API key is never a
-projection value, snapshot field, or retrievable resource.
+verifier and creation/rotation timestamps from EVT. It also closes process-local
+realtime watchers whose non-secret verifier generation is superseded, so every
+replica terminates stale bot connections when it observes the durable rotation.
+The raw API key is never a projection value, snapshot field, or retrievable
+resource.

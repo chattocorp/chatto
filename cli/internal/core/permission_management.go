@@ -635,6 +635,22 @@ func matrixApplicablePermissions() []string {
 }
 
 func (c *ChattoCore) buildMatrixScopes(ctx context.Context) ([]PermissionMatrixScope, error) {
+	return c.buildMatrixScopesVisibleTo(ctx)
+}
+
+// buildBotMatrixScopes limits bot configuration to rooms visible through the
+// normal directory policy to both the owner and the managing caller. A group
+// is included only when at least one of its rooms survives that intersection,
+// so group metadata cannot reveal a hidden room hierarchy.
+func (c *ChattoCore) buildBotMatrixScopes(ctx context.Context, ownerID, actorID string) ([]PermissionMatrixScope, error) {
+	viewerIDs := []string{ownerID}
+	if actorID != ownerID {
+		viewerIDs = append(viewerIDs, actorID)
+	}
+	return c.buildMatrixScopesVisibleTo(ctx, viewerIDs...)
+}
+
+func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, viewerIDs ...string) ([]PermissionMatrixScope, error) {
 	scopes := []PermissionMatrixScope{{
 		ID:    "server",
 		Label: "Server",
@@ -647,14 +663,23 @@ func (c *ChattoCore) buildMatrixScopes(ctx context.Context) ([]PermissionMatrixS
 
 	roomsByGroup := make(map[string][]matrixRoomLite, len(groups))
 	for _, group := range groups {
-		scopes = append(scopes, PermissionMatrixScope{
-			ID:    "group:" + group.Id,
-			Label: group.Name,
-			Kind:  MatrixScopeGroup,
-		})
 		for _, roomID := range group.RoomIds {
 			room, err := c.GetRoom(ctx, KindChannel, roomID)
 			if err != nil || room == nil {
+				continue
+			}
+			visible := true
+			for _, viewerID := range viewerIDs {
+				canSee, err := c.CanSeeRoom(ctx, viewerID, KindChannel, room.Id)
+				if err != nil {
+					return nil, fmt.Errorf("check room visibility: %w", err)
+				}
+				if !canSee {
+					visible = false
+					break
+				}
+			}
+			if !visible {
 				continue
 			}
 			roomsByGroup[group.Id] = append(roomsByGroup[group.Id], matrixRoomLite{
@@ -662,6 +687,16 @@ func (c *ChattoCore) buildMatrixScopes(ctx context.Context) ([]PermissionMatrixS
 				Name: room.Name,
 			})
 		}
+	}
+	for _, group := range groups {
+		if len(viewerIDs) > 0 && len(roomsByGroup[group.Id]) == 0 {
+			continue
+		}
+		scopes = append(scopes, PermissionMatrixScope{
+			ID:    "group:" + group.Id,
+			Label: group.Name,
+			Kind:  MatrixScopeGroup,
+		})
 	}
 	for _, group := range groups {
 		for _, room := range roomsByGroup[group.Id] {

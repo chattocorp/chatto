@@ -356,6 +356,7 @@
       "loading": "Carregando bots...",
       "empty_title": "Nenhum bot ainda",
       "empty_body": "Crie um bot quando uma integração precisar de identidade e permissões próprias.",
+      "create_permission_required": "Você pode gerenciar bots existentes, mas não tem permissão para criar um novo.",
       "create": "Criar bot",
       "create_title": "Criar conta de bot",
       "create_failed": "Falha ao criar o bot",

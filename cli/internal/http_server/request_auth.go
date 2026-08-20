@@ -94,7 +94,7 @@ func parseBrowserOrigin(raw string) (*url.URL, bool) {
 
 func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string) (presentedRuntimeCredential, bool, error) {
 	if strings.HasPrefix(token, "cht_BK_") {
-		user, err := s.core.ValidateBotAPIKey(ctx, token)
+		user, verifier, err := s.core.ValidateBotAPIKeyCredential(ctx, token)
 		if err != nil {
 			if errors.Is(err, core.ErrAuthTokenNotFound) {
 				return presentedRuntimeCredential{}, false, nil
@@ -104,9 +104,13 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 		return presentedRuntimeCredential{
 			user: user,
 			// Keep the raw key out of the request context after verification. Bot
-			// keys do not support freshness or per-session lifecycle operations,
-			// so the bot ID is the only stable handle later consumers need.
-			auth: authctx.RuntimeCredential{Kind: authctx.RuntimeCredentialKindBotAPIKey, UserID: user.GetId(), Handle: user.GetId()},
+			// keys do not support freshness or per-session lifecycle operations.
+			// Keep only the bot ID and non-secret verifier generation so long-lived
+			// transports can observe a later durable rotation.
+			auth: authctx.RuntimeCredential{
+				Kind: authctx.RuntimeCredentialKindBotAPIKey, UserID: user.GetId(), Handle: user.GetId(),
+				BotAPIKeyVerifier: append([]byte(nil), verifier...),
+			},
 		}, true, nil
 	}
 	credential, err := s.core.ValidatePresentedRuntimeCredential(ctx, token, core.AuthTokenPresentationBearer)

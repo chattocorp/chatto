@@ -356,6 +356,7 @@
       "loading": "Ładowanie botów...",
       "empty_title": "Nie ma jeszcze botów",
       "empty_body": "Utwórz bota, gdy integracja wymaga własnej tożsamości i uprawnień.",
+      "create_permission_required": "Możesz zarządzać istniejącymi botami, ale nie masz uprawnień do utworzenia nowego.",
       "create": "Utwórz bota",
       "create_title": "Utwórz konto bota",
       "create_failed": "Nie udało się utworzyć bota",

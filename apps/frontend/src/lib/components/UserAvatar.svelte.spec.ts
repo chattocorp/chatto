@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import '../../app.css';
 
 import { q } from '$lib/test-utils';
+import UserAvatar from './UserAvatar.svelte';
 import UserAvatarTestHarness from './UserAvatarTestHarness.svelte';
 
 function computedBackgroundColor(color: string): string {
@@ -88,5 +89,25 @@ describe('UserAvatar', () => {
     });
 
     expect(q(container, '[data-testid="bot-badge"][aria-label="bot"]')).toBeTruthy();
+  });
+
+  it('renders static directory identities without app-level live caches', () => {
+    const { container } = render(UserAvatar, {
+      props: {
+        user: {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper Bot',
+          deleted: false,
+          accountKind: UserAccountKind.BOT,
+          avatarUrl: null,
+          presenceStatus: PresenceStatus.OFFLINE
+        },
+        size: 'sm',
+        useLiveProfile: false
+      }
+    });
+
+    expect(q(container, '[data-testid="bot-badge"]')).toBeTruthy();
   });
 });

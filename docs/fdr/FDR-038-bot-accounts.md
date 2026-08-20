@@ -33,8 +33,8 @@ exercise more authority than its human owner currently possesses.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
 - API keys do not expire through inactivity. Rotating a key immediately
-  invalidates the previous key. Deleting the bot or its owner also invalidates
-  the key.
+  invalidates the previous key and terminates realtime connections established
+  with it. Deleting the bot or its owner also invalidates the key.
 - A bot API key authenticates normal public API and realtime requests as that
   bot. The bot can otherwise participate like a user wherever its explicit
   permissions allow.
@@ -50,6 +50,8 @@ exercise more authority than its human owner currently possesses.
 - A bot owner can view, update, rotate the key for, configure permissions for,
   and delete their own bots. Losing `bot.create` does not remove management of
   bots they already own.
+- The permission matrix exposes only room and group scopes visible through the
+  normal room-directory policy to both the bot owner and the managing caller.
 - A human user with `bot.manage` can manage any bot. Changes made by a global
   bot manager remain bounded by that bot's owner's permission ceiling.
 - Bot accounts cannot create, own, or manage other bots, even if a
@@ -137,7 +139,9 @@ while a single active key gives owners a clear revocation and recovery model.
 Not retaining a retrievable raw key reduces secret exposure.
 **Tradeoff:** Losing the key requires rotation, and rotation requires every
 consumer of that bot to update at once. Multiple independently rotatable keys
-per bot are deferred.
+per bot are deferred. Established realtime connections retain only a
+non-secret verifier generation and close when the durable rotation reaches the
+local authentication projection.
 
 ### 7. Owner deletion cascades to owned bots
 

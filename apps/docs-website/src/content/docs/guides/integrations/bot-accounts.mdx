@@ -36,7 +36,8 @@ the creator can always manage bots they already own.
 Bots do not inherit `everyone`, named roles, or the owner's roles. A configured
 allow is effective only while the owner currently has the same permission at
 that scope. The matrix shows both the bot's configured decision and any allow
-blocked by this owner ceiling.
+blocked by this owner ceiling. It lists only room and group scopes visible to
+both the bot owner and the person managing it.
 
 ## Authenticate requests
 
@@ -60,7 +61,8 @@ external login identity.
 
 Choose **Rotate Key** on the bot's settings page when a key is lost or may have
 been exposed. Rotation immediately invalidates the previous key and shows the
-replacement once. Update every consumer before dismissing it.
+replacement once. Realtime connections authenticated with the previous key are
+also closed. Update every consumer before dismissing it.
 
 Deleting a bot invalidates its key and permanently deletes the account through
 the normal account-deletion process. Deleting the human owner also deletes all

@@ -356,6 +356,7 @@
       "loading": "Ladder bots...",
       "empty_title": "Inga bots ännu",
       "empty_body": "Skapa en bot när en integration behöver sin egen identitet och behörigheter.",
+      "create_permission_required": "Du kan hantera befintliga bottar, men du har inte behörighet att skapa en ny.",
       "create": "Skapa bot",
       "create_title": "Skapa botkonto",
       "create_failed": "Det gick inte att skapa bot",

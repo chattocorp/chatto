@@ -356,6 +356,7 @@
       "loading": "ボットを読み込んでいます...",
       "empty_title": "ボットはまだありません",
       "empty_body": "統合に独自の ID と権限が必要な場合は、ボットを作成します。",
+      "create_permission_required": "既存のボットは管理できますが、新しいボットを作成する権限がありません。",
       "create": "ボットの作成",
       "create_title": "ボット アカウントの作成",
       "create_failed": "ボットの作成に失敗しました",

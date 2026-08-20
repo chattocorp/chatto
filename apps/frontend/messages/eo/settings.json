@@ -356,6 +356,7 @@
       "loading": "Ŝarĝante robotojn...",
       "empty_title": "Ankoraŭ neniuj bots",
       "empty_body": "Krei roboton kiam integriĝo bezonas sian propran identecon kaj permesojn.",
+      "create_permission_required": "Vi povas administri ekzistantajn robotojn, sed vi ne havas permeson krei novan.",
       "create": "Krei Bot",
       "create_title": "Krei Bot-Konton",
       "create_failed": "Malsukcesis krei bot",

@@ -1,4 +1,5 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import type { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { createContext } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 
@@ -22,6 +23,7 @@ export type RoomMember = {
   login: string;
   displayName: string;
   deleted?: boolean;
+  accountKind?: UserAccountKind;
   avatarUrl?: string | null;
   customStatus?: CustomUserStatus | null;
   presenceStatus: PresenceStatus;
@@ -363,6 +365,7 @@ function memberFromDirectory(member: DirectoryMember): RoomMember {
     login: member.login,
     displayName: member.displayName,
     deleted: member.deleted,
+    accountKind: member.accountKind,
     avatarUrl: member.avatarUrl,
     customStatus: member.customStatus,
     presenceStatus: member.presenceStatus

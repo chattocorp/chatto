@@ -356,6 +356,7 @@
       "loading": "Botlar yükleniyor...",
       "empty_title": "Henüz bot yok",
       "empty_body": "Entegrasyonun kendi kimliğine ve izinlerine ihtiyacı olduğunda bir bot oluşturun.",
+      "create_permission_required": "Mevcut botları yönetebilirsiniz, ancak yeni bir bot oluşturma izniniz yok.",
       "create": "Bot Oluştur",
       "create_title": "Bot Hesabı Oluştur",
       "create_failed": "Bot oluşturulamadı",

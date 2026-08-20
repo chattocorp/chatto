@@ -356,6 +356,7 @@
       "loading": "Loading bots...",
       "empty_title": "No bots yet",
       "empty_body": "Create a bot when an integration needs its own identity and permissions.",
+      "create_permission_required": "You can manage existing bots, but you do not have permission to create one.",
       "create": "Create Bot",
       "create_title": "Create Bot Account",
       "create_failed": "Failed to create bot",

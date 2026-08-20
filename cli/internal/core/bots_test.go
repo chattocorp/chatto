@@ -4,6 +4,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -66,6 +67,34 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 	if _, err := c.ValidateBotAPIKey(ctx, rotated.APIKey); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("deleted key err = %v, want ErrAuthTokenNotFound", err)
+	}
+}
+
+func TestBotAPIKeyInvalidationWatchFollowsDurableRotation(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "watch-owner", "Watch Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "watch_bot", "Watch Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	_, verifier, err := c.ValidateBotAPIKeyCredential(ctx, bot.APIKey)
+	if err != nil {
+		t.Fatalf("ValidateBotAPIKeyCredential: %v", err)
+	}
+	invalidated, stop := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), verifier)
+	defer stop()
+
+	if _, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	select {
+	case <-invalidated:
+	case <-time.After(5 * time.Second):
+		t.Fatal("bot key watcher remained open after durable rotation reached the projection")
 	}
 }
 
@@ -169,6 +198,41 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 	if _, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrBotOwnerPermissionCeiling) {
 		t.Fatalf("over-ceiling grant err = %v, want ErrBotOwnerPermissionCeiling", err)
+	}
+}
+
+func TestBotPermissionMatrixDoesNotDiscloseHiddenRoomsOrGroups(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "matrix-owner", "Matrix Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "matrix_bot", "Matrix Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	group, err := c.CreateRoomGroup(ctx, SystemActorID, "Hidden Operations", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup: %v", err)
+	}
+	room, err := c.CreateRoom(ctx, SystemActorID, KindChannel, group.GetId(), "hidden-operations", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if err := c.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermRoomList); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	matrix, err := c.GetBotPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetBotPermissionMatrix: %v", err)
+	}
+	for _, scope := range matrix.Scopes {
+		if scope.ID == "group:"+group.GetId() || scope.ID == "room:"+room.GetId() ||
+			scope.Label == group.GetName() || scope.Label == room.GetName() {
+			t.Fatalf("hidden scope leaked through bot matrix: %+v", scope)
+		}
 	}
 }
 

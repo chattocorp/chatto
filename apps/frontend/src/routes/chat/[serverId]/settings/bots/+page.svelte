@@ -1,6 +1,7 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
+  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { Panel } from '$lib/components/admin';
   import { BotPermissionsMatrix } from '$lib/components/rbac';
   import { m } from '$lib/i18n/messages';
@@ -22,6 +23,10 @@
 
   const serverScope = useServerScope();
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
+  const canCreateBots = $derived.by(() => {
+    const viewer = serverScope.store.projection.viewer;
+    return viewer ? (viewerResponseToState(viewer).viewerPermissions['bot.create'] ?? false) : false;
+  });
   const botsQuery = createQuery(
     () => {
       const serverId = serverScope.serverId;
@@ -67,6 +72,7 @@
   }
 
   function openCreate() {
+    if (!canCreateBots) return;
     createLogin = '';
     createDisplayName = '';
     createError = null;
@@ -74,6 +80,7 @@
   }
 
   async function createBot() {
+    if (!canCreateBots) return;
     createLoading = true;
     createError = null;
     try {
@@ -182,12 +189,17 @@
     <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
   {:else}
     <div class="flex flex-col gap-6">
+      {#if !canCreateBots}
+        <Hint>{m('settings.bots.create_permission_required')}</Hint>
+      {/if}
       <Panel title={m('settings.bots.list_title')} count={bots.length} noPadding>
         {#snippet actions()}
-          <Button size="sm" onclick={openCreate}>
-            <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
-            {m('settings.bots.create')}
-          </Button>
+          {#if canCreateBots}
+            <Button size="sm" onclick={openCreate}>
+              <span class="iconify icon-[uil--plus]" aria-hidden="true"></span>
+              {m('settings.bots.create')}
+            </Button>
+          {/if}
         {/snippet}
         {#if botsQuery.isPending}
           <div class="p-5 text-muted">{m('settings.bots.loading')}</div>
@@ -270,7 +282,7 @@
   submitLabel={m('settings.bots.create')}
   submitIcon="iconify icon-[uil--robot]"
   loading={createLoading}
-  disabled={!createLogin.trim().endsWith('_bot') || !createDisplayName.trim()}
+  disabled={!createLogin.trim().toLowerCase().endsWith('_bot') || !createDisplayName.trim()}
   error={createError}
   onsubmit={createBot}
   onclose={() => (createVisible = false)}
@@ -298,7 +310,7 @@
   title={m('settings.bots.edit_title')}
   submitLabel={m('common.save')}
   loading={editLoading}
-  disabled={!editLogin.trim().endsWith('_bot') || !editDisplayName.trim()}
+  disabled={!editLogin.trim().toLowerCase().endsWith('_bot') || !editDisplayName.trim()}
   error={editError}
   onsubmit={updateBot}
   onclose={() => (editVisible = false)}

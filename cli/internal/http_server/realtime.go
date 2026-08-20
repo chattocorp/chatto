@@ -201,6 +201,36 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
+	var botAPIKeyInvalidated <-chan struct{}
+	stopBotAPIKeyWatch := func() {}
+	if credential, ok := authctx.CredentialForContext(ctx); ok &&
+		credential.Kind == authctx.RuntimeCredentialKindBotAPIKey && len(credential.BotAPIKeyVerifier) > 0 {
+		botAPIKeyInvalidated, stopBotAPIKeyWatch = s.core.WatchBotAPIKeyInvalidated(credential.UserID, credential.BotAPIKeyVerifier)
+	}
+	defer stopBotAPIKeyWatch()
+	if botAPIKeyInvalidated != nil {
+		botAPIKeyWatcherDone := make(chan struct{})
+		go func() {
+			defer close(botAPIKeyWatcherDone)
+			select {
+			case <-botAPIKeyInvalidated:
+				terminateRealtimeForBotAPIKeyInvalidation(cancel, writeFrame, func() {
+					_ = conn.WriteControl(
+						websocket.CloseMessage,
+						websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
+						time.Now().Add(time.Second),
+					)
+					_ = conn.Close()
+				})
+			case <-ctx.Done():
+			}
+		}()
+		defer func() {
+			cancel()
+			<-botAPIKeyWatcherDone
+		}()
+	}
+
 	if err := writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Hello{
 		Hello: &realtimev1.RealtimeServerHello{
 			ProtocolVersion:          realtimeProtocolVersion,
@@ -506,6 +536,25 @@ func terminateRealtimeForOAuthClientBlock(
 		Close: &realtimev1.RealtimeClose{
 			Code:      "authentication_required",
 			Message:   "the OAuth client has been blocked",
+			Reconnect: false,
+		},
+	}})
+	closeConnection()
+}
+
+// terminateRealtimeForBotAPIKeyInvalidation cancels authorized work before
+// writing a terminal frame. The key generation is watched through the durable
+// user-auth projection, so rotation reaches sockets on every replica.
+func terminateRealtimeForBotAPIKeyInvalidation(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "authentication_required",
+			Message:   "the bot API key has been rotated",
 			Reconnect: false,
 		},
 	}})

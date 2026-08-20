@@ -356,6 +356,7 @@
       "loading": "Chargement des robots...",
       "empty_title": "Aucun robot pour l'instant",
       "empty_body": "Créez un bot lorsqu'une intégration a besoin de sa propre identité et de ses propres autorisations.",
+      "create_permission_required": "Vous pouvez gérer les bots existants, mais vous n’avez pas l’autorisation d’en créer un nouveau.",
       "create": "Créer un robot",
       "create_title": "Créer un compte de robot",
       "create_failed": "Échec de la création du bot",

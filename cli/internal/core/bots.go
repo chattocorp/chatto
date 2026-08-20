@@ -75,27 +75,45 @@ func (c *ChattoCore) botAPIKeyVerifier(token string) []byte {
 // latest verifier replayed from EVT. It returns ErrAuthTokenNotFound for every
 // malformed, stale, deleted, or otherwise unusable key.
 func (c *ChattoCore) ValidateBotAPIKey(ctx context.Context, token string) (*corev1.User, error) {
+	user, _, err := c.ValidateBotAPIKeyCredential(ctx, token)
+	return user, err
+}
+
+// ValidateBotAPIKeyCredential authenticates a bot API key and returns the
+// non-secret verifier generation needed to revoke long-lived transports when
+// a later durable rotation reaches this replica.
+func (c *ChattoCore) ValidateBotAPIKeyCredential(ctx context.Context, token string) (*corev1.User, []byte, error) {
 	botID, ok := parseBotAPIKey(token)
 	if !ok {
-		return nil, ErrAuthTokenNotFound
+		return nil, nil, ErrAuthTokenNotFound
 	}
 	agg := evtstream.UserAggregate(botID)
 	if err := c.userModel.waitForUsersCurrent(ctx, "bot API key authentication", agg.AllEventsFilter()); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	credential, ok := c.userModel.botAPIKeyCredential(botID)
-	if !ok || subtle.ConstantTimeCompare(c.botAPIKeyVerifier(token), credential.Verifier) != 1 {
-		return nil, ErrAuthTokenNotFound
+	presentedVerifier := c.botAPIKeyVerifier(token)
+	if !ok || subtle.ConstantTimeCompare(presentedVerifier, credential.Verifier) != 1 {
+		return nil, nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
 	if err != nil || bot.GetAccountKind() != corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
-		return nil, ErrAuthTokenNotFound
+		return nil, nil, ErrAuthTokenNotFound
 	}
 	owner, err := c.GetUser(ctx, bot.GetBotOwnerUserId())
 	if err != nil || owner.GetAccountKind() == corev1.UserAccountKind_USER_ACCOUNT_KIND_BOT {
-		return nil, ErrAuthTokenNotFound
+		return nil, nil, ErrAuthTokenNotFound
 	}
-	return bot, nil
+	return bot, presentedVerifier, nil
+}
+
+// WatchBotAPIKeyInvalidated closes when the durable user-auth projection
+// observes that verifier is no longer current for botID.
+func (c *ChattoCore) WatchBotAPIKeyInvalidated(botID string, verifier []byte) (<-chan struct{}, func()) {
+	if c.userModel == nil || c.userModel.auth.Projection() == nil || botID == "" || len(verifier) == 0 {
+		return nil, func() {}
+	}
+	return c.userModel.auth.Projection().watchBotAPIKeyInvalidated(botID, verifier)
 }
 
 func (c *ChattoCore) requireHumanUser(ctx context.Context, userID string) error {
@@ -325,7 +343,7 @@ func (c *ChattoCore) GetBotPermissionMatrix(ctx context.Context, actorID, botID 
 			applicable = append(applicable, permission)
 		}
 	}
-	scopes, err := c.buildMatrixScopes(ctx)
+	scopes, err := c.buildBotMatrixScopes(ctx, bot.GetBotOwnerUserId(), actorID)
 	if err != nil {
 		return nil, err
 	}
