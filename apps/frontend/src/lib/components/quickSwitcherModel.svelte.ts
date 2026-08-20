@@ -25,7 +25,7 @@ import { scoreItem } from './quickSwitcherSearch';
 
 export type QuickSwitcherAvatarUser = Pick<
   DirectoryMember,
-  'id' | 'login' | 'displayName' | 'deleted'
+  'id' | 'login' | 'displayName' | 'deleted' | 'accountKind' | 'presenceStatus'
 > & {
   avatarUrl?: string | null;
 };
@@ -541,6 +541,8 @@ function avatarUser(user: QuickSwitcherAvatarUser): QuickSwitcherAvatarUser {
     login: user.login,
     displayName: user.displayName,
     deleted: user.deleted,
+    accountKind: user.accountKind,
+    presenceStatus: user.presenceStatus,
     avatarUrl: user.avatarUrl ?? null
   };
 }

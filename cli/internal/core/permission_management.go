@@ -638,10 +638,10 @@ func (c *ChattoCore) buildMatrixScopes(ctx context.Context) ([]PermissionMatrixS
 	return c.buildMatrixScopesVisibleTo(ctx)
 }
 
-// buildBotMatrixScopes limits bot configuration to rooms visible through the
-// normal directory policy to both the owner and the managing caller. A group
-// is included only when at least one of its rooms survives that intersection,
-// so group metadata cannot reveal a hidden room hierarchy.
+// buildBotMatrixScopes limits bot configuration room metadata to rooms visible
+// through the normal directory policy to both the owner and the managing
+// caller. Group metadata follows that policy's complete group layout so empty
+// groups remain configurable, including for group-scoped room.create grants.
 func (c *ChattoCore) buildBotMatrixScopes(ctx context.Context, ownerID, actorID string) ([]PermissionMatrixScope, error) {
 	viewerIDs := []string{ownerID}
 	if actorID != ownerID {
@@ -689,9 +689,6 @@ func (c *ChattoCore) buildMatrixScopesVisibleTo(ctx context.Context, viewerIDs .
 		}
 	}
 	for _, group := range groups {
-		if len(viewerIDs) > 0 && len(roomsByGroup[group.Id]) == 0 {
-			continue
-		}
 		scopes = append(scopes, PermissionMatrixScope{
 			ID:    "group:" + group.Id,
 			Label: group.Name,

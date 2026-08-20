@@ -61,11 +61,13 @@ ID in the signed browser session, and immediately redirects to registration.
 
 `BotService` exposes bot lifecycle, show-once API-key rotation, and the bot's
 direct permission matrix. Human owners can manage their own bots; `bot.manage`
-allows global management. Matrix scope metadata is limited to rooms visible to
-both the bot owner and the managing caller. Bot API keys authenticate the
-normal public and realtime surfaces, but cannot call bot-management or human
-account-security operations. Rotation closes established realtime connections
-authenticated by the superseded verifier generation.
+allows global management. Matrix room metadata is limited to rooms visible to
+both the bot owner and the managing caller; group metadata follows the room
+directory's complete group layout so empty groups remain configurable. Bot API
+keys authenticate the normal public and realtime surfaces, but cannot call
+bot-management or human account-security operations. Rotation closes
+established realtime connections authenticated by the superseded verifier
+generation.
 
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive

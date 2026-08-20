@@ -1,13 +1,12 @@
 <script lang="ts">
   import { createQuery } from '@tanstack/svelte-query';
   import { createMemberDirectoryAPI, type DirectoryMember } from '$lib/api-client/memberDirectory';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { queryClient } from '$lib/query/client';
   import { directoryQueryKeys } from '$lib/query/directory';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { Combobox } from '$lib/ui/form';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
-  import { getAvatarInitials } from '$lib/utils/initials';
   import { m } from '$lib/i18n/messages';
 
   type User = DirectoryMember;
@@ -91,20 +90,7 @@
   ontextchange={scheduleSearch}
 >
   {#snippet item({ item: user })}
-    {#if user.avatarUrl}
-      <SkeletonImg
-        loading="lazy"
-        src={user.avatarUrl}
-        alt=""
-        class="h-6 w-6 shrink-0 rounded-full object-cover"
-      />
-    {:else}
-      <div
-        class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
-      >
-        {getAvatarInitials(user.displayName, user.login)}
-      </div>
-    {/if}
+    <UserAvatar {user} size="xs" useLiveProfile={false} class="shrink-0" />
     <span class="min-w-0 truncate text-sm text-text">{user.displayName}</span>
     <span class="min-w-0 truncate text-sm text-muted">@{user.login}</span>
   {/snippet}

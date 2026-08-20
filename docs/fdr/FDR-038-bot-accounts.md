@@ -50,8 +50,10 @@ exercise more authority than its human owner currently possesses.
 - A bot owner can view, update, rotate the key for, configure permissions for,
   and delete their own bots. Losing `bot.create` does not remove management of
   bots they already own.
-- The permission matrix exposes only room and group scopes visible through the
-  normal room-directory policy to both the bot owner and the managing caller.
+- The permission matrix exposes room scopes only when they are visible through
+  the normal room-directory policy to both the bot owner and the managing
+  caller. It exposes the complete directory group layout, including empty
+  groups, so group-scoped permissions such as `room.create` remain usable.
 - A human user with `bot.manage` can manage any bot. Changes made by a global
   bot manager remain bounded by that bot's owner's permission ceiling.
 - Bot accounts cannot create, own, or manage other bots, even if a

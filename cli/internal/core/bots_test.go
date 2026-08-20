@@ -201,7 +201,7 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 }
 
-func TestBotPermissionMatrixDoesNotDiscloseHiddenRoomsOrGroups(t *testing.T) {
+func TestBotPermissionMatrixFiltersHiddenRoomsAndKeepsDirectoryGroups(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
 	owner, err := c.CreateUser(ctx, SystemActorID, "matrix-owner", "Matrix Owner", "password123")
@@ -228,11 +228,35 @@ func TestBotPermissionMatrixDoesNotDiscloseHiddenRoomsOrGroups(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetBotPermissionMatrix: %v", err)
 	}
+	groupFound := false
 	for _, scope := range matrix.Scopes {
-		if scope.ID == "group:"+group.GetId() || scope.ID == "room:"+room.GetId() ||
-			scope.Label == group.GetName() || scope.Label == room.GetName() {
-			t.Fatalf("hidden scope leaked through bot matrix: %+v", scope)
+		if scope.ID == "group:"+group.GetId() && scope.Label == group.GetName() {
+			groupFound = true
 		}
+		if scope.ID == "room:"+room.GetId() || scope.Label == room.GetName() {
+			t.Fatalf("hidden room leaked through bot matrix: %+v", scope)
+		}
+	}
+	if !groupFound {
+		t.Fatal("directory-visible group missing from bot matrix")
+	}
+
+	empty, err := c.CreateRoomGroup(ctx, SystemActorID, "Empty Automation", "")
+	if err != nil {
+		t.Fatalf("CreateRoomGroup empty: %v", err)
+	}
+	if err := c.GrantUserGroupPermission(ctx, SystemActorID, empty.GetId(), owner.GetId(), PermRoomCreate); err != nil {
+		t.Fatalf("GrantUserGroupPermission room.create: %v", err)
+	}
+	cell, err := c.SetBotPermission(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{
+		Kind: MatrixScopeGroup,
+		ID:   empty.GetId(),
+	}, PermRoomCreate, PermissionStateAllow)
+	if err != nil {
+		t.Fatalf("SetBotPermission empty group room.create: %v", err)
+	}
+	if !cell.OwnerGranted || !cell.EffectiveGranted {
+		t.Fatalf("empty group room.create cell = %+v, want effective owner-bounded allow", cell)
 	}
 }
 

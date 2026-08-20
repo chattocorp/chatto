@@ -36,8 +36,10 @@ the creator can always manage bots they already own.
 Bots do not inherit `everyone`, named roles, or the owner's roles. A configured
 allow is effective only while the owner currently has the same permission at
 that scope. The matrix shows both the bot's configured decision and any allow
-blocked by this owner ceiling. It lists only room and group scopes visible to
-both the bot owner and the person managing it.
+blocked by this owner ceiling. It lists only rooms visible to both the bot
+owner and the person managing it, while retaining the directory's complete
+group layout so permissions such as `room.create` remain configurable for an
+empty group.
 
 ## Authenticate requests
 

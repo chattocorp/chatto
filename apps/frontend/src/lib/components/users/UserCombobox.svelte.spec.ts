@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { UserAccountKind } from '@chatto/api-types/api/v1/users_pb';
 import { queryClient } from '$lib/query/client';
 import UserCombobox from './UserCombobox.svelte';
 
@@ -116,6 +117,36 @@ describe('UserCombobox', () => {
 
     expect(mocks.listUsers).toHaveBeenCalledOnce();
     expect(second.container.textContent).toContain('Alice Admin');
+  });
+
+  it('marks bot results', async () => {
+    mocks.listUsers.mockResolvedValue({
+      members: [
+        {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper',
+          deleted: false,
+          accountKind: UserAccountKind.BOT,
+          avatarUrl: null,
+          presenceStatus: 'OFFLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 1,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'actor', label: 'Actor' }
+    });
+
+    enterSearch(view.container, 'helper');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    expect(view.container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
   });
 
   it('cancels an in-flight search when unmounted', async () => {
