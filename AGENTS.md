@@ -320,6 +320,7 @@ supervisor processes and global proxy routes are both removed.
   committed.
 - New public ConnectRPC services also need `proto/buf.gen.yaml` and docs sidebar
   entries in `apps/docs-website/astro.config.mjs`.
+
 ## Issues, Commits, And PRs
 
 - Use GitHub Issues for planning.
@@ -334,10 +335,6 @@ supervisor processes and global proxy routes are both removed.
   `Closes #123.` in the body.
 - When using `gh` for multiline PR/issue bodies, write Markdown to a file/stdin
   and use `--body-file`; do not pass escaped `\n` to `--body`.
-- After creating or editing a PR, verify the stored body and issue-closing
-  wiring with `gh pr view --json body,baseRefName,closingIssuesReferences`.
-- After creating a PR, check CI and fix failures that are regressions from
-  `main`.
 - Do not rename the current branch unless explicitly asked.
 
 ## Testing Judgment
