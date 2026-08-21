@@ -1,13 +1,11 @@
 [tools]
 actionlint = "latest"
 "aqua:axllent/mailpit" = "1.30.6"
-"aqua:caddyserver/caddy" = "2.11.4"
 buf = "latest"
 go = "1.26.7"
 goreleaser = "latest"
 node = "22"
 pitchfork = "2.22.0"
-"go:github.com/livekit/livekit-server/cmd/server" = "1.13.5"
 uv = "0.11.30"
 
 [env]
@@ -292,7 +290,7 @@ env = {
   CHATTO_DEV_LIVEKIT_RTC_TCP_PORT = "{{env.CHATTO_DEV_PORT_BASE | int + 6}}",
   CHATTO_DEV_LIVEKIT_UDP_PORTS = "{{env.CHATTO_DEV_PORT_BASE | int + 7}}",
 }
-run = "exec livekit-server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
+run = "exec mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- server --dev --bind 127.0.0.1 --node-ip 127.0.0.1 --keys \"$CHATTO_DEV_LIVEKIT_KEYS\" --port \"$CHATTO_DEV_LIVEKIT_PORT\" --rtc.tcp_port \"$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT\" --udp-port \"$CHATTO_DEV_LIVEKIT_UDP_PORTS\""
 
 [tasks.dev-mailpit]
 description = "Run a local Mailpit SMTP server with workspace-safe ports"
@@ -304,44 +302,38 @@ env = {
 run = "exec mailpit --smtp \"127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT\" --listen \"127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT\""
 
 [tasks.dev]
-description = "Run the complete local development stack with Pitchfork"
-depends = ["setup-frontend"]
+description = "Run the regular local development services with Pitchfork"
+depends = ["setup-frontend", "build-api-types", "build-lingua"]
 run = """
 set -eu
 
 project_dir=$(pwd -P)
+mkdir -p .context/dev
+port_base=${CONDUCTOR_PORT:-4000}
+printf '%s\n' "$port_base" >.context/dev/port-base
 workspace_slug=${CONDUCTOR_WORKSPACE_NAME:-$(basename "$project_dir")}
 workspace_slug=$(printf '%s' "$workspace_slug" | tr '[:upper:]' '[:lower:]')
-
-if ! printf '%s\n' "$workspace_slug" | grep -Eq '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$' || printf '%s\n' "$workspace_slug" | grep -q -- '--'; then
-    echo "Conductor workspace name '$workspace_slug' is not valid in a preview hostname" >&2
+if ! printf '%s\n' "$workspace_slug" | grep -Eq '^[a-z0-9]([a-z0-9-]*[a-z0-9])?$'; then
+    echo "Workspace name '$workspace_slug' is not valid in a Pitchfork proxy hostname" >&2
     exit 2
 fi
-
-mkdir -p .context/dev
-workspace_slug_file=.context/dev/workspace-slug
-old_workspace_slug=$(sed -n '1p' "$workspace_slug_file" 2>/dev/null || true)
-old_workspace_slug=${old_workspace_slug:-$(basename "$project_dir")}
-if [ "$old_workspace_slug" != "$workspace_slug" ]; then
+previous_workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
+if [ -n "$previous_workspace_slug" ] && [ "$previous_workspace_slug" != "$workspace_slug" ]; then
     pitchfork stop --local >/dev/null 2>&1 || true
     for service in chatto authling mailpit livekit storybook docs; do
-        pitchfork proxy remove "$service-$old_workspace_slug" >/dev/null 2>&1 || true
+        pitchfork proxy remove "$service-$previous_workspace_slug" >/dev/null 2>&1 || true
     done
 fi
+printf '%s\n' "$workspace_slug" >.context/dev/workspace-slug
+pitchfork proxy add "chatto-$workspace_slug" --dir "$project_dir" --daemon chatto >/dev/null
+pitchfork proxy add "authling-$workspace_slug" --dir "$project_dir" --daemon authling >/dev/null
+pitchfork proxy add "mailpit-$workspace_slug" --dir "$project_dir" --daemon mailpit >/dev/null
+pitchfork proxy add "livekit-$workspace_slug" --dir "$project_dir" --daemon livekit >/dev/null
 
-directory_slug=$(basename "$project_dir")
-if [ "$directory_slug" != "$workspace_slug" ]; then
-    for service in chatto authling mailpit livekit storybook docs; do
-        pitchfork proxy remove "$service-$directory_slug" >/dev/null 2>&1 || true
-    done
-fi
-
-printf '%s\n' "$workspace_slug" >"$workspace_slug_file"
-for mapping in chatto:chatto authling:authling mailpit:mailpit-proxy livekit:livekit-proxy storybook:storybook-proxy docs:docs-proxy; do
-    service=${mapping%%:*}
-    daemon=${mapping#*:}
-    pitchfork proxy add "$service-$workspace_slug" --dir "$project_dir" --daemon "$daemon" >/dev/null
-done
+echo "Chatto:   https://chatto-$workspace_slug.localhost:42443"
+echo "Authling: https://authling-$workspace_slug.localhost:42443"
+echo "Mailpit:  https://mailpit-$workspace_slug.localhost:42443"
+echo "LiveKit:  https://livekit-$workspace_slug.localhost:42443"
 
 host_pid=$PPID
 pitchfork project enter --pid "$host_pid" --directory "$project_dir"
@@ -352,27 +344,22 @@ leave_project() {
 trap leave_project EXIT HUP INT TERM
 
 pitchfork start --group dev
-pitchfork logs mailpit-server mailpit-proxy livekit-server livekit-proxy authling chatto-backend api-types lingua chatto storybook-server storybook-proxy docs-server docs-proxy --tail --since 2min --no-pager
+pitchfork start --force mailpit --expected-port "$((port_base + 9))"
+pitchfork start --force livekit --expected-port "$((port_base + 5))"
+pitchfork logs mailpit livekit authling chatto-backend chatto --tail --since 2min --no-pager
 """
 
 [tasks.dev-archive]
-description = "Remove this workspace's Pitchfork processes and proxy routes"
+description = "Stop this workspace's Pitchfork processes and remove its proxy routes"
 run = """
 set -eu
 
-project_dir=$(pwd -P)
 workspace_slug=$(sed -n '1p' .context/dev/workspace-slug 2>/dev/null || true)
-workspace_slug=${workspace_slug:-$(basename "$project_dir")}
+workspace_slug=${workspace_slug:-$(basename "$(pwd -P)")}
 pitchfork stop --local >/dev/null 2>&1 || true
 for service in chatto authling mailpit livekit storybook docs; do
     pitchfork proxy remove "$service-$workspace_slug" >/dev/null 2>&1 || true
 done
-directory_slug=$(basename "$project_dir")
-if [ "$directory_slug" != "$workspace_slug" ]; then
-    for service in chatto authling mailpit livekit storybook docs; do
-        pitchfork proxy remove "$service-$directory_slug" >/dev/null 2>&1 || true
-    done
-fi
 """
 
 [tasks.dev-docs-website]
