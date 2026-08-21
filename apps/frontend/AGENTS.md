@@ -180,6 +180,8 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   structure and placeholders. Add a sparse US English (`en-US`) override when
   spelling or terminology differs; do not duplicate identical base messages.
   Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
+- German translations, including regional overlays, must address users with
+  the informal `du`/`dein` forms rather than the formal `Sie`/`Ihr` forms.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
