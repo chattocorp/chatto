@@ -6,7 +6,7 @@
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
-  import { Panel } from '$lib/components/admin';
+  import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
@@ -260,7 +260,7 @@
         <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt class="text-muted">{m('admin.members.user_id')}</dt>
-            <dd class="mt-1 font-mono text-xs break-all">{bot.id}</dd>
+            <dd class="mt-1"><CopyId value={bot.id} /></dd>
           </div>
           <div>
             <dt class="text-muted">{m('settings.bots.owner')}</dt>

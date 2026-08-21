@@ -59,6 +59,7 @@ describe('Bot detail page', () => {
 		expect(mocks.batchGetUsers).toHaveBeenCalledWith(['owner-user-id']);
 		expect(container.textContent).toContain('User ID');
 		expect(container.textContent).toContain('bot-user-id');
+		expect(container.querySelector('button[title="Copy to clipboard"]')).not.toBeNull();
 		expect(container.textContent).toContain('Owner');
 		expect(container.textContent).toContain('Alice Owner');
 		expect(container.textContent).not.toContain('owner-user-id');
