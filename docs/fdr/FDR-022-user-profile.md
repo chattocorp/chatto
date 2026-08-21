@@ -1,24 +1,25 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-07-15
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
-A user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile.
+A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
 
 ## Behavior
 
-- **Display name** — freely editable by the user. Shown in messages, member lists, mention autocomplete, etc.
-- **Login (username)** — editable by the user with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
+- **Display name** — freely editable by a human user. Shown in messages, member lists, mention autocomplete, etc.
+- **Login (username)** — editable by a human user with a 30-day cooldown between changes. Logins start with a letter or number and cannot end with a period; periods remain valid within a login. Each successful change records a timestamp; subsequent changes within the window are rejected with a clear error message.
 - **Case-only changes** (e.g., `alice` → `Alice`) bypass the cooldown.
-- **Avatar** — users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
-- **Custom status** — users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
+- **Avatar** — human users upload an image; the server resizes to 256×256 max and stores it as lossless WebP. The old avatar is deleted after the new one is committed. Users can also delete their avatar (falling back to an initial-letter placeholder).
+- **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **Settings** — currently timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
+- **Settings** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
-- **Admin overrides** — operators with the right permissions can update other users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
+- **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
+- **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login and display name through `BotService`. Bot API keys cannot edit identity, and bot avatar, custom-status, and personal-settings management are not supported in this slice.
 
 ## Design Decisions
 
@@ -60,9 +61,9 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ### 7. Cross-user edits gated by `user.manage-accounts`
 
-**Decision:** Admin updates to other users' profiles require `user.manage-accounts` for cross-user edits. Self-edits bypass that permission because they're privilege-neutral identity edits.
+**Decision:** Admin updates to other human users' profiles require `user.manage-accounts` for cross-user edits. Human self-edits bypass that permission because they're privilege-neutral identity edits. Bot login and display-name changes instead follow BotService ownership or `bot.manage` authorization and remain bounded to those two fields.
 **Why:** Chatto's simplified RBAC model is permission-based for everyone except effective owners, who are protected by the owner override rather than target-rank gates.
-**Tradeoff:** A user with `user.manage-accounts` can edit any target user's profile.
+**Tradeoff:** A user with `user.manage-accounts` can edit any target human user's profile, while bot identity management has a separate, deliberately narrower authority path.
 
 ### 8. Custom status is durable profile metadata, not presence
 
@@ -84,11 +85,12 @@ A user's profile carries the public identity they present to the rest of the ser
 
 ## Permissions
 
-- Self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
-- Cross-user edit — `user.manage-accounts`.
+- Human self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Cross-human-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
+- Bot login and display-name edit — bot ownership or `bot.manage`; bot avatar, custom-status, and personal-settings edits are not supported.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts)

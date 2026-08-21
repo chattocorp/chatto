@@ -124,6 +124,8 @@ export const patterns = {
   anyThread: /\/chat\/-\/(?!manage\/)[a-zA-Z0-9]+\/[a-zA-Z0-9]+$/,
   /** Any admin user page: /chat/-/manage/server/members/{id} */
   anyAdminUser: /\/chat\/-\/manage\/server\/members\/[a-zA-Z0-9]+/,
+  /** Any bot-management page: /chat/-/manage/server/bots/{id} */
+  anyAdminBot: /\/chat\/-\/manage\/server\/bots\/[a-zA-Z0-9]+$/,
   /** Any non-admin chat route (home instance or instance-agnostic) */
   nonAdmin: /\/chat\/(?:-(?:\/(?!manage(?:\/|$))|$)|notifications)/,
   /** Chat root or any room (used after redirects) */

@@ -15,8 +15,10 @@ exercise more authority than its human owner currently possesses.
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
 - Server Admin's Bots page lists the bots visible to the caller and creates new
-  bots. Selecting a bot opens its own detail page for identity editing, key
-  rotation, deletion, metadata, and permissions.
+  bots. Selecting a bot opens its own detail page for login and display-name
+  editing, key rotation, deletion, metadata, and permissions. Bot avatar,
+  custom-status, and personal-settings management are not supported in this
+  slice.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
@@ -77,6 +79,8 @@ exercise more authority than its human owner currently possesses.
   sessions, OAuth access tokens, password-reset flows, or other human sign-in
   methods. A bot API key cannot change the bot's identity, ownership,
   permissions, or API key.
+- Bots cannot request their own deletion. Only their owner or a human user with
+  `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
   behavior. Deleting a human owner also deletes every bot they own and revokes
   those bots' API keys.
@@ -105,7 +109,9 @@ APIs as people without requiring parallel bot-only resource models. Separating
 authentication keeps an API credential from becoming an interactive login.
 **Tradeoff:** Account-security and credential-enrolment operations must enforce
 the account-kind boundary rather than treating every passwordless account as
-eligible for a password or external identity.
+eligible for a password or external identity. Bot profile management also
+needs a deliberately narrower surface than the human self-profile and
+cross-user administration APIs.
 
 ### 3. Explicit allowlist instead of normal role inheritance
 

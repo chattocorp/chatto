@@ -1,17 +1,17 @@
 # FDR-018: Account Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
-This FDR covers the user account from registration through deletion: signup, email verification, account deletion, and the crypto-shredding model that makes deletion permanent and reliable. It does *not* cover authentication mechanics (login, sessions, tokens) — those live in FDR-023.
+This FDR covers human accounts from registration through deletion: signup, email verification, self-service account deletion, and the crypto-shredding model that makes deletion permanent and reliable. The same deletion and crypto-shredding mechanics also apply when a bot is deleted through its management API, as specified by FDR-038. Authentication mechanics (login, sessions, tokens) live in FDR-023.
 
 ## Behavior
 
 ### Registration
 
-- A user starts registration with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
+- A human user starts registration with an email address. Chatto returns the same generic response whether the address is available or already claimed, so the registration endpoint does not disclose existing accounts.
 - Chatto sends a six-digit verification code to an available address. Verifying the code returns a short-lived completion token; it does not create an account.
 - The user then chooses a login and password. The login must pass uniqueness, format, and blocked-username checks, and the email is checked again in case it was claimed while the completion token was outstanding.
 - Successful completion creates the account with the email already verified. There is no partially registered or unverified account state in the direct-registration flow.
@@ -20,14 +20,14 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ### Email management
 
-- A user can have multiple verified email addresses on file.
+- A human user can have multiple verified email addresses on file. Bot accounts cannot have verified emails.
 - Adding a new email triggers a verification mail to the new address; the email is added in pending state until the code is confirmed.
 - A user can delete one of their verified emails as long as at least one verified email remains.
 - Email verification code issuance is recorded in the EVT audit log with a hashed email, expiry, and safe request metadata; the raw code is not recorded.
 
 ### Account deletion
 
-- The user requests deletion via Account Settings.
+- A human user requests their own deletion via Account Settings.
 - A two-step confirmation flow asks the user to type a confirmation string before the deletion executes.
 - Account deletion confirmation-token issuance is recorded in the EVT audit log with expiry and safe request metadata; the raw token is not recorded.
 - The account deletion confirmation token itself lives in `RUNTIME_STATE` under an HMAC-derived key with a 15-minute per-key TTL.
@@ -42,6 +42,7 @@ This FDR covers the user account from registration through deletion: signup, ema
 - Historical room join and leave facts remain stored, but timeline messages omit deleted users from membership activity. Grouped activity includes only visible actors, and the row is hidden when none remain.
 - New durable user events store login, display name, and verified email as encrypted PII payloads. Projections retain those encrypted envelopes, decrypt login/email transiently to derive in-memory lookup digests and decrypt fields for reads, and remove user-owned lookup entries when the account is crypto-shredded.
 - The login is freed up for re-use.
+- Bots cannot request their own deletion. Their owner or a human user with `bot.manage` deletes them through `BotService`; deleting a human owner also deletes every bot they own. Those paths use the same durable deletion and crypto-shredding behavior described above.
 
 ## Design Decisions
 
@@ -101,16 +102,16 @@ This FDR covers the user account from registration through deletion: signup, ema
 
 ## Permissions
 
-- Self: anyone authenticated can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
+- Self: an authenticated human user can update their own profile (FDR-022), add or remove their own emails, and delete their own account.
 - `user.delete-any` — admin permission to delete other users' accounts.
-- `user.delete-self` — gates own-account deletion. Granted to `everyone` by default; operators can revoke to lock down self-deletion.
+- `user.delete-self` — gates a human user's own-account deletion. Granted to `everyone` by default; operators can revoke it to lock down self-deletion. Bots cannot exercise it even if an allow appears in their direct permission matrix.
 
 ## Related
 
 - **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-060
   (application-neutral data cryptography), ADR-069 (explicit durable consumer
   lifecycle), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-022 (User Profile), FDR-023 (Authentication & Sessions)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-022 (User Profile), FDR-023 (Authentication & Sessions), FDR-038 (Bot Accounts)
 
 ## Open Questions
 
