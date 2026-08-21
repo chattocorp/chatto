@@ -127,6 +127,12 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	if err != nil {
 		t.Fatalf("CreateBot: %v", err)
 	}
+	_, verifier, err := c.ValidateBotAPIKeyCredential(ctx, bot.APIKey)
+	if err != nil {
+		t.Fatalf("ValidateBotAPIKeyCredential: %v", err)
+	}
+	invalidated, stopWatching := c.WatchBotAPIKeyInvalidated(bot.User.GetId(), verifier)
+	defer stopWatching()
 	if err := c.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessagePost); err != nil {
 		t.Fatalf("grant owner message.post: %v", err)
 	}
@@ -163,6 +169,11 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	}
 	if authenticated, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil || authenticated.GetId() != bot.User.GetId() {
 		t.Fatalf("existing bot key after reassignment = %v, %v", authenticated, err)
+	}
+	select {
+	case <-invalidated:
+		t.Fatal("owner reassignment invalidated an established bot credential watcher")
+	default:
 	}
 	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
 		t.Fatalf("previous owner GetBot err = %v, want ErrPermissionDenied", err)
@@ -201,6 +212,72 @@ func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing
 	}
 	if _, err := c.ReassignBotOwner(ctx, bot.User.GetId(), bot.User.GetId(), owner.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
 		t.Fatalf("bot actor reassignment err = %v, want ErrHumanAccountRequired", err)
+	}
+}
+
+func TestConcurrentBotOwnerReassignmentsConvergeWithoutStaleIndexes(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "concurrent-owner", "Concurrent Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	firstOwner, err := c.CreateUser(ctx, SystemActorID, "concurrent-first", "Concurrent First", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser first recipient: %v", err)
+	}
+	secondOwner, err := c.CreateUser(ctx, SystemActorID, "concurrent-second", "Concurrent Second", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser second recipient: %v", err)
+	}
+	manager, err := c.CreateUser(ctx, SystemActorID, "concurrent-manager", "Concurrent Manager", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("grant manager bot.manage: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "concurrent_bot", "Concurrent Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	start := make(chan struct{})
+	results := make(chan error, 2)
+	for _, recipientID := range []string{firstOwner.GetId(), secondOwner.GetId()} {
+		go func() {
+			<-start
+			_, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), recipientID)
+			results <- err
+		}()
+	}
+	close(start)
+	for range 2 {
+		if err := <-results; err != nil {
+			t.Fatalf("concurrent ReassignBotOwner: %v", err)
+		}
+	}
+
+	current, err := c.GetUser(ctx, bot.User.GetId())
+	if err != nil {
+		t.Fatalf("GetUser bot: %v", err)
+	}
+	winnerID := current.GetBotOwnerUserId()
+	if winnerID != firstOwner.GetId() && winnerID != secondOwner.GetId() {
+		t.Fatalf("final owner = %s, want one concurrent recipient", winnerID)
+	}
+	if bots := c.userModel.botIDsOwnedBy(owner.GetId()); len(bots) != 0 {
+		t.Fatalf("previous owner index = %v, want empty", bots)
+	}
+	for _, recipientID := range []string{firstOwner.GetId(), secondOwner.GetId()} {
+		bots := c.userModel.botIDsOwnedBy(recipientID)
+		if recipientID == winnerID {
+			if len(bots) != 1 || bots[0] != bot.User.GetId() {
+				t.Fatalf("winning owner index = %v, want bot %s", bots, bot.User.GetId())
+			}
+		} else if len(bots) != 0 {
+			t.Fatalf("losing owner index = %v, want empty", bots)
+		}
 	}
 }
 

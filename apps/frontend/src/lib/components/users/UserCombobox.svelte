@@ -18,7 +18,9 @@
     text = $bindable(''),
     placeholder = m('admin.members.search_placeholder'),
     humanOnly = false,
-    allowFreeform = true
+    allowFreeform = true,
+    emptyMessage = m('admin.users.empty'),
+    clearLabel = m('common.clear')
   }: {
     id: string;
     label: string;
@@ -27,6 +29,8 @@
     placeholder?: string;
     humanOnly?: boolean;
     allowFreeform?: boolean;
+    emptyMessage?: string;
+    clearLabel?: string;
   } = $props();
 
   const serverScope = useServerScope();
@@ -92,8 +96,8 @@
   {placeholder}
   {loading}
   {allowFreeform}
-  emptyMessage="No users found"
-  clearLabel="Clear actor"
+  {emptyMessage}
+  {clearLabel}
   ontextchange={scheduleSearch}
 >
   {#snippet item({ item: user })}
