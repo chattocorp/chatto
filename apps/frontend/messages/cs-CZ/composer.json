@@ -44,7 +44,9 @@
       "bullet_list": "Seznam odrážek",
       "ordered_list": "Číslovaný seznam",
       "blockquote": "Citace",
-      "code_block": "Blok kódu"
+      "code_block": "Blok kódu",
+      "outdent_list_item": "Zmenšit odsazení položky seznamu",
+      "indent_list_item": "Zvětšit odsazení položky seznamu"
     },
     "timestamp": {
       "title": "Vložte časové razítko",

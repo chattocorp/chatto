@@ -44,7 +44,9 @@
       "bullet_list": "Lista com marcas",
       "ordered_list": "Lista numerada",
       "blockquote": "Citação",
-      "code_block": "Bloco de código"
+      "code_block": "Bloco de código",
+      "outdent_list_item": "Diminuir avanço do item da lista",
+      "indent_list_item": "Aumentar avanço do item da lista"
     },
     "timestamp": {
       "title": "Inserir carimbo de data/hora",

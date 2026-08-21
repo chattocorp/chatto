@@ -44,7 +44,9 @@
       "bullet_list": "Punktliste",
       "ordered_list": "Nummerert liste",
       "blockquote": "Sitat",
-      "code_block": "Kodeblokk"
+      "code_block": "Kodeblokk",
+      "outdent_list_item": "Reduser innrykk for listeelement",
+      "indent_list_item": "Øk innrykk for listeelement"
     },
     "timestamp": {
       "title": "Sett inn tidsstempel",

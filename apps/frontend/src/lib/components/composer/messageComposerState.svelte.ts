@@ -21,7 +21,12 @@ import { m } from '$lib/i18n/messages';
 import { AttachmentsState } from './attachments.svelte';
 import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 import { DraftState, draftKey } from './draft.svelte';
-import type { ComposerEditorApi, ComposerFormattingState } from './editorTypes';
+import {
+  emptyComposerListIndentState,
+  type ComposerEditorApi,
+  type ComposerFormattingState,
+  type ComposerListIndentState
+} from './editorTypes';
 import { LinkPreviewState } from './linkPreviews.svelte';
 import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
 
@@ -112,6 +117,7 @@ export class MessageComposerState {
   editorApi = $state.raw<ComposerEditorApi | null>(null);
   fileInputElement = $state<HTMLInputElement>();
   formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
+  listIndentState = $state<ComposerListIndentState>({ ...emptyComposerListIndentState });
   alsoSendToChannel = $state(false);
   createThread = $state(false);
   mentionSearchMembers = $state.raw<RoomMember[]>([]);
@@ -307,6 +313,15 @@ export class MessageComposerState {
     }
     if (event.key === 'Enter' && this.#handleEnter(event)) return true;
     if (event.key === 'Tab' && this.autocomplete.handleTabCompletion(event)) return true;
+    if (
+      event.key === 'Tab' &&
+      !event.metaKey &&
+      !event.ctrlKey &&
+      !event.altKey &&
+      this.editorApi?.adjustListIndent(event.shiftKey ? 'outdent' : 'indent')
+    ) {
+      return true;
+    }
     if (event.key !== 'Tab') this.autocomplete.resetTabCompletion();
     if (event.key === 'Escape' && this.#handleEscape()) return true;
     if (event.key === 'ArrowUp' && this.#editLastMessage()) return true;

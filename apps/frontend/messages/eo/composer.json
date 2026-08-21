@@ -44,7 +44,9 @@
       "bullet_list": "Bulleta listo",
       "ordered_list": "Numerita listo",
       "blockquote": "Citaĵo",
-      "code_block": "Kodbloko"
+      "code_block": "Kodbloko",
+      "outdent_list_item": "Malpligrandigi deŝovon de listero",
+      "indent_list_item": "Pligrandigi deŝovon de listero"
     },
     "timestamp": {
       "title": "Enmeti tempomarkon",

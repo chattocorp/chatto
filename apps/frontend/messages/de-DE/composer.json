@@ -44,7 +44,9 @@
       "bullet_list": "Aufzählung",
       "ordered_list": "Nummerierte Liste",
       "blockquote": "Zitat",
-      "code_block": "Codeblock"
+      "code_block": "Codeblock",
+      "outdent_list_item": "Listenelement ausrücken",
+      "indent_list_item": "Listenelement einrücken"
     },
     "timestamp": {
       "title": "Zeitstempel einfügen",

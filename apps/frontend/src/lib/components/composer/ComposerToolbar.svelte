@@ -6,11 +6,13 @@
   import type {
     ComposerFormattingCommand,
     ComposerFormattingState,
-    ComposerEditorApi
+    ComposerEditorApi,
+    ComposerListIndentState
   } from './editorTypes';
 
   let {
     formattingState,
+    listIndentState,
     sendMode,
     editorApi,
     inputDisabled,
@@ -28,6 +30,7 @@
     onsubmit
   }: {
     formattingState: ComposerFormattingState;
+    listIndentState: ComposerListIndentState;
     sendMode: ComposerSendMode;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
@@ -101,9 +104,9 @@
   class="mt-0 flex min-h-7 items-center justify-between gap-2 border-t border-border/60 pt-0.5"
   data-testid="composer-toolbar"
 >
-  <div class="flex items-center gap-1">
+  <div class="flex min-w-0 flex-1 items-center gap-1 overflow-hidden">
     <div
-      class="flex min-w-0 flex-nowrap items-center gap-0.5"
+      class="flex min-w-0 [scrollbar-width:none] flex-nowrap items-center gap-0.5 overflow-x-auto overscroll-x-contain [&::-webkit-scrollbar]:hidden"
       data-testid="composer-formatting-toolbar"
     >
       {#each formattingControls as control (control.command)}
@@ -118,7 +121,7 @@
           aria-pressed={active}
           title={label}
           class={[
-            'flex h-6 w-6 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] duration-100 active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-50',
             active
               ? 'bg-surface-emphasized text-text'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
@@ -126,10 +129,38 @@
         >
           <span class={['iconify text-[15px]', control.icon]}></span>
         </button>
+        {#if control.command === 'orderedList'}
+          <button
+            type="button"
+            onpointerdown={(event) => event.preventDefault()}
+            onclick={() => editorApi?.adjustListIndent('outdent')}
+            disabled={inputDisabled || !editorApi || !listIndentState.canOutdent}
+            aria-label={m('composer.format.outdent_list_item')}
+            aria-keyshortcuts="Shift+Tab"
+            title={m('composer.format.outdent_list_item')}
+            class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span class="iconify icon-[mdi--format-indent-decrease] text-[15px] rtl:scale-x-[-1]"
+            ></span>
+          </button>
+          <button
+            type="button"
+            onpointerdown={(event) => event.preventDefault()}
+            onclick={() => editorApi?.adjustListIndent('indent')}
+            disabled={inputDisabled || !editorApi || !listIndentState.canIndent}
+            aria-label={m('composer.format.indent_list_item')}
+            aria-keyshortcuts="Tab"
+            title={m('composer.format.indent_list_item')}
+            class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span class="iconify icon-[mdi--format-indent-increase] text-[15px] rtl:scale-x-[-1]"
+            ></span>
+          </button>
+        {/if}
       {/each}
     </div>
 
-    <div class="mx-1 h-4 w-px bg-border/60"></div>
+    <div class="mx-1 h-4 w-px shrink-0 bg-border/60"></div>
 
     {#if !isEditing && canAttach}
       <button
@@ -147,7 +178,7 @@
     <ComposerTimestampPicker disabled={inputDisabled} {editorApi} {effectiveTimezone} />
   </div>
 
-  <div class="flex items-center gap-2">
+  <div class="flex shrink-0 items-center gap-2">
     <div class="flex items-center gap-0.5">
       {#if showCreateThread}
         <button

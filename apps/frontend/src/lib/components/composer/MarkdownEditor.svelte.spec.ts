@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import MarkdownEditor from './MarkdownEditor.svelte';
 import type { ComposerEditorApi, ComposerFormattingState } from './editorTypes';
+import type { ComposerListIndentState } from './editorTypes';
 
 async function renderEditor(props: Record<string, unknown> = {}) {
   const rendered = render(MarkdownEditor, {
@@ -72,6 +73,27 @@ describe('MarkdownEditor', () => {
     api.performEnter();
 
     expect(api.getText()).toBe('- first\n- ');
+  });
+
+  it('indents list items and reports whether nesting actions apply', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const indentation: ComposerListIndentState[] = [];
+    await renderEditor({
+      onReady: (api: ComposerEditorApi) => readyApis.push(api),
+      onListIndentStateChange: (state: ComposerListIndentState) => indentation.push(state)
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('- first\n- second');
+
+    expect(indentation.at(-1)).toEqual({ canIndent: true, canOutdent: true });
+    expect(api.adjustListIndent('indent')).toBe(true);
+    expect(api.getText()).toBe('- first\n  - second');
+    expect(indentation.at(-1)).toEqual({ canIndent: false, canOutdent: true });
+    expect(api.adjustListIndent('outdent')).toBe(true);
+    expect(api.getText()).toBe('- first\n- second');
+    expect(api.adjustListIndent('outdent')).toBe(true);
+    expect(api.getText()).toBe('- first\n\nsecond');
   });
 
   it('uses the visual editor font at 16px with per-line bidirectional text', async () => {

@@ -24,8 +24,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     ComposerEditorApi,
     ComposerEditorProps,
     ComposerFormattingCommand,
-    ComposerFormattingState
+    ComposerFormattingState,
+    ComposerListIndentState
   } from './editorTypes';
+  import { emptyComposerListIndentState } from './editorTypes';
   import { createComposerExtensions } from './extensions';
   import {
     applyDestinationMarks,
@@ -57,6 +59,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onKeyDown,
     onPaste,
     onFormattingStateChange,
+    onListIndentStateChange,
     onReady,
     onDestroy
   }: ComposerEditorProps = $props();
@@ -161,8 +164,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     };
   }
 
+  function getListIndentState(e: Editor): ComposerListIndentState {
+    if (e.isDestroyed) return emptyComposerListIndentState;
+    return {
+      canIndent: e.can().sinkListItem('listItem'),
+      canOutdent: e.can().liftListItem('listItem')
+    };
+  }
+
   function updateActiveControls(e: Editor) {
     onFormattingStateChange?.(getFormattingState(e));
+    onListIndentStateChange?.(getListIndentState(e));
 
     if (e.isActive('codeBlock')) {
       activeCodeBlockLanguage = e.getAttributes('codeBlock').language || 'text';
@@ -398,6 +410,16 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
+      adjustListIndent: (direction) => {
+        if (e.isDestroyed) return false;
+        const applied =
+          direction === 'indent'
+            ? e.chain().focus().sinkListItem('listItem').run()
+            : e.chain().focus().liftListItem('listItem').run();
+        if (applied) tick().then(syncControls);
+        return applied;
+      },
+
       insertQuote: (text) => {
         if (e.isDestroyed) return;
         const quoteBlocks = normalizeQuoteInsertionContent(text);
@@ -497,6 +519,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
     return () => {
       onFormattingStateChange?.(emptyFormattingState);
+      onListIndentStateChange?.(emptyComposerListIndentState);
       onDestroy?.(api);
       editor?.destroy();
       editor = null;

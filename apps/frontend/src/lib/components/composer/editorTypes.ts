@@ -12,6 +12,18 @@ export type ComposerFormattingCommand =
 
 export type ComposerFormattingState = Record<ComposerFormattingCommand, boolean>;
 
+export type ComposerListIndentDirection = 'indent' | 'outdent';
+
+export type ComposerListIndentState = {
+  canIndent: boolean;
+  canOutdent: boolean;
+};
+
+export const emptyComposerListIndentState: ComposerListIndentState = {
+  canIndent: false,
+  canOutdent: false
+};
+
 export type ComposerEditorApi = {
   /** Get the editor's current text content for empty-state checks. */
   getText: () => string;
@@ -35,6 +47,8 @@ export type ComposerEditorApi = {
   insertText: (text: string) => void;
   /** Toggle a Markdown formatting command at the current selection. */
   toggleFormatting: (command: ComposerFormattingCommand) => void;
+  /** Indent or outdent the selected list items, returning whether the document changed. */
+  adjustListIndent: (direction: ComposerListIndentDirection) => boolean;
   /** Insert selected reply text as a blockquote at the current cursor. */
   insertQuote: (text: QuoteInsertionContent) => void;
 };
@@ -48,6 +62,7 @@ export type ComposerEditorProps = {
   onKeyDown?: (event: KeyboardEvent) => boolean;
   onPaste?: (event: ClipboardEvent) => boolean;
   onFormattingStateChange?: (state: ComposerFormattingState) => void;
+  onListIndentStateChange?: (state: ComposerListIndentState) => void;
   onReady?: (api: ComposerEditorApi) => void;
   onDestroy?: (api: ComposerEditorApi) => void;
 };

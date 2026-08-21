@@ -44,7 +44,9 @@
       "bullet_list": "Opsomming",
       "ordered_list": "Genummerde lijst",
       "blockquote": "Citaat",
-      "code_block": "Codeblok"
+      "code_block": "Codeblok",
+      "outdent_list_item": "Lijstitem minder inspringen",
+      "indent_list_item": "Lijstitem meer inspringen"
     },
     "timestamp": {
       "title": "Tijdstempel invoegen",

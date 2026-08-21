@@ -47,6 +47,7 @@ function editor(
         cursor += inserted.length;
       },
       toggleFormatting: () => {},
+      adjustListIndent: () => false,
       insertQuote: () => {}
     },
     getText: () => text,

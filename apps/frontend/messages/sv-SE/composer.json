@@ -44,7 +44,9 @@
       "bullet_list": "Punktlista",
       "ordered_list": "Numrerad lista",
       "blockquote": "Citat",
-      "code_block": "Kodblock"
+      "code_block": "Kodblock",
+      "outdent_list_item": "Minska indrag för listobjekt",
+      "indent_list_item": "Öka indrag för listobjekt"
     },
     "timestamp": {
       "title": "Infoga tidsstämpel",

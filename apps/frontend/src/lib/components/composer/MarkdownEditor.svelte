@@ -34,8 +34,14 @@ the same API as the visual editor while keeping the stored Markdown visible.
     ComposerEditorProps,
     ComposerFormattingState
   } from './editorTypes';
+  import { emptyComposerListIndentState } from './editorTypes';
   import { serializeQuoteInsertionContent } from './quotes';
-  import { applySourceFormatting, getSourceFormattingState } from './sourceFormatting';
+  import {
+    adjustSourceListIndent,
+    applySourceFormatting,
+    getSourceFormattingState,
+    getSourceListIndentState
+  } from './sourceFormatting';
 
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
@@ -153,6 +159,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     onKeyDown,
     onPaste,
     onFormattingStateChange,
+    onListIndentStateChange,
     onReady,
     onDestroy
   }: ComposerEditorProps = $props();
@@ -209,6 +216,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
             if (update.docChanged && !suppressUpdate) onUpdate?.(update.state.doc.toString());
             if (update.docChanged || update.selectionSet) {
               onFormattingStateChange?.(getSourceFormattingState(update.state));
+              onListIndentStateChange?.(getSourceListIndentState(update.state));
             }
           })
         ]
@@ -274,6 +282,18 @@ the same API as the visual editor while keeping the stored Markdown visible.
         });
         editorView.focus();
       },
+      adjustListIndent: (direction) => {
+        if (destroyed) return false;
+        const result = adjustSourceListIndent(editorView.state, direction);
+        if (!result) return false;
+        editorView.dispatch({
+          changes: { from: 0, to: editorView.state.doc.length, insert: result.text },
+          selection: EditorSelection.single(result.anchor, result.head),
+          scrollIntoView: true
+        });
+        editorView.focus();
+        return true;
+      },
       insertQuote: (content) => {
         if (destroyed) return;
         const quote = serializeQuoteInsertionContent(content);
@@ -338,6 +358,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     return () => {
       destroyed = true;
       onFormattingStateChange?.(emptyFormattingState);
+      onListIndentStateChange?.(emptyComposerListIndentState);
       onDestroy?.(api);
       editorView.destroy();
       if (view === editorView) view = null;
@@ -357,6 +378,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
 
   function publishFormattingState(editorView: EditorView): void {
     onFormattingStateChange?.(getSourceFormattingState(editorView.state));
+    onListIndentStateChange?.(getSourceListIndentState(editorView.state));
   }
 </script>
 

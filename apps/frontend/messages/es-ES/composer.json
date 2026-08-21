@@ -44,7 +44,9 @@
       "bullet_list": "Lista con viñetas",
       "ordered_list": "Lista numerada",
       "blockquote": "Cita",
-      "code_block": "Bloque de código"
+      "code_block": "Bloque de código",
+      "outdent_list_item": "Reducir sangría del elemento de lista",
+      "indent_list_item": "Aumentar sangría del elemento de lista"
     },
     "timestamp": {
       "title": "Insertar marca de tiempo",

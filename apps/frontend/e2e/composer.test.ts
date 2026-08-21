@@ -286,6 +286,37 @@ test.describe('Markdown composer', () => {
       timeout: TIMEOUTS.UI_FAST
     });
   });
+
+  test('indents list items with Tab and the shared toolbar actions', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Markdown/ }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await roomPage.messageInput.fill('- first\n- second');
+    const indent = page.getByRole('button', { name: 'Indent list item' });
+    const outdent = page.getByRole('button', { name: 'Outdent list item' });
+    await expect(indent).toBeEnabled();
+    await expect(outdent).toBeEnabled();
+
+    await roomPage.messageInput.press('Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '  - second']);
+    await expect(outdent).toBeEnabled();
+
+    await outdent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '- second']);
+    await indent.click();
+    await roomPage.messageInput.press('Shift+Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '- second']);
+    await roomPage.messageInput.press('Shift+Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '', 'second']);
+  });
 });
 
 test.describe('Markdown composer on touch devices', () => {

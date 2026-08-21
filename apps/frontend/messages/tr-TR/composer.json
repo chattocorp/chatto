@@ -44,7 +44,9 @@
       "bullet_list": "Madde işareti listesi",
       "ordered_list": "Numaralı liste",
       "blockquote": "Alıntı",
-      "code_block": "Kod bloğu"
+      "code_block": "Kod bloğu",
+      "outdent_list_item": "Liste öğesinin girintisini azalt",
+      "indent_list_item": "Liste öğesinin girintisini artır"
     },
     "timestamp": {
       "title": "Zaman damgası ekle",

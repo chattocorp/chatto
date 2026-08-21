@@ -44,7 +44,9 @@
       "bullet_list": "Elenco puntato",
       "ordered_list": "Elenco numerato",
       "blockquote": "Citazione",
-      "code_block": "Blocco di codice"
+      "code_block": "Blocco di codice",
+      "outdent_list_item": "Riduci rientro della voce elenco",
+      "indent_list_item": "Aumenta rientro della voce elenco"
     },
     "timestamp": {
       "title": "Inserisci il timestamp",

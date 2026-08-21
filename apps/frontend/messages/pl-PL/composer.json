@@ -44,7 +44,9 @@
       "bullet_list": "Lista punktowana",
       "ordered_list": "Lista numerowana",
       "blockquote": "Cytat",
-      "code_block": "Blok kodu"
+      "code_block": "Blok kodu",
+      "outdent_list_item": "Zmniejsz wcięcie elementu listy",
+      "indent_list_item": "Zwiększ wcięcie elementu listy"
     },
     "timestamp": {
       "title": "Wstaw znacznik czasu",

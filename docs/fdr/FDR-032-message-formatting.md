@@ -20,6 +20,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Editor choice is a browser-local preference shared across every Chatto server in that browser. It is not synchronized to other browsers or devices.
 - Sending keys are a browser-local preference shared across every Chatto server in that browser. People can choose Return to send or the platform modifier plus Return to send.
 - The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.
+- Both editors provide toolbar actions to indent and outdent list items. Tab and Shift+Tab perform the same actions while editing a list, but retain normal focus navigation outside lists; autocomplete consumes Tab first when a suggestion is active.
 - Touch-primary devices always use Return for editing and the visible Send button, even when Return-to-send is selected.
 
 ## Design Decisions
@@ -44,8 +45,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ### 4. Composer presentation is a client preference
 
-**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor and send-key choices in its browser-wide preferences. The key not assigned to sending retains the editor's context-sensitive Return behavior.
-**Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut without losing structural editing behavior in paragraphs, lists, or code blocks.
+**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor and send-key choices in its browser-wide preferences. The key not assigned to sending retains the editor's context-sensitive Return behavior, and both editors expose equivalent structural list-nesting actions.
+**Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut and familiar list-editing keys without losing structural editing behavior in paragraphs, lists, or code blocks.
 **Tradeoff:** Preferences do not follow a person to another browser or device, each editor must maintain equivalent composer integrations and formatting controls, and the alternate Return shortcut changes meaning with the selected send mode.
 
 ## Related
