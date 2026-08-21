@@ -132,8 +132,7 @@
     canPostInThread && canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
-          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
-          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging)
         })
       : undefined
   );

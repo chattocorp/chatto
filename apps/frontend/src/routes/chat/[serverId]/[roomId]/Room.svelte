@@ -514,7 +514,7 @@
     openFileMessage(messageEventId, threadRootEventId, closeMobile);
   }
 
-  // Drop zone state for drag-and-drop image uploads
+  // Drop zone state for drag-and-drop uploads
   let isDraggingFiles = $state(false);
   let composerApi = $state<MessageComposerApi | null>(null);
 
@@ -523,8 +523,7 @@
     room.roomData?.canPostMessage && room.roomData?.canAttach
       ? dropZone({
           onDrop: (files) => composerApi?.addFiles(files),
-          onDragStateChange: (dragging) => (isDraggingFiles = dragging),
-          acceptedTypes: ['image/*', 'video/*', 'audio/*']
+          onDragStateChange: (dragging) => (isDraggingFiles = dragging)
         })
       : undefined
   );
