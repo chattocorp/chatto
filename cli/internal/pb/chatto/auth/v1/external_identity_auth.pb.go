@@ -359,10 +359,16 @@ type CreateExternalIdentityAccountResponse struct {
 	UserId string `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
 	// Newly created username.
 	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
-	// Bearer token for the new session.
-	Token         string `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	// Short-lived bearer access token for the new session.
+	Token string `protobuf:"bytes,3,opt,name=token,proto3" json:"token,omitempty"`
+	// Rotating refresh credential for renewing the bearer session.
+	RefreshToken string `protobuf:"bytes,4,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
+	// Lifetime of the access token in seconds.
+	ExpiresIn int64 `protobuf:"varint,5,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
+	// Remaining absolute lifetime of the renewable session in seconds.
+	RefreshTokenExpiresIn int64 `protobuf:"varint,6,opt,name=refresh_token_expires_in,json=refreshTokenExpiresIn,proto3" json:"refresh_token_expires_in,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CreateExternalIdentityAccountResponse) Reset() {
@@ -414,6 +420,27 @@ func (x *CreateExternalIdentityAccountResponse) GetToken() string {
 		return x.Token
 	}
 	return ""
+}
+
+func (x *CreateExternalIdentityAccountResponse) GetRefreshToken() string {
+	if x != nil {
+		return x.RefreshToken
+	}
+	return ""
+}
+
+func (x *CreateExternalIdentityAccountResponse) GetExpiresIn() int64 {
+	if x != nil {
+		return x.ExpiresIn
+	}
+	return 0
+}
+
+func (x *CreateExternalIdentityAccountResponse) GetRefreshTokenExpiresIn() int64 {
+	if x != nil {
+		return x.RefreshTokenExpiresIn
+	}
+	return 0
 }
 
 // Request to cancel a pending external identity flow.
@@ -624,11 +651,15 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"$CreateExternalIdentityAccountRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x1f\n" +
 	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 R\x05login\x12*\n" +
-	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\"l\n" +
+	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\"\xe9\x01\n" +
 	"%CreateExternalIdentityAccountResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +
-	"\x05token\x18\x03 \x01(\tR\x05token\"B\n" +
+	"\x05token\x18\x03 \x01(\tR\x05token\x12#\n" +
+	"\rrefresh_token\x18\x04 \x01(\tR\frefreshToken\x12\x1d\n" +
+	"\n" +
+	"expires_in\x18\x05 \x01(\x03R\texpiresIn\x127\n" +
+	"\x18refresh_token_expires_in\x18\x06 \x01(\x03R\x15refreshTokenExpiresIn\"B\n" +
 	"!CancelExternalIdentityFlowRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"B\n" +
 	"\"CancelExternalIdentityFlowResponse\x12\x1c\n" +

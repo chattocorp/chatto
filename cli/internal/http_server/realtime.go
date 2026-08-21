@@ -172,6 +172,43 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
+	var bearerAccessExpired <-chan time.Time
+	var bearerAccessExpiryTimer *time.Timer
+	if credential, ok := authctx.CredentialForContext(ctx); ok &&
+		credential.Kind == authctx.RuntimeCredentialKindBearerToken && !credential.ExpiresAt.IsZero() {
+		remaining := time.Until(credential.ExpiresAt)
+		if remaining <= 0 {
+			writeError("authentication_required", "access token expired", true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
+			return
+		}
+		bearerAccessExpiryTimer = time.NewTimer(remaining)
+		bearerAccessExpired = bearerAccessExpiryTimer.C
+	}
+	if bearerAccessExpiryTimer != nil {
+		defer bearerAccessExpiryTimer.Stop()
+		bearerExpiryWatcherDone := make(chan struct{})
+		go func() {
+			defer close(bearerExpiryWatcherDone)
+			select {
+			case <-bearerAccessExpired:
+				terminateRealtimeForBearerExpiry(cancel, writeFrame, func() {
+					_ = conn.WriteControl(
+						websocket.CloseMessage,
+						websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
+						time.Now().Add(time.Second),
+					)
+					_ = conn.Close()
+				})
+			case <-ctx.Done():
+			}
+		}()
+		defer func() {
+			cancel()
+			<-bearerExpiryWatcherDone
+		}()
+	}
+
 	var oauthClientAccessDenied <-chan struct{}
 	stopOAuthClientAccessWatch := func() {}
 	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.OAuthClientID != "" {
@@ -537,6 +574,24 @@ func terminateRealtimeForOAuthClientBlock(
 			Code:      "authentication_required",
 			Message:   "the OAuth client has been blocked",
 			Reconnect: false,
+		},
+	}})
+	closeConnection()
+}
+
+// terminateRealtimeForBearerExpiry asks a human client to rotate its access
+// token and reconnect while preserving its durable resume cursor.
+func terminateRealtimeForBearerExpiry(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "authentication_required",
+			Message:   "the access token has expired",
+			Reconnect: true,
 		},
 	}})
 	closeConnection()

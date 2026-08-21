@@ -254,7 +254,7 @@ func (c *ChattoCore) recordBearerTokenIssued(ctx context.Context, userID string,
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_BearerTokenIssued{
 		BearerTokenIssued: &corev1.BearerTokenIssuedEvent{
 			UserId:    userID,
-			ExpiresAt: tokenExpiresAt(createdAt, c.authTokenTTL()),
+			ExpiresAt: tokenExpiresAt(createdAt, c.bearerAccessTokenTTL()),
 			Source:    auditTokenSource(source),
 			Request:   auditRequestMetadata(ctx),
 		},

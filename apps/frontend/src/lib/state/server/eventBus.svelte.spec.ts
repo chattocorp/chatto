@@ -77,6 +77,7 @@ class FakeServerConnection {
   client = {};
   statusUpdates: ConnectionStatus[] = [];
   authRequiredCalls = 0;
+  authRenewed = false;
   #reconnect: ((reason: string) => void) | null = null;
   #wasDisconnected = false;
 
@@ -106,8 +107,10 @@ class FakeServerConnection {
     this.#reconnect?.(reason);
   }
 
-  handleAuthenticationRequired(): void {
+  async handleAuthenticationRequired(): Promise<boolean> {
     this.authRequiredCalls++;
+    if (this.authRenewed) this.bearerToken = 'token-2';
+    return this.authRenewed;
   }
 }
 
@@ -779,6 +782,31 @@ describe('eventBusManager realtime transport', () => {
     expect(fake.status).toBe('disconnected');
     await vi.advanceTimersByTimeAsync(0);
     expect(sockets).toHaveLength(1);
+  });
+
+  it('renews and reconnects in place when the access token expires', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+    fake.authRenewed = true;
+
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: 'authentication_required',
+          message: 'access token expired',
+          reconnect: true
+        })
+      })
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fake.authRequiredCalls).toBe(1);
+    expect(sockets).toHaveLength(2);
+    sockets[1].open();
+    const hello = RealtimeClientFrame.fromBinary(sockets[1].sent[0]);
+    if (hello.frame.case !== 'hello') throw new Error('replacement socket did not send hello');
+    expect(hello.frame.value.bearerToken).toBe('token-2');
   });
 
   it('reconnects when the ServerConnection retry bridge requests it', async () => {

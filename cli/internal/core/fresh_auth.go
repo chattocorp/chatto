@@ -67,14 +67,22 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 	if data.Kind != AuthTokenKindFirstPartySession {
 		return ErrFreshAuthRequired
 	}
-	data.FreshAuthAt = time.Now()
+	now := time.Now()
+	data.FreshAuthAt = now
 	data.FreshAuthMethod = method
 	data.FreshAuthSource = source
+	if err := c.markRenewableSessionFresh(ctx, data.RenewableSessionID, method, source, now); err != nil {
+		return err
+	}
 	value, err := json.Marshal(data)
 	if err != nil {
 		return fmt.Errorf("failed to marshal auth token: %w", err)
 	}
-	_, err = c.updateRuntimeStateTokenTTL(ctx, c.authTokenKey(token), value, entry.Revision(), c.authTokenTTL())
+	remaining := data.ExpiresAt.Sub(now)
+	if remaining <= 0 {
+		return ErrAuthTokenNotFound
+	}
+	_, err = c.updateRuntimeStateTokenTTL(ctx, c.authTokenKey(token), value, entry.Revision(), remaining)
 	if err != nil {
 		return fmt.Errorf("failed to mark auth token fresh: %w", err)
 	}
@@ -113,6 +121,25 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
+	if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !time.Now().Before(tokenData.ExpiresAt) {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
+	}
+	session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, time.Now())
+	if err != nil {
+		if errors.Is(err, ErrRefreshTokenNotFound) {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return AuthTokenData{}, nil, ErrAuthTokenNotFound
+		}
+		return AuthTokenData{}, nil, err
+	}
+	if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return AuthTokenData{}, nil, ErrAuthTokenNotFound
+	}
+	tokenData.FreshAuthAt = session.FreshAuthAt
+	tokenData.FreshAuthMethod = session.FreshAuthMethod
+	tokenData.FreshAuthSource = session.FreshAuthSource
 	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,
 		CreatedAt:      tokenData.CreatedAt,

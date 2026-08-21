@@ -248,6 +248,12 @@ func (c *ChattoConfig) Validate() error {
 	default:
 		errs = append(errs, "auth.account_creation_policy must be one of: open, invite_only")
 	}
+	if c.Auth.TokenTTL.Duration() < 0 {
+		errs = append(errs, "auth.token_ttl must not be negative")
+	}
+	if c.Auth.AccessTokenTTL.Duration() < 0 {
+		errs = append(errs, "auth.access_token_ttl must not be negative")
+	}
 
 	seenProviderIDs := make(map[string]struct{}, len(c.Auth.Providers))
 	for i, provider := range c.Auth.Providers {

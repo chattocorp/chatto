@@ -138,6 +138,13 @@ func NewAuthToken() string {
 	return "cht_" + newID("AT")
 }
 
+// newRenewableSessionID generates the stable opaque identifier carried by all
+// refresh credentials for one renewable session. It is HMAC-keyed before
+// entering RUNTIME_STATE.
+func newRenewableSessionID() string {
+	return newID("RS")
+}
+
 // NewBotAPIKey creates the sole show-once API key for a bot. The stable bot ID
 // in the prefix lets authentication select one aggregate without maintaining a
 // separate mutable lookup index; the random secret remains unpersisted.

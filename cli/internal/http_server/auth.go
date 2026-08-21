@@ -28,6 +28,21 @@ func isStaleLoginCredentialError(err error) bool {
 	return errors.Is(err, core.ErrCookieSessionNotFound) || errors.Is(err, core.ErrAuthTokenNotFound)
 }
 
+func bearerSessionLifetimeSeconds(expiresAt time.Time) int64 {
+	remaining := time.Until(expiresAt)
+	if remaining <= 0 {
+		return 0
+	}
+	return int64((remaining + time.Second - 1) / time.Second)
+}
+
+func addBearerSessionResponse(response gin.H, credentials core.BearerSessionCredentials) {
+	response["token"] = credentials.AccessToken
+	response["refreshToken"] = credentials.RefreshToken
+	response["expiresIn"] = bearerSessionLifetimeSeconds(credentials.AccessTokenExpiresAt)
+	response["refreshTokenExpiresIn"] = bearerSessionLifetimeSeconds(credentials.SessionExpiresAt)
+}
+
 func (s *HTTPServer) authEmailServerName() string {
 	if s.core != nil && s.core.ConfigModel() != nil {
 		if name := s.core.ConfigModel().GetEffectiveServerName(); strings.TrimSpace(name) != "" {
@@ -116,6 +131,25 @@ func (s *HTTPServer) setupAuthRoutes() {
 				if revoked && userID != "" {
 					loggedOutUserIDs[userID] = struct{}{}
 				}
+			}
+		}
+
+		var logoutRequest struct {
+			RefreshToken string `json:"refreshToken"`
+		}
+		if c.Request.Body != nil && c.Request.ContentLength != 0 {
+			if err := c.ShouldBindJSON(&logoutRequest); err != nil {
+				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+				return
+			}
+		}
+		if strings.TrimSpace(logoutRequest.RefreshToken) != "" {
+			userID, revoked, err := s.core.RevokeRefreshTokenWithReasonResult(ctx, strings.TrimSpace(logoutRequest.RefreshToken), "logout")
+			if err != nil {
+				log.Warn("Failed to revoke renewable session on logout", "error", err)
+			}
+			if revoked && userID != "" {
+				loggedOutUserIDs[userID] = struct{}{}
 			}
 		}
 
@@ -240,12 +274,12 @@ func (s *HTTPServer) setupAuthRoutes() {
 
 		session := sessions.Default(c)
 		cookieCredentialID, _ := cookieCredentialIDFromSession(session)
-		bearerToken := ""
+		var bearerCredentials core.BearerSessionCredentials
 
 		// Issue a bearer token (cross-origin clients use this instead of the session cookie).
 		// If the password changed after VerifyPasswordWithAuthGeneration, the proven
 		// generation is stale; undo the cookie session and fail the login cleanly.
-		token, err := s.core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
+		credentials, err := s.core.CreateBearerSessionWithSourceGeneration(ctx, user.Id, "password_login", authGeneration)
 		if err != nil {
 			if isStaleLoginCredentialError(err) {
 				_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
@@ -265,14 +299,14 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		} else {
-			bearerToken = token
+			bearerCredentials = credentials
 		}
 
 		if err := s.ensureCSRFToken(c); err != nil {
 			log.Error("Failed to create CSRF token", "error", err)
 			_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
-			if bearerToken != "" {
-				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_csrf_failed")
+			if bearerCredentials.RefreshToken != "" {
+				_ = s.core.RevokeRefreshTokenWithReason(ctx, bearerCredentials.RefreshToken, "login_csrf_failed")
 			}
 			session.Clear()
 			_ = session.Save()
@@ -284,8 +318,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 		if err := s.core.RecordLoginSucceeded(ctx, user.Id, login); err != nil {
 			log.Error("Failed to append login audit event", "userId", user.Id, "error", err)
 			_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
-			if bearerToken != "" {
-				_ = s.core.RevokeAuthTokenWithReason(ctx, bearerToken, "login_audit_failed")
+			if bearerCredentials.RefreshToken != "" {
+				_ = s.core.RevokeRefreshTokenWithReason(ctx, bearerCredentials.RefreshToken, "login_audit_failed")
 			}
 			session.Clear()
 			_ = session.Save()
@@ -301,8 +335,8 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		if bearerToken != "" {
-			response["token"] = bearerToken
+		if bearerCredentials.AccessToken != "" {
+			addBearerSessionResponse(response, bearerCredentials)
 		}
 
 		c.JSON(http.StatusOK, response)
@@ -586,7 +620,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			"user":    gin.H{"id": user.Id, "login": user.Login},
 		}
 
-		token, err := s.core.CreateAuthTokenWithSource(ctx, user.Id, "registration")
+		credentials, err := s.core.CreateBearerSessionWithSource(ctx, user.Id, "registration")
 		if err != nil {
 			log.Error("Failed to create auth token on register", "userId", user.Id, "error", err)
 			cookieCredentialID, _ := cookieCredentialIDFromSession(session)
@@ -597,7 +631,7 @@ func (s *HTTPServer) setupAuthRoutes() {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create session"})
 			return
 		}
-		response["token"] = token
+		addBearerSessionResponse(response, credentials)
 
 		c.JSON(http.StatusOK, response)
 	})

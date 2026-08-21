@@ -51,34 +51,40 @@ const (
 // transport. The name is kept for compatibility with the existing auth-token
 // service API.
 type AuthTokenData struct {
-	UserID          string                       `json:"user_id"`
-	ClientID        string                       `json:"client_id,omitempty"`
-	Kind            AuthTokenKind                `json:"kind,omitempty"`
-	Presentation    AuthTokenPresentation        `json:"presentation,omitempty"`
-	Source          string                       `json:"source,omitempty"`
-	Request         *corev1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt       time.Time                    `json:"created_at"`
-	AuthGeneration  uint64                       `json:"auth_generation,omitempty"`
-	FreshAuthAt     time.Time                    `json:"fresh_auth_at,omitempty"`
-	FreshAuthMethod string                       `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource string                       `json:"fresh_auth_source,omitempty"`
+	UserID             string                       `json:"user_id"`
+	ClientID           string                       `json:"client_id,omitempty"`
+	Kind               AuthTokenKind                `json:"kind,omitempty"`
+	Presentation       AuthTokenPresentation        `json:"presentation,omitempty"`
+	Source             string                       `json:"source,omitempty"`
+	Request            *corev1.AuditRequestMetadata `json:"request,omitempty"`
+	CreatedAt          time.Time                    `json:"created_at"`
+	ExpiresAt          time.Time                    `json:"expires_at,omitempty"`
+	AuthGeneration     uint64                       `json:"auth_generation,omitempty"`
+	RenewableSessionID string                       `json:"renewable_session_id,omitempty"`
+	AccessGeneration   uint64                       `json:"access_generation,omitempty"`
+	FreshAuthAt        time.Time                    `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod    string                       `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource    string                       `json:"fresh_auth_source,omitempty"`
 }
 
 // ValidatedRuntimeCredential is the normalized result of validating an opaque
 // runtime credential handle from a specific presentation channel.
 type ValidatedRuntimeCredential struct {
-	Handle          string
-	UserID          string
-	ClientID        string
-	Kind            AuthTokenKind
-	Presentation    AuthTokenPresentation
-	Source          string
-	Request         *corev1.AuditRequestMetadata
-	CreatedAt       time.Time
-	AuthGeneration  uint64
-	FreshAuthAt     time.Time
-	FreshAuthMethod string
-	FreshAuthSource string
+	Handle             string
+	UserID             string
+	ClientID           string
+	Kind               AuthTokenKind
+	Presentation       AuthTokenPresentation
+	Source             string
+	Request            *corev1.AuditRequestMetadata
+	CreatedAt          time.Time
+	ExpiresAt          time.Time
+	AuthGeneration     uint64
+	RenewableSessionID string
+	AccessGeneration   uint64
+	FreshAuthAt        time.Time
+	FreshAuthMethod    string
+	FreshAuthSource    string
 }
 
 func authTokenKindForSource(source string) AuthTokenKind {
@@ -104,18 +110,21 @@ func (d AuthTokenData) presentationOrDefault() AuthTokenPresentation {
 
 func validatedRuntimeCredentialFromAuthToken(handle string, data AuthTokenData) ValidatedRuntimeCredential {
 	return ValidatedRuntimeCredential{
-		Handle:          handle,
-		UserID:          data.UserID,
-		ClientID:        data.ClientID,
-		Kind:            data.kindOrDefault(),
-		Presentation:    data.presentationOrDefault(),
-		Source:          data.Source,
-		Request:         data.Request,
-		CreatedAt:       data.CreatedAt,
-		AuthGeneration:  data.AuthGeneration,
-		FreshAuthAt:     data.FreshAuthAt,
-		FreshAuthMethod: data.FreshAuthMethod,
-		FreshAuthSource: data.FreshAuthSource,
+		Handle:             handle,
+		UserID:             data.UserID,
+		ClientID:           data.ClientID,
+		Kind:               data.kindOrDefault(),
+		Presentation:       data.presentationOrDefault(),
+		Source:             data.Source,
+		Request:            data.Request,
+		CreatedAt:          data.CreatedAt,
+		ExpiresAt:          data.ExpiresAt,
+		AuthGeneration:     data.AuthGeneration,
+		RenewableSessionID: data.RenewableSessionID,
+		AccessGeneration:   data.AccessGeneration,
+		FreshAuthAt:        data.FreshAuthAt,
+		FreshAuthMethod:    data.FreshAuthMethod,
+		FreshAuthSource:    data.FreshAuthSource,
 	}
 }
 
@@ -132,13 +141,6 @@ func (c *ChattoCore) authTokenTTL() time.Duration {
 
 func (c *ChattoCore) authTokenKey(token string) string {
 	return c.runtimeTokenKey(authTokenKeyPrefix, token)
-}
-
-func (c *ChattoCore) runtimeCredentialTTL(presentation AuthTokenPresentation) time.Duration {
-	if presentation == AuthTokenPresentationCookie {
-		return c.cookieSessionTTL()
-	}
-	return c.authTokenTTL()
 }
 
 // ValidatePresentedRuntimeCredential validates an opaque runtime credential
@@ -175,6 +177,32 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
+	if presentation == AuthTokenPresentationBearer {
+		now := time.Now()
+		if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !now.Before(tokenData.ExpiresAt) {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+		session, _, err := c.validateRenewableSession(ctx, tokenData.RenewableSessionID, now)
+		if err != nil {
+			if errors.Is(err, ErrRefreshTokenNotFound) {
+				_ = c.storage.runtimeStateKV.Delete(ctx, key)
+				return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+			}
+			return ValidatedRuntimeCredential{}, err
+		}
+		if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+		// Fresh authentication belongs to the renewable session so a rotation
+		// racing a password re-verification cannot strand the newly issued access
+		// generation with stale copied metadata.
+		tokenData.FreshAuthAt = session.FreshAuthAt
+		tokenData.FreshAuthMethod = session.FreshAuthMethod
+		tokenData.FreshAuthSource = session.FreshAuthSource
+		return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
+	}
 	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken {
 		if err := c.RequireOAuthClientAllowed(ctx, tokenData.ClientID); err != nil {
 			if !errors.Is(err, ErrOAuthClientBlocked) {
@@ -200,10 +228,10 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 	if validation.ShouldPersistAuthGeneration {
 		tokenData.AuthGeneration = validation.AuthGeneration
 		if value, err := json.Marshal(tokenData); err == nil {
-			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.runtimeCredentialTTL(presentation))
+			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
 		}
 	} else {
-		_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.runtimeCredentialTTL(presentation))
+		_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.cookieSessionTTL())
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
@@ -220,98 +248,36 @@ func (c *ChattoCore) CreateAuthToken(ctx context.Context, userID string) (string
 // security-safe issuance fact in EVT. The raw token remains only in the return
 // value and the HMAC-derived RUNTIME_STATE key.
 func (c *ChattoCore) CreateAuthTokenWithSource(ctx context.Context, userID, source string) (string, error) {
-	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	credentials, err := c.CreateBearerSessionWithSource(ctx, userID, source)
 	if err != nil {
 		return "", err
 	}
-	return c.CreateAuthTokenWithSourceGeneration(ctx, userID, source, authGeneration)
+	return credentials.AccessToken, nil
 }
 
 // CreateAuthTokenWithSourceGeneration creates a bearer token for an
 // authentication that proved credentials against authGeneration.
 func (c *ChattoCore) CreateAuthTokenWithSourceGeneration(ctx context.Context, userID, source string, authGeneration uint64) (string, error) {
-	return c.createAuthTokenWithSourceGeneration(ctx, userID, "", source, authGeneration)
+	credentials, err := c.CreateBearerSessionWithSourceGeneration(ctx, userID, source, authGeneration)
+	if err != nil {
+		return "", err
+	}
+	return credentials.AccessToken, nil
 }
 
 // CreateOAuthAccessTokenForClient creates a bearer token bound to the public
 // OAuth client that completed the authorization-code flow.
 func (c *ChattoCore) CreateOAuthAccessTokenForClient(ctx context.Context, userID, clientID string, authGeneration uint64) (string, error) {
-	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
-		return "", err
-	}
-	token, err := c.createAuthTokenWithSourceGeneration(ctx, userID, clientID, "oauth_code_exchange", authGeneration)
+	credentials, err := c.CreateOAuthBearerSessionForClient(ctx, userID, clientID, authGeneration)
 	if err != nil {
 		return "", err
 	}
-	// Close the race with a concurrent policy change. If the block committed
-	// before token creation, this check removes the token; if it commits after,
-	// the blocking operation's global cleanup sees the already-created token.
-	if err := c.RequireOAuthClientAllowed(ctx, clientID); err != nil {
-		_ = c.RevokeAuthTokenWithReason(ctx, token, "oauth_client_blocked_during_issuance")
-		return "", err
-	}
-	return token, nil
-}
-
-func (c *ChattoCore) createAuthTokenWithSourceGeneration(ctx context.Context, userID, clientID, source string, authGeneration uint64) (string, error) {
-	if userID == "" {
-		return "", ErrAuthTokenNotFound
-	}
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) {
-			return "", ErrAuthTokenNotFound
-		}
-		return "", err
-	}
-	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
-		if errors.Is(err, ErrAuthenticationRevoked) {
-			return "", ErrAuthTokenNotFound
-		}
-		return "", err
-	}
-
-	token := NewAuthToken()
-	createdAt := time.Now()
-	key := c.authTokenKey(token)
-	tokenData := AuthTokenData{
-		UserID:         userID,
-		ClientID:       clientID,
-		Kind:           authTokenKindForSource(source),
-		Presentation:   AuthTokenPresentationBearer,
-		Source:         source,
-		Request:        auditRequestMetadata(ctx),
-		CreatedAt:      createdAt,
-		AuthGeneration: authGeneration,
-	}
-	if sourceGrantsInitialFreshAuth(source) {
-		tokenData.FreshAuthAt = createdAt
-		tokenData.FreshAuthMethod = freshAuthMethodForSource(source)
-		tokenData.FreshAuthSource = source
-	}
-
-	data, err := json.Marshal(tokenData)
-	if err != nil {
-		return "", fmt.Errorf("failed to marshal auth token: %w", err)
-	}
-
-	_, err = c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.authTokenTTL()))
-	if err != nil {
-		return "", fmt.Errorf("failed to store auth token: %w", err)
-	}
-	if err := c.recordBearerTokenIssued(ctx, userID, createdAt, source); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return "", err
-	}
-
-	return token, nil
+	return credentials.AccessToken, nil
 }
 
 // ValidateAuthToken checks if a bearer token is valid and returns the associated user ID.
-// Returns ErrAuthTokenNotFound if the token doesn't exist (or has expired via NATS TTL).
-//
-// Sliding window: each successful validation rewrites the entry to reset the NATS KV TTL.
-// This means the token only expires after the configured TTL of *inactivity* — active
-// users are never logged out.
+// Returns ErrAuthTokenNotFound if the token doesn't exist, has reached its
+// fixed expiry, or its renewable session is no longer valid.
 func (c *ChattoCore) ValidateAuthToken(ctx context.Context, token string) (string, error) {
 	credential, err := c.ValidatePresentedRuntimeCredential(ctx, token, AuthTokenPresentationBearer)
 	if err != nil {
@@ -361,8 +327,12 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		return "", false, nil
 	}
 
-	if presentation == AuthTokenPresentationBearer && tokenData.UserID != "" {
-		if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, reason); err != nil {
+	if presentation == AuthTokenPresentationBearer {
+		if tokenData.RenewableSessionID == "" {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return tokenData.UserID, true, nil
+		}
+		if err := c.revokeRenewableSession(ctx, tokenData.RenewableSessionID, reason); err != nil {
 			return tokenData.UserID, false, err
 		}
 	}
@@ -381,14 +351,14 @@ func (c *ChattoCore) RevokeAllAuthTokensForUser(ctx context.Context, userID stri
 	return c.RevokeAllAuthTokensForUserWithReason(ctx, userID, "explicit")
 }
 
-// RevokeAllAuthTokensForUserWithReason deletes all bearer tokens for a user and
-// records a revocation audit fact for each token that existed.
+// RevokeAllAuthTokensForUserWithReason deletes every renewable bearer session
+// for a user and records one revocation audit fact per session.
 func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, userID, reason string) (int, error) {
 	if userID == "" {
 		return 0, nil
 	}
 
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, authTokenKeyPrefix+"*")
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, renewableSessionKeyPrefix+"*")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -408,18 +378,15 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
 			}
-			return revoked, fmt.Errorf("failed to get auth token for revoke-all: %w", err)
+			return revoked, fmt.Errorf("failed to get renewable session for revoke-all: %w", err)
 		}
 
-		var tokenData AuthTokenData
-		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-			c.logger.Warn("Skipping malformed auth token during revoke-all", "key", key, "error", err)
+		var session RenewableSession
+		if err := json.Unmarshal(entry.Value(), &session); err != nil {
+			c.logger.Warn("Skipping malformed renewable session during revoke-all", "key", key, "error", err)
 			continue
 		}
-		if tokenData.UserID != userID {
-			continue
-		}
-		if tokenData.presentationOrDefault() != AuthTokenPresentationBearer {
+		if session.UserID != userID {
 			continue
 		}
 
@@ -430,7 +397,7 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
 			}
-			return revoked, fmt.Errorf("failed to revoke auth token: %w", err)
+			return revoked, fmt.Errorf("failed to revoke renewable session: %w", err)
 		}
 		revoked++
 	}
@@ -444,7 +411,7 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 	if clientID == "" {
 		return 0, nil
 	}
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, authTokenKeyPrefix+"*")
+	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, renewableSessionKeyPrefix+"*")
 	if err != nil {
 		if errors.Is(err, jetstream.ErrNoKeysFound) {
 			return 0, nil
@@ -462,17 +429,17 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 			if errors.Is(err, jetstream.ErrKeyNotFound) {
 				continue
 			}
-			return revoked, fmt.Errorf("failed to get OAuth client token: %w", err)
+			return revoked, fmt.Errorf("failed to get OAuth client renewable session: %w", err)
 		}
-		var tokenData AuthTokenData
-		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
+		var session RenewableSession
+		if err := json.Unmarshal(entry.Value(), &session); err != nil {
 			continue
 		}
-		if tokenData.kindOrDefault() != AuthTokenKindOAuthAccessToken || tokenData.presentationOrDefault() != AuthTokenPresentationBearer || tokenData.ClientID != clientID {
+		if session.Kind != AuthTokenKindOAuthAccessToken || session.ClientID != clientID {
 			continue
 		}
-		if tokenData.UserID != "" {
-			if err := c.recordBearerTokenRevoked(ctx, tokenData.UserID, "oauth_client_blocked"); err != nil {
+		if session.UserID != "" {
+			if err := c.recordBearerTokenRevoked(ctx, session.UserID, "oauth_client_blocked"); err != nil {
 				return revoked, err
 			}
 		}

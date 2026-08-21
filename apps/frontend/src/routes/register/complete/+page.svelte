@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { directBearerSession } from '$lib/auth/bearerSession';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
@@ -72,13 +73,14 @@
         return;
       }
 
-      if (typeof data.token !== 'string' || !data.token) {
+      const credentials = directBearerSession(data);
+      if (!credentials) {
         error = m('auth.register.missing_token');
         return;
       }
 
       const resumedReturnNavigation = await completeOriginAuthentication(
-        data.token,
+        credentials,
         data.user ?? null
       );
       if (!resumedReturnNavigation) {

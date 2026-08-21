@@ -73,7 +73,8 @@ type AuthConfig struct {
 	DirectRegistration    *bool                `toml:"direct_registration" env:"CHATTO_AUTH_DIRECT_REGISTRATION" comment:"Enable direct (email/password) registration. When false, self-service account creation is disabled; existing accounts can still sign in. Default: true."`
 	DirectLogin           *bool                `toml:"direct_login" env:"CHATTO_AUTH_DIRECT_LOGIN" comment:"Enable direct login with a username or email address and password. When false, users must sign in via configured SSO providers. Default: true."`
 	AccountCreationPolicy string               `toml:"account_creation_policy,commented" env:"CHATTO_AUTH_ACCOUNT_CREATION_POLICY" comment:"Account admission policy: open or invite_only. Default: open. Upgrade every serving replica before enabling invite_only."`
-	TokenTTL              Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"TTL for bearer auth tokens. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	TokenTTL              Duration             `toml:"token_ttl,commented" env:"CHATTO_AUTH_TOKEN_TTL" comment:"Maximum renewable bearer-session lifetime and lifetime of each same-origin cookie credential. Supports human-readable durations like '90d', '2160h'. Default: 90d."`
+	AccessTokenTTL        Duration             `toml:"access_token_ttl,commented" env:"CHATTO_AUTH_ACCESS_TOKEN_TTL" comment:"Lifetime for renewable bearer access tokens. Supports human-readable durations like '15m'. Default: 15m."`
 	EmailOTP              EmailOTPConfig       `toml:"email_otp,commented" comment:"Email OTP guardrails for registration and email verification."`
 	Providers             []AuthProviderConfig `toml:"providers" comment:"External login providers. Configure as repeated [[auth.providers]] tables."`
 }
@@ -129,12 +130,22 @@ func (c *EmailOTPConfig) MaxWrongAttemptsOrDefault() int {
 	return c.MaxWrongAttempts
 }
 
-// TokenTTLOrDefault returns the configured bearer token TTL, or 90 days if not set.
+// TokenTTLOrDefault returns the configured absolute human-session lifetime, or
+// 90 days if not set.
 func (c *AuthConfig) TokenTTLOrDefault() time.Duration {
 	if c.TokenTTL == 0 {
 		return 90 * 24 * time.Hour
 	}
 	return c.TokenTTL.Duration()
+}
+
+// AccessTokenTTLOrDefault returns the configured renewable bearer access-token
+// lifetime, or 15 minutes if not set.
+func (c *AuthConfig) AccessTokenTTLOrDefault() time.Duration {
+	if c.AccessTokenTTL == 0 {
+		return 15 * time.Minute
+	}
+	return c.AccessTokenTTL.Duration()
 }
 
 // DirectRegistrationOrDefault returns whether direct (email/password) registration is enabled (default: true).

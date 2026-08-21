@@ -23,7 +23,27 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 
 ### Sessions and tokens
 
-Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about.
+Chatto issues **opaque credentials**, not JWTs. Same-origin cookie-session
+handles use typed `RUNTIME_STATE` `session.{hmac}` records with sliding expiry
+and periodic browser-handle rotation.
+
+Human bearer authentication uses renewable sessions. Each login returns a
+short-lived access token (15 minutes by default), a rotating refresh
+credential, and a fixed maximum session lifetime (90 days by default). The
+access verifier is a fixed-expiry `session.{hmac}` record; the stable
+`renewable_session.{hmac}` record holds the current rotation generation and is
+the revocation authority for every access generation. Successful access-token
+validation never extends either expiry. Raw access and refresh credentials are
+not stored.
+
+Refresh rotation uses JetStream KV revision checks across replicas. An exact
+retry with the same client-persisted request ID can recover a lost response;
+reuse of an older refresh generation under another request ID revokes the
+whole renewable session. Deleting the stable record rejects every access
+generation on its next API request or realtime connection, even before its
+short-lived verifier record expires. A realtime socket that already
+authenticated can continue only until that access token's fixed expiry unless
+a separate logout or account-lifecycle signal closes it sooner.
 
 Browser sessions use signed cookies with the following options:
 
@@ -51,7 +71,7 @@ Reset tokens have a 1-hour TTL and expire automatically via NATS KV TTL — no s
 
 ### Chatto frontend OAuth redirects
 
-When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a bearer token. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the exact callback validated from the frontend's metadata; the main client exchanges the code and stores the resulting token.
+When a Chatto frontend connects to another Chatto server, it opens that server's `/oauth/authorize` page in a separate browser window and uses PKCE to mint a renewable bearer session. Passwords, passkeys, and external-provider sign-in stay on the remote server's own pages. After sign-in, the remote server redirects a short-lived authorization code to the exact callback validated from the frontend's metadata; the main client exchanges the code and stores the access token, rotating refresh credential, and expiry metadata. Normal access renewal happens through the token endpoint without reopening OAuth.
 
 The frontend identifies itself with the URL of its published CIMD document.
 Chatto retrieves that document and accepts only the exact callback registered
@@ -221,7 +241,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
 | Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
 | Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
-| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}`, HMAC-keyed, with TTL) | Yes (not raw bearer tokens or cookie handles) |
+| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}` and `renewable_session.{hmac}`, HMAC-keyed, with TTL) | Yes (not raw access tokens, refresh credentials, or cookie handles) |
 | Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
 | Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
 | Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |
@@ -235,7 +255,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | LiveKit API and webhook secrets | `chatto.toml` / `CHATTO_LIVEKIT_API_KEY`, `CHATTO_LIVEKIT_API_SECRET`, `CHATTO_LIVEKIT_WEBHOOK_API_KEY`, `CHATTO_LIVEKIT_WEBHOOK_API_SECRET` | n/a |
 | TLS certificates | Disk cache directory (`autocert`) | n/a |
 
-`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer tokens, cookie-session handles, OAuth authorization codes, pending account-flow credentials, and existing invite links, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`. Invite-link records remain in `EVT`, so authorised administrators can copy newly derived links after rotation.
+`core.secret_key` is not a message-encryption KEK. Rotating it invalidates bearer access and refresh credentials, cookie-session handles, OAuth authorization codes, pending account-flow credentials, and existing invite links, but it does not rotate or invalidate the KEK records in `ENCRYPTION_KEYS`. Invite-link records remain in `EVT`, so authorised administrators can copy newly derived links after rotation.
 
 ## Reporting a security issue
 

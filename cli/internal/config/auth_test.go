@@ -34,6 +34,27 @@ func TestAuthConfig_DirectLogin(t *testing.T) {
 	}
 }
 
+func TestAuthConfig_SessionTTLs(t *testing.T) {
+	defaults := AuthConfig{}
+	if got := defaults.TokenTTLOrDefault(); got != 90*24*time.Hour {
+		t.Fatalf("TokenTTLOrDefault() = %v, want 90d", got)
+	}
+	if got := defaults.AccessTokenTTLOrDefault(); got != 15*time.Minute {
+		t.Fatalf("AccessTokenTTLOrDefault() = %v, want 15m", got)
+	}
+
+	configured := AuthConfig{
+		TokenTTL:       Duration(30 * 24 * time.Hour),
+		AccessTokenTTL: Duration(5 * time.Minute),
+	}
+	if got := configured.TokenTTLOrDefault(); got != 30*24*time.Hour {
+		t.Fatalf("configured TokenTTLOrDefault() = %v, want 30d", got)
+	}
+	if got := configured.AccessTokenTTLOrDefault(); got != 5*time.Minute {
+		t.Fatalf("configured AccessTokenTTLOrDefault() = %v, want 5m", got)
+	}
+}
+
 func TestEmailOTPConfig_Defaults(t *testing.T) {
 	c := &EmailOTPConfig{}
 	if got := c.ThrottlingEnabledOrDefault(); got != true {
@@ -88,6 +109,10 @@ secret_key = "abcdef0123456789abcdef0123456789abcdef0123456789abcdef0123456789"
 [core.assets]
 signing_secret = "00112233445566778899aabbccddeeff00112233445566778899aabbccddeeff"
 
+[auth]
+token_ttl = "30d"
+access_token_ttl = "10m"
+
 [auth.email_otp]
 throttling_enabled = false
 ttl = "30m"
@@ -117,6 +142,12 @@ max_wrong_attempts = 2
 	if got := cfg.Auth.AccountCreationPolicyOrDefault(); got != AccountCreationPolicyOpen {
 		t.Errorf("default account creation policy = %q, want open", got)
 	}
+	if got := cfg.Auth.TokenTTLOrDefault(); got != 30*24*time.Hour {
+		t.Errorf("auth.token_ttl from TOML = %v, want 30d", got)
+	}
+	if got := cfg.Auth.AccessTokenTTLOrDefault(); got != 10*time.Minute {
+		t.Errorf("auth.access_token_ttl from TOML = %v, want 10m", got)
+	}
 }
 
 func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
@@ -137,6 +168,8 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	t.Setenv("CHATTO_AUTH_EMAIL_OTP_MAX_WRONG_ATTEMPTS", "3")
 	t.Setenv("CHATTO_AUTH_ACCOUNT_CREATION_POLICY", AccountCreationPolicyInviteOnly)
 	t.Setenv("CHATTO_AUTH_DIRECT_LOGIN", "false")
+	t.Setenv("CHATTO_AUTH_TOKEN_TTL", "45d")
+	t.Setenv("CHATTO_AUTH_ACCESS_TOKEN_TTL", "20m")
 
 	cfg, err := ReadConfig("")
 	if err != nil {
@@ -159,6 +192,12 @@ func TestReadConfig_EmailOTPFromEnv(t *testing.T) {
 	}
 	if cfg.Auth.DirectLoginOrDefault() {
 		t.Error("CHATTO_AUTH_DIRECT_LOGIN = true, want false")
+	}
+	if got := cfg.Auth.TokenTTLOrDefault(); got != 45*24*time.Hour {
+		t.Errorf("CHATTO_AUTH_TOKEN_TTL = %v, want 45d", got)
+	}
+	if got := cfg.Auth.AccessTokenTTLOrDefault(); got != 20*time.Minute {
+		t.Errorf("CHATTO_AUTH_ACCESS_TOKEN_TTL = %v, want 20m", got)
 	}
 }
 
@@ -221,6 +260,37 @@ func TestChattoConfig_Validate_EmailOTP(t *testing.T) {
 			}
 			if err == nil || !strings.Contains(err.Error(), tt.wantError) {
 				t.Fatalf("Validate() error = %v, want to contain %q", err, tt.wantError)
+			}
+		})
+	}
+}
+
+func TestChattoConfig_Validate_SessionTTLs(t *testing.T) {
+	for _, test := range []struct {
+		name      string
+		configure func(*ChattoConfig)
+		want      string
+	}{
+		{
+			name: "negative absolute lifetime",
+			configure: func(cfg *ChattoConfig) {
+				cfg.Auth.TokenTTL = Duration(-time.Minute)
+			},
+			want: "auth.token_ttl must not be negative",
+		},
+		{
+			name: "negative access lifetime",
+			configure: func(cfg *ChattoConfig) {
+				cfg.Auth.AccessTokenTTL = Duration(-time.Minute)
+			},
+			want: "auth.access_token_ttl must not be negative",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			cfg := validTestConfig()
+			test.configure(&cfg)
+			if err := cfg.Validate(); err == nil || !strings.Contains(err.Error(), test.want) {
+				t.Fatalf("Validate() error = %v, want %q", err, test.want)
 			}
 		})
 	}

@@ -18,18 +18,19 @@ is authoritative for individual RPCs, request and response messages, and public
 method documentation.
 
 Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
-[ADR-045](../adr/ADR-045-public-api-stability-tiers.md), and
-[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md).
+[ADR-045](../adr/ADR-045-public-api-stability-tiers.md),
+[ADR-053](../adr/ADR-053-versioned-nats-service-namespaces.md), and
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
 
 ## Transport boundaries
 
 | Surface | Mount | Contract | Access boundary |
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
-| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents`; OAuth-client blocks terminate matching established bearer connections |
+| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer access token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents`; bearer access expiry requests a rotated-token reconnect, while OAuth-client blocks terminate matching established sessions |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted |
-| Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token exchange; the validated client identity and exact callback are bound through code exchange, and provider hints cannot supply an issuer or endpoint |
+| Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and exact callback are bound through code exchange, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |
 | Protected attachments | `GET /assets/files/{assetId}` and image transform variants | Per-user URLs use hourly issuance buckets with 23–24 hours of remaining validity; Chatto streams full responses, while passive S3-backed video, audio, and large files can redirect to short-lived presigned URLs | Signed `access` ticket, authenticated cookie, or bearer token; every request rechecks room membership before resolving storage or exposing binary bytes |
 | Protected HLS video | `GET /assets/hls/{assetId}/master.m3u8`, rendition playlists, and segments | Master and media playlists are generated from the durable manifest; segments are complete bounded responses from NATS or S3 | Domain-separated source-video `access` ticket; every request rechecks room membership and every segment ID/role against the durable HLS manifest |
 | Operator ConnectRPC | `/api/connect/chatto.operator.v1.*` on the configured Unix socket | Root-equivalent local unary services | Unix-socket filesystem permissions; never mounted on the public listener |

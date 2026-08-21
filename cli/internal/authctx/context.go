@@ -2,6 +2,7 @@ package authctx
 
 import (
 	"context"
+	"time"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -39,6 +40,7 @@ type RuntimeCredential struct {
 	Handle            string
 	OAuthClientID     string
 	BotAPIKeyVerifier []byte
+	ExpiresAt         time.Time
 }
 
 // ForContext extracts the authenticated user from the request context.

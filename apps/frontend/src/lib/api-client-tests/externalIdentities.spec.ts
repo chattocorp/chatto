@@ -89,13 +89,23 @@ describe('createExternalIdentityFlowAPI', () => {
     mocks.createExternalIdentityAccount.mockResolvedValue({
       userId: 'user-1',
       login: 'octo',
-      token: 'session-token'
+      token: 'session-token',
+      refreshToken: 'refresh-token',
+      expiresIn: 900n,
+      refreshTokenExpiresIn: 7_776_000n
     });
     const api = createExternalIdentityFlowAPI();
 
     await expect(
       api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
-    ).resolves.toEqual({ userId: 'user-1', login: 'octo', token: 'session-token' });
+    ).resolves.toEqual({
+      userId: 'user-1',
+      login: 'octo',
+      token: 'session-token',
+      refreshToken: 'refresh-token',
+      expiresIn: 900,
+      refreshTokenExpiresIn: 7_776_000
+    });
     expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith({
       token: 'flow-token',
       login: 'octo',

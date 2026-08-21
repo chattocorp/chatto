@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-03
 
-**Status:** Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md), which replaces origin allow-list client registration with CIMD identity and exact callback binding. The opaque bearer-token decision remains current.
+**Status:** Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md), which replaces origin allow-list client registration with CIMD identity and exact callback binding, and [ADR-079](ADR-079-renewable-bearer-sessions.md), which replaces the sliding human bearer-token lifecycle with renewable sessions. The opaque bearer-token decision remains current.
 
 **Supersedes:** Partially extends [ADR-017](ADR-017-cookie-session-auth-for-websocket.md) (same-origin cookie auth remains; this adds a parallel path)
 
@@ -37,18 +37,19 @@ Use opaque bearer tokens stored in NATS KV. Tokens are issued alongside existing
 
 **2026-05 update:** bearer token records now live in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys with per-key TTL. The HMAC input is `session\0{token}` keyed by `[core].secret_key`, so backups can preserve sessions without containing raw bearer-token values.
 
-**Token format:** `cht_AT` prefix + 14-character NanoID (20 characters total, e.g. `cht_ATa1B2c3D4e5F6G7`). The `cht_` prefix makes tokens recognizable in logs and password managers; the `AT` type prefix follows the existing NanoID convention from ADR-022.
+**Token format:** bearer access credentials use the recognizable `cht_AT`
+prefix and remain opaque to clients. ADR-079 replaces the original random
+NanoID body with a purpose-separated HMAC value bound to one renewable-session
+generation.
 
-**Token lifecycle:**
-- Created on login, registration, bootstrap, and OAuth callback
-- Validated by looking up the HMAC-derived `session.{hmac}` key in `RUNTIME_STATE` and reading the stored user ID
-- Rejected when the token's stored auth generation differs from the current user auth generation derived from durable user events
-- Legacy records with no stored auth generation unmarshal as generation `0`; validation upgrades them to the current generation when their `created_at` is not older than the current password event
-- Revoked by deleting the key (idempotent)
-- Cleaned up for a whole user by scanning `session.*` records, matching the stored user ID, and deleting each match; password resets, password changes, and account deletion use this path after advancing the user's auth generation
-
-Issuance and explicit revocation append safe audit facts to `EVT` with source/reason and request metadata. The raw bearer token and token-key HMAC are never copied into the event log.
-- Auto-expired via NATS KV per-key TTL (default 90 days, configurable via `auth.token_ttl`)
+**Token lifecycle:** ADR-079 is authoritative. Human bearer authentication now
+uses 15-minute access tokens backed by fixed-expiry `session.{hmac}` records
+and a rotating refresh credential backed by a stable
+`renewable_session.{hmac}` authority with a non-renewable maximum lifetime.
+Deleting that authority revokes every access generation. Existing user auth
+generation and OAuth-client policy checks remain in force. Issuance and
+explicit revocation append safe audit facts to `EVT`; raw access and refresh
+credentials are never copied into runtime values or the event log.
 
 **Auth middleware priority:**
 1. Check `Authorization: Bearer <token>` header → validate token → load user
@@ -66,7 +67,9 @@ Issuance and explicit revocation append safe audit facts to `EVT` with source/re
 
 - **Cross-origin clients become possible**: Clients that can obtain a bearer token through a trusted OAuth redirect or another authentication flow can authenticate with an HTTP header. This unblocks the multi-instance client epic without trusting arbitrary web origins.
 - **Cookie auth stays first-party**: The embedded SPA continues to use its cookie when needed, but a browser origin cannot inject that ambient credential into a cross-origin HTTP or realtime request.
-- **No token refresh complexity**: Long-lived tokens with server-side TTL are simple. If a token expires, the client re-authenticates. No refresh token dance.
+- **Renewal is a separate lifecycle concern**: ADR-079 adds rotating refresh
+  credentials and lost-response recovery while retaining the opaque access
+  token and server-side revocation properties selected here.
 - **Instant revocation**: Deleting a KV key immediately invalidates the token. No blocklist management or "wait for JWT expiry" window.
 - **One KV lookup per request**: Token validation requires a `Get` on `RUNTIME_STATE`, but this is negligible given we already do a user load per authenticated request.
 - **No reverse index**: user-wide cleanup does a `session.*` prefix scan and matches the stored user ID. The revocation guarantee comes from the token's stored auth generation being compared to the current user auth generation, so concurrent issuance cannot survive by missing the scan. A secondary index can be added later if token counts make scans too expensive.

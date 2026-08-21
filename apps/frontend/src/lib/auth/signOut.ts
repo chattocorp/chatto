@@ -22,12 +22,16 @@ function withSignOutTimeout<T>(request: (signal: AbortSignal) => Promise<T>): Pr
  * can escape stale or unreachable server registrations.
  */
 export function signOutServer(server: RegisteredServer, isOriginServer: boolean): Promise<Response> {
-	const headers = server.token ? { Authorization: `Bearer ${server.token}` } : undefined;
+	const headers: Record<string, string> = {};
+	if (server.token) headers.Authorization = `Bearer ${server.token}`;
+	if (server.refreshToken) headers['Content-Type'] = 'application/json';
+	const body = server.refreshToken ? JSON.stringify({ refreshToken: server.refreshToken }) : undefined;
 
 	if (isOriginServer) {
 		return withSignOutTimeout((signal) => csrfFetch('/auth/logout', {
 			method: 'POST',
 			headers,
+			body,
 			signal
 		}));
 	}
@@ -35,6 +39,7 @@ export function signOutServer(server: RegisteredServer, isOriginServer: boolean)
 	return withSignOutTimeout((signal) => fetch(logoutUrl(server), {
 		method: 'POST',
 		headers,
+		body,
 		signal
 	}));
 }

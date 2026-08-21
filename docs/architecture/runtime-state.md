@@ -6,11 +6,13 @@ Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 [`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go),
 [`cli/internal/core/notification_occurrence_model.go`](../../cli/internal/core/notification_occurrence_model.go),
 [`cli/internal/core/runtime_token_keys.go`](../../cli/internal/core/runtime_token_keys.go),
+[`cli/internal/core/renewable_sessions.go`](../../cli/internal/core/renewable_sessions.go),
 [`cli/internal/core/external_identities.go`](../../cli/internal/core/external_identities.go),
 [`cli/internal/core/asset_uploads.go`](../../cli/internal/core/asset_uploads.go), and
 [`cli/internal/kms/builtin.go`](../../cli/internal/kms/builtin.go)
 
-Related decision: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md).
+Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
 
 ## KV buckets
 
@@ -74,7 +76,8 @@ survives restart but is not content/domain history. See
 | `password_reset.{hmac}` | Password reset token JSON. Uses per-key 1-hour TTL and is claimed with a revision-matched delete before the password-change event is appended. |
 | `password_reset_request.{hmac(userId)}` | Per-account password-reset delivery reservation containing only the matching HMAC-derived reset-token key. Atomic KV creation permits one prepared link per five-minute window across replicas; failed delivery conditionally deletes the matching reservation before its token so transient cleanup failures remain retryable and do not normally consume the window. Cleanup uses a bounded context detached from request cancellation. |
 | `account_deletion_token.{hmac}` | Account deletion confirmation token JSON. Uses per-key 15-minute TTL. |
-| `session.{hmac}` | Typed runtime credential JSON with user ID, optional issuing OAuth client ID, credential kind (`first_party_session` or `oauth_access_token`), presentation (`bearer` or `cookie`), source/request metadata, fresh-auth metadata, and the user auth generation it was issued against. Uses per-key `auth.token_ttl` (default 90 days); successful validation refreshes the key with a new per-key TTL for sliding-window expiry. Password resets, password changes, external identity disconnects, and account deletion revoke older credentials by advancing the user's auth generation through durable user events; scans of `session.*` delete matching records as cleanup. OAuth client blocking independently rejects matching `oauth_access_token` records during validation and scans this namespace to delete them. |
+| `session.{hmac}` | Typed runtime credential JSON with user ID, optional issuing OAuth client ID, credential kind (`first_party_session` or `oauth_access_token`), presentation (`bearer` or `cookie`), source/request metadata, fresh-auth metadata, and the user auth generation it was issued against. Cookie records use sliding per-key `auth.token_ttl` (default 90 days). Bearer access records also carry a fixed expiry, renewable-session ID, and access generation; they use per-key `auth.access_token_ttl` (default 15 minutes), never renew on validation, and are rejected when the stable renewable session is absent or invalid. Their fresh-auth fields are issuance-time copies; bearer validation resolves the authoritative values from the stable session. Password and account lifecycle events advance the auth generation; `session.*` scans delete matching records as physical cleanup. OAuth client blocking independently rejects matching delegated records. |
+| `renewable_session.{hmac}` | Stable JSON authority for one human first-party or delegated bearer session: user ID, optional OAuth client ID, kind/source and safe request metadata, creation and non-renewable absolute expiry, auth generation, current refresh generation, last refresh request ID/time, and authoritative fresh-auth metadata. Its per-key TTL is always the remaining `auth.token_ttl` maximum (default 90 days). Refresh rotation uses KV revision OCC across replicas. Exact retry of the immediately previous generation and request ID recreates the deterministic result during the access lifetime; other stale reuse revokes this key and thereby every access generation. Raw refresh credentials are HMAC-authenticated but never stored. |
 | `oauth_authorize.{hmac}` | Validated pending OAuth authorization request containing the exact callback, PKCE challenge, state, client ID, and privacy-safe client display metadata. The signed browser session carries only the opaque raw handle; the HMAC-derived key and JSON value use a 15-minute per-key TTL. Approval, denial, or already-consented completion claims the record with a revision-matched delete. |
 | `grant.{hmac}` | OAuth authorization code JSON bound to user ID, optional client ID, exact redirect URI, PKCE challenge, and the user auth generation it was issued against. Uses per-key 5-minute TTL and is claimed with a revision-matched delete before exchange validation and token issuance. |
 | `external_identity_create.{hmac}` | Pending account-creation confirmation JSON containing provider identity, optional verified-email/profile hints, and the invitation ID bound by an invite-only browser flow. The KV key is HMAC-derived from the raw capability token, which is never stored; the record uses a 15-minute TTL. |
@@ -99,7 +102,7 @@ local index when read-your-writes is required. Create-only membership
 initialization cannot replace a marker concurrently advanced by the user or
 another replica.
 
-Token HMAC keys are derived with `[core].secret_key` and the token family as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer tokens, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
+Token HMAC keys are derived with `[core].secret_key` and the credential purpose as a domain separator. Backups include `RUNTIME_STATE`, so sessions and pending links survive restore only when the same `core.secret_key` is kept; backup archives do not contain raw bearer access or refresh credentials, cookie credential handles, or raw link/code values. Backups also include wrapped app DEK records, but those records cannot decrypt content without the KEKs in `ENCRYPTION_KEYS` or an external KMS.
 
 **MEMORY_CACHE keys:**
 

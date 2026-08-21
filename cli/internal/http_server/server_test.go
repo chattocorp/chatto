@@ -700,6 +700,15 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 	if user["login"] != login {
 		t.Errorf("Expected login %s, got %v", login, user["login"])
 	}
+	if token, _ := result["token"].(string); !strings.HasPrefix(token, "cht_AT") {
+		t.Fatalf("login access token = %q", token)
+	}
+	if refreshToken, _ := result["refreshToken"].(string); !strings.HasPrefix(refreshToken, "cht_RT_") {
+		t.Fatalf("login refresh token = %q", refreshToken)
+	}
+	if result["expiresIn"].(float64) <= 0 || result["refreshTokenExpiresIn"].(float64) <= 0 {
+		t.Fatalf("login lifetimes = %v/%v", result["expiresIn"], result["refreshTokenExpiresIn"])
+	}
 }
 
 func TestAuthRoutes_Login_DisabledReturns403BeforeCredentialValidation(t *testing.T) {
@@ -2752,6 +2761,12 @@ func TestAuthRoutes_Login_ReturnsToken(t *testing.T) {
 
 	if !strings.HasPrefix(token, "cht_AT") {
 		t.Errorf("Token %q should start with 'cht_AT'", token)
+	}
+	if refreshToken, _ := result["refreshToken"].(string); !strings.HasPrefix(refreshToken, "cht_RT_") {
+		t.Fatalf("register refresh token = %q", refreshToken)
+	}
+	if result["expiresIn"].(float64) <= 0 || result["refreshTokenExpiresIn"].(float64) <= 0 {
+		t.Fatalf("register lifetimes = %v/%v", result["expiresIn"], result["refreshTokenExpiresIn"])
 	}
 }
 
