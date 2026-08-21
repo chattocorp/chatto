@@ -79,7 +79,7 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 			description:   c.GetDescription(),
 			kind:          c.GetKind(),
 			universal:     c.GetUniversal(),
-			threadingMode: normalizedRoomThreadingMode(c.GetKind(), c.GetThreadingMode()),
+			threadingMode: c.GetThreadingMode(),
 		}
 	case *corev1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -105,7 +105,7 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 		}
 	case *corev1.Event_RoomThreadingModeChanged:
 		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
-			entry.threadingMode = normalizedRoomThreadingMode(entry.kind, e.RoomThreadingModeChanged.GetThreadingMode())
+			entry.threadingMode = e.RoomThreadingModeChanged.GetThreadingMode()
 		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())

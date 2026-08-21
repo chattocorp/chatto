@@ -76,7 +76,7 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 **Why:** The author can signal the intended conversation shape at posting time instead of leaving the decision to the first person who replies. Atomic creation prevents a visible root from briefly or permanently losing that intent. Keeping the room view stable makes **Post as thread** a posting choice rather than an unexpected navigation action.
 **Tradeoff:** Clients must distinguish an established empty thread from an ordinary root with zero replies by checking `Message.thread` presence. Required rooms create an empty thread for every root even when nobody replies.
 
-**Compatibility:** `CreateMessageRequest.create_thread` and the room Threading Mode fields are part of the 0.5 client/server contract. The bundled client does not preserve compatibility with pre-0.5 servers. Historical channel events and snapshots that do not contain a mode normalize to Enabled without a backfill; unknown future channel values fail closed to Disabled on an older binary, and DMs normalize to Unspecified.
+**Compatibility:** `CreateMessageRequest.create_thread` and the room Threading Mode fields are part of the 0.5 client/server contract. The bundled client does not preserve compatibility with pre-0.5 servers. Historical channel events and snapshots that do not contain a mode normalize to Enabled without a backfill; unknown future channel values fail closed to Disabled on an older binary while remaining raw in projection snapshots, and DMs normalize to Unspecified.
 
 ### 8. Thread presentation follows the room's available space
 

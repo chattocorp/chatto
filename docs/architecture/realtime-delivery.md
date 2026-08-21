@@ -286,7 +286,8 @@ session immediately changes its composer and reply actions. Reconnect and
 finite reconciliation carry the same normalized value; historical channels
 whose creation fact omitted it project as Enabled, while DMs remain
 Unspecified. An unknown future channel value fails closed to Disabled on an
-older binary.
+older binary, while the projection snapshot preserves the raw value so a
+rollback does not erase newer semantics.
 
 Buffered live signals cover mutations concurrent with this reconciliation. Thread
 follow/unfollow and read-marker advances publish the same user-scoped
