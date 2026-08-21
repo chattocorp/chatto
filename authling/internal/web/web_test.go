@@ -1,11 +1,14 @@
 package web
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
 	"testing"
+
+	"github.com/a-h/templ"
 )
 
 func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
@@ -62,6 +65,29 @@ func TestPasswordResetPageRendersWithoutAccountDisclosure(t *testing.T) {
 	}
 	if strings.Contains(body, "account exists") || strings.Contains(body, "account not found") || strings.Contains(body, "<script") {
 		t.Fatalf("password reset page has disclosure or script content: %q", body)
+	}
+}
+
+func TestOneTimeCodeInputsDisableOnePassword(t *testing.T) {
+	tests := []struct {
+		name string
+		page templ.Component
+	}{
+		{name: "signup", page: codePage("flow", "")},
+		{name: "password reset", page: passwordResetCodePage("flow", "", "")},
+		{name: "email change", page: emailChangeCodePage("flow", "", "person@example.com")},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			var body strings.Builder
+			if err := test.page.Render(context.Background(), &body); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(body.String(), `autocomplete="one-time-code" data-1p-ignore="true"`) {
+				t.Fatalf("one-time code input does not opt out of 1Password: %q", body.String())
+			}
+		})
 	}
 }
 
