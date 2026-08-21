@@ -10,8 +10,8 @@ By default, click cycles the override through `neutral → allow → deny → ne
 inherited indicator persists faded behind the override (so you can see what
 the role would do without the override at this scope).
 
-In `binary` mode the cell exposes only enabled and disabled. Callers can still
-map disabled to an internal deny when they need to override an inherited allow.
+In `binary` mode the cell exposes only enabled and disabled. Callers can lock
+an inherited grant so it can only be changed at the broader source scope.
 
 While a change is being saved, the state icon is replaced with a spinner and
 the cell is temporarily non-interactive.
@@ -32,6 +32,7 @@ to render an inert "—" cell with an explanation tooltip.
     inherited = 'neutral',
     applicable = true,
     disabled = false,
+    locked = false,
     allowBlocked = false,
     ceilingBlocked = false,
     decisionMode = 'tri-state',
@@ -44,6 +45,8 @@ to render an inert "—" cell with an explanation tooltip.
     inherited?: State;
     applicable?: boolean;
     disabled?: boolean;
+    /** Keep an inherited state visible while making the cell fully inert. */
+    locked?: boolean;
     /** Skip the allow state when a delegation ceiling makes it invalid. */
     allowBlocked?: boolean;
     /** Marks a configured allow that is dormant under a delegation ceiling. */
@@ -65,6 +68,7 @@ to render an inert "—" cell with an explanation tooltip.
   function handleClick() {
     if (
       disabled ||
+      locked ||
       updating ||
       !applicable ||
       (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
@@ -79,7 +83,7 @@ to render an inert "—" cell with an explanation tooltip.
   const visual = $derived(override !== 'neutral' ? override : inherited);
   const isOverride = $derived(override !== 'neutral');
   const interactionDisabled = $derived(
-    disabled || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
+    disabled || locked || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
   );
   const interactive = $derived(!interactionDisabled && !updating);
 
@@ -146,7 +150,7 @@ to render an inert "—" cell with an explanation tooltip.
       'relative inline-flex h-10 w-10 items-center justify-center rounded-md transition-[scale]',
       interactive ? 'cursor-pointer active:scale-[0.96]' : 'cursor-not-allowed',
       updating ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
-      interactionDisabled && !allowBlocked ? 'opacity-60' : ''
+      disabled && !locked && !allowBlocked ? 'opacity-60' : ''
     ]}
     disabled={interactionDisabled || updating}
     {title}
@@ -167,7 +171,7 @@ to render an inert "—" cell with an explanation tooltip.
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}
     </span>
-    {#if allowBlocked && interactionDisabled && !updating}
+    {#if (locked || (allowBlocked && interactionDisabled)) && !updating}
       <span
         class="iconify absolute top-0.5 right-0.5 icon-[uil--lock] h-3 w-3 text-warning"
         aria-hidden="true"

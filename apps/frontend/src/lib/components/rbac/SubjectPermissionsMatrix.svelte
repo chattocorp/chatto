@@ -69,7 +69,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
-    /** Use a two-state allowlist UI while preserving scoped deny overrides internally. */
+    /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
   } = $props();
 
@@ -161,20 +161,17 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   function cycleCell(
     scope: MatrixScope,
     permission: string,
-    parent: MatrixDecision,
+    current: MatrixDecision,
     next: CellState
   ) {
     if (decisionMode !== 'binary') {
       onCycle(scope, permission, next);
       return;
     }
-    if (next === 'allow') {
-      // When the parent already grants this permission, enabling means removing
-      // the local deny so the faded inherited state becomes visible again.
-      onCycle(scope, permission, parent === 'ALLOW' ? 'neutral' : 'allow');
-      return;
-    }
-    onCycle(scope, permission, parent === 'ALLOW' ? 'deny' : 'neutral');
+    // Binary bot edits write only an explicit grant or no decision. Older
+    // clients could create denies, so clicking one clears it instead of
+    // replacing it with a grant.
+    onCycle(scope, permission, next === 'allow' && current !== 'DENY' ? 'allow' : 'neutral');
   }
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
@@ -305,6 +302,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               {@const parent = parentDecision(scope, permission)}
               {@const configured = cell.override !== 'NONE' ? cell.override : parent}
               {@const binaryEnabled = configured === 'ALLOW'}
+              {@const inheritedBinaryGrant =
+                decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
               {@const displayOverride = forceAllow
                 ? 'allow'
                 : decisionMode === 'binary'
@@ -357,6 +356,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 inherited={displayEffective}
                 updating={isUpdating}
                 disabled={readOnly}
+                locked={inheritedBinaryGrant}
                 allowBlocked={cell.allowPermitted === false &&
                   (decisionMode !== 'binary' || parent !== 'ALLOW')}
                 ceilingBlocked={cell.allowPermitted === false &&
@@ -364,7 +364,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 {decisionMode}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
-                onCycle={(next) => cycleCell(scope, permission, parent, next)}
+                onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
               />
             {:else}
               <span class="inline-block h-10 w-10" aria-hidden="true"></span>

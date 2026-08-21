@@ -11,6 +11,7 @@ function renderCell(
     inherited: State;
     applicable: boolean;
     disabled: boolean;
+    locked: boolean;
     allowBlocked: boolean;
     ceilingBlocked: boolean;
     decisionMode: 'tri-state' | 'binary';
@@ -186,6 +187,28 @@ describe('MatrixCell', () => {
     expect(button.className).toContain('cursor-pointer');
     expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
     expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
+  });
+
+  it('keeps a locked inherited grant visible but non-interactive', () => {
+    const onCycle = vi.fn();
+    const { container } = renderCell({
+      inherited: 'allow',
+      decisionMode: 'binary',
+      locked: true,
+      onCycle
+    });
+    const button = container.querySelector('button')!;
+
+    expect(button.disabled).toBe(true);
+    expect(button.className).toContain('cursor-not-allowed');
+    expect(button.className).not.toContain('cursor-pointer');
+    expect(button.className).not.toContain('opacity-60');
+    expect(button.firstElementChild!.className).not.toContain('hover:');
+    expect(button.querySelector('[class~="bg-success/15"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+
+    button.click();
+    expect(onCycle).not.toHaveBeenCalled();
   });
 
   it('toggles only enabled and disabled in binary mode', () => {

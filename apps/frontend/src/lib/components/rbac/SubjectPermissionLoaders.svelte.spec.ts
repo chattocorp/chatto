@@ -260,7 +260,7 @@ describe('subject permission loaders', () => {
     ).toBe(true);
   });
 
-  it('round-trips a ceiling-blocked room through its inherited group grant', async () => {
+  it('keeps a ceiling-blocked inherited room inert without writing a denial', async () => {
     permissionMocks.getUserPermissionMatrix.mockResolvedValue({
       userId: 'bot-inheritance',
       applicablePermissions: ['message.post'],
@@ -291,12 +291,6 @@ describe('subject permission loaders', () => {
         }
       ]
     });
-    permissionMocks.setUserPermission.mockImplementation(
-      ({ state }: { state: 'allow' | 'deny' | 'neutral' }) =>
-        Promise.resolve({
-          decision: state === 'allow' ? 'ALLOW' : state === 'deny' ? 'DENY' : 'NONE'
-        })
-    );
     const rendered = render(UserPermissionsMatrix, {
       props: { userId: 'bot-inheritance', decisionMode: 'binary', ownerCapped: true }
     });
@@ -308,44 +302,19 @@ describe('subject permission loaders', () => {
 
     expect(room.title).toContain('Enabled (inherited)');
     expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
-    expect(room.disabled).toBe(false);
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.disabled).toBe(true);
 
     room.click();
-    await vi.waitFor(() => expect(room.title).toContain('Disabled'));
+    await settle();
 
-    expect(permissionMocks.setUserPermission).toHaveBeenNthCalledWith(
-      1,
-      expect.objectContaining({
-        userId: 'bot-inheritance',
-        scope: { tier: 'room', roomId: 'lobby' },
-        permission: 'message.post',
-        state: 'deny'
-      })
-    );
+    expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
     expect(rendered.container.querySelector('table')).toBe(table);
     expect(scopedCellButton(rendered.container, 'group:general', 'message.post')).toBe(group);
     expect(group.className).toBe(groupClassName);
-    expect(room.disabled).toBe(false);
-    expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
-
-    room.click();
-    await vi.waitFor(() => expect(room.title).toContain('Enabled (inherited)'));
-
-    expect(permissionMocks.setUserPermission).toHaveBeenNthCalledWith(
-      2,
-      expect.objectContaining({
-        userId: 'bot-inheritance',
-        scope: { tier: 'room', roomId: 'lobby' },
-        permission: 'message.post',
-        state: 'neutral'
-      })
-    );
     expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
-    expect(room.disabled).toBe(false);
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.disabled).toBe(true);
     expect(rendered.container.querySelector('table')).toBe(table);
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
   });

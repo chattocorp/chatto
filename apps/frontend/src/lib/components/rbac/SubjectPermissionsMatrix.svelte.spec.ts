@@ -154,7 +154,7 @@ it('visually hides the redundant filter label and focuses the filter with Cmd/Ct
   expect(filter.selectionEnd).toBe(7);
 });
 
-it('maps binary disable to a deny only when it must override an inherited allow', () => {
+it('locks inherited binary grants and only clears direct grants', () => {
   const onCycle = vi.fn();
   const { container } = render(SubjectPermissionsMatrix, {
     props: { data, onCycle, decisionMode: 'binary' }
@@ -164,13 +164,10 @@ it('maps binary disable to a deny only when it must override an inherited allow'
     'td[data-scope="group:general"][data-permission="message.post"] button'
   ) as HTMLButtonElement;
   expect(inheritedAllow.querySelector('[class~="bg-success/15"]')).not.toBeNull();
-  expect(inheritedAllow.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
+  expect(inheritedAllow.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(inheritedAllow.disabled).toBe(true);
   inheritedAllow.click();
-  expect(onCycle).toHaveBeenLastCalledWith(
-    expect.objectContaining({ id: 'group:general' }),
-    'message.post',
-    'deny'
-  );
+  expect(onCycle).not.toHaveBeenCalled();
 
   const directAllow = container.querySelector(
     'td[data-scope="server"][data-permission="message.post"] button'
@@ -179,6 +176,16 @@ it('maps binary disable to a deny only when it must override an inherited allow'
   expect(onCycle).toHaveBeenLastCalledWith(
     expect.objectContaining({ id: 'server' }),
     'message.post',
+    'neutral'
+  );
+
+  const legacyDeny = container.querySelector(
+    'td[data-scope="group:general"][data-permission="message.delete"] button'
+  ) as HTMLButtonElement;
+  legacyDeny.click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'group:general' }),
+    'message.delete',
     'neutral'
   );
   expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
@@ -220,7 +227,7 @@ it('renders an ungrantable binary permission as a non-interactive locked cell', 
   expect(onCycle).not.toHaveBeenCalled();
 });
 
-it('returns a room permission to its inherited group grant', async () => {
+it('locks an inherited room grant while allowing an older denial to be cleared', async () => {
   const onCycle = vi.fn();
   const roomData: MatrixData = {
     applicablePermissions: ['message.post'],
@@ -263,12 +270,10 @@ it('returns a room permission to its inherited group grant', async () => {
   expect(roomCell().title).toContain('currently unavailable');
   expect(roomCell().title).toContain("bot's owner");
   expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
+  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(roomCell().disabled).toBe(true);
   roomCell().click();
-  expect(onCycle).toHaveBeenLastCalledWith(
-    expect.objectContaining({ id: 'room:lobby' }),
-    'message.post',
-    'deny'
-  );
+  expect(onCycle).not.toHaveBeenCalled();
 
   await rendered.rerender({
     data: {
@@ -291,9 +296,6 @@ it('returns a room permission to its inherited group grant', async () => {
   await rendered.rerender({ data: roomData, onCycle, decisionMode: 'binary' });
   expect(roomCell().title).toContain('Enabled (inherited)');
   expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-  expect(
-    roomCell().querySelector('[class~="icon-[uil--exclamation-triangle]"]')
-  ).not.toBeNull();
-  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
-  expect(roomCell().disabled).toBe(false);
+  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(roomCell().disabled).toBe(true);
 });

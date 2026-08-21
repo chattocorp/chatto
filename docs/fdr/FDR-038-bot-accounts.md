@@ -51,11 +51,10 @@ exercise more authority than its human owner currently possesses.
   both the bot's allowlist and its owner's current effective permissions allow
   it at that scope.
 - The bot editor presents each applicable permission as enabled or disabled.
-  It does not expose RBAC's general three-state allow/deny/clear control. When
-  disabling a narrower scope that inherits an enabled broader scope, Chatto
-  stores a deny internally; otherwise disabling clears the explicit decision.
-  Re-enabling that narrower scope removes the internal deny and returns the
-  cell to its inherited enabled state instead of creating a redundant grant.
+  It does not expose RBAC's general three-state allow/deny/clear control and
+  never creates explicit denials. A direct grant can be cleared. An inherited
+  grant is read-only at the narrower scope and must be changed where the
+  broader grant was configured.
 - Losing one of the owner's permissions immediately removes the corresponding
   effective permission from every bot they own. A stored bot grant can become
   effective again if the owner later regains the required permission.
@@ -118,9 +117,9 @@ no ambient authority. Owners should be able to explain a bot's access from one
 explicit matrix rather than by combining roles and server defaults.
 **Tradeoff:** Owners must grant even ordinary member capabilities before a new
 bot can do useful work, and newly introduced permissions do not automatically
-become available to existing bots. The binary bot editor hides explicit deny
-as an implementation detail, even though the canonical RBAC model still uses
-one when a narrower disabled scope must override an inherited broader grant.
+become available to existing bots. Owners cannot carve out a denied narrower
+scope beneath a broader bot grant; they must clear the broader grant and add
+only the narrower grants the bot should retain.
 
 ### 4. The owner's current authority is a dynamic ceiling
 
