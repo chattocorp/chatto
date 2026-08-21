@@ -29,6 +29,8 @@ experience.
 - Signing out invalidates the current session on the server and removes its
   browser cookie. It does not sign out other browsers or relying-party
   sessions.
+- Signed-in Authling pages identify the active account by its current verified
+  email address in the shared site header.
 - Sessions remain valid across an Authling process restart when the browser
   still has its session cookie and runtime storage remains available.
 - Sessions carry the account's durable authentication version. Password reset,

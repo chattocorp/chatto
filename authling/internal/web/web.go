@@ -234,15 +234,21 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "authorization request unavailable", http.StatusBadRequest)
 			return
 		}
-		if _, err := authenticatedAccount(r, deps); errors.Is(err, sessions.ErrNotFound) {
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
 			redirect(w, r, "/login?id="+url.QueryEscape(requestID))
 			return
 		} else if err != nil {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		w.Header().Set("Content-Security-Policy", contentSecurityPolicy(consent.RedirectOrigin))
-		render(w, r, http.StatusOK, consentPage(consent))
+		render(w, r, http.StatusOK, consentPage(consent, email))
 	})
 	mux.HandleFunc("POST /oidc/consent", func(w http.ResponseWriter, r *http.Request) {
 		if deps.OIDC == nil {
@@ -293,12 +299,17 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		emailChanged := r.URL.Query().Get("email_changed") == "1"
 		passwordChanged := r.URL.Query().Get("password_changed") == "1"
-		render(w, r, http.StatusOK, accountPage(account.ID, passwordChanged, emailChanged, emailChanged && r.URL.Query().Get("email_notice_failed") == "1"))
+		render(w, r, http.StatusOK, accountPage(account.ID, email, passwordChanged, emailChanged, emailChanged && r.URL.Query().Get("email_notice_failed") == "1"))
 	})
 	mux.HandleFunc("GET /account/password", func(w http.ResponseWriter, r *http.Request) {
-		_, err := authenticatedAccount(r, deps)
+		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
@@ -311,7 +322,12 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "password change unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		render(w, r, http.StatusOK, passwordChangePage("", deps.Accounts.PasswordMinimumLength()))
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		render(w, r, http.StatusOK, passwordChangePage("", deps.Accounts.PasswordMinimumLength(), email))
 	})
 	mux.HandleFunc("POST /account/password", func(w http.ResponseWriter, r *http.Request) {
 		if deps.Accounts == nil || deps.Authentication == nil || deps.Sessions == nil {
@@ -333,29 +349,34 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, passwordChangePage("Invalid form submission.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusBadRequest, passwordChangePage("Invalid form submission.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		}
 		newPassword := r.FormValue("new_password")
 		if newPassword != r.FormValue("new_password_confirmation") {
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("New passwords do not match.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("New passwords do not match.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		}
 		changed, err := deps.Authentication.ChangePassword(r.Context(), account.ID, r.FormValue("current_password"), newPassword)
 		switch {
 		case errors.Is(err, accounts.ErrInvalidCredentials):
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("The current password is incorrect.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage("The current password is incorrect.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		case errors.Is(err, accounts.ErrInvalidPassword), errors.Is(err, accounts.ErrPasswordUnchanged):
-			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(err.Error(), deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusUnprocessableEntity, passwordChangePage(err.Error(), deps.Accounts.PasswordMinimumLength(), email))
 			return
 		case errors.Is(err, accounts.ErrCredentialChanged):
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
 			return
 		case err != nil:
-			render(w, r, http.StatusServiceUnavailable, passwordChangePage("We couldn't change your password. Please try again later.", deps.Accounts.PasswordMinimumLength()))
+			render(w, r, http.StatusServiceUnavailable, passwordChangePage("We couldn't change your password. Please try again later.", deps.Accounts.PasswordMinimumLength(), email))
 			return
 		}
 		if err := establishSessionAtAuthenticationVersion(w, r, deps, changed.ID, changed.AuthenticationVersion); err != nil {
@@ -366,7 +387,8 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		redirect(w, r, "/account?password_changed=1")
 	})
 	mux.HandleFunc("GET /account/email", func(w http.ResponseWriter, r *http.Request) {
-		if _, err := authenticatedAccount(r, deps); errors.Is(err, sessions.ErrNotFound) {
+		account, err := authenticatedAccount(r, deps)
+		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
 			return
@@ -374,7 +396,12 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		render(w, r, http.StatusOK, emailChangePage(""))
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		render(w, r, http.StatusOK, emailChangePage("", email))
 	})
 	mux.HandleFunc("POST /account/email", func(w http.ResponseWriter, r *http.Request) {
 		if deps.EmailChange == nil {
@@ -386,10 +413,6 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		r.Body = http.MaxBytesReader(w, r.Body, 64<<10)
-		if err := r.ParseForm(); err != nil {
-			render(w, r, http.StatusBadRequest, emailChangePage("Invalid form submission."))
-			return
-		}
 		account, err := authenticatedAccount(r, deps)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
@@ -400,19 +423,28 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			render(w, r, http.StatusBadRequest, emailChangePage("Invalid form submission.", email))
+			return
+		}
 		flow, err := deps.EmailChange.Start(r.Context(), account.ID, r.FormValue("password"), r.FormValue("email"))
 		switch {
 		case errors.Is(err, emailchange.ErrInvalidEmail), errors.Is(err, accounts.ErrEmailUnchanged):
-			render(w, r, http.StatusUnprocessableEntity, emailChangePage(err.Error()))
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage(err.Error(), email))
 			return
 		case errors.Is(err, accounts.ErrInvalidCredentials):
-			render(w, r, http.StatusUnprocessableEntity, emailChangePage("The current password is incorrect."))
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage("The current password is incorrect.", email))
 			return
 		case err != nil:
-			render(w, r, http.StatusServiceUnavailable, emailChangePage("We couldn't send an email change code. Please try again later."))
+			render(w, r, http.StatusServiceUnavailable, emailChangePage("We couldn't send an email change code. Please try again later.", email))
 			return
 		}
-		render(w, r, http.StatusOK, emailChangeCodePage(flow, ""))
+		render(w, r, http.StatusOK, emailChangeCodePage(flow, "", email))
 	})
 	mux.HandleFunc("POST /account/email/verify", func(w http.ResponseWriter, r *http.Request) {
 		if deps.EmailChange == nil {
@@ -438,12 +470,17 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		flow := r.FormValue("flow")
-		if err := deps.EmailChange.Verify(r.Context(), account.ID, flow, r.FormValue("code")); err != nil {
-			render(w, r, http.StatusUnprocessableEntity, emailChangeCodePage(flow, emailchange.ErrInvalidCode.Error()))
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
-		render(w, r, http.StatusOK, emailChangeConfirmPage(flow, ""))
+		flow := r.FormValue("flow")
+		if err := deps.EmailChange.Verify(r.Context(), account.ID, flow, r.FormValue("code")); err != nil {
+			render(w, r, http.StatusUnprocessableEntity, emailChangeCodePage(flow, emailchange.ErrInvalidCode.Error(), email))
+			return
+		}
+		render(w, r, http.StatusOK, emailChangeConfirmPage(flow, "", email))
 	})
 	mux.HandleFunc("POST /account/email/complete", func(w http.ResponseWriter, r *http.Request) {
 		if deps.EmailChange == nil {
@@ -469,14 +506,19 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		email, err := deps.Accounts.EmailAddress(r.Context(), account.ID)
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		flow := r.FormValue("flow")
 		completion, err := deps.EmailChange.Complete(r.Context(), account.ID, flow)
 		if errors.Is(err, emailchange.ErrInvalidFlow) {
-			render(w, r, http.StatusUnprocessableEntity, emailChangePage("We couldn't change that email address. Start again."))
+			render(w, r, http.StatusUnprocessableEntity, emailChangePage("We couldn't change that email address. Start again.", email))
 			return
 		}
 		if err != nil {
-			render(w, r, http.StatusServiceUnavailable, emailChangeConfirmPage(flow, "We couldn't change your email address. Please try again."))
+			render(w, r, http.StatusServiceUnavailable, emailChangeConfirmPage(flow, "We couldn't change your email address. Please try again.", email))
 			return
 		}
 		if err := establishSessionAtAuthenticationVersion(w, r, deps, completion.Account.ID, completion.AuthenticationVersion); err != nil {

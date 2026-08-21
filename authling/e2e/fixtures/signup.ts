@@ -19,6 +19,7 @@ export async function completeSignup(
   await page.getByLabel('Password').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
+  await expect(page.getByRole('link', { name: `Signed in as ${email}. View your account.` })).toBeVisible();
   const accountID = await page.locator('code').textContent();
   expect(accountID).toMatch(/^acc_[a-z0-9]+$/);
   return accountID ?? '';
