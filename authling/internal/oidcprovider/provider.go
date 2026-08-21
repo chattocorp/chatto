@@ -76,7 +76,7 @@ func (s *Service) Initialize(ctx context.Context) error {
 	}
 	provider, err := op.NewProvider(&op.Config{
 		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true,
-		SupportedClaims: []string{"sub"}, SupportedScopes: []string{liboidc.ScopeOpenID},
+		SupportedClaims: []string{"sub", "preferred_username", "name"}, SupportedScopes: []string{liboidc.ScopeOpenID},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
 		return fmt.Errorf("construct OIDC provider: %w", err)
@@ -246,7 +246,7 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 		"subject_types_supported":               []string{"public"},
 		"id_token_signing_alg_values_supported": []string{"RS256"},
 		"token_endpoint_auth_methods_supported": []string{"none", "client_secret_basic"},
-		"claims_supported":                      []string{"sub"},
+		"claims_supported":                      []string{"sub", "preferred_username", "name"},
 		"code_challenge_methods_supported":      []string{"S256"},
 		"request_parameter_supported":           false,
 		"client_id_metadata_document_supported": true,

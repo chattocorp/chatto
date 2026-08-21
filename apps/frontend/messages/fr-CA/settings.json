@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Affichage",
       "notifications": "Notifications",
-      "account": "Compte"
+      "account": "Compte",
+      "bots": "Robots"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Annuler",
         "deleting": "Suppression..."
+      }
+    },
+    "bots": {
+      "title": "Robots",
+      "subtitle": "Créez des comptes API et contrôlez exactement ce qu'ils peuvent faire",
+      "singular": "bot",
+      "unsupported": "Cette version du serveur ne prend pas en charge les comptes de robots.",
+      "list_title": "Comptes de robots",
+      "loading": "Chargement des robots...",
+      "empty_title": "Aucun robot pour l'instant",
+      "empty_body": "Créez un bot lorsqu'une intégration a besoin de sa propre identité et de ses propres autorisations.",
+      "create_permission_required": "Vous pouvez gérer les bots existants, mais vous n’avez pas l’autorisation d’en créer un nouveau.",
+      "create": "Créer un robot",
+      "create_title": "Créer un compte de robot",
+      "create_failed": "Échec de la création du bot",
+      "created": "Bot créé",
+      "edit": "Modifier",
+      "edit_title": "Modifier le compte du robot",
+      "updated": "Bot mis à jour",
+      "update_failed": "Échec de la mise à jour du bot",
+      "update_conflict": "Quelqu’un d’autre a mis à jour ce robot. Recharge la page et réessaie.",
+      "username": "Nom d'utilisateur",
+      "username_hint": "Les noms d'utilisateur des robots doivent se terminer par _bot.",
+      "display_name": "Nom d'affichage",
+      "owner": "Propriétaire",
+      "api_key_title": "Enregistrer cette clé API",
+      "api_key_warning": "Cette clé n'est affichée qu'une seule fois. Conservez-le dans un endroit sécurisé avant de fermer cette fenêtre.",
+      "key_created": "Clé API créée",
+      "key_rotated_at": "Dernière rotation",
+      "key_copied": "Clé API copiée",
+      "rotate_key": "Clé de rotation",
+      "rotate_title": "Rotation de la clé API",
+      "rotate_warning": "La clé actuelle cessera de fonctionner immédiatement. Toute intégration l'utilisant doit être mise à jour.",
+      "key_rotated": "Clé API alternée",
+      "rotate_failed": "Échec de la rotation de la clé API",
+      "delete_title": "Supprimer le robot",
+      "delete_warning": "Supprimer {name} ? Sa clé API cessera de fonctionner immédiatement et le compte ne pourra pas être récupéré.",
+      "deleted": "Bot supprimé",
+      "delete_failed": "Échec de la suppression du bot",
+      "permissions": {
+        "owner_ceiling": "Choisissez ce que ce bot peut faire. Vous ne pouvez lui accorder que les autorisations dont vous disposez vous-même. Si vous perdez une autorisation, le bot ne pourra plus l’utiliser non plus.",
+        "save_failed": "Échec de la mise à jour de l'autorisation du bot"
       }
     }
   }

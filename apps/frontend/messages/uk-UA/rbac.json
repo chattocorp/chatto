@@ -51,6 +51,14 @@
       "filter_label": "Фільтрувати дозволи",
       "filter_placeholder": "Фільтрувати дозволи...",
       "no_filter_matches": "Жоден дозвіл не відповідає цьому фільтру.",
+      "binary": {
+        "aria": "Стан дозволу {permission} для {subject} в області {scope}: {state}",
+        "enabled": "Увімкнено",
+        "disabled": "Вимкнено",
+        "inherited": "Успадковано з ширшої області",
+        "unavailable": "Наразі недоступно",
+        "owner_ceiling": "Не можна надати дозвіл {permission} в області {scope}, оскільки власник бота наразі його не має."
+      },
       "categories": {
         "space": {
           "title": "Дозволи сервера",

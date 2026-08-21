@@ -32,6 +32,15 @@ const mocks = vi.hoisted(() => ({
   scopeCurrent: true
 }));
 
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
+}));
+
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     get connection() {
@@ -241,6 +250,14 @@ describe('RoomMembersPanel', () => {
     await vi.waitFor(() =>
       expect(mocks.toastSuccess).toHaveBeenCalledWith('Removed Alice from the room')
     );
+  });
+
+  it('marks bots in room membership management', async () => {
+    setup({ members: [{ ...member('helper_bot', 'Helper Bot'), isBot: true }] });
+    const { container } = renderPanel();
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
   });
 
   it('hides editing controls without room.manage permission', async () => {

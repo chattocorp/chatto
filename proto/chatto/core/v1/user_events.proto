@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // USER LIFECYCLE EVENTS (server-scoped)
 //
 // Top-level Event oneof tags owned by this file:
-//   - 700-718: durable user aggregate events on evt.user.{userId}.*
+//   - 700-720: durable user aggregate events on evt.user.{userId}.*
 //   - 1010-1015: live-only user lifecycle and preference broadcasts
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
@@ -68,8 +68,25 @@ message EncryptedUserString {
 
 message UserAccountCreatedEvent {
   string user_id = 1;
+  bool is_bot = 2;
+  // Required for bot accounts and empty for human accounts.
+  string bot_owner_user_id = 3;
   EncryptedUserString encrypted_login = 10;
   EncryptedUserString encrypted_display_name = 11;
+}
+
+// BotApiKeyCreatedEvent records the verifier for a bot's initial API key. The
+// raw bearer credential is returned once and is never persisted.
+message BotApiKeyCreatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
+}
+
+// BotApiKeyRotatedEvent replaces the verifier for a bot's sole active API key.
+// Historical verifiers remain audit history but are never accepted.
+message BotApiKeyRotatedEvent {
+  string user_id = 1;
+  bytes verifier = 2;
 }
 
 message UserLoginChangedEvent {

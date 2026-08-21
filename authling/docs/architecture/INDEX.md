@@ -97,11 +97,12 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 
 | Event | Subject | Aggregate | Contents |
 |-------|---------|-----------|----------|
-| `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID and envelope creation time |
+| `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID, envelope creation time, and encrypted local credential fields including the preferred username |
 | `PasswordResetRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-event IDs; the envelope ID identifies the audit request |
 | `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, prior-credential, ceremony, and optional reset-request references plus the replacement encrypted password verifier |
 | `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
+| `ProfileUpdatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-key references plus replacement encrypted preferred-username and full-name fields |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
 | `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; client display snapshot; granted scopes |
 | `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
@@ -126,7 +127,8 @@ The account model consumes `authling.evt.account.*` and
 During replay it resolves and decrypts local credentials and rebuilds a keyed
 digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
-verifiers. The model retains bounded password-reset request correlations so
+verifiers. It retains encrypted profile fields and decrypts them only at the
+account-service read boundary. The model retains bounded password-reset request correlations so
 replay can validate recovery-produced password changes. Password changes
 validate their declared recovery or signed-in ceremony, replace the current
 encrypted verifier, and advance a durable account authentication version. The
@@ -297,8 +299,8 @@ winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
 any prepared successor and unexpired predecessor. JWKS responses have a
 five-minute public cache lifetime. Opaque access-token encryption uses a
 separate stable symmetric key, so signing-key rotation does not invalidate
-UserInfo access. The initial UserInfo response contains only the account ID as
-`sub`.
+UserInfo access. ID tokens and UserInfo return the account ID as `sub` and non-empty,
+encrypted-at-rest profile hints as `preferred_username` and `name`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
 password reset, signed-in password change, and email change also cap request

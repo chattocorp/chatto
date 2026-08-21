@@ -156,10 +156,14 @@ func (c *ChattoCore) GetServerMembers(ctx context.Context, search string, limit,
 			c.logger.Warn("Failed to get user roles for server member listing", "user_id", user.GetId(), "error", err)
 			assigned = nil
 		}
+		var roles []string
+		if !user.GetIsBot() {
+			roles = append([]string{RoleEveryone}, assigned...)
+		}
 		result = append(result, ServerMemberWithRoles{
 			UserID: user.GetId(),
 			User:   user,
-			Roles:  append([]string{RoleEveryone}, assigned...),
+			Roles:  roles,
 		})
 	}
 

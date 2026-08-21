@@ -84,6 +84,24 @@ describe('createExternalIdentityFlowAPI', () => {
     });
     expect(mocks.getPendingExternalIdentity).toHaveBeenCalledWith({ token: 'token-1' });
   });
+
+  it('sends the editable username and display name when creating an account', async () => {
+    mocks.createExternalIdentityAccount.mockResolvedValue({
+      userId: 'user-1',
+      login: 'octo',
+      token: 'session-token'
+    });
+    const api = createExternalIdentityFlowAPI();
+
+    await expect(
+      api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
+    ).resolves.toEqual({ userId: 'user-1', login: 'octo', token: 'session-token' });
+    expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith({
+      token: 'flow-token',
+      login: 'octo',
+      displayName: 'Octo Person'
+    });
+  });
 });
 
 describe('createExternalIdentityAPI', () => {

@@ -201,6 +201,12 @@ func (p *UserProjection) Restore(data []byte) error {
 			u.verifiedEmail[email.GetDigest()] = projectedVerifiedEmail{pii: pii, verifiedAt: email.GetVerifiedAt().AsTime()}
 		}
 		restored.users[userID] = u
+		if u.user != nil && u.user.GetIsBot() && u.user.GetBotOwnerUserId() != "" && active {
+			if restored.ownerBots[u.user.GetBotOwnerUserId()] == nil {
+				restored.ownerBots[u.user.GetBotOwnerUserId()] = make(map[string]struct{})
+			}
+			restored.ownerBots[u.user.GetBotOwnerUserId()][userID] = struct{}{}
+		}
 		if entry.GetAvatar() != nil {
 			restored.replaceAvatarLocked(u, proto.Clone(entry.GetAvatar()).(*corev1.AssetRecord))
 		}
@@ -221,7 +227,7 @@ func (p *UserProjection) Restore(data []byte) error {
 	}
 
 	p.Lock()
-	p.users, p.loginIndex, p.emailIndex, p.avatarIndex = restored.users, restored.loginIndex, restored.emailIndex, restored.avatarIndex
+	p.users, p.loginIndex, p.emailIndex, p.avatarIndex, p.ownerBots = restored.users, restored.loginIndex, restored.emailIndex, restored.avatarIndex, restored.ownerBots
 	p.replayGuard, p.dekEvents = restored.replayGuard, restored.dekEvents
 	p.Unlock()
 	return nil

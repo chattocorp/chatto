@@ -66,6 +66,9 @@ var ErrCustomStatusExpiryInPast = fmt.Errorf("custom status expiry must be in th
 // UpdateUserDisplayName updates a user's display name.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserDisplayName(ctx context.Context, userID, displayName string) (*corev1.User, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	return c.updateUserDisplayNameAs(ctx, userID, userID, displayName)
 }
 
@@ -133,10 +136,10 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 // single admin-authored mutation. When both fields are changed, both durable
 // events are appended atomically in one batch.
 func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName *string) (*corev1.User, error) {
-	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName)
+	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, true)
 }
 
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string) (*corev1.User, error) {
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string, retryConflicts bool) (*corev1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -147,8 +150,14 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	var loginNeedsMentionCheck bool
 	if login != nil {
 		nextLogin = strings.TrimSpace(*login)
-		if err := ValidateLogin(nextLogin); err != nil {
-			return nil, err
+		var validationErr error
+		if user.GetIsBot() {
+			validationErr = ValidateBotLogin(nextLogin)
+		} else {
+			validationErr = ValidateHumanLogin(nextLogin)
+		}
+		if validationErr != nil {
+			return nil, validationErr
 		}
 		loginChanged = user.GetLogin() != nextLogin
 		loginNeedsMentionCheck = loginChanged && !strings.EqualFold(user.GetLogin(), nextLogin)
@@ -211,14 +220,22 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	}
 	if len(entries) > 0 {
 		if loginNeedsMentionCheck {
-			_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			appendBatch := c.appendUserBatchWithMentionableCheck
+			if !retryConflicts {
+				appendBatch = c.appendUserBatchWithMentionableCheckOnce
+			}
+			_, err = appendBatch(ctx, userID, entries, func() error {
 				if err := checkUserExists(); err != nil {
 					return err
 				}
 				return c.requireLoginMentionHandleAvailable(nextLogin)
 			})
 		} else {
-			_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), checkUserExists)
+			appendBatch := c.appendUserBatch
+			if !retryConflicts {
+				appendBatch = c.appendUserBatchOnce
+			}
+			_, err = appendBatch(ctx, userID, entries, "", checkUserExists)
 		}
 		if err != nil {
 			if errors.Is(err, ErrLoginAlreadyTaken) {
@@ -251,11 +268,17 @@ func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID 
 	if input.Login == nil && input.DisplayName == nil {
 		return nil, fmt.Errorf("%w: at least one of login or display_name must be provided", ErrInvalidArgument)
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName)
+	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
+		return nil, err
+	}
+	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, true)
 }
 
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {
 	if err := c.requireCanAdminManageOtherUser(ctx, actorID, targetUserID); err != nil {
+		return err
+	}
+	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
 		return err
 	}
 	return c.ClearLoginChangeCooldownAs(ctx, actorID, targetUserID)
@@ -293,6 +316,9 @@ func userLoginChangedAtKey(userID string) string {
 // UpdateUserLogin changes a user's login/username with 30-day cooldown enforcement.
 // Authorization: Caller should verify the actor is the user being updated.
 func (c *ChattoCore) UpdateUserLogin(ctx context.Context, userID, newLogin string) (*corev1.User, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	return c.applyLoginChange(ctx, userID, userID, newLogin, true)
 }
 
@@ -313,16 +339,20 @@ func (c *ChattoCore) AdminUpdateUserLogin(ctx context.Context, userID, newLogin 
 // true, the 30-day cooldown is checked before changing and a new timestamp is
 // recorded after a successful change.
 func (c *ChattoCore) applyLoginChange(ctx context.Context, actorID, userID, newLogin string, enforceCooldown bool) (*corev1.User, error) {
-	// Trim and validate (preserve original casing)
+	// Trim (preserve original casing).
 	newLogin = strings.TrimSpace(newLogin)
-	if err := ValidateLogin(newLogin); err != nil {
-		return nil, err
-	}
 
 	// Get current user
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
+	}
+	if user.GetIsBot() {
+		if err := ValidateBotLogin(newLogin); err != nil {
+			return nil, err
+		}
+	} else if err := ValidateHumanLogin(newLogin); err != nil {
+		return nil, err
 	}
 
 	// Check if unchanged (exact match — case-only changes are allowed)
@@ -444,6 +474,9 @@ func (c *ChattoCore) ClearLoginChangeCooldownAs(ctx context.Context, actorID, us
 // Expiry is modeled on the event itself; readers hide expired statuses without
 // writing auxiliary runtime state.
 func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, text string, expiresAt *time.Time) (*corev1.User, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	emoji = strings.TrimSpace(emoji)
 	text = strings.TrimSpace(text)
 	if emoji == "" {
@@ -492,6 +525,9 @@ func (c *ChattoCore) SetUserCustomStatus(ctx context.Context, userID, emoji, tex
 // ClearUserCustomStatus removes a user's durable custom status. It is
 // idempotent and still records a clear event for explicit user action history.
 func (c *ChattoCore) ClearUserCustomStatus(ctx context.Context, userID string) (*corev1.User, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return nil, err
+	}
 	if _, err := c.GetUser(ctx, userID); err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
 	}

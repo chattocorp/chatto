@@ -1,9 +1,9 @@
 <!--
 @component
 
-Per-user permission matrix loader. Owns the ConnectRPC query for the user's
-matrix and the mutation dispatch for cell clicks; delegates rendering to
-`SubjectPermissionsMatrix`.
+Per-user permission matrix loader for human and bot accounts. Owns the
+canonical ConnectRPC query and mutation dispatch for cell clicks; delegates
+rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
@@ -20,7 +20,8 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
-    type CellState
+    type CellState,
+    type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
@@ -28,7 +29,17 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
 
   type Matrix = MatrixData & { userId: string };
 
-  let { userId }: { userId: string } = $props();
+  let {
+    userId,
+    subjectKind = 'user',
+    ownerCapped = false,
+    decisionMode = 'tri-state'
+  }: {
+    userId: string;
+    subjectKind?: string;
+    ownerCapped?: boolean;
+    decisionMode?: DecisionMode;
+  } = $props();
 
   const serverScope = useServerScope();
 
@@ -112,13 +123,37 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
       return;
     }
 
-    // Reload the matrix so both the override AND effective decisions stay
-    // consistent — a server-scope grant flows into rooms via inheritance.
-    await queryClient.invalidateQueries({ queryKey, exact: true });
+    if (result.update) {
+      const decision = result.update.decision;
+      queryClient.setQueryData<Matrix | null>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              cells: current.cells.map((cell) =>
+                cell.scopeId === scope.id && cell.permission === permission
+                  ? { ...cell, override: decision }
+                  : cell
+              )
+            }
+          : current
+      );
+    }
+    void queryClient.invalidateQueries({
+      queryKey,
+      exact: true,
+      // The binary matrix derives inheritance from direct decisions, so its
+      // mutation response is enough to update the active view. Mark it stale
+      // for the next mount without replacing the whole visible matrix now.
+      refetchType: decisionMode === 'binary' ? 'none' : 'active'
+    });
     if (!serverScope.isCurrent()) return;
     if (mutationGeneration === generation) updatingKey = null;
   }
 </script>
+
+{#if ownerCapped}
+  <Hint tone="info">{m('settings.bots.permissions.owner_ceiling')}</Hint>
+{/if}
 
 {#if visibleMutationError || loadError}
   <Hint tone="danger">{visibleMutationError ?? loadError}</Hint>
@@ -133,7 +168,8 @@ matrix and the mutation dispatch for cell clicks; delegates rendering to
     {data}
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
-    subjectKind="user"
-    readOnly={visibleUpdatingKey !== null}
+    {subjectKind}
+    readOnly={decisionMode === 'tri-state' && visibleUpdatingKey !== null}
+    {decisionMode}
   />
 {/if}

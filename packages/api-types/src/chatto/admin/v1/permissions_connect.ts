@@ -52,7 +52,8 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Gets one user's full permission matrix. Requires user.manage-permissions.
+     * Gets one user's full permission matrix. Human targets require
+     * user.manage-permissions; bot targets require ownership or bot.manage.
      * Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.GetUserPermissionMatrix
@@ -64,8 +65,9 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists one user's permission decisions as resource-oriented rows. Requires
-     * user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+     * Lists one user's permission decisions as resource-oriented rows. Human
+     * targets require user.manage-permissions; bot targets require ownership or
+     * bot.manage. Returns NOT_FOUND when the user does not exist.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.ListUserPermissionDecisions
      */
@@ -99,7 +101,9 @@ export const AdminPermissionService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Sets one user permission decision. Requires user.manage-permissions.
+     * Sets one user permission decision. Human targets require
+     * user.manage-permissions; bot targets require ownership or bot.manage and
+     * accept only allow or clear within the bot owner's current authority.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission
      */

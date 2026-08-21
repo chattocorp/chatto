@@ -45,6 +45,11 @@ export class ServerAdminPage {
     return this.adminLinks.getByRole('link', { name: 'Members', exact: true });
   }
 
+  /** Sidebar navigation item for bot accounts. */
+  get botsNavItem(): Locator {
+    return this.adminLinks.getByRole('link', { name: 'Bots', exact: true });
+  }
+
   /** Access Denied heading */
   get accessDeniedHeading(): Locator {
     return this.page.getByText('Access Denied', { exact: true });
@@ -278,13 +283,6 @@ export class ServerAdminPage {
   }
 
   /**
-   * Assert the admin link in sidebar is NOT visible.
-   */
-  async expectAdminLinkNotVisible(): Promise<void> {
-    await expect(this.adminLink).not.toBeVisible();
-  }
-
-  /**
    * Assert that the name input has the expected value.
    */
   async expectName(name: string): Promise<void> {
@@ -461,6 +459,11 @@ export class ServerAdminPage {
    */
   async expectMembersNavVisible(): Promise<void> {
     await expect(this.membersNavItem).toBeVisible();
+  }
+
+  /** Assert that bot administration is visible in the admin sidebar. */
+  async expectBotsNavVisible(): Promise<void> {
+    await expect(this.botsNavItem).toBeVisible();
   }
 
   /**

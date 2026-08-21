@@ -909,6 +909,103 @@ func TestBearerPresentedCredentialPreservesStorageFailure(t *testing.T) {
 	}
 }
 
+func TestBearerPresentedCredentialAuthenticatesBotAPIKeys(t *testing.T) {
+	s, _ := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "bot-http-owner", "Bot HTTP Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	bot, err := s.core.CreateBot(ctx, owner.GetId(), "http_bot", "HTTP Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+
+	credential, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey)
+	if err != nil || !ok {
+		t.Fatalf("bearerPresentedCredential = %+v, %v, %v", credential, ok, err)
+	}
+	if credential.user.GetId() != bot.User.GetId() || credential.auth.Kind != authctx.RuntimeCredentialKindBotAPIKey {
+		t.Fatalf("bot credential = %+v", credential)
+	}
+	if credential.auth.Handle != bot.User.GetId() {
+		t.Fatalf("expected non-secret bot credential handle, got %q", credential.auth.Handle)
+	}
+
+	rotated, err := s.core.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
+		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, bot.APIKey); err != nil || ok {
+		t.Fatalf("old bot key authenticated after rotation: ok=%v err=%v", ok, err)
+	}
+	if _, ok, err := s.bearerPresentedCredential(ctx, rotated.APIKey); err != nil || !ok {
+		t.Fatalf("rotated bot key did not authenticate: ok=%v err=%v", ok, err)
+	}
+}
+
+func TestConnectBotAPIKeyAuthenticatesPublicAPIRequests(t *testing.T) {
+	s, ts := setupConnectTestServer(t, config.AuthConfig{})
+	ctx := context.Background()
+	owner, err := s.core.CreateUser(ctx, core.SystemActorID, "bot-api-owner", "Bot API Owner", "password")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	ownerToken, err := s.core.CreateAuthToken(ctx, owner.GetId())
+	if err != nil {
+		t.Fatalf("CreateAuthToken owner: %v", err)
+	}
+
+	botClient := apiv1connect.NewBotServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	createReq := connect.NewRequest(&apiv1.CreateBotRequest{
+		Login:       "api_request_bot",
+		DisplayName: "API Request Bot",
+	})
+	createReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	created, err := botClient.CreateBot(ctx, createReq)
+	if err != nil {
+		t.Fatalf("CreateBot over Connect: %v", err)
+	}
+	bot := created.Msg.GetBot().GetUser()
+	apiKey := created.Msg.GetApiKey()
+	if bot.GetId() == "" || !bot.GetIsBot() || apiKey == "" {
+		t.Fatalf("created bot response = %+v", created.Msg)
+	}
+
+	viewerClient := apiv1connect.NewViewerServiceClient(ts.Client(), ts.URL+connectAPIPrefix)
+	getViewer := func(key string) (*connect.Response[apiv1.GetViewerResponse], error) {
+		req := connect.NewRequest(&apiv1.GetViewerRequest{})
+		req.Header().Set("Authorization", "Bearer "+key)
+		return viewerClient.GetViewer(ctx, req)
+	}
+	viewer, err := getViewer(apiKey)
+	if err != nil {
+		t.Fatalf("GetViewer with bot API key: %v", err)
+	}
+	if got := viewer.Msg.GetUser().GetProfile(); got.GetId() != bot.GetId() || !got.GetIsBot() {
+		t.Fatalf("bot API viewer profile = %+v, want bot %q", got, bot.GetId())
+	}
+
+	listReq := connect.NewRequest(&apiv1.ListBotsRequest{})
+	listReq.Header().Set("Authorization", "Bearer "+apiKey)
+	if _, err := botClient.ListBots(ctx, listReq); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("ListBots with bot API key code = %v, want failed precondition", connect.CodeOf(err))
+	}
+
+	rotateReq := connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetId()})
+	rotateReq.Header().Set("Authorization", "Bearer "+ownerToken)
+	rotated, err := botClient.RotateBotApiKey(ctx, rotateReq)
+	if err != nil {
+		t.Fatalf("RotateBotApiKey over Connect: %v", err)
+	}
+	if _, err := getViewer(apiKey); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("GetViewer with rotated bot API key code = %v, want unauthenticated", connect.CodeOf(err))
+	}
+	if _, err := getViewer(rotated.Msg.GetApiKey()); err != nil {
+		t.Fatalf("GetViewer with new bot API key: %v", err)
+	}
+}
+
 func TestConnectRequestBaseURLTrustModel(t *testing.T) {
 	t.Run("uses configured public URL before request headers", func(t *testing.T) {
 		s := &HTTPServer{config: config.ChattoConfig{

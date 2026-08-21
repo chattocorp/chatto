@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Displej",
       "notifications": "Oznámení",
-      "account": "účet"
+      "account": "účet",
+      "bots": "Boti"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Zrušit",
         "deleting": "Mazání..."
+      }
+    },
+    "bots": {
+      "title": "Boti",
+      "subtitle": "Vytvářejte účty API a řiďte, co přesně mohou dělat",
+      "singular": "bot",
+      "unsupported": "Tato verze serveru nepodporuje účty botů.",
+      "list_title": "Účty robotů",
+      "loading": "Načítání robotů...",
+      "empty_title": "Zatím žádní roboti",
+      "empty_body": "Vytvořte robota, když integrace potřebuje vlastní identitu a oprávnění.",
+      "create_permission_required": "Můžete spravovat existující roboty, ale nemáte oprávnění vytvořit nového.",
+      "create": "Vytvořit robota",
+      "create_title": "Vytvořit účet robota",
+      "create_failed": "Nepodařilo se vytvořit robota",
+      "created": "Robot vytvořen",
+      "edit": "Upravit",
+      "edit_title": "Upravit účet robota",
+      "updated": "Robot aktualizován",
+      "update_failed": "Nepodařilo se aktualizovat robot",
+      "update_conflict": "Tohoto bota mezitím aktualizoval někdo jiný. Načtěte stránku znovu a zkuste to znovu.",
+      "username": "Uživatelské jméno",
+      "username_hint": "Uživatelská jména robotů musí končit _bot.",
+      "display_name": "Zobrazovaný název",
+      "owner": "Vlastník",
+      "api_key_title": "Uložit tento klíč API",
+      "api_key_warning": "Tento klíč se zobrazuje pouze jednou. Než toto okno zavřete, uložte jej na bezpečném místě.",
+      "key_created": "Vytvořen klíč API",
+      "key_rotated_at": "Poslední otočení",
+      "key_copied": "Klíč API zkopírován",
+      "rotate_key": "Klíč pro otočení",
+      "rotate_title": "Otočit klíč API",
+      "rotate_warning": "Aktuální klíč okamžitě přestane fungovat. Jakákoli integrace, která jej používá, musí být aktualizována.",
+      "key_rotated": "Klíč API otočen",
+      "rotate_failed": "Nepodařilo se otočit klíč API",
+      "delete_title": "Smazat robota",
+      "delete_warning": "Smazat {name}? Jeho klíč API okamžitě přestane fungovat a účet nelze obnovit.",
+      "deleted": "Bobot byl smazán",
+      "delete_failed": "Smazání robota se nezdařilo",
+      "permissions": {
+        "owner_ceiling": "Vyberte, co tento bot smí dělat. Můžete mu udělit jen oprávnění, která sami máte. Pokud o některé oprávnění přijdete, nebude ho moci používat ani bot.",
+        "save_failed": "Nepodařilo se aktualizovat oprávnění robota"
       }
     }
   }

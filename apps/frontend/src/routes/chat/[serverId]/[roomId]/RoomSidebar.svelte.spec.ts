@@ -603,6 +603,18 @@ describe('RoomSidebar', () => {
     expect(window.getComputedStyle(login).direction).toBe('ltr');
   });
 
+  it('marks bot accounts in the room member list', async () => {
+    mockRoomMembers([{ ...member(1), login: 'helper_bot', isBot: true }]);
+
+    const { container } = render(RoomSidebarTestHarness, {
+      props: { roomData: roomData([], 0, false) }
+    });
+
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    });
+  });
+
   it('renders deleted members with an italicized placeholder', async () => {
     mockRoomMembers([{ ...member(1), deleted: true }]);
 

@@ -51,6 +51,14 @@
       "filter_label": "Machtigingen filteren",
       "filter_placeholder": "Machtigingen filteren...",
       "no_filter_matches": "Geen machtigingen komen overeen met dit filter.",
+      "binary": {
+        "aria": "{permission} is {state} voor {subject} in {scope}",
+        "enabled": "ingeschakeld",
+        "disabled": "uitgeschakeld",
+        "inherited": "Overgenomen van een breder bereik",
+        "unavailable": "Momenteel niet beschikbaar",
+        "owner_ceiling": "Je kunt {permission} niet toekennen in {scope}, omdat de eigenaar van de bot deze machtiging momenteel niet heeft."
+      },
       "categories": {
         "space": {
           "title": "Serverrechten",

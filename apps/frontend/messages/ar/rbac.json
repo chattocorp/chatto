@@ -51,6 +51,14 @@
       "filter_label": "أذونات التصفية",
       "filter_placeholder": "تصفية الأذونات...",
       "no_filter_matches": "لا توجد أذونات تطابق هذا المرشح.",
+      "binary": {
+        "aria": "حالة {permission} لـ {subject} في {scope}: {state}",
+        "enabled": "مفعّل",
+        "disabled": "غير مفعّل",
+        "inherited": "موروث من نطاق أوسع",
+        "unavailable": "غير متاح حاليًا",
+        "owner_ceiling": "لا يمكنك منح {permission} في {scope} لأن مالك الروبوت لا يملكه حاليًا."
+      },
       "categories": {
         "space": {
           "title": "أذونات الخادم",

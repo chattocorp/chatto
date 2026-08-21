@@ -62,6 +62,7 @@ describe('createMemberDirectoryAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             deleted: false,
+            isBot: true,
             avatarUrl: 'https://cdn/avatar.webp',
             presenceStatus: APIPresenceStatus.AWAY,
             customStatus: {
@@ -90,6 +91,7 @@ describe('createMemberDirectoryAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           deleted: false,
+          isBot: true,
           avatarUrl: 'https://cdn/avatar.webp',
           presenceStatus: PresenceStatus.AWAY,
           customStatus: {
@@ -186,6 +188,7 @@ describe('createMemberDirectoryAPI', () => {
           login: 'bob',
           displayName: 'Bob',
           deleted: false,
+          isBot: false,
           avatarUrl: null,
           presenceStatus: PresenceStatus.DO_NOT_DISTURB,
           customStatus: null,

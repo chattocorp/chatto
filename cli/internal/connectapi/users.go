@@ -35,6 +35,7 @@ func userSummaryWithPresence(ctx context.Context, api *API, user *corev1.User, a
 		Deleted:        user.GetDeleted(),
 		PresenceStatus: corePresenceStatusToAPI(presence),
 		CustomStatus:   coreCustomStatusToAPI(user.GetCustomStatus()),
+		IsBot:          user.GetIsBot(),
 	}
 	avatarURL, err := userAvatarURL(ctx, api, user.GetId(), avatar)
 	if err != nil {

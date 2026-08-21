@@ -6,7 +6,8 @@
       "profile": "プロフィール",
       "display": "ディスプレイ",
       "notifications": "通知",
-      "account": "アカウント"
+      "account": "アカウント",
+      "bots": "ボット"
     },
     "profile": {
       "title": "プロフィール",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "キャンセル",
         "deleting": "削除中..."
+      }
+    },
+    "bots": {
+      "title": "ボット",
+      "subtitle": "API アカウントを作成し、そのアカウントで実行できる内容を正確に制御します",
+      "singular": "ボット",
+      "unsupported": "このサーバーのバージョンはボット アカウントをサポートしていません。",
+      "list_title": "ボット アカウント",
+      "loading": "ボットを読み込んでいます...",
+      "empty_title": "ボットはまだありません",
+      "empty_body": "統合に独自の ID と権限が必要な場合は、ボットを作成します。",
+      "create_permission_required": "既存のボットは管理できますが、新しいボットを作成する権限がありません。",
+      "create": "ボットの作成",
+      "create_title": "ボット アカウントの作成",
+      "create_failed": "ボットの作成に失敗しました",
+      "created": "ボットが作成されました",
+      "edit": "編集",
+      "edit_title": "ボット アカウントを編集",
+      "updated": "ボットが更新されました",
+      "update_failed": "ボットを更新できませんでした",
+      "update_conflict": "別のユーザーがこのボットを更新しました。ページを再読み込みして、もう一度お試しください。",
+      "username": "ユーザー名",
+      "username_hint": "ボットのユーザー名は _bot で終わる必要があります。",
+      "display_name": "表示名",
+      "owner": "所有者",
+      "api_key_title": "この API キーを保存",
+      "api_key_warning": "このキーは 1 回だけ表示されます。このウィンドウを閉じる前に、安全な場所に保管してください。",
+      "key_created": "API キーが作成されました",
+      "key_rotated_at": "最後にローテーションした日",
+      "key_copied": "API キーがコピーされました",
+      "rotate_key": "回転キー",
+      "rotate_title": "API キーをローテーション",
+      "rotate_warning": "現在のキーはすぐに動作を停止します。これを使用する統合は更新する必要があります。",
+      "key_rotated": "API キーがローテーションされました",
+      "rotate_failed": "API キーのローテーションに失敗しました",
+      "delete_title": "ボットを削除",
+      "delete_warning": "{name} を削除しますか?その API キーはすぐに動作を停止し、アカウントは回復できなくなります。",
+      "deleted": "ボットが削除されました",
+      "delete_failed": "ボットの削除に失敗しました",
+      "permissions": {
+        "owner_ceiling": "このボットに許可する操作を選んでください。自分が持っている権限だけを付与できます。あなたが権限を失うと、ボットもその権限を使用できなくなります。",
+        "save_failed": "ボットの権限を更新できませんでした"
       }
     }
   }

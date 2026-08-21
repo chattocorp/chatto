@@ -108,10 +108,11 @@ type Storage struct {
 	clients *Resolver
 	issuer  *issuer.Service
 	now     func() time.Time
+	profile func(context.Context, string) (string, string, error)
 }
 
-func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service) *Storage {
-	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now}
+func NewStorage(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, clients *Resolver, issuerService *issuer.Service, profile func(context.Context, string) (string, string, error)) *Storage {
+	return &Storage{kv: kv, js: js, key: append([]byte(nil), key...), clients: clients, issuer: issuerService, now: time.Now, profile: profile}
 }
 
 func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRequest, _ string) (op.AuthRequest, error) {
@@ -342,7 +343,17 @@ func (s *Storage) GetClientByClientID(ctx context.Context, id string) (op.Client
 func (s *Storage) AuthorizeClientIDSecret(ctx context.Context, id, secret string) error {
 	return s.clients.AuthorizeSecret(ctx, id, secret)
 }
-func (*Storage) SetUserinfoFromScopes(context.Context, *liboidc.UserInfo, string, string, []string) error {
+func (s *Storage) SetUserinfoFromScopes(ctx context.Context, info *liboidc.UserInfo, subject, _ string, _ []string) error {
+	info.Subject = subject
+	if s.profile == nil {
+		return nil
+	}
+	username, name, err := s.profile(ctx, subject)
+	if err != nil {
+		return err
+	}
+	info.PreferredUsername = username
+	info.Name = name
 	return nil
 }
 func (s *Storage) SetUserinfoFromToken(ctx context.Context, info *liboidc.UserInfo, tokenID, subject, _ string) error {
@@ -351,13 +362,38 @@ func (s *Storage) SetUserinfoFromToken(ctx context.Context, info *liboidc.UserIn
 		return errOIDCStateNotFound
 	}
 	info.Subject = subject
+	if s.profile != nil {
+		username, name, err := s.profile(ctx, subject)
+		if err != nil {
+			return err
+		}
+		info.PreferredUsername = username
+		info.Name = name
+	}
 	return nil
 }
 func (*Storage) SetIntrospectionFromToken(context.Context, *liboidc.IntrospectionResponse, string, string, string) error {
 	return errOIDCStateNotFound
 }
-func (*Storage) GetPrivateClaimsFromScopes(context.Context, string, string, []string) (map[string]any, error) {
-	return map[string]any{}, nil
+func (s *Storage) GetPrivateClaimsFromScopes(ctx context.Context, subject, _ string, _ []string) (map[string]any, error) {
+	if s.profile == nil {
+		return map[string]any{}, nil
+	}
+	username, name, err := s.profile(ctx, subject)
+	if err != nil {
+		return nil, err
+	}
+	claims := map[string]any{}
+	if username != "" {
+		claims["preferred_username"] = username
+	}
+	if name != "" {
+		claims["name"] = name
+	}
+	if len(claims) == 0 {
+		return map[string]any{}, nil
+	}
+	return claims, nil
 }
 func (*Storage) GetKeyByIDAndClientID(context.Context, string, string) (*jose.JSONWebKey, error) {
 	return nil, errOIDCStateNotFound

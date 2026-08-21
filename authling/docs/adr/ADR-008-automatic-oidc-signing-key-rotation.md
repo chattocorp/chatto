@@ -88,4 +88,4 @@ an incident procedure.
 - [ADR-001: Build Authling on an Event-Sourced NATS Architecture](ADR-001-event-sourced-nats-architecture.md)
 - [ADR-002: Protect User Data with Hierarchical Keys and Cryptographic Erasure](ADR-002-hierarchical-keys-and-cryptographic-erasure.md)
 - [ADR-004: Provide OpenID Connect with CIMD-Native Client Discovery](ADR-004-cimd-native-openid-provider.md)
-- [FDR-011: Automatic OIDC Signing-Key Rotation](../fdr/FDR-011-automatic-oidc-signing-key-rotation.md)
+- [FDR-012: Automatic OIDC Signing-Key Rotation](../fdr/FDR-012-automatic-oidc-signing-key-rotation.md)

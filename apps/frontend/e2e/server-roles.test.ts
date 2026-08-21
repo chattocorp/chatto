@@ -637,7 +637,7 @@ test.describe('Server Permission Enforcement', () => {
       await serverAdminPage.expectAdminLinkVisible();
     });
 
-    test('user without server.manage permission cannot see settings link', async ({
+    test('user without server.manage permission sees only permitted management links', async ({
       serverAdminPage
     }) => {
       const { page } = serverAdminPage;
@@ -654,8 +654,13 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Non-admin should not see settings link in sidebar
-      await serverAdminPage.expectAdminLinkNotVisible();
+      // Bots remains available through the default bot.create grant, while
+      // General stays hidden without server.manage.
+      await serverAdminPage.expectAdminLinkVisible();
+      await serverAdminPage.adminLink.click();
+      await page.waitForURL(routes.serverAdminBots);
+      await serverAdminPage.expectBotsNavVisible();
+      await serverAdminPage.expectGeneralNavNotVisible();
     });
   });
 
@@ -814,7 +819,9 @@ test.describe('Server Permission Enforcement', () => {
   });
 
   test.describe('room.manage permission', () => {
-    test('administration gear hidden when user lacks room.manage permission', async ({ page }) => {
+    test('administration gear only exposes bots when user lacks room.manage permission', async ({
+      page
+    }) => {
       // Admin creates server and room
       await createAndLoginTestUser(page);
       const server = await usePrimaryServerViaAPI(page);
@@ -831,8 +838,12 @@ test.describe('Server Permission Enforcement', () => {
       await page.goto(routes.room(roomId));
       await expect(page.getByTitle('Leave room')).toBeVisible();
 
-      // Administration gear should NOT be visible
-      await expect(page.getByRole('link', { name: 'Server administration' })).not.toBeVisible();
+      // Fresh servers grant bot.create to everyone, so the administration
+      // entry remains available for Bots while room management stays hidden.
+      await page.getByRole('link', { name: 'Server administration' }).click();
+      await page.waitForURL(routes.serverAdminBots);
+      await expect(page.getByRole('link', { name: 'Bots', exact: true })).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Rooms', exact: true })).not.toBeVisible();
     });
 
     test('administration gear visible when user has room.manage permission', async ({ page }) => {

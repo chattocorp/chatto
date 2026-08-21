@@ -5,6 +5,8 @@ import { expect, test } from './setup';
 const password = 'correct horse battery staple';
 test('completes a conventional OIDC Authorization Code flow', async ({ page, request, stack }) => {
   const email = `oidc-${randomUUID()}@example.invalid`;
+  const preferredUsername = `profile-${randomUUID()}`;
+  const fullName = 'OIDC Profile Person';
   const accountID = await completeSignup(
     page,
     request,
@@ -12,6 +14,11 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     email,
     password
   );
+  await page.getByRole('link', { name: 'Edit profile' }).click();
+  await page.getByLabel('Preferred username').fill(preferredUsername);
+  await page.getByLabel('Full name').fill(fullName);
+  await page.getByRole('button', { name: 'Save profile' }).click();
+  await expect(page.getByText('Your profile was updated.')).toBeVisible();
 
   const discoveryResponse = await request.get(`${stack.baseURL}/.well-known/openid-configuration`);
   expect(discoveryResponse.ok()).toBe(true);
@@ -28,6 +35,7 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
     grant_types_supported: ['authorization_code'],
     client_id_metadata_document_supported: true
   });
+  expect(discovery.claims_supported).toEqual(['sub', 'preferred_username', 'name']);
   expect(discovery).not.toHaveProperty('registration_endpoint');
   expect(discovery).not.toHaveProperty('revocation_endpoint');
 
@@ -78,13 +86,13 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   };
   expect(tokens.token_type).toBe('Bearer');
   const claims = JSON.parse(Buffer.from(tokens.id_token.split('.')[1], 'base64url').toString()) as Record<string, unknown>;
-  expect(claims).toMatchObject({ iss: stack.baseURL, sub: accountID, azp: 'authling-e2e', nonce: 'browser-nonce' });
+  expect(claims).toMatchObject({ iss: stack.baseURL, sub: accountID, azp: 'authling-e2e', nonce: 'browser-nonce', preferred_username: preferredUsername, name: fullName });
 
   const userinfo = await request.get(`${stack.baseURL}/oauth/userinfo`, {
     headers: { Authorization: `Bearer ${tokens.access_token}` }
   });
   expect(userinfo.status()).toBe(200);
-  expect(await userinfo.json()).toEqual({ sub: accountID });
+  expect(await userinfo.json()).toEqual({ sub: accountID, preferred_username: preferredUsername, name: fullName });
 
   await page.goto(`${stack.baseURL}/account`);
   const authorizedApps = page.getByRole('heading', { name: 'Authorized apps' }).locator('..');

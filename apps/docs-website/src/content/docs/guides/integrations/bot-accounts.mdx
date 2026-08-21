@@ -1,0 +1,79 @@
+---
+title: Bot Accounts
+description: Create a bot, grant only the permissions it needs, and authenticate API requests with its show-once key.
+---
+
+import { Aside, Steps } from "@astrojs/starlight/components";
+
+Bot accounts give unattended integrations their own visible user identity and
+API credential. They use the normal public ConnectRPC API and realtime
+protocol, but start with no permissions and cannot sign in through Chatto's
+login forms.
+
+<Aside type="caution">
+  A bot API key does not expire automatically. Treat it like a password: keep
+  it out of source control, logs, URLs, screenshots, and support requests.
+</Aside>
+
+## Create and configure a bot
+
+<Steps>
+
+1. Open **Server Admin → Bots** and choose **Create Bot**.
+2. Enter a username ending in `_bot` and a display name.
+3. Copy the API key before closing the dialog. Chatto cannot show this raw key
+   again.
+4. Open the bot's detail page and enable the server, room-group, or room
+   permissions the integration needs.
+
+</Steps>
+
+Every human member receives `bot.create` on a freshly bootstrapped server.
+Administrators can remove that default through the permission matrix.
+Administrators and effective owners can manage every bot through `bot.manage`;
+the creator can always manage bots they already own.
+
+Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
+matrix exposes a simple enabled/disabled allowlist. A configured permission is
+effective only while the owner currently has the same permission at that
+scope; a lock marks one currently blocked by this owner ceiling. The matrix
+lists only rooms visible to both the bot owner and the person managing it,
+while retaining the directory's complete group layout so permissions such as
+`room.create` remain configurable for an empty group.
+
+## Authenticate requests
+
+Send the key as an HTTP bearer credential to the same public API used by other
+clients:
+
+```http
+Authorization: Bearer cht_BK_…
+```
+
+The request is authorized as the bot user. For example, posting a message
+requires an explicit effective `message.post` allow and normal room access.
+The canonical `User.is_bot` field identifies bot authors to API clients;
+the bundled client also shows a robot marker on their avatars.
+
+A bot API key cannot create or manage bots, rotate itself, edit the bot's
+identity, or enrol a password, browser session, OAuth token, verified email, or
+external login identity.
+
+## Rotate or revoke a key
+
+Choose **Rotate Key** on the bot's settings page when a key is lost or may have
+been exposed. Rotation immediately invalidates the previous key and shows the
+replacement once. Realtime connections authenticated with the previous key are
+also closed. Update every consumer before dismissing it.
+
+Deleting a bot invalidates its key and permanently deletes the account through
+the normal account-deletion process. Deleting the human owner also deletes all
+of their bots. Ownership transfer is not available yet.
+
+## API reference
+
+`BotService` exposes bot lifecycle and key rotation. The raw key appears only
+in `CreateBot` and `RotateBotApiKey` responses. Bot permissions use the same
+`AdminPermissionService` user-permission RPCs as human accounts, with the bot's
+user ID as the target. See the [BotService reference](/reference/connectrpc-api/bots/)
+and [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

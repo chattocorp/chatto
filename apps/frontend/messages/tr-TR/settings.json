@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Ekran",
       "notifications": "Bildirimler",
-      "account": "Hesap"
+      "account": "Hesap",
+      "bots": "Botlar"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "İptal",
         "deleting": "Siliniyor..."
+      }
+    },
+    "bots": {
+      "title": "Botlar",
+      "subtitle": "API hesapları oluşturun ve tam olarak ne yapabileceklerini kontrol edin",
+      "singular": "bot",
+      "unsupported": "Bu sunucu sürümü bot hesaplarını desteklemiyor.",
+      "list_title": "Bot Hesapları",
+      "loading": "Botlar yükleniyor...",
+      "empty_title": "Henüz bot yok",
+      "empty_body": "Entegrasyonun kendi kimliğine ve izinlerine ihtiyacı olduğunda bir bot oluşturun.",
+      "create_permission_required": "Mevcut botları yönetebilirsiniz, ancak yeni bir bot oluşturma izniniz yok.",
+      "create": "Bot Oluştur",
+      "create_title": "Bot Hesabı Oluştur",
+      "create_failed": "Bot oluşturulamadı",
+      "created": "Bot oluşturuldu",
+      "edit": "Düzenle",
+      "edit_title": "Bot Hesabını Düzenle",
+      "updated": "Bot güncellendi",
+      "update_failed": "Bot güncellenemedi",
+      "update_conflict": "Başka biri bu botu güncelledi. Sayfayı yeniden yükleyip tekrar dene.",
+      "username": "Kullanıcı adı",
+      "username_hint": "Bot kullanıcı adları _bot ile bitmelidir.",
+      "display_name": "Görünen Ad",
+      "owner": "Sahibi",
+      "api_key_title": "Bu API Anahtarını Kaydet",
+      "api_key_warning": "Bu anahtar yalnızca bir kez gösterilir. Bu pencereyi kapatmadan önce onu güvenli bir yerde saklayın.",
+      "key_created": "API anahtarı oluşturuldu",
+      "key_rotated_at": "Son döndürülen",
+      "key_copied": "API anahtarı kopyalandı",
+      "rotate_key": "Döndürme Anahtarı",
+      "rotate_title": "API Anahtarını Döndür",
+      "rotate_warning": "Geçerli anahtarın çalışması hemen durdurulacak. Bunu kullanan tüm entegrasyonların güncellenmesi gerekir.",
+      "key_rotated": "API anahtarı döndürüldü",
+      "rotate_failed": "API anahtarı döndürülemedi",
+      "delete_title": "Bot'u Sil",
+      "delete_warning": "{name} silinsin mi? API anahtarının çalışması hemen durdurulacak ve hesap kurtarılamaz.",
+      "deleted": "Bot silindi",
+      "delete_failed": "Bot silinemedi",
+      "permissions": {
+        "owner_ceiling": "Bu botun neler yapabileceğini seçin. Yalnızca sizin de sahip olduğunuz izinleri verebilirsiniz. Bir izni kaybederseniz bot da artık o izni kullanamaz.",
+        "save_failed": "Bot izni güncellenemedi"
       }
     }
   }

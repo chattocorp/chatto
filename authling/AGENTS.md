@@ -45,7 +45,7 @@ to its own repository.
   sessions and session management, password reset, signed-in password change,
   verified email change, and logout. It provides durable exact-client OIDC
   authorization grants, automatic signing-key rotation, and the narrow OpenID
-  Connect surface recorded in FDR-004, FDR-010, and FDR-011. It has no public
+  Connect surface recorded in FDR-004, FDR-010, FDR-011, and FDR-012. It has no public
   account-management, application-data, document, or synchronization API. Do
   not document other planned identity-provider behavior as implemented.
 

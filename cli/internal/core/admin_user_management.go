@@ -44,6 +44,7 @@ type AdminMember struct {
 	Roles                  []string
 	CreatedAt              *timestamppb.Timestamp
 	Deleted                bool
+	IsBot            bool
 	HasVerifiedEmail       bool
 	VerifiedEmails         []string
 	ViewerCanDeleteAccount bool
@@ -141,6 +142,12 @@ func (c *ChattoCore) GetAdminMemberDetails(ctx context.Context, actorID, targetU
 	canManageUserPermissions, err := c.CanManageUserPermissions(ctx, actorID)
 	if err != nil {
 		return nil, err
+	}
+	if user.GetIsBot() {
+		canAssignRoles = false
+		canManageRoles = false
+		canManageUserPermissions = false
+		member.ViewerCanDeleteAccount = false
 	}
 
 	assignableRoleNames := make([]string, 0, len(roles))
@@ -287,6 +294,7 @@ func (c *ChattoCore) adminMemberForViewer(ctx context.Context, actorID string, u
 		Roles:        roles,
 		CreatedAt:    user.GetCreatedAt(),
 		Deleted:      user.GetDeleted(),
+		IsBot:  user.GetIsBot(),
 		CustomStatus: user.GetCustomStatus(),
 	}
 

@@ -6,7 +6,8 @@
       "profile": "Profilo",
       "display": "Montru",
       "notifications": "Sciigoj",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Botoj"
     },
     "profile": {
       "title": "Profilo",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Nuligi",
         "deleting": "Forigante..."
+      }
+    },
+    "bots": {
+      "title": "Botoj",
+      "subtitle": "Kreu API-kontojn kaj kontrolu precize kion ili povas fari",
+      "singular": "bot",
+      "unsupported": "Ĉi tiu servila versio ne subtenas botkontojn.",
+      "list_title": "Bot-Kontoj",
+      "loading": "Ŝarĝante robotojn...",
+      "empty_title": "Ankoraŭ neniuj bots",
+      "empty_body": "Krei roboton kiam integriĝo bezonas sian propran identecon kaj permesojn.",
+      "create_permission_required": "Vi povas administri ekzistantajn robotojn, sed vi ne havas permeson krei novan.",
+      "create": "Krei Bot",
+      "create_title": "Krei Bot-Konton",
+      "create_failed": "Malsukcesis krei bot",
+      "created": "Bot kreita",
+      "edit": "Redakti",
+      "edit_title": "Redakti Bot-Konton",
+      "updated": "Bot ĝisdatigita",
+      "update_failed": "Malsukcesis ĝisdatigi bot",
+      "update_conflict": "Iu alia ĝisdatigis ĉi tiun roboton. Reŝargu la paĝon kaj provu denove.",
+      "username": "Uzantnomo",
+      "username_hint": "Bot uzantnomoj devas finiĝi per _bot.",
+      "display_name": "Montra nomo",
+      "owner": "Posedanto",
+      "api_key_title": "Konservu Ĉi tiun API-Ŝlosilon",
+      "api_key_warning": "Ĉi tiu ŝlosilo montriĝas nur unufoje. Konservu ĝin ie sekure antaŭ ol fermi ĉi tiun fenestron.",
+      "key_created": "API-ŝlosilo kreita",
+      "key_rotated_at": "Laste turnita",
+      "key_copied": "API-ŝlosilo kopiita",
+      "rotate_key": "Rotaciu Ŝlosilon",
+      "rotate_title": "Rotacii API-Ŝlosilon",
+      "rotate_warning": "La nuna ŝlosilo tuj ĉesos funkcii. Ĉiu integriĝo uzanta ĝin devas esti ĝisdatigita.",
+      "key_rotated": "API-ŝlosilo turniĝis",
+      "rotate_failed": "Malsukcesis turni API-ŝlosilon",
+      "delete_title": "Forigi Bot",
+      "delete_warning": "Ĉu forigi {name}? Ĝia API-ŝlosilo tuj ĉesos funkcii kaj la konto ne povas esti reakirita.",
+      "deleted": "Bot forigita",
+      "delete_failed": "Malsukcesis forigi bot",
+      "permissions": {
+        "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
+        "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
       }
     }
   }

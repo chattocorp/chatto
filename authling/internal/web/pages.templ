@@ -4,6 +4,7 @@ import (
 	"net/url"
 	"strconv"
 	"time"
+	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/sessions"
@@ -263,7 +264,7 @@ templ accountCreatedPage(accountID string) {
 	}
 }
 
-templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, authorizationGrants []authorizations.Grant, passwordChanged, emailChanged, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing, appRevoked, appMissing bool) {
+templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, authorizationGrants []authorizations.Grant, passwordChanged, emailChanged, profileUpdated, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing, appRevoked, appMissing bool) {
 	@layout("Your Authling account", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
@@ -272,6 +273,9 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		}
 		if emailChanged {
 			<p role="status" class="notice notice-success">Your email address was changed. Use your new email address the next time you sign in.</p>
+		}
+		if profileUpdated {
+			<p role="status" class="notice notice-success">Your profile was updated.</p>
 		}
 		if notificationFailed {
 			<p role="alert" class="notice notice-warning">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>
@@ -292,7 +296,8 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 			<p role="status" class="notice notice-neutral">That app is no longer authorized.</p>
 		}
 		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
-		<a class="button button-secondary mt-8 w-full" href="/account/email">Change email address</a>
+		<a class="button button-secondary mt-8 w-full" href="/account/profile">Edit profile</a>
+		<a class="button button-secondary mt-3 w-full" href="/account/email">Change email address</a>
 		<a class="button button-secondary mt-3 w-full" href="/account/password">Change password</a>
 		<form class="mt-3" method="post" action="/logout">
 			<button class="button button-secondary w-full" type="submit">Sign out</button>
@@ -372,6 +377,22 @@ func hasOtherBrowserSession(browserSessions []sessions.BrowserSession) bool {
 
 func formatSessionTime(value time.Time) string {
 	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
+}
+
+templ profilePage(profile accounts.Profile, message, signedInAs string) {
+	@layout("Edit your profile", signedInAs) {
+		<h1 class="text-3xl font-semibold tracking-tight">Edit your profile</h1>
+		<p class="mt-3 text-slate-600 dark:text-slate-300">These non-unique identity hints are shared with applications you authorize.</p>
+		if message != "" {
+			<p role="alert" class="notice notice-error">{ message }</p>
+		}
+		<form class="mt-8 space-y-5" method="post" action="/account/profile">
+			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-slate-500">This does not have to be unique.</span></label>
+			<label class="block"><span class="font-medium">Full name</span><input class="form-control" type="text" name="full_name" autocomplete="name" maxlength="128" value={ profile.FullName }/></label>
+			<button class="button button-primary w-full" type="submit">Save profile</button>
+		</form>
+		<p class="mt-6 text-sm"><a class="text-link" href="/account">Return to your account</a>.</p>
+	}
 }
 
 templ passwordChangePage(message string, passwordMinimumLength int, signedInAs string) {

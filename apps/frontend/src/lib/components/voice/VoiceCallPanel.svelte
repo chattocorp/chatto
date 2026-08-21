@@ -64,6 +64,7 @@ Room sidebar panel for voice/video calls.
       login: string;
       displayName: string;
       avatarUrl: string | null;
+      isBot: boolean;
       presenceStatus: PresenceStatus;
     };
     isMuted: boolean;
@@ -86,6 +87,7 @@ Room sidebar panel for voice/video calls.
           login: p.login,
           displayName: p.name,
           avatarUrl: p.avatarUrl,
+          isBot: p.isBot ?? false,
           presenceStatus: PresenceStatus.ONLINE
         },
         isMuted: p.isMuted,
@@ -107,6 +109,7 @@ Room sidebar panel for voice/video calls.
         login: p.login,
         displayName: p.displayName,
         avatarUrl: p.avatarUrl,
+        isBot: p.isBot,
         presenceStatus: PresenceStatus.ONLINE
       },
       isMuted: false,

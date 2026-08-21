@@ -10,6 +10,7 @@ import (
 	"github.com/charmbracelet/log"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/chatto/internal/core"
+	"hmans.de/chatto/pkg/events"
 )
 
 var (
@@ -34,6 +35,9 @@ func connectError(err error) error {
 	if errors.Is(err, context.DeadlineExceeded) {
 		return connect.NewError(connect.CodeDeadlineExceeded, err)
 	}
+	if errors.Is(err, events.ErrConflict) {
+		return connect.NewError(connect.CodeAborted, err)
+	}
 	if errors.Is(err, core.ErrNotAuthenticated) {
 		return connect.NewError(connect.CodeUnauthenticated, err)
 	}
@@ -41,6 +45,10 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrNotRoomMember) ||
 		errors.Is(err, core.ErrNotMessageAuthor) {
 		return connect.NewError(connect.CodePermissionDenied, err)
+	}
+	if errors.Is(err, core.ErrHumanAccountRequired) ||
+		errors.Is(err, core.ErrBotOwnerPermissionCeiling) {
+		return connect.NewError(connect.CodeFailedPrecondition, err)
 	}
 	if errors.Is(err, core.ErrRoomNameExists) {
 		return connect.NewError(connect.CodeAlreadyExists, err)
@@ -66,6 +74,8 @@ func connectError(err error) error {
 		errors.Is(err, core.ErrLoginTooShort) ||
 		errors.Is(err, core.ErrLoginTooLong) ||
 		errors.Is(err, core.ErrLoginInvalidCharacter) ||
+		errors.Is(err, core.ErrHumanLoginReservedForBot) ||
+		errors.Is(err, core.ErrBotLoginSuffixRequired) ||
 		errors.Is(err, core.ErrUsernameBlocked) ||
 		errors.Is(err, core.ErrDisplayNameTooLong) ||
 		errors.Is(err, core.ErrDisplayNameInvalidCharacter) ||

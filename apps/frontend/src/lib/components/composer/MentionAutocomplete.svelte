@@ -13,8 +13,7 @@ Shows matching room members when typing @username in chat input.
 <script lang="ts">
   import type { RoomMember } from '$lib/state/room';
   import { fuzzyMatch } from '$lib/fuzzyMatch';
-  import { getAvatarInitials } from '$lib/utils/initials';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import AutocompletePopup from './AutocompletePopup.svelte';
   import type { MentionRole } from './autocomplete.svelte';
   import { m } from '$lib/i18n/messages';
@@ -96,20 +95,7 @@ Shows matching room members when typing @username in chat input.
 >
   {#snippet item({ item: result })}
     {#if result.type === 'user'}
-      {#if result.member.avatarUrl}
-        <SkeletonImg
-          loading="lazy"
-          src={result.member.avatarUrl}
-          alt={result.member.login}
-          class="h-6 w-6 shrink-0 rounded-full object-cover"
-        />
-      {:else}
-        <div
-          class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-xs font-semibold text-muted"
-        >
-          {getAvatarInitials(result.member.displayName, result.member.login)}
-        </div>
-      {/if}
+      <UserAvatar user={result.member} size="xs" class="h-6 w-6" useLiveProfile={false} />
       <bdi class="min-w-0 truncate text-sm text-text">{result.member.displayName}</bdi>
       <bdi dir="ltr" class="min-w-0 truncate text-sm text-muted">@{result.member.login}</bdi>
     {:else if result.type === 'virtual'}

@@ -287,6 +287,8 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.group.{groupId}.sidebar_entries_reordered`             | `SidebarGroupEntriesReorderedEvent`                 |
 | `evt.layout.default.groups_reordered`                        | `RoomGroupsReorderedEvent`                          |
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
+| `evt.user.{userId}.bot_api_key_created`                    | `BotApiKeyCreatedEvent`; HMAC verifier and issue timestamp, never the raw key |
+| `evt.user.{userId}.bot_api_key_rotated`                    | `BotApiKeyRotatedEvent`; replacement HMAC verifier and rotation timestamp |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |
@@ -393,6 +395,9 @@ timeline entries; participant join/leave facts remain hidden from room history.
 
 LiveKit room names include the active Chatto call ID suffix. Participant and
 room-finished observations therefore apply only to the matching call session.
+Join-token participant metadata carries the login, avatar URL, and account kind
+needed to preserve canonical user identity, including bot markers, while the
+client is rendering directly from LiveKit state.
 Only the replica holding `lease.livekit_reconciler` in `MEMORY_CACHE` runs the
 periodic reconciliation loop.
 

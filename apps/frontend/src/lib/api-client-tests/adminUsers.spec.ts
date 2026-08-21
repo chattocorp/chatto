@@ -61,7 +61,8 @@ describe('createAdminUserManagementAPI', () => {
             login: 'alice',
             displayName: 'Alice',
             avatarUrl: undefined,
-            deleted: false
+            deleted: false,
+            isBot: true
           },
           roles: ['admin'],
           createdAt: { toDate: () => createdAt },
@@ -95,6 +96,7 @@ describe('createAdminUserManagementAPI', () => {
           login: 'alice',
           displayName: 'Alice',
           avatarUrl: null,
+          isBot: true,
           roles: ['admin'],
           createdAt: '2026-01-02T03:04:05.000Z',
           deleted: false,

@@ -6,7 +6,8 @@
       "profile": "Perfil",
       "display": "Pantalla",
       "notifications": "Notificaciones",
-      "account": "Cuenta"
+      "account": "Cuenta",
+      "bots": "bots"
     },
     "profile": {
       "title": "Perfil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Cancelar",
         "deleting": "Eliminando..."
+      }
+    },
+    "bots": {
+      "title": "bots",
+      "subtitle": "Crea cuentas API y controla exactamente lo que pueden hacer",
+      "singular": "robot",
+      "unsupported": "Esta versión del servidor no admite cuentas de bot.",
+      "list_title": "Cuentas de bot",
+      "loading": "Cargando robots...",
+      "empty_title": "Aún no hay robots",
+      "empty_body": "Crea un bot cuando una integración necesite su propia identidad y permisos.",
+      "create_permission_required": "Puedes administrar los bots existentes, pero no tienes permiso para crear uno nuevo.",
+      "create": "Crear robot",
+      "create_title": "Crear cuenta de bot",
+      "create_failed": "Error al crear el bot",
+      "created": "Bot creado",
+      "edit": "Editar",
+      "edit_title": "Editar cuenta de bot",
+      "updated": "Bot actualizado",
+      "update_failed": "Error al actualizar el bot",
+      "update_conflict": "Otra persona ha actualizado este bot. Recarga la página e inténtalo de nuevo.",
+      "username": "Nombre de usuario",
+      "username_hint": "Los nombres de usuario de los bots deben terminar en _bot.",
+      "display_name": "Nombre para mostrar",
+      "owner": "Propietario",
+      "api_key_title": "Guardar esta clave API",
+      "api_key_warning": "Esta clave se muestra solo una vez. Guárdelo en un lugar seguro antes de cerrar esta ventana.",
+      "key_created": "Clave API creada",
+      "key_rotated_at": "Última rotación",
+      "key_copied": "Clave API copiada",
+      "rotate_key": "Girar clave",
+      "rotate_title": "Rotar clave API",
+      "rotate_warning": "La clave actual dejará de funcionar inmediatamente. Cualquier integración que lo utilice debe estar actualizada.",
+      "key_rotated": "Clave API rotada",
+      "rotate_failed": "Error al rotar la clave API",
+      "delete_title": "Eliminar bot",
+      "delete_warning": "¿Eliminar {name}? Su clave API dejará de funcionar inmediatamente y la cuenta no podrá recuperarse.",
+      "deleted": "Bot eliminado",
+      "delete_failed": "Error al eliminar el bot",
+      "permissions": {
+        "owner_ceiling": "Elige qué puede hacer este bot. Solo puedes concederle permisos que tú también tengas. Si pierdes un permiso, el bot tampoco podrá usarlo.",
+        "save_failed": "Error al actualizar el permiso del bot"
       }
     }
   }

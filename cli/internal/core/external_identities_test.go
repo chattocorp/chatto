@@ -145,8 +145,12 @@ func TestChattoCore_ExternalIdentityWithoutEmailCreatesVerifiedAccount(t *testin
 func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "link-start-user", "Link Start User", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
 
-	token, err := core.CreatePendingExternalIdentityLinkStart(ctx, "github-main", "/chat/-/settings/account", "U1")
+	token, err := core.CreatePendingExternalIdentityLinkStart(ctx, "github-main", "/chat/-/settings/account", user.GetId())
 	if err != nil {
 		t.Fatalf("CreatePendingExternalIdentityLinkStart: %v", err)
 	}
@@ -162,7 +166,7 @@ func TestChattoCore_PendingExternalIdentityLinkStart(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ConsumePendingExternalIdentityLinkStart: %v", err)
 	}
-	if start.ProviderID != "github-main" || start.BoundUserID != "U1" || start.RedirectPath != "/chat/-/settings/account" {
+	if start.ProviderID != "github-main" || start.BoundUserID != user.GetId() || start.RedirectPath != "/chat/-/settings/account" {
 		t.Fatalf("link start = %+v", start)
 	}
 	if _, err := core.ConsumePendingExternalIdentityLinkStart(ctx, token); !errors.Is(err, ErrExternalIdentityFlowNotFound) {

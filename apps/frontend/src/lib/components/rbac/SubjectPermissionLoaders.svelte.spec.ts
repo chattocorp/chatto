@@ -54,6 +54,16 @@ function cellButton(container: HTMLElement, permission: string): HTMLButtonEleme
   return container.querySelector(`td[data-permission="${permission}"] button`)!;
 }
 
+function scopedCellButton(
+  container: HTMLElement,
+  scopeId: string,
+  permission: string
+): HTMLButtonElement {
+  return container.querySelector(
+    `td[data-scope="${scopeId}"][data-permission="${permission}"] button`
+  )!;
+}
+
 async function settle(): Promise<void> {
   await Promise.resolve();
   await Promise.resolve();
@@ -66,9 +76,25 @@ beforeEach(() => {
   permissionMocks.getRolePermissionMatrix.mockImplementation((roleName: string) =>
     Promise.resolve(matrix({ roleName }))
   );
-  permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) =>
-    Promise.resolve(matrix({ userId }))
-  );
+  permissionMocks.getUserPermissionMatrix.mockImplementation((userId: string) => {
+    if (userId === 'bot-a') {
+      return Promise.resolve({
+        userId,
+        applicablePermissions: ['message.post'],
+        scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+        cells: [
+          {
+            permission: 'message.post',
+            scopeId: 'server',
+            override: 'ALLOW',
+            effective: 'DENY',
+            allowPermitted: false
+          }
+        ]
+      });
+    }
+    return Promise.resolve(matrix({ userId }));
+  });
   permissionMocks.setRolePermission.mockResolvedValue({});
   permissionMocks.setUserPermission.mockResolvedValue({});
 });
@@ -168,6 +194,131 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
   });
 
+  it('updates a user permission without remounting the matrix or changing page scroll', async () => {
+    let resolveMutation: ((value: object) => void) | undefined;
+    permissionMocks.setUserPermission.mockImplementation(
+      () => new Promise<object>((resolve) => (resolveMutation = resolve))
+    );
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await settle();
+    rendered.container.style.height = '80px';
+    rendered.container.style.overflowY = 'auto';
+    rendered.container.scrollTop = 60;
+    const originalScrollTop = rendered.container.scrollTop;
+    const originalTable = rendered.container.querySelector('table');
+
+    cellButton(rendered.container, 'message.post').click();
+    await settle();
+    resolveMutation?.({ decision: 'ALLOW' });
+
+    await vi.waitFor(() =>
+      expect(cellButton(rendered.container, 'message.post').disabled).toBe(false)
+    );
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(rendered.container.scrollTop).toBe(originalScrollTop);
+  });
+
+  it('updates only the active cell in a binary user matrix', async () => {
+    let resolveMutation: ((value: object) => void) | undefined;
+    permissionMocks.setUserPermission.mockImplementation(
+      () => new Promise<object>((resolve) => (resolveMutation = resolve))
+    );
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'user-a', decisionMode: 'binary' }
+    });
+    await settle();
+    const originalTable = rendered.container.querySelector('table');
+    const originalTarget = cellButton(rendered.container, 'message.post');
+    const originalOther = cellButton(rendered.container, 'room.manage');
+    const otherClassName = originalOther.className;
+
+    originalTarget.click();
+    await settle();
+
+    expect(cellButton(rendered.container, 'message.post')).toBe(originalTarget);
+    expect(originalTarget.disabled).toBe(true);
+    expect(cellButton(rendered.container, 'room.manage')).toBe(originalOther);
+    expect(originalOther.disabled).toBe(false);
+    expect(originalOther.className).toBe(otherClassName);
+    originalOther.click();
+    expect(permissionMocks.setUserPermission).toHaveBeenCalledOnce();
+
+    resolveMutation?.({ decision: 'ALLOW' });
+    await vi.waitFor(() => expect(originalTarget.disabled).toBe(false));
+
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
+    expect(cellButton(rendered.container, 'room.manage')).toBe(originalOther);
+    expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
+    expect(
+      queryClient.getQueryState(
+        adminQueryKeys.userPermissions(
+          'origin',
+          { queryScope: 'permission-loader-test' },
+          'user-a'
+        )
+      )?.isInvalidated
+    ).toBe(true);
+  });
+
+  it('keeps a ceiling-blocked inherited room inert without writing a denial', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue({
+      userId: 'bot-inheritance',
+      applicablePermissions: ['message.post'],
+      scopes: [
+        { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
+        { id: 'group:general', label: 'General', kind: 'GROUP', parentGroupId: '' },
+        { id: 'room:lobby', label: 'Lobby', kind: 'ROOM', parentGroupId: 'general' }
+      ],
+      cells: [
+        {
+          permission: 'message.post',
+          scopeId: 'server',
+          override: 'NONE',
+          effective: 'NONE'
+        },
+        {
+          permission: 'message.post',
+          scopeId: 'group:general',
+          override: 'ALLOW',
+          effective: 'ALLOW'
+        },
+        {
+          permission: 'message.post',
+          scopeId: 'room:lobby',
+          override: 'NONE',
+          effective: 'ALLOW',
+          allowPermitted: false
+        }
+      ]
+    });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'bot-inheritance', decisionMode: 'binary', ownerCapped: true }
+    });
+    await settle();
+    const table = rendered.container.querySelector('table');
+    const group = scopedCellButton(rendered.container, 'group:general', 'message.post');
+    const room = scopedCellButton(rendered.container, 'room:lobby', 'message.post');
+    const groupClassName = group.className;
+
+    expect(room.title).toContain('Enabled · Inherited from a broader scope');
+    expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.disabled).toBe(true);
+
+    room.click();
+    await settle();
+
+    expect(permissionMocks.setUserPermission).not.toHaveBeenCalled();
+    expect(rendered.container.querySelector('table')).toBe(table);
+    expect(scopedCellButton(rendered.container, 'group:general', 'message.post')).toBe(group);
+    expect(group.className).toBe(groupClassName);
+    expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.disabled).toBe(true);
+    expect(rendered.container.querySelector('table')).toBe(table);
+    expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
+  });
+
   it('serializes role mutations within one resource', async () => {
     let resolveMutation: ((value: object) => void) | undefined;
     permissionMocks.setRolePermission.mockImplementation(
@@ -225,6 +376,27 @@ describe('subject permission loaders', () => {
     await vi.waitFor(() => {
       expect(cellButton(rendered.container, 'message.post').disabled).toBe(false);
       expect(cellButton(rendered.container, 'room.manage').disabled).toBe(false);
+    });
+  });
+
+  it('shows the owner ceiling and writes bot decisions through the user permission API', async () => {
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'bot-a', subjectKind: 'bot', ownerCapped: true }
+    });
+    await settle();
+
+    const button = cellButton(rendered.container, 'message.post');
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
+    expect(rendered.container.textContent).toContain('your bot');
+
+    button.click();
+    await settle();
+    expect(permissionMocks.setUserPermission).toHaveBeenCalledWith({
+      userId: 'bot-a',
+      permission: 'message.post',
+      scope: { tier: 'server' },
+      state: 'deny'
     });
   });
 });

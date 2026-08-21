@@ -140,6 +140,28 @@ func (p *Publisher) AppendPasswordChanged(
 	return events.SubjectPosition(subject, sequence), nil
 }
 
+// AppendProfileUpdated replaces profile hints at an explicitly observed
+// account tail.
+func (p *Publisher) AppendProfileUpdated(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	payload := event.GetProfileUpdated()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append profile updated: event payload is not profile_updated")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
 // AppendPasswordResetRequested records an accepted recovery request at an
 // explicitly observed account tail.
 func (p *Publisher) AppendPasswordResetRequested(
@@ -403,6 +425,11 @@ func validate(event *corev1.Event) error {
 		credential := payload.EmailChanged
 		if !validSubjectToken(credential.GetAccountId()) || credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetEmailNonce()) == 0 || len(credential.GetEmailCiphertext()) == 0 || !validSubjectToken(credential.GetEmailChangeRequestEventId()) || !validSubjectToken(credential.GetPriorCredentialEventId()) {
 			return fmt.Errorf("email credential envelope is incomplete or unsupported")
+		}
+	case *corev1.Event_ProfileUpdated:
+		profile := payload.ProfileUpdated
+		if !validSubjectToken(profile.GetAccountId()) || profile.GetProfileEnvelopeVersion() != 1 || !validSubjectToken(profile.GetUserKeyRef()) || !validSubjectToken(profile.GetCredentialKeyRef()) || len(profile.GetPreferredUsernameNonce()) == 0 || len(profile.GetPreferredUsernameCiphertext()) == 0 || len(profile.GetFullNameNonce()) == 0 || len(profile.GetFullNameCiphertext()) == 0 {
+			return fmt.Errorf("profile envelope is incomplete or unsupported")
 		}
 	case *corev1.Event_OidcGrantAuthorized:
 		grant := payload.OidcGrantAuthorized

@@ -1,4 +1,4 @@
-# FDR-011: Automatic OIDC Signing-Key Rotation
+# FDR-012: Automatic OIDC Signing-Key Rotation
 
 **Status:** Experimental
 **Last reviewed:** 2026-08-21
@@ -81,9 +81,9 @@ both legacy signing-derived envelopes and the stable-key envelope. Seeding the
 stable record from the legacy value also lets an older replica decrypt a token
 written by an upgraded replica before signing rotation begins.
 
-Binaries predating FDR-011 reject its new event variants. Upgrade Authling
+Binaries predating FDR-012 reject its new event variants. Upgrade Authling
 replicas together before allowing automatic rotation to write its first event.
-After that event exists, do not roll back to a binary that predates FDR-011.
+After that event exists, do not roll back to a binary that predates FDR-012.
 
 ## Limitations
 

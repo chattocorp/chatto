@@ -172,6 +172,15 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "signed-in password change correlation is invalid") {
 		t.Fatalf("decode uncorrelated signed-in password change error = %v", err)
 	}
+	profile := profileUpdatedEvent("evt_profile")
+	profile.GetProfileUpdated().FullNameCiphertext = nil
+	data, err = proto.Marshal(profile)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "profile envelope is incomplete") {
+		t.Fatalf("decode incomplete profile update error = %v", err)
+	}
 	malformedGrant := &corev1.Event{Id: "evt_grant", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
 		AccountId: "acc_test", GrantId: "grant_test", ClientIdDigest: make([]byte, 32), ClientName: "Client", ClientHost: "client.example", Scopes: []string{"openid", "openid"},
 	}}}
@@ -221,6 +230,14 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "activation is incomplete") {
 		t.Fatalf("decode incomplete signing-key activation error = %v", err)
 	}
+}
+
+func profileUpdatedEvent(eventID string) *corev1.Event {
+	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_ProfileUpdated{ProfileUpdated: &corev1.ProfileUpdatedEvent{
+		AccountId: "acc_test", UserKeyRef: "key_user", CredentialKeyRef: "key_credential", ProfileEnvelopeVersion: 1,
+		PreferredUsernameNonce: []byte("nonce"), PreferredUsernameCiphertext: []byte("ciphertext"),
+		FullNameNonce: []byte("nonce"), FullNameCiphertext: []byte("ciphertext"),
+	}}}
 }
 
 func TestAccountSubjectRejectsUnsafeTokens(t *testing.T) {

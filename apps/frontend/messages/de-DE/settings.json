@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Darstellung",
       "notifications": "Benachrichtigungen",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Bots"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Abbrechen",
         "deleting": "Wird gelöscht..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Erstelle API-Konten und lege genau fest, was sie tun dürfen",
+      "singular": "Bot",
+      "unsupported": "Diese Serverversion unterstützt keine Bot-Konten.",
+      "list_title": "Bot-Konten",
+      "loading": "Bots werden geladen...",
+      "empty_title": "Noch keine Bots",
+      "empty_body": "Erstelle einen Bot, wenn eine Integration eine eigene Identität und eigene Berechtigungen braucht.",
+      "create_permission_required": "Du kannst vorhandene Bots verwalten, darfst aber keine neuen erstellen.",
+      "create": "Bot erstellen",
+      "create_title": "Bot-Konto erstellen",
+      "create_failed": "Bot konnte nicht erstellt werden",
+      "created": "Bot erstellt",
+      "edit": "Bearbeiten",
+      "edit_title": "Bot-Konto bearbeiten",
+      "updated": "Bot aktualisiert",
+      "update_failed": "Bot konnte nicht aktualisiert werden",
+      "update_conflict": "Jemand anderes hat diesen Bot aktualisiert. Lade die Seite neu und versuche es noch einmal.",
+      "username": "Benutzername",
+      "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
+      "display_name": "Anzeigename",
+      "owner": "Owner",
+      "api_key_title": "Diesen API-Schlüssel speichern",
+      "api_key_warning": "Dieser Schlüssel wird nur einmal angezeigt. Speichere ihn an einem sicheren Ort, bevor du dieses Fenster schließt.",
+      "key_created": "API-Schlüssel erstellt",
+      "key_rotated_at": "Zuletzt erneuert",
+      "key_copied": "API-Schlüssel kopiert",
+      "rotate_key": "Schlüssel erneuern",
+      "rotate_title": "API-Schlüssel erneuern",
+      "rotate_warning": "Der aktuelle Schlüssel funktioniert danach sofort nicht mehr. Du musst jede Integration aktualisieren, die ihn verwendet.",
+      "key_rotated": "API-Schlüssel erneuert",
+      "rotate_failed": "API-Schlüssel konnte nicht erneuert werden",
+      "delete_title": "Bot löschen",
+      "delete_warning": "{name} löschen? Sein API-Schlüssel funktioniert sofort nicht mehr und das Konto kann nicht wiederhergestellt werden.",
+      "deleted": "Bot gelöscht",
+      "delete_failed": "Bot konnte nicht gelöscht werden",
+      "permissions": {
+        "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
+        "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
       }
     }
   }

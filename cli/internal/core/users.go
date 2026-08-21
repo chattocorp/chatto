@@ -41,13 +41,27 @@ type userCreationOptions struct {
 	verifiedEmail string
 	external      *PendingExternalIdentityFlow
 	invitationID  string
+	isBot         bool
+	botOwnerID    string
+	botAPIKeyOut  *string
+	authorize     func() error
 }
 
 func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, login, displayName, password string, options userCreationOptions) (*corev1.User, error) {
 	// Trim and validate login (preserve original casing)
 	login = strings.TrimSpace(login)
-	if err := ValidateLogin(login); err != nil {
-		return nil, err
+	isBot := options.isBot
+	if isBot {
+		if err := ValidateBotLogin(login); err != nil {
+			return nil, err
+		}
+		if strings.TrimSpace(options.botOwnerID) == "" || password != "" || options.verifiedEmail != "" || options.external != nil || options.invitationID != "" {
+			return nil, ErrInvalidArgument
+		}
+	} else {
+		if err := ValidateHumanLogin(login); err != nil {
+			return nil, err
+		}
 	}
 
 	// Normalize and validate display name
@@ -78,7 +92,7 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	// only to be blocked when adding their first verified sign-in factor. The
 	// factor-add checks remain the race-safe hard gate.
 	if max := c.config.Limits.MaxUsersOrDefault(); max >= 0 {
-		count, err := c.CountVerifiedAccounts(ctx)
+		count, err := c.CountUserLimitAccounts(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to count verified accounts: %w", err)
 		}
@@ -96,10 +110,22 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 
 	now := timestamppb.Now()
 	user := &corev1.User{
-		Id:          userID,
-		Login:       login,
-		DisplayName: displayName,
-		CreatedAt:   now,
+		Id:             userID,
+		Login:          login,
+		DisplayName:    displayName,
+		CreatedAt:      now,
+		IsBot:          isBot,
+		BotOwnerUserId: options.botOwnerID,
+	}
+	var botAPIKey string
+	var botAPIKeyVerifier []byte
+	if isBot {
+		var err error
+		botAPIKey, err = NewBotAPIKey(userID)
+		if err != nil {
+			return nil, err
+		}
+		botAPIKeyVerifier = c.botAPIKeyVerifier(botAPIKey)
 	}
 
 	// Create encryption key for this user. Keys are always created so they
@@ -144,7 +170,11 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}})
 	piiDEKEvent.CreatedAt = now
 	accountCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_UserAccountCreated{
-		UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID},
+		UserAccountCreated: &corev1.UserAccountCreatedEvent{
+			UserId:         userID,
+			IsBot:          isBot,
+			BotOwnerUserId: options.botOwnerID,
+		},
 	}})
 	accountCreated.CreatedAt = now
 	account := accountCreated.GetUserAccountCreated()
@@ -167,6 +197,16 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		Subject: agg.Subject(evtstream.EventUserAccountCreated),
 		Event:   accountCreated,
 	}}
+	if isBot {
+		keyCreated := newEvent(eventActorID, &corev1.Event{Event: &corev1.Event_BotApiKeyCreated{
+			BotApiKeyCreated: &corev1.BotApiKeyCreatedEvent{UserId: userID, Verifier: botAPIKeyVerifier},
+		}})
+		keyCreated.CreatedAt = now
+		entries = append(entries, evtstream.BatchEntry{
+			Subject: agg.Subject(evtstream.EventBotAPIKeyCreated),
+			Event:   keyCreated,
+		})
+	}
 	if password != "" {
 		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(password), passwordHashCost)
 		if err != nil {
@@ -233,8 +273,22 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 	}
 
 	_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+		if options.authorize != nil {
+			if err := options.authorize(); err != nil {
+				return err
+			}
+		}
 		if err := c.requireLoginMentionHandleAvailable(login); err != nil {
 			return err
+		}
+		if isBot && c.config.Limits.MaxUsersOrDefault() >= 0 {
+			count, err := c.CountUserLimitAccounts(ctx)
+			if err != nil {
+				return err
+			}
+			if count >= c.config.Limits.MaxUsersOrDefault() {
+				return ErrLimitExceeded
+			}
 		}
 		if options.verifiedEmail != "" {
 			if _, claimed := c.userModel.emailOwnerID(options.verifiedEmail); claimed {
@@ -262,6 +316,9 @@ func (c *ChattoCore) createUserWithOptions(ctx context.Context, actorID string, 
 		return nil, err
 	}
 	cleanupEncryptionKey = false
+	if options.botAPIKeyOut != nil {
+		*options.botAPIKeyOut = botAPIKey
+	}
 	if err := c.userModel.waitForContentKeysCurrent(ctx, userID); err != nil {
 		return nil, err
 	}
@@ -439,4 +496,15 @@ var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 // CheckLoginExists checks if a login name is already taken.
 func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
 	return c.userModel.loginExists(login), nil
+}
+
+// IsLoginAvailable reports whether a login currently passes validation and
+// conflicts with neither reserved names nor existing mention handles. The
+// result is advisory; account creation remains the race-safe authority.
+func (c *ChattoCore) IsLoginAvailable(login string) bool {
+	login = strings.TrimSpace(login)
+	return ValidateLogin(login) == nil &&
+		!c.configModel.IsUsernameBlocked(login) &&
+		!c.loginConflictsWithMentionHandle(login) &&
+		!c.userModel.loginExists(login)
 }

@@ -68,6 +68,7 @@ export function avatarUserFromDirectoryMember(
     login: member.login,
     displayName: member.displayName,
     deleted: member.deleted,
+    isBot: member.isBot,
     avatarUrl: member.avatarUrl,
     presenceStatus: member.presenceStatus,
     customStatus: member.customStatus

@@ -76,6 +76,12 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 	if userID == "" {
 		return "", nil, ErrCookieSessionNotFound
 	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) {
+			return "", nil, ErrCookieSessionNotFound
+		}
+		return "", nil, err
+	}
 	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return "", nil, err

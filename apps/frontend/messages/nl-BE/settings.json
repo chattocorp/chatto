@@ -6,7 +6,8 @@
       "profile": "Profiel",
       "display": "Weergave",
       "notifications": "Meldingen",
-      "account": "Account"
+      "account": "Account",
+      "bots": "Bots"
     },
     "profile": {
       "title": "Profiel",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Annuleren",
         "deleting": "Verwijderen..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Maak API-accounts en beheer precies wat ze kunnen doen",
+      "singular": "bot",
+      "unsupported": "Deze serverversie ondersteunt geen botaccounts.",
+      "list_title": "Bot-accounts",
+      "loading": "Bots laden...",
+      "empty_title": "Nog geen bots",
+      "empty_body": "Maak een bot wanneer een integratie een eigen identiteit en rechten nodig heeft.",
+      "create_permission_required": "Je kunt bestaande bots beheren, maar je hebt geen toestemming om een nieuwe te maken.",
+      "create": "Bot maken",
+      "create_title": "Bot-account maken",
+      "create_failed": "Kan geen bot maken",
+      "created": "Bot gemaakt",
+      "edit": "Bewerken",
+      "edit_title": "Bot-account bewerken",
+      "updated": "Bot bijgewerkt",
+      "update_failed": "Kan bot niet updaten",
+      "update_conflict": "Iemand anders heeft deze bot bijgewerkt. Herlaad de pagina en probeer opnieuw.",
+      "username": "Gebruikersnaam",
+      "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
+      "display_name": "Weergavenaam",
+      "owner": "Eigenaar",
+      "api_key_title": "Bewaar deze API-sleutel",
+      "api_key_warning": "Deze sleutel wordt slechts één keer weergegeven. Bewaar het op een veilige plek voordat u dit venster sluit.",
+      "key_created": "API-sleutel gemaakt",
+      "key_rotated_at": "Laatst geroteerd",
+      "key_copied": "API-sleutel gekopieerd",
+      "rotate_key": "Sleutel draaien",
+      "rotate_title": "API-sleutel roteren",
+      "rotate_warning": "De huidige sleutel werkt onmiddellijk niet meer. Elke integratie die hiervan gebruik maakt, moet worden bijgewerkt.",
+      "key_rotated": "API-sleutel geroteerd",
+      "rotate_failed": "Kan de API-sleutel niet roteren",
+      "delete_title": "Bot verwijderen",
+      "delete_warning": "{name} verwijderen? De API-sleutel werkt onmiddellijk niet meer en het account kan niet worden hersteld.",
+      "deleted": "Bot verwijderd",
+      "delete_failed": "Kan bot niet verwijderen",
+      "permissions": {
+        "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
+        "save_failed": "Kan de botrechten niet bijwerken"
       }
     }
   }

@@ -5,6 +5,15 @@ import { flushSync } from 'svelte';
 import MentionAutocomplete from './MentionAutocomplete.svelte';
 import type { RoomMember } from '$lib/state/room';
 
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, fallback: string | null) => fallback,
+  getLiveCustomStatus: (_userId: string, fallback: unknown) => fallback
+}));
+
 function member(login: string, displayName?: string, deleted = false): RoomMember {
   return {
     id: `u_${login}`,
@@ -76,6 +85,13 @@ describe('MentionAutocomplete', () => {
       });
       expect(visibleLogins(container)).toEqual(['alice']);
       expect(container.querySelector('bdi:not([dir])')?.textContent).toBe('Alice Wonderland');
+    });
+
+    it('marks bot mention targets with the shared avatar badge', () => {
+      const bot = { ...member('helper_bot', 'Helper Bot'), isBot: true };
+      const { container } = renderAutocomplete({ query: 'helper', members: [bot] });
+
+      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     });
 
     it('does not render deleted members as mention targets', () => {

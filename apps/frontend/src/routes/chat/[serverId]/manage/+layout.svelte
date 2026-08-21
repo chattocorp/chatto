@@ -23,6 +23,7 @@
     const serverBase = resolve('/chat/[serverId]/manage/server', params);
     const manageBase = serverBase.slice(0, -'/server'.length);
     const generalBase = serverBase + '/general';
+    const botsBase = serverBase + '/bots';
     const membersBase = serverBase + '/members';
     const invitationsBase = serverBase + '/invite-links';
     const roomsBase = resolve('/chat/[serverId]/manage/rooms', params);
@@ -36,6 +37,13 @@
     // General settings page requires server manage permission
     if (pathname.startsWith(generalBase)) {
       return () => chromePermissions?.canManage ?? false;
+    }
+
+    // Bot owners retain management of existing bots after losing bot.create.
+    // The bot APIs enforce ownership and bot.manage for each returned resource
+    // and mutation, so reaching this page does not grant additional authority.
+    if (pathname.startsWith(botsBase)) {
+      return () => true;
     }
 
     // Members pages call AdminUserService.ListMembers/GetMember, which

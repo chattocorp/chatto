@@ -53,6 +53,18 @@ function getPortsForTest(workerIndex: number, parallelIndex: number) {
   };
 }
 
+/** Returns the browser-facing URL that startServer will assign to a test server. */
+export function serverBaseURLForTest(
+  testInfo: TestInfo,
+  options: Pick<StartServerOptions, 'hostname' | 'portOffset'> = {}
+): string {
+  const ports = getPortsForTest(
+    testInfo.workerIndex,
+    testInfo.parallelIndex + (options.portOffset ?? 0)
+  );
+  return `http://${options.hostname ?? 'localhost'}:${ports.webserver}`;
+}
+
 /**
  * Wait for the server to be ready by polling the readiness endpoint.
  * This verifies both NATS connectivity and JetStream initialization.
@@ -137,7 +149,7 @@ export async function startServer(
   const searchDirectory = options.searchProvider ? `${dataDir}-search` : undefined;
   const executablePath = options.executablePath ?? path.join(__dirname, 'bin', 'chatto');
   const hostname = options.hostname ?? 'localhost';
-  const baseURL = `http://${hostname}:${ports.webserver}`;
+  const baseURL = serverBaseURLForTest(testInfo, options);
   const metricsURL = options.metrics ? `http://127.0.0.1:${ports.metrics}` : undefined;
   const logPath = testInfo.outputPath(`${instanceId}-server.log`);
   // Unix-domain socket paths are short (roughly 100 bytes on macOS/Linux), so

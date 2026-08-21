@@ -6,7 +6,8 @@
       "profile": "個人檔案",
       "display": "顯示",
       "notifications": "通知",
-      "account": "帳號"
+      "account": "帳號",
+      "bots": "機器人"
     },
     "profile": {
       "title": "個人檔案",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "取消",
         "deleting": "正在刪除..."
+      }
+    },
+    "bots": {
+      "title": "機器人",
+      "subtitle": "建立 API 帳戶並準確控制他們可以執行的操作",
+      "singular": "機器人",
+      "unsupported": "此伺服器版本不支援機器人帳號。",
+      "list_title": "機器人帳號",
+      "loading": "正在載入機器人...",
+      "empty_title": "還沒有機器人",
+      "empty_body": "當整合需要自己的身分和權限時創建機器人。",
+      "create_permission_required": "你可以管理現有機器人，但沒有建立新機器人的權限。",
+      "create": "創建機器人",
+      "create_title": "建立機器人帳號",
+      "create_failed": "創建機器人失敗",
+      "created": "機器人已建立",
+      "edit": "編輯",
+      "edit_title": "編輯機器人帳號",
+      "updated": "機器人已更新",
+      "update_failed": "更新機器人失敗",
+      "update_conflict": "其他人已更新此機器人。請重新載入頁面後再試。",
+      "username": "使用者名稱",
+      "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
+      "display_name": "顯示名稱",
+      "owner": "擁有者",
+      "api_key_title": "儲存此 API 金鑰",
+      "api_key_warning": "該鍵僅顯示一次。在關閉此視窗之前將其儲存在安全的地方。",
+      "key_created": "API 金鑰已建立",
+      "key_rotated_at": "上次旋轉",
+      "key_copied": "API 金鑰已複製",
+      "rotate_key": "旋轉鑰匙",
+      "rotate_title": "輪換 API 金鑰",
+      "rotate_warning": "目前金鑰將立即停止運作。任何使用它的整合都必須更新。",
+      "key_rotated": "API 金鑰已輪替",
+      "rotate_failed": "輪換 API 金鑰失敗",
+      "delete_title": "刪除機器人",
+      "delete_warning": "刪除{name}？其 API 金鑰將立即停止運作，且該帳戶無法復原。",
+      "deleted": "機器人已刪除",
+      "delete_failed": "刪除機器人失敗",
+      "permissions": {
+        "owner_ceiling": "選擇這個機器人可以執行的操作。你只能授予自己擁有的權限。如果你失去某項權限，機器人也將無法再使用該權限。",
+        "save_failed": "無法更新機器人權限"
       }
     }
   }

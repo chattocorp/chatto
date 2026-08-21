@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go/jetstream"
 
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
@@ -35,6 +36,9 @@ type AccountDeletionToken struct {
 // CreateAccountDeletionToken generates a confirmation token for account deletion.
 // The token is stored in RUNTIME_STATE and must be provided to DeleteUser within the TTL.
 func (c *ChattoCore) CreateAccountDeletionToken(ctx context.Context, userID string) (string, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
+	}
 	token := NewAccountDeletionToken()
 	createdAt := time.Now()
 
@@ -105,8 +109,14 @@ func (c *ChattoCore) ValidateAccountDeletionToken(ctx context.Context, token, us
 // This performs GDPR-compliant deletion including removal of message bodies.
 // Authorization: Caller must verify CanDeleteUser(actorID, userID) before calling.
 func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) error {
-	if _, err := c.GetUser(ctx, userID); err != nil {
+	user, err := c.GetUser(ctx, userID)
+	if err != nil {
 		return fmt.Errorf("user not found: %w", err)
+	}
+	if !user.GetIsBot() {
+		if err := c.deleteOwnedBots(ctx, actorID, userID); err != nil {
+			return err
+		}
 	}
 
 	// Post-ADR-030 there are two implicit scopes — channel and DM — and
@@ -145,8 +155,22 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	deletedEvent := newEvent(actorID, &corev1.Event{Event: &corev1.Event_UserAccountDeleted{
 		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: userID},
 	}})
-	if _, err := c.appendUserEvent(ctx, userID, deletedEvent, "", nil); err != nil {
-		return fmt.Errorf("failed to mark user deleted: %w", err)
+	for {
+		_, err := c.appendUserEvent(ctx, userID, deletedEvent, evtstream.EventSubjectFilter(), func() error {
+			if !user.GetIsBot() && len(c.userModel.botIDsOwnedBy(userID)) > 0 {
+				return errOwnedBotsRemain
+			}
+			return nil
+		})
+		if !errors.Is(err, errOwnedBotsRemain) {
+			if err != nil {
+				return fmt.Errorf("failed to mark user deleted: %w", err)
+			}
+			break
+		}
+		if err := c.deleteOwnedBots(ctx, actorID, userID); err != nil {
+			return err
+		}
 	}
 	// Attempt immediate erasure after the durable deletion fact commits. A
 	// failure cannot roll the account deletion back; the dedicated durable
@@ -182,5 +206,16 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 
 	c.logger.Info("Deleted user account", "id", userID)
 
+	return nil
+}
+
+var errOwnedBotsRemain = errors.New("owned bots remain")
+
+func (c *ChattoCore) deleteOwnedBots(ctx context.Context, actorID, ownerUserID string) error {
+	for _, botID := range c.userModel.botIDsOwnedBy(ownerUserID) {
+		if err := c.DeleteUser(ctx, actorID, botID); err != nil && !errors.Is(err, ErrNotFound) {
+			return fmt.Errorf("delete owned bot: %w", err)
+		}
+	}
 	return nil
 }

@@ -35,6 +35,14 @@ application, so a block racing connection setup cannot leave an authorized
 socket behind. Cookie sessions, first-party bearer sessions, and OAuth sessions
 issued to other clients are unaffected.
 
+Bot API-key connections similarly retain only the non-secret HMAC verifier
+generation accepted during the hello. Each connection registers atomically
+with the durable user-auth projection. When a key-rotation fact reaches a
+replica, that projection closes watchers for the superseded generation; the
+handler cancels authorized work, sends a terminal `authentication_required`
+close when possible, and tears down the socket. The raw API key is not retained
+in request or connection context.
+
 The `chatto.realtime.v1` package name is the protobuf namespace, not the
 behavioural protocol version. Protocol 2 is the server-scoped projection
 stream. It uses `RealtimeProjectionEvent`, an optional resume cursor on
@@ -344,9 +352,13 @@ retaining the room timeline. Retained clients refresh the room's canonical pin
 page in event order. Older protocol-2 clients ignore the unknown nested field
 while continuing to process the known top-level operation.
 
-RBAC facts are fanned through the shared hub. The mapper responds with a
-reconnecting `projection_reset_required` close so the next subscription starts
-from current authorization.
+RBAC facts are fanned through the shared hub. The mapper normally responds with
+a reconnecting `projection_reset_required` close so the next subscription
+starts from current authorization. A human viewer's own direct permission
+mutation targeting a bot cannot change that viewer's authorization, so their
+connection instead receives an empty projection envelope and advances its
+cursor without rebuilding the page. Other viewers, including the target bot,
+still receive the reset.
 
 ## Process-wide live ingress
 

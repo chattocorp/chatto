@@ -1,14 +1,15 @@
 <script lang="ts">
   import type { AdminMember, AdminRoleDetails } from '$lib/api-client/adminUsers';
   import { CopyId, Panel } from '$lib/components/admin';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { Pill } from '$lib/ui';
   import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
-  import { getAvatarInitials } from '$lib/utils/initials';
   import { formatCooldownRemaining, getLoginChangeCooldownRemaining } from '$lib/validation';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 
   type Props = {
     member: AdminMember;
@@ -34,6 +35,7 @@
       .sort((a, b) => rolePosition(a) - rolePosition(b))
   );
   const serverRoleCount = $derived(sortedServerRoles.length);
+  const isBot = $derived(member.isBot === true);
   const cooldownSummary = $derived.by(() => {
     if (cooldownActive) {
       return m('admin.member_detail.self_rename_cooldown', {
@@ -71,19 +73,11 @@
 <Panel title={m('admin.members.user_details')} icon="iconify icon-[uil--user]">
   <div class="flex flex-col gap-6">
     <div class="flex flex-col gap-4 sm:flex-row sm:items-start">
-      {#if member.avatarUrl}
-        <img
-          src={member.avatarUrl}
-          alt={member.displayName}
-          class="h-20 w-20 rounded-full border border-border object-cover"
-        />
-      {:else}
-        <div
-          class="flex h-20 w-20 shrink-0 items-center justify-center rounded-full bg-surface-strong text-3xl text-muted"
-        >
-          {getAvatarInitials(member.displayName, member.login)}
-        </div>
-      {/if}
+      <UserAvatar
+        user={{ ...member, presenceStatus: PresenceStatus.OFFLINE }}
+        size="xl"
+        class="border border-border"
+      />
 
       <div class="min-w-0 flex-1">
         <div class="flex flex-col gap-1">
@@ -94,33 +88,37 @@
         <div class="mt-4 flex flex-wrap gap-2">
           {#if member.deleted}
             <Pill tone="danger">{m('admin.members.deleted_account')}</Pill>
+          {:else if isBot}
+            <Pill tone="action"><span class="capitalize">{m('settings.bots.singular')}</span></Pill>
           {:else}
             <Pill tone="success">{m('admin.members.member')}</Pill>
           {/if}
-          {#if canViewMemberEmails}
-            <Pill tone={member.hasVerifiedEmail ? 'success' : 'muted'}>
-              {member.hasVerifiedEmail
-                ? m('admin.members.email_verified')
-                : m('admin.members.email_not_verified')}
+          {#if !isBot}
+            {#if canViewMemberEmails}
+              <Pill tone={member.hasVerifiedEmail ? 'success' : 'muted'}>
+                {member.hasVerifiedEmail
+                  ? m('admin.members.email_verified')
+                  : m('admin.members.email_not_verified')}
+              </Pill>
+            {:else}
+              <Pill tone="muted">{m('admin.members.email_hidden')}</Pill>
+            {/if}
+            <Pill tone={serverRoleCount > 0 ? 'neutral' : 'muted'}>
+              {serverRoleCount === 1
+                ? m('admin.members.server_role_one')
+                : m('admin.members.server_role_many', { count: serverRoleCount })}
             </Pill>
-          {:else}
-            <Pill tone="muted">{m('admin.members.email_hidden')}</Pill>
+            <Pill tone={member.viewerCanDeleteAccount ? 'danger' : 'muted'}>
+              {member.viewerCanDeleteAccount
+                ? m('admin.members.deletion_allowed')
+                : m('admin.members.deletion_protected')}
+            </Pill>
+            <Pill tone={cooldownActive ? 'action' : 'muted'}>
+              {cooldownActive
+                ? m('admin.members.rename_cooldown')
+                : m('admin.members.rename_available')}
+            </Pill>
           {/if}
-          <Pill tone={serverRoleCount > 0 ? 'neutral' : 'muted'}>
-            {serverRoleCount === 1
-              ? m('admin.members.server_role_one')
-              : m('admin.members.server_role_many', { count: serverRoleCount })}
-          </Pill>
-          <Pill tone={member.viewerCanDeleteAccount ? 'danger' : 'muted'}>
-            {member.viewerCanDeleteAccount
-              ? m('admin.members.deletion_allowed')
-              : m('admin.members.deletion_protected')}
-          </Pill>
-          <Pill tone={cooldownActive ? 'action' : 'muted'}>
-            {cooldownActive
-              ? m('admin.members.rename_cooldown')
-              : m('admin.members.rename_available')}
-          </Pill>
         </div>
       </div>
     </div>
@@ -136,25 +134,27 @@
         <div class="text-sm text-muted">{m('admin.common.joined')}</div>
         <div class="mt-1">{formatOptionalDate(member.createdAt)}</div>
       </div>
-      <div class="min-w-0">
-        <div class="text-sm text-muted">{m('admin.members.verified_email')}</div>
-        <div class="mt-1 truncate" title={emailSummary()}>
-          {emailSummary()}
+      {#if !isBot}
+        <div class="min-w-0">
+          <div class="text-sm text-muted">{m('admin.members.verified_email')}</div>
+          <div class="mt-1 truncate" title={emailSummary()}>
+            {emailSummary()}
+          </div>
         </div>
-      </div>
-      <div>
-        <div class="text-sm text-muted">{m('admin.members.username_changes')}</div>
-        <div class="mt-1">{cooldownSummary}</div>
-      </div>
-      <div class="min-w-0 md:col-span-2">
-        <div class="text-sm text-muted">{m('admin.members.server_roles')}</div>
-        <div class="mt-1 flex flex-wrap gap-1">
-          {#each sortedServerRoles as roleName (roleName)}
-            <Pill tone="neutral">{roleDisplayName(roleName)}</Pill>
-          {/each}
-          <Pill>{m('admin.members.member')}</Pill>
+        <div>
+          <div class="text-sm text-muted">{m('admin.members.username_changes')}</div>
+          <div class="mt-1">{cooldownSummary}</div>
         </div>
-      </div>
+        <div class="min-w-0 md:col-span-2">
+          <div class="text-sm text-muted">{m('admin.members.server_roles')}</div>
+          <div class="mt-1 flex flex-wrap gap-1">
+            {#each sortedServerRoles as roleName (roleName)}
+              <Pill tone="neutral">{roleDisplayName(roleName)}</Pill>
+            {/each}
+            <Pill>{m('admin.members.member')}</Pill>
+          </div>
+        </div>
+      {/if}
     </div>
   </div>
 </Panel>

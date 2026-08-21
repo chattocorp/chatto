@@ -77,6 +77,15 @@ authorization, live events, backup/restore, and backend tests.
 - Projection-backed decisions need OCC tokens for the same event-log prefix as
   the projected state. Do not decide from a projection and publish against an
   unrelated stream tail.
+- Treat OCC conflicts according to command semantics. For interactive
+  replacement-style edits, do not replay precomputed events after a conflict.
+  Either return a conflict so the client can preserve the draft and ask the
+  user to reload, or re-read state and rerun authorization, validation,
+  uniqueness checks, no-op detection, and event construction from the original
+  command intent. Retry an unchanged event only when its meaning is proven to
+  remain valid after intervening writes. Sparse patches avoid overwriting
+  untouched fields, but detecting a stale edit to the same field requires a
+  client-supplied revision.
 - Defaults required for a newly created aggregate must commit with its creation
   facts in the same atomic EVT batch. Do not reconstruct creation-time defaults
   later by scanning projections during startup.
@@ -261,10 +270,12 @@ authorization, live events, backup/restore, and backend tests.
   target aggregate's OCC retry. Request-time authorization is the default: a
   conflict-free command may finish after a concurrent cross-aggregate
   revocation. Commands that require strict commit-time revocation semantics
-  must also guard the narrow authorization fence and keep its writer
-  classification complete. Use ADR-068's whole-EVT boundary only for a genuine
-  stream-wide invariant whose cost is worth contention with unrelated `evt.>`
-  traffic, and record exceptional consistency choices in the relevant ADR/FDR.
+  must also guard the narrow authorization fence, keep its writer classification
+  complete, and wait every projection consulted by authorization through the
+  relevant captured subject tail inside the retry. Use ADR-068's whole-EVT
+  boundary only for a genuine stream-wide invariant whose cost is worth
+  contention with unrelated `evt.>` traffic, and record exceptional consistency
+  choices in the relevant ADR/FDR.
 
 ## Admin Interface
 

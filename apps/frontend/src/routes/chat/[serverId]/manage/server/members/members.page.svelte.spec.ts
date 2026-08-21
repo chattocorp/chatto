@@ -10,6 +10,7 @@ type Member = {
   avatarUrl: string | null;
   roles: string[];
   createdAt: string;
+  isBot?: boolean;
 };
 
 const mocks = vi.hoisted(() => ({
@@ -89,6 +90,15 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     isCurrent: () => true
   })
+}));
+
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
+}));
+
+vi.mock('$lib/state/userProfiles.svelte', () => ({
+  getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,
+  getLiveCustomStatus: () => null
 }));
 
 vi.mock('$lib/api-client/adminUsers', async () => {
@@ -237,5 +247,14 @@ describe('server admin members pagination', () => {
     await settle();
 
     expect(container.querySelector('.min-h-0.flex-1.overflow-y-auto')).toBeTruthy();
+  });
+
+  it('marks bot accounts in the member list', async () => {
+    queueResults(result([{ ...member(0, 'helper_bot'), isBot: true }]));
+
+    const { container } = render(MembersPage);
+    await settle();
+
+    expect(container.querySelector('[data-testid="bot-badge"]')).toBeTruthy();
   });
 });

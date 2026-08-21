@@ -36,7 +36,6 @@ export function getAdminNavItems({
   server: AdminNavServerPermissions;
 }): AdminNavItem[] {
   if (!chrome) return [];
-  if (!chrome.canViewAdmin && !server.canViewAdmin) return [];
 
   const items: AdminNavItem[] = [];
 
@@ -55,6 +54,15 @@ export function getAdminNavItems({
       icon: 'iconify icon-[uil--users-alt]'
     });
   }
+
+  // Bot ownership is itself sufficient to manage an existing bot, even after
+  // bot.create is revoked. Keep this entry available to every signed-in human;
+  // BotService remains authoritative for which bots and actions they may use.
+  items.push({
+    href: resolve('/chat/[serverId]/manage/server/bots', { serverId: serverSegment }),
+    label: m('settings.bots.title'),
+    icon: 'iconify icon-[uil--robot]'
+  });
 
   if (server.canManageInvites) {
     items.push({

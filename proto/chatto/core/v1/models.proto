@@ -60,6 +60,11 @@ message User {
   google.protobuf.Timestamp created_at = 4; // When the user was created (null for users created before this field was added)
   bool deleted = 5; // True for public tombstones representing deleted/unresolvable users.
   CustomUserStatus custom_status = 6; // Optional durable user-authored status, hidden after expires_at.
+  // True for an automated bot identity. False for human accounts, including
+  // historical accounts created before bot identities existed.
+  bool is_bot = 7;
+  // Human owner of this bot. Empty for human accounts.
+  string bot_owner_user_id = 8;
 }
 
 // CustomUserStatus is a durable, public user-authored status that is

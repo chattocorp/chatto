@@ -13,8 +13,8 @@ Cell semantics:
 
 A missing cell renders as an empty placeholder (the permission doesn't
 apply at that scope's tier). Hovering or focusing an available cell highlights
-its permission row and scope column. The table header remains visible while
-its dense matrix rows scroll.
+its permission row and scope column. The surrounding pane owns vertical
+scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
@@ -38,6 +38,8 @@ its dense matrix rows scroll.
     scopeId: string;
     override: MatrixDecision;
     effective: MatrixDecision;
+    /** Present when a delegation ceiling can prevent storing an allow. */
+    allowPermitted?: boolean;
   };
   export type MatrixData = {
     applicablePermissions: string[];
@@ -45,6 +47,7 @@ its dense matrix rows scroll.
     cells: MatrixCellData[];
   };
   export type CellState = 'allow' | 'deny' | 'neutral';
+  export type DecisionMode = 'tri-state' | 'binary';
   type MatrixCoordinate = { category: string; column: string; permission: string };
 
   let {
@@ -53,7 +56,8 @@ its dense matrix rows scroll.
     onCycle,
     subjectKind = 'subject',
     forceAllow = false,
-    readOnly = false
+    readOnly = false,
+    decisionMode = 'tri-state'
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -65,6 +69,8 @@ its dense matrix rows scroll.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
+    /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
+    decisionMode?: DecisionMode;
   } = $props();
 
   let hoveredCell = $state<MatrixCoordinate | null>(null);
@@ -135,6 +141,39 @@ its dense matrix rows scroll.
     return 'neutral';
   }
 
+  function parentDecision(scope: MatrixScope, permission: string): MatrixDecision {
+    const serverScope = data.scopes.find((candidate) => candidate.kind === 'SERVER');
+    const serverDecision = serverScope
+      ? (cellFor(serverScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    if (scope.kind === 'SERVER') return 'NONE';
+    if (scope.kind === 'GROUP') return serverDecision;
+
+    const groupScope = data.scopes.find(
+      (candidate) => candidate.kind === 'GROUP' && candidate.id === `group:${scope.parentGroupId}`
+    );
+    const groupDecision = groupScope
+      ? (cellFor(groupScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    return groupDecision !== 'NONE' ? groupDecision : serverDecision;
+  }
+
+  function cycleCell(
+    scope: MatrixScope,
+    permission: string,
+    current: MatrixDecision,
+    next: CellState
+  ) {
+    if (decisionMode !== 'binary') {
+      onCycle(scope, permission, next);
+      return;
+    }
+    // Binary bot edits write only an explicit grant or no decision. Older
+    // clients could create denies, so clicking one clears it instead of
+    // replacing it with a grant.
+    onCycle(scope, permission, next === 'allow' && current !== 'DENY' ? 'allow' : 'neutral');
+  }
+
   function scopeColumnClass(kind: MatrixScopeKind): string {
     if (kind === 'SERVER') return 'bg-surface-emphasized/40';
     if (kind === 'GROUP') return 'bg-surface-emphasized/20';
@@ -186,8 +225,6 @@ its dense matrix rows scroll.
       columns={matrixScopes.length + 2}
       getKey={(permission) => permission}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
-      stickyHeader
-      stickyHeaderFadeOffset="top-48"
       hoverable={false}
     >
       {#snippet header()}
@@ -262,35 +299,92 @@ its dense matrix rows scroll.
             {#if cell}
               {@const ov = decisionToState(cell.override)}
               {@const eff = decisionToState(cell.effective)}
-              {@const displayOverride = forceAllow ? 'allow' : ov}
-              {@const displayEffective = forceAllow ? 'neutral' : eff}
+              {@const parent = parentDecision(scope, permission)}
+              {@const configured = cell.override !== 'NONE' ? cell.override : parent}
+              {@const binaryEnabled = configured === 'ALLOW'}
+              {@const inheritedBinaryGrant =
+                decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
+              {@const displayOverride = forceAllow
+                ? 'allow'
+                : decisionMode === 'binary'
+                  ? cell.override === 'ALLOW'
+                    ? 'allow'
+                    : 'neutral'
+                  : ov}
+              {@const displayEffective = forceAllow
+                ? 'neutral'
+                : decisionMode === 'binary'
+                  ? cell.override === 'NONE' && binaryEnabled
+                    ? 'allow'
+                    : 'neutral'
+                  : eff}
               {@const ariaLabel = forceAllow
                 ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                : ov !== 'neutral'
-                  ? `Override ${ov} for ${permission} at ${scope.label}`
-                  : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+                : decisionMode === 'binary'
+                  ? m('rbac.permissions.binary.aria', {
+                      permission,
+                      state: binaryEnabled
+                        ? m('rbac.permissions.binary.enabled')
+                        : m('rbac.permissions.binary.disabled'),
+                      subject: subjectKind,
+                      scope: scope.label
+                    })
+                  : ov !== 'neutral'
+                    ? `Override ${ov} for ${permission} at ${scope.label}`
+                    : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+              {@const allowConstraint =
+                cell.allowPermitted === false
+                  ? m('rbac.permissions.binary.owner_ceiling', {
+                      permission,
+                      scope: scope.label
+                    })
+                  : null}
               {@const titleParts = forceAllow
                 ? [
                     'Allow (owners are always granted all permissions)',
                     'Owner permissions are not editable'
                   ]
-                : [
-                    ov !== 'neutral'
-                      ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                      : null,
-                    ov === 'neutral' && eff !== 'neutral'
-                      ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                      : null,
-                    ov === 'neutral' && eff === 'neutral' ? 'No decision' : null
-                  ].filter(Boolean)}
+                : decisionMode === 'binary'
+                  ? [
+                      binaryEnabled
+                        ? [
+                            m('rbac.permissions.binary.enabled'),
+                            cell.override === 'NONE'
+                              ? m('rbac.permissions.binary.inherited')
+                              : null,
+                            cell.allowPermitted === false
+                              ? m('rbac.permissions.binary.unavailable')
+                              : null
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : m('rbac.permissions.binary.disabled'),
+                      allowConstraint
+                    ].filter(Boolean)
+                  : [
+                      ov !== 'neutral'
+                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                        : null,
+                      ov === 'neutral' && eff !== 'neutral'
+                        ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                        : null,
+                      ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                      allowConstraint
+                    ].filter(Boolean)}
               <MatrixCell
                 override={displayOverride}
                 inherited={displayEffective}
                 updating={isUpdating}
                 disabled={readOnly}
+                locked={inheritedBinaryGrant}
+                allowBlocked={cell.allowPermitted === false &&
+                  (decisionMode !== 'binary' || parent !== 'ALLOW')}
+                ceilingBlocked={cell.allowPermitted === false &&
+                  (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
+                {decisionMode}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
-                onCycle={(next) => onCycle(scope, permission, next)}
+                onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
               />
             {:else}
               <span class="inline-block h-10 w-10" aria-hidden="true"></span>

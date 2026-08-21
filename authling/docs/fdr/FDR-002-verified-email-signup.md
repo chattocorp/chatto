@@ -36,6 +36,10 @@ durable account and starts the browser session defined by FDR-003.
 7. Authling atomically creates the per-account history and claims the
    normalized address through a separate registry event. The flow is consumed
    after both facts become visible in the serving projection.
+   Account creation also derives a preferred username from the normalized
+   email local part, removes characters unsuitable for a portable username,
+   and falls back to `user` when fewer than two characters remain. The value
+   is an identity hint, not a login credential or an Authling-wide unique name.
 8. Authling creates a fresh browser session and takes the person to the signed-in
    account page. If session storage is unavailable, the account remains created
    and the person can sign in later.
@@ -55,6 +59,8 @@ reservation.
   `AUTHLING_RUNTIME_STATE` KV bucket and expire with the flow.
 - Durable normalized email and password verifier values are encrypted as
   separately authenticated fields with a random credential data key. The
+  preferred username is protected by the same key hierarchy as a distinct
+  authenticated field. The
   projection decrypts only the email field needed for its lookup index. The
   data key is wrapped by a per-account user key;
   both key records live in the separate `AUTHLING_KEYS` bucket.

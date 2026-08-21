@@ -6,7 +6,8 @@
       "profile": "פרופיל",
       "display": "תצוגה",
       "notifications": "התראות",
-      "account": "חשבון"
+      "account": "חשבון",
+      "bots": "בוטים"
     },
     "profile": {
       "title": "פרופיל",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "בטל",
         "deleting": "מוחק..."
+      }
+    },
+    "bots": {
+      "title": "בוטים",
+      "subtitle": "צור חשבונות API ושלוט בדיוק במה שהם יכולים לעשות",
+      "singular": "בוט",
+      "unsupported": "גרסת שרת זו אינה תומכת בחשבונות בוטים.",
+      "list_title": "חשבונות בוט",
+      "loading": "טוען בוטים...",
+      "empty_title": "עדיין אין בוטים",
+      "empty_body": "צור בוט כאשר אינטגרציה זקוקה לזהות והרשאות משלו.",
+      "create_permission_required": "אפשר לנהל בוטים קיימים, אך אין לך הרשאה ליצור בוט חדש.",
+      "create": "צור בוט",
+      "create_title": "צור חשבון בוט",
+      "create_failed": "יצירת הבוט נכשלה",
+      "created": "בוט נוצר",
+      "edit": "ערוך",
+      "edit_title": "ערוך חשבון בוט",
+      "updated": "בוט עודכן",
+      "update_failed": "עדכון הבוט נכשל",
+      "update_conflict": "מישהו אחר עדכן את הבוט הזה. יש לטעון מחדש את הדף ולנסות שוב.",
+      "username": "שם משתמש",
+      "username_hint": "שמות משתמש בוטים חייבים להסתיים ב-_bot.",
+      "display_name": "שם תצוגה",
+      "owner": "בעלים",
+      "api_key_title": "שמור מפתח API זה",
+      "api_key_warning": "מפתח זה מוצג פעם אחת בלבד. אחסן אותו במקום מאובטח לפני סגירת החלון הזה.",
+      "key_created": "מפתח API נוצר",
+      "key_rotated_at": "סובב לאחרונה",
+      "key_copied": "מפתח API הועתק",
+      "rotate_key": "סיבוב מפתח",
+      "rotate_title": "סיבוב מפתח API",
+      "rotate_warning": "המפתח הנוכחי יפסיק לפעול באופן מיידי. כל שילוב המשתמש בו חייב להיות מעודכן.",
+      "key_rotated": "מפתח API סובב",
+      "rotate_failed": "סובב מפתח API נכשל",
+      "delete_title": "מחק בוט",
+      "delete_warning": "למחוק את {name}? מפתח ה-API שלו יפסיק לפעול באופן מיידי ולא ניתן לשחזר את החשבון.",
+      "deleted": "הבוט נמחק",
+      "delete_failed": "מחיקת הבוט נכשלה",
+      "permissions": {
+        "owner_ceiling": "בחרו מה הבוט הזה יכול לעשות. אפשר להעניק לו רק הרשאות שיש לכם. אם תאבדו הרשאה, גם הבוט לא יוכל עוד להשתמש בה.",
+        "save_failed": "נכשל בעדכון הרשאת הבוט"
       }
     }
   }

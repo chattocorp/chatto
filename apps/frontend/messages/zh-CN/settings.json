@@ -6,7 +6,8 @@
       "profile": "个人资料",
       "display": "显示",
       "notifications": "通知",
-      "account": "账号"
+      "account": "账号",
+      "bots": "机器人"
     },
     "profile": {
       "title": "个人资料",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "取消",
         "deleting": "正在删除..."
+      }
+    },
+    "bots": {
+      "title": "机器人",
+      "subtitle": "创建 API 帐户并准确控制他们可以执行的操作",
+      "singular": "机器人",
+      "unsupported": "此服务器版本不支持机器人帐户。",
+      "list_title": "机器人帐户",
+      "loading": "正在加载机器人...",
+      "empty_title": "还没有机器人",
+      "empty_body": "当集成需要自己的身份和权限时创建机器人。",
+      "create_permission_required": "你可以管理现有机器人，但没有创建新机器人的权限。",
+      "create": "创建机器人",
+      "create_title": "创建机器人帐户",
+      "create_failed": "创建机器人失败",
+      "created": "机器人已创建",
+      "edit": "编辑",
+      "edit_title": "编辑机器人帐户",
+      "updated": "机器人已更新",
+      "update_failed": "更新机器人失败",
+      "update_conflict": "其他人更新了此机器人。请重新加载页面后再试。",
+      "username": "用户名",
+      "username_hint": "机器人用户名必须以 _bot 结尾。",
+      "display_name": "显示名称",
+      "owner": "所有者",
+      "api_key_title": "保存此 API 密钥",
+      "api_key_warning": "该键仅显示一次。在关闭此窗口之前将其存储在安全的地方。",
+      "key_created": "API 密钥已创建",
+      "key_rotated_at": "上次旋转",
+      "key_copied": "API 密钥已复制",
+      "rotate_key": "旋转钥匙",
+      "rotate_title": "轮换 API 密钥",
+      "rotate_warning": "当前密钥将立即停止工作。任何使用它的集成都必须更新。",
+      "key_rotated": "API 密钥已轮换",
+      "rotate_failed": "轮换 API 密钥失败",
+      "delete_title": "删除机器人",
+      "delete_warning": "删除{name}？其 API 密钥将立即停止工作，并且该帐户无法恢复。",
+      "deleted": "机器人已删除",
+      "delete_failed": "删除机器人失败",
+      "permissions": {
+        "owner_ceiling": "选择这个机器人可以执行的操作。你只能授予自己拥有的权限。如果你失去某项权限，机器人也将无法再使用该权限。",
+        "save_failed": "无法更新机器人权限"
       }
     }
   }

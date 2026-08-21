@@ -51,6 +51,14 @@
       "filter_label": "Filtra atļaujas",
       "filter_placeholder": "Filtrēt atļaujas...",
       "no_filter_matches": "Šim filtram neatbilst neviena atļauja.",
+      "binary": {
+        "aria": "Atļaujas {permission} statuss subjektam {subject} tvērumā {scope}: {state}",
+        "enabled": "Iespējota",
+        "disabled": "Atspējota",
+        "inherited": "Mantota no plašāka tvēruma",
+        "unavailable": "Pašlaik nav pieejama",
+        "owner_ceiling": "Atļauju {permission} tvērumā {scope} nevar piešķirt, jo robota īpašniekam tās pašlaik nav."
+      },
       "categories": {
         "space": {
           "title": "Servera atļaujas",

@@ -17,6 +17,7 @@ export type CallRoomParticipant = {
   displayName: string;
   login: string;
   avatarUrl: string | null;
+  isBot: boolean;
 };
 
 export type CallPresenceKind = 'voice' | 'video';
@@ -126,7 +127,8 @@ export class ActiveCallRoomsState {
               userId: user.id,
               displayName: user.displayName,
               login: user.login,
-              avatarUrl: user.avatarUrl ?? null
+              avatarUrl: user.avatarUrl ?? null,
+              isBot: user.isBot
             }
           ];
         })

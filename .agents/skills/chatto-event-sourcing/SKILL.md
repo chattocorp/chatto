@@ -114,7 +114,18 @@ Common patterns:
 - Per-aggregate append: use the typed aggregate helper and the publisher's append path.
 - Cross-event-type invariant on one aggregate family: read the wildcard tail with `LastSubjectPosition(filter)`, wait for any needed projections to catch up, re-check the projected invariant, then `AppendAtFilter`.
 - Multi-event atomic write: use atomic publish entries with explicit OCC on every entry that needs protection. Do not publish a batch with no OCC guard.
-- Retry only after re-reading the OCC tail and re-checking the invariant from projections.
+- Retry only after re-reading the OCC tail and re-checking the invariant from
+  projections. Re-run authorization, validation, uniqueness checks, no-op
+  detection, and event construction when any of them can change the command's
+  meaning.
+- For an interactive replacement-style edit, return a conflict so the client
+  can preserve the draft and ask the user to reload unless the complete command
+  is deliberately recomputed from its original intent. Do not replay a
+  precomputed event merely because another attempt may pass OCC.
+- Retry an unchanged event only when its semantics are proven to remain valid
+  after intervening writes. Sparse patches protect untouched fields but do not
+  detect stale edits to the same field; require a client-supplied revision when
+  that distinction matters.
 
 Pitfalls:
 

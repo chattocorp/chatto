@@ -69,6 +69,16 @@ func (c *ChattoCore) CanManageUserAccounts(ctx context.Context, userID string) (
 	return c.HasServerPermission(ctx, userID, PermUserManageAccounts)
 }
 
+// CanCreateBots checks whether a human user may create an owned bot account.
+func (c *ChattoCore) CanCreateBots(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermBotCreate)
+}
+
+// CanManageBots checks whether a human user may manage every bot account.
+func (c *ChattoCore) CanManageBots(ctx context.Context, userID string) (bool, error) {
+	return c.HasServerPermission(ctx, userID, PermBotManage)
+}
+
 // CanStartDM checks if a user can start DM conversations. DMs are allowed by
 // default for authenticated users, but an applicable server-scope
 // message.post deny still blocks the action. This keeps global suspension
@@ -111,6 +121,7 @@ var adminPermissions = []Permission{
 	PermUserManagePermissions,
 	PermAdminUsersView,
 	PermAdminAuditView,
+	PermBotManage,
 }
 
 // HasAnyAdminPermission checks if a user has any admin-level permission.

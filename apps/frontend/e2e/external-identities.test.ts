@@ -87,6 +87,8 @@ test.describe('External identity confirmation flows', () => {
     await expect(page.getByRole('heading', { name: 'Confirm Sign-In' })).toBeVisible();
     await expect(page.getByText('GitHub verified your identity')).toBeVisible();
     await expect(page.getByLabel('Username')).toHaveValue(login);
+    await expect(page.getByLabel('Display Name')).toHaveValue('GitHub SSO User');
+    await page.getByLabel('Display Name').fill('Chosen SSO Name');
     await expect(page.getByRole('link', { name: 'Sign in with existing account' })).toHaveAttribute(
       'href',
       '/login'
@@ -97,6 +99,11 @@ test.describe('External identity confirmation flows', () => {
 
     await page.goto(routes.settingsAccount);
     await expect(page.getByRole('heading', { name: 'Account', exact: true })).toBeVisible();
+
+    await page.goto(routes.settings);
+    await expect(page.getByPlaceholder('Enter your display name')).toHaveValue('Chosen SSO Name');
+
+    await page.goto(routes.settingsAccount);
     await expect(page.getByText('GitHub', { exact: true })).toBeVisible();
     const githubRow = page.locator('div.rounded.border').filter({ hasText: 'GitHub' });
     await expect(githubRow.getByText('Linked')).toBeVisible();

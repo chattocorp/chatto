@@ -184,8 +184,9 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	}
 
 	created, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
-		Token: createToken,
-		Login: "sso-user",
+		Token:       createToken,
+		Login:       "sso-user",
+		DisplayName: "Chosen SSO User",
 	}))
 	if err != nil {
 		t.Fatalf("CreateExternalIdentityAccount: %v", err)
@@ -202,8 +203,8 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetUser created: %v", err)
 	}
-	if createdUser.GetDisplayName() != "SSO User" {
-		t.Fatalf("created display name = %q, want SSO User", createdUser.GetDisplayName())
+	if createdUser.GetDisplayName() != "Chosen SSO User" {
+		t.Fatalf("created display name = %q, want Chosen SSO User", createdUser.GetDisplayName())
 	}
 	if _, err := env.core.GetPendingExternalIdentityFlow(env.ctx, createToken); !errors.Is(err, core.ErrExternalIdentityFlowNotFound) {
 		t.Fatalf("pending create flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
@@ -347,11 +348,19 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 
 func TestExternalIdentityCreateDisplayName(t *testing.T) {
 	tests := []struct {
-		name  string
-		login string
-		hint  string
-		want  string
+		name      string
+		login     string
+		requested string
+		hint      string
+		want      string
 	}{
+		{
+			name:      "valid requested name overrides hint",
+			login:     "sso-user",
+			requested: "Chosen User",
+			hint:      "SSO User",
+			want:      "Chosen User",
+		},
 		{
 			name:  "valid hint",
 			login: "sso-user",
@@ -385,8 +394,8 @@ func TestExternalIdentityCreateDisplayName(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			if got := externalIdentityCreateDisplayName(tt.login, tt.hint); got != tt.want {
-				t.Fatalf("externalIdentityCreateDisplayName(%q, %q) = %q, want %q", tt.login, tt.hint, got, tt.want)
+			if got := externalIdentityCreateDisplayName(tt.login, tt.requested, tt.hint); got != tt.want {
+				t.Fatalf("externalIdentityCreateDisplayName(%q, %q, %q) = %q, want %q", tt.login, tt.requested, tt.hint, got, tt.want)
 			}
 		})
 	}

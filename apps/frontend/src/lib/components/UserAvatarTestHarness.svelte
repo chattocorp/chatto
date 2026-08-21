@@ -11,12 +11,14 @@
     size = 'md',
     showPresence = false,
     showStatus = false,
-    presenceStatus = PresenceStatus.ONLINE
+    presenceStatus = PresenceStatus.ONLINE,
+    isBot = false
   }: {
     size?: Size;
     showPresence?: boolean;
     showStatus?: boolean;
     presenceStatus?: PresenceStatus;
+    isBot?: boolean;
   } = $props();
 
   const user = $derived({
@@ -24,6 +26,7 @@
     login: 'alice',
     displayName: 'Alice',
     deleted: false,
+    isBot,
     avatarUrl: null,
     presenceStatus,
     customStatus: {

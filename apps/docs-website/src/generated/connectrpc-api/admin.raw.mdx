@@ -1046,7 +1046,8 @@ Resource-oriented permission decisions for one role.
 
 ### GetUserPermissionMatrix
 
-Gets one user's full permission matrix. Requires user.manage-permissions.
+Gets one user's full permission matrix. Human targets require
+user.manage-permissions; bot targets require ownership or bot.manage.
 Returns NOT_FOUND when the user does not exist.
 
 ```http
@@ -1079,8 +1080,9 @@ Response containing one user's permission matrix.
 
 ### ListUserPermissionDecisions
 
-Lists one user's permission decisions as resource-oriented rows. Requires
-user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+Lists one user's permission decisions as resource-oriented rows. Human
+targets require user.manage-permissions; bot targets require ownership or
+bot.manage. Returns NOT_FOUND when the user does not exist.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/ListUserPermissionDecisions
@@ -1182,7 +1184,9 @@ Result of setting one role permission state.
 
 ### SetUserPermission
 
-Sets one user permission decision. Requires user.manage-permissions.
+Sets one user permission decision. Human targets require
+user.manage-permissions; bot targets require ownership or bot.manage and
+accept only allow or clear within the bot owner's current authority.
 
 ```http
 POST /api/connect/chatto.admin.v1.AdminPermissionService/SetUserPermission
@@ -2275,6 +2279,7 @@ Matrix cell for one permission and scope.
 | `scope_id` | `string` | Scope ID matching PermissionMatrixScope.id. |
 | `override` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Explicit decision at this scope. |
 | `effective` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Effective decision at this scope. |
+| `allow_permitted` | `optional bool` | Whether an explicit allow may currently be stored for this target. Absent when no additional delegation ceiling applies. |
 
 
 

@@ -127,6 +127,9 @@ func userByEmailKey(email string) string {
 // CreateEmailVerificationCode creates a short-lived verification code for an email.
 // The returned raw code is intended to be sent by email and is never stored.
 func (c *ChattoCore) CreateEmailVerificationCode(ctx context.Context, userID, email string) (string, error) {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return "", err
+	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	if userID == "" {
 		return "", fmt.Errorf("userID is required")
@@ -221,7 +224,7 @@ func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID 
 		if userID != "" && c.userModel.hasVerifiedFactor(userID) {
 			return nil
 		}
-		count, err := c.CountVerifiedAccounts(ctx)
+		count, err := c.CountUserLimitAccounts(ctx)
 		if err != nil {
 			return fmt.Errorf("failed to count verified accounts: %w", err)
 		}
@@ -236,6 +239,9 @@ func (c *ChattoCore) requireVerifiedAccountCapacity(ctx context.Context, userID 
 // Idempotent: rewriting the same (user, email) pair just overwrites the
 // existing entry with identical content.
 func (c *ChattoCore) addVerifiedEmailAs(ctx context.Context, actorID, userID, email string) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	email = strings.ToLower(strings.TrimSpace(email))
 	if email == "" {
 		return ErrInvalidArgument
@@ -350,6 +356,19 @@ func (c *ChattoCore) GetUserByVerifiedEmail(ctx context.Context, email string) (
 // verified sign-in factor: a verified email or linked external identity.
 func (c *ChattoCore) CountVerifiedAccounts(ctx context.Context) (int, error) {
 	return len(c.userModel.verifiedAccountIDs()), nil
+}
+
+// CountUserLimitAccounts returns every account consuming the instance user
+// limit: humans with a verified sign-in factor plus all active bot accounts.
+func (c *ChattoCore) CountUserLimitAccounts(ctx context.Context) (int, error) {
+	ids := make(map[string]struct{})
+	for _, userID := range c.userModel.verifiedAccountIDs() {
+		ids[userID] = struct{}{}
+	}
+	for _, userID := range c.userModel.botIDs() {
+		ids[userID] = struct{}{}
+	}
+	return len(ids), nil
 }
 
 // CountVerifiedUsers returns the number of distinct users with at least

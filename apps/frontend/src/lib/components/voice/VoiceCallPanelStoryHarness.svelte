@@ -107,6 +107,7 @@
 			name,
 			login: identity,
 			avatarUrl: null,
+			isBot: false,
 			isMuted: false,
 			isLocal: false,
 			connectionQuality: 'excellent',

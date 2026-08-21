@@ -10,6 +10,18 @@ import (
 	"hmans.de/chatto/pkg/datacrypto"
 )
 
+func TestPreferredUsernameFromEmail(t *testing.T) {
+	for email, want := range map[string]string{
+		"Alice.Example@example.com": "alice.example",
+		"a+tag@example.com":         "atag",
+		"--Person--@example.com":    "person",
+	} {
+		if got := preferredUsernameFromEmail(email); got != want {
+			t.Errorf("preferredUsernameFromEmail(%q) = %q, want %q", email, got, want)
+		}
+	}
+}
+
 func TestPasswordChangedVerifierRejectsAADSubstitution(t *testing.T) {
 	key, err := datacrypto.GenerateKey()
 	if err != nil {

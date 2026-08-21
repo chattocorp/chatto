@@ -619,7 +619,8 @@ describe('RoomList', () => {
         userId: 'teal',
         login: 'teal',
         displayName: 'Teal',
-        avatarUrl: null
+        avatarUrl: null,
+        isBot: true
       }
     ]);
 
@@ -637,6 +638,7 @@ describe('RoomList', () => {
     expect(pulseIcon?.classList.contains('animate-ping')).toBe(true);
     expect(dmRow?.querySelector('[data-testid="room-call-participants"]')).not.toBeNull();
     expect(dmRow?.querySelectorAll('[data-testid="room-call-participant-avatar"]')).toHaveLength(1);
+    expect(dmRow?.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
     expect(children.indexOf(dmRow!.querySelector('[data-testid="room-call-participants"]')!)).toBe(
       children.indexOf(icon!) - 1
     );

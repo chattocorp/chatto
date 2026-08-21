@@ -23,9 +23,14 @@ describe('MessageUserInteractionState', () => {
   it('retains an actor who is no longer in the room', () => {
     const state = new MessageUserInteractionState(() => []);
 
-    state.showUser({ ...member, deleted: false }, null);
+    state.showUser({ ...member, deleted: false, isBot: true }, null);
 
-    expect(state.user).toEqual({ ...member, deleted: false, customStatus: undefined });
+    expect(state.user).toEqual({
+      ...member,
+      deleted: false,
+      isBot: true,
+      customStatus: undefined
+    });
     expect(state.hasCurrentMember(member.id)).toBe(false);
   });
 

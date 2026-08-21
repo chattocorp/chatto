@@ -5,13 +5,12 @@
   import { createMemberDirectoryAPI } from '$lib/api-client/memberDirectory';
   import { createRoomCommandAPI } from '$lib/api-client/rooms';
   import { DataTable, Panel } from '$lib/components/admin';
-  import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
   import Hint from '$lib/ui/Hint.svelte';
   import { Button, Combobox } from '$lib/ui/form';
   import { useProjectionEvent } from '$lib/hooks';
   import { toast } from '$lib/ui/toast';
-  import { getAvatarInitials } from '$lib/utils/initials';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { queryClient } from '$lib/query/client';
   import { directoryQueryKeys } from '$lib/query/directory';
@@ -376,20 +375,7 @@
           onclear={clearSelectedUser}
         >
           {#snippet item({ item: user })}
-            {#if user.avatarUrl}
-              <SkeletonImg
-                loading="lazy"
-                src={user.avatarUrl}
-                alt=""
-                class="h-8 w-8 shrink-0 rounded-full object-cover"
-              />
-            {:else}
-              <div
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface-emphasized text-sm font-semibold text-muted"
-              >
-                {getAvatarInitials(user.displayName, user.login)}
-              </div>
-            {/if}
+            <UserAvatar user={user} size="sm" useLiveProfile={false} />
             <span class="min-w-0 truncate">{user.displayName}</span>
             <span class="min-w-0 truncate text-muted">@{user.login}</span>
           {/snippet}
@@ -445,20 +431,7 @@
       {#snippet row(member)}
         <td class="px-4 py-3">
           <div class="flex min-w-0 items-center gap-3">
-            {#if member.avatarUrl}
-              <SkeletonImg
-                loading="lazy"
-                src={member.avatarUrl}
-                alt=""
-                class="h-8 w-8 shrink-0 rounded-full object-cover"
-              />
-            {:else}
-              <div
-                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-surface text-sm font-semibold text-muted"
-              >
-                {getAvatarInitials(member.displayName, member.login)}
-              </div>
-            {/if}
+            <UserAvatar user={member} size="sm" useLiveProfile={false} />
             <span class="min-w-0 truncate font-medium text-text-top">{member.displayName}</span>
           </div>
         </td>

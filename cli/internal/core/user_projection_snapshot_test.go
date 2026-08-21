@@ -61,6 +61,34 @@ func TestUserProjectionSnapshotRoundTripExcludesAuthenticationState(t *testing.T
 	require.False(t, restored.HasOAuthConsent("U1", "https://private-client.example"), "OAuth consent must not be restored from a profile snapshot")
 }
 
+func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
+	original, contentKey := newEncryptedUserProjection(t, "owner")
+	createdAt := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	require.NoError(t, original.Apply(userEvent("E1", createdAt, accountCreated(t, contentKey, "E1", "owner", "owner", "Owner")), 2))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "K2",
+		Event: &corev1.Event_UserDekGenerated{UserDekGenerated: &corev1.UserDEKGeneratedEvent{
+			UserId: "bot", Epoch: 1, Purpose: corev1.UserDEKPurpose_USER_DEK_PURPOSE_USER_PII, ContentKeyRef: "dek.test",
+		}},
+	}, 3))
+	botCreated := accountCreated(t, contentKey, "E2", "bot", "helper_bot", "Helper Bot")
+	botCreated.GetUserAccountCreated().IsBot = true
+	botCreated.GetUserAccountCreated().BotOwnerUserId = "owner"
+	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), botCreated), 4))
+
+	payload, err := original.Snapshot()
+	require.NoError(t, err)
+	restored := NewUserProjection(staticProjectionKeyWrapper{key: contentKey.key}, staticProjectionDEKStore{})
+	require.NoError(t, restored.Restore(payload))
+
+	bot, ok := restored.Get("bot")
+	require.True(t, ok)
+	require.True(t, bot.GetIsBot())
+	require.Equal(t, "owner", bot.GetBotOwnerUserId())
+	require.Equal(t, []string{"bot"}, restored.BotIDs())
+	require.Equal(t, []string{"bot"}, restored.BotIDsOwnedBy("owner"))
+}
+
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {
 	original, contentKey := newEncryptedUserProjection(t, "U1")
 	createdAt := time.Date(2026, 7, 15, 8, 0, 0, 0, time.UTC)
@@ -234,7 +262,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 9)
+	require.Len(t, p.Subjects(), 11)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {

@@ -178,15 +178,22 @@ type User = {
   displayName: string;
   avatarUrl: string | null;
   presenceStatus: string;
+  isBot?: boolean;
 };
 
-function user(id: string, login: string, displayName: string): User {
+function user(
+  id: string,
+  login: string,
+  displayName: string,
+  isBot = false
+): User {
   return {
     id,
     login,
     displayName,
     avatarUrl: null,
-    presenceStatus: 'ONLINE'
+    presenceStatus: 'ONLINE',
+    isBot
   };
 }
 
@@ -278,10 +285,10 @@ function resultButtons(container: HTMLElement): HTMLButtonElement[] {
   return Array.from(container.querySelectorAll<HTMLButtonElement>('button.sidebar-item'));
 }
 
-async function waitForDebouncedUserSearch() {
+async function waitForDebouncedUserSearch(search = 'river-login') {
   await new Promise((resolve) => setTimeout(resolve, 250));
   await vi.waitFor(() => {
-    expect(mocks.listUsers).toHaveBeenCalledWith('river-login', 20, 0);
+    expect(mocks.listUsers).toHaveBeenCalledWith(search, 20, 0);
   });
 }
 
@@ -425,6 +432,21 @@ describe('QuickSwitcher', () => {
       expect(mocks.goto).toHaveBeenCalledWith('/chat/-/dm-new');
     });
     expect(mocks.recents.record).toHaveBeenCalledWith('/chat/-/dm-new');
+  });
+
+  it('marks bot user results', async () => {
+    mocks.listUsers.mockResolvedValue({
+      members: [user('user-helper', 'helper_bot', 'Helper', true)],
+      totalCount: 1,
+      hasMore: false
+    });
+    const { container } = await renderOpenSwitcher();
+
+    setSearch(container, 'helper');
+    await waitForDebouncedUserSearch('helper');
+    await vi.waitFor(() => {
+      expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    });
   });
 
   it('merges message search results across servers by provider relevance score', async () => {

@@ -102,6 +102,9 @@ message PermissionMatrixCell {
   PermissionDecision override = 3;
   // Effective decision at this scope.
   PermissionDecision effective = 4;
+  // Whether an explicit allow may currently be stored for this target. Absent
+  // when no additional delegation ceiling applies.
+  optional bool allow_permitted = 5;
 }
 
 // Permission matrix for one role across all scopes.
@@ -311,17 +314,21 @@ service AdminPermissionService {
   // Lists one role's permission decisions as resource-oriented rows. Requires
   // role.manage. Returns NOT_FOUND when the role does not exist.
   rpc ListRolePermissionDecisions(ListRolePermissionDecisionsRequest) returns (ListRolePermissionDecisionsResponse);
-  // Gets one user's full permission matrix. Requires user.manage-permissions.
+  // Gets one user's full permission matrix. Human targets require
+  // user.manage-permissions; bot targets require ownership or bot.manage.
   // Returns NOT_FOUND when the user does not exist.
   rpc GetUserPermissionMatrix(GetUserPermissionMatrixRequest) returns (GetUserPermissionMatrixResponse);
-  // Lists one user's permission decisions as resource-oriented rows. Requires
-  // user.manage-permissions. Returns NOT_FOUND when the user does not exist.
+  // Lists one user's permission decisions as resource-oriented rows. Human
+  // targets require user.manage-permissions; bot targets require ownership or
+  // bot.manage. Returns NOT_FOUND when the user does not exist.
   rpc ListUserPermissionDecisions(ListUserPermissionDecisionsRequest) returns (ListUserPermissionDecisionsResponse);
   // Explains permission resolution for another user. Requires role.manage.
   rpc ExplainPermissions(ExplainPermissionsRequest) returns (ExplainPermissionsResponse);
   // Sets one role permission decision. Server scope requires role.manage;
   // group and room scopes also accept effective room.manage at that resource.
   rpc SetRolePermission(SetRolePermissionRequest) returns (SetRolePermissionResponse);
-  // Sets one user permission decision. Requires user.manage-permissions.
+  // Sets one user permission decision. Human targets require
+  // user.manage-permissions; bot targets require ownership or bot.manage and
+  // accept only allow or clear within the bot owner's current authority.
   rpc SetUserPermission(SetUserPermissionRequest) returns (SetUserPermissionResponse);
 }

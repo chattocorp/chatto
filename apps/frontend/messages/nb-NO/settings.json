@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Skjerm",
       "notifications": "Varsler",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Botter"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Sletter..."
+      }
+    },
+    "bots": {
+      "title": "Botter",
+      "subtitle": "Opprett API-kontoer og kontroller nøyaktig hva de kan gjøre",
+      "singular": "bot",
+      "unsupported": "Denne serverversjonen støtter ikke bot-kontoer.",
+      "list_title": "Botkontoer",
+      "loading": "Laster inn roboter...",
+      "empty_title": "Ingen roboter ennå",
+      "empty_body": "Opprett en bot når en integrasjon trenger sin egen identitet og tillatelser.",
+      "create_permission_required": "Du kan administrere eksisterende boter, men du har ikke tillatelse til å opprette en ny.",
+      "create": "Opprett bot",
+      "create_title": "Opprett bot-konto",
+      "create_failed": "Kunne ikke opprette bot",
+      "created": "Bote opprettet",
+      "edit": "Rediger",
+      "edit_title": "Rediger botkonto",
+      "updated": "Bot oppdatert",
+      "update_failed": "Kunne ikke oppdatere bot",
+      "update_conflict": "Noen andre oppdaterte denne boten. Last inn siden på nytt og prøv igjen.",
+      "username": "Brukernavn",
+      "username_hint": "Botebrukernavn må ende på _bot.",
+      "display_name": "Visningsnavn",
+      "owner": "Eier",
+      "api_key_title": "Lagre denne API-nøkkelen",
+      "api_key_warning": "Denne nøkkelen vises bare én gang. Oppbevar det et sikkert sted før du lukker dette vinduet.",
+      "key_created": "API-nøkkel opprettet",
+      "key_rotated_at": "Sist rotert",
+      "key_copied": "API-nøkkel kopiert",
+      "rotate_key": "Roteringsnøkkel",
+      "rotate_title": "Roter API-nøkkel",
+      "rotate_warning": "Gjeldende nøkkel slutter å virke umiddelbart. Enhver integrasjon som bruker det, må oppdateres.",
+      "key_rotated": "API-nøkkel rotert",
+      "rotate_failed": "Kunne ikke rotere API-nøkkel",
+      "delete_title": "Slett bot",
+      "delete_warning": "Vil du slette {name}? API-nøkkelen slutter å fungere umiddelbart, og kontoen kan ikke gjenopprettes.",
+      "deleted": "Bote slettet",
+      "delete_failed": "Kunne ikke slette bot",
+      "permissions": {
+        "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
+        "save_failed": "Kunne ikke oppdatere bottillatelsen"
       }
     }
   }

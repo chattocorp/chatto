@@ -68,6 +68,12 @@ const categories = [
         description: 'Chunked room-scoped attachment upload RPCs.'
       },
       {
+        name: 'BotService',
+        slug: 'bots',
+        title: 'Bots',
+        description: 'Bot account lifecycle and API-key management RPCs.'
+      },
+      {
         name: 'MessageService',
         slug: 'messages',
         title: 'Messages',

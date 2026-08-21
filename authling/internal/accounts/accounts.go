@@ -13,6 +13,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"unicode"
 	"unicode/utf8"
 
 	"golang.org/x/crypto/argon2"
@@ -77,20 +78,36 @@ type Account struct {
 	AuthenticationVersion uint64
 }
 
+// Profile contains non-unique identity hints shared with relying parties.
+type Profile struct {
+	PreferredUsername string
+	FullName          string
+}
+
+type protectedProfile struct {
+	userKeyRef, credentialKeyRef                        string
+	preferredUsernameNonce, preferredUsernameCiphertext []byte
+	fullNameNonce, fullNameCiphertext                   []byte
+	preferredUsernameAAD, fullNameAAD                   []byte
+}
+
 type protectedCredential struct {
-	accountID                  string
-	eventID                    string
-	userKeyRef                 string
-	credentialKeyRef           string
-	emailDigest                [32]byte
-	emailNonce                 []byte
-	emailCiphertext            []byte
-	emailAAD                   []byte
-	emailChangeRequestEventID  string
-	emailChangeEventID         string
-	passwordVerifierNonce      []byte
-	passwordVerifierCiphertext []byte
-	passwordVerifierAAD        []byte
+	accountID                   string
+	eventID                     string
+	userKeyRef                  string
+	credentialKeyRef            string
+	emailDigest                 [32]byte
+	emailNonce                  []byte
+	emailCiphertext             []byte
+	emailAAD                    []byte
+	emailChangeRequestEventID   string
+	emailChangeEventID          string
+	passwordVerifierNonce       []byte
+	passwordVerifierCiphertext  []byte
+	passwordVerifierAAD         []byte
+	preferredUsernameNonce      []byte
+	preferredUsernameCiphertext []byte
+	preferredUsernameAAD        []byte
 }
 
 // PasswordResetTarget binds an expiring recovery flow to the credential that
@@ -153,6 +170,7 @@ type Projection struct {
 	passwordResets map[string]map[string]passwordResetRequest
 	credentials    map[string]protectedCredential
 	keyReferences  map[string]struct{}
+	profiles       map[string]protectedProfile
 	vault          *keyvault.Vault
 	indexKey       []byte
 }
@@ -172,6 +190,31 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 	if event.GetOidcGrantAuthorized() != nil || event.GetOidcGrantRevoked() != nil {
 		// Authorization grants share the account aggregate for ordering but are
 		// materialized by their own product projection.
+		return nil
+	}
+	if updated := event.GetProfileUpdated(); updated != nil {
+		if updated.GetProfileEnvelopeVersion() != 1 {
+			return fmt.Errorf("unsupported profile envelope")
+		}
+		p.Lock()
+		defer p.Unlock()
+		if _, ok := p.accounts[updated.GetAccountId()]; !ok {
+			return fmt.Errorf("profile update references an absent account")
+		}
+		credential, ok := p.credentials[updated.GetAccountId()]
+		if !ok || credential.userKeyRef != updated.GetUserKeyRef() || credential.credentialKeyRef != updated.GetCredentialKeyRef() {
+			return fmt.Errorf("profile update references another key hierarchy")
+		}
+		if p.profiles == nil {
+			p.profiles = make(map[string]protectedProfile)
+		}
+		p.profiles[updated.GetAccountId()] = protectedProfile{
+			userKeyRef: updated.GetUserKeyRef(), credentialKeyRef: updated.GetCredentialKeyRef(),
+			preferredUsernameNonce: append([]byte(nil), updated.GetPreferredUsernameNonce()...), preferredUsernameCiphertext: append([]byte(nil), updated.GetPreferredUsernameCiphertext()...),
+			fullNameNonce: append([]byte(nil), updated.GetFullNameNonce()...), fullNameCiphertext: append([]byte(nil), updated.GetFullNameCiphertext()...),
+			preferredUsernameAAD: profileAAD(event.GetId(), updated.GetAccountId(), updated.GetUserKeyRef(), updated.GetCredentialKeyRef(), "preferred-username"),
+			fullNameAAD:          profileAAD(event.GetId(), updated.GetAccountId(), updated.GetUserKeyRef(), updated.GetCredentialKeyRef(), "full-name"),
+		}
 		return nil
 	}
 	if requested := event.GetPasswordResetRequested(); requested != nil {
@@ -444,20 +487,31 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 			p.credentials = make(map[string]protectedCredential)
 		}
 		credential := protectedCredential{
-			accountID:                  account.ID,
-			eventID:                    event.GetId(),
-			userKeyRef:                 payload.GetUserKeyRef(),
-			credentialKeyRef:           payload.GetCredentialKeyRef(),
-			emailDigest:                emailDigest,
-			emailNonce:                 append([]byte(nil), payload.GetEmailNonce()...),
-			emailCiphertext:            append([]byte(nil), payload.GetEmailCiphertext()...),
-			emailAAD:                   credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "email"),
-			passwordVerifierNonce:      append([]byte(nil), payload.GetPasswordVerifierNonce()...),
-			passwordVerifierCiphertext: append([]byte(nil), payload.GetPasswordVerifierCiphertext()...),
-			passwordVerifierAAD:        credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "password-verifier"),
+			accountID:                   account.ID,
+			eventID:                     event.GetId(),
+			userKeyRef:                  payload.GetUserKeyRef(),
+			credentialKeyRef:            payload.GetCredentialKeyRef(),
+			emailDigest:                 emailDigest,
+			emailNonce:                  append([]byte(nil), payload.GetEmailNonce()...),
+			emailCiphertext:             append([]byte(nil), payload.GetEmailCiphertext()...),
+			emailAAD:                    credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "email"),
+			passwordVerifierNonce:       append([]byte(nil), payload.GetPasswordVerifierNonce()...),
+			passwordVerifierCiphertext:  append([]byte(nil), payload.GetPasswordVerifierCiphertext()...),
+			passwordVerifierAAD:         credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "password-verifier"),
+			preferredUsernameNonce:      append([]byte(nil), payload.GetPreferredUsernameNonce()...),
+			preferredUsernameCiphertext: append([]byte(nil), payload.GetPreferredUsernameCiphertext()...),
+			preferredUsernameAAD:        credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "preferred-username"),
 		}
 		p.pendingEmails[account.ID] = pendingEmail{eventID: event.GetId(), digest: emailDigest, credential: credential}
 		p.credentials[account.ID] = credential
+		if p.profiles == nil {
+			p.profiles = make(map[string]protectedProfile)
+		}
+		p.profiles[account.ID] = protectedProfile{
+			userKeyRef: payload.GetUserKeyRef(), credentialKeyRef: payload.GetCredentialKeyRef(),
+			preferredUsernameNonce: append([]byte(nil), payload.GetPreferredUsernameNonce()...), preferredUsernameCiphertext: append([]byte(nil), payload.GetPreferredUsernameCiphertext()...),
+			preferredUsernameAAD: credentialAAD(event.GetId(), account.ID, payload.GetUserKeyRef(), payload.GetCredentialKeyRef(), "preferred-username"),
+		}
 		p.keyReferences[payload.GetUserKeyRef()] = struct{}{}
 		p.keyReferences[payload.GetCredentialKeyRef()] = struct{}{}
 	}
@@ -603,6 +657,101 @@ func (s *Service) UserKeyRef(accountID string) (string, bool) {
 	return s.handle.Projection().UserKeyRef(accountID)
 }
 
+// Profile decrypts the account's relying-party identity hints at the read
+// boundary. Historical and structural accounts return an empty profile.
+func (s *Service) Profile(ctx context.Context, accountID string) (Profile, error) {
+	s.handle.Projection().RLock()
+	profile, ok := s.handle.Projection().profiles[accountID]
+	s.handle.Projection().RUnlock()
+	if !ok {
+		return Profile{}, nil
+	}
+	dataKey, err := s.vault.ResolveDataKey(ctx, profile.credentialKeyRef, profile.userKeyRef)
+	if err != nil {
+		return Profile{}, fmt.Errorf("resolve profile key: %w", err)
+	}
+	defer clear(dataKey)
+	result := Profile{}
+	if len(profile.preferredUsernameCiphertext) > 0 {
+		plaintext, err := datacrypto.Open(dataKey, profile.preferredUsernameCiphertext, profile.preferredUsernameNonce, profile.preferredUsernameAAD)
+		if err != nil {
+			return Profile{}, fmt.Errorf("decrypt preferred username: %w", err)
+		}
+		result.PreferredUsername = string(plaintext)
+		clear(plaintext)
+	}
+	if len(profile.fullNameCiphertext) > 0 {
+		plaintext, err := datacrypto.Open(dataKey, profile.fullNameCiphertext, profile.fullNameNonce, profile.fullNameAAD)
+		if err != nil {
+			return Profile{}, fmt.Errorf("decrypt full name: %w", err)
+		}
+		result.FullName = string(plaintext)
+		clear(plaintext)
+	}
+	return result, nil
+}
+
+var ErrInvalidProfile = errors.New("profile fields are invalid")
+
+// UpdateProfile replaces the account's non-unique relying-party identity hints.
+func (s *Service) UpdateProfile(ctx context.Context, accountID, preferredUsername, fullName string) (Profile, error) {
+	preferredUsername = strings.TrimSpace(preferredUsername)
+	fullName = strings.TrimSpace(fullName)
+	if utf8.RuneCountInString(preferredUsername) < 2 || utf8.RuneCountInString(preferredUsername) > 64 || utf8.RuneCountInString(fullName) > 128 || containsControl(preferredUsername) || containsControl(fullName) {
+		return Profile{}, ErrInvalidProfile
+	}
+	credential, ok := s.handle.Projection().credentialForAccount(accountID)
+	if !ok {
+		return Profile{}, ErrInvalidProfile
+	}
+	dataKey, err := s.vault.ResolveDataKey(ctx, credential.credentialKeyRef, credential.userKeyRef)
+	if err != nil {
+		return Profile{}, fmt.Errorf("resolve profile key: %w", err)
+	}
+	defer clear(dataKey)
+	eventID, err := ids.New("evt")
+	if err != nil {
+		return Profile{}, err
+	}
+	seal := func(value, purpose string) (*datacrypto.SealedData, error) {
+		return datacrypto.Seal(dataKey, []byte(value), profileAAD(eventID, accountID, credential.userKeyRef, credential.credentialKeyRef, purpose))
+	}
+	preferred, err := seal(preferredUsername, "preferred-username")
+	if err != nil {
+		return Profile{}, err
+	}
+	name, err := seal(fullName, "full-name")
+	if err != nil {
+		return Profile{}, err
+	}
+	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_ProfileUpdated{ProfileUpdated: &corev1.ProfileUpdatedEvent{
+		AccountId: accountID, UserKeyRef: credential.userKeyRef, CredentialKeyRef: credential.credentialKeyRef, ProfileEnvelopeVersion: 1,
+		PreferredUsernameNonce: preferred.Nonce, PreferredUsernameCiphertext: preferred.Ciphertext, FullNameNonce: name.Nonce, FullNameCiphertext: name.Ciphertext,
+	}}}
+	for range 5 {
+		tail, err := s.publisher.AccountTail(ctx, accountID)
+		if err != nil {
+			return Profile{}, err
+		}
+		position, err := s.publisher.AppendProfileUpdated(ctx, event, tail)
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
+		if err != nil {
+			return Profile{}, fmt.Errorf("commit profile update: %w", err)
+		}
+		if err := s.handle.Projector().WaitFor(ctx, position); err != nil {
+			return Profile{}, err
+		}
+		return s.Profile(ctx, accountID)
+	}
+	return Profile{}, fmt.Errorf("profile update conflict")
+}
+
+func containsControl(value string) bool {
+	return strings.IndexFunc(value, unicode.IsControl) >= 0
+}
+
 // NewService constructs the account command and read boundary.
 func NewService(
 	ctx context.Context,
@@ -717,10 +866,16 @@ func (s *Service) CreateLocal(ctx context.Context, email, password string) (Acco
 	if err != nil {
 		return Account{}, err
 	}
+	preferredUsername := preferredUsernameFromEmail(email)
+	sealedPreferredUsername, err := datacrypto.Seal(dataKey, []byte(preferredUsername), credentialAAD(eventID, accountID, userRef, dataRef, "preferred-username"))
+	if err != nil {
+		return Account{}, err
+	}
 	event := &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_AccountCreated{AccountCreated: &corev1.AccountCreatedEvent{
 		AccountId: accountID, UserKeyRef: userRef, CredentialKeyRef: dataRef,
 		EmailNonce: sealedEmail.Nonce, EmailCiphertext: sealedEmail.Ciphertext, CredentialEnvelopeVersion: 1,
 		PasswordVerifierNonce: sealedVerifier.Nonce, PasswordVerifierCiphertext: sealedVerifier.Ciphertext,
+		PreferredUsernameNonce: sealedPreferredUsername.Nonce, PreferredUsernameCiphertext: sealedPreferredUsername.Ciphertext,
 	}}}
 	claimEvent := &corev1.Event{Id: claimEventID, CreatedAt: event.CreatedAt, Event: &corev1.Event_EmailClaimed{EmailClaimed: &corev1.EmailClaimedEvent{AccountId: accountID, CredentialEventId: eventID}}}
 	for range 5 {
@@ -762,6 +917,28 @@ func (s *Service) PasswordMinimumLength() int { return s.passwordMinimumLength }
 
 // NormalizeEmail defines Authling's initial deployment-wide comparison value.
 func NormalizeEmail(email string) string { return strings.ToLower(strings.TrimSpace(email)) }
+
+func preferredUsernameFromEmail(email string) string {
+	local, _, _ := strings.Cut(NormalizeEmail(email), "@")
+	var username strings.Builder
+	for _, r := range local {
+		if r >= 'a' && r <= 'z' || r >= '0' && r <= '9' || r == '.' || r == '_' || r == '-' {
+			username.WriteRune(r)
+		}
+		if username.Len() >= 32 {
+			break
+		}
+	}
+	result := strings.Trim(username.String(), ".-_")
+	if len(result) < 2 {
+		return "user"
+	}
+	return result
+}
+
+func profileAAD(eventID, accountID, userRef, dataRef, purpose string) []byte {
+	return []byte("authling:profile:v1\x00" + eventID + "\x00" + accountID + "\x00" + userRef + "\x00" + dataRef + "\x00" + purpose)
+}
 
 func digest(key []byte, value string) [32]byte {
 	h := hmac.New(sha256.New, key)

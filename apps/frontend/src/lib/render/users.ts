@@ -14,6 +14,7 @@ export type UserAvatarUserView = {
   login: string;
   displayName: string;
   deleted: boolean;
+  isBot?: boolean;
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: CustomUserStatusView | null;

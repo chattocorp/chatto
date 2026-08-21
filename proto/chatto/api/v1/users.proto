@@ -21,4 +21,6 @@ message User {
   PresenceStatus presence_status = 6;
   // Custom profile status, when set.
   CustomUserStatus custom_status = 7;
+  // True when this identity represents an automated bot.
+  bool is_bot = 8;
 }

@@ -1,9 +1,9 @@
 <script lang="ts">
   import { untrack } from 'svelte';
+  import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { quickSwitcher } from '$lib/state/globals.svelte';
   import SkeletonImg from '$lib/ui/SkeletonImg.svelte';
-  import { getAvatarInitials } from '$lib/utils/initials';
   import { getGradientForName } from '$lib/utils/gradients';
   import { QuickSwitcherModel, type QuickSwitcherAvatarUser } from './quickSwitcherModel.svelte';
 
@@ -54,21 +54,7 @@
 </script>
 
 {#snippet avatar(user: QuickSwitcherAvatarUser)}
-  {#if user.avatarUrl}
-    <SkeletonImg
-      loading="lazy"
-      src={user.avatarUrl}
-      alt={user.login}
-      class="h-5 w-5 rounded-full object-cover"
-    />
-  {:else}
-    <span
-      class="flex h-5 w-5 items-center justify-center rounded-full bg-surface-emphasized text-[10px] font-semibold text-muted"
-      aria-label={user.login}
-    >
-      {getAvatarInitials(user.displayName, user.login)}
-    </span>
-  {/if}
+  <UserAvatar {user} size="xs" useLiveProfile={false} />
 {/snippet}
 
 <!-- Outer wrapper replicates ContextMenu.svelte's container exactly -->

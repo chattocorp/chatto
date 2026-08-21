@@ -168,7 +168,9 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('admin link only visible for server admins', async ({ serverAdminPage }) => {
+  test('Server Admin link leads each member to their first permitted section', async ({
+    serverAdminPage
+  }) => {
     const { page } = serverAdminPage;
 
     // Create first user (server admin)
@@ -186,14 +188,18 @@ test.describe('Server Admin Page', () => {
     await logoutUser(page);
     await loginUser(page, nonAdmin.login, nonAdmin.password);
 
-    // Navigate to server - non-admin should NOT see admin link
+    // A regular member still has the Bots management surface because fresh
+    // servers grant bot.create to everyone.
     await gotoServer(page);
 
     // Wait for the page to load (server name should be visible)
     await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-    // Settings link should not be visible
-    await serverAdminPage.expectAdminLinkNotVisible();
+    await serverAdminPage.expectAdminLinkVisible();
+    await serverAdminPage.adminLink.click();
+    await page.waitForURL(routes.serverAdminBots);
+    await serverAdminPage.expectBotsNavVisible();
+    await serverAdminPage.expectGeneralNavNotVisible();
   });
 
   test('server admin can upload and remove a logo', async ({ serverAdminPage }) => {

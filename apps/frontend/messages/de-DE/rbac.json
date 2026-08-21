@@ -51,6 +51,14 @@
       "filter_label": "Berechtigungen filtern",
       "filter_placeholder": "Berechtigungen filtern...",
       "no_filter_matches": "Keine Berechtigungen entsprechen diesem Filter.",
+      "binary": {
+        "aria": "{permission} ist für {subject} in {scope} {state}",
+        "enabled": "aktiviert",
+        "disabled": "deaktiviert",
+        "inherited": "Aus einem übergeordneten Bereich geerbt",
+        "unavailable": "Derzeit nicht verfügbar",
+        "owner_ceiling": "Du kannst {permission} in {scope} nicht vergeben, weil der Bot-Eigentümer diese Berechtigung derzeit nicht hat."
+      },
       "categories": {
         "space": {
           "title": "Serverberechtigungen",

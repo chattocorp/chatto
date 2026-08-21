@@ -6,7 +6,8 @@
       "profile": "Profiil",
       "display": "Ekraan",
       "notifications": "Märguanded",
-      "account": "konto"
+      "account": "konto",
+      "bots": "Botid"
     },
     "profile": {
       "title": "Profiil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Tühista",
         "deleting": "Kustutamine..."
+      }
+    },
+    "bots": {
+      "title": "Botid",
+      "subtitle": "Looge API kontosid ja kontrollige täpselt, mida nad saavad teha",
+      "singular": "bot",
+      "unsupported": "See serveriversioon ei toeta robotikontosid.",
+      "list_title": "Botikontod",
+      "loading": "Bottide laadimine...",
+      "empty_title": "Roboteid veel pole",
+      "empty_body": "Looge robot, kui integratsioon vajab oma identiteeti ja õigusi.",
+      "create_permission_required": "Saate olemasolevaid roboteid hallata, kuid teil pole õigust uut luua.",
+      "create": "Loo robot",
+      "create_title": "Looge roboti konto",
+      "create_failed": "Boti loomine ebaõnnestus",
+      "created": "Bot loodud",
+      "edit": "Muuda",
+      "edit_title": "Muutke robotikontot",
+      "updated": "Botit värskendati",
+      "update_failed": "Boti värskendamine ebaõnnestus",
+      "update_conflict": "Keegi teine värskendas seda boti. Laadi leht uuesti ja proovi veel kord.",
+      "username": "Kasutajanimi",
+      "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
+      "display_name": "Kuvatav nimi",
+      "owner": "Omanik",
+      "api_key_title": "Salvesta see API võti",
+      "api_key_warning": "Seda klahvi näidatakse ainult üks kord. Enne selle akna sulgemist hoidke seda kuskil turvalises kohas.",
+      "key_created": "API-võti on loodud",
+      "key_rotated_at": "Viimati pööratud",
+      "key_copied": "API-võti on kopeeritud",
+      "rotate_key": "Pööra klahvi",
+      "rotate_title": "Pööra API-võtit",
+      "rotate_warning": "Praegune võti lakkab kohe töötamast. Iga seda kasutav integratsioon tuleb värskendada.",
+      "key_rotated": "API-võtit pöörati",
+      "rotate_failed": "API võtme pööramine ebaõnnestus",
+      "delete_title": "Kustutage robot",
+      "delete_warning": "Kas kustutada {name}? Selle API võti lakkab kohe töötamast ja kontot ei saa taastada.",
+      "deleted": "Bot kustutatud",
+      "delete_failed": "Boti kustutamine ebaõnnestus",
+      "permissions": {
+        "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
+        "save_failed": "Boti loa värskendamine ebaõnnestus"
       }
     }
   }

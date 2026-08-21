@@ -75,6 +75,7 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
     async createAccount(input: {
       token: string;
       login: string;
+      displayName: string;
     }): Promise<CreatedExternalIdentityAccount> {
       const response = await client.createExternalIdentityAccount(input);
       return {

@@ -30,9 +30,10 @@ to the relying party with an Authorization Code.
   client, redirect, and PKCE verifier, and succeeds in at most one concurrent
   exchange.
 - Successful exchange returns a five-minute RS256 ID token and opaque bearer
-  access token. The issuer is Authling's immutable public URL and `sub` is the
-  Authling account ID. UserInfo returns only `sub`. Access-token state also
-  binds the client and granted scopes.
+  access token. The issuer is Authling's immutable public URL, `sub` is the
+  Authling account ID, and local accounts also receive their non-empty durable
+  `preferred_username` and `name` identity hints. UserInfo returns the same
+  claims. Access-token state also binds the client and granted scopes.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.
@@ -82,8 +83,8 @@ permits link-local, multicast, or other special-use destinations.
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
 - Refresh tokens, token revocation, RP-initiated logout, further identity
-  scopes and claims, relying-party grouping, and official conformance-suite
-  automation are not implemented.
+  scopes and claims beyond `preferred_username` and `name`, relying-party
+  grouping, and official conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
   profile and may need an explicit migration as the document evolves.
 
@@ -93,4 +94,5 @@ permits link-local, multicast, or other special-use destinations.
 - **Product boundary:** [ADR-007](../adr/ADR-007-limit-authling-to-identity-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)
 - **Authorization grants:** [FDR-010](FDR-010-oidc-authorization-grants.md)
-- **Signing-key rotation:** [FDR-011](FDR-011-automatic-oidc-signing-key-rotation.md)
+- **Profiles:** [FDR-011](FDR-011-account-profile.md)
+- **Signing-key rotation:** [FDR-012](FDR-012-automatic-oidc-signing-key-rotation.md)

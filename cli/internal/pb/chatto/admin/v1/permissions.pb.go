@@ -607,9 +607,12 @@ type PermissionMatrixCell struct {
 	// Explicit decision at this scope.
 	Override PermissionDecision `protobuf:"varint,3,opt,name=override,proto3,enum=chatto.admin.v1.PermissionDecision" json:"override,omitempty"`
 	// Effective decision at this scope.
-	Effective     PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Effective PermissionDecision `protobuf:"varint,4,opt,name=effective,proto3,enum=chatto.admin.v1.PermissionDecision" json:"effective,omitempty"`
+	// Whether an explicit allow may currently be stored for this target. Absent
+	// when no additional delegation ceiling applies.
+	AllowPermitted *bool `protobuf:"varint,5,opt,name=allow_permitted,json=allowPermitted,proto3,oneof" json:"allow_permitted,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PermissionMatrixCell) Reset() {
@@ -668,6 +671,13 @@ func (x *PermissionMatrixCell) GetEffective() PermissionDecision {
 		return x.Effective
 	}
 	return PermissionDecision_PERMISSION_DECISION_UNSPECIFIED
+}
+
+func (x *PermissionMatrixCell) GetAllowPermitted() bool {
+	if x != nil && x.AllowPermitted != nil {
+		return *x.AllowPermitted
+	}
+	return false
 }
 
 // Permission matrix for one role across all scopes.
@@ -1863,14 +1873,16 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x12\x14\n" +
 	"\x05label\x18\x02 \x01(\tR\x05label\x128\n" +
 	"\x04kind\x18\x03 \x01(\x0e2$.chatto.admin.v1.PermissionScopeKindR\x04kind\x12&\n" +
-	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\xd5\x01\n" +
+	"\x0fparent_group_id\x18\x04 \x01(\tR\rparentGroupId\"\x97\x02\n" +
 	"\x14PermissionMatrixCell\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
 	"permission\x12\x19\n" +
 	"\bscope_id\x18\x02 \x01(\tR\ascopeId\x12?\n" +
 	"\boverride\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\boverride\x12A\n" +
-	"\teffective\x18\x04 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\teffective\"\xe7\x01\n" +
+	"\teffective\x18\x04 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\teffective\x12,\n" +
+	"\x0fallow_permitted\x18\x05 \x01(\bH\x00R\x0eallowPermitted\x88\x01\x01B\x12\n" +
+	"\x10_allow_permitted\"\xe7\x01\n" +
 	"\x14RolePermissionMatrix\x12\x1b\n" +
 	"\trole_name\x18\x01 \x01(\tR\broleName\x125\n" +
 	"\x16applicable_permissions\x18\x02 \x03(\tR\x15applicablePermissions\x12>\n" +
@@ -2088,6 +2100,7 @@ func file_chatto_admin_v1_permissions_proto_init() {
 	if File_chatto_admin_v1_permissions_proto != nil {
 		return
 	}
+	file_chatto_admin_v1_permissions_proto_msgTypes[7].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

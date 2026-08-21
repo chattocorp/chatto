@@ -38,6 +38,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
+- When a frontend change alters imports of interaction components guarded by
+  the production bundle check, run `mise build-frontend`; lint and component
+  tests do not exercise the production route graph.
 - When a host can improve a browser operation, expose a narrow optional
   capability through a focused `$lib/desktop` adapter and feature-detect that
   capability at the point of use. Keep the browser implementation as the
@@ -180,6 +183,8 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   structure and placeholders. Add a sparse US English (`en-US`) override when
   spelling or terminology differs; do not duplicate identical base messages.
   Locale identifiers use BCP 47 tags such as `en-GB`. Follow ADR-065.
+- German translations, including regional overlays, must address users with
+  the informal `du`/`dein` forms rather than the formal `Sie`/`Ihr` forms.
 - Import product messages from `$lib/i18n/messages`; keep the framework-neutral
   JSON runtime in `packages/lingua` free of Chatto-specific catalogs and policy.
 - Catalogs are ordinary nested JSON and require no compilation. The British
@@ -218,6 +223,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   responses cannot update the next resource's form state.
 - Send sparse patches from settings forms: omit unchanged fields so stale form
   values cannot overwrite concurrent updates or emit misleading durable facts.
+- When an interactive edit returns an OCC conflict, do not retry it silently or
+  replace the user's draft. Keep the form state and show a localized,
+  actionable conflict message explaining that the resource changed and must be
+  reloaded before saving again.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until
@@ -228,6 +237,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   normal editable assignments.
 
 ## Pagination, Lists, And Realtime UI
+
+- When adapting canonical users or members for avatar-bearing UI, preserve
+  identity fields such as `isBot`; prefer the shared `UserAvatar` and
+  `UserAvatarUserView` shapes over surface-local copies.
 
 - Use automatic "load more" pagination when a scroll/container edge is reached.
 - Use TanStack Query for snapshot-style ConnectRPC reads. Scope private query

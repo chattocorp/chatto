@@ -86,6 +86,16 @@ func (c *ChattoCore) appendUserEvent(ctx context.Context, userID string, event *
 }
 
 func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, check func() error) (uint64, error) {
+	return c.appendUserBatchAttempts(ctx, userID, entries, filter, check, maxUserMutationRetries)
+}
+
+// appendUserBatchOnce preserves OCC conflicts for interactive commands whose
+// intent must be refreshed instead of replayed after an intervening write.
+func (c *ChattoCore) appendUserBatchOnce(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, check func() error) (uint64, error) {
+	return c.appendUserBatchAttempts(ctx, userID, entries, filter, check, 1)
+}
+
+func (c *ChattoCore) appendUserBatchAttempts(ctx context.Context, userID string, entries []evtstream.BatchEntry, filter string, check func() error, attempts int) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
@@ -93,7 +103,7 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		filter = evtstream.UserAggregate(userID).AllEventsFilter()
 	}
 
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		authorizationSeq := uint64(0)
 		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
@@ -150,6 +160,9 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		if !errors.Is(err, events.ErrConflict) {
 			return 0, err
 		}
+		if attempt+1 >= attempts {
+			break
+		}
 
 		select {
 		case <-ctx.Done():
@@ -157,7 +170,7 @@ func (c *ChattoCore) appendUserBatch(ctx context.Context, userID string, entries
 		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
 		}
 	}
-	return 0, fmt.Errorf("user batch OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
+	return 0, fmt.Errorf("user batch OCC conflict after %d attempts: %w", attempts, events.ErrConflict)
 }
 
 func isUserAuthEvent(event *corev1.Event) bool {
@@ -166,6 +179,8 @@ func isUserAuthEvent(event *corev1.Event) bool {
 	}
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated,
+		*corev1.Event_BotApiKeyCreated,
+		*corev1.Event_BotApiKeyRotated,
 		*corev1.Event_UserPasswordHashChanged,
 		*corev1.Event_UserOidcSubjectLinked,
 		*corev1.Event_UserExternalIdentityLinked,
@@ -204,12 +219,20 @@ func containsAuthorizationInputUserEvent(entries []evtstream.BatchEntry) bool {
 }
 
 func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error) (uint64, error) {
+	return c.appendUserBatchWithMentionableCheckAttempts(ctx, userID, entries, check, maxUserMutationRetries)
+}
+
+func (c *ChattoCore) appendUserBatchWithMentionableCheckOnce(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error) (uint64, error) {
+	return c.appendUserBatchWithMentionableCheckAttempts(ctx, userID, entries, check, 1)
+}
+
+func (c *ChattoCore) appendUserBatchWithMentionableCheckAttempts(ctx context.Context, userID string, entries []evtstream.BatchEntry, check func() error, attempts int) (uint64, error) {
 	if len(entries) == 0 {
 		return 0, nil
 	}
 	filter := evtstream.EventSubjectFilter()
 
-	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+	for attempt := 0; attempt < attempts; attempt++ {
 		authorizationSeq := uint64(0)
 		fencesAuthorization := containsAuthorizationInputUserEvent(entries)
 		if fencesAuthorization {
@@ -282,6 +305,9 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 		if !errors.Is(err, events.ErrConflict) {
 			return 0, err
 		}
+		if attempt+1 >= attempts {
+			break
+		}
 
 		select {
 		case <-ctx.Done():
@@ -289,5 +315,5 @@ func (c *ChattoCore) appendUserBatchWithMentionableCheck(ctx context.Context, us
 		case <-time.After(mentionableRetryDelay(attempt)):
 		}
 	}
-	return 0, fmt.Errorf("mentionable user batch OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
+	return 0, fmt.Errorf("mentionable user batch OCC conflict after %d attempts: %w", attempts, events.ErrConflict)
 }

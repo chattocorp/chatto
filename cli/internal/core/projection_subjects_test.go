@@ -121,6 +121,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 				evtstream.UserEventTypeFilter(evtstream.EventUserAccountDeleted),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShreddingRequested),
 				evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
+				evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
 			},
 		},
 		{

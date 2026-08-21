@@ -731,6 +731,247 @@ Response after cancelling an upload.
 | `upload` | [`AssetUpload`](#chatto-api-v1-AssetUpload) | Updated upload session. |
 
 
+<a id="chatto-api-v1-BotService"></a>
+
+## BotService
+
+Creates and manages bot accounts owned by human users. Bot API keys cannot
+call this service.
+
+<a id="chatto-api-v1-BotService-ListBots"></a>
+
+### ListBots
+
+Lists bots visible to the authenticated caller.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ListBots
+```
+
+<a id="chatto-api-v1-ListBotsRequest"></a>
+
+#### Input: ListBotsRequest
+
+Request bots visible to the caller. Owners see their own bots; callers with
+bot.manage see every bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `search` | `string` | Optional case-insensitive login or display-name search. |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListBotsResponse"></a>
+
+#### Result: ListBotsResponse
+
+Page of visible bots.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Visible bots. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
+<a id="chatto-api-v1-BotService-GetBot"></a>
+
+### GetBot
+
+Gets one visible bot. Returns NOT_FOUND for an unknown bot and
+PERMISSION_DENIED for a bot managed by another user.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/GetBot
+```
+
+<a id="chatto-api-v1-GetBotRequest"></a>
+
+#### Input: GetBotRequest
+
+Request one bot by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-GetBotResponse"></a>
+
+#### Result: GetBotResponse
+
+Response containing one bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Requested bot. |
+
+
+<a id="chatto-api-v1-BotService-BatchGetBots"></a>
+
+### BatchGetBots
+
+Gets several visible bots. Missing and inaccessible bots are omitted.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/BatchGetBots
+```
+
+<a id="chatto-api-v1-BatchGetBotsRequest"></a>
+
+#### Input: BatchGetBotsRequest
+
+Request several bots by stable user ID.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_ids` | `repeated string` | Required bot user IDs. Missing or inaccessible bots are omitted. |
+
+
+<a id="chatto-api-v1-BatchGetBotsResponse"></a>
+
+#### Result: BatchGetBotsResponse
+
+Response containing accessible bots in first-seen request order.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bots` | repeated [`Bot`](#chatto-api-v1-Bot) | Found bots. |
+
+
+<a id="chatto-api-v1-BotService-CreateBot"></a>
+
+### CreateBot
+
+Creates a bot owned by the authenticated human caller. Requires bot.create.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/CreateBot
+```
+
+<a id="chatto-api-v1-CreateBotRequest"></a>
+
+#### Input: CreateBotRequest
+
+Request creation of a bot owned by the authenticated human caller.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `login` | `string` | Bot login. Must end in `_bot`. |
+| `display_name` | `string` | Public display name. |
+
+
+<a id="chatto-api-v1-CreateBotResponse"></a>
+
+#### Result: CreateBotResponse
+
+Result of creating a bot. api_key is shown once and cannot be retrieved.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Created bot. |
+| `api_key` | `string` | Newly issued API key. |
+
+
+<a id="chatto-api-v1-BotService-UpdateBot"></a>
+
+### UpdateBot
+
+Updates a bot's public identity.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/UpdateBot
+```
+
+<a id="chatto-api-v1-UpdateBotRequest"></a>
+
+#### Input: UpdateBotRequest
+
+Patch request for a bot's public identity.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `login` | `optional string` | New bot login. Must end in `_bot`. |
+| `display_name` | `optional string` | New public display name. |
+
+
+<a id="chatto-api-v1-UpdateBotResponse"></a>
+
+#### Result: UpdateBotResponse
+
+Result of updating a bot.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot. |
+
+
+<a id="chatto-api-v1-BotService-DeleteBot"></a>
+
+### DeleteBot
+
+Deletes a bot and invalidates its API key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/DeleteBot
+```
+
+<a id="chatto-api-v1-DeleteBotRequest"></a>
+
+#### Input: DeleteBotRequest
+
+Request deletion of a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-DeleteBotResponse"></a>
+
+#### Result: DeleteBotResponse
+
+Result of deleting a bot account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `deleted` | `bool` | True when the bot was deleted. |
+
+
+<a id="chatto-api-v1-BotService-RotateBotApiKey"></a>
+
+### RotateBotApiKey
+
+Rotates the bot's sole API key and immediately invalidates the old key.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/RotateBotApiKey
+```
+
+<a id="chatto-api-v1-RotateBotApiKeyRequest"></a>
+
+#### Input: RotateBotApiKeyRequest
+
+Request rotation of a bot's sole API key.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+
+
+<a id="chatto-api-v1-RotateBotApiKeyResponse"></a>
+
+#### Result: RotateBotApiKeyResponse
+
+Result of rotating a bot API key. api_key is shown once and cannot be
+retrieved later.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Updated bot metadata. |
+| `api_key` | `string` | Newly issued API key. |
+
+
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService
@@ -3587,6 +3828,7 @@ Public user fields.
 | `avatar_url` | `optional string` | Avatar image URL, when available. |
 | `presence_status` | [`PresenceStatus`](#chatto-api-v1-PresenceStatus) | Current live presence status. |
 | `custom_status` | [`CustomUserStatus`](#chatto-api-v1-CustomUserStatus) | Custom profile status, when set. |
+| `is_bot` | `bool` | True when this identity represents an automated bot. |
 
 
 
@@ -4039,6 +4281,23 @@ for simple list browsing.
 | --- | --- | --- |
 | `limit` | `int32` | Maximum number of items to request. Each RPC defines its default and effective maximum; this shared request shape accepts values up to 500. |
 | `offset` | `int32` | Zero-based number of matching items to skip. |
+
+
+
+<a id="chatto-api-v1-Bot"></a>
+
+### Bot
+
+A managed bot account. The API key itself is returned only by creation and
+rotation responses.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `user` | [`User`](#chatto-api-v1-User) | Canonical public bot identity. |
+| `owner_user_id` | `string` | Stable human owner user ID. |
+| `created_at` | `google.protobuf.Timestamp` | Account creation time. |
+| `api_key_created_at` | `google.protobuf.Timestamp` | Time the initial API key was created. |
+| `api_key_rotated_at` | `optional google.protobuf.Timestamp` | Most recent API-key rotation time, when it has been rotated. |
 
 
 

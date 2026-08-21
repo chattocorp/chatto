@@ -18,4 +18,5 @@ record planned behavior as active functionality.
 | [FDR-008](FDR-008-signed-in-password-change.md) | Signed-in Password Change | Experimental | 2026-08-20 |
 | [FDR-009](FDR-009-browser-session-management.md) | Browser Session Management | Experimental | 2026-08-20 |
 | [FDR-010](FDR-010-oidc-authorization-grants.md) | OIDC Authorization Grants | Experimental | 2026-08-21 |
-| [FDR-011](FDR-011-automatic-oidc-signing-key-rotation.md) | Automatic OIDC Signing-Key Rotation | Experimental | 2026-08-21 |
+| [FDR-011](FDR-011-account-profile.md) | Account Profile | Experimental | 2026-08-21 |
+| [FDR-012](FDR-012-automatic-oidc-signing-key-rotation.md) | Automatic OIDC Signing-Key Rotation | Experimental | 2026-08-21 |

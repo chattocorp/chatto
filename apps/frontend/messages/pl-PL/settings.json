@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Wyświetlacz",
       "notifications": "Powiadomienia",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Boty"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Anuluj",
         "deleting": "Usuwanie..."
+      }
+    },
+    "bots": {
+      "title": "Boty",
+      "subtitle": "Twórz konta API i dokładnie kontroluj ich możliwości",
+      "singular": "bot",
+      "unsupported": "Ta wersja serwera nie obsługuje kont botów.",
+      "list_title": "Konta botów",
+      "loading": "Ładowanie botów...",
+      "empty_title": "Nie ma jeszcze botów",
+      "empty_body": "Utwórz bota, gdy integracja wymaga własnej tożsamości i uprawnień.",
+      "create_permission_required": "Możesz zarządzać istniejącymi botami, ale nie masz uprawnień do utworzenia nowego.",
+      "create": "Utwórz bota",
+      "create_title": "Utwórz konto bota",
+      "create_failed": "Nie udało się utworzyć bota",
+      "created": "Bot został utworzony",
+      "edit": "Edytuj",
+      "edit_title": "Edytuj konto bota",
+      "updated": "Bot zaktualizowany",
+      "update_failed": "Nie udało się zaktualizować bota",
+      "update_conflict": "Ktoś inny zaktualizował tego bota. Odśwież stronę i spróbuj ponownie.",
+      "username": "Nazwa użytkownika",
+      "username_hint": "Nazwy użytkowników botów muszą kończyć się na _bot.",
+      "display_name": "Nazwa wyświetlana",
+      "owner": "Właściciel",
+      "api_key_title": "Zapisz ten klucz API",
+      "api_key_warning": "Ten klucz jest wyświetlany tylko raz. Przed zamknięciem tego okna przechowuj go w bezpiecznym miejscu.",
+      "key_created": "Utworzono klucz API",
+      "key_rotated_at": "Ostatnia rotacja",
+      "key_copied": "Klucz API został skopiowany",
+      "rotate_key": "Obróć klawisz",
+      "rotate_title": "Obróć klucz API",
+      "rotate_warning": "Bieżący klucz natychmiast przestanie działać. Każda integracja korzystająca z niego musi zostać zaktualizowana.",
+      "key_rotated": "Klucz API został zmieniony",
+      "rotate_failed": "Nie udało się obrócić klucza API",
+      "delete_title": "Usuń bota",
+      "delete_warning": "Usunąć {name}? Jego klucz API natychmiast przestanie działać i konta nie będzie można odzyskać.",
+      "deleted": "Bot usunięty",
+      "delete_failed": "Nie udało się usunąć bota",
+      "permissions": {
+        "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
+        "save_failed": "Nie udało się zaktualizować uprawnień bota"
       }
     }
   }

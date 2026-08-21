@@ -260,6 +260,7 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermMessageAttach,
 		PermMessageReact,
 		PermMessageEcho,
+		PermBotCreate,
 	}
 	if !slices.Equal(DefaultEveryonePermissions(), want) {
 		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)
@@ -356,6 +357,7 @@ func TestPermissionConsistency(t *testing.T) {
 			PermUserDeleteSelf,
 			PermUserManageAccounts,
 			PermUserManagePermissions,
+			PermBotManage,
 		}
 		if !slices.Equal(DefaultAdminPermissions(), want) {
 			t.Errorf("admin server defaults = %v, want %v", DefaultAdminPermissions(), want)

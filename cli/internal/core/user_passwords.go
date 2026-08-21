@@ -120,6 +120,9 @@ func (c *ChattoCore) verifyUserPasswordCurrent(ctx context.Context, userID, pass
 }
 
 func (c *ChattoCore) setPasswordHash(ctx context.Context, actorID, userID string, password string, revokeCredentials bool, check func() error) error {
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		return err
+	}
 	// Validate password strength
 	if err := ValidatePassword(password); err != nil {
 		return err
@@ -194,6 +197,10 @@ func (c *ChattoCore) VerifyPasswordWithAuthGeneration(ctx context.Context, ident
 
 	if err != nil || user == nil {
 		// User doesn't exist - run dummy bcrypt to match timing
+		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
+		return nil, 0, fmt.Errorf("invalid credentials")
+	}
+	if user.GetIsBot() {
 		bcrypt.CompareHashAndPassword(dummyHash, []byte(password))
 		return nil, 0, fmt.Errorf("invalid credentials")
 	}

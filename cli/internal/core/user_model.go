@@ -165,6 +165,10 @@ func (m *UserModel) authGeneration(userID string) (uint64, bool) {
 	return m.auth.Projection().AuthGeneration(userID)
 }
 
+func (m *UserModel) botAPIKeyCredential(userID string) (BotAPIKeyCredential, bool) {
+	return m.auth.Projection().BotAPIKeyCredential(userID)
+}
+
 func (m *UserModel) avatar(userID string) (*corev1.AssetRecord, bool) {
 	return m.users.Projection().Avatar(userID)
 }
@@ -222,4 +226,16 @@ func (m *UserModel) verifiedAccountIDs() []string {
 
 func (m *UserModel) userCount() int {
 	return m.users.Projection().Count()
+}
+
+func (m *UserModel) botIDsOwnedBy(ownerUserID string) []string {
+	return m.users.Projection().BotIDsOwnedBy(ownerUserID)
+}
+
+func (m *UserModel) botIDs() []string {
+	return m.users.Projection().BotIDs()
+}
+
+func (m *UserModel) isBotAndOwner(userID string) (bool, string, bool) {
+	return m.users.Projection().IsBotAndOwner(userID)
 }

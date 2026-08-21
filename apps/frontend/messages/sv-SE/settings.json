@@ -6,7 +6,8 @@
       "profile": "Profil",
       "display": "Skärm",
       "notifications": "Aviseringar",
-      "account": "Konto"
+      "account": "Konto",
+      "bots": "Bots"
     },
     "profile": {
       "title": "Profil",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Avbryt",
         "deleting": "Tar bort..."
+      }
+    },
+    "bots": {
+      "title": "Bots",
+      "subtitle": "Skapa API-konton och kontrollera exakt vad de kan göra",
+      "singular": "bot",
+      "unsupported": "Denna serverversion stöder inte botkonton.",
+      "list_title": "Botkonton",
+      "loading": "Ladder bots...",
+      "empty_title": "Inga bots ännu",
+      "empty_body": "Skapa en bot när en integration behöver sin egen identitet och behörigheter.",
+      "create_permission_required": "Du kan hantera befintliga bottar, men du har inte behörighet att skapa en ny.",
+      "create": "Skapa bot",
+      "create_title": "Skapa botkonto",
+      "create_failed": "Det gick inte att skapa bot",
+      "created": "Botten skapad",
+      "edit": "Redigera",
+      "edit_title": "Redigera botkonto",
+      "updated": "Botten uppdaterad",
+      "update_failed": "Det gick inte att uppdatera bot",
+      "update_conflict": "Någon annan uppdaterade den här boten. Ladda om sidan och försök igen.",
+      "username": "Användarnamn",
+      "username_hint": "Botanvändarnamn måste sluta på _bot.",
+      "display_name": "Visningsnamn",
+      "owner": "Ägare",
+      "api_key_title": "Spara denna API-nyckel",
+      "api_key_warning": "Denna nyckel visas bara en gång. Förvara den på ett säkert ställe innan du stänger det här fönstret.",
+      "key_created": "API-nyckel skapad",
+      "key_rotated_at": "Senast roterad",
+      "key_copied": "API-nyckel kopierad",
+      "rotate_key": "Rotera nyckel",
+      "rotate_title": "Rotera API-nyckel",
+      "rotate_warning": "Den aktuella nyckeln slutar fungera omedelbart. All integration som använder den måste uppdateras.",
+      "key_rotated": "API-nyckel roterad",
+      "rotate_failed": "Det gick inte att rotera API-nyckeln",
+      "delete_title": "Ta bort bot",
+      "delete_warning": "Ta bort {name}? Dess API-nyckel slutar fungera omedelbart och kontot kan inte återställas.",
+      "deleted": "Botten raderad",
+      "delete_failed": "Det gick inte att ta bort bot",
+      "permissions": {
+        "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
+        "save_failed": "Det gick inte att uppdatera botbehörighet"
       }
     }
   }

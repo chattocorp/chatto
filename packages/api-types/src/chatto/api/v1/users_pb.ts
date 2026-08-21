@@ -63,6 +63,13 @@ export class User extends Message<User> {
    */
   customStatus?: CustomUserStatus;
 
+  /**
+   * True when this identity represents an automated bot.
+   *
+   * @generated from field: bool is_bot = 8;
+   */
+  isBot = false;
+
   constructor(data?: PartialMessage<User>) {
     super();
     proto3.util.initPartial(data, this);
@@ -78,6 +85,7 @@ export class User extends Message<User> {
     { no: 5, name: "avatar_url", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 6, name: "presence_status", kind: "enum", T: proto3.getEnumType(PresenceStatus) },
     { no: 7, name: "custom_status", kind: "message", T: CustomUserStatus },
+    { no: 8, name: "is_bot", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): User {

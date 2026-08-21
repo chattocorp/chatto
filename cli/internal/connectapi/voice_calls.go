@@ -172,6 +172,7 @@ func (s *voiceCallService) GetCallToken(ctx context.Context, req *connect.Reques
 		user.GetDisplayName(),
 		user.GetLogin(),
 		s.api.absolutizeAssetURL(ctx, avatarURL),
+		user.GetIsBot(),
 		access.E2EEKey,
 		access.CallID,
 	)

@@ -84,6 +84,7 @@
 
   const details = $derived(memberQuery.data ?? null);
   const member = $derived(details?.member ?? null);
+  const isBot = $derived(member?.isBot === true);
   const memberTargetKey = $derived(
     `${activeServerId}:${serverScope.connection.queryScope}:${userId}`
   );
@@ -325,29 +326,31 @@
 
         <MemberOverviewPanel {member} roles={details.roles} {canViewMemberEmails} />
 
-        {#key memberTargetKey}
-          {#if canAdminManageAccounts}
-            <MemberIdentitySettings
-              {member}
+        {#if !isBot}
+          {#key memberTargetKey}
+            {#if canAdminManageAccounts}
+              <MemberIdentitySettings
+                {member}
+                {isSelf}
+                {updateIdentity}
+                {clearUsernameCooldown}
+                {updatePassword}
+              />
+            {/if}
+
+            <MemberRoleAssignments
+              {details}
               {isSelf}
-              {updateIdentity}
-              {clearUsernameCooldown}
-              {updatePassword}
+              serverId={activeServerId}
+              {updatingRole}
+              {toggleMemberRole}
             />
+          {/key}
+
+          {#if details.viewerCanManageUserPermissions}
+            <Hint>{m('admin.permissions.resolution_hint')}</Hint>
+            <UserPermissionsMatrix {userId} />
           {/if}
-
-          <MemberRoleAssignments
-            {details}
-            {isSelf}
-            serverId={activeServerId}
-            {updatingRole}
-            {toggleMemberRole}
-          />
-        {/key}
-
-        {#if details.viewerCanManageUserPermissions}
-          <Hint>{m('admin.permissions.resolution_hint')}</Hint>
-          <UserPermissionsMatrix {userId} />
         {/if}
       {/if}
     </div>

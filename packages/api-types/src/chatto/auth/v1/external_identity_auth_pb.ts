@@ -249,6 +249,14 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
    */
   login = "";
 
+  /**
+   * Desired display name. When omitted, the server uses a valid provider hint
+   * and otherwise falls back to the requested username.
+   *
+   * @generated from field: string display_name = 3;
+   */
+  displayName = "";
+
   constructor(data?: PartialMessage<CreateExternalIdentityAccountRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -259,6 +267,7 @@ export class CreateExternalIdentityAccountRequest extends Message<CreateExternal
   static readonly fields: FieldList = proto3.util.newFieldList(() => [
     { no: 1, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "display_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateExternalIdentityAccountRequest {

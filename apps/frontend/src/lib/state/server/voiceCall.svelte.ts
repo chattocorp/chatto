@@ -25,6 +25,7 @@ export type CallParticipantInfo = {
   name: string;
   login: string;
   avatarUrl: string | null;
+  isBot?: boolean;
   isMuted: boolean;
   isLocal: boolean;
   connectionQuality: 'excellent' | 'good' | 'poor' | 'lost' | 'unknown';
@@ -47,6 +48,7 @@ export type CallTransitionSoundDecision = 'play' | 'defer' | 'skip';
 type ParticipantMetadata = {
   login?: string;
   avatarUrl?: string;
+  isBot?: boolean;
   publisherKind?: string;
   ownerIdentity?: string;
 };
@@ -1085,6 +1087,7 @@ export class VoiceCallState {
         name: p.name ?? p.identity,
         login: md.login ?? p.identity,
         avatarUrl: md.avatarUrl ?? null,
+        isBot: md.isBot ?? false,
         isMuted: isParticipantMuted(p),
         isLocal,
         connectionQuality: p.connectionQuality as CallParticipantInfo['connectionQuality'],

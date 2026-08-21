@@ -51,6 +51,14 @@
       "filter_label": "篩選權限",
       "filter_placeholder": "篩選權限...",
       "no_filter_matches": "沒有符合此篩選條件的權限。",
+      "binary": {
+        "aria": "{subject} 在 {scope} 的 {permission} 權限為{state}",
+        "enabled": "已啟用",
+        "disabled": "未啟用",
+        "inherited": "繼承自更廣的範圍",
+        "unavailable": "目前無法使用",
+        "owner_ceiling": "無法在 {scope} 授予 {permission}，因為機器人擁有者目前沒有此權限。"
+      },
       "categories": {
         "space": {
           "title": "伺服器權限",

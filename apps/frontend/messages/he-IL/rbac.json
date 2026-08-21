@@ -51,6 +51,14 @@
       "filter_label": "הרשאות סינון",
       "filter_placeholder": "הרשאות מסנן...",
       "no_filter_matches": "אין הרשאות תואמות למסנן זה.",
+      "binary": {
+        "aria": "המצב של {permission} עבור {subject} בתחום {scope}: {state}",
+        "enabled": "פעיל",
+        "disabled": "מושבת",
+        "inherited": "עובר בירושה מתחום רחב יותר",
+        "unavailable": "לא זמין כרגע",
+        "owner_ceiling": "אי אפשר להעניק את {permission} בתחום {scope}, כי לבעל הבוט אין כרגע הרשאה זו."
+      },
       "categories": {
         "space": {
           "title": "הרשאות שרת",

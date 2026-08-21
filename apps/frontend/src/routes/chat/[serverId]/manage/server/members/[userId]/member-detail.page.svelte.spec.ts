@@ -69,7 +69,13 @@ vi.mock('$lib/components/rbac', async () => ({
 }));
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
-  getLiveLogin: (_userId: string, login: string) => login
+  getLiveLogin: (_userId: string, login: string) => login,
+  getLiveAvatarUrl: (_userId: string, avatarUrl: string | null) => avatarUrl,
+  getLiveCustomStatus: () => null
+}));
+
+vi.mock('$lib/state/presenceCache.svelte', () => ({
+  getPresenceCache: () => ({ get: (_key: unknown, fallback: unknown) => fallback })
 }));
 
 vi.mock('$lib/ui/toast', () => ({
@@ -161,7 +167,9 @@ describe('server member detail queries', () => {
     vi.clearAllMocks();
     memberDetailPageTestState.reset();
     mocks.scopeCurrent = true;
-    mocks.getMember.mockImplementation((userId: string) => Promise.resolve(details(member(userId))));
+    mocks.getMember.mockImplementation((userId: string) =>
+      Promise.resolve(details(member(userId)))
+    );
     mocks.updateUser.mockImplementation(({ userId, login, displayName }) =>
       Promise.resolve({
         id: userId,
@@ -183,6 +191,22 @@ describe('server member detail queries', () => {
     mocks.revokeRole.mockResolvedValue({ changed: true, member: null });
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
+  });
+
+  it('marks a bot account in the member overview', async () => {
+    mocks.getMember.mockResolvedValueOnce(
+      details(member('helper_bot', { isBot: true }))
+    );
+
+    const rendered = render(MemberDetailPage);
+    await settle();
+
+    expect(rendered.container.querySelector('[data-testid="bot-badge"]')).toBeTruthy();
+    expect(rendered.container.textContent).toContain('bot');
+    expect(rendered.container.textContent).not.toContain('Email not verified');
+    expect(rendered.container.textContent).not.toContain('Deletion allowed');
+    expect(rendered.container.textContent).not.toContain('Set Password');
+    expect(rendered.container.textContent).not.toContain('Role Assignments');
   });
 
   it('reuses cached member details when revisiting a user in the same session', async () => {
@@ -311,12 +335,10 @@ describe('server member detail queries', () => {
 
   it('allows a new member role change while the previous member mutation is pending', async () => {
     const aliceRole = deferred<AdminRoleMutationResult>();
-    mocks.assignRole
-      .mockReturnValueOnce(aliceRole.promise)
-      .mockResolvedValueOnce({
-        changed: true,
-        member: member('bob', { roles: ['everyone', 'admin'] })
-      });
+    mocks.assignRole.mockReturnValueOnce(aliceRole.promise).mockResolvedValueOnce({
+      changed: true,
+      member: member('bob', { roles: ['everyone', 'admin'] })
+    });
     const rendered = render(MemberDetailPage);
     await settle();
 

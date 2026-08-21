@@ -51,6 +51,14 @@
       "filter_label": "Filtra i permessi",
       "filter_placeholder": "Filtra autorizzazioni...",
       "no_filter_matches": "Nessuna autorizzazione corrisponde a questo filtro.",
+      "binary": {
+        "aria": "{permission} è {state} per {subject} in {scope}",
+        "enabled": "abilitato",
+        "disabled": "disabilitato",
+        "inherited": "Ereditato da un ambito più ampio",
+        "unavailable": "Attualmente non disponibile",
+        "owner_ceiling": "Non puoi concedere {permission} in {scope} perché il proprietario del bot non dispone attualmente di questa autorizzazione."
+      },
       "categories": {
         "space": {
           "title": "Autorizzazioni del server",

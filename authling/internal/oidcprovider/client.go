@@ -53,7 +53,7 @@ func (*Client) IDTokenUserinfoClaimsAssertion() bool { return false }
 func (*Client) ClockSkew() time.Duration             { return 0 }
 func (*Client) IsScopeAllowed(string) bool           { return false }
 func (*Client) RestrictAdditionalIdTokenScopes() func([]string) []string {
-	return func([]string) []string { return nil }
+	return func(scopes []string) []string { return scopes }
 }
 func (*Client) RestrictAdditionalAccessTokenScopes() func([]string) []string {
 	return func([]string) []string { return nil }

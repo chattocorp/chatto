@@ -6,7 +6,8 @@
       "profile": "Profils",
       "display": "Displejs",
       "notifications": "Paziņojumi",
-      "account": "Konts"
+      "account": "Konts",
+      "bots": "Boti"
     },
     "profile": {
       "title": "Profils",
@@ -344,6 +345,48 @@
         "confirm_placeholder": "DELETE",
         "cancel": "Atcelt",
         "deleting": "Notiek dzēšana..."
+      }
+    },
+    "bots": {
+      "title": "Boti",
+      "subtitle": "Izveidojiet API kontus un precīzi kontrolējiet, ko tie var darīt",
+      "singular": "bot",
+      "unsupported": "Šī servera versija neatbalsta robotu kontus.",
+      "list_title": "Bot konti",
+      "loading": "Notiek robotu ielāde...",
+      "empty_title": "Vēl nav robotu",
+      "empty_body": "Izveidojiet robotu, ja integrācijai ir nepieciešama sava identitāte un atļaujas.",
+      "create_permission_required": "Varat pārvaldīt esošos robotus, taču jums nav atļaujas izveidot jaunu.",
+      "create": "Izveidot robotu",
+      "create_title": "Izveidojiet robotprogrammatūras kontu",
+      "create_failed": "Neizdevās izveidot robotu",
+      "created": "Bots izveidots",
+      "edit": "Rediģēt",
+      "edit_title": "Rediģēt robota kontu",
+      "updated": "Bots ir atjaunināts",
+      "update_failed": "Neizdevās atjaunināt robotu",
+      "update_conflict": "Kāds cits atjaunināja šo robotu. Pārlādē lapu un mēģini vēlreiz.",
+      "username": "Lietotājvārds",
+      "username_hint": "Bot lietotājvārdiem jābeidzas ar _bot.",
+      "display_name": "Parādītais nosaukums",
+      "owner": "Īpašnieks",
+      "api_key_title": "Saglabājiet šo API atslēgu",
+      "api_key_warning": "Šī atslēga tiek rādīta tikai vienu reizi. Pirms šī loga aizvēršanas glabājiet to drošā vietā.",
+      "key_created": "API atslēga ir izveidota",
+      "key_rotated_at": "Pēdējo reizi pagriezts",
+      "key_copied": "API atslēga ir nokopēta",
+      "rotate_key": "Pagriezt taustiņu",
+      "rotate_title": "Pagriezt API atslēgu",
+      "rotate_warning": "Pašreizējā atslēga nekavējoties pārtrauks darboties. Jebkura integrācija, kas to izmanto, ir jāatjaunina.",
+      "key_rotated": "API atslēga ir pagriezta",
+      "rotate_failed": "Neizdevās pagriezt API atslēgu",
+      "delete_title": "Dzēst robotu",
+      "delete_warning": "Vai dzēst {name}? Tā API atslēga nekavējoties pārtrauks darboties, un kontu nevarēs atkopt.",
+      "deleted": "Bots ir izdzēsts",
+      "delete_failed": "Neizdevās izdzēst robotu",
+      "permissions": {
+        "owner_ceiling": "Izvēlieties, ko šis bots drīkst darīt. Varat tam piešķirt tikai tās atļaujas, kas ir jums pašam. Ja zaudēsiet kādu atļauju, arī bots to vairs nevarēs izmantot.",
+        "save_failed": "Neizdevās atjaunināt robota atļauju"
       }
     }
   }

@@ -526,6 +526,14 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
    */
   effective = PermissionDecision.UNSPECIFIED;
 
+  /**
+   * Whether an explicit allow may currently be stored for this target. Absent
+   * when no additional delegation ceiling applies.
+   *
+   * @generated from field: optional bool allow_permitted = 5;
+   */
+  allowPermitted?: boolean;
+
   constructor(data?: PartialMessage<PermissionMatrixCell>) {
     super();
     proto3.util.initPartial(data, this);
@@ -538,6 +546,7 @@ export class PermissionMatrixCell extends Message<PermissionMatrixCell> {
     { no: 2, name: "scope_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "override", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "effective", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
+    { no: 5, name: "allow_permitted", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionMatrixCell {

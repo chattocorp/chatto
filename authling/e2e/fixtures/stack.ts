@@ -164,13 +164,16 @@ async function waitForReady(
   throw new Error(`${process.name} did not become ready within ${timeoutMs}ms; see ${process.logPath}`);
 }
 
-export async function startStack(testInfo: TestInfo): Promise<TestStack> {
+export async function startStack(
+  testInfo: TestInfo,
+  options: { additionalConfig?: string } = {}
+): Promise<TestStack> {
   if (!Number.isInteger(basePort) || basePort < 1 || basePort + suitePortRange > 65_535) {
     throw new Error('AUTHLING_E2E_BASE_PORT must reserve 300 valid TCP ports');
   }
   for (let attempt = 0; attempt < maximumStartAttempts; attempt += 1) {
     try {
-      return await startStackAttempt(testInfo, portsForTest(testInfo, attempt));
+      return await startStackAttempt(testInfo, portsForTest(testInfo, attempt), options);
     } catch (error) {
       if (attempt === maximumStartAttempts - 1 || !isAddressInUse(error, testInfo)) {
         throw error;
@@ -180,7 +183,11 @@ export async function startStack(testInfo: TestInfo): Promise<TestStack> {
   throw new Error('Authling E2E stack exhausted its startup attempts');
 }
 
-async function startStackAttempt(testInfo: TestInfo, ports: TestPorts): Promise<TestStack> {
+async function startStackAttempt(
+  testInfo: TestInfo,
+  ports: TestPorts,
+  options: { additionalConfig?: string }
+): Promise<TestStack> {
   const stateDirectory = mkdtempSync(path.join(os.tmpdir(), 'authling-e2e-'));
   const mailpitURL = `http://127.0.0.1:${ports.mailpit}`;
   const baseURL = `http://127.0.0.1:${ports.http}`;
@@ -188,7 +195,7 @@ async function startStackAttempt(testInfo: TestInfo, ports: TestPorts): Promise<
   const configPath = path.join(stateDirectory, 'authling-e2e.toml');
   writeFileSync(
     configPath,
-    `[[oidc.clients]]\nid = 'authling-e2e'\nname = 'Authling E2E client'\nredirect_uris = ['${callbackURL}']\n`
+    `[[oidc.clients]]\nid = 'authling-e2e'\nname = 'Authling E2E client'\nredirect_uris = ['${callbackURL}']\n${options.additionalConfig ?? ''}`
   );
   let callbackServer: Server | undefined;
   const mailpit = startProcess(

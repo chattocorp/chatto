@@ -1,0 +1,150 @@
+syntax = "proto3";
+
+package chatto.api.v1;
+
+import "buf/validate/validate.proto";
+import "chatto/api/v1/pagination.proto";
+import "chatto/api/v1/users.proto";
+import "google/protobuf/descriptor.proto";
+import "google/protobuf/timestamp.proto";
+
+// A managed bot account. The API key itself is returned only by creation and
+// rotation responses.
+message Bot {
+  // Canonical public bot identity.
+  User user = 1;
+  // Stable human owner user ID.
+  string owner_user_id = 2;
+  // Account creation time.
+  google.protobuf.Timestamp created_at = 3;
+  // Time the initial API key was created.
+  google.protobuf.Timestamp api_key_created_at = 4;
+  // Most recent API-key rotation time, when it has been rotated.
+  optional google.protobuf.Timestamp api_key_rotated_at = 5;
+}
+
+// Request bots visible to the caller. Owners see their own bots; callers with
+// bot.manage see every bot.
+message ListBotsRequest {
+  // Optional case-insensitive login or display-name search.
+  string search = 1 [(buf.validate.field).string.max_len = 100];
+  // Page request. Defaults to 20 results when absent or limit is zero.
+  PageRequest page = 2;
+}
+
+// Page of visible bots.
+message ListBotsResponse {
+  // Visible bots.
+  repeated Bot bots = 1;
+  // Page metadata.
+  PageInfo page = 2;
+}
+
+// Request one bot by stable user ID.
+message GetBotRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Response containing one bot.
+message GetBotResponse {
+  // Requested bot.
+  Bot bot = 1;
+}
+
+// Request several bots by stable user ID.
+message BatchGetBotsRequest {
+  // Required bot user IDs. Missing or inaccessible bots are omitted.
+  repeated string bot_user_ids = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+    items: {string: {min_len: 1}}
+  }];
+}
+
+// Response containing accessible bots in first-seen request order.
+message BatchGetBotsResponse {
+  // Found bots.
+  repeated Bot bots = 1;
+}
+
+// Request creation of a bot owned by the authenticated human caller.
+message CreateBotRequest {
+  // Bot login. Must end in `_bot`.
+  string login = 1 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
+  // Public display name.
+  string display_name = 2 [(buf.validate.field).string.max_len = 32];
+}
+
+// Result of creating a bot. api_key is shown once and cannot be retrieved.
+message CreateBotResponse {
+  // Created bot.
+  Bot bot = 1;
+  // Newly issued API key.
+  string api_key = 2;
+}
+
+// Patch request for a bot's public identity.
+message UpdateBotRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // New bot login. Must end in `_bot`.
+  optional string login = 2 [(buf.validate.field).string = {min_len: 2, max_len: 32}];
+  // New public display name.
+  optional string display_name = 3 [(buf.validate.field).string.max_len = 32];
+}
+
+// Result of updating a bot.
+message UpdateBotResponse {
+  // Updated bot.
+  Bot bot = 1;
+}
+
+// Request deletion of a bot account.
+message DeleteBotRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of deleting a bot account.
+message DeleteBotResponse {
+  // True when the bot was deleted.
+  bool deleted = 1;
+}
+
+// Request rotation of a bot's sole API key.
+message RotateBotApiKeyRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of rotating a bot API key. api_key is shown once and cannot be
+// retrieved later.
+message RotateBotApiKeyResponse {
+  // Updated bot metadata.
+  Bot bot = 1;
+  // Newly issued API key.
+  string api_key = 2;
+}
+
+// Creates and manages bot accounts owned by human users. Bot API keys cannot
+// call this service.
+service BotService {
+  // Lists bots visible to the authenticated caller.
+  rpc ListBots(ListBotsRequest) returns (ListBotsResponse);
+  // Gets one visible bot. Returns NOT_FOUND for an unknown bot and
+  // PERMISSION_DENIED for a bot managed by another user.
+  rpc GetBot(GetBotRequest) returns (GetBotResponse);
+  // Gets several visible bots. Missing and inaccessible bots are omitted.
+  rpc BatchGetBots(BatchGetBotsRequest) returns (BatchGetBotsResponse);
+  // Creates a bot owned by the authenticated human caller. Requires bot.create.
+  rpc CreateBot(CreateBotRequest) returns (CreateBotResponse);
+  // Updates a bot's public identity.
+  rpc UpdateBot(UpdateBotRequest) returns (UpdateBotResponse);
+  // Deletes a bot and invalidates its API key.
+  rpc DeleteBot(DeleteBotRequest) returns (DeleteBotResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+  // Rotates the bot's sole API key and immediately invalidates the old key.
+  rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
+}

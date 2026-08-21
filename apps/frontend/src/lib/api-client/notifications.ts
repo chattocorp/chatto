@@ -25,6 +25,7 @@ export type NotificationActor = {
   login: string;
   displayName: string;
   deleted: boolean;
+  isBot?: boolean;
   avatarUrl?: string | null;
   presenceStatus: PresenceStatus;
   customStatus?: {
@@ -475,6 +476,7 @@ function notificationActor(actor: APIUser | undefined): NotificationActor | null
     login: actor.login,
     displayName: actor.displayName,
     deleted: actor.deleted,
+    isBot: actor.isBot,
     avatarUrl: actor.avatarUrl ?? null,
     presenceStatus: presenceStatusOrOffline(actor.presenceStatus),
     customStatus: actor.customStatus

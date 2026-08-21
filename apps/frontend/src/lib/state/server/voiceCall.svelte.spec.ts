@@ -1137,6 +1137,26 @@ describe('VoiceCallState', () => {
     expect(state.locallyMutedParticipantIds).toEqual({});
   });
 
+  it('preserves bot identity from LiveKit participant metadata', async () => {
+    mockRemoteParticipants.set('automation-bot', {
+      identity: 'automation-bot',
+      name: 'Automation Bot',
+      metadata: `{"login":"automation_bot","isBot":true}`,
+      connectionQuality: 'good',
+      isSpeaking: false,
+      audioLevel: 0,
+      setVolume: vi.fn(),
+      trackPublications: new Map(),
+      getTrackPublications: vi.fn(() => [])
+    });
+    const state = new VoiceCallState(createVoiceCallClient());
+
+    await state.join('wss://livekit.example.test', 'R1');
+
+    expect(state.participants.find((participant) => participant.identity === 'automation-bot'))
+      .toMatchObject({ login: 'automation_bot', isBot: true });
+  });
+
   it('merges a companion screen-share publisher into its owning participant', async () => {
     const gameVideoTrack = { source: 'screen_share' };
     const ownerSetVolume = vi.fn();

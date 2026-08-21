@@ -3,15 +3,15 @@ import {
   Code,
   ConnectError,
   createChattoClient,
-  type ConnectAPIConfig,
-} from "./connect.js";
-import { UserService } from "@chatto/api-types/api/v1/member_directory_connect";
-import { RoomService } from "@chatto/api-types/api/v1/rooms_connect";
-import type { DirectoryMember as APIDirectoryMember } from "@chatto/api-types/api/v1/member_directory_pb";
-import { PresenceStatus } from "@chatto/api-types/api/v1/presence_pb";
-import { presenceStatusOrOffline } from "./enumDefaults.js";
+  type ConnectAPIConfig
+} from './connect.js';
+import { UserService } from '@chatto/api-types/api/v1/member_directory_connect';
+import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
+import type { DirectoryMember as APIDirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
+import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import { presenceStatusOrOffline } from './enumDefaults.js';
 
-export { presenceStatusOrOffline as apiPresenceStatus } from "./enumDefaults.js";
+export { presenceStatusOrOffline as apiPresenceStatus } from './enumDefaults.js';
 
 export type MemberDirectoryAPIConfig = ConnectAPIConfig;
 
@@ -20,6 +20,7 @@ export type DirectoryMember = {
   login: string;
   displayName: string;
   deleted: boolean;
+  isBot?: boolean;
   avatarUrl: string | null;
   presenceStatus: PresenceStatus;
   customStatus: {
@@ -44,30 +45,30 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
 
   return {
     async listUsers(
-      search = "",
+      search = '',
       limit = 20,
       offset = 0,
-      options: { signal?: AbortSignal } = {},
+      options: { signal?: AbortSignal } = {}
     ): Promise<MemberDirectoryPage> {
       const response = await users.listUsers(
         { search, page: { limit, offset } },
         {
           headers: headers(),
-          ...(options.signal ? { signal: options.signal } : {}),
-        },
+          ...(options.signal ? { signal: options.signal } : {})
+        }
       );
       return {
         members: response.users.map(mapDirectoryMember),
         totalCount: Number(response.page?.totalCount ?? 0),
-        hasMore: response.page?.hasMore ?? false,
+        hasMore: response.page?.hasMore ?? false
       };
     },
 
     async getUser(userId: string): Promise<DirectoryMember | null> {
       try {
         const response = await users.getUser(
-          { target: { case: "userId", value: userId } },
-          { headers: headers() },
+          { target: { case: 'userId', value: userId } },
+          { headers: headers() }
         );
         return response.user ? mapDirectoryMember(response.user) : null;
       } catch (err) {
@@ -81,8 +82,8 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async getUserByLogin(login: string): Promise<DirectoryMember | null> {
       try {
         const response = await users.getUser(
-          { target: { case: "login", value: login } },
-          { headers: headers() },
+          { target: { case: 'login', value: login } },
+          { headers: headers() }
         );
         return response.user ? mapDirectoryMember(response.user) : null;
       } catch (err) {
@@ -94,43 +95,34 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     },
 
     async batchGetUsers(userIds: string[]): Promise<DirectoryMember[]> {
-      const response = await users.batchGetUsers(
-        { userIds },
-        { headers: headers() },
-      );
+      const response = await users.batchGetUsers({ userIds }, { headers: headers() });
       return response.users.map(mapDirectoryMember);
     },
 
     async listRoomMembers(
       roomId: string,
-      search = "",
+      search = '',
       limit = 250,
       offset = 0,
-      options: { signal?: AbortSignal } = {},
+      options: { signal?: AbortSignal } = {}
     ): Promise<MemberDirectoryPage> {
       const response = await rooms.listMembers(
         { roomId, search, page: { limit, offset } },
         {
           headers: headers(),
-          ...(options.signal ? { signal: options.signal } : {}),
-        },
+          ...(options.signal ? { signal: options.signal } : {})
+        }
       );
       return {
         members: response.members.map(mapDirectoryMember),
         totalCount: Number(response.page?.totalCount ?? 0),
-        hasMore: response.page?.hasMore ?? false,
+        hasMore: response.page?.hasMore ?? false
       };
     },
 
-    async getRoomMember(
-      roomId: string,
-      userId: string,
-    ): Promise<DirectoryMember | null> {
+    async getRoomMember(roomId: string, userId: string): Promise<DirectoryMember | null> {
       try {
-        const response = await rooms.getMember(
-          { roomId, userId },
-          { headers: headers() },
-        );
+        const response = await rooms.getMember({ roomId, userId }, { headers: headers() });
         return response.member ? mapDirectoryMember(response.member) : null;
       } catch (err) {
         if (err instanceof ConnectError && err.code === Code.NotFound) {
@@ -143,44 +135,40 @@ export function createMemberDirectoryAPI(config: MemberDirectoryAPIConfig) {
     async batchGetRoomMembers(
       roomId: string,
       userIds: string[],
-      options: { signal?: AbortSignal } = {},
+      options: { signal?: AbortSignal } = {}
     ): Promise<DirectoryMember[]> {
       const response = await rooms.batchGetMembers(
         { roomId, userIds },
         {
           headers: headers(),
-          ...(options.signal ? { signal: options.signal } : {}),
-        },
+          ...(options.signal ? { signal: options.signal } : {})
+        }
       );
       return response.members.map(mapDirectoryMember);
-    },
+    }
   };
 }
 
 export type MemberDirectoryAPI = ReturnType<typeof createMemberDirectoryAPI>;
 
-export function mapDirectoryMember(
-  member: APIDirectoryMember,
-): DirectoryMember {
+export function mapDirectoryMember(member: APIDirectoryMember): DirectoryMember {
   const user = member.user;
   return {
-    id: user?.id ?? "",
-    login: user?.login ?? "",
-    displayName: user?.displayName ?? "",
+    id: user?.id ?? '',
+    login: user?.login ?? '',
+    displayName: user?.displayName ?? '',
     deleted: user?.deleted ?? false,
+    isBot: user?.isBot ?? false,
     avatarUrl: user?.avatarUrl ?? null,
-    presenceStatus: presenceStatusOrOffline(
-      user?.presenceStatus ?? PresenceStatus.UNSPECIFIED,
-    ),
+    presenceStatus: presenceStatusOrOffline(user?.presenceStatus ?? PresenceStatus.UNSPECIFIED),
     customStatus: user?.customStatus
       ? {
           emoji: user.customStatus.emoji,
           text: user.customStatus.text,
-          expiresAt:
-            user.customStatus.expiresAt?.toDate().toISOString() ?? null,
+          expiresAt: user.customStatus.expiresAt?.toDate().toISOString() ?? null
         }
       : null,
     roles: [...member.roles],
-    createdAt: member.createdAt?.toDate().toISOString() ?? null,
+    createdAt: member.createdAt?.toDate().toISOString() ?? null
   };
 }

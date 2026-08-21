@@ -242,7 +242,10 @@ func serverMemberForUser(ctx context.Context, api *API, user *corev1.User) (*api
 	if err != nil {
 		return nil, connectError(err)
 	}
-	roles := append([]string{core.RoleEveryone}, assigned...)
+	var roles []string
+	if !user.GetIsBot() {
+		roles = append([]string{core.RoleEveryone}, assigned...)
+	}
 	return directoryMember(ctx, api, user, roles)
 }
 
