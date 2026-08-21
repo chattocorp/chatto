@@ -11,10 +11,13 @@ export const settingsQueryKeys = {
   externalIdentities(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'external-identities'] as const;
   },
-  bots(serverId: string, connection: SettingsQueryConnection) {
+  botsRoot(serverId: string, connection: SettingsQueryConnection) {
     return [...settingsRoot(serverId, connection), 'bots'] as const;
   },
-  botPermissions(serverId: string, connection: SettingsQueryConnection, botUserId: string) {
-    return [...settingsRoot(serverId, connection), 'bots', botUserId, 'permissions'] as const;
+  bots(serverId: string, connection: SettingsQueryConnection, search: string) {
+    return [...settingsRoot(serverId, connection), 'bots', 'list', search] as const;
+  },
+  bot(serverId: string, connection: SettingsQueryConnection, botUserId: string) {
+    return [...settingsRoot(serverId, connection), 'bots', 'detail', botUserId] as const;
   }
 };

@@ -13,6 +13,7 @@ function renderCell(
     disabled: boolean;
     allowBlocked: boolean;
     ceilingBlocked: boolean;
+    decisionMode: 'tri-state' | 'binary';
     updating: boolean;
     ariaLabel: string;
     title: string;
@@ -144,5 +145,47 @@ describe('MatrixCell', () => {
 
     expect(button.className).toContain('ring-warning/50');
     expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  });
+
+  it('toggles only enabled and disabled in binary mode', () => {
+    const disable = vi.fn();
+    const enabled = renderCell({
+      inherited: 'allow',
+      decisionMode: 'binary',
+      onCycle: disable
+    });
+    enabled.container.querySelector('button')!.click();
+    expect(disable).toHaveBeenCalledWith('neutral');
+    expect(enabled.container.querySelector('button')!.getAttribute('aria-pressed')).toBe('true');
+
+    const enable = vi.fn();
+    const disabled = renderCell({
+      override: 'neutral',
+      decisionMode: 'binary',
+      onCycle: enable
+    });
+    disabled.container.querySelector('button')!.click();
+    expect(enable).toHaveBeenCalledWith('allow');
+    expect(disabled.container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
+  });
+
+  it('disables a blocked binary grant while allowing a dormant grant to be removed', () => {
+    const onCycle = vi.fn();
+    const disabled = renderCell({
+      decisionMode: 'binary',
+      allowBlocked: true,
+      onCycle
+    });
+    expect(disabled.container.querySelector('button')!.hasAttribute('disabled')).toBe(true);
+
+    const dormant = renderCell({
+      override: 'allow',
+      decisionMode: 'binary',
+      allowBlocked: true,
+      ceilingBlocked: true,
+      onCycle
+    });
+    dormant.container.querySelector('button')!.click();
+    expect(onCycle).toHaveBeenCalledWith('neutral');
   });
 });

@@ -19,6 +19,10 @@ import (
 
 const botAPIKeyPrefix = "cht_BK_"
 
+// legacyBotAPIKeySecretBytes keeps API keys issued before the shorter format
+// valid until their owner explicitly rotates them.
+const legacyBotAPIKeySecretBytes = 32
+
 // Bot is the management view of a bot account. APIKey is populated only by
 // CreateBot and RotateBotAPIKey and must never be logged or persisted.
 type Bot struct {
@@ -39,10 +43,14 @@ func parseBotAPIKey(token string) (string, bool) {
 		return "", false
 	}
 	secret, err := base64.RawURLEncoding.DecodeString(encodedSecret)
-	if err != nil || len(secret) != botAPIKeySecretBytes || base64.RawURLEncoding.EncodeToString(secret) != encodedSecret {
+	if err != nil || !validBotAPIKeySecretLength(len(secret)) || base64.RawURLEncoding.EncodeToString(secret) != encodedSecret {
 		return "", false
 	}
 	return botID, true
+}
+
+func validBotAPIKeySecretLength(length int) bool {
+	return length == botAPIKeySecretBytes || length == legacyBotAPIKeySecretBytes
 }
 
 func (c *ChattoCore) botAPIKeyVerifier(token string) []byte {

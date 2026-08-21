@@ -6,10 +6,7 @@ import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
-import {
-  removeRegisteredAdminQueries,
-  removeRegisteredAdminUserQueries
-} from '$lib/query/cacheRegistry';
+import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
@@ -187,18 +184,10 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
   });
 
-  it('restores page scroll after a self-initiated permission change resets admin queries', async () => {
-    let resolveReload: ((value: ReturnType<typeof matrix>) => void) | undefined;
-    permissionMocks.getUserPermissionMatrix
-      .mockResolvedValueOnce(matrix({ userId: 'user-a' }))
-      .mockImplementationOnce(
-        () =>
-          new Promise<ReturnType<typeof matrix>>((resolve) => {
-            resolveReload = resolve;
-          })
-      );
+  it('updates a user permission without remounting the matrix or changing page scroll', async () => {
+    let resolveMutation: ((value: object) => void) | undefined;
     permissionMocks.setUserPermission.mockImplementation(
-      () => new Promise<object>(() => undefined)
+      () => new Promise<object>((resolve) => (resolveMutation = resolve))
     );
     const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
     await settle();
@@ -206,17 +195,16 @@ describe('subject permission loaders', () => {
     rendered.container.style.overflowY = 'auto';
     rendered.container.scrollTop = 60;
     const originalScrollTop = rendered.container.scrollTop;
+    const originalTable = rendered.container.querySelector('table');
 
     cellButton(rendered.container, 'message.post').click();
     await settle();
-    removeRegisteredAdminQueries('origin');
-    await settle();
+    resolveMutation?.({ decision: 'ALLOW' });
 
-    expect(rendered.container.querySelector('table')).toBeNull();
-    expect(rendered.container.scrollTop).toBe(0);
-
-    resolveReload?.(matrix({ userId: 'user-a' }));
-    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
+    await vi.waitFor(() =>
+      expect(cellButton(rendered.container, 'message.post').disabled).toBe(false)
+    );
+    expect(rendered.container.querySelector('table')).toBe(originalTable);
     expect(rendered.container.scrollTop).toBe(originalScrollTop);
   });
 

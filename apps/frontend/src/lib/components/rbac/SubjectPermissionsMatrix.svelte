@@ -47,6 +47,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     cells: MatrixCellData[];
   };
   export type CellState = 'allow' | 'deny' | 'neutral';
+  export type DecisionMode = 'tri-state' | 'binary';
   type MatrixCoordinate = { category: string; column: string; permission: string };
 
   let {
@@ -55,7 +56,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     onCycle,
     subjectKind = 'subject',
     forceAllow = false,
-    readOnly = false
+    readOnly = false,
+    decisionMode = 'tri-state'
   }: {
     data: MatrixData;
     /** `${scopeId}::${permission}` of the cell whose mutation is in flight. */
@@ -67,6 +69,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     forceAllow?: boolean;
     /** Disable cell mutation controls. */
     readOnly?: boolean;
+    /** Use a two-state allowlist UI while preserving scoped deny overrides internally. */
+    decisionMode?: DecisionMode;
   } = $props();
 
   let hoveredCell = $state<MatrixCoordinate | null>(null);
@@ -135,6 +139,48 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     if (d === 'ALLOW') return 'allow';
     if (d === 'DENY') return 'deny';
     return 'neutral';
+  }
+
+  function parentDecision(scope: MatrixScope, permission: string): MatrixDecision {
+    const serverScope = data.scopes.find((candidate) => candidate.kind === 'SERVER');
+    const serverDecision = serverScope
+      ? (cellFor(serverScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    if (scope.kind === 'SERVER') return 'NONE';
+    if (scope.kind === 'GROUP') return serverDecision;
+
+    const groupScope = data.scopes.find(
+      (candidate) => candidate.kind === 'GROUP' && candidate.id === `group:${scope.parentGroupId}`
+    );
+    const groupDecision = groupScope
+      ? (cellFor(groupScope.id, permission)?.override ?? 'NONE')
+      : 'NONE';
+    return groupDecision !== 'NONE' ? groupDecision : serverDecision;
+  }
+
+  function configuredDecision(
+    scope: MatrixScope,
+    permission: string,
+    cell: MatrixCellData
+  ): MatrixDecision {
+    return cell.override !== 'NONE' ? cell.override : parentDecision(scope, permission);
+  }
+
+  function cycleCell(
+    scope: MatrixScope,
+    permission: string,
+    cell: MatrixCellData,
+    next: CellState
+  ) {
+    if (decisionMode !== 'binary') {
+      onCycle(scope, permission, next);
+      return;
+    }
+    if (next === 'allow') {
+      onCycle(scope, permission, 'allow');
+      return;
+    }
+    onCycle(scope, permission, parentDecision(scope, permission) === 'ALLOW' ? 'deny' : 'neutral');
   }
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
@@ -262,13 +308,29 @@ scrolling; the table only scrolls horizontally when its columns overflow.
             {#if cell}
               {@const ov = decisionToState(cell.override)}
               {@const eff = decisionToState(cell.effective)}
-              {@const displayOverride = forceAllow ? 'allow' : ov}
-              {@const displayEffective = forceAllow ? 'neutral' : eff}
+              {@const configured = configuredDecision(scope, permission, cell)}
+              {@const binaryEnabled = configured === 'ALLOW'}
+              {@const displayOverride = forceAllow
+                ? 'allow'
+                : decisionMode === 'binary'
+                  ? cell.override === 'ALLOW'
+                    ? 'allow'
+                    : 'neutral'
+                  : ov}
+              {@const displayEffective = forceAllow
+                ? 'neutral'
+                : decisionMode === 'binary'
+                  ? cell.override === 'NONE' && binaryEnabled
+                    ? 'allow'
+                    : 'neutral'
+                  : eff}
               {@const ariaLabel = forceAllow
                 ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                : ov !== 'neutral'
-                  ? `Override ${ov} for ${permission} at ${scope.label}`
-                  : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+                : decisionMode === 'binary'
+                  ? `${permission} is ${binaryEnabled ? 'enabled' : 'disabled'} for ${subjectKind} at ${scope.label}`
+                  : ov !== 'neutral'
+                    ? `Override ${ov} for ${permission} at ${scope.label}`
+                    : `No override for ${permission} at ${scope.label}, effective ${eff}`}
               {@const allowConstraint =
                 cell.allowPermitted === false
                   ? `The delegation ceiling blocks ${permission} at ${scope.label}`
@@ -278,26 +340,35 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                     'Allow (owners are always granted all permissions)',
                     'Owner permissions are not editable'
                   ]
-                : [
-                    ov !== 'neutral'
-                      ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                      : null,
-                    ov === 'neutral' && eff !== 'neutral'
-                      ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                      : null,
-                    ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
-                    allowConstraint
-                  ].filter(Boolean)}
+                : decisionMode === 'binary'
+                  ? [
+                      binaryEnabled
+                        ? `Enabled${cell.override === 'NONE' ? ' (inherited)' : ''}`
+                        : 'Disabled',
+                      allowConstraint
+                    ].filter(Boolean)
+                  : [
+                      ov !== 'neutral'
+                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                        : null,
+                      ov === 'neutral' && eff !== 'neutral'
+                        ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                        : null,
+                      ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                      allowConstraint
+                    ].filter(Boolean)}
               <MatrixCell
                 override={displayOverride}
                 inherited={displayEffective}
                 updating={isUpdating}
                 disabled={readOnly}
                 allowBlocked={cell.allowPermitted === false}
-                ceilingBlocked={cell.allowPermitted === false && ov === 'allow'}
+                ceilingBlocked={cell.allowPermitted === false &&
+                  (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
+                {decisionMode}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
-                onCycle={(next) => onCycle(scope, permission, next)}
+                onCycle={(next) => cycleCell(scope, permission, cell, next)}
               />
             {:else}
               <span class="inline-block h-10 w-10" aria-hidden="true"></span>

@@ -10,7 +10,7 @@ import (
 	gonanoid "github.com/matoous/go-nanoid/v2"
 )
 
-const botAPIKeySecretBytes = 32
+const botAPIKeySecretBytes = 16
 
 const (
 	idAlphabet = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"

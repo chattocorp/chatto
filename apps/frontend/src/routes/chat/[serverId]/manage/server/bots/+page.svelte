@@ -1,64 +1,84 @@
 <script lang="ts">
-  import { createQuery } from '@tanstack/svelte-query';
+  import { goto } from '$app/navigation';
+  import { resolve } from '$app/paths';
+  import { createInfiniteQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
   import { viewerResponseToState } from '$lib/api-client/viewer';
-  import { Panel } from '$lib/components/admin';
-  import { UserPermissionsMatrix } from '$lib/components/rbac';
+  import { DataTable, Panel } from '$lib/components/admin';
+  import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
+  import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
-  import {
-    ConfirmDialog,
-    Dialog,
-    EmptyState,
-    FormDialog,
-    Hint,
-    PageTitle,
-    PaneContent,
-    PaneHeader
-  } from '$lib/ui';
+  import { Dialog, FormDialog, Hint, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import { SvelteSet } from 'svelte/reactivity';
+  import { onDestroy } from 'svelte';
 
+  const PAGE_SIZE = 20;
   const serverScope = useServerScope();
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
   const canCreateBots = $derived.by(() => {
     const viewer = serverScope.store.projection.viewer;
-    return viewer ? (viewerResponseToState(viewer).viewerPermissions['bot.create'] ?? false) : false;
+    return viewer
+      ? (viewerResponseToState(viewer).viewerPermissions['bot.create'] ?? false)
+      : false;
   });
-  const botsQuery = createQuery(
+
+  let searchInput = $state('');
+  let activeSearch = $state('');
+  let scrollContainer = $state<HTMLDivElement>();
+  const searchDebounce = useDebounce();
+  let componentActive = true;
+
+  onDestroy(() => {
+    componentActive = false;
+  });
+
+  const botsQuery = createInfiniteQuery(
     () => {
       const serverId = serverScope.serverId;
       const connection = serverScope.connection;
+      const search = activeSearch;
       return {
-        queryKey: settingsQueryKeys.bots(serverId, connection),
-        queryFn: ({ signal }) => connection.getAPI(createBotAPI).listBots({ signal }),
+        queryKey: settingsQueryKeys.bots(serverId, connection, search),
+        queryFn: ({ pageParam, signal }) =>
+          connection
+            .getAPI(createBotAPI)
+            .listBots({ search: search || null, limit: PAGE_SIZE, offset: pageParam }, { signal }),
+        initialPageParam: 0,
+        getNextPageParam: (lastPage, _pages, lastPageParam) =>
+          lastPage.hasMore && lastPage.bots.length > 0
+            ? lastPageParam + lastPage.bots.length
+            : undefined,
         enabled: supportsBots
       };
     },
     () => queryClient
   );
 
-  const bots = $derived(botsQuery.data ?? []);
-  let selectedBotId = $state<string | null>(null);
-  const selectedBot = $derived(bots.find((bot) => bot.id === selectedBotId) ?? bots[0] ?? null);
+  const bots = $derived.by(() => {
+    const seen = new SvelteSet<string>();
+    return (botsQuery.data?.pages ?? []).flatMap((page) =>
+      page.bots.filter((bot) => {
+        if (seen.has(bot.id)) return false;
+        seen.add(bot.id);
+        return true;
+      })
+    );
+  });
+  const totalCount = $derived(botsQuery.data?.pages.at(-1)?.totalCount ?? bots.length);
+
   let createVisible = $state(false);
   let createLogin = $state('');
   let createDisplayName = $state('');
   let createLoading = $state(false);
   let createError = $state<string | null>(null);
-  let editVisible = $state(false);
-  let editLogin = $state('');
-  let editDisplayName = $state('');
-  let editLoading = $state(false);
-  let editError = $state<string | null>(null);
   let apiKeyVisible = $state(false);
   let apiKey = $state('');
-  let rotateVisible = $state(false);
-  let rotateLoading = $state(false);
-  let deleteVisible = $state(false);
-  let deleteLoading = $state(false);
+  let createdBotId = $state<string | null>(null);
 
   const botLoginSchema = z
     .string()
@@ -66,28 +86,24 @@
     .max(32, m('common.validation.username_max'))
     .regex(/^[a-zA-Z0-9][a-zA-Z0-9._-]*$/, m('common.validation.username_charset'))
     .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'))
-    .refine(
-      (value) => value.toLowerCase().endsWith('_bot'),
-      m('settings.bots.username_hint')
-    );
+    .refine((value) => value.toLowerCase().endsWith('_bot'), m('settings.bots.username_hint'));
   const normalizedCreateLogin = $derived(createLogin.trim());
   const createLoginError = $derived(
     normalizedCreateLogin ? validate(botLoginSchema, normalizedCreateLogin) : undefined
   );
-  const normalizedEditLogin = $derived(editLogin.trim());
-  const editLoginError = $derived(
-    normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
-  );
 
-  function botAPI() {
-    return serverScope.connection.getAPI(createBotAPI);
+  function scheduleSearch(event: Event) {
+    const value = event.currentTarget instanceof HTMLInputElement ? event.currentTarget.value : '';
+    searchInput = value;
+    searchDebounce.run(() => {
+      const nextSearch = value.trim();
+      if (nextSearch !== activeSearch) activeSearch = nextSearch;
+    }, 300);
   }
 
-  async function refreshBots() {
-    await queryClient.invalidateQueries({
-      queryKey: settingsQueryKeys.bots(serverScope.serverId, serverScope.connection),
-      exact: true
-    });
+  async function loadMore() {
+    if (botsQuery.isPending || botsQuery.isFetchingNextPage || !botsQuery.hasNextPage) return;
+    await botsQuery.fetchNextPage();
   }
 
   function openCreate() {
@@ -100,84 +116,35 @@
 
   async function createBot() {
     if (!canCreateBots || !normalizedCreateLogin || createLoginError) return;
+    const serverId = serverScope.serverId;
+    const connection = serverScope.connection;
     createLoading = true;
     createError = null;
     try {
-      const created = await botAPI().createBot({
+      const created = await connection.getAPI(createBotAPI).createBot({
         login: normalizedCreateLogin,
         displayName: createDisplayName.trim()
       });
-      selectedBotId = created.bot.id;
+      if (
+        !componentActive ||
+        !serverScope.isCurrent() ||
+        serverId !== serverScope.serverId ||
+        connection.queryScope !== serverScope.connection.queryScope
+      )
+        return;
+      createdBotId = created.bot.id;
       createVisible = false;
       apiKey = created.apiKey;
       apiKeyVisible = true;
       toast.success(m('settings.bots.created'));
-      void refreshBots().catch(() => {});
+      void queryClient.invalidateQueries({
+        queryKey: settingsQueryKeys.botsRoot(serverId, connection)
+      });
     } catch (error) {
+      if (!componentActive) return;
       createError = error instanceof Error ? error.message : m('settings.bots.create_failed');
     } finally {
-      createLoading = false;
-    }
-  }
-
-  function openEdit() {
-    if (!selectedBot) return;
-    editLogin = selectedBot.login;
-    editDisplayName = selectedBot.displayName;
-    editError = null;
-    editVisible = true;
-  }
-
-  async function updateBot() {
-    if (!selectedBot || !normalizedEditLogin || editLoginError) return;
-    editLoading = true;
-    editError = null;
-    try {
-      await botAPI().updateBot({
-        botUserId: selectedBot.id,
-        login: normalizedEditLogin,
-        displayName: editDisplayName.trim()
-      });
-      await refreshBots();
-      editVisible = false;
-      toast.success(m('settings.bots.updated'));
-    } catch (error) {
-      editError = error instanceof Error ? error.message : m('settings.bots.update_failed');
-    } finally {
-      editLoading = false;
-    }
-  }
-
-  async function rotateKey() {
-    if (!selectedBot) return;
-    rotateLoading = true;
-    try {
-      const rotated = await botAPI().rotateBotAPIKey(selectedBot.id);
-      rotateVisible = false;
-      apiKey = rotated.apiKey;
-      apiKeyVisible = true;
-      toast.success(m('settings.bots.key_rotated'));
-      void refreshBots().catch(() => {});
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : m('settings.bots.rotate_failed'));
-    } finally {
-      rotateLoading = false;
-    }
-  }
-
-  async function deleteBot() {
-    if (!selectedBot) return;
-    deleteLoading = true;
-    try {
-      await botAPI().deleteBot(selectedBot.id);
-      selectedBotId = null;
-      await refreshBots();
-      deleteVisible = false;
-      toast.success(m('settings.bots.deleted'));
-    } catch (error) {
-      toast.error(error instanceof Error ? error.message : m('settings.bots.delete_failed'));
-    } finally {
-      deleteLoading = false;
+      if (componentActive) createLoading = false;
     }
   }
 
@@ -187,25 +154,25 @@
   }
 
   function closeAPIKey() {
+    const botId = createdBotId;
     apiKeyVisible = false;
     apiKey = '';
-  }
-
-  function formatDate(value: Date | null): string {
-    return value
-      ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-          value
-        )
-      : '—';
+    createdBotId = null;
+    if (botId) {
+      void goto(
+        resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+          serverId: serverIdToSegment(serverScope.serverId),
+          botId
+        })
+      );
+    }
   }
 </script>
 
-<PageTitle
-  title={m('admin.common.server_admin_page_title', { title: m('settings.bots.title') })}
-/>
+<PageTitle title={m('admin.common.server_admin_page_title', { title: m('settings.bots.title') })} />
 <PaneHeader title={m('settings.bots.title')} subtitle={m('settings.bots.subtitle')} showMobileNav />
 
-<PaneContent>
+<PaneContent bind:scrollContainer>
   {#if !supportsBots}
     <Hint tone="warning">{m('settings.bots.unsupported')}</Hint>
   {:else}
@@ -213,7 +180,23 @@
       {#if !canCreateBots}
         <Hint>{m('settings.bots.create_permission_required')}</Hint>
       {/if}
-      <Panel title={m('settings.bots.list_title')} count={bots.length} noPadding>
+
+      <div class="max-w-md">
+        <TextInput
+          id="bot-search"
+          label={m('settings.bots.list_title')}
+          labelHidden
+          leadingIcon="iconify icon-[uil--search]"
+          bind:value={searchInput}
+          oninput={scheduleSearch}
+        />
+      </div>
+
+      {#if botsQuery.error}
+        <Hint tone="danger">{botsQuery.error.message}</Hint>
+      {/if}
+
+      <Panel title={m('settings.bots.list_title')} count={totalCount} noPadding>
         {#snippet actions()}
           {#if canCreateBots}
             <Button size="sm" onclick={openCreate}>
@@ -222,81 +205,44 @@
             </Button>
           {/if}
         {/snippet}
-        {#if botsQuery.isPending}
-          <div class="p-5 text-muted">{m('settings.bots.loading')}</div>
-        {:else if botsQuery.error}
-          <div class="p-5"><Hint tone="danger">{botsQuery.error.message}</Hint></div>
-        {:else if bots.length === 0}
-          <EmptyState icon="icon-[uil--robot]" title={m('settings.bots.empty_title')}>
-            {m('settings.bots.empty_body')}
-          </EmptyState>
-        {:else}
-          <div class="selectable-list" aria-label={m('settings.bots.list_title')}>
-            {#each bots as bot (bot.id)}
-              <button
-                type="button"
-                class={[
-                  'flex w-full items-center gap-3 selectable-list-item px-4 py-3 text-left',
-                  selectedBot?.id === bot.id ? 'bg-surface-selected' : ''
-                ]}
-                aria-pressed={selectedBot?.id === bot.id}
-                onclick={() => (selectedBotId = bot.id)}
-              >
+        <DataTable
+          items={bots}
+          columns={2}
+          emptyMessage={botsQuery.isPending
+            ? m('settings.bots.loading')
+            : m('settings.bots.empty_body')}
+          hasMore={botsQuery.hasNextPage && !botsQuery.error}
+          loadingMore={botsQuery.isFetchingNextPage}
+          onLoadMore={loadMore}
+          loadMoreRoot={scrollContainer}
+          onRowClick={(bot) =>
+            goto(
+              resolve('/chat/[serverId]/manage/server/bots/[botId]', {
+                serverId: serverIdToSegment(serverScope.serverId),
+                botId: bot.id
+              })
+            )}
+        >
+          {#snippet header()}
+            <th class="table-header-cell">{m('settings.bots.singular')}</th>
+            <th class="table-header-cell">{m('settings.bots.username')}</th>
+          {/snippet}
+          {#snippet row(bot)}
+            <td class="px-4 py-3">
+              <div class="flex items-center gap-3">
                 <span
-                  class="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-surface-emphasized text-neutral-action"
+                  class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-emphasized text-neutral-action"
                   aria-hidden="true"
                 >
-                  <span class="iconify icon-[uil--robot] text-xl"></span>
+                  <span class="iconify icon-[uil--robot] text-lg"></span>
                 </span>
-                <span class="min-w-0 flex-1">
-                  <span class="block truncate font-medium text-text-top">{bot.displayName}</span>
-                  <span class="block truncate text-sm text-muted">@{bot.login}</span>
-                </span>
-                <span class="iconify icon-[uil--angle-right] text-muted" aria-hidden="true"></span>
-              </button>
-            {/each}
-          </div>
-        {/if}
-      </Panel>
-
-      {#if selectedBot}
-        <Panel title={selectedBot.displayName} subtitle={`@${selectedBot.login}`}>
-          {#snippet actions()}
-            <Button size="sm" variant="secondary" onclick={openEdit}>
-              <span class="iconify icon-[uil--edit]" aria-hidden="true"></span>
-              {m('settings.bots.edit')}
-            </Button>
-            <Button size="sm" variant="warning" onclick={() => (rotateVisible = true)}>
-              <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
-              {m('settings.bots.rotate_key')}
-            </Button>
-            <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
-              <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
-              {m('common.delete')}
-            </Button>
+                <span class="font-medium text-text-top">{bot.displayName}</span>
+              </div>
+            </td>
+            <td class="px-4 py-3 text-muted">@{bot.login}</td>
           {/snippet}
-          <dl class="grid gap-4 text-sm sm:grid-cols-3">
-            <div>
-              <dt class="text-muted">{m('admin.members.user_id')}</dt>
-              <dd class="mt-1 font-mono">{selectedBot.id}</dd>
-            </div>
-            <div>
-              <dt class="text-muted">{m('settings.bots.key_created')}</dt>
-              <dd class="mt-1">{formatDate(selectedBot.apiKeyCreatedAt)}</dd>
-            </div>
-            <div>
-              <dt class="text-muted">{m('settings.bots.key_rotated_at')}</dt>
-              <dd class="mt-1">{formatDate(selectedBot.apiKeyRotatedAt)}</dd>
-            </div>
-          </dl>
-        </Panel>
-
-        <UserPermissionsMatrix
-          userId={selectedBot.id}
-          subjectKind={m('settings.bots.singular')}
-          ownerCapped
-        />
-      {/if}
+        </DataTable>
+      </Panel>
     </div>
   {/if}
 </PaneContent>
@@ -331,33 +277,6 @@
   />
 </FormDialog>
 
-<FormDialog
-  bind:visible={editVisible}
-  title={m('settings.bots.edit_title')}
-  submitLabel={m('common.save')}
-  loading={editLoading}
-  disabled={!normalizedEditLogin || !!editLoginError || !editDisplayName.trim()}
-  error={editError}
-  onsubmit={updateBot}
-  onclose={() => (editVisible = false)}
->
-  <TextInput
-    id="edit-bot-login"
-    label={m('settings.bots.username')}
-    error={editLoginError}
-    maxlength={32}
-    required
-    bind:value={editLogin}
-  />
-  <TextInput
-    id="edit-bot-display-name"
-    label={m('settings.bots.display_name')}
-    maxlength={32}
-    required
-    bind:value={editDisplayName}
-  />
-</FormDialog>
-
 <Dialog
   bind:visible={apiKeyVisible}
   title={m('settings.bots.api_key_title')}
@@ -380,27 +299,3 @@
     </div>
   </div>
 </Dialog>
-
-<ConfirmDialog
-  bind:visible={rotateVisible}
-  title={m('settings.bots.rotate_title')}
-  tone="warning"
-  actionLabel={m('settings.bots.rotate_key')}
-  actionIcon="iconify icon-[uil--refresh]"
-  loading={rotateLoading}
-  onconfirm={rotateKey}
-  onclose={() => (rotateVisible = false)}
->
-  {m('settings.bots.rotate_warning')}
-</ConfirmDialog>
-
-<ConfirmDialog
-  bind:visible={deleteVisible}
-  title={m('settings.bots.delete_title')}
-  actionLabel={m('common.delete')}
-  loading={deleteLoading}
-  onconfirm={deleteBot}
-  onclose={() => (deleteVisible = false)}
->
-  {m('settings.bots.delete_warning', { name: selectedBot?.displayName ?? '' })}
-</ConfirmDialog>

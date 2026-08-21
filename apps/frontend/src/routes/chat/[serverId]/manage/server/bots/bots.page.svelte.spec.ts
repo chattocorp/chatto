@@ -4,14 +4,17 @@ import { render } from 'vitest-browser-svelte';
 const mocks = vi.hoisted(() => ({
   canCreateBots: false,
   query: {
-    data: [] as unknown[],
+    data: { pages: [] as unknown[] },
     isPending: false,
-    error: null as Error | null
+    error: null as Error | null,
+    hasNextPage: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn()
   }
 }));
 
 vi.mock('@tanstack/svelte-query', () => ({
-  createQuery: () => mocks.query
+  createInfiniteQuery: () => mocks.query
 }));
 
 vi.mock('$lib/api-client/viewer', async (importOriginal) => {
@@ -54,7 +57,7 @@ function createButton(container: Element): HTMLButtonElement | undefined {
 describe('Bot administration page', () => {
   beforeEach(() => {
     mocks.canCreateBots = false;
-    mocks.query.data = [];
+    mocks.query.data = { pages: [] };
     mocks.query.isPending = false;
     mocks.query.error = null;
   });

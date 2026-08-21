@@ -1,6 +1,7 @@
 package core
 
 import (
+	"encoding/base64"
 	"errors"
 	"strings"
 	"testing"
@@ -8,6 +9,26 @@ import (
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
+	botID := NewUserID()
+	key, err := NewBotAPIKey(botID)
+	if err != nil {
+		t.Fatalf("NewBotAPIKey: %v", err)
+	}
+	if got, want := len(key), len(botAPIKeyPrefix)+len(botID)+1+base64.RawURLEncoding.EncodedLen(botAPIKeySecretBytes); got != want {
+		t.Fatalf("key length = %d, want %d", got, want)
+	}
+	if parsedID, ok := parseBotAPIKey(key); !ok || parsedID != botID {
+		t.Fatalf("parseBotAPIKey(new) = %q, %v", parsedID, ok)
+	}
+
+	legacySecret := make([]byte, legacyBotAPIKeySecretBytes)
+	legacyKey := botAPIKeyPrefix + botID + "." + base64.RawURLEncoding.EncodeToString(legacySecret)
+	if parsedID, ok := parseBotAPIKey(legacyKey); !ok || parsedID != botID {
+		t.Fatalf("parseBotAPIKey(legacy) = %q, %v", parsedID, ok)
+	}
+}
 
 func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	c, _ := setupTestCore(t)

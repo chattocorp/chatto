@@ -19,22 +19,39 @@ export type Bot = {
   apiKeyRotatedAt: Date | null;
 };
 
+export type BotPage = {
+  bots: Bot[];
+  totalCount: number;
+  hasMore: boolean;
+};
+
 export function createBotAPI(config: BotAPIConfig) {
   const client = createChattoClient(BotService, config);
   const headers = () => authHeaders(config);
   return {
-    async listBots(options: { signal?: AbortSignal } = {}): Promise<Bot[]> {
-      const bots: Bot[] = [];
-      let offset = 0;
-      for (;;) {
-        const response = await client.listBots(
-          { page: { limit: 100, offset } },
-          { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
-        );
-        bots.push(...response.bots.map(botFromAPI));
-        if (!response.page?.hasMore || response.bots.length === 0) return bots;
-        offset += response.bots.length;
-      }
+    async listBots(
+      input: { search?: string | null; limit: number; offset: number },
+      options: { signal?: AbortSignal } = {}
+    ): Promise<BotPage> {
+      const response = await client.listBots(
+        {
+          search: input.search ?? '',
+          page: { limit: input.limit, offset: input.offset }
+        },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return {
+        bots: response.bots.map(botFromAPI),
+        totalCount: Number(response.page?.totalCount ?? response.bots.length),
+        hasMore: response.page?.hasMore ?? false
+      };
+    },
+    async getBot(botUserId: string, options: { signal?: AbortSignal } = {}): Promise<Bot> {
+      const response = await client.getBot(
+        { botUserId },
+        { headers: headers(), ...(options.signal ? { signal: options.signal } : {}) }
+      );
+      return botFromAPI(requiredBot(response.bot));
     },
     async createBot(input: {
       login: string;

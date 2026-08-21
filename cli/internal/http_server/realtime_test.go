@@ -596,6 +596,52 @@ func TestRealtimeWebSocketClosesWhenBotAPIKeyRotates(t *testing.T) {
 	subscribeRealtime(t, freshConn, rotated.APIKey)
 }
 
+func TestRealtimeSelfAuthoredBotPermissionAdvancesWithoutProjectionReset(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-permission-owner", "RT Permission Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_permission_bot", "RT Permission Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	event := &corev1.Event{
+		Id:      core.NewEventID(),
+		ActorId: owner.GetId(),
+		Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: &corev1.RbacPermissionGrantedEvent{
+			Permission: string(core.PermMessagePost),
+			Subject: &corev1.RbacPermissionSubject{
+				Kind: corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER,
+				Id:   bot.User.GetId(),
+			},
+		}},
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, owner.GetId(), core.NewEVTEventEnvelope(event))
+	if err != nil || !handled {
+		t.Fatalf("self-authored bot permission frame = %+v, %v, %v", frame, handled, err)
+	}
+	if frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 0 {
+		t.Fatalf("self-authored bot permission frame = %+v, want empty projection event", frame)
+	}
+
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, core.SystemActorID, core.NewEVTEventEnvelope(event))
+	if err != nil || !handled || frame.GetClose().GetCode() != "projection_reset_required" {
+		t.Fatalf("other viewer bot permission frame = %+v, %v, %v", frame, handled, err)
+	}
+
+	human, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-permission-human", "RT Permission Human", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser human target: %v", err)
+	}
+	event.GetRbacPermissionGranted().Subject.Id = human.GetId()
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEvent(env.ctx, owner.GetId(), core.NewEVTEventEnvelope(event))
+	if err != nil || !handled || frame.GetClose().GetCode() != "projection_reset_required" {
+		t.Fatalf("self-authored human permission frame = %+v, %v, %v", frame, handled, err)
+	}
+}
+
 func TestRealtimeWebSocketClosesOnlyBlockedOAuthClientConnections(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-oauth-block", "RT OAuth Block", "password123")

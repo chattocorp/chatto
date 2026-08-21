@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -14,8 +14,9 @@ exercise more authority than its human owner currently possesses.
 
 - A human user with `bot.create` can create a bot account and becomes its
   owner.
-- Bot accounts are created and managed from the Bots page in Server Admin,
-  rather than from a user's personal settings.
+- Server Admin's Bots page lists the bots visible to the caller and creates new
+  bots. Selecting a bot opens its own detail page for identity editing, key
+  rotation, deletion, metadata, and permissions.
 - On a fresh RBAC bootstrap, `everyone` receives `bot.create`, while `admin`
   and `owner` have `bot.manage`. The owner grant follows Chatto's normal
   effective-owner override rather than being stored as an editable permission
@@ -34,6 +35,9 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
+- Newly issued keys use a 128-bit random secret to remain compact enough for
+  copy-and-paste workflows. Previously issued 256-bit keys remain valid until
+  they are rotated.
 - API keys do not expire through inactivity. Rotating a key immediately
   invalidates the previous key and terminates realtime connections established
   with it. Deleting the bot or its owner also invalidates the key.
@@ -46,6 +50,10 @@ exercise more authority than its human owner currently possesses.
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current effective permissions allow
   it at that scope.
+- The bot editor presents each applicable permission as enabled or disabled.
+  It does not expose RBAC's general three-state allow/deny/clear control. When
+  disabling a narrower scope that inherits an enabled broader scope, Chatto
+  stores a deny internally; otherwise disabling clears the explicit decision.
 - Losing one of the owner's permissions immediately removes the corresponding
   effective permission from every bot they own. A stored bot grant can become
   effective again if the owner later regains the required permission.
@@ -104,7 +112,9 @@ no ambient authority. Owners should be able to explain a bot's access from one
 explicit matrix rather than by combining roles and server defaults.
 **Tradeoff:** Owners must grant even ordinary member capabilities before a new
 bot can do useful work, and newly introduced permissions do not automatically
-become available to existing bots.
+become available to existing bots. The binary bot editor hides explicit deny
+as an implementation detail, even though the canonical RBAC model still uses
+one when a narrower disabled scope must override an inherited broader grant.
 
 ### 4. The owner's current authority is a dynamic ceiling
 
@@ -138,6 +148,8 @@ permission path used by global managers.
 
 **Decision:** Each bot has one non-expiring API key. Chatto shows the raw key
 only at creation or rotation, and rotation immediately replaces the prior key.
+New keys contain 128 bits of random secret; the verifier accepts the earlier
+256-bit format so shortening issuance does not revoke existing integrations.
 **Why:** A stable bearer credential makes unattended API integrations simple,
 while a single active key gives owners a clear revocation and recovery model.
 Not retaining a retrievable raw key reduces secret exposure.
@@ -199,6 +211,10 @@ override, but bots themselves cannot exercise bot-management operations.
   therefore cannot accidentally grant it ambient human authority. Operators
   should still complete the normal rolling upgrade before creating bots so
   management and identity rendering are consistent across replicas.
+- Servers with the initial bot implementation do not recognize newly shortened
+  keys, while updated servers continue to accept the longer initial format.
+  Operators should complete the normal rolling upgrade before creating or
+  rotating bot credentials.
 
 ## Related
 

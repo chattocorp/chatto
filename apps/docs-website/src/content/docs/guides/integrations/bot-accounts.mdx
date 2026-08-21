@@ -19,11 +19,11 @@ login forms.
 
 <Steps>
 
-1. Open **Settings → Bots** and choose **Create Bot**.
+1. Open **Server Admin → Bots** and choose **Create Bot**.
 2. Enter a username ending in `_bot` and a display name.
 3. Copy the API key before closing the dialog. Chatto cannot show this raw key
    again.
-4. Select the bot and explicitly allow the server, room-group, or room
+4. Open the bot's detail page and enable the server, room-group, or room
    permissions the integration needs.
 
 </Steps>
@@ -33,13 +33,13 @@ Administrators can remove that default through the permission matrix.
 Administrators and effective owners can manage every bot through `bot.manage`;
 the creator can always manage bots they already own.
 
-Bots do not inherit `everyone`, named roles, or the owner's roles. A configured
-allow is effective only while the owner currently has the same permission at
-that scope. The matrix shows both the bot's configured decision and any allow
-blocked by this owner ceiling. It lists only rooms visible to both the bot
-owner and the person managing it, while retaining the directory's complete
-group layout so permissions such as `room.create` remain configurable for an
-empty group.
+Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
+matrix exposes a simple enabled/disabled allowlist. A configured permission is
+effective only while the owner currently has the same permission at that
+scope; a lock marks one currently blocked by this owner ceiling. The matrix
+lists only rooms visible to both the bot owner and the person managing it,
+while retaining the directory's complete group layout so permissions such as
+`room.create` remain configurable for an empty group.
 
 ## Authenticate requests
 

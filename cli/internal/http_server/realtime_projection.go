@@ -196,7 +196,15 @@ func (s *HTTPServer) realtimeProjectionFrameForEvent(ctx context.Context, viewer
 // behavior; a non-nil empty set means no timeline is retained.
 func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Context, viewerID string, event core.EventEnvelope, retainedRooms map[string]struct{}) (*realtimev1.RealtimeServerFrame, bool, error) {
 	evt := event.EVTEvent()
+	advanceWithoutReset := false
 	if core.IsRBACEvent(evt) {
+		var err error
+		advanceWithoutReset, err = s.canAdvanceSelfAuthoredBotPermission(ctx, viewerID, evt)
+		if err != nil {
+			return nil, false, err
+		}
+	}
+	if core.IsRBACEvent(evt) && !advanceWithoutReset {
 		return &realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
 			Close: &realtimev1.RealtimeClose{
 				Code: "projection_reset_required", Message: "authorization changed", Reconnect: true,
@@ -214,6 +222,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			return nil, false, err
 		}
 		projection.ResumeCursor = &cursor
+	}
+	if advanceWithoutReset {
+		return realtimeProjectionServerFrame(projection), true, nil
 	}
 
 	appendOperation := func(operation *realtimev1.RealtimeProjectionOperation) {
@@ -865,6 +876,38 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	// they only affect a room timeline this connection has not materialised.
 	// Keep the empty envelope so the client can safely advance its one cursor.
 	return realtimeProjectionServerFrame(projection), true, nil
+}
+
+// canAdvanceSelfAuthoredBotPermission identifies the one RBAC mutation that
+// cannot change the current human viewer's own authorization: their direct
+// permission update for a bot. Other subscribers, including the target bot,
+// still reconnect and rebuild from current authorization.
+func (s *HTTPServer) canAdvanceSelfAuthoredBotPermission(ctx context.Context, viewerID string, event *corev1.Event) (bool, error) {
+	if event == nil || viewerID == "" || event.GetActorId() != viewerID {
+		return false, nil
+	}
+	var subject *corev1.RbacPermissionSubject
+	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_RbacPermissionGranted:
+		subject = payload.RbacPermissionGranted.GetSubject()
+	case *corev1.Event_RbacPermissionDenied:
+		subject = payload.RbacPermissionDenied.GetSubject()
+	case *corev1.Event_RbacPermissionCleared:
+		subject = payload.RbacPermissionCleared.GetSubject()
+	default:
+		return false, nil
+	}
+	if subject.GetKind() != corev1.RbacPermissionSubjectKind_RBAC_PERMISSION_SUBJECT_KIND_USER || subject.GetId() == viewerID {
+		return false, nil
+	}
+	target, err := s.core.GetUser(ctx, subject.GetId())
+	if errors.Is(err, core.ErrNotFound) {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("resolve RBAC permission target for realtime delivery: %w", err)
+	}
+	return target.GetIsBot(), nil
 }
 
 func realtimeProjectionServerState(state *connectapi.RealtimeProjectionServerState) *realtimev1.RealtimeProjectionServerState {

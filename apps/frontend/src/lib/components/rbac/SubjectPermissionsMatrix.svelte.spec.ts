@@ -153,3 +153,31 @@ it('visually hides the redundant filter label and focuses the filter with Cmd/Ct
   expect(filter.selectionStart).toBe(0);
   expect(filter.selectionEnd).toBe(7);
 });
+
+it('maps binary disable to a deny only when it must override an inherited allow', () => {
+  const onCycle = vi.fn();
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: { data, onCycle, decisionMode: 'binary' }
+  });
+
+  const inheritedAllow = container.querySelector(
+    'td[data-scope="group:general"][data-permission="message.post"] button'
+  ) as HTMLButtonElement;
+  inheritedAllow.click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'group:general' }),
+    'message.post',
+    'deny'
+  );
+
+  const directAllow = container.querySelector(
+    'td[data-scope="server"][data-permission="message.post"] button'
+  ) as HTMLButtonElement;
+  directAllow.click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'server' }),
+    'message.post',
+    'neutral'
+  );
+  expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
+});

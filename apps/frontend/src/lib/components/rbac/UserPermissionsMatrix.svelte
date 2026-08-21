@@ -7,7 +7,6 @@ rendering to `SubjectPermissionsMatrix`.
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
-  import type { Attachment } from 'svelte/attachments';
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
@@ -21,24 +20,26 @@ rendering to `SubjectPermissionsMatrix`.
   import SubjectPermissionsMatrix, {
     type MatrixData,
     type MatrixScope,
-    type CellState
+    type CellState,
+    type DecisionMode
   } from './SubjectPermissionsMatrix.svelte';
   import { createQuery } from '@tanstack/svelte-query';
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
-  import {
-    cancelPermissionMutationScroll,
-    capturePermissionMutationScroll,
-    restorePermissionMutationScroll
-  } from './permissionMutationScroll';
 
   type Matrix = MatrixData & { userId: string };
 
   let {
     userId,
     subjectKind = 'user',
-    ownerCapped = false
-  }: { userId: string; subjectKind?: string; ownerCapped?: boolean } = $props();
+    ownerCapped = false,
+    decisionMode = 'tri-state'
+  }: {
+    userId: string;
+    subjectKind?: string;
+    ownerCapped?: boolean;
+    decisionMode?: DecisionMode;
+  } = $props();
 
   const serverScope = useServerScope();
 
@@ -64,7 +65,6 @@ rendering to `SubjectPermissionsMatrix`.
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updatingKey = $state<string | null>(null);
   let mutationContext = $state<string | null>(null);
-  let matrixElement = $state<HTMLDivElement>();
   let mutationGeneration = 0;
   const activeMutationContext = $derived(
     JSON.stringify([serverScope.serverId, serverScope.connection.queryScope, userId])
@@ -78,14 +78,6 @@ rendering to `SubjectPermissionsMatrix`.
   onDestroy(() => {
     mutationGeneration += 1;
   });
-
-  const trackMatrixElement: Attachment<HTMLDivElement> = (element) => {
-    matrixElement = element;
-    restorePermissionMutationScroll(`user:${activeMutationContext}`, element);
-    return () => {
-      if (matrixElement === element) matrixElement = undefined;
-    };
-  };
 
   function mutationScopeFor(scope: MatrixScope): UserMutationScope {
     if (scope.kind === 'GROUP') {
@@ -111,7 +103,6 @@ rendering to `SubjectPermissionsMatrix`.
     updatingKey = cellKey;
     mutationContext = context;
     mutationError = null;
-    capturePermissionMutationScroll(`user:${context}`, matrixElement);
 
     const result = await setUserPermission(
       activeConnection.getAPI(createPermissionAPI),
@@ -122,7 +113,6 @@ rendering to `SubjectPermissionsMatrix`.
     );
     if (mutationGeneration !== generation || !serverScope.isCurrent()) return;
     if (result.error) {
-      cancelPermissionMutationScroll(`user:${context}`);
       if (mutationGeneration === generation && context === activeMutationContext) {
         mutationError = { context, message: result.error };
         toast.error(result.error);
@@ -133,9 +123,22 @@ rendering to `SubjectPermissionsMatrix`.
       return;
     }
 
-    // Reload the matrix so both the override AND effective decisions stay
-    // consistent — a server-scope grant flows into rooms via inheritance.
-    await queryClient.invalidateQueries({ queryKey, exact: true });
+    if (result.update) {
+      const decision = result.update.decision;
+      queryClient.setQueryData<Matrix | null>(queryKey, (current) =>
+        current
+          ? {
+              ...current,
+              cells: current.cells.map((cell) =>
+                cell.scopeId === scope.id && cell.permission === permission
+                  ? { ...cell, override: decision }
+                  : cell
+              )
+            }
+          : current
+      );
+    }
+    void queryClient.invalidateQueries({ queryKey, exact: true });
     if (!serverScope.isCurrent()) return;
     if (mutationGeneration === generation) updatingKey = null;
   }
@@ -154,13 +157,12 @@ rendering to `SubjectPermissionsMatrix`.
 {:else if !data}
   <Hint tone="info">{m('rbac.permissions.no_data')}</Hint>
 {:else}
-  <div {@attach trackMatrixElement}>
-    <SubjectPermissionsMatrix
-      {data}
-      updatingKey={visibleUpdatingKey}
-      onCycle={handleCycle}
-      {subjectKind}
-      readOnly={visibleUpdatingKey !== null}
-    />
-  </div>
+  <SubjectPermissionsMatrix
+    {data}
+    updatingKey={visibleUpdatingKey}
+    onCycle={handleCycle}
+    {subjectKind}
+    readOnly={visibleUpdatingKey !== null}
+    {decisionMode}
+  />
 {/if}
