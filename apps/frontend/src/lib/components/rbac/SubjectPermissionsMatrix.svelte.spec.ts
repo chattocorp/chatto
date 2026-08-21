@@ -184,6 +184,42 @@ it('maps binary disable to a deny only when it must override an inherited allow'
   expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
 });
 
+it('renders an ungrantable binary permission as a non-interactive locked cell', () => {
+  const onCycle = vi.fn();
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: {
+      data: {
+        applicablePermissions: ['message.post'],
+        scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+        cells: [
+          {
+            permission: 'message.post',
+            scopeId: 'server',
+            override: 'NONE',
+            effective: 'NONE',
+            allowPermitted: false
+          }
+        ]
+      },
+      onCycle,
+      decisionMode: 'binary'
+    }
+  });
+  const button = container.querySelector(
+    'button[aria-label^="message.post is"]'
+  ) as HTMLButtonElement;
+
+  expect(button.disabled).toBe(true);
+  expect(button.className).toContain('cursor-not-allowed');
+  expect(button.className).not.toContain('cursor-pointer');
+  expect(button.firstElementChild!.className).not.toContain('hover:');
+  expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).toBeNull();
+
+  button.click();
+  expect(onCycle).not.toHaveBeenCalled();
+});
+
 it('returns a room permission to its inherited group grant', async () => {
   const onCycle = vi.fn();
   const roomData: MatrixData = {
@@ -255,6 +291,9 @@ it('returns a room permission to its inherited group grant', async () => {
   await rendered.rerender({ data: roomData, onCycle, decisionMode: 'binary' });
   expect(roomCell().title).toContain('Enabled (inherited)');
   expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(
+    roomCell().querySelector('[class~="icon-[uil--exclamation-triangle]"]')
+  ).not.toBeNull();
+  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
   expect(roomCell().disabled).toBe(false);
 });

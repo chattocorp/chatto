@@ -308,7 +308,8 @@ describe('subject permission loaders', () => {
 
     expect(room.title).toContain('Enabled (inherited)');
     expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
     expect(room.disabled).toBe(false);
 
     room.click();
@@ -342,7 +343,8 @@ describe('subject permission loaders', () => {
       })
     );
     expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
-    expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(room.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
     expect(room.disabled).toBe(false);
     expect(rendered.container.querySelector('table')).toBe(table);
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
@@ -415,7 +417,8 @@ describe('subject permission loaders', () => {
     await settle();
 
     const button = cellButton(rendered.container, 'message.post');
-    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
     expect(rendered.container.textContent).toContain('your bot');
 
     button.click();

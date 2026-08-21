@@ -16,6 +16,10 @@ map disabled to an internal deny when they need to override an inherited allow.
 While a change is being saved, the state icon is replaced with a spinner and
 the cell is temporarily non-interactive.
 
+Permission ceilings use a lock only when the cell is fully inert. A configured
+grant that remains removable uses a warning marker instead, so the lock never
+advertises a clickable control.
+
 When the permission is not applicable to the role at this scope (e.g. a
 room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
@@ -74,30 +78,50 @@ to render an inert "—" cell with an explanation tooltip.
   // matching the editor's "permission name reflects effective state" rule).
   const visual = $derived(override !== 'neutral' ? override : inherited);
   const isOverride = $derived(override !== 'neutral');
+  const interactionDisabled = $derived(
+    disabled || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
+  );
+  const interactive = $derived(!interactionDisabled && !updating);
 
   // Overrides use a solid semantic fill and its contrast-safe foreground.
   // Inherited states use a quiet tint; neutral uses the surface ladder.
   const overrideClasses: Record<State, string> = {
-    allow: 'bg-success text-on-success hover:bg-success/90',
-    deny: 'bg-danger text-on-danger hover:bg-danger/90',
+    allow: 'bg-success text-on-success',
+    deny: 'bg-danger text-on-danger',
     // Unreachable — neutral isn't an override state, but keep a value for type safety.
     neutral: ''
   };
   const inheritedClasses: Record<State, string> = {
-    allow: 'bg-success/15 text-success/85 hover:bg-success/25',
-    deny: 'bg-danger/15 text-danger/85 hover:bg-danger/25',
-    neutral: 'bg-surface-emphasized/60 text-muted/60 hover:bg-surface-strong/80'
+    allow: 'bg-success/15 text-success/85',
+    deny: 'bg-danger/15 text-danger/85',
+    neutral: 'bg-surface-emphasized/60 text-muted/60'
   };
 
-  const surfaceClasses = $derived(
-    ceilingBlocked
+  const surfaceClasses = $derived.by(() => {
+    const base = ceilingBlocked
       ? isOverride
-        ? 'bg-warning text-on-warning hover:bg-warning/90'
-        : 'bg-warning/20 text-warning hover:bg-warning/30'
+        ? 'bg-warning text-on-warning'
+        : 'bg-warning/20 text-warning'
       : isOverride
         ? overrideClasses[visual]
-        : inheritedClasses[visual]
-  );
+        : inheritedClasses[visual];
+
+    if (!interactive) return base;
+    const hover = ceilingBlocked
+      ? isOverride
+        ? 'hover:bg-warning/90'
+        : 'hover:bg-warning/30'
+      : visual === 'allow'
+        ? isOverride
+          ? 'hover:bg-success/90'
+          : 'hover:bg-success/25'
+        : visual === 'deny'
+          ? isOverride
+            ? 'hover:bg-danger/90'
+            : 'hover:bg-danger/25'
+          : 'hover:bg-surface-strong/80';
+    return `${base} ${hover}`;
+  });
 
   const icon = $derived.by(() => {
     if (visual === 'allow') return 'icon-[uil--check]';
@@ -105,9 +129,6 @@ to render an inert "—" cell with an explanation tooltip.
     return 'icon-[uil--minus]';
   });
 
-  const interactionDisabled = $derived(
-    disabled || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
-  );
 </script>
 
 {#if !applicable}
@@ -122,9 +143,9 @@ to render an inert "—" cell with an explanation tooltip.
   <button
     type="button"
     class={[
-      'relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
+      'relative inline-flex h-10 w-10 items-center justify-center rounded-md transition-[scale]',
+      interactive ? 'cursor-pointer active:scale-[0.96]' : 'cursor-not-allowed',
       updating ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
-      interactionDisabled || updating ? 'cursor-not-allowed' : '',
       interactionDisabled && !allowBlocked ? 'opacity-60' : ''
     ]}
     disabled={interactionDisabled || updating}
@@ -146,9 +167,14 @@ to render an inert "—" cell with an explanation tooltip.
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}
     </span>
-    {#if (allowBlocked || ceilingBlocked) && !updating}
+    {#if allowBlocked && interactionDisabled && !updating}
       <span
         class="iconify absolute top-0.5 right-0.5 icon-[uil--lock] h-3 w-3 text-warning"
+        aria-hidden="true"
+      ></span>
+    {:else if (allowBlocked || ceilingBlocked) && !updating}
+      <span
+        class="iconify absolute top-0.5 right-0.5 icon-[uil--exclamation-triangle] h-3 w-3 text-warning"
         aria-hidden="true"
       ></span>
     {/if}

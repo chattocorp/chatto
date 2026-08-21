@@ -146,7 +146,9 @@ describe('MatrixCell', () => {
     expect(button.className).not.toContain('ring-warning');
     expect(button.querySelector('[class~="bg-warning"]')).not.toBeNull();
     expect(button.querySelector('[class~="bg-success"]')).toBeNull();
-    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(button.className).toContain('cursor-pointer');
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
   });
 
   it('uses a quiet warning state for a blocked inherited allow', () => {
@@ -156,17 +158,34 @@ describe('MatrixCell', () => {
     expect(button.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
     expect(button.querySelector('[class~="bg-success/15"]')).toBeNull();
     expect(button.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
-    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
   });
 
-  it('marks a permission the owner cannot grant without dimming the lock', () => {
+  it('makes a permission the owner cannot grant visibly and functionally inert', () => {
     const { container } = renderCell({ decisionMode: 'binary', allowBlocked: true });
     const button = container.querySelector('button')!;
+    const surface = button.firstElementChild!;
 
     expect(button.hasAttribute('disabled')).toBe(true);
+    expect(button.className).toContain('cursor-not-allowed');
+    expect(button.className).not.toContain('cursor-pointer');
+    expect(button.className).not.toContain('active:scale-[0.96]');
     expect(button.className).not.toContain('opacity-60');
+    expect(surface.className).not.toContain('hover:');
     expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).toBeNull();
     expect(button.querySelector('[class~="icon-[uil--minus]"]')).not.toBeNull();
+  });
+
+  it('uses a warning marker when a constrained tri-state cell remains editable', () => {
+    const { container } = renderCell({ allowBlocked: true });
+    const button = container.querySelector('button')!;
+
+    expect(button.disabled).toBe(false);
+    expect(button.className).toContain('cursor-pointer');
+    expect(button.querySelector('[class~="icon-[uil--exclamation-triangle]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
   });
 
   it('toggles only enabled and disabled in binary mode', () => {
