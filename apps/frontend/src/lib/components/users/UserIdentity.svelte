@@ -4,10 +4,20 @@
 Renders a compact user identity with the shared avatar and display name. Native
 right-click and stationary touch long-press open the shared user profile menu.
 -->
+<script module lang="ts">
+	type UserContextMenuModule = typeof import('$lib/components/menus/UserContextMenu.svelte');
+
+	let userContextMenuModule: Promise<UserContextMenuModule> | null = null;
+
+	function loadUserContextMenu() {
+		userContextMenuModule ??= import('$lib/components/menus/UserContextMenu.svelte');
+		return userContextMenuModule;
+	}
+</script>
+
 <script lang="ts">
 	import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 	import UserAvatar from '$lib/components/UserAvatar.svelte';
-	import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 	import type { UserAvatarUserView } from '$lib/render/users';
 	import {
 		contextMenuTrigger,
@@ -22,11 +32,13 @@ right-click and stationary touch long-press open the shared user profile menu.
 	let {
 		user,
 		size = 'sm',
-		class: className
+		class: className,
+		userContextMenuLoader = loadUserContextMenu
 	}: {
 		user: IdentityUser;
 		size?: 'xs' | 'sm' | 'md';
 		class?: string;
+		userContextMenuLoader?: () => Promise<UserContextMenuModule>;
 	} = $props();
 
 	const profileUser = $derived<UserAvatarUserView>({
@@ -52,10 +64,12 @@ right-click and stationary touch long-press open the shared user profile menu.
 </span>
 
 {#if profileMenu}
-	<UserContextMenu
-		user={profileUser}
-		position={profileMenu.position}
-		presentation={profileMenu.presentation}
-		onClose={() => (profileMenu = null)}
-	/>
+	{#await userContextMenuLoader() then { default: UserContextMenu }}
+		<UserContextMenu
+			user={profileUser}
+			position={profileMenu.position}
+			presentation={profileMenu.presentation}
+			onClose={() => (profileMenu = null)}
+		/>
+	{/await}
 {/if}

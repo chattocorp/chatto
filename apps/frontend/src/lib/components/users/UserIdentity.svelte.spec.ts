@@ -3,6 +3,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync, tick } from 'svelte';
 import { q } from '$lib/test-utils';
+import UserContextMenu from '$lib/components/menus/UserContextMenu.svelte';
 import UserIdentity from './UserIdentity.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -30,6 +31,8 @@ const user = {
 	presenceStatus: PresenceStatus.OFFLINE
 };
 
+const userContextMenuLoader = async () => ({ default: UserContextMenu });
+
 let originalShowPopover: typeof HTMLElement.prototype.showPopover;
 let originalShowModal: typeof HTMLDialogElement.prototype.showModal;
 
@@ -51,14 +54,14 @@ afterAll(() => {
 
 describe('UserIdentity', () => {
 	it('renders the shared avatar with the display name', () => {
-		const { container } = render(UserIdentity, { props: { user } });
+		const { container } = render(UserIdentity, { props: { user, userContextMenuLoader } });
 
 		expect(q(container, '[data-testid="user-identity"]')?.textContent).toContain('Alice Example');
 		expect(q(container, '[role="img"][aria-label="alice"]')).toBeTruthy();
 	});
 
 	it('opens the shared user profile on right-click', async () => {
-		const { container } = render(UserIdentity, { props: { user } });
+		const { container } = render(UserIdentity, { props: { user, userContextMenuLoader } });
 		await tick();
 		const identity = q(container, '[data-testid="user-identity"]')!;
 
@@ -72,7 +75,7 @@ describe('UserIdentity', () => {
 	});
 
 	it('opens the shared user profile as a sheet after a touch long-press', async () => {
-		const { container } = render(UserIdentity, { props: { user } });
+		const { container } = render(UserIdentity, { props: { user, userContextMenuLoader } });
 		await tick();
 		vi.useFakeTimers();
 		try {
@@ -88,7 +91,7 @@ describe('UserIdentity', () => {
 					clientY: 60
 				})
 			);
-			vi.advanceTimersByTime(500);
+			await vi.advanceTimersByTimeAsync(500);
 			flushSync();
 
 			expect(q(container, 'dialog.bottom-sheet[open]')).toBeTruthy();
