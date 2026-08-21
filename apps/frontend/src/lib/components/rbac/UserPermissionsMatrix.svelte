@@ -138,7 +138,14 @@ rendering to `SubjectPermissionsMatrix`.
           : current
       );
     }
-    void queryClient.invalidateQueries({ queryKey, exact: true });
+    void queryClient.invalidateQueries({
+      queryKey,
+      exact: true,
+      // The binary matrix derives inheritance from direct decisions, so its
+      // mutation response is enough to update the active view. Mark it stale
+      // for the next mount without replacing the whole visible matrix now.
+      refetchType: decisionMode === 'binary' ? 'none' : 'active'
+    });
     if (!serverScope.isCurrent()) return;
     if (mutationGeneration === generation) updatingKey = null;
   }
@@ -162,7 +169,7 @@ rendering to `SubjectPermissionsMatrix`.
     updatingKey={visibleUpdatingKey}
     onCycle={handleCycle}
     {subjectKind}
-    readOnly={visibleUpdatingKey !== null}
+    readOnly={decisionMode === 'tri-state' && visibleUpdatingKey !== null}
     {decisionMode}
   />
 {/if}

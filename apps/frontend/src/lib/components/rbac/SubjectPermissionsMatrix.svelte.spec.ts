@@ -181,3 +181,76 @@ it('maps binary disable to a deny only when it must override an inherited allow'
   );
   expect(container.querySelector('[class~="icon-[uil--times]"]')).toBeNull();
 });
+
+it('returns a room permission to its inherited group grant', async () => {
+  const onCycle = vi.fn();
+  const roomData: MatrixData = {
+    applicablePermissions: ['message.post'],
+    scopes: [
+      { id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' },
+      { id: 'group:general', label: 'General', kind: 'GROUP', parentGroupId: '' },
+      { id: 'room:lobby', label: 'Lobby', kind: 'ROOM', parentGroupId: 'general' }
+    ],
+    cells: [
+      {
+        permission: 'message.post',
+        scopeId: 'server',
+        override: 'NONE',
+        effective: 'NONE'
+      },
+      {
+        permission: 'message.post',
+        scopeId: 'group:general',
+        override: 'ALLOW',
+        effective: 'ALLOW'
+      },
+      {
+        permission: 'message.post',
+        scopeId: 'room:lobby',
+        override: 'NONE',
+        effective: 'ALLOW',
+        allowPermitted: false
+      }
+    ]
+  };
+  const rendered = render(SubjectPermissionsMatrix, {
+    props: { data: roomData, onCycle, decisionMode: 'binary' }
+  });
+  const roomCell = () =>
+    rendered.container.querySelector(
+      'td[data-scope="room:lobby"][data-permission="message.post"] button'
+    ) as HTMLButtonElement;
+
+  expect(roomCell().title).toContain('Enabled (inherited)');
+  expect(roomCell().querySelector('[class~="bg-success/15"]')).not.toBeNull();
+  roomCell().click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'room:lobby' }),
+    'message.post',
+    'deny'
+  );
+
+  await rendered.rerender({
+    data: {
+      ...roomData,
+      cells: roomData.cells.map((cell) =>
+        cell.scopeId === 'room:lobby' ? { ...cell, override: 'DENY' as const } : cell
+      )
+    },
+    onCycle,
+    decisionMode: 'binary'
+  });
+  expect(roomCell().disabled).toBe(false);
+  roomCell().click();
+  expect(onCycle).toHaveBeenLastCalledWith(
+    expect.objectContaining({ id: 'room:lobby' }),
+    'message.post',
+    'neutral'
+  );
+
+  await rendered.rerender({ data: roomData, onCycle, decisionMode: 'binary' });
+  expect(roomCell().title).toContain('Enabled (inherited)');
+  expect(roomCell().querySelector('[class~="bg-success/15"]')).not.toBeNull();
+  expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  expect(roomCell().disabled).toBe(false);
+});

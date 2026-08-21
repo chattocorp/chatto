@@ -158,18 +158,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     return groupDecision !== 'NONE' ? groupDecision : serverDecision;
   }
 
-  function configuredDecision(
-    scope: MatrixScope,
-    permission: string,
-    cell: MatrixCellData
-  ): MatrixDecision {
-    return cell.override !== 'NONE' ? cell.override : parentDecision(scope, permission);
-  }
-
   function cycleCell(
     scope: MatrixScope,
     permission: string,
-    cell: MatrixCellData,
+    parent: MatrixDecision,
     next: CellState
   ) {
     if (decisionMode !== 'binary') {
@@ -177,10 +169,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       return;
     }
     if (next === 'allow') {
-      onCycle(scope, permission, 'allow');
+      // When the parent already grants this permission, enabling means removing
+      // the local deny so the faded inherited state becomes visible again.
+      onCycle(scope, permission, parent === 'ALLOW' ? 'neutral' : 'allow');
       return;
     }
-    onCycle(scope, permission, parentDecision(scope, permission) === 'ALLOW' ? 'deny' : 'neutral');
+    onCycle(scope, permission, parent === 'ALLOW' ? 'deny' : 'neutral');
   }
 
   function scopeColumnClass(kind: MatrixScopeKind): string {
@@ -308,7 +302,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
             {#if cell}
               {@const ov = decisionToState(cell.override)}
               {@const eff = decisionToState(cell.effective)}
-              {@const configured = configuredDecision(scope, permission, cell)}
+              {@const parent = parentDecision(scope, permission)}
+              {@const configured = cell.override !== 'NONE' ? cell.override : parent}
               {@const binaryEnabled = configured === 'ALLOW'}
               {@const displayOverride = forceAllow
                 ? 'allow'
@@ -362,13 +357,14 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 inherited={displayEffective}
                 updating={isUpdating}
                 disabled={readOnly}
-                allowBlocked={cell.allowPermitted === false}
+                allowBlocked={cell.allowPermitted === false &&
+                  (decisionMode !== 'binary' || parent !== 'ALLOW')}
                 ceilingBlocked={cell.allowPermitted === false &&
                   (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
                 {decisionMode}
                 {ariaLabel}
                 title={titleParts.join(' · ')}
-                onCycle={(next) => cycleCell(scope, permission, cell, next)}
+                onCycle={(next) => cycleCell(scope, permission, parent, next)}
               />
             {:else}
               <span class="inline-block h-10 w-10" aria-hidden="true"></span>

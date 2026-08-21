@@ -54,6 +54,8 @@ exercise more authority than its human owner currently possesses.
   It does not expose RBAC's general three-state allow/deny/clear control. When
   disabling a narrower scope that inherits an enabled broader scope, Chatto
   stores a deny internally; otherwise disabling clears the explicit decision.
+  Re-enabling that narrower scope removes the internal deny and returns the
+  cell to its inherited enabled state instead of creating a redundant grant.
 - Losing one of the owner's permissions immediately removes the corresponding
   effective permission from every bot they own. A stored bot grant can become
   effective again if the owner later regains the required permission.
