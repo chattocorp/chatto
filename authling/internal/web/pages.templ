@@ -247,6 +247,7 @@ templ passwordPage(flow, message string, passwordMinimumLength int) {
 		<form class="mt-8 space-y-5" method="post" action="/signup/complete">
 			<input type="hidden" name="flow" value={ flow }/>
 			<label class="block"><span class="font-medium">Password</span><input class="form-control" type="password" name="password" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
+			<label class="block"><span class="font-medium">Confirm password</span><input class="form-control" type="password" name="password_confirmation" autocomplete="new-password" minlength={ strconv.Itoa(passwordMinimumLength) } maxlength="1024" required/></label>
 			<button class="button button-primary w-full" type="submit">Create account</button>
 		</form>
 	}

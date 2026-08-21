@@ -697,7 +697,12 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			return
 		}
 		flow := r.FormValue("flow")
-		account, err := deps.Registration.Complete(r.Context(), flow, r.FormValue("password"))
+		password := r.FormValue("password")
+		if password != r.FormValue("password_confirmation") {
+			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, "Passwords do not match.", deps.Registration.PasswordMinimumLength()))
+			return
+		}
+		account, err := deps.Registration.Complete(r.Context(), flow, password)
 		if errors.Is(err, accounts.ErrInvalidPassword) {
 			render(w, r, http.StatusUnprocessableEntity, passwordPage(flow, err.Error(), deps.Registration.PasswordMinimumLength()))
 			return
