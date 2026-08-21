@@ -6,6 +6,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -19,9 +20,11 @@ import (
 
 func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	ctx := withCaller(env.ctx, env.viewer)
+	testCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	ctx := withCaller(testCtx, env.viewer)
 
-	participant, err := env.core.CreateUser(env.ctx, core.SystemActorID, "timeline-dm-corrupt", "Timeline DM Corrupt", "password")
+	participant, err := env.core.CreateUser(testCtx, core.SystemActorID, "timeline-dm-corrupt", "Timeline DM Corrupt", "password")
 	if err != nil {
 		t.Fatalf("CreateUser participant: %v", err)
 	}
@@ -33,12 +36,12 @@ func TestRoomTimelineKeepsDMReadableWhenMessageBodyCannotHydrate(t *testing.T) {
 	}
 	dm := start.Msg.GetRoom()
 
-	bad, err := env.core.PostMessage(env.ctx, core.KindDM, dm.Id, env.viewer.Id, "body that will be superseded", nil, "", "", nil, false)
+	bad, err := env.core.PostMessage(testCtx, core.KindDM, dm.Id, env.viewer.Id, "body that will be superseded", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage bad: %v", err)
 	}
-	corruptMessageBody(t, env, dm.Id, bad.Id, env.viewer.Id)
-	if _, err := env.core.GetFullMessageBody(env.ctx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
+	corruptMessageBody(t, testCtx, env, dm.Id, bad.Id, env.viewer.Id)
+	if _, err := env.core.GetFullMessageBody(testCtx, bad.Id); !errors.Is(err, core.ErrMessageBodyCorrupt) {
 		t.Fatalf("corrupt message body hydration error = %v, want ErrMessageBodyCorrupt", err)
 	}
 
@@ -111,7 +114,7 @@ func TestRoomTimelineBodyHydrationPropagatesRequestErrors(t *testing.T) {
 	}
 }
 
-func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, authorID string) {
+func corruptMessageBody(t *testing.T, ctx context.Context, env *connectAPITestEnv, roomID, eventID, authorID string) {
 	t.Helper()
 
 	bodyEventID := core.NewEventID()
@@ -136,11 +139,11 @@ func corruptMessageBody(t *testing.T, env *connectAPITestEnv, roomID, eventID, a
 		},
 	}
 	subject := evtstream.RoomAggregate(roomID).SubjectFor(bodyEvent)
-	seq, err := env.core.EventPublisher.AppendEventually(env.ctx, subject, bodyEvent)
+	seq, err := env.core.EventPublisher.AppendEventually(ctx, subject, bodyEvent)
 	if err != nil {
 		t.Fatalf("Append corrupt MessageBodyEvent: %v", err)
 	}
-	if err := env.core.WaitForProjectionsCurrent(env.ctx); err != nil {
+	if err := env.core.WaitForProjectionsCurrent(ctx); err != nil {
 		t.Fatalf("WaitForProjectionsCurrent after corrupt MessageBodyEvent at sequence %d: %v", seq, err)
 	}
 }
