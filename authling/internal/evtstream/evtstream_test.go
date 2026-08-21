@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"strings"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -190,6 +191,35 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	}
 	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "OIDC grant revocation is incomplete or invalid") {
 		t.Fatalf("decode uncorrelated grant revocation error = %v", err)
+	}
+	createdAt := time.Now().UTC()
+	malformedRotation := &corev1.Event{Id: "evt_rotation", CreatedAt: timestamppb.New(createdAt), Event: &corev1.Event_OidcSigningKeyRotationRequested{OidcSigningKeyRotationRequested: &corev1.OIDCSigningKeyRotationRequestedEvent{SigningKeyRef: "unsafe.ref"}}}
+	data, err = proto.Marshal(malformedRotation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "rotation request is invalid") {
+		t.Fatalf("decode unsafe signing-key rotation error = %v", err)
+	}
+	malformedPreparation := &corev1.Event{Id: "evt_prepared", CreatedAt: timestamppb.New(createdAt), Event: &corev1.Event_OidcSigningKeyPrepared{OidcSigningKeyPrepared: &corev1.OIDCSigningKeyPreparedEvent{
+		SigningKeyRef: "system.oidc-signing.key_next", SigningKeyId: "sig_next", ActivateAt: timestamppb.New(createdAt),
+	}}}
+	data, err = proto.Marshal(malformedPreparation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "activation time is invalid") {
+		t.Fatalf("decode early signing-key activation error = %v", err)
+	}
+	malformedActivation := &corev1.Event{Id: "evt_activated", CreatedAt: timestamppb.New(createdAt), Event: &corev1.Event_OidcSigningKeyActivated{OidcSigningKeyActivated: &corev1.OIDCSigningKeyActivatedEvent{
+		SigningKeyRef: "system.oidc-signing.key_next", SigningKeyId: "sig_next", RetireAfter: timestamppb.New(createdAt.Add(time.Hour)),
+	}}}
+	data, err = proto.Marshal(malformedActivation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "activation is incomplete") {
+		t.Fatalf("decode incomplete signing-key activation error = %v", err)
 	}
 }
 

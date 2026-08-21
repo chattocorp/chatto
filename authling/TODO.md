@@ -29,7 +29,7 @@ current runtime in `docs/architecture/`.
 
 - [ ] Define authenticated relying-party grouping and exact-client grant migration across one or more OIDC clients
 - [ ] Track CIMD Internet-Draft evolution and define compatibility policy before upgrading from draft-02
-- [ ] Design signing-key rotation and retirement
+- [ ] Add authenticated emergency signing-key rotation and compromise-response controls
 - [ ] Add rotating refresh tokens bound to durable authorization-grant generations
 - [ ] Add token-revocation and RP-initiated logout behavior
 - [ ] Define identity-claim release policies before adding further scopes and claims

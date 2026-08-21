@@ -62,12 +62,14 @@ The implementation tracks
 Draft evolution must be treated as a compatibility and security review, not an
 automatic dependency update.
 
-The RS256 signing key is generated once in Authling's key store. Its stable
-public-key fingerprint is the `kid`; the private key never enters events or
-runtime state. The issuer and signing-key reference are established by an EVT
-event. Pending requests, authorization-code mappings, and access-token records
-are authenticated-encrypted in the expiring runtime-state bucket beneath
-HMAC-derived keys.
+The initial RS256 signing key is generated in Authling's key store. A key's
+stable public-key fingerprint is its `kid`; private keys never enter events or
+runtime state. The issuer and initial signing-key reference are established by
+an EVT event. [ADR-008](ADR-008-automatic-oidc-signing-key-rotation.md)
+supersedes the initial single-key lifecycle with automatic pre-publication,
+activation, overlap, and retirement. Pending requests, authorization-code
+mappings, and access-token records are authenticated-encrypted in the expiring
+runtime-state bucket beneath HMAC-derived keys.
 
 Authling records explicit consent as a durable, account-owned authorization
 grant for one exact client ID and scope set. A covered later request may reuse
@@ -92,6 +94,5 @@ CIMD adds a tightly constrained outbound HTTPS fetcher and its associated
 SSRF, DNS rebinding, availability, and draft-compatibility responsibilities.
 Configured clients remain the fallback for consumers that do not use CIMD.
 
-The initial key has no rotation or retirement lifecycle, and the initial token
-profile is deliberately small. Those are explicit follow-up features rather
-than implicit behavior in this decision.
+The token and claim profile remains deliberately small. Signing-key lifecycle
+is defined separately by ADR-008.

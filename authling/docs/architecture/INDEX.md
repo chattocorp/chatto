@@ -106,6 +106,11 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 | `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; client display snapshot; granted scopes |
 | `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
+| `OIDCSigningKeyRotationRequestedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque future signing-key reference |
+| `OIDCSigningKeyPreparedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque signing-key reference, public fingerprint ID, and activation time |
+| `OIDCSigningKeyActivatedEvent` | `authling.evt.issuer` | Issuer singleton | New and preceding key identities plus predecessor retirement time |
+| `OIDCSigningKeyRetirementRequestedEvent` | `authling.evt.issuer` | Issuer singleton | Opaque identity of the predecessor removed from JWKS before destruction |
+| `OIDCSigningKeyRetiredEvent` | `authling.evt.issuer` | Issuer singleton | Opaque identity whose private material was destroyed |
 
 The account ID is restricted to one NATS-safe token. Structural account
 creation uses per-account OCC. Verified local account creation atomically
@@ -167,9 +172,16 @@ revision when this model is running.
 
 The issuer projection consumes the singleton `authling.evt.issuer` subject.
 On first initialization, its service creates or resolves the RS256 signing key
-and establishes the issuer with subject-level OCC. Every later startup requires
-the configured public URL and stored signing-key identity to match that event.
-Issuer or key drift prevents readiness.
+and establishes the issuer with subject-level OCC. It then materializes one
+active key, at most one pre-published successor, and at most one unexpired
+predecessor. The in-process reconciler automatically requests rotation when
+the active key reaches its configured age, creates event-owned key material,
+activates it after ten minutes of JWKS publication, and retires the predecessor
+after a 15-minute overlap. Every transition uses issuer-subject OCC and waits
+for its projected position. Restart resumes incomplete creation or destruction
+outcomes. Every later startup requires the configured public URL and all
+published signing-key identities to match their protected key records. Issuer
+or key drift prevents readiness.
 
 ## HTTP interface
 
@@ -281,8 +293,12 @@ proxies, validates DNS destinations before fetch and dial, and caps fetch time,
 body size, concurrency, and cache lifetime. Pending requests, code mappings,
 and opaque access-token records are encrypted and expire in runtime state.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
-winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
-part. The initial UserInfo response contains only the account ID as `sub`.
+winner. ID tokens use the active RS256 key; JWKS publishes its public key plus
+any prepared successor and unexpired predecessor. JWKS responses have a
+five-minute public cache lifetime. Opaque access-token encryption uses a
+separate stable symmetric key, so signing-key rotation does not invalidate
+UserInfo access. The initial UserInfo response contains only the account ID as
+`sub`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
 password reset, signed-in password change, and email change also cap request
@@ -292,7 +308,7 @@ completion work per process.
 ## Deliberately absent
 
 The runtime does not yet contain MFA recovery, account erasure, browser-device
-or location tracking, durable login history, OIDC refresh tokens or key
-rotation, diagnostic endpoints, or backup tooling. Application data,
-documents, and generic synchronization are deliberately outside Authling's
-identity-provider boundary.
+or location tracking, durable login history, OIDC refresh tokens, emergency
+manual signing-key rotation, diagnostic endpoints, or backup tooling.
+Application data, documents, and generic synchronization are deliberately
+outside Authling's identity-provider boundary.

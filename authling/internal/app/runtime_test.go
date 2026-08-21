@@ -26,6 +26,7 @@ import (
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/emailchange"
 	"hmans.de/authling/internal/evtstream"
+	"hmans.de/authling/internal/issuer"
 	"hmans.de/authling/internal/logging"
 	"hmans.de/authling/internal/passwordreset"
 	corev1 "hmans.de/authling/internal/pb/authling/core/v1"
@@ -109,9 +110,9 @@ func TestOIDCIssuerCannotDriftAfterInitialization(t *testing.T) {
 	cfg := embeddedTestConfig(t)
 	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
 	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)
-	firstKey, ok := first.issuer.SigningKey()
-	if !ok {
-		t.Fatal("first runtime has no signing key")
+	firstKey, err := first.issuer.SigningKey(testContext(t))
+	if err != nil {
+		t.Fatalf("first runtime signing key: %v", err)
 	}
 	stopTestRuntime(t, first, cancelFirst, firstErrors)
 
@@ -125,8 +126,8 @@ func TestOIDCIssuerCannotDriftAfterInitialization(t *testing.T) {
 	if err := restarted.WaitReady(testContext(t)); err != nil {
 		t.Fatalf("restart with stable issuer: %v", err)
 	}
-	restartedKey, ok := restarted.issuer.SigningKey()
-	if !ok || restartedKey.ID != firstKey.ID {
+	restartedKey, err := restarted.issuer.SigningKey(testContext(t))
+	if err != nil || restartedKey.ID != firstKey.ID {
 		t.Fatalf("restarted signing key = %q, want %q", restartedKey.ID, firstKey.ID)
 	}
 	cancel()
@@ -152,6 +153,195 @@ func TestOIDCIssuerCannotDriftAfterInitialization(t *testing.T) {
 	<-invalidErrors
 	if err := invalid.Close(); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestOIDCSigningKeysRotateAcrossRestartWithoutInvalidatingAccessTokens(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	cfg.OIDC.SigningKeyRotationIntervalDays = 1
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"}}}
+
+	var clockMu sync.Mutex
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return now
+	}
+	advance := func(duration time.Duration) {
+		clockMu.Lock()
+		now = now.Add(duration)
+		clockMu.Unlock()
+	}
+	issuerOptions := []issuer.Option{
+		issuer.WithClock(clock),
+		issuer.WithLifecycleTiming(10*time.Minute, issuer.SigningKeyRetirementOverlap, 24*time.Hour),
+	}
+
+	runtime, cancel, runErrors := startTestRuntimeWithIssuerOptions(t, cfg, issuerOptions...)
+	if _, err := runtime.Accounts.CreateLocal(testContext(t), "oidc@example.com", "a deliberately uncommon password"); err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration, Sessions: runtime.Sessions, Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
+	verifier := strings.Repeat("v", 43)
+	firstTokens := issueOIDCTokens(t, handler, completeAuthorization(t, handler, verifier, nil), verifier)
+	firstKey, err := runtime.issuer.SigningKey(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := idTokenKeyID(t, firstTokens.IDToken); got != firstKey.ID {
+		t.Fatalf("initial ID-token kid = %q, want %q", got, firstKey.ID)
+	}
+
+	advance(24 * time.Hour)
+	rotationResults := make(chan error, 2)
+	for range 2 {
+		go func() { rotationResults <- runtime.issuer.Reconcile(testContext(t)) }()
+	}
+	for range 2 {
+		if err := <-rotationResults; err != nil {
+			t.Fatalf("concurrent key preparation: %v", err)
+		}
+	}
+	preparedState, _ := runtime.issuer.State()
+	if !preparedState.HasPrepared || preparedState.Active.ID != firstKey.ID {
+		t.Fatalf("prepared issuer state = %+v", preparedState)
+	}
+	if keys, err := runtime.issuer.VerificationKeys(testContext(t)); err != nil || len(keys) != 2 {
+		t.Fatalf("prepared verification keys = %+v, %v; want two", keys, err)
+	}
+	stopTestRuntime(t, runtime, cancel, runErrors)
+
+	runtime, cancel, runErrors = startTestRuntimeWithIssuerOptions(t, cfg, issuerOptions...)
+	handler = web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration, Sessions: runtime.Sessions, Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
+	replayed, _ := runtime.issuer.State()
+	if !replayed.HasPrepared || replayed.Prepared.ID != preparedState.Prepared.ID {
+		t.Fatalf("replayed prepared state = %+v, want key %q", replayed, preparedState.Prepared.ID)
+	}
+	preparedJWKS := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/oauth/jwks", "", nil)
+	if preparedJWKS.Code != http.StatusOK || preparedJWKS.Header().Get("Cache-Control") != "public, max-age=300" || !strings.Contains(preparedJWKS.Body.String(), firstKey.ID) || !strings.Contains(preparedJWKS.Body.String(), preparedState.Prepared.ID) {
+		t.Fatalf("prepared JWKS status/cache/body = %d %q %s", preparedJWKS.Code, preparedJWKS.Header().Get("Cache-Control"), preparedJWKS.Body.String())
+	}
+
+	advance(10 * time.Minute)
+	if err := runtime.issuer.Reconcile(testContext(t)); err != nil {
+		t.Fatalf("activate rotated key: %v", err)
+	}
+	activeState, _ := runtime.issuer.State()
+	if activeState.Active.ID == firstKey.ID || !activeState.HasRetiring || activeState.Retiring.ID != firstKey.ID {
+		t.Fatalf("activated issuer state = %+v", activeState)
+	}
+	secondTokens := issueOIDCTokens(t, handler, completeAuthorization(t, handler, verifier, nil), verifier)
+	if got := idTokenKeyID(t, secondTokens.IDToken); got != activeState.Active.ID {
+		t.Fatalf("rotated ID-token kid = %q, want %q", got, activeState.Active.ID)
+	}
+
+	userinfoRequest := httptest.NewRequest(http.MethodGet, "http://localhost:8080/oauth/userinfo", nil)
+	userinfoRequest.Header.Set("Authorization", "Bearer "+firstTokens.AccessToken)
+	userinfo := httptest.NewRecorder()
+	handler.ServeHTTP(userinfo, userinfoRequest)
+	if userinfo.Code != http.StatusOK {
+		t.Fatalf("pre-rotation access token after signing-key activation status/body = %d %s", userinfo.Code, userinfo.Body.String())
+	}
+
+	advance(issuer.SigningKeyRetirementOverlap)
+	if err := runtime.issuer.Reconcile(testContext(t)); err != nil {
+		t.Fatalf("retire preceding key: %v", err)
+	}
+	retiredState, _ := runtime.issuer.State()
+	if retiredState.HasRetiring || retiredState.Active.ID != activeState.Active.ID {
+		t.Fatalf("retired issuer state = %+v", retiredState)
+	}
+	if keys, err := runtime.issuer.VerificationKeys(testContext(t)); err != nil || len(keys) != 1 || keys[0].ID != activeState.Active.ID {
+		t.Fatalf("retired verification keys = %+v, %v", keys, err)
+	}
+	retiredJWKS := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/oauth/jwks", "", nil)
+	if retiredJWKS.Code != http.StatusOK || strings.Contains(retiredJWKS.Body.String(), firstKey.ID) || !strings.Contains(retiredJWKS.Body.String(), activeState.Active.ID) {
+		t.Fatalf("retired JWKS status/body = %d %s", retiredJWKS.Code, retiredJWKS.Body.String())
+	}
+	stopTestRuntime(t, runtime, cancel, runErrors)
+}
+
+func TestOIDCSigningKeyWorkerAutomaticallyStartsDueRotation(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.OIDC.SigningKeyRotationIntervalDays = 1
+	var clockMu sync.Mutex
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return now
+	}
+	runtime, cancel, runErrors := startTestRuntimeWithIssuerOptions(t, cfg,
+		issuer.WithClock(clock),
+		issuer.WithLifecycleTiming(time.Hour, time.Hour, 5*time.Millisecond),
+	)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	clockMu.Lock()
+	now = now.Add(24 * time.Hour)
+	clockMu.Unlock()
+
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		state, _ := runtime.issuer.State()
+		if state.HasPrepared {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	state, _ := runtime.issuer.State()
+	t.Fatalf("automatic rotation did not prepare a successor: %+v", state)
+}
+
+func TestOIDCSigningKeySubstitutionFailsClosed(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.OIDC.SigningKeyRotationIntervalDays = 1
+	var clockMu sync.Mutex
+	now := time.Date(2026, 8, 21, 12, 0, 0, 0, time.UTC)
+	clock := func() time.Time {
+		clockMu.Lock()
+		defer clockMu.Unlock()
+		return now
+	}
+	runtime, cancel, runErrors := startTestRuntimeWithIssuerOptions(t, cfg,
+		issuer.WithClock(clock), issuer.WithLifecycleTiming(time.Hour, time.Hour, 24*time.Hour),
+	)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	clockMu.Lock()
+	now = now.Add(24 * time.Hour)
+	clockMu.Unlock()
+	if err := runtime.issuer.Reconcile(testContext(t)); err != nil {
+		t.Fatal(err)
+	}
+	state, _ := runtime.issuer.State()
+	if !state.HasPrepared {
+		t.Fatalf("issuer state has no prepared key: %+v", state)
+	}
+	js, err := jetstream.New(runtime.connection.NATS)
+	if err != nil {
+		t.Fatal(err)
+	}
+	keys, err := js.KeyValue(testContext(t), storage.KeyStoreBucket)
+	if err != nil {
+		t.Fatal(err)
+	}
+	activeRecord, err := keys.Get(testContext(t), state.Active.Ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	preparedRecord, err := keys.Get(testContext(t), state.Prepared.Ref)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := keys.Update(testContext(t), state.Active.Ref, preparedRecord.Value(), activeRecord.Revision()); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := runtime.issuer.SigningKey(testContext(t)); err == nil || !strings.Contains(err.Error(), "does not match durable issuer identity") {
+		t.Fatalf("substituted signing-key error = %v", err)
+	}
+	if _, err := runtime.issuer.VerificationKeys(testContext(t)); err == nil || !strings.Contains(err.Error(), "does not match durable issuer identity") {
+		t.Fatalf("substituted verification-key error = %v", err)
 	}
 }
 
@@ -582,6 +772,39 @@ func redeemCode(t *testing.T, handler http.Handler, code, verifier string) *http
 	return requestHandler(t, handler, http.MethodPost, "http://localhost:8080/oauth/token", url.Values{"grant_type": {"authorization_code"}, "client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"}, "code": {code}, "code_verifier": {verifier}}.Encode(), nil)
 }
 
+type oidcTokens struct {
+	AccessToken string `json:"access_token"`
+	IDToken     string `json:"id_token"`
+}
+
+func issueOIDCTokens(t *testing.T, handler http.Handler, code, verifier string) oidcTokens {
+	t.Helper()
+	response := redeemCode(t, handler, code, verifier)
+	if response.Code != http.StatusOK {
+		t.Fatalf("token status/body = %d %s", response.Code, response.Body.String())
+	}
+	var tokens oidcTokens
+	if err := json.Unmarshal(response.Body.Bytes(), &tokens); err != nil {
+		t.Fatal(err)
+	}
+	if tokens.AccessToken == "" || tokens.IDToken == "" {
+		t.Fatalf("incomplete token response = %+v", tokens)
+	}
+	return tokens
+}
+
+func idTokenKeyID(t *testing.T, raw string) string {
+	t.Helper()
+	parsed, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.RS256})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(parsed.Headers) != 1 {
+		t.Fatalf("ID token headers = %d, want one", len(parsed.Headers))
+	}
+	return parsed.Headers[0].KeyID
+}
+
 func requestHandler(t *testing.T, handler http.Handler, method, target, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	t.Helper()
 	if strings.HasPrefix(target, "/") {
@@ -606,9 +829,9 @@ func verifyIDToken(t *testing.T, runtime *Runtime, raw string) map[string]any {
 	if len(parts) != 3 {
 		t.Fatalf("ID token has %d segments", len(parts))
 	}
-	key, ok := runtime.issuer.SigningKey()
-	if !ok {
-		t.Fatal("missing issuer signing key")
+	key, err := runtime.issuer.SigningKey(testContext(t))
+	if err != nil {
+		t.Fatalf("missing issuer signing key: %v", err)
 	}
 	parsed, err := jwt.ParseSigned(raw, []jose.SignatureAlgorithm{jose.RS256})
 	if err != nil {
@@ -1788,6 +2011,25 @@ func startTestRuntimeWithOptions(
 	go func() {
 		runErrors <- runtime.Run(runContext)
 	}()
+	if err := runtime.WaitReady(testContext(t)); err != nil {
+		cancel()
+		<-runErrors
+		runtime.Close()
+		t.Fatalf("wait for runtime readiness: %v", err)
+	}
+	return runtime, cancel, runErrors
+}
+
+func startTestRuntimeWithIssuerOptions(t *testing.T, cfg config.Config, issuerOptions ...issuer.Option) (*Runtime, context.CancelFunc, <-chan error) {
+	t.Helper()
+	logger := logging.Events{Logger: slog.New(slog.NewTextHandler(io.Discard, nil))}
+	runtime, err := newRuntimeWithIssuerOptions(testContext(t), cfg, logger, &capturingSender{}, issuerOptions...)
+	if err != nil {
+		t.Fatalf("create runtime: %v", err)
+	}
+	runContext, cancel := context.WithCancel(context.Background())
+	runErrors := make(chan error, 1)
+	go func() { runErrors <- runtime.Run(runContext) }()
 	if err := runtime.WaitReady(testContext(t)); err != nil {
 		cancel()
 		<-runErrors

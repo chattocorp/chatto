@@ -286,6 +286,29 @@ func (p *Publisher) AppendIssuerEstablished(ctx context.Context, event *corev1.E
 	return events.SubjectPosition(issuerSubject, sequence), nil
 }
 
+// AppendIssuerLifecycle records a signing-key transition at an explicitly
+// observed issuer tail so concurrent replicas cannot advance different keys.
+func (p *Publisher) AppendIssuerLifecycle(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	switch event.GetEvent().(type) {
+	case *corev1.Event_OidcSigningKeyRotationRequested,
+		*corev1.Event_OidcSigningKeyPrepared,
+		*corev1.Event_OidcSigningKeyActivated,
+		*corev1.Event_OidcSigningKeyRetirementRequested,
+		*corev1.Event_OidcSigningKeyRetired:
+	default:
+		return events.StreamPosition{}, fmt.Errorf("append issuer lifecycle: event payload is not a signing-key lifecycle event")
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, issuerSubject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(issuerSubject, sequence), nil
+}
+
 // Decode validates and decodes one persisted Authling event.
 func Decode(data []byte) (events.DecodedEvent[*corev1.Event], error) {
 	var event corev1.Event
@@ -398,6 +421,36 @@ func validate(event *corev1.Event) error {
 		if payload.IssuerEstablished.GetIssuer() == "" || payload.IssuerEstablished.GetSigningKeyRef() == "" || payload.IssuerEstablished.GetSigningKeyId() == "" {
 			return fmt.Errorf("issuer establishment is incomplete")
 		}
+	case *corev1.Event_OidcSigningKeyRotationRequested:
+		if !validSigningKeyRef(payload.OidcSigningKeyRotationRequested.GetSigningKeyRef()) {
+			return fmt.Errorf("OIDC signing-key rotation request is invalid")
+		}
+	case *corev1.Event_OidcSigningKeyPrepared:
+		prepared := payload.OidcSigningKeyPrepared
+		if !validSigningKeyRef(prepared.GetSigningKeyRef()) || !validSubjectToken(prepared.GetSigningKeyId()) || prepared.GetActivateAt() == nil {
+			return fmt.Errorf("OIDC signing-key preparation is incomplete")
+		}
+		if err := prepared.GetActivateAt().CheckValid(); err != nil || !prepared.GetActivateAt().AsTime().After(event.GetCreatedAt().AsTime()) {
+			return fmt.Errorf("OIDC signing-key activation time is invalid")
+		}
+	case *corev1.Event_OidcSigningKeyActivated:
+		activated := payload.OidcSigningKeyActivated
+		if !validSigningKeyRef(activated.GetSigningKeyRef()) || !validSubjectToken(activated.GetSigningKeyId()) || !validSigningKeyRef(activated.GetPreviousSigningKeyRef()) || !validSubjectToken(activated.GetPreviousSigningKeyId()) || activated.GetRetireAfter() == nil {
+			return fmt.Errorf("OIDC signing-key activation is incomplete")
+		}
+		if err := activated.GetRetireAfter().CheckValid(); err != nil || !activated.GetRetireAfter().AsTime().After(event.GetCreatedAt().AsTime()) {
+			return fmt.Errorf("OIDC signing-key retirement time is invalid")
+		}
+	case *corev1.Event_OidcSigningKeyRetirementRequested:
+		retiring := payload.OidcSigningKeyRetirementRequested
+		if !validSigningKeyRef(retiring.GetSigningKeyRef()) || !validSubjectToken(retiring.GetSigningKeyId()) {
+			return fmt.Errorf("OIDC signing-key retirement request is invalid")
+		}
+	case *corev1.Event_OidcSigningKeyRetired:
+		retired := payload.OidcSigningKeyRetired
+		if !validSigningKeyRef(retired.GetSigningKeyRef()) || !validSubjectToken(retired.GetSigningKeyId()) {
+			return fmt.Errorf("OIDC signing-key retirement is invalid")
+		}
 	default:
 		return fmt.Errorf("Authling event payload is required")
 	}
@@ -439,6 +492,23 @@ func validSubjectToken(value string) bool {
 			char >= '0' && char <= '9' ||
 			char == '_' ||
 			char == '-' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func validSigningKeyRef(value string) bool {
+	if !strings.HasPrefix(value, "system.oidc-signing.") || len(value) > 256 {
+		return false
+	}
+	suffix := strings.TrimPrefix(value, "system.oidc-signing.")
+	if suffix == "" {
+		return false
+	}
+	for _, char := range suffix {
+		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '_' || char == '-' {
 			continue
 		}
 		return false

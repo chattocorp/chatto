@@ -53,6 +53,11 @@ inventory.
 one OpenID Provider. Tokens and discovery use this exact value; changing it is
 an identity migration, not an ordinary listener reconfiguration.
 
+**OIDC signing key** — An asymmetric RS256 key whose private part signs
+Authling ID tokens and whose public part appears in JWKS under its fingerprint
+`kid`. Authling automatically moves keys through prepared, active, retiring,
+and retired lifecycle states without changing the issuer or account subjects.
+
 **Relying party** — An application that asks Authling to authenticate an
 account through OpenID Connect. Its individual protocol identity is an OIDC
 client.

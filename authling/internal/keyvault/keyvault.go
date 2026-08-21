@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -23,6 +24,8 @@ const (
 	systemDummyUserKey       = "system.authentication-dummy-user.v1"
 	systemDummyCredentialKey = "system.authentication-dummy-credential.v1"
 	systemOIDCSigningKey     = "system.oidc-signing.v1"
+	systemOIDCTokenKey       = "system.oidc-token.v1"
+	oidcSigningKeyPrefix     = "system.oidc-signing."
 	credentialKeyPurpose     = "credentials"
 )
 
@@ -98,12 +101,46 @@ func (v *Vault) WorkflowKey(ctx context.Context) ([]byte, error) {
 	return key, nil
 }
 
+// OIDCTokenKey returns a stable symmetric key used only by the OpenID
+// Provider's opaque access-token envelope. The first upgraded runtime seeds it
+// with the legacy signing-derived value so old and new replicas remain able to
+// read each other's five-minute tokens; later signing rotation cannot change it.
+func (v *Vault) OIDCTokenKey(ctx context.Context, initial []byte) ([]byte, error) {
+	if len(initial) != datacrypto.KeySize {
+		return nil, fmt.Errorf("open OIDC token key: initial key must contain %d bytes", datacrypto.KeySize)
+	}
+	entry, err := v.kv.Get(ctx, systemOIDCTokenKey)
+	if err == nil {
+		return decodeRaw(entry.Value())
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return nil, fmt.Errorf("open OIDC token key: %w", err)
+	}
+	key := append([]byte(nil), initial...)
+	encoded, err := json.Marshal(rawKeyRecord{Version: 1, Key: key, CreatedAt: time.Now().UTC()})
+	clear(key)
+	if err != nil {
+		return nil, fmt.Errorf("open OIDC token key: %w", err)
+	}
+	if _, err := v.kv.Create(ctx, systemOIDCTokenKey, encoded); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return nil, fmt.Errorf("open OIDC token key: %w", err)
+		}
+		entry, err = v.kv.Get(ctx, systemOIDCTokenKey)
+		if err != nil {
+			return nil, fmt.Errorf("open OIDC token key: %w", err)
+		}
+		return decodeRaw(entry.Value())
+	}
+	return append([]byte(nil), initial...), nil
+}
+
 // OIDCSigningKey returns the deployment's stable RS256 signing key, creating
 // it with JetStream Create semantics when the deployment has none yet.
 func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
 	entry, err := v.kv.Get(ctx, systemOIDCSigningKey)
 	if err == nil {
-		return decodeSigningKey(entry.Value())
+		return decodeSigningKey(systemOIDCSigningKey, entry.Value())
 	}
 	if !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
@@ -130,9 +167,77 @@ func (v *Vault) OIDCSigningKey(ctx context.Context) (SigningKey, error) {
 		if err != nil {
 			return SigningKey{}, fmt.Errorf("read raced OIDC signing key: %w", err)
 		}
-		return decodeSigningKey(entry.Value())
+		return decodeSigningKey(systemOIDCSigningKey, entry.Value())
 	}
-	return signingKey(private)
+	return signingKey(systemOIDCSigningKey, private)
+}
+
+// EnsureOIDCSigningKey creates or resolves the key at an event-owned opaque
+// reference. Repeating the operation after a crash returns the same key.
+func (v *Vault) EnsureOIDCSigningKey(ctx context.Context, ref string) (SigningKey, error) {
+	if !validOIDCSigningKeyRef(ref) || ref == systemOIDCSigningKey {
+		return SigningKey{}, fmt.Errorf("invalid OIDC signing-key reference")
+	}
+	entry, err := v.kv.Get(ctx, ref)
+	if err == nil {
+		return decodeSigningKey(ref, entry.Value())
+	}
+	if !errors.Is(err, jetstream.ErrKeyNotFound) {
+		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
+	}
+	private, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("generate OIDC signing key: %w", err)
+	}
+	privateDER, err := x509.MarshalPKCS8PrivateKey(private)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("encode OIDC signing key: %w", err)
+	}
+	data, err := json.Marshal(signingKeyRecord{
+		Version: 1, Algorithm: "RS256", PrivateDER: privateDER, CreatedAt: time.Now().UTC(),
+	})
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("encode OIDC signing-key record: %w", err)
+	}
+	if _, err := v.kv.Create(ctx, ref, data); err != nil {
+		if !errors.Is(err, jetstream.ErrKeyExists) {
+			return SigningKey{}, fmt.Errorf("create OIDC signing key: %w", err)
+		}
+		entry, err = v.kv.Get(ctx, ref)
+		if err != nil {
+			return SigningKey{}, fmt.Errorf("read raced OIDC signing key: %w", err)
+		}
+		return decodeSigningKey(ref, entry.Value())
+	}
+	return signingKey(ref, private)
+}
+
+// ResolveOIDCSigningKey opens signing material by its durable opaque reference.
+func (v *Vault) ResolveOIDCSigningKey(ctx context.Context, ref string) (SigningKey, error) {
+	if !validOIDCSigningKeyRef(ref) {
+		return SigningKey{}, fmt.Errorf("invalid OIDC signing-key reference")
+	}
+	entry, err := v.kv.Get(ctx, ref)
+	if err != nil {
+		return SigningKey{}, fmt.Errorf("read OIDC signing key: %w", err)
+	}
+	return decodeSigningKey(ref, entry.Value())
+}
+
+// DestroyOIDCSigningKey irreversibly purges retired private key material.
+// Repeating destruction after a crash is successful.
+func (v *Vault) DestroyOIDCSigningKey(ctx context.Context, ref string) error {
+	if !validOIDCSigningKeyRef(ref) {
+		return fmt.Errorf("invalid OIDC signing-key reference")
+	}
+	err := v.kv.Purge(ctx, ref)
+	if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("destroy OIDC signing key: %w", err)
+	}
+	return nil
 }
 
 // AuthenticationDummyKey returns a persistent synthetic credential key pair.
@@ -336,7 +441,7 @@ func decodeRaw(data []byte) ([]byte, error) {
 	return record.Key, nil
 }
 
-func decodeSigningKey(data []byte) (SigningKey, error) {
+func decodeSigningKey(ref string, data []byte) (SigningKey, error) {
 	var record signingKeyRecord
 	if err := json.Unmarshal(data, &record); err != nil || record.Version != 1 || record.Algorithm != "RS256" || len(record.PrivateDER) == 0 {
 		return SigningKey{}, fmt.Errorf("decode OIDC signing-key record")
@@ -349,18 +454,38 @@ func decodeSigningKey(data []byte) (SigningKey, error) {
 	if !ok || private.N.BitLen() < 2048 || private.Validate() != nil {
 		return SigningKey{}, fmt.Errorf("invalid OIDC signing key")
 	}
-	return signingKey(private)
+	return signingKey(ref, private)
 }
 
-func signingKey(private *rsa.PrivateKey) (SigningKey, error) {
+func signingKey(ref string, private *rsa.PrivateKey) (SigningKey, error) {
 	publicDER, err := x509.MarshalPKIXPublicKey(&private.PublicKey)
 	if err != nil {
 		return SigningKey{}, fmt.Errorf("encode OIDC public key: %w", err)
 	}
 	digest := sha256.Sum256(publicDER)
 	return SigningKey{
-		Ref: systemOIDCSigningKey, ID: "sig_" + base64.RawURLEncoding.EncodeToString(digest[:]), Private: private,
+		Ref: ref, ID: "sig_" + base64.RawURLEncoding.EncodeToString(digest[:]), Private: private,
 	}, nil
+}
+
+func validOIDCSigningKeyRef(ref string) bool {
+	if ref == systemOIDCSigningKey {
+		return true
+	}
+	if !strings.HasPrefix(ref, oidcSigningKeyPrefix) || len(ref) > 256 {
+		return false
+	}
+	suffix := strings.TrimPrefix(ref, oidcSigningKeyPrefix)
+	if suffix == "" || suffix == "v1" {
+		return false
+	}
+	for _, char := range suffix {
+		if char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9' || char == '_' || char == '-' {
+			continue
+		}
+		return false
+	}
+	return true
 }
 
 func wrapAAD(userRef, dataRef string) []byte {

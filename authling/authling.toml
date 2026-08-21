@@ -7,6 +7,9 @@ public_url = 'http://localhost:8080'
 [authentication]
 password_minimum_length = 10
 
+[oidc]
+signing_key_rotation_interval_days = 90
+
 [nats]
 replicas = 1
 

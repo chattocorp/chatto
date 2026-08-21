@@ -71,6 +71,14 @@ func newRuntime(ctx context.Context, cfg config.Config, logger events.Logger, se
 }
 
 func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, emailChangeOptions ...emailchange.Option) (*Runtime, error) {
+	return newRuntimeWithOptions(ctx, cfg, logger, sender, emailChangeOptions, nil)
+}
+
+func newRuntimeWithIssuerOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, issuerOptions ...issuer.Option) (*Runtime, error) {
+	return newRuntimeWithOptions(ctx, cfg, logger, sender, nil, issuerOptions)
+}
+
+func newRuntimeWithOptions(ctx context.Context, cfg config.Config, logger events.Logger, sender email.Sender, emailChangeOptions []emailchange.Option, issuerOptions []issuer.Option) (*Runtime, error) {
 	if err := cfg.Validate(); err != nil {
 		return nil, err
 	}
@@ -118,7 +126,7 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 	sessionService := sessions.New(stores.RuntimeState, js, workflowKey, accountService.AuthenticationVersion)
 	issuerProjection := issuer.NewProjection()
 	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
-	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault())
+	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault(), cfg.OIDC.SigningKeyRotationInterval(), issuerOptions...)
 	authorizationProjection := authorizations.NewProjection()
 	authorizationHandle := events.NewDecodedProjectionHandle(js, stream, authorizationProjection, evtstream.Decode, logger)
 	authorizationService, err := authorizations.NewService(publisher, authorizationHandle, workflowKey)
@@ -136,7 +144,7 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService)
-	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService)
+	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService, vault)
 	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{
 		connection:     connection,
@@ -161,6 +169,7 @@ func (r *Runtime) Run(ctx context.Context) error {
 		projector := projector
 		group.Go(func() error { return projector.Run(groupContext) })
 	}
+	group.Go(func() error { return r.issuer.Run(groupContext) })
 	group.Go(func() error { return r.Sessions.RunInventory(groupContext) })
 	return group.Wait()
 }
@@ -179,7 +188,7 @@ func (r *Runtime) WaitReady(ctx context.Context) error {
 	if err := r.issuer.Initialize(ctx); err != nil {
 		return err
 	}
-	return r.OIDC.Initialize()
+	return r.OIDC.Initialize(ctx)
 }
 
 // Close releases Authling's NATS client and any embedded server. Run must have

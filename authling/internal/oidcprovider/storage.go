@@ -386,22 +386,26 @@ func (publicKey) Algorithm() jose.SignatureAlgorithm { return jose.RS256 }
 func (publicKey) Use() string                        { return "sig" }
 func (k publicKey) Key() any                         { return k.key }
 
-func (s *Storage) SigningKey(context.Context) (op.SigningKey, error) {
-	key, ok := s.issuer.SigningKey()
-	if !ok {
-		return nil, fmt.Errorf("OIDC issuer is not initialized")
+func (s *Storage) SigningKey(ctx context.Context) (op.SigningKey, error) {
+	key, err := s.issuer.SigningKey(ctx)
+	if err != nil {
+		return nil, err
 	}
 	return signingKey{key: key.Private, id: key.ID}, nil
 }
 func (*Storage) SignatureAlgorithms(context.Context) ([]jose.SignatureAlgorithm, error) {
 	return []jose.SignatureAlgorithm{jose.RS256}, nil
 }
-func (s *Storage) KeySet(context.Context) ([]op.Key, error) {
-	key, ok := s.issuer.SigningKey()
-	if !ok {
-		return nil, fmt.Errorf("OIDC issuer is not initialized")
+func (s *Storage) KeySet(ctx context.Context) ([]op.Key, error) {
+	keys, err := s.issuer.VerificationKeys(ctx)
+	if err != nil {
+		return nil, err
 	}
-	return []op.Key{publicKey{key: &key.Private.PublicKey, id: key.ID}}, nil
+	public := make([]op.Key, 0, len(keys))
+	for _, key := range keys {
+		public = append(public, publicKey{key: &key.Private.PublicKey, id: key.ID})
+	}
+	return public, nil
 }
 
 func (s *Storage) readRequest(ctx context.Context, id string) (jetstream.KeyValueEntry, *authRequestState, error) {

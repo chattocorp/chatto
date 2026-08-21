@@ -7,13 +7,15 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"time"
 
 	"hmans.de/chatto/pkg/appconfig"
 )
 
 const (
-	DefaultPath                  = "authling.toml"
-	DefaultPasswordMinimumLength = 10
+	DefaultPath                           = "authling.toml"
+	DefaultPasswordMinimumLength          = 10
+	DefaultSigningKeyRotationIntervalDays = 90
 )
 
 // Config is Authling's canonical process configuration.
@@ -28,9 +30,20 @@ type Config struct {
 // OIDCConfig controls Authling's OpenID Provider and conventional clients.
 // URL-identified CIMD clients require no configuration.
 type OIDCConfig struct {
-	Clients                  []OIDCClientConfig `toml:"clients"`
-	CIMDTrustedPrivateHosts  []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
-	CIMDTrustedLoopbackHosts []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
+	Clients                        []OIDCClientConfig `toml:"clients"`
+	CIMDTrustedPrivateHosts        []string           `toml:"cimd_trusted_private_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_PRIVATE_HOSTS"`
+	CIMDTrustedLoopbackHosts       []string           `toml:"cimd_trusted_loopback_hosts" env:"AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS"`
+	SigningKeyRotationIntervalDays int                `toml:"signing_key_rotation_interval_days" env:"AUTHLING_OIDC_SIGNING_KEY_ROTATION_INTERVAL_DAYS"`
+}
+
+// SigningKeyRotationInterval returns how long an active OIDC signing key may
+// remain in use before Authling automatically starts a rollover.
+func (c OIDCConfig) SigningKeyRotationInterval() time.Duration {
+	days := c.SigningKeyRotationIntervalDays
+	if days == 0 {
+		days = DefaultSigningKeyRotationIntervalDays
+	}
+	return time.Duration(days) * 24 * time.Hour
 }
 
 // OIDCClientConfig declares one conventional OpenID Connect client. An empty
@@ -210,6 +223,9 @@ func (c *Config) applyDefaults() {
 // Validate checks that Authling has exactly one usable NATS deployment mode.
 func (c Config) Validate() error {
 	var problems []string
+	if days := c.OIDC.SigningKeyRotationIntervalDays; days < 0 || days > 3650 {
+		problems = append(problems, "oidc.signing_key_rotation_interval_days must be between 1 and 3650 when set")
+	}
 	if minimum := c.Authentication.PasswordMinimumLengthOrDefault(); minimum < 8 || minimum > 128 {
 		problems = append(problems, "authentication.password_minimum_length must be between 8 and 128")
 	}

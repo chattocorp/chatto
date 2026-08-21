@@ -15,8 +15,51 @@ import (
 	"time"
 
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
+	"github.com/zitadel/oidc/v3/pkg/op"
 	"hmans.de/authling/internal/config"
 )
+
+func TestAccessTokenCryptoAcceptsLegacyTokensAndUsesStableKey(t *testing.T) {
+	var tokenKey, legacyKey [32]byte
+	copy(tokenKey[:], bytes.Repeat([]byte{1}, 32))
+	copy(legacyKey[:], bytes.Repeat([]byte{2}, 32))
+	crypto := accessTokenCrypto(tokenKey, legacyKey, "sig_legacy")
+
+	for name, legacy := range map[string]op.Crypto{
+		"GCM": op.NewAES256GCMCrypto(legacyKey, "sig_legacy"),
+		"AES": op.NewAESCrypto(legacyKey),
+	} {
+		t.Run(name, func(t *testing.T) {
+			raw, err := legacy.Encrypt("token:subject")
+			if err != nil {
+				t.Fatal(err)
+			}
+			if got, err := crypto.Decrypt(raw); err != nil || got != "token:subject" {
+				t.Fatalf("decrypt legacy token = %q, %v", got, err)
+			}
+		})
+	}
+
+	raw, err := crypto.Encrypt("new:subject")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := op.NewAES256GCMCrypto(tokenKey, "authling-oidc-token-v1").Decrypt(raw); err != nil || got != "new:subject" {
+		t.Fatalf("new token did not use stable key: %q, %v", got, err)
+	}
+	if _, err := op.NewAES256GCMCrypto(legacyKey, "sig_legacy").Decrypt(raw); err == nil {
+		t.Fatal("new token remained encrypted with legacy signing-derived key")
+	}
+
+	migrating := accessTokenCrypto(legacyKey, legacyKey, "sig_legacy")
+	raw, err = migrating.Encrypt("rolling:subject")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got, err := op.NewAES256GCMCrypto(legacyKey, "sig_legacy").Decrypt(raw); err != nil || got != "rolling:subject" {
+		t.Fatalf("legacy replica could not read seeded stable token: %q, %v", got, err)
+	}
+}
 
 func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"

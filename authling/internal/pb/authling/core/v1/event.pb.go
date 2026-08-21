@@ -92,6 +92,11 @@ type Event struct {
 	//	*Event_EmailChanged
 	//	*Event_OidcGrantAuthorized
 	//	*Event_OidcGrantRevoked
+	//	*Event_OidcSigningKeyRotationRequested
+	//	*Event_OidcSigningKeyPrepared
+	//	*Event_OidcSigningKeyActivated
+	//	*Event_OidcSigningKeyRetirementRequested
+	//	*Event_OidcSigningKeyRetired
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -229,6 +234,51 @@ func (x *Event) GetOidcGrantRevoked() *OIDCGrantRevokedEvent {
 	return nil
 }
 
+func (x *Event) GetOidcSigningKeyRotationRequested() *OIDCSigningKeyRotationRequestedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcSigningKeyRotationRequested); ok {
+			return x.OidcSigningKeyRotationRequested
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOidcSigningKeyPrepared() *OIDCSigningKeyPreparedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcSigningKeyPrepared); ok {
+			return x.OidcSigningKeyPrepared
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOidcSigningKeyActivated() *OIDCSigningKeyActivatedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcSigningKeyActivated); ok {
+			return x.OidcSigningKeyActivated
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOidcSigningKeyRetirementRequested() *OIDCSigningKeyRetirementRequestedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcSigningKeyRetirementRequested); ok {
+			return x.OidcSigningKeyRetirementRequested
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOidcSigningKeyRetired() *OIDCSigningKeyRetiredEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcSigningKeyRetired); ok {
+			return x.OidcSigningKeyRetired
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -269,6 +319,26 @@ type Event_OidcGrantRevoked struct {
 	OidcGrantRevoked *OIDCGrantRevokedEvent `protobuf:"bytes,108,opt,name=oidc_grant_revoked,json=oidcGrantRevoked,proto3,oneof"`
 }
 
+type Event_OidcSigningKeyRotationRequested struct {
+	OidcSigningKeyRotationRequested *OIDCSigningKeyRotationRequestedEvent `protobuf:"bytes,109,opt,name=oidc_signing_key_rotation_requested,json=oidcSigningKeyRotationRequested,proto3,oneof"`
+}
+
+type Event_OidcSigningKeyPrepared struct {
+	OidcSigningKeyPrepared *OIDCSigningKeyPreparedEvent `protobuf:"bytes,110,opt,name=oidc_signing_key_prepared,json=oidcSigningKeyPrepared,proto3,oneof"`
+}
+
+type Event_OidcSigningKeyActivated struct {
+	OidcSigningKeyActivated *OIDCSigningKeyActivatedEvent `protobuf:"bytes,111,opt,name=oidc_signing_key_activated,json=oidcSigningKeyActivated,proto3,oneof"`
+}
+
+type Event_OidcSigningKeyRetirementRequested struct {
+	OidcSigningKeyRetirementRequested *OIDCSigningKeyRetirementRequestedEvent `protobuf:"bytes,112,opt,name=oidc_signing_key_retirement_requested,json=oidcSigningKeyRetirementRequested,proto3,oneof"`
+}
+
+type Event_OidcSigningKeyRetired struct {
+	OidcSigningKeyRetired *OIDCSigningKeyRetiredEvent `protobuf:"bytes,113,opt,name=oidc_signing_key_retired,json=oidcSigningKeyRetired,proto3,oneof"`
+}
+
 func (*Event_AccountCreated) isEvent_Event() {}
 
 func (*Event_EmailClaimed) isEvent_Event() {}
@@ -286,6 +356,16 @@ func (*Event_EmailChanged) isEvent_Event() {}
 func (*Event_OidcGrantAuthorized) isEvent_Event() {}
 
 func (*Event_OidcGrantRevoked) isEvent_Event() {}
+
+func (*Event_OidcSigningKeyRotationRequested) isEvent_Event() {}
+
+func (*Event_OidcSigningKeyPrepared) isEvent_Event() {}
+
+func (*Event_OidcSigningKeyActivated) isEvent_Event() {}
+
+func (*Event_OidcSigningKeyRetirementRequested) isEvent_Event() {}
+
+func (*Event_OidcSigningKeyRetired) isEvent_Event() {}
 
 // IssuerEstablishedEvent permanently binds one Authling deployment to its
 // externally visible OpenID Connect issuer and initial signing-key identity.
@@ -349,6 +429,300 @@ func (x *IssuerEstablishedEvent) GetSigningKeyId() string {
 	return ""
 }
 
+// OIDCSigningKeyRotationRequestedEvent durably requests creation of a new
+// signing key before any key material is provisioned. The opaque reference
+// makes key creation idempotent and recoverable after a crash.
+type OIDCSigningKeyRotationRequestedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SigningKeyRef string                 `protobuf:"bytes,1,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OIDCSigningKeyRotationRequestedEvent) Reset() {
+	*x = OIDCSigningKeyRotationRequestedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCSigningKeyRotationRequestedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCSigningKeyRotationRequestedEvent) ProtoMessage() {}
+
+func (x *OIDCSigningKeyRotationRequestedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCSigningKeyRotationRequestedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCSigningKeyRotationRequestedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{2}
+}
+
+func (x *OIDCSigningKeyRotationRequestedEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+// OIDCSigningKeyPreparedEvent records that the requested key exists and may
+// be published for verification. It must not sign tokens before activate_at.
+type OIDCSigningKeyPreparedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SigningKeyRef string                 `protobuf:"bytes,1,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	SigningKeyId  string                 `protobuf:"bytes,2,opt,name=signing_key_id,json=signingKeyId,proto3" json:"signing_key_id,omitempty"`
+	ActivateAt    *timestamppb.Timestamp `protobuf:"bytes,3,opt,name=activate_at,json=activateAt,proto3" json:"activate_at,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OIDCSigningKeyPreparedEvent) Reset() {
+	*x = OIDCSigningKeyPreparedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCSigningKeyPreparedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCSigningKeyPreparedEvent) ProtoMessage() {}
+
+func (x *OIDCSigningKeyPreparedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCSigningKeyPreparedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCSigningKeyPreparedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{3}
+}
+
+func (x *OIDCSigningKeyPreparedEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyPreparedEvent) GetSigningKeyId() string {
+	if x != nil {
+		return x.SigningKeyId
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyPreparedEvent) GetActivateAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.ActivateAt
+	}
+	return nil
+}
+
+// OIDCSigningKeyActivatedEvent switches token signing to a prepared key and
+// retains the preceding public key through retire_after.
+type OIDCSigningKeyActivatedEvent struct {
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	SigningKeyRef         string                 `protobuf:"bytes,1,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	SigningKeyId          string                 `protobuf:"bytes,2,opt,name=signing_key_id,json=signingKeyId,proto3" json:"signing_key_id,omitempty"`
+	PreviousSigningKeyRef string                 `protobuf:"bytes,3,opt,name=previous_signing_key_ref,json=previousSigningKeyRef,proto3" json:"previous_signing_key_ref,omitempty"`
+	PreviousSigningKeyId  string                 `protobuf:"bytes,4,opt,name=previous_signing_key_id,json=previousSigningKeyId,proto3" json:"previous_signing_key_id,omitempty"`
+	RetireAfter           *timestamppb.Timestamp `protobuf:"bytes,5,opt,name=retire_after,json=retireAfter,proto3" json:"retire_after,omitempty"`
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
+}
+
+func (x *OIDCSigningKeyActivatedEvent) Reset() {
+	*x = OIDCSigningKeyActivatedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCSigningKeyActivatedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCSigningKeyActivatedEvent) ProtoMessage() {}
+
+func (x *OIDCSigningKeyActivatedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCSigningKeyActivatedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCSigningKeyActivatedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{4}
+}
+
+func (x *OIDCSigningKeyActivatedEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyActivatedEvent) GetSigningKeyId() string {
+	if x != nil {
+		return x.SigningKeyId
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyActivatedEvent) GetPreviousSigningKeyRef() string {
+	if x != nil {
+		return x.PreviousSigningKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyActivatedEvent) GetPreviousSigningKeyId() string {
+	if x != nil {
+		return x.PreviousSigningKeyId
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyActivatedEvent) GetRetireAfter() *timestamppb.Timestamp {
+	if x != nil {
+		return x.RetireAfter
+	}
+	return nil
+}
+
+// OIDCSigningKeyRetirementRequestedEvent removes an expired predecessor from
+// the published verification set before its private material is destroyed.
+type OIDCSigningKeyRetirementRequestedEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SigningKeyRef string                 `protobuf:"bytes,1,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	SigningKeyId  string                 `protobuf:"bytes,2,opt,name=signing_key_id,json=signingKeyId,proto3" json:"signing_key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OIDCSigningKeyRetirementRequestedEvent) Reset() {
+	*x = OIDCSigningKeyRetirementRequestedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCSigningKeyRetirementRequestedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCSigningKeyRetirementRequestedEvent) ProtoMessage() {}
+
+func (x *OIDCSigningKeyRetirementRequestedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCSigningKeyRetirementRequestedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCSigningKeyRetirementRequestedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{5}
+}
+
+func (x *OIDCSigningKeyRetirementRequestedEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyRetirementRequestedEvent) GetSigningKeyId() string {
+	if x != nil {
+		return x.SigningKeyId
+	}
+	return ""
+}
+
+// OIDCSigningKeyRetiredEvent confirms destruction of private signing material.
+type OIDCSigningKeyRetiredEvent struct {
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SigningKeyRef string                 `protobuf:"bytes,1,opt,name=signing_key_ref,json=signingKeyRef,proto3" json:"signing_key_ref,omitempty"`
+	SigningKeyId  string                 `protobuf:"bytes,2,opt,name=signing_key_id,json=signingKeyId,proto3" json:"signing_key_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *OIDCSigningKeyRetiredEvent) Reset() {
+	*x = OIDCSigningKeyRetiredEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[6]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCSigningKeyRetiredEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCSigningKeyRetiredEvent) ProtoMessage() {}
+
+func (x *OIDCSigningKeyRetiredEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[6]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCSigningKeyRetiredEvent.ProtoReflect.Descriptor instead.
+func (*OIDCSigningKeyRetiredEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{6}
+}
+
+func (x *OIDCSigningKeyRetiredEvent) GetSigningKeyRef() string {
+	if x != nil {
+		return x.SigningKeyRef
+	}
+	return ""
+}
+
+func (x *OIDCSigningKeyRetiredEvent) GetSigningKeyId() string {
+	if x != nil {
+		return x.SigningKeyId
+	}
+	return ""
+}
+
 // EmailClaimedEvent activates the protected email credential staged by the
 // immediately preceding account creation or email change in the same atomic
 // publish batch.
@@ -364,7 +738,7 @@ type EmailClaimedEvent struct {
 
 func (x *EmailClaimedEvent) Reset() {
 	*x = EmailClaimedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	mi := &file_authling_core_v1_event_proto_msgTypes[7]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -376,7 +750,7 @@ func (x *EmailClaimedEvent) String() string {
 func (*EmailClaimedEvent) ProtoMessage() {}
 
 func (x *EmailClaimedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[2]
+	mi := &file_authling_core_v1_event_proto_msgTypes[7]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -389,7 +763,7 @@ func (x *EmailClaimedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailClaimedEvent.ProtoReflect.Descriptor instead.
 func (*EmailClaimedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{2}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{7}
 }
 
 func (x *EmailClaimedEvent) GetAccountId() string {
@@ -426,7 +800,7 @@ type AccountCreatedEvent struct {
 
 func (x *AccountCreatedEvent) Reset() {
 	*x = AccountCreatedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[3]
+	mi := &file_authling_core_v1_event_proto_msgTypes[8]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -438,7 +812,7 @@ func (x *AccountCreatedEvent) String() string {
 func (*AccountCreatedEvent) ProtoMessage() {}
 
 func (x *AccountCreatedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[3]
+	mi := &file_authling_core_v1_event_proto_msgTypes[8]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -451,7 +825,7 @@ func (x *AccountCreatedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use AccountCreatedEvent.ProtoReflect.Descriptor instead.
 func (*AccountCreatedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{3}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{8}
 }
 
 func (x *AccountCreatedEvent) GetAccountId() string {
@@ -535,7 +909,7 @@ type PasswordChangedEvent struct {
 
 func (x *PasswordChangedEvent) Reset() {
 	*x = PasswordChangedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	mi := &file_authling_core_v1_event_proto_msgTypes[9]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -547,7 +921,7 @@ func (x *PasswordChangedEvent) String() string {
 func (*PasswordChangedEvent) ProtoMessage() {}
 
 func (x *PasswordChangedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[4]
+	mi := &file_authling_core_v1_event_proto_msgTypes[9]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -560,7 +934,7 @@ func (x *PasswordChangedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PasswordChangedEvent.ProtoReflect.Descriptor instead.
 func (*PasswordChangedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{4}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{9}
 }
 
 func (x *PasswordChangedEvent) GetAccountId() string {
@@ -639,7 +1013,7 @@ type PasswordResetRequestedEvent struct {
 
 func (x *PasswordResetRequestedEvent) Reset() {
 	*x = PasswordResetRequestedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	mi := &file_authling_core_v1_event_proto_msgTypes[10]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -651,7 +1025,7 @@ func (x *PasswordResetRequestedEvent) String() string {
 func (*PasswordResetRequestedEvent) ProtoMessage() {}
 
 func (x *PasswordResetRequestedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[5]
+	mi := &file_authling_core_v1_event_proto_msgTypes[10]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -664,7 +1038,7 @@ func (x *PasswordResetRequestedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use PasswordResetRequestedEvent.ProtoReflect.Descriptor instead.
 func (*PasswordResetRequestedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{5}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{10}
 }
 
 func (x *PasswordResetRequestedEvent) GetAccountId() string {
@@ -693,7 +1067,7 @@ type EmailChangeRequestedEvent struct {
 
 func (x *EmailChangeRequestedEvent) Reset() {
 	*x = EmailChangeRequestedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[6]
+	mi := &file_authling_core_v1_event_proto_msgTypes[11]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -705,7 +1079,7 @@ func (x *EmailChangeRequestedEvent) String() string {
 func (*EmailChangeRequestedEvent) ProtoMessage() {}
 
 func (x *EmailChangeRequestedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[6]
+	mi := &file_authling_core_v1_event_proto_msgTypes[11]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -718,7 +1092,7 @@ func (x *EmailChangeRequestedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailChangeRequestedEvent.ProtoReflect.Descriptor instead.
 func (*EmailChangeRequestedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{6}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{11}
 }
 
 func (x *EmailChangeRequestedEvent) GetAccountId() string {
@@ -753,7 +1127,7 @@ type EmailChangedEvent struct {
 
 func (x *EmailChangedEvent) Reset() {
 	*x = EmailChangedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[7]
+	mi := &file_authling_core_v1_event_proto_msgTypes[12]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -765,7 +1139,7 @@ func (x *EmailChangedEvent) String() string {
 func (*EmailChangedEvent) ProtoMessage() {}
 
 func (x *EmailChangedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[7]
+	mi := &file_authling_core_v1_event_proto_msgTypes[12]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -778,7 +1152,7 @@ func (x *EmailChangedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use EmailChangedEvent.ProtoReflect.Descriptor instead.
 func (*EmailChangedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{7}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{12}
 }
 
 func (x *EmailChangedEvent) GetAccountId() string {
@@ -859,7 +1233,7 @@ type OIDCGrantAuthorizedEvent struct {
 
 func (x *OIDCGrantAuthorizedEvent) Reset() {
 	*x = OIDCGrantAuthorizedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[8]
+	mi := &file_authling_core_v1_event_proto_msgTypes[13]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -871,7 +1245,7 @@ func (x *OIDCGrantAuthorizedEvent) String() string {
 func (*OIDCGrantAuthorizedEvent) ProtoMessage() {}
 
 func (x *OIDCGrantAuthorizedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[8]
+	mi := &file_authling_core_v1_event_proto_msgTypes[13]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -884,7 +1258,7 @@ func (x *OIDCGrantAuthorizedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OIDCGrantAuthorizedEvent.ProtoReflect.Descriptor instead.
 func (*OIDCGrantAuthorizedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{8}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{13}
 }
 
 func (x *OIDCGrantAuthorizedEvent) GetAccountId() string {
@@ -948,7 +1322,7 @@ type OIDCGrantRevokedEvent struct {
 
 func (x *OIDCGrantRevokedEvent) Reset() {
 	*x = OIDCGrantRevokedEvent{}
-	mi := &file_authling_core_v1_event_proto_msgTypes[9]
+	mi := &file_authling_core_v1_event_proto_msgTypes[14]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -960,7 +1334,7 @@ func (x *OIDCGrantRevokedEvent) String() string {
 func (*OIDCGrantRevokedEvent) ProtoMessage() {}
 
 func (x *OIDCGrantRevokedEvent) ProtoReflect() protoreflect.Message {
-	mi := &file_authling_core_v1_event_proto_msgTypes[9]
+	mi := &file_authling_core_v1_event_proto_msgTypes[14]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -973,7 +1347,7 @@ func (x *OIDCGrantRevokedEvent) ProtoReflect() protoreflect.Message {
 
 // Deprecated: Use OIDCGrantRevokedEvent.ProtoReflect.Descriptor instead.
 func (*OIDCGrantRevokedEvent) Descriptor() ([]byte, []int) {
-	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{9}
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{14}
 }
 
 func (x *OIDCGrantRevokedEvent) GetAccountId() string {
@@ -1001,7 +1375,7 @@ var File_authling_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\a\n" +
+	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xdc\v\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -1014,12 +1388,36 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x16email_change_requested\x18i \x01(\v2+.authling.core.v1.EmailChangeRequestedEventH\x00R\x14emailChangeRequested\x12J\n" +
 	"\remail_changed\x18j \x01(\v2#.authling.core.v1.EmailChangedEventH\x00R\femailChanged\x12`\n" +
 	"\x15oidc_grant_authorized\x18k \x01(\v2*.authling.core.v1.OIDCGrantAuthorizedEventH\x00R\x13oidcGrantAuthorized\x12W\n" +
-	"\x12oidc_grant_revoked\x18l \x01(\v2'.authling.core.v1.OIDCGrantRevokedEventH\x00R\x10oidcGrantRevokedB\a\n" +
+	"\x12oidc_grant_revoked\x18l \x01(\v2'.authling.core.v1.OIDCGrantRevokedEventH\x00R\x10oidcGrantRevoked\x12\x86\x01\n" +
+	"#oidc_signing_key_rotation_requested\x18m \x01(\v26.authling.core.v1.OIDCSigningKeyRotationRequestedEventH\x00R\x1foidcSigningKeyRotationRequested\x12j\n" +
+	"\x19oidc_signing_key_prepared\x18n \x01(\v2-.authling.core.v1.OIDCSigningKeyPreparedEventH\x00R\x16oidcSigningKeyPrepared\x12m\n" +
+	"\x1aoidc_signing_key_activated\x18o \x01(\v2..authling.core.v1.OIDCSigningKeyActivatedEventH\x00R\x17oidcSigningKeyActivated\x12\x8c\x01\n" +
+	"%oidc_signing_key_retirement_requested\x18p \x01(\v28.authling.core.v1.OIDCSigningKeyRetirementRequestedEventH\x00R!oidcSigningKeyRetirementRequested\x12g\n" +
+	"\x18oidc_signing_key_retired\x18q \x01(\v2,.authling.core.v1.OIDCSigningKeyRetiredEventH\x00R\x15oidcSigningKeyRetiredB\a\n" +
 	"\x05event\"~\n" +
 	"\x16IssuerEstablishedEvent\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12&\n" +
 	"\x0fsigning_key_ref\x18\x02 \x01(\tR\rsigningKeyRef\x12$\n" +
-	"\x0esigning_key_id\x18\x03 \x01(\tR\fsigningKeyId\"b\n" +
+	"\x0esigning_key_id\x18\x03 \x01(\tR\fsigningKeyId\"N\n" +
+	"$OIDCSigningKeyRotationRequestedEvent\x12&\n" +
+	"\x0fsigning_key_ref\x18\x01 \x01(\tR\rsigningKeyRef\"\xa8\x01\n" +
+	"\x1bOIDCSigningKeyPreparedEvent\x12&\n" +
+	"\x0fsigning_key_ref\x18\x01 \x01(\tR\rsigningKeyRef\x12$\n" +
+	"\x0esigning_key_id\x18\x02 \x01(\tR\fsigningKeyId\x12;\n" +
+	"\vactivate_at\x18\x03 \x01(\v2\x1a.google.protobuf.TimestampR\n" +
+	"activateAt\"\x9b\x02\n" +
+	"\x1cOIDCSigningKeyActivatedEvent\x12&\n" +
+	"\x0fsigning_key_ref\x18\x01 \x01(\tR\rsigningKeyRef\x12$\n" +
+	"\x0esigning_key_id\x18\x02 \x01(\tR\fsigningKeyId\x127\n" +
+	"\x18previous_signing_key_ref\x18\x03 \x01(\tR\x15previousSigningKeyRef\x125\n" +
+	"\x17previous_signing_key_id\x18\x04 \x01(\tR\x14previousSigningKeyId\x12=\n" +
+	"\fretire_after\x18\x05 \x01(\v2\x1a.google.protobuf.TimestampR\vretireAfter\"v\n" +
+	"&OIDCSigningKeyRetirementRequestedEvent\x12&\n" +
+	"\x0fsigning_key_ref\x18\x01 \x01(\tR\rsigningKeyRef\x12$\n" +
+	"\x0esigning_key_id\x18\x02 \x01(\tR\fsigningKeyId\"j\n" +
+	"\x1aOIDCSigningKeyRetiredEvent\x12&\n" +
+	"\x0fsigning_key_ref\x18\x01 \x01(\tR\rsigningKeyRef\x12$\n" +
+	"\x0esigning_key_id\x18\x02 \x01(\tR\fsigningKeyId\"b\n" +
 	"\x11EmailClaimedEvent\x12\x1d\n" +
 	"\n" +
 	"account_id\x18\x01 \x01(\tR\taccountId\x12.\n" +
@@ -1102,38 +1500,50 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_authling_core_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
+var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 15)
 var file_authling_core_v1_event_proto_goTypes = []any{
-	(PasswordChangeKind)(0),             // 0: authling.core.v1.PasswordChangeKind
-	(*Event)(nil),                       // 1: authling.core.v1.Event
-	(*IssuerEstablishedEvent)(nil),      // 2: authling.core.v1.IssuerEstablishedEvent
-	(*EmailClaimedEvent)(nil),           // 3: authling.core.v1.EmailClaimedEvent
-	(*AccountCreatedEvent)(nil),         // 4: authling.core.v1.AccountCreatedEvent
-	(*PasswordChangedEvent)(nil),        // 5: authling.core.v1.PasswordChangedEvent
-	(*PasswordResetRequestedEvent)(nil), // 6: authling.core.v1.PasswordResetRequestedEvent
-	(*EmailChangeRequestedEvent)(nil),   // 7: authling.core.v1.EmailChangeRequestedEvent
-	(*EmailChangedEvent)(nil),           // 8: authling.core.v1.EmailChangedEvent
-	(*OIDCGrantAuthorizedEvent)(nil),    // 9: authling.core.v1.OIDCGrantAuthorizedEvent
-	(*OIDCGrantRevokedEvent)(nil),       // 10: authling.core.v1.OIDCGrantRevokedEvent
-	(*timestamppb.Timestamp)(nil),       // 11: google.protobuf.Timestamp
+	(PasswordChangeKind)(0),                        // 0: authling.core.v1.PasswordChangeKind
+	(*Event)(nil),                                  // 1: authling.core.v1.Event
+	(*IssuerEstablishedEvent)(nil),                 // 2: authling.core.v1.IssuerEstablishedEvent
+	(*OIDCSigningKeyRotationRequestedEvent)(nil),   // 3: authling.core.v1.OIDCSigningKeyRotationRequestedEvent
+	(*OIDCSigningKeyPreparedEvent)(nil),            // 4: authling.core.v1.OIDCSigningKeyPreparedEvent
+	(*OIDCSigningKeyActivatedEvent)(nil),           // 5: authling.core.v1.OIDCSigningKeyActivatedEvent
+	(*OIDCSigningKeyRetirementRequestedEvent)(nil), // 6: authling.core.v1.OIDCSigningKeyRetirementRequestedEvent
+	(*OIDCSigningKeyRetiredEvent)(nil),             // 7: authling.core.v1.OIDCSigningKeyRetiredEvent
+	(*EmailClaimedEvent)(nil),                      // 8: authling.core.v1.EmailClaimedEvent
+	(*AccountCreatedEvent)(nil),                    // 9: authling.core.v1.AccountCreatedEvent
+	(*PasswordChangedEvent)(nil),                   // 10: authling.core.v1.PasswordChangedEvent
+	(*PasswordResetRequestedEvent)(nil),            // 11: authling.core.v1.PasswordResetRequestedEvent
+	(*EmailChangeRequestedEvent)(nil),              // 12: authling.core.v1.EmailChangeRequestedEvent
+	(*EmailChangedEvent)(nil),                      // 13: authling.core.v1.EmailChangedEvent
+	(*OIDCGrantAuthorizedEvent)(nil),               // 14: authling.core.v1.OIDCGrantAuthorizedEvent
+	(*OIDCGrantRevokedEvent)(nil),                  // 15: authling.core.v1.OIDCGrantRevokedEvent
+	(*timestamppb.Timestamp)(nil),                  // 16: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	11, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	4,  // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
-	3,  // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
+	16, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	9,  // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
+	8,  // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
 	2,  // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
-	5,  // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
-	6,  // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
-	7,  // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
-	8,  // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
-	9,  // 8: authling.core.v1.Event.oidc_grant_authorized:type_name -> authling.core.v1.OIDCGrantAuthorizedEvent
-	10, // 9: authling.core.v1.Event.oidc_grant_revoked:type_name -> authling.core.v1.OIDCGrantRevokedEvent
-	0,  // 10: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
-	11, // [11:11] is the sub-list for method output_type
-	11, // [11:11] is the sub-list for method input_type
-	11, // [11:11] is the sub-list for extension type_name
-	11, // [11:11] is the sub-list for extension extendee
-	0,  // [0:11] is the sub-list for field type_name
+	10, // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
+	11, // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
+	12, // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
+	13, // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
+	14, // 8: authling.core.v1.Event.oidc_grant_authorized:type_name -> authling.core.v1.OIDCGrantAuthorizedEvent
+	15, // 9: authling.core.v1.Event.oidc_grant_revoked:type_name -> authling.core.v1.OIDCGrantRevokedEvent
+	3,  // 10: authling.core.v1.Event.oidc_signing_key_rotation_requested:type_name -> authling.core.v1.OIDCSigningKeyRotationRequestedEvent
+	4,  // 11: authling.core.v1.Event.oidc_signing_key_prepared:type_name -> authling.core.v1.OIDCSigningKeyPreparedEvent
+	5,  // 12: authling.core.v1.Event.oidc_signing_key_activated:type_name -> authling.core.v1.OIDCSigningKeyActivatedEvent
+	6,  // 13: authling.core.v1.Event.oidc_signing_key_retirement_requested:type_name -> authling.core.v1.OIDCSigningKeyRetirementRequestedEvent
+	7,  // 14: authling.core.v1.Event.oidc_signing_key_retired:type_name -> authling.core.v1.OIDCSigningKeyRetiredEvent
+	16, // 15: authling.core.v1.OIDCSigningKeyPreparedEvent.activate_at:type_name -> google.protobuf.Timestamp
+	16, // 16: authling.core.v1.OIDCSigningKeyActivatedEvent.retire_after:type_name -> google.protobuf.Timestamp
+	0,  // 17: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
+	18, // [18:18] is the sub-list for method output_type
+	18, // [18:18] is the sub-list for method input_type
+	18, // [18:18] is the sub-list for extension type_name
+	18, // [18:18] is the sub-list for extension extendee
+	0,  // [0:18] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -1151,6 +1561,11 @@ func file_authling_core_v1_event_proto_init() {
 		(*Event_EmailChanged)(nil),
 		(*Event_OidcGrantAuthorized)(nil),
 		(*Event_OidcGrantRevoked)(nil),
+		(*Event_OidcSigningKeyRotationRequested)(nil),
+		(*Event_OidcSigningKeyPrepared)(nil),
+		(*Event_OidcSigningKeyActivated)(nil),
+		(*Event_OidcSigningKeyRetirementRequested)(nil),
+		(*Event_OidcSigningKeyRetired)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -1158,7 +1573,7 @@ func file_authling_core_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   10,
+			NumMessages:   15,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

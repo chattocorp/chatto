@@ -23,3 +23,4 @@ Repository-wide decisions currently live in:
 | [ADR-005](ADR-005-tinybase-account-data-sync.md) | Synchronize Account Data with a Durable TinyBase Peer | Superseded | 2026-08-02 |
 | [ADR-006](ADR-006-oidc-authorized-account-data.md) | Authorize Global Account Data Through OpenID Connect | Superseded | 2026-08-02 |
 | [ADR-007](ADR-007-limit-authling-to-identity-provider.md) | Limit Authling to Identity-Provider State | Accepted | 2026-08-14 |
+| [ADR-008](ADR-008-automatic-oidc-signing-key-rotation.md) | Automatically Rotate OIDC Signing Keys | Accepted | 2026-08-21 |

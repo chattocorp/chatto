@@ -17,6 +17,7 @@ import (
 	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/issuer"
+	"hmans.de/authling/internal/keyvault"
 )
 
 // Service owns Authling's OIDC protocol handler and user-consent operations.
@@ -25,6 +26,7 @@ type Service struct {
 	storage *Storage
 	grants  *authorizations.Service
 	cfg     config.Config
+	vault   *keyvault.Vault
 
 	mu       sync.RWMutex
 	provider *op.Provider
@@ -32,25 +34,33 @@ type Service struct {
 }
 
 // New constructs the provider boundary. Initialize must run after issuer initialization.
-func New(cfg config.Config, issuerService *issuer.Service, storage *Storage, grants *authorizations.Service) *Service {
-	return &Service{cfg: cfg, issuer: issuerService, storage: storage, grants: grants}
+func New(cfg config.Config, issuerService *issuer.Service, storage *Storage, grants *authorizations.Service, vault *keyvault.Vault) *Service {
+	return &Service{cfg: cfg, issuer: issuerService, storage: storage, grants: grants, vault: vault}
 }
 
 // Initialize constructs the protocol engine using the durable issuer identity.
-func (s *Service) Initialize() error {
+func (s *Service) Initialize(ctx context.Context) error {
 	state, ok := s.issuer.State()
 	if !ok {
 		return fmt.Errorf("OIDC issuer is not initialized")
 	}
-	key, ok := s.issuer.SigningKey()
-	if !ok {
-		return fmt.Errorf("OIDC signing key is not initialized")
+	key, err := s.issuer.SigningKey(ctx)
+	if err != nil {
+		return err
 	}
-	var cryptoKey [32]byte
+	var legacyCryptoKey [32]byte
 	digest := sha256.New()
 	_, _ = digest.Write([]byte("authling:oidc-provider-crypto:v1\x00"))
 	_, _ = digest.Write(key.Private.D.Bytes())
-	copy(cryptoKey[:], digest.Sum(nil))
+	copy(legacyCryptoKey[:], digest.Sum(nil))
+	tokenKeyBytes, err := s.vault.OIDCTokenKey(ctx, legacyCryptoKey[:])
+	if err != nil {
+		return err
+	}
+	defer clear(tokenKeyBytes)
+	var tokenKey [32]byte
+	copy(tokenKey[:], tokenKeyBytes)
+	crypto := accessTokenCrypto(tokenKey, legacyCryptoKey, key.ID)
 	options := []op.Option{
 		op.WithCustomEndpoints(
 			op.NewEndpoint("oauth/authorize"), op.NewEndpoint("oauth/token"),
@@ -58,13 +68,14 @@ func (s *Service) Initialize() error {
 			op.NewEndpoint("oauth/end-session"), op.NewEndpoint("oauth/jwks"),
 		),
 		op.WithCORSOptions(&cors.Options{}),
+		op.WithCrypto(crypto),
 	}
 	parsed, _ := url.Parse(state.Issuer)
 	if parsed != nil && parsed.Scheme == "http" {
 		options = append(options, op.WithAllowInsecure())
 	}
 	provider, err := op.NewProvider(&op.Config{
-		CryptoKey: cryptoKey, CryptoKeyId: key.ID, CodeMethodS256: true,
+		CryptoKey: tokenKey, CryptoKeyId: "authling-oidc-token-v1", CodeMethodS256: true,
 		SupportedClaims: []string{"sub"}, SupportedScopes: []string{liboidc.ScopeOpenID},
 	}, s.storage, op.StaticIssuer(state.Issuer), options...)
 	if err != nil {
@@ -75,6 +86,12 @@ func (s *Service) Initialize() error {
 	s.handler = s.wrap(provider)
 	s.mu.Unlock()
 	return nil
+}
+
+func accessTokenCrypto(tokenKey, legacyKey [32]byte, legacyKeyID string) op.Crypto {
+	stable := op.NewAES256GCMCrypto(tokenKey, "authling-oidc-token-v1")
+	legacyGCM := op.NewAES256GCMCrypto(legacyKey, legacyKeyID)
+	return op.NewCompositeCrypto(stable, []op.Decrypter{stable, legacyGCM, op.NewAESCrypto(legacyKey)})
 }
 
 func (s *Service) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -188,6 +205,9 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 		}
 		if r.URL.Path == "/oauth/token" || r.URL.Path == "/oauth/userinfo" {
 			w.Header().Set("Cache-Control", "no-store")
+		}
+		if r.URL.Path == "/oauth/jwks" {
+			w.Header().Set("Cache-Control", "public, max-age=300")
 		}
 		next.ServeHTTP(w, r)
 	})

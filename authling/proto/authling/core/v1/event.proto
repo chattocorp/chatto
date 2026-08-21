@@ -27,6 +27,11 @@ message Event {
     EmailChangedEvent email_changed = 106;
     OIDCGrantAuthorizedEvent oidc_grant_authorized = 107;
     OIDCGrantRevokedEvent oidc_grant_revoked = 108;
+    OIDCSigningKeyRotationRequestedEvent oidc_signing_key_rotation_requested = 109;
+    OIDCSigningKeyPreparedEvent oidc_signing_key_prepared = 110;
+    OIDCSigningKeyActivatedEvent oidc_signing_key_activated = 111;
+    OIDCSigningKeyRetirementRequestedEvent oidc_signing_key_retirement_requested = 112;
+    OIDCSigningKeyRetiredEvent oidc_signing_key_retired = 113;
   }
 }
 
@@ -36,6 +41,44 @@ message IssuerEstablishedEvent {
   string issuer = 1;
   string signing_key_ref = 2;
   string signing_key_id = 3;
+}
+
+// OIDCSigningKeyRotationRequestedEvent durably requests creation of a new
+// signing key before any key material is provisioned. The opaque reference
+// makes key creation idempotent and recoverable after a crash.
+message OIDCSigningKeyRotationRequestedEvent {
+  string signing_key_ref = 1;
+}
+
+// OIDCSigningKeyPreparedEvent records that the requested key exists and may
+// be published for verification. It must not sign tokens before activate_at.
+message OIDCSigningKeyPreparedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+  google.protobuf.Timestamp activate_at = 3;
+}
+
+// OIDCSigningKeyActivatedEvent switches token signing to a prepared key and
+// retains the preceding public key through retire_after.
+message OIDCSigningKeyActivatedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+  string previous_signing_key_ref = 3;
+  string previous_signing_key_id = 4;
+  google.protobuf.Timestamp retire_after = 5;
+}
+
+// OIDCSigningKeyRetirementRequestedEvent removes an expired predecessor from
+// the published verification set before its private material is destroyed.
+message OIDCSigningKeyRetirementRequestedEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
+}
+
+// OIDCSigningKeyRetiredEvent confirms destruction of private signing material.
+message OIDCSigningKeyRetiredEvent {
+  string signing_key_ref = 1;
+  string signing_key_id = 2;
 }
 
 // EmailClaimedEvent activates the protected email credential staged by the

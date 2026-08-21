@@ -121,6 +121,21 @@ for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
 response containing only the account ID as `sub`. It exposes no
 application-data scopes.
 
+Authling rotates its RS256 signing key automatically every 90 days. A new
+public key is published before use, and the preceding public key remains in
+JWKS until its ID tokens have expired. Configure a whole-day interval from one
+through 3,650 days with:
+
+```toml
+[oidc]
+signing_key_rotation_interval_days = 90
+```
+
+The equivalent environment variable is
+`AUTHLING_OIDC_SIGNING_KEY_ROTATION_INTERVAL_DAYS`. Rotation runs inside the
+Authling process and therefore works with private embedded NATS. Authling does
+not yet expose a manual emergency-rotation command.
+
 Explicit consent creates a durable authorization grant for the exact client
 ID and `openid` scope. Later covered requests skip repeated consent unless the
 client sends `prompt=consent`. The account page lists and revokes these grants.
