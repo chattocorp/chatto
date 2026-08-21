@@ -50,11 +50,11 @@ exercise more authority than its human owner currently possesses.
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current effective permissions allow
   it at that scope.
-- The bot editor presents each applicable permission as enabled or disabled.
-  It does not expose RBAC's general three-state allow/deny/clear control and
-  never creates explicit denials. A direct grant can be cleared. An inherited
-  grant is read-only at the narrower scope and must be changed where the
-  broader grant was configured.
+- Bot permission mutations accept only allow or clear; explicit denials are
+  rejected. The editor therefore presents each applicable permission as
+  enabled or disabled instead of exposing RBAC's general three-state control.
+  A direct grant can be cleared. An inherited grant is read-only at the
+  narrower scope and must be changed where the broader grant was configured.
 - Losing one of the owner's permissions immediately removes the corresponding
   effective permission from every bot they own. A stored bot grant can become
   effective again if the owner later regains the required permission.

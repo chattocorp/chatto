@@ -38,6 +38,9 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   Introduce custom Rolldown chunk groups only for a measured need, and verify
   that they do not pull lazy dependencies into representative initial route
   graphs; Rolldown groups matched modules' dependencies recursively by default.
+- When a frontend change alters imports of interaction components guarded by
+  the production bundle check, run `mise build-frontend`; lint and component
+  tests do not exercise the production route graph.
 - When a host can improve a browser operation, expose a narrow optional
   capability through a focused `$lib/desktop` adapter and feature-detect that
   capability at the point of use. Keep the browser implementation as the

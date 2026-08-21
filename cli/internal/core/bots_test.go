@@ -179,6 +179,12 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if allowed, err := c.CanCreateBots(ctx, bot.User.GetId()); err != nil || allowed {
 		t.Fatalf("bot CanCreateBots = %v, %v; want false", allowed, err)
 	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); !errors.Is(err, ErrInvalidArgument) {
+		t.Fatalf("explicit bot denial err = %v, want ErrInvalidArgument", err)
+	}
+	if decision, err := c.GetUserExplicitServerOverride(ctx, bot.User.GetId(), PermMessagePost); err != nil || decision != DecisionNone {
+		t.Fatalf("explicit bot override after rejected denial = %s, %v; want none", decision, err)
+	}
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermBotCreate, PermissionStateAllow); !errors.Is(err, ErrInvalidArgument) {
 		t.Fatalf("delegate bot.create err = %v, want ErrInvalidArgument", err)
 	}
@@ -250,7 +256,7 @@ func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	if _, err := c.GetUserPermissionMatrix(ctx, manager.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("bot manager GetUserPermissionMatrix: %v", err)
 	}
-	if err := c.SetUserPermissionState(ctx, manager.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateDeny); err != nil {
+	if err := c.SetUserPermissionState(ctx, manager.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
 		t.Fatalf("bot manager SetUserPermissionState: %v", err)
 	}
 

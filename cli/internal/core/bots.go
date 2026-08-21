@@ -330,6 +330,9 @@ func (c *ChattoCore) setBotUserPermissionState(ctx context.Context, actorID, bot
 	if err != nil {
 		return err
 	}
+	if state == PermissionStateDeny {
+		return fmt.Errorf("%w: bot permissions are an allowlist and do not support explicit denials", ErrInvalidArgument)
+	}
 	if !botPermissionDelegable(perm) {
 		return fmt.Errorf("%w: permission %s cannot be delegated to a bot", ErrInvalidArgument, perm)
 	}

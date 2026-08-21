@@ -86,7 +86,7 @@ type AdminPermissionServiceClient interface {
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// cannot be granted beyond the bot owner's current authority.
+	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 
@@ -235,7 +235,7 @@ type AdminPermissionServiceHandler interface {
 	SetRolePermission(context.Context, *connect.Request[v1.SetRolePermissionRequest]) (*connect.Response[v1.SetRolePermissionResponse], error)
 	// Sets one user permission decision. Human targets require
 	// user.manage-permissions; bot targets require ownership or bot.manage and
-	// cannot be granted beyond the bot owner's current authority.
+	// accept only allow or clear within the bot owner's current authority.
 	SetUserPermission(context.Context, *connect.Request[v1.SetUserPermissionRequest]) (*connect.Response[v1.SetUserPermissionResponse], error)
 }
 

@@ -103,7 +103,7 @@ export const AdminPermissionService = {
     /**
      * Sets one user permission decision. Human targets require
      * user.manage-permissions; bot targets require ownership or bot.manage and
-     * cannot be granted beyond the bot owner's current authority.
+     * accept only allow or clear within the bot owner's current authority.
      *
      * @generated from rpc chatto.admin.v1.AdminPermissionService.SetUserPermission
      */
