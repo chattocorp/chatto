@@ -265,6 +265,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 
 ## Testing
 
+- Review visible frontend changes in a browser using Chrome DevTools MCP.
+- Do not run frontend checks, tests, builds, or other commands that invoke
+  SvelteKit sync concurrently in the same checkout. They share generated
+  `.svelte-kit` state and can produce transient missing-type failures.
 - `mise test-frontend` runs the frontend suite.
 - The server, browser-component, and Storybook Vitest projects run sequentially
   to bound peak memory while still executing the complete suite.
