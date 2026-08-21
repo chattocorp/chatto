@@ -5,12 +5,14 @@ import { q } from '$lib/test-utils';
 
 import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
+import { getToasts, toast } from '$lib/ui/toast';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
     projectedCallParticipants: new Map<string, unknown[]>(),
     unreadRoomIds: new Set<string>(),
+    writeClipboardText: vi.fn(),
     markNavigationRoomAsRead: vi.fn().mockResolvedValue(true),
     pushState: vi.fn(),
     goto: vi.fn(),
@@ -251,6 +253,7 @@ function setRoomUnread(roomId: string, hasUnread: boolean) {
 }
 
 beforeEach(() => {
+  toast.clear();
   localStorage.clear();
   sessionStorage.clear();
   mocks.activeCallRoomIds = new Set();
@@ -261,6 +264,11 @@ beforeEach(() => {
   mocks.store.navigation.currentUserId = 'me';
   setRooms();
   vi.clearAllMocks();
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: mocks.writeClipboardText },
+    configurable: true
+  });
+  mocks.writeClipboardText.mockResolvedValue(undefined);
   mocks.store.notifications.fetchRoomNotification.mockResolvedValue({
     ok: true,
     totalCount: 0,
@@ -381,11 +389,32 @@ describe('RoomList', () => {
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
     await expect.element(leave ?? null).toBeInTheDocument();
-    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
+    expect(markRead?.closest('.menu-section')).not.toBe(leave?.closest('.menu-section'));
+    expect(q(document.body, '[role="separator"]')).toBeNull();
 
     markRead!.click();
 
     expect(mocks.markNavigationRoomAsRead).toHaveBeenCalledWith('origin', 'channel-1');
+  });
+
+  it('shows Copy Room ID as the final context-menu row and copies the ID', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
+
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-room-id"]')).not.toBeNull()
+    );
+
+    const copyRoomId = q(document.body, '[data-testid="copy-room-id"]') as HTMLButtonElement;
+    await expect.element(copyRoomId).toHaveTextContent('Copy Room ID');
+    const menuItems = copyRoomId.closest('[role="menu"]')?.querySelectorAll('[role="menuitem"]');
+    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyRoomId);
+
+    copyRoomId.click();
+
+    await vi.waitFor(() => expect(mocks.writeClipboardText).toHaveBeenCalledWith('channel-1'));
+    expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
   });
 
   it('offers a join action for a visible non-member room', async () => {

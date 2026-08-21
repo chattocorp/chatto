@@ -126,6 +126,20 @@ for (const file of await svelteFiles(sourceRoot)) {
       failures.push(`${path}:${line}: ${description} (${match[0].trim()})`);
     }
   }
+
+  for (const contextMenu of utilitySource.matchAll(/<ContextMenu\b[\s\S]*?<\/ContextMenu>/g)) {
+    const actionSeparator = contextMenu[0].match(
+      /(?:class\s*=\s*["'][^"']*\bborder-t\b[^"']*["']|role\s*=\s*["']separator["'])[\s\S]*?<(?:a|button)\b/
+    );
+    if (!actionSeparator) continue;
+
+    const line = utilitySource
+      .slice(0, (contextMenu.index ?? 0) + (actionSeparator.index ?? 0))
+      .split('\n').length;
+    failures.push(
+      `${path}:${line}: context-menu action groups must use sibling menu-section surfaces, not inline separators`
+    );
+  }
 }
 
 if (failures.length > 0) {

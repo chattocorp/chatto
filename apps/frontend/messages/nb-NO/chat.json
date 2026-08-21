@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Brukerprofil",
-      "send_message": "Send melding"
+      "send_message": "Send melding",
+      "copy_user_id": "Kopier bruker-ID"
     },
     "server_gutter": {
       "add_server": "Legg til server",

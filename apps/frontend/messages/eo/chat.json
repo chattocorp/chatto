@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Profilo de uzanto",
-      "send_message": "Sendu Mesaĝon"
+      "send_message": "Sendu Mesaĝon",
+      "copy_user_id": "Kopii identigilon de uzanto"
     },
     "server_gutter": {
       "add_server": "Aldonu Servilon",

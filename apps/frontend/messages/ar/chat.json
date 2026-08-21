@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "الملف الشخصي للمستخدم",
-      "send_message": "أرسل رسالة"
+      "send_message": "أرسل رسالة",
+      "copy_user_id": "نسخ معرّف المستخدم"
     },
     "server_gutter": {
       "add_server": "إضافة خادم",

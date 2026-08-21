@@ -1,7 +1,7 @@
 # FDR-017: Room Groups & Sidebar Layout
 
 **Status:** Active
-**Last reviewed:** 2026-08-13
+**Last reviewed:** 2026-08-22
 
 ## Overview
 
@@ -13,7 +13,7 @@ Channel rooms are organized into **room groups** — named, ordered containers t
 - Configured room groups, the alphabetical fallback used before a layout exists, and the Direct Messages section share the same sidebar heading, spacing, and collapse/expand interaction. This presentation does not make Direct Messages an operator-managed room group.
 - ConnectRPC `RoomDirectoryService.ListRoomGroups` exposes the same ordered sidebar structure for protobuf-first clients, filtering room entries to non-archived channel rooms visible to the viewer, preserving sidebar links, and reporting effective `room.create` and `room.manage` group capabilities in viewer state.
 - Joined channel rooms behave as normal navigation entries. Listable channel rooms the viewer has not joined yet are shown slightly faded; selecting a joinable room asks for confirmation before joining, while selecting a non-joinable room explains that access is not currently available.
-- Every visible room row exposes a context menu. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
+- Every visible sidebar room row exposes a context menu with a final “Copy Room ID” action that writes the room's stable ID to the clipboard. Successful copies are confirmed; clipboard failures report an error. Joined rooms offer unread and leave actions where applicable; non-member rooms offer Join, disabled when the viewer lacks `room.join`. Effective room `room.manage` holders also receive a settings action for channel rooms.
 - Server-wide room managers can create and reorder groups from the room-layout overview. Its edit action opens the room group's resource page in the shared management area. Effective group `room.manage` holders can edit or delete that group, while either they or server-wide `role.manage` holders can configure its role permission matrix.
 - Group names are limited to 80 bytes; group descriptions are limited to 500 bytes.
 - Every channel room belongs to exactly one group. There's no "uncategorized" branch — room creation requires a group.

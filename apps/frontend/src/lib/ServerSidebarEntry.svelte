@@ -112,6 +112,19 @@
     void markNavigationServerAsRead(serverId);
   }
 
+  async function handleCopyServerHostname(): Promise<void> {
+    const hostname = serverHost;
+    closeContextMenu();
+    if (!hostname) return;
+
+    try {
+      await navigator.clipboard.writeText(hostname);
+      toast.success(m('common.copied_to_clipboard'));
+    } catch {
+      toast.error(m('common.error.generic'));
+    }
+  }
+
   function handleRemoveServer(): void {
     closeContextMenu();
     pushState('', {
@@ -271,5 +284,21 @@
       onMarkRead={handleMarkServerRead}
       onLeave={handleRemoveServer}
     />
+    {#if serverHost}
+      <div class="menu-section">
+        <nav class="sidebar-nav">
+          <button
+            type="button"
+            class="sidebar-item"
+            onclick={() => void handleCopyServerHostname()}
+            role="menuitem"
+            data-testid="copy-server-hostname"
+          >
+            <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
+            {m('room_list.copy_server_hostname')}
+          </button>
+        </nav>
+      </div>
+    {/if}
   </ContextMenu>
 {/if}

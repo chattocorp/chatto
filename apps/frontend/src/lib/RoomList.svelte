@@ -97,6 +97,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     void markNavigationRoomAsRead(activeServerId, room.id);
   }
 
+  async function handleCopyRoomId(roomId: string): Promise<void> {
+    roomContextMenu = null;
+    try {
+      await navigator.clipboard.writeText(roomId);
+      toast.success(m('common.copied_to_clipboard'));
+    } catch {
+      toast.error(m('common.error.generic'));
+    }
+  }
+
   function handleLeaveRoom(room: RoomsListItem): void {
     roomContextMenu = null;
     pushState('', {
@@ -551,5 +561,19 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
+    <div class="menu-section">
+      <nav class="sidebar-nav">
+        <button
+          type="button"
+          class="sidebar-item"
+          onclick={() => void handleCopyRoomId(contextRoom.id)}
+          role="menuitem"
+          data-testid="copy-room-id"
+        >
+          <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
+          {m('room_list.copy_room_id')}
+        </button>
+      </nav>
+    </div>
   </ContextMenu>
 {/if}

@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Användarprofil",
-      "send_message": "Skicka meddelande"
+      "send_message": "Skicka meddelande",
+      "copy_user_id": "Kopiera användar-ID"
     },
     "server_gutter": {
       "add_server": "Lägg till server",

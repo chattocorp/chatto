@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Perfil de usuario",
-      "send_message": "Enviar Mensaje"
+      "send_message": "Enviar Mensaje",
+      "copy_user_id": "Copiar ID de usuario"
     },
     "server_gutter": {
       "add_server": "Agregar servidor",

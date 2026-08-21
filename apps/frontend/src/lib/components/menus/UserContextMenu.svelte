@@ -30,6 +30,7 @@ ContextMenu, which handles both modes automatically.
     type CustomUserStatus
   } from '$lib/state/userProfiles.svelte';
   import { m } from '$lib/i18n/messages';
+  import { toast } from '$lib/ui/toast';
 
   let {
     user,
@@ -73,6 +74,17 @@ ContextMenu, which handles both modes automatically.
   function handleBanFromRoom() {
     onBanFromRoom?.();
   }
+
+  async function handleCopyUserId(): Promise<void> {
+    try {
+      const write = navigator.clipboard.writeText(user.id);
+      onClose?.();
+      await write;
+      toast.success(m('common.copied_to_clipboard'));
+    } catch {
+      toast.error(m('common.error.generic'));
+    }
+  }
 </script>
 
 <ContextMenu
@@ -84,18 +96,18 @@ ContextMenu, which handles both modes automatically.
   class="w-64"
   onclose={() => onClose?.()}
 >
-  <div class="rounded-md bg-background">
-    <div class="flex items-center gap-3 p-3">
-      <UserAvatar {user} size="md" />
-      <div class="min-w-0 flex-1">
-        <div class="truncate font-semibold">{displayName}</div>
-        <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
-        <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
-      </div>
+  <div class="flex items-center gap-3 menu-section p-3">
+    <UserAvatar {user} size="md" />
+    <div class="min-w-0 flex-1">
+      <div class="truncate font-semibold">{displayName}</div>
+      <div class="truncate text-xs text-muted">@{getLiveLogin(user.id, user.login)}</div>
+      <UserCustomStatusBadge status={customStatus} showText class="mt-1 max-w-full" />
     </div>
+  </div>
 
-    {#if canSendMessage || canBanFromRoom}
-      <div class="border-t border-border p-1">
+  {#if canSendMessage || canBanFromRoom}
+    <div class="menu-section">
+      <nav class="sidebar-nav">
         {#if canSendMessage}
           <button type="button" class="sidebar-item" onclick={handleSendMessage}>
             {m('chat.user_menu.send_message')}
@@ -111,7 +123,20 @@ ContextMenu, which handles both modes automatically.
             {banningFromRoom ? m('admin.moderation.banning') : m('admin.moderation.ban_action')}
           </button>
         {/if}
-      </div>
-    {/if}
+      </nav>
+    </div>
+  {/if}
+
+  <div class="menu-section">
+    <nav class="sidebar-nav">
+      <button
+        type="button"
+        class="sidebar-item"
+        onclick={() => void handleCopyUserId()}
+        data-testid="copy-user-id"
+      >
+        {m('chat.user_menu.copy_user_id')}
+      </button>
+    </nav>
   </div>
 </ContextMenu>

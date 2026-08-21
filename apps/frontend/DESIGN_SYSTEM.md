@@ -270,6 +270,10 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
 
+Context-menu action groups use sibling `menu-section` surfaces. Let the
+`ContextMenu` gap separate those surfaces; never draw a hairline divider inside
+a `menu-section`, because it conflicts with the standard surface-gap separator.
+
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.
