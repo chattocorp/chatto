@@ -10,7 +10,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
   import { commonmarkLanguage, markdown } from '@codemirror/lang-markdown';
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
-  import { EditorView, keymap, placeholder as editorPlaceholder } from '@codemirror/view';
+  import {
+    drawSelection,
+    EditorView,
+    keymap,
+    placeholder as editorPlaceholder
+  } from '@codemirror/view';
   import { tags } from '@lezer/highlight';
   import { Autolink, Table } from '@lezer/markdown';
   import { m } from '$lib/i18n/messages';
@@ -69,15 +74,45 @@ the same API as the visual editor while keeping the stored Markdown visible.
       padding: '0.25rem 0',
       caretColor: 'var(--color-text)'
     },
+    '.cm-cursor, .cm-dropCursor': {
+      borderLeftColor: 'var(--color-text)'
+    },
     '.cm-line': { padding: '0' },
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
-    '.cm-code-fence-line': {
+    '.cm-code-fence': {
+      boxSizing: 'border-box',
+      backgroundColor:
+        'color-mix(in srgb, var(--color-surface-emphasized) 68%, transparent)',
+      paddingInline: '0.5rem'
+    },
+    '.cm-code-fence-open': {
+      marginTop: '0.25rem',
+      borderStartStartRadius: '0.375rem',
+      borderStartEndRadius: '0.375rem',
+      paddingTop: '0.2rem',
+      color: 'var(--color-muted)'
+    },
+    '.cm-code-fence-body': {
       fontFamily: 'var(--font-mono)',
       direction: 'ltr',
-      unicodeBidi: 'isolate'
+      unicodeBidi: 'isolate',
+      color: 'var(--composer-code-text)'
     },
-    '&.cm-focused .cm-selectionBackground, .cm-selectionBackground, ::selection': {
-      backgroundColor: 'color-mix(in srgb, var(--color-action) 24%, transparent)'
+    '.cm-code-fence-body span': {
+      backgroundColor: 'transparent'
+    },
+    '.cm-code-fence-body span:not([class*="hljs-"])': {
+      color: 'inherit'
+    },
+    '.cm-code-fence-close': {
+      marginBottom: '0.25rem',
+      borderEndStartRadius: '0.375rem',
+      borderEndEndRadius: '0.375rem',
+      paddingBottom: '0.2rem',
+      color: 'var(--color-muted)'
+    },
+    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, ::selection': {
+      backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
     },
     '.hljs-comment, .hljs-quote': {
       color: 'var(--composer-code-comment)',
@@ -128,6 +163,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       state: EditorState.create({
         extensions: [
           history(),
+          drawSelection(),
           keymap.of([...historyKeymap, ...defaultKeymap]),
           markdown({
             base: commonmarkLanguage,

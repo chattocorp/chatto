@@ -77,6 +77,12 @@ describe('MarkdownEditor', () => {
     expect(getComputedStyle(content!).fontSize).toBe('16px');
     expect(getComputedStyle(content!).fontFamily.toLowerCase()).toContain('plex sans');
     await vi.waitFor(() => expect(container.querySelectorAll('.cm-line')).toHaveLength(2));
+
+    api.focus();
+    await vi.waitFor(() => expect(container.querySelector('.cm-cursor')).toBeTruthy());
+    expect(getComputedStyle(container.querySelector('.cm-cursor')!).borderLeftColor).toBe(
+      getComputedStyle(content!).color
+    );
   });
 
   it('highlights programming syntax inside labelled code fences', async () => {
@@ -90,9 +96,23 @@ describe('MarkdownEditor', () => {
     await vi.waitFor(() => expect(container.querySelector('.hljs-keyword')).toBeTruthy());
     expect(container.querySelector('.hljs-keyword')?.textContent).toBe('const');
     expect(container.querySelector('.hljs-string')?.textContent).toBe('"yes"');
-    expect(
-      getComputedStyle(container.querySelector('.hljs-keyword')!).fontFamily.toLowerCase()
-    ).toContain('plex mono');
+    expect(container.querySelector('.cm-code-fence-open')?.textContent).toBe('```js');
+    expect(container.querySelector('.cm-code-fence-body')?.textContent).toBe(
+      'const answer = "yes";'
+    );
+    expect(container.querySelector('.cm-code-fence-close')?.textContent).toBe('```');
+    const keyword = container.querySelector('.hljs-keyword')!;
+    const keywordText = keyword.querySelector('span')!;
+    expect(getComputedStyle(keyword).fontFamily.toLowerCase()).toContain('plex mono');
+    expect(getComputedStyle(keywordText).color).toBe(getComputedStyle(keyword).color);
+    expect(getComputedStyle(keywordText).backgroundColor).toBe('rgba(0, 0, 0, 0)');
+
+    readyApis[0]!.setContent('```js\nconst unfinished = true;');
+    await vi.waitFor(() => expect(container.querySelectorAll('.cm-code-fence-body')).toHaveLength(1));
+    expect(container.querySelector('.cm-code-fence-body')?.textContent).toBe(
+      'const unfinished = true;'
+    );
+    expect(container.querySelector('.cm-code-fence-close')).toBeNull();
   });
 
   it('fences stale APIs after destruction', async () => {

@@ -29,6 +29,9 @@ type CodeFence = {
   code: string;
   from: number;
   to: number;
+  blockFrom: number;
+  blockTo: number;
+  closed: boolean;
 };
 
 type HighlightSpan = {
@@ -77,7 +80,7 @@ function collectCodeFences(state: EditorState): CodeFence[] {
       if (node.name !== 'FencedCode') return;
       const languageNode = node.node.getChild('CodeInfo');
       const codeNode = node.node.getChild('CodeText');
-      if (!codeNode) return;
+      const codeMarks = node.node.getChildren('CodeMark');
 
       const language = languageNode
         ? normalizedLanguageToken(state.doc.sliceString(languageNode.from, languageNode.to))
@@ -85,9 +88,12 @@ function collectCodeFences(state: EditorState): CodeFence[] {
 
       fences.push({
         language: language && !plainTextLanguages.has(language) ? language : null,
-        code: state.doc.sliceString(codeNode.from, codeNode.to),
-        from: codeNode.from,
-        to: codeNode.to
+        code: codeNode ? state.doc.sliceString(codeNode.from, codeNode.to) : '',
+        from: codeNode?.from ?? node.to,
+        to: codeNode?.to ?? node.to,
+        blockFrom: node.from,
+        blockTo: node.to,
+        closed: codeMarks.length > 1
       });
     }
   });
@@ -98,12 +104,17 @@ function collectCodeFences(state: EditorState): CodeFence[] {
 function codeBodyDecorations(state: EditorState): DecorationSet {
   const ranges: Range<Decoration>[] = [];
   for (const fence of collectCodeFences(state)) {
-    if (fence.from === fence.to) continue;
-    const firstLine = state.doc.lineAt(fence.from).number;
-    const lastLine = state.doc.lineAt(fence.to).number;
+    const firstLine = state.doc.lineAt(fence.blockFrom).number;
+    const lastLine = state.doc.lineAt(fence.blockTo).number;
     for (let lineNumber = firstLine; lineNumber <= lastLine; lineNumber += 1) {
+      const classes = ['cm-code-fence'];
+      if (lineNumber === firstLine) classes.push('cm-code-fence-open');
+      if (fence.closed && lineNumber === lastLine) classes.push('cm-code-fence-close');
+      if (lineNumber > firstLine && (!fence.closed || lineNumber < lastLine)) {
+        classes.push('cm-code-fence-body');
+      }
       ranges.push(
-        Decoration.line({ class: 'cm-code-fence-line' }).range(state.doc.line(lineNumber).from)
+        Decoration.line({ class: classes.join(' ') }).range(state.doc.line(lineNumber).from)
       );
     }
   }
