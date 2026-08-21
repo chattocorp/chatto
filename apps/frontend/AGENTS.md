@@ -223,6 +223,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   responses cannot update the next resource's form state.
 - Send sparse patches from settings forms: omit unchanged fields so stale form
   values cannot overwrite concurrent updates or emit misleading durable facts.
+- When an interactive edit returns an OCC conflict, do not retry it silently or
+  replace the user's draft. Keep the form state and show a localized,
+  actionable conflict message explaining that the resource changed and must be
+  reloaded before saving again.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until
