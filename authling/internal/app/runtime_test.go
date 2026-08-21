@@ -21,6 +21,7 @@ import (
 	"github.com/go-jose/go-jose/v4/jwt"
 	"github.com/nats-io/nats.go/jetstream"
 	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/emailchange"
@@ -164,7 +165,7 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	handler := web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration, Sessions: runtime.Sessions, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
+	handler := web.Handler(web.Dependencies{Accounts: runtime.Accounts, Authentication: runtime.Authentication, Registration: runtime.Registration, Sessions: runtime.Sessions, Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault()})
 
 	discovery := requestHandler(t, handler, http.MethodGet, "http://localhost:8080/.well-known/openid-configuration", "", nil)
 	if discovery.Code != http.StatusOK || !strings.Contains(discovery.Body.String(), `"issuer":"http://localhost:8080"`) {
@@ -230,6 +231,211 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 	}
 	if successes != 1 || rejected != 1 {
 		t.Fatalf("concurrent code redemption successes/rejections = %d/%d, want 1/1", successes, rejected)
+	}
+}
+
+func TestOIDCAuthorizationGrantsReuseConsentAndRevokeFutureAccess(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	cfg.OIDC.Clients = []config.OIDCClientConfig{{ID: "test-client", Name: "Test Client", RedirectURIs: []string{"http://localhost:9999/callback"}}}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "oidc@example.com", "a deliberately uncommon password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{
+		Accounts: runtime.Accounts, Authentication: runtime.Authentication, Sessions: runtime.Sessions,
+		Authorizations: runtime.Authorizations, OIDC: runtime.OIDC, PublicURL: cfg.HTTP.PublicURLOrDefault(),
+	})
+	login := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+		"email": {"oidc@example.com"}, "password": {"a deliberately uncommon password"},
+	}.Encode(), nil)
+	if login.Code != http.StatusSeeOther || len(login.Result().Cookies()) != 1 {
+		t.Fatalf("login status/cookies/body = %d %d %s", login.Code, len(login.Result().Cookies()), login.Body.String())
+	}
+	cookie := login.Result().Cookies()[0]
+
+	start := func(prompt string) string {
+		t.Helper()
+		query := url.Values{
+			"client_id": {"test-client"}, "redirect_uri": {"http://localhost:9999/callback"},
+			"response_type": {"code"}, "scope": {"openid"}, "state": {"state-value"},
+			"nonce": {"nonce-value"}, "code_challenge": {"7w_YNF9DSfIdPf_pRjSq646_kPr-2-o9NAl16JGghdM"},
+			"code_challenge_method": {"S256"},
+		}
+		if prompt != "" {
+			query.Set("prompt", prompt)
+		}
+		response := requestHandler(t, handler, http.MethodGet, "/oauth/authorize?"+query.Encode(), "", cookie)
+		location := response.Header().Get("Location")
+		if response.Code < 300 || response.Code >= 400 || !strings.HasPrefix(location, "/oidc/consent?id=") {
+			t.Fatalf("authorization start status/location/body = %d %q %s", response.Code, location, response.Body.String())
+		}
+		return location
+	}
+	finishCallback := func(target string) string {
+		t.Helper()
+		callback := requestHandler(t, handler, http.MethodGet, target, "", cookie)
+		redirect, err := url.Parse(callback.Header().Get("Location"))
+		if err != nil || redirect.Query().Get("code") == "" {
+			t.Fatalf("authorization callback status/location/body = %d %q %s", callback.Code, callback.Header().Get("Location"), callback.Body.String())
+		}
+		return redirect.Query().Get("code")
+	}
+
+	firstLocation := start("")
+	firstPage := requestHandler(t, handler, http.MethodGet, firstLocation, "", cookie)
+	if firstPage.Code != http.StatusOK || !strings.Contains(firstPage.Body.String(), "Authorize Test Client?") {
+		t.Fatalf("first consent status/body = %d %s", firstPage.Code, firstPage.Body.String())
+	}
+	firstURL, _ := url.Parse(firstLocation)
+	allow := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
+		"id": {firstURL.Query().Get("id")}, "decision": {"allow"},
+	}.Encode(), cookie)
+	if allow.Code != http.StatusSeeOther {
+		t.Fatalf("allow status/body = %d %s", allow.Code, allow.Body.String())
+	}
+	code := finishCallback(allow.Header().Get("Location"))
+	tokenResponse := redeemCode(t, handler, code, strings.Repeat("v", 43))
+	if tokenResponse.Code != http.StatusOK {
+		t.Fatalf("token status/body = %d %s", tokenResponse.Code, tokenResponse.Body.String())
+	}
+	var tokens struct {
+		AccessToken string `json:"access_token"`
+	}
+	if err := json.Unmarshal(tokenResponse.Body.Bytes(), &tokens); err != nil || tokens.AccessToken == "" {
+		t.Fatalf("decode token response: %v, %+v", err, tokens)
+	}
+
+	grants, err := runtime.Authorizations.List(testContext(t), account.ID)
+	if err != nil || len(grants) != 1 || grants[0].ClientName != "Test Client" {
+		t.Fatalf("active grants = %+v, %v", grants, err)
+	}
+	accountPage := requestHandler(t, handler, http.MethodGet, "/account", "", cookie)
+	if accountPage.Code != http.StatusOK || !strings.Contains(accountPage.Body.String(), "Authorized apps") || !strings.Contains(accountPage.Body.String(), "Test Client") {
+		t.Fatalf("account authorized apps status/body = %d %s", accountPage.Code, accountPage.Body.String())
+	}
+
+	repeat := requestHandler(t, handler, http.MethodGet, start(""), "", cookie)
+	if repeat.Code != http.StatusSeeOther || !strings.HasPrefix(repeat.Header().Get("Location"), "/oauth/authorize/callback?") {
+		t.Fatalf("repeat consent status/location/body = %d %q %s", repeat.Code, repeat.Header().Get("Location"), repeat.Body.String())
+	}
+	_ = finishCallback(repeat.Header().Get("Location"))
+
+	forced := requestHandler(t, handler, http.MethodGet, start("consent"), "", cookie)
+	if forced.Code != http.StatusOK || !strings.Contains(forced.Body.String(), "Authorize Test Client?") {
+		t.Fatalf("forced consent status/body = %d %s", forced.Code, forced.Body.String())
+	}
+
+	forgedRequest := httptest.NewRequest(http.MethodPost, "http://localhost:8080/account/authorizations/revoke", strings.NewReader(url.Values{"grant_id": {grants[0].ID}}.Encode()))
+	forgedRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	forgedRequest.Header.Set("Origin", "https://evil.example")
+	forgedRequest.AddCookie(cookie)
+	forged := httptest.NewRecorder()
+	handler.ServeHTTP(forged, forgedRequest)
+	if forged.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin grant revoke status = %d, want forbidden", forged.Code)
+	}
+	other, err := runtime.Accounts.Create(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := runtime.Authorizations.Revoke(testContext(t), other.ID, grants[0].ID); !errors.Is(err, authorizations.ErrNotFound) {
+		t.Fatalf("cross-account grant revoke error = %v, want not found", err)
+	}
+
+	revoke := requestHandler(t, handler, http.MethodPost, "/account/authorizations/revoke", url.Values{"grant_id": {grants[0].ID}}.Encode(), cookie)
+	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account?app_revoked=1" {
+		t.Fatalf("grant revoke status/location/body = %d %q %s", revoke.Code, revoke.Header().Get("Location"), revoke.Body.String())
+	}
+	if remaining, err := runtime.Authorizations.List(testContext(t), account.ID); err != nil || len(remaining) != 0 {
+		t.Fatalf("grants after revoke = %+v, %v", remaining, err)
+	}
+
+	userinfoRequest := httptest.NewRequest(http.MethodGet, "http://localhost:8080/oauth/userinfo", nil)
+	userinfoRequest.Header.Set("Authorization", "Bearer "+tokens.AccessToken)
+	userinfo := httptest.NewRecorder()
+	handler.ServeHTTP(userinfo, userinfoRequest)
+	if userinfo.Code != http.StatusOK || !strings.Contains(userinfo.Body.String(), `"sub":"`+account.ID+`"`) {
+		t.Fatalf("userinfo after grant revoke status/body = %d %s", userinfo.Code, userinfo.Body.String())
+	}
+	afterRevokeLocation := start("")
+	afterRevoke := requestHandler(t, handler, http.MethodGet, afterRevokeLocation, "", cookie)
+	if afterRevoke.Code != http.StatusOK || !strings.Contains(afterRevoke.Body.String(), "Authorize Test Client?") {
+		t.Fatalf("consent after revoke status/body = %d %s", afterRevoke.Code, afterRevoke.Body.String())
+	}
+	afterRevokeURL, _ := url.Parse(afterRevokeLocation)
+	reauthorize := requestHandler(t, handler, http.MethodPost, "/oidc/consent", url.Values{
+		"id": {afterRevokeURL.Query().Get("id")}, "decision": {"allow"},
+	}.Encode(), cookie)
+	if reauthorize.Code != http.StatusSeeOther {
+		t.Fatalf("reauthorization status/body = %d %s", reauthorize.Code, reauthorize.Body.String())
+	}
+	reauthorizedGrants, err := runtime.Authorizations.List(testContext(t), account.ID)
+	if err != nil || len(reauthorizedGrants) != 1 || reauthorizedGrants[0].ID == grants[0].ID {
+		t.Fatalf("reauthorized grants = %+v, %v; want a fresh generation", reauthorizedGrants, err)
+	}
+}
+
+func TestOIDCAuthorizationGrantsReplayAfterRestart(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	first, cancelFirst, firstErrors := startTestRuntime(t, cfg)
+	account, err := first.Accounts.Create(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	grant, err := first.Authorizations.Authorize(testContext(t), account.ID, authorizations.Client{
+		ID: "client-one", Name: "Client One", Host: "client.example",
+	}, []string{"openid"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stopTestRuntime(t, first, cancelFirst, firstErrors)
+
+	restarted, cancelRestarted, restartedErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, restarted, cancelRestarted, restartedErrors)
+	grants, err := restarted.Authorizations.List(testContext(t), account.ID)
+	if err != nil || len(grants) != 1 || grants[0].ID != grant.ID || grants[0].AuthorizationEventID != grant.AuthorizationEventID {
+		t.Fatalf("replayed grants = %+v, %v; want %+v", grants, err, grant)
+	}
+	if _, ok := restarted.Accounts.Get(account.ID); !ok {
+		t.Fatal("account projection failed to replay authorization events")
+	}
+}
+
+func TestConcurrentOIDCAuthorizationsShareOneGrantGeneration(t *testing.T) {
+	runtime, cancel, runErrors := startTestRuntime(t, embeddedTestConfig(t))
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	account, err := runtime.Accounts.Create(testContext(t))
+	if err != nil {
+		t.Fatal(err)
+	}
+	client := authorizations.Client{ID: "client-one", Name: "Client One", Host: "client.example"}
+	start := make(chan struct{})
+	results := make(chan authorizations.Grant, 2)
+	errors := make(chan error, 2)
+	for range 2 {
+		go func() {
+			<-start
+			grant, err := runtime.Authorizations.Authorize(t.Context(), account.ID, client, []string{"openid"})
+			results <- grant
+			errors <- err
+		}()
+	}
+	close(start)
+	first, second := <-results, <-results
+	for range 2 {
+		if err := <-errors; err != nil {
+			t.Fatalf("concurrent authorization: %v", err)
+		}
+	}
+	if first.ID == "" || first.ID != second.ID {
+		t.Fatalf("concurrent grants = %+v and %+v", first, second)
+	}
+	grants, err := runtime.Authorizations.List(testContext(t), account.ID)
+	if err != nil || len(grants) != 1 || grants[0].ID != first.ID {
+		t.Fatalf("active grants after concurrent authorization = %+v, %v", grants, err)
 	}
 }
 

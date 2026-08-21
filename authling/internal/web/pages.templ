@@ -5,6 +5,7 @@ import (
 	"strconv"
 	"time"
 	"hmans.de/authling/internal/accounts"
+	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/oidcprovider"
 	"hmans.de/authling/internal/sessions"
 )
@@ -115,7 +116,7 @@ templ passwordResetCodePage(flow, message, oidcRequest string) {
 			if oidcRequest != "" {
 				<input type="hidden" name="oidc_request" value={ oidcRequest }/>
 			}
-			<label class="block"><span class="font-medium">Password reset code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" autofocus required/></span></label>
+			<label class="block"><span class="font-medium">Password reset code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
 			<button class="button button-primary w-full" type="submit">Verify code</button>
 		</form>
 	}
@@ -171,7 +172,7 @@ templ emailChangeCodePage(flow, message, signedInAs string) {
 		}
 		<form class="mt-8 space-y-5" method="post" action="/account/email/verify">
 			<input type="hidden" name="flow" value={ flow }/>
-			<label class="block"><span class="font-medium">Email change code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" autofocus required/></span></label>
+			<label class="block"><span class="font-medium">Email change code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
 			<button class="button button-primary w-full" type="submit">Verify code</button>
 		</form>
 	}
@@ -232,7 +233,7 @@ templ codePage(flow, message string) {
 		}
 		<form class="mt-8 space-y-5" method="post" action="/signup/verify">
 			<input type="hidden" name="flow" value={ flow }/>
-			<label class="block"><span class="font-medium">Verification code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" maxlength="6" autofocus required/></span></label>
+			<label class="block"><span class="font-medium">Verification code</span><span class="otp-code mt-2"><span class="otp-code-boxes" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class="otp-code-input" type="text" name="code" inputmode="numeric" pattern="[0-9]{6}" autocomplete="one-time-code" data-1p-ignore="true" maxlength="6" autofocus required/></span></label>
 			<button class="button button-primary w-full" type="submit">Verify email</button>
 		</form>
 	}
@@ -263,7 +264,7 @@ templ accountCreatedPage(accountID string) {
 	}
 }
 
-templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, passwordChanged, emailChanged, profileUpdated, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing bool) {
+templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, authorizationGrants []authorizations.Grant, passwordChanged, emailChanged, profileUpdated, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing, appRevoked, appMissing bool) {
 	@layout("Your Authling account", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
@@ -288,6 +289,12 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		if sessionMissing {
 			<p role="status" class="notice notice-neutral">That browser session is no longer active.</p>
 		}
+		if appRevoked {
+			<p role="status" class="notice notice-success">The app’s authorization was revoked. It must ask for access again in a future authorization flow.</p>
+		}
+		if appMissing {
+			<p role="status" class="notice notice-neutral">That app is no longer authorized.</p>
+		}
 		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
 		<a class="button button-secondary mt-8 w-full" href="/account/profile">Edit profile</a>
 		<a class="button button-secondary mt-3 w-full" href="/account/email">Change email address</a>
@@ -295,6 +302,31 @@ templ accountPage(accountID, signedInAs string, browserSessions []sessions.Brows
 		<form class="mt-3" method="post" action="/logout">
 			<button class="button button-secondary w-full" type="submit">Sign out</button>
 		</form>
+		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
+			<h2 class="text-xl font-semibold tracking-tight">Authorized apps</h2>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Apps you allowed to know your stable Authling account identifier. Revoking an app makes it ask again next time; existing app sessions and issued tokens are not ended here.</p>
+			if len(authorizationGrants) == 0 {
+				<p class="mt-5 rounded-2xl border border-slate-200 p-4 text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">You haven’t authorized any apps yet.</p>
+			} else {
+				<div class="mt-5 space-y-3">
+					for _, grant := range authorizationGrants {
+						<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+							<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+								<div class="min-w-0">
+									<p class="font-semibold">{ grant.ClientName }</p>
+									<p class="mt-1 break-words text-sm text-slate-500 dark:text-slate-400">{ grant.ClientHost }</p>
+									<p class="mt-2 text-sm text-slate-500 dark:text-slate-400">Authorized { formatSessionTime(grant.AuthorizedAt) }</p>
+								</div>
+								<form class="w-full sm:w-auto" method="post" action="/account/authorizations/revoke">
+									<input type="hidden" name="grant_id" value={ grant.ID }/>
+									<button class="button button-danger button-compact w-full whitespace-nowrap sm:w-auto" type="submit">Revoke access</button>
+								</form>
+							</div>
+						</div>
+					}
+				</div>
+			}
+		</div>
 		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
 			<h2 class="text-xl font-semibold tracking-tight">Browser sessions</h2>
 			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Review where your account is signed in. Authling does not store browser names, IP addresses, or locations.</p>

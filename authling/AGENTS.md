@@ -43,8 +43,9 @@ to its own repository.
 - The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
   sessions and session management, password reset, signed-in password change,
-  verified email change, and logout. It provides the narrow OpenID Connect
-  surface recorded in FDR-004. It has no public
+  verified email change, and logout. It provides durable exact-client OIDC
+  authorization grants and the narrow OpenID Connect surface recorded in
+  FDR-004 and FDR-010. It has no public
   account-management, application-data, document, or synchronization API. Do
   not document other planned identity-provider behavior as implemented.
 

@@ -11,9 +11,9 @@ store, or a user's home server.
 
 **Account** — Authling's opaque aggregate for one user identity. Its account ID
 is the stable OpenID Connect subject (`sub`) exposed to authorized clients. A local
-account may have an encrypted, verified email/password credential and one or
-more independent browser sessions. Accounts do not yet have profile data or
-OIDC grants.
+account may have an encrypted, verified email/password credential, one or more
+independent browser sessions, and durable OIDC authorization grants. Accounts
+do not yet have profile data.
 
 **Local credential** — An Authling login method based on a verified normalized
 email address and an Argon2id password verifier. Both values are retained only
@@ -56,6 +56,17 @@ an identity migration, not an ordinary listener reconfiguration.
 **Relying party** — An application that asks Authling to authenticate an
 account through OpenID Connect. Its individual protocol identity is an OIDC
 client.
+
+**OIDC client** — One exact protocol identity identified by `client_id` and
+validated from Authling configuration or a CIMD document. Authling initially
+treats every client ID as a separate account-facing application; a future
+relying-party identity may deliberately group multiple clients.
+
+**Authorization grant** — A durable, account-owned authorization for one exact
+OIDC client and scope set. It lets a covered future request skip repeated
+consent and can be revoked independently of Authling browser sessions. Grant
+revocation does not enumerate or terminate already issued short-lived tokens
+or the relying party's own sessions.
 
 **Client ID Metadata Document (CIMD)** — An HTTPS JSON document whose URL is
 also a public OIDC client's identifier. Authling uses CIMD for automatic,

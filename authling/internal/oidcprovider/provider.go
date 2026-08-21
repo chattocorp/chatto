@@ -14,6 +14,7 @@ import (
 	"github.com/rs/cors"
 	liboidc "github.com/zitadel/oidc/v3/pkg/oidc"
 	"github.com/zitadel/oidc/v3/pkg/op"
+	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/issuer"
 )
@@ -22,6 +23,7 @@ import (
 type Service struct {
 	issuer  *issuer.Service
 	storage *Storage
+	grants  *authorizations.Service
 	cfg     config.Config
 
 	mu       sync.RWMutex
@@ -30,8 +32,8 @@ type Service struct {
 }
 
 // New constructs the provider boundary. Initialize must run after issuer initialization.
-func New(cfg config.Config, issuerService *issuer.Service, storage *Storage) *Service {
-	return &Service{cfg: cfg, issuer: issuerService, storage: storage}
+func New(cfg config.Config, issuerService *issuer.Service, storage *Storage, grants *authorizations.Service) *Service {
+	return &Service{cfg: cfg, issuer: issuerService, storage: storage, grants: grants}
 }
 
 // Initialize constructs the protocol engine using the durable issuer identity.
@@ -93,9 +95,49 @@ func (s *Service) Consent(ctx context.Context, id string) (ConsentRequest, error
 
 // Authorize approves a pending request for the authenticated account and returns the provider callback.
 func (s *Service) Authorize(ctx context.Context, id, accountID string) (string, error) {
+	consent, err := s.storage.Consent(ctx, id)
+	if err != nil {
+		return "", err
+	}
+	if s.grants == nil {
+		return "", fmt.Errorf("OIDC authorization grants unavailable")
+	}
+	if _, err := s.grants.Authorize(ctx, accountID, authorizations.Client{
+		ID: consent.ClientID, Name: consent.ClientName, Host: consent.ClientHost,
+	}, consent.Scopes); err != nil {
+		return "", err
+	}
 	if err := s.storage.Authorize(ctx, id, accountID); err != nil {
 		return "", err
 	}
+	return s.callback(ctx, id)
+}
+
+// TryAuthorize approves a pending request from an existing durable grant.
+// prompt=consent always returns false so the browser sees explicit consent.
+func (s *Service) TryAuthorize(ctx context.Context, id, accountID string) (string, bool, error) {
+	consent, err := s.storage.Consent(ctx, id)
+	if err != nil {
+		return "", false, err
+	}
+	if consent.ForceConsent || s.grants == nil {
+		return "", false, nil
+	}
+	covered, err := s.grants.Covers(ctx, accountID, consent.ClientID, consent.Scopes)
+	if err != nil {
+		return "", false, err
+	}
+	if !covered {
+		return "", false, nil
+	}
+	if err := s.storage.Authorize(ctx, id, accountID); err != nil {
+		return "", false, err
+	}
+	target, err := s.callback(ctx, id)
+	return target, err == nil, err
+}
+
+func (s *Service) callback(ctx context.Context, id string) (string, error) {
 	s.mu.RLock()
 	provider := s.provider
 	s.mu.RUnlock()
@@ -199,7 +241,7 @@ func validateAuthorizeRequest(r *http.Request) error {
 		return fmt.Errorf("authorization query is too large")
 	}
 	query := r.URL.Query()
-	for _, name := range []string{"client_id", "redirect_uri", "response_type", "scope", "code_challenge", "code_challenge_method", "state", "nonce"} {
+	for _, name := range []string{"client_id", "redirect_uri", "response_type", "scope", "code_challenge", "code_challenge_method", "state", "nonce", "prompt"} {
 		if len(query[name]) > 1 {
 			return fmt.Errorf("duplicate parameter")
 		}

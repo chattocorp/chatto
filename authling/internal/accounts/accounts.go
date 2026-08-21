@@ -187,6 +187,11 @@ func (*Projection) Subjects() []string {
 
 // Apply adds one durable account fact to the in-memory registry.
 func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
+	if event.GetOidcGrantAuthorized() != nil || event.GetOidcGrantRevoked() != nil {
+		// Authorization grants share the account aggregate for ordering but are
+		// materialized by their own product projection.
+		return nil
+	}
 	if updated := event.GetProfileUpdated(); updated != nil {
 		if updated.GetProfileEnvelopeVersion() != 1 {
 			return fmt.Errorf("unsupported profile envelope")

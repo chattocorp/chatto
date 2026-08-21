@@ -1,4 +1,4 @@
-# FDR-010: Account Profile
+# FDR-011: Account Profile
 
 **Status:** Experimental
 **Last reviewed:** 2026-08-21
