@@ -1,5 +1,11 @@
 import { test, expect } from './setup';
 import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  connectRemoteInstance,
+  createUserOnRemote,
+  startSecondServer,
+  stopSecondServer
+} from './fixtures/multiServer';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
@@ -69,6 +75,36 @@ test.describe('User Settings - Preferences', () => {
 
     await page.reload();
     await expect(markdown).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('uses the same composer editor preference on a connected server', async ({
+    page,
+    chatPage
+  }, testInfo) => {
+    const remoteServer = await startSecondServer(testInfo);
+    try {
+      await createAndLoginTestUser(page);
+      await page.goto(routes.settingsPreferences);
+      await page.getByRole('radio', { name: /^Markdown/ }).click();
+      await chatPage.goto();
+
+      const baseURL = remoteServer.baseURL.replace('localhost', '127.0.0.1');
+      const remoteUser = await createUserOnRemote(
+        baseURL,
+        'remote-editor-preference',
+        'password123'
+      );
+      await connectRemoteInstance(page, { ...remoteServer, baseURL }, remoteUser.userId);
+
+      await page.getByTitle('User Settings').click();
+      await page.getByRole('link', { name: 'Preferences' }).click();
+      await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      );
+    } finally {
+      await stopSecondServer(remoteServer, testInfo);
+    }
   });
 
   test('can choose and persist a regional locale', async ({ page }) => {
