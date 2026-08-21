@@ -16,6 +16,14 @@ url = "https://mailpit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 name = "LiveKit"
 url = "https://livekit.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
+[[preview_urls]]
+name = "Storybook"
+url = "https://storybook.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
+[[preview_urls]]
+name = "Docs website"
+url = "https://docs.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
+
 [scripts]
 setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
 run_mode = "concurrent"
@@ -25,6 +33,16 @@ command = "exec mise dev"
 available_in = [ "local" ]
 default = true
 icon = "network"
+
+[scripts.run.storybook]
+command = "exec mise storybook"
+available_in = [ "local" ]
+icon = "component"
+
+[scripts.run.docs_website]
+command = "exec mise dev-docs-website"
+available_in = [ "local" ]
+icon = "book-open"
 
 [prompts]
 create_pr = "Create a full GitHub pull request for the current branch, not a draft PR."

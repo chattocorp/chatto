@@ -37,6 +37,13 @@ Mailpit, and LiveKit as `<service>.<workspace>.localhost` on shared proxy port
 `42444`.
 Portless owns a route for exactly as long as its child process runs.
 
+The standalone `mise storybook` and `mise dev-docs-website` tasks use the same
+proxy and expose `storybook.<workspace>.localhost` and
+`docs.<workspace>.localhost`, respectively. Portless assigns their loopback
+listener ports dynamically so both tasks can run alongside the regular stack
+without competing for its Conductor port block. Conductor provides separate run
+actions and preview links for both routes.
+
 The application listeners retain ADR-075's Conductor port layout. With
 `CONDUCTOR_PORT` as the base, Vite uses the base port, the Chatto backend uses
 `+1`, Authling uses `+2`, Chatto's embedded NATS uses `+4`, LiveKit uses `+5`
@@ -71,8 +78,9 @@ artifacts while removing Pitchfork.
 - Concurrent workspaces keep separate listener ports, state, HTTPS origins,
   and Portless child registrations while sharing Portless's lightweight HTTPS
   proxy.
-- Development URLs use the Conductor workspace name and port `42444`, allowing
-  `.conductor/settings.toml` to provide working preview links.
+- Development, Storybook, and docs website URLs use the Conductor workspace
+  name and port `42444`, allowing `.conductor/settings.toml` to provide working
+  preview links.
 - Developers may need to trust Portless's CA interactively on first use.
 - Backend and Authling changes temporarily require restarting the stack until
   a simpler watch-and-rebuild mechanism is selected.
