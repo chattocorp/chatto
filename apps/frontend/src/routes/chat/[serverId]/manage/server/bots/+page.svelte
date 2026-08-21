@@ -361,13 +361,15 @@
 <Dialog
   bind:visible={apiKeyVisible}
   title={m('settings.bots.api_key_title')}
-  size="md"
+  size="lg"
   onclose={closeAPIKey}
 >
   <div class="flex flex-col gap-4">
     <Hint tone="warning">{m('settings.bots.api_key_warning')}</Hint>
     <div class="flex items-center gap-3 surface-box p-3">
-      <code class="min-w-0 flex-1 text-sm break-all select-all">{apiKey}</code>
+      <code class="min-w-0 flex-1 overflow-x-auto text-sm whitespace-nowrap select-all"
+        >{apiKey}</code
+      >
       <Button size="sm" variant="secondary" onclick={copyAPIKey}>
         <span class="iconify icon-[uil--copy]" aria-hidden="true"></span>
         {m('common.copy_to_clipboard')}
