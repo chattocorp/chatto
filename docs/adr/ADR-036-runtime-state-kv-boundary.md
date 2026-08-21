@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-21
 
 ## Context
 
@@ -71,15 +71,6 @@ Current occupants include:
   `cookie`), source, safe request metadata, fresh-auth metadata, and the user
   auth generation they were issued against. User-wide cleanup scans these
   records and deletes entries whose stored user ID matches.
-- Legacy embedded-SPA cookie-session records:
-  `cookie_session.{userId}.{sessionHmac}`. Current code no longer writes this
-  shape, and the keyspace is deprecated. Chatto still validates and cleans it up
-  during the typed runtime credential rollout so upgrades do not invalidate
-  existing sessions. The value is a `CookieSession` protobuf containing
-  `user_id`, `created_at`, `expires_at`, source, safe request metadata, and the
-  user auth generation it was issued against. Remove this compatibility path
-  after existing sessions have exceeded the configured auth token TTL or after a
-  documented pre-1.0 compatibility cutoff.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,

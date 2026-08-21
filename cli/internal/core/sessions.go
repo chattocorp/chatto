@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
@@ -20,24 +19,8 @@ var (
 	ErrCookieSessionNotFound = errors.New("cookie session not found")
 )
 
-// cookieSessionKeyPrefix is the legacy KV key prefix for protobuf-backed
-// browser cookie sessions.
-//
-// Deprecated: current login flows write cookie-presentation runtime credentials
-// to session.{hmac}. Keep this prefix readable/deletable only until legacy
-// sessions have exceeded the configured auth token TTL after rollout.
-const cookieSessionKeyPrefix = "cookie_session."
-
 func (c *ChattoCore) cookieSessionTTL() time.Duration {
 	return c.authTokenTTL()
-}
-
-func cookieSessionUserKeyFilter(userID string) string {
-	return cookieSessionKeyPrefix + userID + ".*"
-}
-
-func (c *ChattoCore) cookieSessionKey(userID, sessionID string) string {
-	return c.runtimeTokenKey(cookieSessionKeyPrefix+userID+".", sessionID)
 }
 
 // CreateCookieSession creates a first-party runtime credential for same-origin
@@ -119,35 +102,14 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 	return sessionID, c.cookieSessionRecordFromAuthTokenData(tokenData), nil
 }
 
-// ValidateCookieSession validates a cookie-backed server-side session and
-// returns its runtime-state record. Callers must still load the current user
-// projection before authenticating the request.
-func (c *ChattoCore) ValidateCookieSession(ctx context.Context, userID, sessionID string) (*corev1.CookieSession, error) {
-	if userID == "" || sessionID == "" {
-		return nil, ErrCookieSessionNotFound
-	}
-
-	if record, err := c.validateTokenBackedCookieSession(ctx, userID, sessionID); err == nil {
-		return record, nil
-	} else if !errors.Is(err, ErrCookieSessionNotFound) {
-		return nil, err
-	}
-
-	return c.validateLegacyCookieSession(ctx, userID, sessionID)
-}
-
 // ValidateCookieCredential validates a typed cookie-presentation runtime
-// credential. Unlike deprecated cookie_session.* records, typed credentials
-// carry their user ID in the runtime-state record, so callers do not need to
-// trust or duplicate the user ID in the signed browser cookie.
+// credential. The credential carries its user ID in the runtime-state record,
+// so callers do not need to trust or duplicate a user ID in the signed browser
+// cookie.
 func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID string) (*corev1.CookieSession, error) {
 	if sessionID == "" {
 		return nil, ErrCookieSessionNotFound
 	}
-	return c.validateTokenBackedCookieSession(ctx, "", sessionID)
-}
-
-func (c *ChattoCore) validateTokenBackedCookieSession(ctx context.Context, userID, sessionID string) (*corev1.CookieSession, error) {
 	credential, err := c.ValidatePresentedRuntimeCredential(ctx, sessionID, AuthTokenPresentationCookie)
 	if err != nil {
 		if errors.Is(err, ErrAuthTokenNotFound) {
@@ -158,66 +120,8 @@ func (c *ChattoCore) validateTokenBackedCookieSession(ctx context.Context, userI
 	if credential.CreatedAt.IsZero() || credential.Kind != AuthTokenKindFirstPartySession {
 		return nil, ErrCookieSessionNotFound
 	}
-	if userID != "" && credential.UserID != userID {
-		return nil, ErrCookieSessionNotFound
-	}
 
 	return c.cookieSessionRecordFromValidatedCredential(credential), nil
-}
-
-// validateLegacyCookieSession reads cookie_session.* records created before
-// cookie sessions moved to typed session.{hmac} runtime credentials.
-//
-// Deprecated: this exists only to avoid signing users out during the migration
-// window. Remove with cookieSessionKeyPrefix after the compatibility cutoff.
-func (c *ChattoCore) validateLegacyCookieSession(ctx context.Context, userID, sessionID string) (*corev1.CookieSession, error) {
-	key := c.cookieSessionKey(userID, sessionID)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return nil, ErrCookieSessionNotFound
-		}
-		return nil, fmt.Errorf("failed to get cookie session: %w", err)
-	}
-
-	var record corev1.CookieSession
-	if err := proto.Unmarshal(entry.Value(), &record); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	if record.GetUserId() != userID {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	if record.GetCreatedAt() == nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	expiresAtPB := record.GetExpiresAt()
-	if expiresAtPB == nil || !time.Now().Before(expiresAtPB.AsTime()) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         userID,
-		CreatedAt:      record.GetCreatedAt().AsTime(),
-		AuthGeneration: record.GetAuthGeneration(),
-	})
-	if err != nil {
-		if !errors.Is(err, ErrAuthenticationRevoked) {
-			return nil, err
-		}
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return nil, ErrCookieSessionNotFound
-	}
-	if validation.ShouldPersistAuthGeneration {
-		record.AuthGeneration = validation.AuthGeneration
-		if data, err := proto.Marshal(&record); err == nil {
-			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, data, entry.Revision(), time.Until(expiresAtPB.AsTime()))
-		}
-	}
-
-	return &record, nil
 }
 
 func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenData) *corev1.CookieSession {
@@ -241,22 +145,13 @@ func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential Valid
 	return record
 }
 
-// RevokeCookieSession deletes one cookie session. It is idempotent.
-// It deletes both current and deprecated legacy cookie-session storage shapes;
-// keep the legacy delete until validateLegacyCookieSession is removed.
-func (c *ChattoCore) RevokeCookieSession(ctx context.Context, userID, sessionID string) error {
+// RevokeCookieSession deletes one typed cookie session. It is idempotent.
+func (c *ChattoCore) RevokeCookieSession(ctx context.Context, sessionID string) error {
 	if sessionID == "" {
 		return nil
 	}
 	if err := c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(sessionID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return fmt.Errorf("failed to revoke cookie session token: %w", err)
-	}
-	if userID == "" {
-		return nil
-	}
-	err := c.storage.runtimeStateKV.Delete(ctx, c.cookieSessionKey(userID, sessionID))
-	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
-		return fmt.Errorf("failed to revoke cookie session: %w", err)
 	}
 	return nil
 }
@@ -307,28 +202,6 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 		}
 	}
 
-	lister, err := c.storage.runtimeStateKV.ListKeysFiltered(ctx, cookieSessionUserKeyFilter(userID))
-	if err != nil {
-		if errors.Is(err, jetstream.ErrNoKeysFound) {
-			return deleted, nil
-		}
-		return deleted, fmt.Errorf("failed to list cookie sessions: %w", err)
-	}
-
-	var keys []string
-	for key := range lister.Keys() {
-		keys = append(keys, key)
-	}
-
-	for _, key := range keys {
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-			if !errors.Is(err, jetstream.ErrKeyNotFound) {
-				c.logger.Warn("Failed to revoke cookie session", "key", key, "error", err)
-			}
-			continue
-		}
-		deleted++
-	}
 	return deleted, nil
 }
 

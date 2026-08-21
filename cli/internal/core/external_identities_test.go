@@ -461,8 +461,8 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("ValidateAuthToken after disconnect err = %v, want ErrAuthTokenNotFound", err)
 	}
-	if _, err := core.ValidateCookieSession(ctx, user.Id, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieSession after disconnect err = %v, want ErrCookieSessionNotFound", err)
+	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieCredential after disconnect err = %v, want ErrCookieSessionNotFound", err)
 	}
 	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)

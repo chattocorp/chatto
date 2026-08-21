@@ -154,11 +154,6 @@ func NewLinkPreviewToken() string {
 	return "cht_" + newID("LP")
 }
 
-// NewCookieSessionID generates a new opaque cookie session ID with "cht_CS" prefix.
-func NewCookieSessionID() string {
-	return "cht_" + newID("CS")
-}
-
 // NewAuthCode generates a new OAuth authorization code with "cht_AC" prefix.
 func NewAuthCode() string {
 	return "cht_" + newID("AC")

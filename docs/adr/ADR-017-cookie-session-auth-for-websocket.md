@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-01
 
+**Updated:** 2026-08-21
+
 ## Context
 
 Chatto's frontend is a browser SPA that communicates through HTTP APIs plus a realtime websocket. The WebSocket upgrade is an HTTP request, which means the browser automatically includes same-origin cookies.
@@ -15,7 +17,10 @@ Authentication approaches for WebSocket:
 
 Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
 
-**2026-06 update:** ADR-046 moved new cookie sessions onto typed runtime credentials. New signed browser sessions store only an opaque runtime credential handle; the user ID is loaded from the `session.{hmac}` runtime credential record. Legacy signed sessions that store `user_id` remain readable during the compatibility window.
+ADR-046 moved cookie sessions onto typed runtime credentials. Signed browser
+sessions store only an opaque runtime credential handle; the user ID is loaded
+from the `session.{hmac}` runtime credential record. Signed sessions without
+that typed handle are not authentication inputs.
 
 The realtime WebSocket handler reads the authenticated user from request context and creates connection-scoped state without inheriting request-local caches. The connection acknowledgement includes the server version for frontend upgrade detection.
 

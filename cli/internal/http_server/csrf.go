@@ -141,7 +141,7 @@ func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool, error) {
 }
 
 func hasCookieCredential(session sessions.Session) bool {
-	_, ok := cookieCredentialFromSession(session)
+	_, ok := cookieCredentialIDFromSession(session)
 	return ok
 }
 

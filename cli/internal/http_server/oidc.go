@@ -763,8 +763,8 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 	}
 	if err := s.ensureCSRFToken(c); err != nil {
 		session = sessions.Default(c)
-		cookieCredential, _ := cookieCredentialFromSession(session)
-		_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
+		cookieCredentialID, _ := cookieCredentialIDFromSession(session)
+		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
 		session.Clear()
 		_ = session.Save()
 		clearCSRFCookie(c)
@@ -772,8 +772,8 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 	}
 	if err := s.core.RecordLoginSucceeded(ctx, userID, providerConfig.Type+":"+providerConfig.ID); err != nil {
 		session = sessions.Default(c)
-		cookieCredential, _ := cookieCredentialFromSession(session)
-		_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
+		cookieCredentialID, _ := cookieCredentialIDFromSession(session)
+		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
 		session.Clear()
 		_ = session.Save()
 		clearCSRFCookie(c)
