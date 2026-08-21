@@ -11,6 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
@@ -57,11 +58,32 @@ type Service struct {
 	key                   []byte
 	now                   func() time.Time
 	authenticationVersion AuthenticationVersionResolver
+
+	inventoryMu        sync.RWMutex
+	inventoryStarted   bool
+	inventoryReady     chan struct{}
+	inventoryFailed    chan struct{}
+	inventoryErr       error
+	inventoryRevision  uint64
+	inventoryChanged   chan struct{}
+	inventoryByKey     map[string]inventoryEntry
+	inventoryByAccount map[string]map[string]struct{}
 }
 
 // New constructs the browser-session boundary.
 func New(kv jetstream.KeyValue, js jetstream.JetStream, key []byte, authenticationVersion AuthenticationVersionResolver) *Service {
-	return &Service{kv: kv, js: js, key: append([]byte(nil), key...), now: time.Now, authenticationVersion: authenticationVersion}
+	return &Service{
+		kv:                    kv,
+		js:                    js,
+		key:                   append([]byte(nil), key...),
+		now:                   time.Now,
+		authenticationVersion: authenticationVersion,
+		inventoryReady:        make(chan struct{}),
+		inventoryFailed:       make(chan struct{}),
+		inventoryChanged:      make(chan struct{}),
+		inventoryByKey:        make(map[string]inventoryEntry),
+		inventoryByAccount:    make(map[string]map[string]struct{}),
+	}
 }
 
 // Create starts a new authenticated browser session and returns its bearer
@@ -121,6 +143,12 @@ func (s *Service) create(ctx context.Context, accountID string, expectedVersion 
 			return "", Session{}, fmt.Errorf("create session while authentication generation changed")
 		}
 	}
+	if err := s.waitForInventoryRevision(ctx, revision); err != nil {
+		cleanupContext, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+		defer cancel()
+		_ = s.kv.Delete(cleanupContext, key, jetstream.LastRevision(revision))
+		return "", Session{}, fmt.Errorf("wait for session inventory: %w", err)
+	}
 	return token, state, nil
 }
 
@@ -170,7 +198,10 @@ func (s *Service) validate(ctx context.Context, token string, touch bool) (Sessi
 		if err != nil {
 			return Session{}, err
 		}
-		if _, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), remaining); err == nil {
+		if revision, err := storage.UpdateKeyWithTTL(ctx, s.js, storage.RuntimeStateBucket, key, data, entry.Revision(), remaining); err == nil {
+			if err := s.waitForInventoryRevision(ctx, revision); err != nil {
+				return Session{}, fmt.Errorf("wait for session inventory: %w", err)
+			}
 			return state, nil
 		}
 		// A concurrent request may have touched or revoked the session. Re-read
@@ -194,7 +225,11 @@ func (s *Service) Revoke(ctx context.Context, token string) error {
 		if err != nil {
 			return fmt.Errorf("read session for revocation: %w", err)
 		}
-		if err := s.kv.Delete(ctx, key, jetstream.LastRevision(entry.Revision())); err == nil {
+		revision, err := storage.DeleteKey(ctx, s.js, storage.RuntimeStateBucket, key, entry.Revision())
+		if err == nil {
+			if err := s.waitForInventoryRevision(ctx, revision); err != nil {
+				return fmt.Errorf("wait for session inventory: %w", err)
+			}
 			return nil
 		}
 		// A concurrent activity update may have advanced the revision. Retry so
@@ -211,20 +246,28 @@ func (s *Service) read(ctx context.Context, key string) (jetstream.KeyValueEntry
 	if err != nil {
 		return nil, Session{}, fmt.Errorf("read session: %w", err)
 	}
+	state, err := s.open(key, entry.Value())
+	if err != nil {
+		return nil, Session{}, err
+	}
+	return entry, state, nil
+}
+
+func (s *Service) open(key string, value []byte) (Session, error) {
 	var sealed sealedState
-	if err := json.Unmarshal(entry.Value(), &sealed); err != nil || sealed.Version != 1 {
-		return nil, Session{}, fmt.Errorf("decode session envelope")
+	if err := json.Unmarshal(value, &sealed); err != nil || sealed.Version != 1 {
+		return Session{}, fmt.Errorf("decode session envelope")
 	}
 	plain, err := datacrypto.Open(s.key, sealed.Ciphertext, sealed.Nonce, sessionAAD(key))
 	if err != nil {
-		return nil, Session{}, fmt.Errorf("decrypt session: %w", err)
+		return Session{}, fmt.Errorf("decrypt session: %w", err)
 	}
 	defer clear(plain)
 	var state Session
 	if err := json.Unmarshal(plain, &state); err != nil || state.AccountID == "" || state.CreatedAt.IsZero() || state.LastSeenAt.Before(state.CreatedAt) || state.LastSeenAt.After(state.ExpiresAt) || !state.ExpiresAt.After(state.CreatedAt) {
-		return nil, Session{}, fmt.Errorf("decode session state")
+		return Session{}, fmt.Errorf("decode session state")
 	}
-	return entry, state, nil
+	return state, nil
 }
 
 func (s *Service) seal(key string, state Session) ([]byte, error) {

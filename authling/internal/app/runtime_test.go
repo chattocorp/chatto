@@ -233,6 +233,100 @@ func TestOIDCAuthorizationCodeFlowAndSingleUseCode(t *testing.T) {
 	}
 }
 
+func TestBrowserSessionManagementHTTP(t *testing.T) {
+	cfg := embeddedTestConfig(t)
+	cfg.HTTP = config.HTTPConfig{BindAddress: "127.0.0.1:8080", PublicURL: "http://localhost:8080"}
+	runtime, cancel, runErrors := startTestRuntime(t, cfg)
+	defer stopTestRuntime(t, runtime, cancel, runErrors)
+	const password = "a deliberately uncommon browser session password"
+	account, err := runtime.Accounts.CreateLocal(testContext(t), "sessions@example.com", password)
+	if err != nil {
+		t.Fatal(err)
+	}
+	handler := web.Handler(web.Dependencies{
+		Accounts: runtime.Accounts, Authentication: runtime.Authentication,
+		Sessions: runtime.Sessions, PublicURL: cfg.HTTP.PublicURLOrDefault(),
+	})
+
+	login := func() *http.Cookie {
+		response := requestHandler(t, handler, http.MethodPost, "/login", url.Values{
+			"email": {"sessions@example.com"}, "password": {password},
+		}.Encode(), nil)
+		if response.Code != http.StatusSeeOther {
+			t.Fatalf("login status/body = %d %s", response.Code, response.Body.String())
+		}
+		cookies := response.Result().Cookies()
+		if len(cookies) != 1 {
+			t.Fatalf("login cookies = %d, want one", len(cookies))
+		}
+		return cookies[0]
+	}
+	currentCookie := login()
+	otherCookie := login()
+
+	accountPage := requestHandler(t, handler, http.MethodGet, "/account", "", currentCookie)
+	if accountPage.Code != http.StatusOK {
+		t.Fatalf("account status/body = %d %s", accountPage.Code, accountPage.Body.String())
+	}
+	body := accountPage.Body.String()
+	if strings.Count(body, ">Browser session</p>") != 2 || !strings.Contains(body, "This browser") || !strings.Contains(body, "does not store browser names, IP addresses, or locations") {
+		t.Fatalf("account page does not show privacy-preserving session inventory: %s", body)
+	}
+	match := regexp.MustCompile(`name="session_id" value="([^"]+)"`).FindStringSubmatch(body)
+	if len(match) != 2 || !strings.HasPrefix(match[1], "ses_") {
+		t.Fatalf("other session form has no opaque ID: %v", match)
+	}
+
+	forged := httptest.NewRequest(http.MethodPost, "http://localhost:8080/account/sessions/revoke", strings.NewReader(url.Values{"session_id": {match[1]}}.Encode()))
+	forged.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	forged.Header.Set("Origin", "https://evil.example")
+	forged.AddCookie(currentCookie)
+	forgedResponse := httptest.NewRecorder()
+	handler.ServeHTTP(forgedResponse, forged)
+	if forgedResponse.Code != http.StatusForbidden {
+		t.Fatalf("cross-origin revoke status = %d, want forbidden", forgedResponse.Code)
+	}
+	if response := requestHandler(t, handler, http.MethodGet, "/account", "", otherCookie); response.Code != http.StatusOK {
+		t.Fatalf("cross-origin revoke ended other session: %d", response.Code)
+	}
+
+	revoke := requestHandler(t, handler, http.MethodPost, "/account/sessions/revoke", url.Values{"session_id": {match[1]}}.Encode(), currentCookie)
+	if revoke.Code != http.StatusSeeOther || revoke.Header().Get("Location") != "/account?session_revoked=1" {
+		t.Fatalf("revoke status/location/body = %d %q %s", revoke.Code, revoke.Header().Get("Location"), revoke.Body.String())
+	}
+	if response := requestHandler(t, handler, http.MethodGet, "/account", "", otherCookie); response.Code != http.StatusSeeOther || response.Header().Get("Location") != "/login" {
+		t.Fatalf("revoked browser status/location = %d %q", response.Code, response.Header().Get("Location"))
+	}
+	if response := requestHandler(t, handler, http.MethodGet, "/account?session_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser session was signed out") {
+		t.Fatalf("current browser after revoke status/body = %d %s", response.Code, response.Body.String())
+	}
+
+	thirdCookie := login()
+	currentSessions, err := runtime.Sessions.List(testContext(t), account.ID, currentCookie.Value)
+	if err != nil || len(currentSessions) != 2 {
+		t.Fatalf("sessions before bulk revoke = %+v, %v", currentSessions, err)
+	}
+	currentID := currentSessions[0].ID
+	if !currentSessions[0].Current {
+		currentID = currentSessions[1].ID
+	}
+	currentRevoke := requestHandler(t, handler, http.MethodPost, "/account/sessions/revoke", url.Values{"session_id": {currentID}}.Encode(), currentCookie)
+	if currentRevoke.Code != http.StatusUnprocessableEntity {
+		t.Fatalf("current session revoke status = %d, want unprocessable", currentRevoke.Code)
+	}
+
+	revokeOthers := requestHandler(t, handler, http.MethodPost, "/account/sessions/revoke-others", "confirm=1", currentCookie)
+	if revokeOthers.Code != http.StatusSeeOther || revokeOthers.Header().Get("Location") != "/account?other_sessions_revoked=1" {
+		t.Fatalf("bulk revoke status/location = %d %q", revokeOthers.Code, revokeOthers.Header().Get("Location"))
+	}
+	if response := requestHandler(t, handler, http.MethodGet, "/account", "", thirdCookie); response.Code != http.StatusSeeOther {
+		t.Fatalf("bulk-revoked browser status = %d, want redirect", response.Code)
+	}
+	if response := requestHandler(t, handler, http.MethodGet, "/account?other_sessions_revoked=1", "", currentCookie); response.Code != http.StatusOK || !strings.Contains(response.Body.String(), "other browser sessions were signed out") {
+		t.Fatalf("current browser after bulk revoke status/body = %d %s", response.Code, response.Body.String())
+	}
+}
+
 func completeAuthorization(t *testing.T, handler http.Handler, verifier string, cookie *http.Cookie) string {
 	return completeAuthorizationForScopes(t, handler, verifier, cookie, "openid")
 }

@@ -81,8 +81,8 @@ Every older Authling browser session becomes invalid, while the completing
 browser receives a replacement session bound to the exact new generation.
 
 **Why:** Credential rotation is frequently a response to suspected compromise.
-Generation checks revoke sessions across replicas and restarts without an
-enumerable session index.
+Generation checks revoke sessions across replicas and restarts without relying
+on the enumerable session inventory introduced by FDR-009.
 
 **Tradeoff:** Other trusted Authling browser sessions cannot be preserved
 selectively in this initial feature.
@@ -125,8 +125,8 @@ credential and authentication-version change.
 
 ## Limitations
 
-- Authling does not provide a session list, selective remote-session
-  revocation, MFA recovery, or user-visible authentication history.
+- Authling does not provide MFA recovery or user-visible authentication
+  history.
 - Existing OIDC tokens and relying-party sessions are not revoked.
 
 ## Related
@@ -136,4 +136,5 @@ credential and authentication-version change.
   [ADR-003](../adr/ADR-003-server-rendered-templ-ui.md)
 - **FDRs:** [FDR-003](FDR-003-local-login-and-browser-sessions.md),
   [FDR-006](FDR-006-password-reset.md),
-  [FDR-007](FDR-007-verified-email-change.md)
+  [FDR-007](FDR-007-verified-email-change.md),
+  [FDR-009](FDR-009-browser-session-management.md)

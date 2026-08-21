@@ -3,7 +3,9 @@ package web
 import (
 	"net/url"
 	"strconv"
+	"time"
 	"hmans.de/authling/internal/oidcprovider"
+	"hmans.de/authling/internal/sessions"
 )
 
 templ layout(title string) {
@@ -238,12 +240,12 @@ templ accountCreatedPage(accountID string) {
 	@layout("Account created") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
-		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
 		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
 	}
 }
 
-templ accountPage(accountID string, passwordChanged, emailChanged, notificationFailed bool) {
+templ accountPage(accountID string, browserSessions []sessions.BrowserSession, passwordChanged, emailChanged, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing bool) {
 	@layout("Your Authling account") {
 		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Signed in</p>
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
@@ -257,13 +259,71 @@ templ accountPage(accountID string, passwordChanged, emailChanged, notificationF
 		if notificationFailed {
 			<p role="alert" class="mt-5 rounded-xl bg-amber-50 p-4 text-amber-900 dark:bg-amber-950 dark:text-amber-100">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>
 		}
-		<p class="mt-6 text-sm text-slate-500">Account ID: <code>{ accountID }</code></p>
+		if sessionRevoked {
+			<p role="status" class="mt-5 rounded-xl bg-green-50 p-4 text-green-900 dark:bg-green-950 dark:text-green-100">The other browser session was signed out.</p>
+		}
+		if otherSessionsRevoked {
+			<p role="status" class="mt-5 rounded-xl bg-green-50 p-4 text-green-900 dark:bg-green-950 dark:text-green-100">Your other browser sessions were signed out.</p>
+		}
+		if sessionMissing {
+			<p role="status" class="mt-5 rounded-xl bg-slate-100 p-4 text-slate-800 dark:bg-slate-800 dark:text-slate-100">That browser session is no longer active.</p>
+		}
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
 		<a class="mt-8 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" href="/account/email">Change email address</a>
 		<a class="mt-3 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" href="/account/password">Change password</a>
 		<form class="mt-3" method="post" action="/logout">
 			<button class="w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700" type="submit">Sign out</button>
 		</form>
+		<div class="mt-10 border-t border-slate-200 pt-8 dark:border-slate-800">
+			<h2 class="text-xl font-semibold tracking-tight">Browser sessions</h2>
+			<p class="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">Review where your account is signed in. Authling does not store browser names, IP addresses, or locations.</p>
+			<div class="mt-5 space-y-3">
+				for _, browserSession := range browserSessions {
+					<div class="rounded-2xl border border-slate-200 p-4 dark:border-slate-700">
+						<div class="flex flex-col items-start gap-4 sm:flex-row sm:justify-between">
+							<div>
+								<div class="flex flex-wrap items-center gap-2">
+									<p class="font-semibold">Browser session</p>
+									if browserSession.Current {
+										<span class="rounded-full bg-authling-100 px-2.5 py-1 text-xs font-semibold text-authling-800 dark:bg-authling-950 dark:text-authling-100">This browser</span>
+									}
+								</div>
+								<dl class="mt-2 space-y-1 text-sm text-slate-500 dark:text-slate-400">
+									<div><dt class="inline">Started:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.CreatedAt) }</dd></div>
+									<div><dt class="inline">Last active:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.LastSeenAt) }</dd></div>
+									<div><dt class="inline">Expires:</dt><dd class="ml-1 inline">{ formatSessionTime(browserSession.ExpiresAt) }</dd></div>
+								</dl>
+							</div>
+							if !browserSession.Current {
+								<form class="w-full sm:w-auto" method="post" action="/account/sessions/revoke">
+									<input type="hidden" name="session_id" value={ browserSession.ID }/>
+									<button class="w-full whitespace-nowrap rounded-xl border border-red-300 px-3 py-2 text-sm font-semibold text-red-700 sm:w-auto dark:border-red-900 dark:text-red-300" type="submit">Sign out</button>
+								</form>
+							}
+						</div>
+					</div>
+				}
+			</div>
+			if hasOtherBrowserSession(browserSessions) {
+				<form class="mt-4" method="post" action="/account/sessions/revoke-others">
+					<button class="w-full rounded-xl border border-red-300 px-5 py-3 font-semibold text-red-700 dark:border-red-900 dark:text-red-300" type="submit">Sign out all other browsers</button>
+				</form>
+			}
+		</div>
 	}
+}
+
+func hasOtherBrowserSession(browserSessions []sessions.BrowserSession) bool {
+	for _, browserSession := range browserSessions {
+		if !browserSession.Current {
+			return true
+		}
+	}
+	return false
+}
+
+func formatSessionTime(value time.Time) string {
+	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
 }
 
 templ passwordChangePage(message string, passwordMinimumLength int) {

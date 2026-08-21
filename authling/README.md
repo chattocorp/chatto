@@ -85,7 +85,8 @@ The development configuration serves Authling at <http://localhost:8080>, with
 signup at <http://localhost:8080/signup>, login at
 <http://localhost:8080/login>, and password reset at
 <http://localhost:8080/password-reset>. Signed-in accounts can change their
-verified email address or password from <http://localhost:8080/account>.
+verified email address or password and review or revoke other browser sessions
+from <http://localhost:8080/account>.
 Mailpit receives SMTP on port 1025 and shows captured messages at
 <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and

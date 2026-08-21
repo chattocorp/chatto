@@ -43,7 +43,11 @@ the older credential stale.
 opaque browser cookie to one account after signup or login. A session is not a
 durable account fact and can be revoked independently from other sessions.
 Password reset, signed-in password change, and verified email change invalidate
-every session issued under the account's older authentication version.
+every session issued under the account's older authentication version. The
+account page enumerates active sessions through a disposable in-memory
+inventory and uses a separate opaque, non-bearer session ID for remote
+revocation; Authling does not retain browser, IP, or location metadata for the
+inventory.
 
 **Issuer** — The immutable public URL identifying one Authling deployment as
 one OpenID Provider. Tokens and discovery use this exact value; changing it is

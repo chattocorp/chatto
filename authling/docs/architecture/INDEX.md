@@ -7,8 +7,9 @@ contracts. Keep planned architecture in ADRs until it is implemented.
 
 The [`authling` command](../../cmd/authling/main.go) exposes `help`, `version`,
 and `run`. `run` loads the standalone configuration, opens Authling's NATS
-storage, starts every required projection, waits for startup replay, starts the
-HTTP listener, and then runs until its process context is cancelled.
+storage, starts every required projection and the browser-session inventory,
+waits for startup replay, starts the HTTP listener, and then runs until its
+process context is cancelled.
 
 The HTTP surface contains server-rendered signup, login, password-reset,
 signed-in password-change, verified email-change, consent, account, and logout
@@ -133,13 +134,24 @@ decrypt a verifier only for one bounded Argon2id comparison; absent login
 accounts resolve a persistent synthetic key hierarchy and encrypted dummy
 verifier through the same storage path.
 
-The runtime does not become ready until the projection has replayed its captured
-startup history. A decode or apply failure fails the projection and runtime.
+The runtime does not become ready until the projections have replayed their
+captured startup history. A decode or apply failure fails the projection and
+runtime.
 After account creation commits, the account service waits for the committed
 stream position before returning the projected account.
 
 The account projection is currently cold-replay-only. It has no snapshot or
 local-checkpoint persistence.
+
+The browser-session inventory is a process-wide in-memory model over one
+filtered `session.*` watcher on `AUTHLING_RUNTIME_STATE`. It decrypts the latest
+session value for each key and maintains account-to-session and reverse-key
+maps. The KV bucket remains authoritative, and the inventory has no snapshot,
+checkpoint, or second persisted index. Startup replays all live session keys;
+delete markers remove them. Malformed records are omitted because they cannot
+authenticate. A watcher startup failure prevents readiness, and a later
+watcher failure stops the runtime. Session writes wait for their observed KV
+revision when this model is running.
 
 The issuer projection consumes the singleton `authling.evt.issuer` subject.
 On first initialization, its service creates or resolves the RS256 signing key
@@ -179,6 +191,16 @@ deadline. Each session records the account authentication version current at
 issuance. Password reset, signed-in password change, and verified email change
 advance that durable version, invalidating every older session across replicas
 and restarts. Logout deletes the server record before clearing the cookie.
+
+`GET /account` also reads the current account's active sessions from the
+process-wide inventory. It renders lifecycle timestamps and identifies the
+current browser without collecting user agents, IP addresses, device names, or
+locations. Same-origin `POST /account/sessions/revoke` signs out one other
+browser, while `POST /account/sessions/revoke-others` signs out every other
+browser. Forms carry a deployment-local opaque session ID derived separately
+from the bearer and internal KV coordinate. Every deletion authoritatively
+re-reads, decrypts, and re-authorizes the KV record, uses OCC, and waits for the
+local watcher before redirecting.
 
 `GET /password-reset` starts verified-email recovery. Three POST endpoints
 create an expiring flow, verify its six-digit code, and commit a new password.
@@ -248,8 +270,8 @@ completion work per process.
 
 ## Deliberately absent
 
-The runtime does not yet contain MFA recovery, account erasure, session lists
-or selective remote session revocation, OIDC refresh tokens or key rotation,
-diagnostic endpoints, or backup tooling. Application data, documents, and
-generic synchronization are deliberately outside Authling's identity-provider
-boundary.
+The runtime does not yet contain MFA recovery, account erasure, browser-device
+or location tracking, durable login history, OIDC refresh tokens or key
+rotation, diagnostic endpoints, or backup tooling. Application data,
+documents, and generic synchronization are deliberately outside Authling's
+identity-provider boundary.

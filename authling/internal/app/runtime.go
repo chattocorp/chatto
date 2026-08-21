@@ -151,6 +151,7 @@ func (r *Runtime) Run(ctx context.Context) error {
 		projector := projector
 		group.Go(func() error { return projector.Run(groupContext) })
 	}
+	group.Go(func() error { return r.Sessions.RunInventory(groupContext) })
 	return group.Wait()
 }
 
@@ -161,6 +162,9 @@ func (r *Runtime) WaitReady(ctx context.Context) error {
 		if err := projector.WaitForStartup(ctx); err != nil {
 			return err
 		}
+	}
+	if err := r.Sessions.WaitForInventoryStartup(ctx); err != nil {
+		return err
 	}
 	if err := r.issuer.Initialize(ctx); err != nil {
 		return err

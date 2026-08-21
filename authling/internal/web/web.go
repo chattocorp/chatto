@@ -283,7 +283,7 @@ func Handler(dependencies ...Dependencies) http.Handler {
 		redirect(w, r, target)
 	})
 	mux.HandleFunc("GET /account", func(w http.ResponseWriter, r *http.Request) {
-		account, err := authenticatedAccount(r, deps)
+		account, token, err := authenticatedAccountAndToken(r, deps, true)
 		if errors.Is(err, sessions.ErrNotFound) {
 			clearSessionCookie(w, deps.SecureCookies)
 			redirect(w, r, "/login")
@@ -293,9 +293,93 @@ func Handler(dependencies ...Dependencies) http.Handler {
 			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
 			return
 		}
+		browserSessions, err := deps.Sessions.List(r.Context(), account.ID, token)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		} else if err != nil {
+			http.Error(w, "browser sessions unavailable", http.StatusServiceUnavailable)
+			return
+		}
 		emailChanged := r.URL.Query().Get("email_changed") == "1"
 		passwordChanged := r.URL.Query().Get("password_changed") == "1"
-		render(w, r, http.StatusOK, accountPage(account.ID, passwordChanged, emailChanged, emailChanged && r.URL.Query().Get("email_notice_failed") == "1"))
+		render(w, r, http.StatusOK, accountPage(
+			account.ID,
+			browserSessions,
+			passwordChanged,
+			emailChanged,
+			emailChanged && r.URL.Query().Get("email_notice_failed") == "1",
+			r.URL.Query().Get("session_revoked") == "1",
+			r.URL.Query().Get("other_sessions_revoked") == "1",
+			r.URL.Query().Get("session_missing") == "1",
+		))
+	})
+	mux.HandleFunc("POST /account/sessions/revoke", func(w http.ResponseWriter, r *http.Request) {
+		if deps.Sessions == nil {
+			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		account, token, err := authenticatedAccountAndToken(r, deps, true)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		err = deps.Sessions.RevokeSession(r.Context(), account.ID, r.FormValue("session_id"), token)
+		switch {
+		case errors.Is(err, sessions.ErrNotFound):
+			redirect(w, r, "/account?session_missing=1")
+		case errors.Is(err, sessions.ErrCurrentSession):
+			http.Error(w, "use sign out to end this browser session", http.StatusUnprocessableEntity)
+		case err != nil:
+			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
+		default:
+			redirect(w, r, "/account?session_revoked=1")
+		}
+	})
+	mux.HandleFunc("POST /account/sessions/revoke-others", func(w http.ResponseWriter, r *http.Request) {
+		if deps.Sessions == nil {
+			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if !sameOrigin(r, publicOrigin) {
+			http.Error(w, "cross-origin request rejected", http.StatusForbidden)
+			return
+		}
+		r.Body = http.MaxBytesReader(w, r.Body, 16<<10)
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		account, token, err := authenticatedAccountAndToken(r, deps, true)
+		if errors.Is(err, sessions.ErrNotFound) {
+			clearSessionCookie(w, deps.SecureCookies)
+			redirect(w, r, "/login")
+			return
+		}
+		if err != nil {
+			http.Error(w, "account unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		if _, err := deps.Sessions.RevokeOtherSessions(r.Context(), account.ID, token); err != nil {
+			http.Error(w, "browser session management unavailable", http.StatusServiceUnavailable)
+			return
+		}
+		redirect(w, r, "/account?other_sessions_revoked=1")
 	})
 	mux.HandleFunc("GET /account/password", func(w http.ResponseWriter, r *http.Request) {
 		_, err := authenticatedAccount(r, deps)
@@ -694,15 +778,20 @@ func authenticatedAccount(r *http.Request, deps Dependencies) (accounts.Account,
 }
 
 func authenticatedAccountMode(r *http.Request, deps Dependencies, active bool) (accounts.Account, error) {
+	account, _, err := authenticatedAccountAndToken(r, deps, active)
+	return account, err
+}
+
+func authenticatedAccountAndToken(r *http.Request, deps Dependencies, active bool) (accounts.Account, string, error) {
 	if deps.Accounts == nil || deps.Sessions == nil {
-		return accounts.Account{}, fmt.Errorf("session services unavailable")
+		return accounts.Account{}, "", fmt.Errorf("session services unavailable")
 	}
 	cookie, err := sessionCookie(r, deps.SecureCookies)
 	if errors.Is(err, http.ErrNoCookie) {
-		return accounts.Account{}, sessions.ErrNotFound
+		return accounts.Account{}, "", sessions.ErrNotFound
 	}
 	if err != nil {
-		return accounts.Account{}, err
+		return accounts.Account{}, "", err
 	}
 	var state sessions.Session
 	if active {
@@ -711,14 +800,14 @@ func authenticatedAccountMode(r *http.Request, deps Dependencies, active bool) (
 		state, err = deps.Sessions.Inspect(r.Context(), cookie.Value)
 	}
 	if err != nil {
-		return accounts.Account{}, err
+		return accounts.Account{}, "", err
 	}
 	account, ok := deps.Accounts.Get(state.AccountID)
 	if !ok {
 		_ = deps.Sessions.Revoke(r.Context(), cookie.Value)
-		return accounts.Account{}, sessions.ErrNotFound
+		return accounts.Account{}, "", sessions.ErrNotFound
 	}
-	return account, nil
+	return account, cookie.Value, nil
 }
 
 func clearSessionCookie(w http.ResponseWriter, secure bool) {
