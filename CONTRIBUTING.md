@@ -24,24 +24,28 @@ configuration for those.
 
 ## Local Development with Conductor
 
-[Conductor](https://conductor.build) runs the regular root
-[`pitchfork.toml`](pitchfork.toml) stack as native processes. Start the default
-**Dev stack** run mode to launch the Chatto backend and Vite frontend, Authling,
-Mailpit, and LiveKit on the workspace's ten allocated ports. Chatto is
-available at `https://chatto-<workspace>.localhost:42443`; Authling, Mailpit,
-and LiveKit use the same HTTPS URL shape with their respective service names.
-The [Local Development Stack](README.md#local-development-stack) section lists
-the complete layout. Vite live-reloads frontend source, and Pitchfork rebuilds
-and restarts the Go services after relevant source changes.
+[Conductor](https://conductor.build) runs the regular root `mise dev` stack as
+native processes. Start the default **Dev stack** run mode to launch the Chatto
+backend and Vite frontend, Authling, Mailpit, and LiveKit on the workspace's ten
+allocated ports. Portless exposes Chatto at
+`https://chatto.<workspace>.localhost:42444`; Authling, Mailpit, and LiveKit use
+the same HTTPS URL shape with their respective service names. The
+[Local Development Stack](README.md#local-development-stack) section lists the
+complete layout. Vite live-reloads frontend source; restart the stack after
+changing Chatto or Authling Go code.
 
 The repository-level Conductor settings are shared in
-`.conductor/settings.toml`, while the root `pitchfork.toml` defines the native
-development stack. Together they isolate concurrent workspaces. Put
+`.conductor/settings.toml`, while the root `mise.toml` defines the native
+development stack. Together with Portless's workspace-named routes and
+Conductor's allocated ports, they isolate concurrent workspaces. Put
 machine-specific Conductor overrides in `.conductor/settings.local.toml`; that
 file is gitignored and wins over shared settings on your machine. Conductor
 reads `.worktreeinclude` to copy gitignored local environment files, such as
-`.env` and `.env.*`, into new workspaces. Archiving a workspace stops its
-Pitchfork daemons and removes its service proxy routes.
+`.env` and `.env.*`, into new workspaces. Stopping the run command stops all
+five child processes and unregisters their Portless routes. The first run may
+require launching
+`mise x node@24 npm:portless@0.15.5 -- portless trust` in an
+interactive terminal so macOS can trust Portless's development CA.
 
 ## Developing Outside of Conductor
 
@@ -52,8 +56,8 @@ mise trust
 mise run setup
 ```
 
-To run the regular Pitchfork development stack outside Conductor after the
-setup described in the README:
+To run the regular development stack outside Conductor after the setup
+described in the README:
 
 ```sh
 mise dev

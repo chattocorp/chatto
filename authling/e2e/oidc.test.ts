@@ -4,11 +4,12 @@ import { expect, test } from './setup';
 
 const password = 'correct horse battery staple';
 test('completes a conventional OIDC Authorization Code flow', async ({ page, request, stack }) => {
+  const email = `oidc-${randomUUID()}@example.invalid`;
   const accountID = await completeSignup(
     page,
     request,
     stack,
-    `oidc-${randomUUID()}@example.invalid`,
+    email,
     password
   );
 
@@ -47,6 +48,8 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
 
   await page.goto(authorize.toString());
   await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
+  await expect(page.getByText('Signed in as')).toBeVisible();
+  await expect(page.getByText(email)).toBeVisible();
   await expect(page.getByText('configured by this Authling operator', { exact: false })).toBeVisible();
 
   const callbackRequest = page.waitForRequest((request) =>

@@ -33,6 +33,8 @@ experience.
   current browser, and can sign out one or all other browsers. It stores no
   browser name, IP address, or location for this purpose; FDR-009 owns the
   enumeration and remote-revocation behavior.
+- Signed-in Authling pages identify the active account by its current verified
+  email address in the shared site header.
 - Sessions remain valid across an Authling process restart when the browser
   still has its session cookie and runtime storage remains available.
 - Sessions carry the account's durable authentication version. Password reset,

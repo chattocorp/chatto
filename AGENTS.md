@@ -178,12 +178,10 @@ the Authling toolchain and workflow.
 For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
-When an agent needs the long-running development stack, launch it as
-`exec tools/dev-supervisor.sh mise dev` so lifecycle signals reach the dev
-supervisor directly, and stop it before handing control back to the user. Never
-leave a dev stack running in a detached or yielded terminal session. After
-testing the Pitchfork stack, run `mise dev-archive` so this checkout's
-supervised processes and service proxy routes are removed.
+When an agent needs the long-running development stack, launch `mise dev`; the
+task runs the child processes through `tools/dev-supervisor.sh` so lifecycle
+signals reach them directly. Stop it before handing control back to the user.
+Never leave a dev stack running in a detached or yielded terminal session.
 
 ## Chatto Documentation Updates
 

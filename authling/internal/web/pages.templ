@@ -8,7 +8,7 @@ import (
 	"hmans.de/authling/internal/sessions"
 )
 
-templ layout(title string) {
+templ layout(title, signedInAs string) {
 	<!doctype html>
 	<html lang="en">
 		<head>
@@ -19,9 +19,25 @@ templ layout(title string) {
 			<link rel="stylesheet" href="/assets/app.css"/>
 		</head>
 		<body class="min-h-screen">
-			<main class="mx-auto flex min-h-screen max-w-xl items-center px-6 py-16">
+			<header class="border-b border-slate-200 bg-white/80 dark:border-slate-800 dark:bg-slate-950/80">
+				<div class="mx-auto flex max-w-xl items-center justify-between gap-4 px-6 py-4">
+					<a class="flex items-center gap-3 font-semibold" href="/">
+						<span class="flex size-9 items-center justify-center rounded-xl bg-authling-500 text-white shadow-md shadow-authling-500/20"><span class="iconify uil--shield-check text-xl" aria-hidden="true"></span></span>
+						<span>Authling</span>
+					</a>
+					if signedInAs != "" {
+						<a class="flex min-w-0 items-center gap-2 rounded-xl px-2 py-1.5 text-right text-sm hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 dark:hover:bg-slate-900" href="/account" aria-label={ "Signed in as " + signedInAs + ". View your account." }>
+							<span class="min-w-0">
+								<span class="block text-xs font-medium text-slate-500 dark:text-slate-400">Signed in as</span>
+								<span class="block max-w-64 truncate font-semibold" title={ signedInAs }>{ signedInAs }</span>
+							</span>
+							<span class="iconify uil--user-circle shrink-0 text-2xl text-slate-400" aria-hidden="true"></span>
+						</a>
+					}
+				</div>
+			</header>
+			<main class="mx-auto flex min-h-[calc(100vh-4.5rem)] max-w-xl items-center px-6 py-12 sm:py-16">
 				<section class="w-full rounded-3xl border border-slate-200 bg-white p-8 shadow-xl shadow-slate-200/50 sm:p-12 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20">
-					<div class="mb-8 flex size-14 items-center justify-center rounded-2xl bg-authling-500 text-white shadow-lg shadow-authling-500/25"><span class="iconify uil--shield-check text-3xl" aria-hidden="true"></span></div>
 					{ children... }
 				</section>
 			</main>
@@ -30,7 +46,7 @@ templ layout(title string) {
 }
 
 templ homePage() {
-	@layout("Authling") {
+	@layout("Authling", "") {
 		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Authling</p>
 		<h1 class="text-4xl font-semibold tracking-tight text-balance sm:text-5xl">Identity, under your control.</h1>
 		<p class="mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300">Sign in with your verified email address, or create a new account.</p>
@@ -42,7 +58,7 @@ templ homePage() {
 }
 
 templ loginPage(message, oidcRequest string) {
-	@layout("Sign in to Authling") {
+	@layout("Sign in to Authling", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Sign in</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Use the email address and password for your account.</p>
 		if message != "" {
@@ -69,7 +85,7 @@ func passwordResetURL(oidcRequest string) string {
 }
 
 templ passwordResetPage(message, oidcRequest string) {
-	@layout("Reset your password") {
+	@layout("Reset your password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Reset your password</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit password reset code.</p>
 		if message != "" {
@@ -87,7 +103,7 @@ templ passwordResetPage(message, oidcRequest string) {
 }
 
 templ passwordResetCodePage(flow, message, oidcRequest string) {
-	@layout("Enter your password reset code") {
+	@layout("Enter your password reset code", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
@@ -105,7 +121,7 @@ templ passwordResetCodePage(flow, message, oidcRequest string) {
 }
 
 templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcRequest string) {
-	@layout("Choose a new password") {
+	@layout("Choose a new password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Choose a new password</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Changing your password signs out your other Authling browser sessions.</p>
 		if message != "" {
@@ -123,15 +139,15 @@ templ newPasswordPage(flow, message string, passwordMinimumLength int, oidcReque
 }
 
 templ passwordResetCompletePage() {
-	@layout("Password reset") {
+	@layout("Password reset", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your password was reset</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your new password is ready. Sign in to continue.</p>
 		<a class="mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white" href="/login">Sign in</a>
 	}
 }
 
-templ emailChangePage(message string) {
-	@layout("Change your email address") {
+templ emailChangePage(message, signedInAs string) {
+	@layout("Change your email address", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Change your email address</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password, then verify the new address. This signs out your other Authling browser sessions.</p>
 		if message != "" {
@@ -145,8 +161,8 @@ templ emailChangePage(message string) {
 	}
 }
 
-templ emailChangeCodePage(flow, message string) {
-	@layout("Verify your new email address") {
+templ emailChangeCodePage(flow, message, signedInAs string) {
+	@layout("Verify your new email address", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your new email address</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">We sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
@@ -160,8 +176,8 @@ templ emailChangeCodePage(flow, message string) {
 	}
 }
 
-templ emailChangeConfirmPage(flow, message string) {
-	@layout("Confirm your email change") {
+templ emailChangeConfirmPage(flow, message, signedInAs string) {
+	@layout("Confirm your email change", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your new email address is verified</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Confirming will change your sign-in address and sign out your other Authling browser sessions.</p>
 		if message != "" {
@@ -174,8 +190,8 @@ templ emailChangeConfirmPage(flow, message string) {
 	}
 }
 
-templ consentPage(request oidcprovider.ConsentRequest) {
-	@layout("Authorize access") {
+templ consentPage(request oidcprovider.ConsentRequest, signedInAs string) {
+	@layout("Authorize access", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Authorize { request.ClientName }?</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300"><strong>{ request.ClientHost }</strong> is asking for access to your account.</p>
 		<div class="mt-5 rounded-xl border border-slate-300 p-4 dark:border-slate-700">
@@ -193,7 +209,7 @@ templ consentPage(request oidcprovider.ConsentRequest) {
 }
 
 templ signupPage(message string) {
-	@layout("Create your Authling account") {
+	@layout("Create your Authling account", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Create your account</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">We’ll email you a six-digit verification code.</p>
 		if message != "" {
@@ -207,7 +223,7 @@ templ signupPage(message string) {
 }
 
 templ codePage(flow, message string) {
-	@layout("Verify your email") {
+	@layout("Verify your email", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Check your email</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">If that address can be used, we sent a six-digit code. It expires in 15 minutes.</p>
 		if message != "" {
@@ -222,7 +238,7 @@ templ codePage(flow, message string) {
 }
 
 templ passwordPage(flow, message string, passwordMinimumLength int) {
-	@layout("Choose a password") {
+	@layout("Choose a password", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Choose a password</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Use at least { strconv.Itoa(passwordMinimumLength) } characters. Spaces and passphrases are welcome.</p>
 		if message != "" {
@@ -237,7 +253,7 @@ templ passwordPage(flow, message string, passwordMinimumLength int) {
 }
 
 templ accountCreatedPage(accountID string) {
-	@layout("Account created") {
+	@layout("Account created", "") {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account is ready</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your email was verified and your account was created.</p>
 		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">Account ID: <code>{ accountID }</code></p>
@@ -245,9 +261,8 @@ templ accountCreatedPage(accountID string) {
 	}
 }
 
-templ accountPage(accountID string, browserSessions []sessions.BrowserSession, passwordChanged, emailChanged, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing bool) {
-	@layout("Your Authling account") {
-		<p class="mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200">Signed in</p>
+templ accountPage(accountID, signedInAs string, browserSessions []sessions.BrowserSession, passwordChanged, emailChanged, notificationFailed, sessionRevoked, otherSessionsRevoked, sessionMissing bool) {
+	@layout("Your Authling account", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Your account</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Your browser has an active Authling session.</p>
 		if passwordChanged {
@@ -326,8 +341,8 @@ func formatSessionTime(value time.Time) string {
 	return value.UTC().Format("2 Jan 2006, 15:04 UTC")
 }
 
-templ passwordChangePage(message string, passwordMinimumLength int) {
-	@layout("Change your password") {
+templ passwordChangePage(message string, passwordMinimumLength int, signedInAs string) {
+	@layout("Change your password", signedInAs) {
 		<h1 class="text-3xl font-semibold tracking-tight">Change your password</h1>
 		<p class="mt-3 text-slate-600 dark:text-slate-300">Enter your current password and choose a new one. This signs out your other Authling browser sessions.</p>
 		if message != "" {
