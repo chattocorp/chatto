@@ -179,6 +179,20 @@ repository skills as non-product infrastructure.
 
 ## Tooling And Verification
 
+### Browser UI And Tailwind
+
+- Define reusable browser UI patterns as Tailwind component classes in
+  `web/src/app.css` under `@layer components`. Compose a low-level base class
+  with variants where appropriate, such as `button` plus `button-primary`,
+  instead of repeating the same utility bundle across templ pages.
+- Keep one-off layout and spacing utilities directly in templ markup. Extract a
+  class when it represents a reusable component or interaction pattern, not
+  merely to shorten a single class attribute.
+- Shared interactive classes must cover the relevant pointer, hover,
+  `focus-visible`, disabled, and light/dark states so links and native controls
+  behave consistently. Regenerate committed templ output after changing templ
+  source.
+
 Run Authling's own `mise` tasks from the `authling/` directory:
 
 ```sh
