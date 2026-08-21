@@ -37,17 +37,25 @@ test('creates an account only after confirming the emailed code', async ({ page,
   await page.getByLabel('Verification code').fill(code);
   await page.getByRole('button', { name: 'Verify email' }).click();
   await expect(page.getByRole('heading', { name: 'Choose a password' })).toBeVisible();
-  await expect(page.getByLabel('Password')).toHaveAttribute('minlength', '10');
+  await expect(page.getByLabel('Password', { exact: true })).toHaveAttribute('minlength', '10');
+  await expect(page.getByLabel('Confirm password')).toHaveAttribute('minlength', '10');
   const flow = await page.locator('input[name="flow"]').inputValue();
 
-  await page.getByLabel('Password').fill('correct horse battery staple');
+  await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple');
+  await page.getByLabel('Confirm password').fill('this does not match the password');
+  await page.getByRole('button', { name: 'Create account' }).click();
+  await expect(page.getByRole('alert')).toHaveText('Passwords do not match.');
+
+  await page.getByLabel('Password', { exact: true }).fill('correct horse battery staple');
+  await page.getByLabel('Confirm password').fill('correct horse battery staple');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
   await expect(page.locator('code')).toHaveText(/^acc_[a-z0-9]+$/);
 
   const reused = await postForm(request, `${stack.baseURL}/signup/complete`, stack.baseURL, {
     flow,
-    password: 'another sufficiently long password'
+    password: 'another sufficiently long password',
+    password_confirmation: 'another sufficiently long password'
   });
   expect(reused.status()).toBe(422);
   expect(await reused.text()).toContain('the signup has expired; start again');
@@ -98,7 +106,8 @@ test('enforces password policy on the server and keeps the verified flow usable'
   const flow = await page.locator('input[name="flow"]').inputValue();
   const rejected = await postForm(request, `${stack.baseURL}/signup/complete`, stack.baseURL, {
     flow,
-    password: 'too short'
+    password: 'too short',
+    password_confirmation: 'too short'
   });
   expect(rejected.status()).toBe(422);
   expect(await rejected.text()).toContain(
@@ -107,14 +116,18 @@ test('enforces password policy on the server and keeps the verified flow usable'
 
   const common = await postForm(request, `${stack.baseURL}/signup/complete`, stack.baseURL, {
     flow,
-    password: 'Password123'
+    password: 'Password123',
+    password_confirmation: 'Password123'
   });
   expect(common.status()).toBe(422);
   expect(await common.text()).toContain(
     'password is too common; choose a less predictable password'
   );
 
-  await page.getByLabel('Password').fill('password123 is only part of this passphrase');
+  await page
+    .getByLabel('Password', { exact: true })
+    .fill('password123 is only part of this passphrase');
+  await page.getByLabel('Confirm password').fill('password123 is only part of this passphrase');
   await page.getByRole('button', { name: 'Create account' }).click();
   await expect(page.getByRole('heading', { name: 'Your account' })).toBeVisible();
 });

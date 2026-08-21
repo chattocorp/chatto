@@ -1,7 +1,7 @@
 # FDR-002: Verified Email Signup
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-01
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -24,12 +24,13 @@ durable account and starts the browser session defined by FDR-003.
    work. At most four password completions run concurrently per process.
 5. A correct code moves the same expiring flow to a verified state. It still
    does not create an account.
-6. The person chooses a password whose minimum length is configured by the
-   operator and whose maximum is 1,024 UTF-8 bytes. The default minimum is ten
-   Unicode characters; operators may select a value from eight through 128.
-   Authling rejects exact, case-insensitive matches from a small built-in list
-   of commonly chosen passwords. It does not reject a longer password merely
-   because that password contains a listed value.
+6. The person enters and confirms a password whose minimum length is configured
+   by the operator and whose maximum is 1,024 UTF-8 bytes. Authling requires
+   both entries to match before attempting account creation. The default
+   minimum is ten Unicode characters; operators may select a value from eight
+   through 128. Authling rejects exact, case-insensitive matches from a small
+   built-in list of commonly chosen passwords. It does not reject a longer
+   password merely because that password contains a listed value.
    Authling uses Argon2id with a random salt and stores only the verifier in its
    own encrypted credential field.
 7. Authling atomically creates the per-account history and claims the
