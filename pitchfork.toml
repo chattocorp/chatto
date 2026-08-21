@@ -87,6 +87,7 @@ project_dir=$(cd .. && pwd -P)
 port_base=$(cat ../.context/dev/port-base)
 workspace_slug=$(cat ../.context/dev/workspace-slug)
 backend_port=$((port_base + 1))
+nats_port=$((port_base + 4))
 smtp_port=$((port_base + 8))
 data_root="$project_dir/.context/dev/$workspace_slug"
 mkdir -p internal/http_server/.client "$data_root/chatto/nats" "$data_root/chatto/search"
@@ -100,6 +101,7 @@ export CHATTO_AUTH_PROVIDERS_0_CLIENT_ID="https://chatto-$workspace_slug.localho
 export CHATTO_LIVEKIT_URL="wss://livekit-$workspace_slug.localhost:42443"
 export CHATTO_LIVEKIT_WEBHOOK_URL="http://localhost:$backend_port/webhooks/livekit"
 export CHATTO_NATS_EMBEDDED_DATA_DIR="$data_root/chatto/nats"
+export CHATTO_NATS_EMBEDDED_PORT="$nats_port"
 export CHATTO_SMTP_PORT="$smtp_port"
 exec ./bin/chatto-dev start
 """
@@ -123,7 +125,7 @@ env = {
   CHATTO_CORE_ASSETS_MAX_UPLOAD_SIZE = "25MB",
   CHATTO_CORE_ASSETS_CACHE_ENABLED = "true",
   CHATTO_CORE_ASSETS_CACHE_TTL = "7d",
-  CHATTO_AUTH_ACCOUNT_CREATION_POLICY = "invite_only",
+  CHATTO_AUTH_ACCOUNT_CREATION_POLICY = "open",
   CHATTO_AUTH_PROVIDERS_0_ID = "authling",
   CHATTO_AUTH_PROVIDERS_0_TYPE = "oidc",
   CHATTO_AUTH_PROVIDERS_0_LABEL = "Authling",

@@ -42,11 +42,12 @@ current worktree's daemon namespace.
 gitignored `.context/dev/port-base` file before starting Pitchfork. Daemons read
 that file instead of inheriting an environment variable from Pitchfork's
 machine-wide supervisor. Chatto's browser-facing Vite server uses the base
-port, its backend uses offset `+1`, and Authling uses `+2`. LiveKit uses offsets
-`+5` through `+7`; Mailpit SMTP and UI use `+8` and `+9`. The known layout also
-lets LiveKit address Chatto's webhook while Chatto addresses LiveKit without a
-cyclic Pitchfork dependency. Internal listener, SMTP, and webhook connections
-use plain-HTTP loopback where applicable. Pitchfork's own reverse proxy exposes
+port, its backend uses offset `+1`, its embedded NATS listener uses `+4`, and
+Authling uses `+2`. LiveKit uses offsets `+5` through `+7`; Mailpit SMTP and UI
+use `+8` and `+9`. The known layout also lets LiveKit address Chatto's webhook
+while Chatto addresses LiveKit without a cyclic Pitchfork dependency. Internal
+listener, SMTP, and webhook connections use plain-HTTP loopback where
+applicable. Pitchfork's own reverse proxy exposes
 Chatto, Authling, Mailpit, and LiveKit at workspace-specific HTTPS hostnames on
 port `42443`. Pitchfork generates and trusts the certificate and proxies each
 hostname directly to its daemon's declared HTTP listener; no adapter process is
