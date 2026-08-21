@@ -403,11 +403,17 @@ func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *co
 	if target == nil || target.GetMessagePosted() == nil {
 		return nil // The ordinary request validator reports the precise target error.
 	}
-	targetThreadRootID := target.GetMessagePosted().GetInThread()
+	targetPost := target.GetMessagePosted()
+	targetThreadRootID := targetPost.GetInThread()
+	targetIsInThread := targetThreadRootID != ""
+	if targetThreadRootID == "" && targetPost.GetEchoOfEventId() != "" {
+		targetThreadRootID = targetPost.GetEchoFromThreadRootEventId()
+		targetIsInThread = targetThreadRootID != ""
+	}
 	if targetThreadRootID == "" {
 		targetThreadRootID = target.GetId()
 	}
-	if threadRootID == "" && target.GetMessagePosted().GetInThread() != "" {
+	if threadRootID == "" && targetIsInThread {
 		return nil // The low-level command inherits the target reply's thread.
 	}
 	if threadRootID != targetThreadRootID {

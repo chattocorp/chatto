@@ -7,6 +7,7 @@ export function normalizeRoomThreadingMode(
   mode: RoomThreadingMode
 ): RoomThreadingMode {
   if (kind === RoomKind.DM) return RoomThreadingMode.UNSPECIFIED;
+  if (mode === RoomThreadingMode.UNSPECIFIED) return RoomThreadingMode.ENABLED;
   switch (mode) {
     case RoomThreadingMode.REQUIRED:
     case RoomThreadingMode.ENCOURAGED:
@@ -14,6 +15,6 @@ export function normalizeRoomThreadingMode(
     case RoomThreadingMode.DISABLED:
       return mode;
     default:
-      return RoomThreadingMode.ENABLED;
+      return RoomThreadingMode.DISABLED;
   }
 }

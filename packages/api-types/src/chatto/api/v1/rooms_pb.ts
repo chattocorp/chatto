@@ -84,8 +84,9 @@ export enum RoomThreadingMode {
   ENABLED = 3,
 
   /**
-   * New threads and thread replies are rejected. Existing threads remain
-   * readable and ordinary in-room reply attribution remains available.
+   * New threads, thread replies, and channel echoes are rejected. Existing
+   * threads and echoes remain readable and ordinary in-room reply attribution
+   * remains available.
    *
    * @generated from enum value: ROOM_THREADING_MODE_DISABLED = 4;
    */

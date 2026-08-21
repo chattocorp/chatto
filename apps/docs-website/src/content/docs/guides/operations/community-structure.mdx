@@ -91,7 +91,7 @@ conversation should branch in a channel:
 | **Required** | Every new root message automatically gets a thread. Reply actions open that thread, and the server rejects flat replies to roots. |
 | **Encouraged** | The primary reply action opens the thread, while **Reply in room** remains available with a small reminder. Creating a thread with a new root stays opt-in. |
 | **Enabled** | The default. Members freely choose between room replies and threads, and may use **Post as thread**. |
-| **Disabled** | New threads and thread replies are unavailable. Existing threads remain readable, and members can still use ordinary reply attribution in the room. |
+| **Disabled** | New threads, thread replies, and channel echoes are unavailable. Existing threads and echoes remain readable, and members can still use ordinary reply attribution in the room. |
 
 Changing the mode affects future posts only. It neither creates threads for
 old roots nor removes existing threads. Threading Mode also does not replace

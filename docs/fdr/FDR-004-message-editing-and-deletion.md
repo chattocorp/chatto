@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-22
 
 ## Overview
 

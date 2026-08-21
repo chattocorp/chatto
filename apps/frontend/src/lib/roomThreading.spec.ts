@@ -14,12 +14,12 @@ describe('normalizeRoomThreadingMode', () => {
     }
   });
 
-  it('maps omitted or unknown historical channel values to Enabled', () => {
+  it('maps omitted historical channel values to Enabled and unknown values to Disabled', () => {
     expect(normalizeRoomThreadingMode(RoomKind.CHANNEL, RoomThreadingMode.UNSPECIFIED)).toBe(
       RoomThreadingMode.ENABLED
     );
     expect(normalizeRoomThreadingMode(RoomKind.CHANNEL, 99 as RoomThreadingMode)).toBe(
-      RoomThreadingMode.ENABLED
+      RoomThreadingMode.DISABLED
     );
   });
 

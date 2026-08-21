@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-22
 
 ## Overview
 

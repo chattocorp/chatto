@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-07-03
+**Last reviewed:** 2026-08-22
 
 ## Overview
 

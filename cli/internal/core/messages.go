@@ -928,7 +928,8 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		return nil, ErrRoomArchived
 	}
 
-	// If replying to a message inside a thread, inherit its thread root.
+	// If replying to a message inside a thread, or its visible channel echo,
+	// inherit the canonical thread root.
 	// This keeps the data invariant intact even when callers (bots, older clients,
 	// extensions) only set inReplyTo. inReplyTo is attribution-only, so a lookup
 	// failure here is not fatal — fall through and let the message post as a root.
@@ -937,9 +938,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		target, err := c.GetRoomEventByEventID(ctx, kind, room_id, inReplyTo)
 		if err == nil && target != nil {
 			replyTarget = target
-			if msg := target.GetMessagePosted(); msg != nil && msg.InThread != "" {
+			if msg := target.GetMessagePosted(); msg != nil {
+				targetThreadRootID := msg.GetInThread()
+				if targetThreadRootID == "" && msg.GetEchoOfEventId() != "" {
+					targetThreadRootID = msg.GetEchoFromThreadRootEventId()
+				}
 				if inThread == "" {
-					inThread = msg.InThread
+					inThread = targetThreadRootID
 				}
 			}
 		}
@@ -960,8 +965,19 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			if inReplyTo == "" && inThread == "" && !options.createThread {
 				return nil, fmt.Errorf("%w: root messages must establish a thread in this room", ErrRoomThreadingPolicy)
 			}
-			if replyTarget != nil && replyTarget.GetMessagePosted() != nil && replyTarget.GetMessagePosted().GetInThread() == "" && inThread != replyTarget.GetId() {
-				return nil, fmt.Errorf("%w: replies to root messages must be posted in that root's thread", ErrRoomThreadingPolicy)
+			if replyTarget != nil {
+				if targetPost := replyTarget.GetMessagePosted(); targetPost != nil {
+					targetThreadRootID := targetPost.GetInThread()
+					if targetThreadRootID == "" && targetPost.GetEchoOfEventId() != "" {
+						targetThreadRootID = targetPost.GetEchoFromThreadRootEventId()
+					}
+					if targetThreadRootID == "" {
+						targetThreadRootID = replyTarget.GetId()
+					}
+					if inThread != targetThreadRootID {
+						return nil, fmt.Errorf("%w: replies to root messages must be posted in that root's thread", ErrRoomThreadingPolicy)
+					}
+				}
 			}
 		}
 	}

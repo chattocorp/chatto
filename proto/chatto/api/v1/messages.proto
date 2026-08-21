@@ -212,7 +212,8 @@ service MessageService {
   rpc CreateMessage(CreateMessageRequest) returns (CreateMessageResponse);
   // Edits a message body. Authors can edit their own messages within the edit
   // window. Non-authors need message.manage and cannot change channel echo
-  // state.
+  // state. Disabled rooms reject creation of a new channel echo while allowing
+  // an existing echo to be removed.
   rpc UpdateMessage(UpdateMessageRequest) returns (UpdateMessageResponse);
   // Retracts a message. Authors can delete their own messages. Non-authors need
   // message.manage.

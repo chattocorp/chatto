@@ -206,7 +206,7 @@ export class MessageComposerState {
   get inputDisabled(): boolean {
     return (
       this.submission.loading ||
-      !this.#dependencies.getCanPost() ||
+      (!this.#dependencies.getCanPost() && !this.isEditing) ||
       this.#dependencies.isConnectionLost()
     );
   }

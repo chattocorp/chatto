@@ -346,7 +346,7 @@
       composerApi = api;
       api.focus();
     }}
-    onTyping={() => typingIndicator?.sendTypingIndicator()}
+    onTyping={canPost ? () => typingIndicator?.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator?.resetDebounce();
       if (event) {

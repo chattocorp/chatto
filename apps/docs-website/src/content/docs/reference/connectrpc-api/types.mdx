@@ -1712,7 +1712,7 @@ Direct-message rooms do not support threads and use UNSPECIFIED.
 | `ROOM_THREADING_MODE_REQUIRED` | `1` | Every new root message establishes a thread, and replies to root messages must be posted in that root's thread. |
 | `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
 | `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
-| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads and thread replies are rejected. Existing threads remain readable and ordinary in-room reply attribution remains available. |
+| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
 
 <a id="chatto-api-v1-NotificationAttentionLevel"></a>
 

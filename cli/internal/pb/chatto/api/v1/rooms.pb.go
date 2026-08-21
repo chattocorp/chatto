@@ -92,8 +92,9 @@ const (
 	RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED RoomThreadingMode = 2
 	// Threads are available and clients may freely choose whether to use them.
 	RoomThreadingMode_ROOM_THREADING_MODE_ENABLED RoomThreadingMode = 3
-	// New threads and thread replies are rejected. Existing threads remain
-	// readable and ordinary in-room reply attribution remains available.
+	// New threads, thread replies, and channel echoes are rejected. Existing
+	// threads and echoes remain readable and ordinary in-room reply attribution
+	// remains available.
 	RoomThreadingMode_ROOM_THREADING_MODE_DISABLED RoomThreadingMode = 4
 )
 

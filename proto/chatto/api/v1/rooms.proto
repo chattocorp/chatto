@@ -37,8 +37,9 @@ enum RoomThreadingMode {
   ROOM_THREADING_MODE_ENCOURAGED = 2;
   // Threads are available and clients may freely choose whether to use them.
   ROOM_THREADING_MODE_ENABLED = 3;
-  // New threads and thread replies are rejected. Existing threads remain
-  // readable and ordinary in-room reply attribution remains available.
+  // New threads, thread replies, and channel echoes are rejected. Existing
+  // threads and echoes remain readable and ordinary in-room reply attribution
+  // remains available.
   ROOM_THREADING_MODE_DISABLED = 4;
 }
 

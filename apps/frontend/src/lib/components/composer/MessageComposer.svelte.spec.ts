@@ -1386,6 +1386,23 @@ describe('MessageComposer', () => {
   });
 
   describe('edit mode transitions', () => {
+    it('keeps an existing message editable when new posting is unavailable', async () => {
+      roomStateMock.editState.eventId = 'evt_historical_thread_edit';
+      roomStateMock.editState.originalBody = 'historical reply';
+      const { container } = renderMessageComposer({ roomId: 'room_456', canPost: false });
+      const editor = await findEditor(container);
+
+      await expect.element(editor).toHaveAttribute('contenteditable', 'true');
+      (q(container, 'button[aria-label="Send message"]') as HTMLButtonElement).click();
+
+      await vi.waitFor(() => expect(updateMessageConnectMock).toHaveBeenCalledOnce());
+      expect(updateMessageConnectMock).toHaveBeenCalledWith({
+        roomId: expect.any(String),
+        eventId: 'evt_historical_thread_edit',
+        body: 'historical reply'
+      });
+    });
+
     it('does not start editing on ArrowUp when no editable message is available', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);

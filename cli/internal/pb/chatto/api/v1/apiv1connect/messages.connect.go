@@ -79,7 +79,8 @@ type MessageServiceClient interface {
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
-	// state.
+	// state. Disabled rooms reject creation of a new channel echo while allowing
+	// an existing echo to be removed.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.
@@ -258,7 +259,8 @@ type MessageServiceHandler interface {
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
-	// state.
+	// state. Disabled rooms reject creation of a new channel echo while allowing
+	// an existing echo to be removed.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.

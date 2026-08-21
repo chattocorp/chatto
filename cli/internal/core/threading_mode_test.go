@@ -54,6 +54,15 @@ func TestRoomThreadingModeConfigurationAndLegacyDefault(t *testing.T) {
 	legacyRoom, ok := legacy.Get("legacy-room")
 	require.True(t, ok)
 	require.Equal(t, corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, legacyRoom.GetThreadingMode())
+
+	require.NoError(t, legacy.Apply(&corev1.Event{Event: &corev1.Event_RoomThreadingModeChanged{
+		RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+			RoomId: "legacy-room", ThreadingMode: corev1.RoomThreadingMode(99),
+		},
+	}}, 2))
+	legacyRoom, ok = legacy.Get("legacy-room")
+	require.True(t, ok)
+	require.Equal(t, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, legacyRoom.GetThreadingMode(), "unknown future policies must fail closed")
 }
 
 func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
@@ -92,6 +101,19 @@ func TestRequiredThreadingCreatesRootsAndRoutesRootReplies(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Equal(t, root.Event.Id, reply.Event.GetMessagePosted().GetInThread())
+
+	echoedReply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "echoed thread reply", InReplyTo: reply.Event.Id,
+		ThreadRootEventID: root.Event.Id, AlsoSendToChannel: true,
+	})
+	require.NoError(t, err)
+	echoID, exists := chatto.roomModel.channelEchoEventID(echoedReply.Event.Id)
+	require.True(t, exists)
+	replyToEcho, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "reply addressed to the visible echo", InReplyTo: echoID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, root.Event.Id, replyToEcho.Event.GetMessagePosted().GetInThread())
 }
 
 func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
