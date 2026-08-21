@@ -232,6 +232,12 @@ func TestChattoCore_LegacyCookieSessionRecordIsIgnored(t *testing.T) {
 	if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
 	}
+	if err := core.RevokeCookieSession(ctx, sessionID); err != nil {
+		t.Fatalf("RevokeCookieSession: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); err != nil {
+		t.Fatalf("single typed revoke touched legacy record: %v", err)
+	}
 	deleted, err := core.RevokeCookieSessionsForUser(ctx, user.Id)
 	if err != nil {
 		t.Fatalf("RevokeCookieSessionsForUser: %v", err)
