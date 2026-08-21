@@ -1,5 +1,8 @@
 import { test, expect } from './setup';
-import { createAndLoginTestUser } from './fixtures/testUser';
+import {
+  createAndLoginTestUser,
+  reloadWithProductComposerDefaults
+} from './fixtures/testUser';
 import {
   connectRemoteInstance,
   createUserOnRemote,
@@ -64,22 +67,21 @@ test.describe('User Settings - Preferences', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    const visual = page.getByRole('radio', { name: /^Visual/ });
+    const markdown = page.getByRole('radio', { name: /^Markdown/ });
     const returnToSend = page.getByRole('radio', { name: /^Return/ });
-    const modifierReturnToSend = page.getByRole('radio', { name: /^Cmd\/Ctrl\+Return/ });
-    await visual.click();
-    await modifierReturnToSend.click();
-    await expect(visual).toHaveAttribute('aria-checked', 'true');
-    await expect(modifierReturnToSend).toHaveAttribute('aria-checked', 'true');
+    await markdown.click();
+    await returnToSend.click();
+    await expect(markdown).toHaveAttribute('aria-checked', 'true');
+    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
     await expect
       .poll(() =>
         page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
       )
-      .toMatchObject({ composerEditor: 'visual', composerSendMode: 'modifier-enter' });
+      .toMatchObject({ composerEditor: 'markdown', composerSendMode: 'enter' });
 
     await page.reload();
-    await expect(visual).toHaveAttribute('aria-checked', 'true');
-    await expect(modifierReturnToSend).toHaveAttribute('aria-checked', 'true');
+    await expect(markdown).toHaveAttribute('aria-checked', 'true');
+    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
   });
 
   test('defaults to Markdown and Return-to-send when composer preferences are absent', async ({
@@ -91,13 +93,7 @@ test.describe('User Settings - Preferences', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    await page.evaluate(() => {
-      const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
-      delete stored.composerEditor;
-      delete stored.composerSendMode;
-      localStorage.setItem('chatto:preferences', JSON.stringify(stored));
-    });
-    await page.reload();
+    await reloadWithProductComposerDefaults(page);
 
     await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
       'aria-checked',
