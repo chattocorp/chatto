@@ -6,7 +6,10 @@ import RolePermissionsMatrix from './RolePermissionsMatrix.svelte';
 import UserPermissionsMatrix from './UserPermissionsMatrix.svelte';
 import { queryClient } from '$lib/query/client';
 import { adminQueryKeys } from '$lib/query/admin';
-import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import {
+  removeRegisteredAdminQueries,
+  removeRegisteredAdminUserQueries
+} from '$lib/query/cacheRegistry';
 
 const permissionMocks = vi.hoisted(() => ({
   getRolePermissionMatrix: vi.fn(),
@@ -182,6 +185,39 @@ describe('subject permission loaders', () => {
 
     expect(rendered.container.querySelector('table')).toBeNull();
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
+  });
+
+  it('restores page scroll after a self-initiated permission change resets admin queries', async () => {
+    let resolveReload: ((value: ReturnType<typeof matrix>) => void) | undefined;
+    permissionMocks.getUserPermissionMatrix
+      .mockResolvedValueOnce(matrix({ userId: 'user-a' }))
+      .mockImplementationOnce(
+        () =>
+          new Promise<ReturnType<typeof matrix>>((resolve) => {
+            resolveReload = resolve;
+          })
+      );
+    permissionMocks.setUserPermission.mockImplementation(
+      () => new Promise<object>(() => undefined)
+    );
+    const rendered = render(UserPermissionsMatrix, { props: { userId: 'user-a' } });
+    await settle();
+    rendered.container.style.height = '80px';
+    rendered.container.style.overflowY = 'auto';
+    rendered.container.scrollTop = 60;
+    const originalScrollTop = rendered.container.scrollTop;
+
+    cellButton(rendered.container, 'message.post').click();
+    await settle();
+    removeRegisteredAdminQueries('origin');
+    await settle();
+
+    expect(rendered.container.querySelector('table')).toBeNull();
+    expect(rendered.container.scrollTop).toBe(0);
+
+    resolveReload?.(matrix({ userId: 'user-a' }));
+    await vi.waitFor(() => expect(rendered.container.querySelector('table')).not.toBeNull());
+    expect(rendered.container.scrollTop).toBe(originalScrollTop);
   });
 
   it('serializes role mutations within one resource', async () => {

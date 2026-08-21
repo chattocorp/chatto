@@ -107,11 +107,14 @@ it('renders one alphabetically ordered matrix without category dividers', () => 
   expect(container.querySelectorAll('table')).toHaveLength(1);
   expect(container.querySelector('.panel-header')?.textContent).toContain('Permissions');
   expect(container.querySelector('table')?.className).toContain('w-full');
+  expect(container.querySelector('.data-table-viewport')?.className).toContain('overflow-x-auto');
+  expect(container.querySelector('.data-table-viewport')?.className).not.toContain('max-h-[70dvh]');
+  expect(container.querySelector('thead')?.className).not.toContain('sticky');
   expect(container.querySelectorAll('[data-testid="permission-matrix-spacer"]')).toHaveLength(3);
   expect(container.querySelector('thead th:last-child')?.className).toContain('bg-background');
-  expect([...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)).toEqual(
-    ['room.manage', 'server.manage', 'user.delete-self']
-  );
+  expect(
+    [...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)
+  ).toEqual(['room.manage', 'server.manage', 'user.delete-self']);
 });
 
 it('filters permission names as the query changes', () => {
@@ -122,9 +125,9 @@ it('filters permission names as the query changes', () => {
   filter.dispatchEvent(new Event('input', { bubbles: true }));
   flushSync();
 
-  expect([...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)).toEqual(
-    ['message.delete']
-  );
+  expect(
+    [...container.querySelectorAll('[data-testid="permission-name"]')].map((row) => row.textContent)
+  ).toEqual(['message.delete']);
 });
 
 it('visually hides the redundant filter label and focuses the filter with Cmd/Ctrl-/', () => {

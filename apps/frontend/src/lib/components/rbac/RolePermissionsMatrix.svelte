@@ -9,6 +9,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 -->
 <script lang="ts">
   import { onDestroy } from 'svelte';
+  import type { Attachment } from 'svelte/attachments';
   import { Hint } from '$lib/ui';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createPermissionAPI } from '$lib/api-client/permissions';
@@ -28,6 +29,11 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   import { adminQueryKeys } from '$lib/query/admin';
   import { queryClient } from '$lib/query/client';
   import { invalidateRolePermissionDependents } from '$lib/query/adminInvalidation';
+  import {
+    cancelPermissionMutationScroll,
+    capturePermissionMutationScroll,
+    restorePermissionMutationScroll
+  } from './permissionMutationScroll';
 
   type Matrix = MatrixData & { roleName: string };
 
@@ -57,6 +63,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   let mutationError = $state<{ context: string; message: string } | null>(null);
   let updatingKey = $state<string | null>(null);
   let mutationContext = $state<string | null>(null);
+  let matrixElement = $state<HTMLDivElement>();
   let mutationGeneration = 0;
   const isOwnerRole = $derived(roleName === 'owner');
   const activeMutationContext = $derived(
@@ -71,6 +78,14 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
   onDestroy(() => {
     mutationGeneration += 1;
   });
+
+  const trackMatrixElement: Attachment<HTMLDivElement> = (element) => {
+    matrixElement = element;
+    restorePermissionMutationScroll(`role:${activeMutationContext}`, element);
+    return () => {
+      if (matrixElement === element) matrixElement = undefined;
+    };
+  };
 
   function mutationScopeFor(scope: MatrixScope, name: string): RoleMutationScope {
     if (scope.kind === 'GROUP') {
@@ -96,6 +111,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     updatingKey = cellKey;
     mutationContext = context;
     mutationError = null;
+    capturePermissionMutationScroll(`role:${context}`, matrixElement);
 
     const result = await setRolePermission(
       activeConnection.getAPI(createPermissionAPI),
@@ -105,6 +121,7 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
     );
     if (mutationGeneration !== generation || !serverScope.isCurrent()) return;
     if (result.error) {
+      cancelPermissionMutationScroll(`role:${context}`);
       if (mutationGeneration === generation && context === activeMutationContext) {
         mutationError = { context, message: result.error };
         toast.error(result.error);
@@ -131,12 +148,14 @@ rendering to `SubjectPermissionsMatrix` (shared with the user variant).
 {:else if !data}
   <Hint tone="info">{m('admin.permissions.role_not_found')}</Hint>
 {:else}
-  <SubjectPermissionsMatrix
-    {data}
-    updatingKey={visibleUpdatingKey}
-    onCycle={handleCycle}
-    subjectKind="role"
-    forceAllow={isOwnerRole}
-    readOnly={isOwnerRole || visibleUpdatingKey !== null}
-  />
+  <div {@attach trackMatrixElement}>
+    <SubjectPermissionsMatrix
+      {data}
+      updatingKey={visibleUpdatingKey}
+      onCycle={handleCycle}
+      subjectKind="role"
+      forceAllow={isOwnerRole}
+      readOnly={isOwnerRole || visibleUpdatingKey !== null}
+    />
+  </div>
 {/if}

@@ -13,8 +13,8 @@ Cell semantics:
 
 A missing cell renders as an empty placeholder (the permission doesn't
 apply at that scope's tier). Hovering or focusing an available cell highlights
-its permission row and scope column. The table header remains visible while
-its dense matrix rows scroll.
+its permission row and scope column. The surrounding pane owns vertical
+scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
   import { Panel, DataTable } from '$lib/components/admin';
@@ -188,8 +188,6 @@ its dense matrix rows scroll.
       columns={matrixScopes.length + 2}
       getKey={(permission) => permission}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
-      stickyHeader
-      stickyHeaderFadeOffset="top-48"
       hoverable={false}
     >
       {#snippet header()}
