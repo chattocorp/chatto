@@ -55,7 +55,7 @@ message search results:
 | Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
 | Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
-| Mini icon action directly beside a value  | `mini-icon-button`                                                         | Adding padding, a background fill, or press scaling          |
+| Mini icon action directly beside a value  | `mini-icon-action`                                                         | Adding padding, a background fill, or press scaling          |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
 | Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
@@ -295,7 +295,7 @@ matches the action.
   drag, resize, or text-selection behavior.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Keep interactive hit areas at least 40 by 40 pixels unless a dense desktop
-  toolbar has a documented non-overlapping exception. `mini-icon-button` is
+  toolbar has a documented non-overlapping exception. `mini-icon-action` is
   the narrow exception for a subordinate icon placed directly beside the text
   or value it acts on; do not use it for standalone or toolbar actions.
 

@@ -400,7 +400,7 @@
     docs: {
       description: {
         story:
-          '`mini-icon-button` is an unframed, icon-sized action that changes only text colour on hover and focus. Reserve it for a subordinate command directly beside the value it affects.'
+          '`mini-icon-action` is an unframed, icon-sized action that changes only text colour on hover and focus. Reserve it for a subordinate command directly beside the value it affects.'
       }
     }
   }}
@@ -411,7 +411,7 @@
     </p>
     <div class="inline-flex items-center gap-1.5 self-start surface-box p-3">
       <code class="text-xs">USR-7Q9M2N</code>
-      <button type="button" class="mini-icon-button" title="Copy to clipboard">
+      <button type="button" class="mini-icon-action" title="Copy to clipboard">
         <span class="iconify icon-[uil--copy]"></span>
       </button>
     </div>

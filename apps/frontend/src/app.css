@@ -655,7 +655,7 @@
 /* Unframed icon-sized action for a subordinate command placed directly beside
  * the text or value it affects. Use icon-action for a standard hit area.
  */
-@utility mini-icon-button {
+@utility mini-icon-action {
   @apply inline-flex shrink-0 cursor-pointer text-muted transition-colors hover:text-text focus-visible:text-text;
 }
 
