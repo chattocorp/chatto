@@ -13,6 +13,7 @@ import (
 	"golang.org/x/sync/errgroup"
 	"hmans.de/authling/internal/accounts"
 	"hmans.de/authling/internal/authentication"
+	"hmans.de/authling/internal/authorizations"
 	"hmans.de/authling/internal/config"
 	"hmans.de/authling/internal/email"
 	"hmans.de/authling/internal/emailchange"
@@ -49,6 +50,8 @@ type Runtime struct {
 	Authentication *authentication.Service
 	// Sessions owns first-party browser session runtime state.
 	Sessions *sessions.Service
+	// Authorizations owns durable account grants to OIDC clients.
+	Authorizations *authorizations.Service
 	// OIDC provides standards-based identity to configured and CIMD clients.
 	OIDC *oidcprovider.Service
 }
@@ -116,6 +119,12 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 	issuerProjection := issuer.NewProjection()
 	issuerHandle := events.NewDecodedProjectionHandle(js, stream, issuerProjection, evtstream.Decode, logger)
 	issuerService := issuer.NewService(publisher, issuerHandle, vault, cfg.HTTP.PublicURLOrDefault())
+	authorizationProjection := authorizations.NewProjection()
+	authorizationHandle := events.NewDecodedProjectionHandle(js, stream, authorizationProjection, evtstream.Decode, logger)
+	authorizationService, err := authorizations.NewService(publisher, authorizationHandle, workflowKey)
+	if err != nil {
+		return closeOnError(fmt.Errorf("open authorization grant service: %w", err))
+	}
 	cimd, err := oidcprovider.NewCIMDResolver(
 		cfg.HTTP.PublicURLOrDefault(),
 		nil,
@@ -127,11 +136,11 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
 	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService)
-	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage)
+	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage, authorizationService)
 	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{
 		connection:     connection,
-		projectors:     []*events.Projector{handle.Projector(), issuerHandle.Projector()},
+		projectors:     []*events.Projector{handle.Projector(), issuerHandle.Projector(), authorizationHandle.Projector()},
 		issuer:         issuerService,
 		Accounts:       accountService,
 		Registration:   registration.New(stores.RuntimeState, js, workflowKey, sender, accountService),
@@ -139,6 +148,7 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 		EmailChange:    emailchange.New(stores.RuntimeState, js, workflowKey, sender, accountService, authenticationService, emailChangeOptions...),
 		Authentication: authenticationService,
 		Sessions:       sessionService,
+		Authorizations: authorizationService,
 		OIDC:           oidcService,
 	}, nil
 }
@@ -218,6 +228,7 @@ func Serve(ctx context.Context, cfg config.Config, logger *slog.Logger) (serveEr
 			PasswordReset:     runtime.PasswordReset,
 			EmailChange:       runtime.EmailChange,
 			Sessions:          runtime.Sessions,
+			Authorizations:    runtime.Authorizations,
 			OIDC:              runtime.OIDC,
 			SecureCookies:     cfg.HTTP.SecureCookies(),
 			PublicURL:         cfg.HTTP.PublicURLOrDefault(),

@@ -86,6 +86,27 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   expect(userinfo.status()).toBe(200);
   expect(await userinfo.json()).toEqual({ sub: accountID });
 
+  await page.goto(`${stack.baseURL}/account`);
+  const authorizedApps = page.getByRole('heading', { name: 'Authorized apps' }).locator('..');
+  await expect(authorizedApps.getByText('Authling E2E client')).toBeVisible();
+  await expect(authorizedApps.getByText('configured by this Authling operator', { exact: false })).toBeVisible();
+
+  await page.goto(authorize.toString());
+  await expect(page).toHaveURL(new RegExp(`^${escapeRegExp(stack.callbackURL)}\\?`));
+
+  const forcedConsent = new URL(authorize);
+  forcedConsent.searchParams.set('prompt', 'consent');
+  await page.goto(forcedConsent.toString());
+  await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
+
+  await page.goto(`${stack.baseURL}/account`);
+  await authorizedApps.getByRole('button', { name: 'Revoke access' }).click();
+  await expect(page.getByText('The app’s authorization was revoked', { exact: false })).toBeVisible();
+  await expect(authorizedApps.getByText('You haven’t authorized any apps yet.')).toBeVisible();
+
+  await page.goto(authorize.toString());
+  await expect(page.getByRole('heading', { name: 'Authorize Authling E2E client?' })).toBeVisible();
+
   const reused = await request.post(`${stack.baseURL}/oauth/token`, {
     form: {
       grant_type: 'authorization_code', client_id: 'authling-e2e', redirect_uri: redirectURI,
@@ -95,6 +116,10 @@ test('completes a conventional OIDC Authorization Code flow', async ({ page, req
   expect(reused.status()).toBe(400);
   expect(await reused.json()).toMatchObject({ error: 'invalid_grant' });
 });
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
 
 test('rejects authorization without S256 PKCE before starting consent', async ({ request, stack }) => {
   const response = await request.get(`${stack.baseURL}/oauth/authorize`, {

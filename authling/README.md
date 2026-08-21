@@ -3,8 +3,9 @@
 Authling is a standalone, self-hostable OpenID Connect identity provider. Its
 experimental runtime currently provides verified-email signup, encrypted local
 credentials, password login and reset, verified email change, signed-in
-password change, revocable browser sessions, and a small Authorization Code
-OpenID Provider for conventional and CIMD clients. It also stores only
+password change, revocable browser sessions, durable OIDC authorization grants,
+and a small Authorization Code OpenID Provider for conventional and CIMD
+clients. It also stores only
 identity-provider state; application data and synchronization are outside its
 scope.
 
@@ -85,8 +86,8 @@ The development configuration serves Authling at <http://localhost:8080>, with
 signup at <http://localhost:8080/signup>, login at
 <http://localhost:8080/login>, and password reset at
 <http://localhost:8080/password-reset>. Signed-in accounts can change their
-verified email address or password and review or revoke other browser sessions
-from <http://localhost:8080/account>.
+verified email address or password, review or revoke other browser sessions,
+and manage authorized OIDC apps from <http://localhost:8080/account>.
 Mailpit receives SMTP on port 1025 and shows captured messages at
 <http://127.0.0.1:8025>. Set
 `AUTHLING_HTTP_BIND_ADDRESS` to override the Authling listener and
@@ -119,6 +120,12 @@ initial profile supports Authorization Code, requires `openid` and S256 PKCE
 for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
 response containing only the account ID as `sub`. It exposes no
 application-data scopes.
+
+Explicit consent creates a durable authorization grant for the exact client
+ID and `openid` scope. Later covered requests skip repeated consent unless the
+client sends `prompt=consent`. The account page lists and revokes these grants.
+Revocation makes future requests ask again; it does not end already issued
+five-minute tokens or sessions held by the relying party.
 
 CIMD public clients use their HTTPS metadata-document URL directly as
 `client_id`; they need no Authling-side registration. Conventional consumers

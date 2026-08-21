@@ -51,6 +51,7 @@ type authRequestState struct {
 	ResponseMode  liboidc.ResponseMode        `json:"response_mode,omitempty"`
 	CodeChallenge string                      `json:"code_challenge"`
 	CodeMethod    liboidc.CodeChallengeMethod `json:"code_challenge_method"`
+	ForceConsent  bool                        `json:"force_consent,omitempty"`
 	Subject       string                      `json:"subject,omitempty"`
 	Authorized    bool                        `json:"authorized"`
 	AuthTime      time.Time                   `json:"auth_time,omitempty"`
@@ -94,8 +95,9 @@ type tokenState struct {
 
 // ConsentRequest contains the non-sensitive metadata shown to an authenticated user.
 type ConsentRequest struct {
-	ID, ClientName, ClientHost, RedirectOrigin string
-	Scopes                                     []string
+	ID, ClientID, ClientName, ClientHost, RedirectOrigin string
+	Scopes                                               []string
+	ForceConsent                                         bool
 }
 
 // Storage persists OIDC protocol state in Authling's encrypted runtime bucket.
@@ -128,6 +130,7 @@ func (s *Storage) CreateAuthRequest(ctx context.Context, request *liboidc.AuthRe
 		State: request.State, Nonce: request.Nonce, Scopes: append([]string(nil), request.Scopes...),
 		ResponseType: request.ResponseType, ResponseMode: request.ResponseMode,
 		CodeChallenge: request.CodeChallenge, CodeMethod: request.CodeChallengeMethod,
+		ForceConsent: len(request.Prompt) == 1 && request.Prompt[0] == liboidc.PromptConsent,
 	}
 	if err := s.create(ctx, s.requestKey(id), state, authRequestLifetime); err != nil {
 		return nil, err
@@ -208,9 +211,10 @@ func (s *Storage) Consent(ctx context.Context, id string) (ConsentRequest, error
 		return ConsentRequest{}, errOIDCStateNotFound
 	}
 	return ConsentRequest{
-		ID: state.ID, ClientName: state.ClientName, ClientHost: state.ClientHost,
+		ID: state.ID, ClientID: state.ClientID, ClientName: state.ClientName, ClientHost: state.ClientHost,
 		RedirectOrigin: redirectOrigin,
 		Scopes:         append([]string(nil), state.Scopes...),
+		ForceConsent:   state.ForceConsent,
 	}, nil
 }
 

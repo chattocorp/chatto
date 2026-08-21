@@ -171,6 +171,26 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "signed-in password change correlation is invalid") {
 		t.Fatalf("decode uncorrelated signed-in password change error = %v", err)
 	}
+	malformedGrant := &corev1.Event{Id: "evt_grant", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantAuthorized{OidcGrantAuthorized: &corev1.OIDCGrantAuthorizedEvent{
+		AccountId: "acc_test", GrantId: "grant_test", ClientIdDigest: make([]byte, 32), ClientName: "Client", ClientHost: "client.example", Scopes: []string{"openid", "openid"},
+	}}}
+	data, err = proto.Marshal(malformedGrant)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "OIDC grant authorization is incomplete or invalid") {
+		t.Fatalf("decode duplicate grant scopes error = %v", err)
+	}
+	malformedRevocation := &corev1.Event{Id: "evt_revoke", CreatedAt: timestamppb.Now(), Event: &corev1.Event_OidcGrantRevoked{OidcGrantRevoked: &corev1.OIDCGrantRevokedEvent{
+		AccountId: "acc_test", GrantId: "grant_test",
+	}}}
+	data, err = proto.Marshal(malformedRevocation)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "OIDC grant revocation is incomplete or invalid") {
+		t.Fatalf("decode uncorrelated grant revocation error = %v", err)
+	}
 }
 
 func TestAccountSubjectRejectsUnsafeTokens(t *testing.T) {

@@ -29,6 +29,7 @@ for (const path of [
   '/account/email',
   '/account/email/verify',
   '/account/email/complete',
+  '/account/authorizations/revoke',
   '/account/sessions/revoke',
   '/account/sessions/revoke-others',
   '/oidc/consent'

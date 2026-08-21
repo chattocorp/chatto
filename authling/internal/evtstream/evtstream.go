@@ -4,6 +4,7 @@ package evtstream
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"strings"
 
@@ -225,6 +226,50 @@ func (p *Publisher) AppendEmailChanged(
 	return events.SubjectPosition(accountRegistrySubject, sequences[1]), nil
 }
 
+// AppendOIDCGrantAuthorized records a new or explicitly renewed OIDC grant at
+// an observed account tail.
+func (p *Publisher) AppendOIDCGrantAuthorized(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	payload := event.GetOidcGrantAuthorized()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append OIDC grant authorized: event payload is not oidc_grant_authorized")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
+// AppendOIDCGrantRevoked records revocation of an active OIDC grant at an
+// observed account tail.
+func (p *Publisher) AppendOIDCGrantRevoked(ctx context.Context, event *corev1.Event, expectedTail uint64) (events.StreamPosition, error) {
+	payload := event.GetOidcGrantRevoked()
+	if payload == nil {
+		return events.StreamPosition{}, fmt.Errorf("append OIDC grant revoked: event payload is not oidc_grant_revoked")
+	}
+	subject, err := AccountSubject(payload.GetAccountId())
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	record, err := encode(event)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	sequence, err := p.log.AppendAt(ctx, subject, record, expectedTail)
+	if err != nil {
+		return events.StreamPosition{}, err
+	}
+	return events.SubjectPosition(subject, sequence), nil
+}
+
 // AppendIssuerEstablished creates the singleton issuer aggregate.
 func (p *Publisher) AppendIssuerEstablished(ctx context.Context, event *corev1.Event) (events.StreamPosition, error) {
 	if event.GetIssuerEstablished() == nil {
@@ -336,6 +381,19 @@ func validate(event *corev1.Event) error {
 		if !validSubjectToken(credential.GetAccountId()) || credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetEmailNonce()) == 0 || len(credential.GetEmailCiphertext()) == 0 || !validSubjectToken(credential.GetEmailChangeRequestEventId()) || !validSubjectToken(credential.GetPriorCredentialEventId()) {
 			return fmt.Errorf("email credential envelope is incomplete or unsupported")
 		}
+	case *corev1.Event_OidcGrantAuthorized:
+		grant := payload.OidcGrantAuthorized
+		if !validSubjectToken(grant.GetAccountId()) || !validSubjectToken(grant.GetGrantId()) || len(grant.GetClientIdDigest()) != sha256.Size || strings.TrimSpace(grant.GetClientName()) == "" || len(grant.GetClientName()) > 256 || strings.TrimSpace(grant.GetClientHost()) == "" || len(grant.GetClientHost()) > 256 || !validScopes(grant.GetScopes()) {
+			return fmt.Errorf("OIDC grant authorization is incomplete or invalid")
+		}
+		if priorID := grant.GetPriorAuthorizationEventId(); priorID != "" && !validSubjectToken(priorID) {
+			return fmt.Errorf("OIDC grant prior authorization event id is invalid")
+		}
+	case *corev1.Event_OidcGrantRevoked:
+		grant := payload.OidcGrantRevoked
+		if !validSubjectToken(grant.GetAccountId()) || !validSubjectToken(grant.GetGrantId()) || !validSubjectToken(grant.GetAuthorizationEventId()) {
+			return fmt.Errorf("OIDC grant revocation is incomplete or invalid")
+		}
 	case *corev1.Event_IssuerEstablished:
 		if payload.IssuerEstablished.GetIssuer() == "" || payload.IssuerEstablished.GetSigningKeyRef() == "" || payload.IssuerEstablished.GetSigningKeyId() == "" {
 			return fmt.Errorf("issuer establishment is incomplete")
@@ -344,6 +402,23 @@ func validate(event *corev1.Event) error {
 		return fmt.Errorf("Authling event payload is required")
 	}
 	return nil
+}
+
+func validScopes(scopes []string) bool {
+	if len(scopes) == 0 || len(scopes) > 32 {
+		return false
+	}
+	seen := make(map[string]struct{}, len(scopes))
+	for _, scope := range scopes {
+		if scope == "" || len(scope) > 256 || strings.ContainsAny(scope, " \t\r\n") {
+			return false
+		}
+		if _, exists := seen[scope]; exists {
+			return false
+		}
+		seen[scope] = struct{}{}
+	}
+	return true
 }
 
 // AccountSubject returns the durable subject for one account aggregate.

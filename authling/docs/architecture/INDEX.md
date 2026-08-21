@@ -103,6 +103,8 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 | `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
+| `OIDCGrantAuthorizedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and prior-authorization IDs; keyed exact-client digest; client display snapshot; granted scopes |
+| `OIDCGrantRevokedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, grant, and active authorization-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 
 The account ID is restricted to one NATS-safe token. Structural account
@@ -142,6 +144,16 @@ stream position before returning the projected account.
 
 The account projection is currently cold-replay-only. It has no snapshot or
 local-checkpoint persistence.
+
+The authorization-grant projection consumes `authling.evt.account.*` and
+materializes active grants by account, exact client ID, and opaque grant ID. It
+validates account existence and the correlation chain for explicit renewal and
+revocation, retains ended grant IDs to prevent generation reuse, and serves
+only after startup replay. Grant commands synchronize to the account tail,
+publish with account-subject OCC, retry from refreshed state after conflicts,
+and wait for their committed position. The projection is cold-replay-only and
+contains client metadata and scopes but no account PII, tokens, codes, redirect
+URIs, or browser data.
 
 The browser-session inventory is a process-wide in-memory model over one
 filtered `session.*` watcher on `AUTHLING_RUNTIME_STATE`. It decrypts the latest
@@ -251,8 +263,17 @@ OpenID Connect mounts discovery at `/.well-known/openid-configuration` and its
 protocol endpoints below `/oauth/`. Authorization accepts only code flow,
 requires exactly the `openid` scope and S256 PKCE.
 Signed-out requests resume through an opaque server-side request ID after
-login; `GET` and same-origin `POST` `/oidc/consent` display and record
-per-request consent.
+login. `GET /oidc/consent` reuses a durable exact-client authorization grant
+when it covers the requested scopes, except when `prompt=consent` requires an
+explicit decision. Same-origin `POST /oidc/consent` records explicit approval
+before authorizing the expiring request or returns a denial to the validated
+client redirect.
+
+`GET /account` lists active OIDC grants separately from Authling browser
+sessions. Same-origin `POST /account/authorizations/revoke` authorizes the
+opaque grant ID under the current account and commits revocation. Revocation
+forces future authorization to ask again but does not terminate already issued
+five-minute tokens or relying-party sessions.
 
 Conventional clients resolve from configuration. Unconfigured HTTPS URL client
 IDs resolve through the bounded CIMD fetcher, which disables redirects and

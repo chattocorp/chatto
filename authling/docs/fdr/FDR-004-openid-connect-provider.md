@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-14
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -19,11 +19,13 @@ to the relying party with an Authorization Code.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
-  consent screen. The screen identifies the signed-in account and the client,
-  and explains that the stable account identifier will be shared.
-- Consent is requested for every authorization. Allowing binds the request to
-  the current account; denying returns `access_denied` and the original state
-  to the validated redirect URI.
+  consent decision. When consent is required, the screen identifies the
+  signed-in account and client and explains that the stable account identifier
+  will be shared.
+- Allowing creates or renews a durable exact-client authorization grant and
+  binds the request to the current account. Later requests covered by that
+  grant skip the consent screen unless they use `prompt=consent`. Denying
+  returns `access_denied` and the original state to the validated redirect URI.
 - The authorization code expires with its ten-minute request, is bound to the
   client, redirect, and PKCE verifier, and succeeds in at most one concurrent
   exchange.
@@ -69,6 +71,9 @@ permits link-local, multicast, or other special-use destinations.
   are resolved server-side and cannot carry an arbitrary return URL.
 - A storage conflict during approval or code claim fails the operation instead
   of creating two grants.
+- Grant creation and revocation use account-subject OCC and wait for the grant
+  projection. Revocation controls future consent reuse, not already issued
+  short-lived tokens or relying-party sessions.
 - Failure responses do not reveal client secrets, codes, tokens, account IDs,
   email addresses, or complete request URLs.
 
@@ -77,7 +82,7 @@ permits link-local, multicast, or other special-use destinations.
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
 - Refresh tokens, token revocation, RP-initiated logout, further identity scopes and
-  claims, persistent consent, application grouping, key rotation, and official
+  claims, relying-party grouping, key rotation, and official
   conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
   profile and may need an explicit migration as the document evolves.
@@ -87,3 +92,4 @@ permits link-local, multicast, or other special-use destinations.
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
 - **Product boundary:** [ADR-007](../adr/ADR-007-limit-authling-to-identity-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)
+- **Authorization grants:** [FDR-010](FDR-010-oidc-authorization-grants.md)

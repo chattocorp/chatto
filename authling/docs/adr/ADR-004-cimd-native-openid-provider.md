@@ -69,9 +69,13 @@ event. Pending requests, authorization-code mappings, and access-token records
 are authenticated-encrypted in the expiring runtime-state bucket beneath
 HMAC-derived keys.
 
-Authling always asks for per-request consent. A signed-out browser resumes the
+Authling records explicit consent as a durable, account-owned authorization
+grant for one exact client ID and scope set. A covered later request may reuse
+that grant; `prompt=consent` always asks again. A signed-out browser resumes the
 request through its opaque server-side request ID after login. Client redirect
-URIs never become general-purpose return parameters.
+URIs never become general-purpose return parameters. Grant behavior and its
+future extension boundary are recorded in
+[FDR-010](../fdr/FDR-010-oidc-authorization-grants.md).
 
 ## Consequences
 

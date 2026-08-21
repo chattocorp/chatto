@@ -90,6 +90,8 @@ type Event struct {
 	//	*Event_PasswordResetRequested
 	//	*Event_EmailChangeRequested
 	//	*Event_EmailChanged
+	//	*Event_OidcGrantAuthorized
+	//	*Event_OidcGrantRevoked
 	Event         isEvent_Event `protobuf_oneof:"event"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -209,6 +211,24 @@ func (x *Event) GetEmailChanged() *EmailChangedEvent {
 	return nil
 }
 
+func (x *Event) GetOidcGrantAuthorized() *OIDCGrantAuthorizedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcGrantAuthorized); ok {
+			return x.OidcGrantAuthorized
+		}
+	}
+	return nil
+}
+
+func (x *Event) GetOidcGrantRevoked() *OIDCGrantRevokedEvent {
+	if x != nil {
+		if x, ok := x.Event.(*Event_OidcGrantRevoked); ok {
+			return x.OidcGrantRevoked
+		}
+	}
+	return nil
+}
+
 type isEvent_Event interface {
 	isEvent_Event()
 }
@@ -241,6 +261,14 @@ type Event_EmailChanged struct {
 	EmailChanged *EmailChangedEvent `protobuf:"bytes,106,opt,name=email_changed,json=emailChanged,proto3,oneof"`
 }
 
+type Event_OidcGrantAuthorized struct {
+	OidcGrantAuthorized *OIDCGrantAuthorizedEvent `protobuf:"bytes,107,opt,name=oidc_grant_authorized,json=oidcGrantAuthorized,proto3,oneof"`
+}
+
+type Event_OidcGrantRevoked struct {
+	OidcGrantRevoked *OIDCGrantRevokedEvent `protobuf:"bytes,108,opt,name=oidc_grant_revoked,json=oidcGrantRevoked,proto3,oneof"`
+}
+
 func (*Event_AccountCreated) isEvent_Event() {}
 
 func (*Event_EmailClaimed) isEvent_Event() {}
@@ -254,6 +282,10 @@ func (*Event_PasswordResetRequested) isEvent_Event() {}
 func (*Event_EmailChangeRequested) isEvent_Event() {}
 
 func (*Event_EmailChanged) isEvent_Event() {}
+
+func (*Event_OidcGrantAuthorized) isEvent_Event() {}
+
+func (*Event_OidcGrantRevoked) isEvent_Event() {}
 
 // IssuerEstablishedEvent permanently binds one Authling deployment to its
 // externally visible OpenID Connect issuer and initial signing-key identity.
@@ -805,11 +837,171 @@ func (x *EmailChangedEvent) GetPriorCredentialEventId() string {
 	return ""
 }
 
+// OIDCGrantAuthorizedEvent records an account's authorization of one exact
+// OIDC client and scope set. Repeated explicit consent renews the active grant
+// by correlating it to the preceding authorization event.
+type OIDCGrantAuthorizedEvent struct {
+	state     protoimpl.MessageState `protogen:"open.v1"`
+	AccountId string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	GrantId   string                 `protobuf:"bytes,2,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	// Deployment-keyed digest of the exact client ID. The raw configured ID or
+	// CIMD URL is not retained in durable account history.
+	ClientIdDigest []byte   `protobuf:"bytes,3,opt,name=client_id_digest,json=clientIdDigest,proto3" json:"client_id_digest,omitempty"`
+	ClientName     string   `protobuf:"bytes,4,opt,name=client_name,json=clientName,proto3" json:"client_name,omitempty"`
+	ClientHost     string   `protobuf:"bytes,5,opt,name=client_host,json=clientHost,proto3" json:"client_host,omitempty"`
+	Scopes         []string `protobuf:"bytes,6,rep,name=scopes,proto3" json:"scopes,omitempty"`
+	// Empty for a new grant. Renewals identify the active authorization event
+	// they replace so replay rejects stale or forked grant history.
+	PriorAuthorizationEventId string `protobuf:"bytes,7,opt,name=prior_authorization_event_id,json=priorAuthorizationEventId,proto3" json:"prior_authorization_event_id,omitempty"`
+	unknownFields             protoimpl.UnknownFields
+	sizeCache                 protoimpl.SizeCache
+}
+
+func (x *OIDCGrantAuthorizedEvent) Reset() {
+	*x = OIDCGrantAuthorizedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[8]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCGrantAuthorizedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCGrantAuthorizedEvent) ProtoMessage() {}
+
+func (x *OIDCGrantAuthorizedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[8]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCGrantAuthorizedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCGrantAuthorizedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{8}
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetClientIdDigest() []byte {
+	if x != nil {
+		return x.ClientIdDigest
+	}
+	return nil
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetClientName() string {
+	if x != nil {
+		return x.ClientName
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetClientHost() string {
+	if x != nil {
+		return x.ClientHost
+	}
+	return ""
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetScopes() []string {
+	if x != nil {
+		return x.Scopes
+	}
+	return nil
+}
+
+func (x *OIDCGrantAuthorizedEvent) GetPriorAuthorizationEventId() string {
+	if x != nil {
+		return x.PriorAuthorizationEventId
+	}
+	return ""
+}
+
+// OIDCGrantRevokedEvent ends one active authorization-grant generation.
+type OIDCGrantRevokedEvent struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	AccountId            string                 `protobuf:"bytes,1,opt,name=account_id,json=accountId,proto3" json:"account_id,omitempty"`
+	GrantId              string                 `protobuf:"bytes,2,opt,name=grant_id,json=grantId,proto3" json:"grant_id,omitempty"`
+	AuthorizationEventId string                 `protobuf:"bytes,3,opt,name=authorization_event_id,json=authorizationEventId,proto3" json:"authorization_event_id,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *OIDCGrantRevokedEvent) Reset() {
+	*x = OIDCGrantRevokedEvent{}
+	mi := &file_authling_core_v1_event_proto_msgTypes[9]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *OIDCGrantRevokedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*OIDCGrantRevokedEvent) ProtoMessage() {}
+
+func (x *OIDCGrantRevokedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_authling_core_v1_event_proto_msgTypes[9]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use OIDCGrantRevokedEvent.ProtoReflect.Descriptor instead.
+func (*OIDCGrantRevokedEvent) Descriptor() ([]byte, []int) {
+	return file_authling_core_v1_event_proto_rawDescGZIP(), []int{9}
+}
+
+func (x *OIDCGrantRevokedEvent) GetAccountId() string {
+	if x != nil {
+		return x.AccountId
+	}
+	return ""
+}
+
+func (x *OIDCGrantRevokedEvent) GetGrantId() string {
+	if x != nil {
+		return x.GrantId
+	}
+	return ""
+}
+
+func (x *OIDCGrantRevokedEvent) GetAuthorizationEventId() string {
+	if x != nil {
+		return x.AuthorizationEventId
+	}
+	return ""
+}
+
 var File_authling_core_v1_event_proto protoreflect.FileDescriptor
 
 const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\n" +
-	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\xc5\x05\n" +
+	"\x1cauthling/core/v1/event.proto\x12\x10authling.core.v1\x1a\x1fgoogle/protobuf/timestamp.proto\"\x80\a\n" +
 	"\x05Event\x12\x0e\n" +
 	"\x02id\x18\x01 \x01(\tR\x02id\x129\n" +
 	"\n" +
@@ -820,7 +1012,9 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"\x10password_changed\x18g \x01(\v2&.authling.core.v1.PasswordChangedEventH\x00R\x0fpasswordChanged\x12i\n" +
 	"\x18password_reset_requested\x18h \x01(\v2-.authling.core.v1.PasswordResetRequestedEventH\x00R\x16passwordResetRequested\x12c\n" +
 	"\x16email_change_requested\x18i \x01(\v2+.authling.core.v1.EmailChangeRequestedEventH\x00R\x14emailChangeRequested\x12J\n" +
-	"\remail_changed\x18j \x01(\v2#.authling.core.v1.EmailChangedEventH\x00R\femailChangedB\a\n" +
+	"\remail_changed\x18j \x01(\v2#.authling.core.v1.EmailChangedEventH\x00R\femailChanged\x12`\n" +
+	"\x15oidc_grant_authorized\x18k \x01(\v2*.authling.core.v1.OIDCGrantAuthorizedEventH\x00R\x13oidcGrantAuthorized\x12W\n" +
+	"\x12oidc_grant_revoked\x18l \x01(\v2'.authling.core.v1.OIDCGrantRevokedEventH\x00R\x10oidcGrantRevokedB\a\n" +
 	"\x05event\"~\n" +
 	"\x16IssuerEstablishedEvent\x12\x16\n" +
 	"\x06issuer\x18\x01 \x01(\tR\x06issuer\x12&\n" +
@@ -873,7 +1067,23 @@ const file_authling_core_v1_event_proto_rawDesc = "" +
 	"emailNonce\x12)\n" +
 	"\x10email_ciphertext\x18\x06 \x01(\fR\x0femailCiphertext\x12@\n" +
 	"\x1demail_change_request_event_id\x18\a \x01(\tR\x19emailChangeRequestEventId\x129\n" +
-	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId*\x81\x01\n" +
+	"\x19prior_credential_event_id\x18\b \x01(\tR\x16priorCredentialEventId\"\x99\x02\n" +
+	"\x18OIDCGrantAuthorizedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x19\n" +
+	"\bgrant_id\x18\x02 \x01(\tR\agrantId\x12(\n" +
+	"\x10client_id_digest\x18\x03 \x01(\fR\x0eclientIdDigest\x12\x1f\n" +
+	"\vclient_name\x18\x04 \x01(\tR\n" +
+	"clientName\x12\x1f\n" +
+	"\vclient_host\x18\x05 \x01(\tR\n" +
+	"clientHost\x12\x16\n" +
+	"\x06scopes\x18\x06 \x03(\tR\x06scopes\x12?\n" +
+	"\x1cprior_authorization_event_id\x18\a \x01(\tR\x19priorAuthorizationEventId\"\x87\x01\n" +
+	"\x15OIDCGrantRevokedEvent\x12\x1d\n" +
+	"\n" +
+	"account_id\x18\x01 \x01(\tR\taccountId\x12\x19\n" +
+	"\bgrant_id\x18\x02 \x01(\tR\agrantId\x124\n" +
+	"\x16authorization_event_id\x18\x03 \x01(\tR\x14authorizationEventId*\x81\x01\n" +
 	"\x12PasswordChangeKind\x12$\n" +
 	" PASSWORD_CHANGE_KIND_UNSPECIFIED\x10\x00\x12!\n" +
 	"\x1dPASSWORD_CHANGE_KIND_RECOVERY\x10\x01\x12\"\n" +
@@ -892,7 +1102,7 @@ func file_authling_core_v1_event_proto_rawDescGZIP() []byte {
 }
 
 var file_authling_core_v1_event_proto_enumTypes = make([]protoimpl.EnumInfo, 1)
-var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 8)
+var file_authling_core_v1_event_proto_msgTypes = make([]protoimpl.MessageInfo, 10)
 var file_authling_core_v1_event_proto_goTypes = []any{
 	(PasswordChangeKind)(0),             // 0: authling.core.v1.PasswordChangeKind
 	(*Event)(nil),                       // 1: authling.core.v1.Event
@@ -903,23 +1113,27 @@ var file_authling_core_v1_event_proto_goTypes = []any{
 	(*PasswordResetRequestedEvent)(nil), // 6: authling.core.v1.PasswordResetRequestedEvent
 	(*EmailChangeRequestedEvent)(nil),   // 7: authling.core.v1.EmailChangeRequestedEvent
 	(*EmailChangedEvent)(nil),           // 8: authling.core.v1.EmailChangedEvent
-	(*timestamppb.Timestamp)(nil),       // 9: google.protobuf.Timestamp
+	(*OIDCGrantAuthorizedEvent)(nil),    // 9: authling.core.v1.OIDCGrantAuthorizedEvent
+	(*OIDCGrantRevokedEvent)(nil),       // 10: authling.core.v1.OIDCGrantRevokedEvent
+	(*timestamppb.Timestamp)(nil),       // 11: google.protobuf.Timestamp
 }
 var file_authling_core_v1_event_proto_depIdxs = []int32{
-	9, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
-	4, // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
-	3, // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
-	2, // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
-	5, // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
-	6, // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
-	7, // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
-	8, // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
-	0, // 8: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
-	9, // [9:9] is the sub-list for method output_type
-	9, // [9:9] is the sub-list for method input_type
-	9, // [9:9] is the sub-list for extension type_name
-	9, // [9:9] is the sub-list for extension extendee
-	0, // [0:9] is the sub-list for field type_name
+	11, // 0: authling.core.v1.Event.created_at:type_name -> google.protobuf.Timestamp
+	4,  // 1: authling.core.v1.Event.account_created:type_name -> authling.core.v1.AccountCreatedEvent
+	3,  // 2: authling.core.v1.Event.email_claimed:type_name -> authling.core.v1.EmailClaimedEvent
+	2,  // 3: authling.core.v1.Event.issuer_established:type_name -> authling.core.v1.IssuerEstablishedEvent
+	5,  // 4: authling.core.v1.Event.password_changed:type_name -> authling.core.v1.PasswordChangedEvent
+	6,  // 5: authling.core.v1.Event.password_reset_requested:type_name -> authling.core.v1.PasswordResetRequestedEvent
+	7,  // 6: authling.core.v1.Event.email_change_requested:type_name -> authling.core.v1.EmailChangeRequestedEvent
+	8,  // 7: authling.core.v1.Event.email_changed:type_name -> authling.core.v1.EmailChangedEvent
+	9,  // 8: authling.core.v1.Event.oidc_grant_authorized:type_name -> authling.core.v1.OIDCGrantAuthorizedEvent
+	10, // 9: authling.core.v1.Event.oidc_grant_revoked:type_name -> authling.core.v1.OIDCGrantRevokedEvent
+	0,  // 10: authling.core.v1.PasswordChangedEvent.kind:type_name -> authling.core.v1.PasswordChangeKind
+	11, // [11:11] is the sub-list for method output_type
+	11, // [11:11] is the sub-list for method input_type
+	11, // [11:11] is the sub-list for extension type_name
+	11, // [11:11] is the sub-list for extension extendee
+	0,  // [0:11] is the sub-list for field type_name
 }
 
 func init() { file_authling_core_v1_event_proto_init() }
@@ -935,6 +1149,8 @@ func file_authling_core_v1_event_proto_init() {
 		(*Event_PasswordResetRequested)(nil),
 		(*Event_EmailChangeRequested)(nil),
 		(*Event_EmailChanged)(nil),
+		(*Event_OidcGrantAuthorized)(nil),
+		(*Event_OidcGrantRevoked)(nil),
 	}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
@@ -942,7 +1158,7 @@ func file_authling_core_v1_event_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_authling_core_v1_event_proto_rawDesc), len(file_authling_core_v1_event_proto_rawDesc)),
 			NumEnums:      1,
-			NumMessages:   8,
+			NumMessages:   10,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

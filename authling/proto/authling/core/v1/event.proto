@@ -25,6 +25,8 @@ message Event {
     PasswordResetRequestedEvent password_reset_requested = 104;
     EmailChangeRequestedEvent email_change_requested = 105;
     EmailChangedEvent email_changed = 106;
+    OIDCGrantAuthorizedEvent oidc_grant_authorized = 107;
+    OIDCGrantRevokedEvent oidc_grant_revoked = 108;
   }
 }
 
@@ -118,4 +120,29 @@ message EmailChangedEvent {
   bytes email_ciphertext = 6;
   string email_change_request_event_id = 7;
   string prior_credential_event_id = 8;
+}
+
+// OIDCGrantAuthorizedEvent records an account's authorization of one exact
+// OIDC client and scope set. Repeated explicit consent renews the active grant
+// by correlating it to the preceding authorization event.
+message OIDCGrantAuthorizedEvent {
+  string account_id = 1;
+  string grant_id = 2;
+  // Deployment-keyed digest of the exact client ID. The raw configured ID or
+  // CIMD URL is not retained in durable account history.
+  bytes client_id_digest = 3;
+  string client_name = 4;
+  string client_host = 5;
+  repeated string scopes = 6;
+
+  // Empty for a new grant. Renewals identify the active authorization event
+  // they replace so replay rejects stale or forked grant history.
+  string prior_authorization_event_id = 7;
+}
+
+// OIDCGrantRevokedEvent ends one active authorization-grant generation.
+message OIDCGrantRevokedEvent {
+  string account_id = 1;
+  string grant_id = 2;
+  string authorization_event_id = 3;
 }
