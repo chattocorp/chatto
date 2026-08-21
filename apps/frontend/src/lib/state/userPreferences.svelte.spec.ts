@@ -71,14 +71,14 @@ describe('UserPreferencesState', () => {
       expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
     });
 
-    it('uses visual editing when storage is empty', () => {
+    it('uses Markdown editing when storage is empty', () => {
       const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('visual');
+      expect(state.composerEditor).toBe('markdown');
     });
 
-    it('uses modifier-enter sending when storage is empty', () => {
+    it('uses Return-to-send when storage is empty', () => {
       const state = new UserPreferencesState();
-      expect(state.composerSendMode).toBe('modifier-enter');
+      expect(state.composerSendMode).toBe('enter');
     });
 
     it('hydrates a valid composer preference', () => {
@@ -99,17 +99,21 @@ describe('UserPreferencesState', () => {
     it('falls back from an invalid send-mode preference independently', () => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ composerEditor: 'markdown', composerSendMode: 'spacebar' })
+        JSON.stringify({ composerEditor: 'visual', composerSendMode: 'spacebar' })
+      );
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('visual');
+      expect(state.composerSendMode).toBe('enter');
+    });
+
+    it('falls back from an invalid composer preference independently', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ composerEditor: 'plain-text', composerSendMode: 'modifier-enter' })
       );
       const state = new UserPreferencesState();
       expect(state.composerEditor).toBe('markdown');
       expect(state.composerSendMode).toBe('modifier-enter');
-    });
-
-    it('falls back from an invalid composer preference', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'plain-text' }));
-      const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('visual');
     });
 
     it('hydrates a valid persisted sound', () => {
@@ -265,21 +269,21 @@ describe('UserPreferencesState', () => {
 
     it('updates and persists the composer preference', () => {
       const state = new UserPreferencesState();
-      state.composerEditor = 'markdown';
+      state.composerEditor = 'visual';
 
-      expect(state.composerEditor).toBe('markdown');
+      expect(state.composerEditor).toBe('visual');
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-        composerEditor: 'markdown'
+        composerEditor: 'visual'
       });
     });
 
     it('updates and persists the composer send mode', () => {
       const state = new UserPreferencesState();
-      state.composerSendMode = 'enter';
+      state.composerSendMode = 'modifier-enter';
 
-      expect(state.composerSendMode).toBe('enter');
+      expect(state.composerSendMode).toBe('modifier-enter');
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-        composerSendMode: 'enter'
+        composerSendMode: 'modifier-enter'
       });
     });
 

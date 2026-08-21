@@ -29,8 +29,8 @@ interface Preferences {
 
 const defaultPreferences: Preferences = {
   displayTheme: 'system',
-  composerEditor: 'visual',
-  composerSendMode: 'modifier-enter',
+  composerEditor: 'markdown',
+  composerSendMode: 'enter',
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };

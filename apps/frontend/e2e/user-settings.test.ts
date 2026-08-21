@@ -64,21 +64,49 @@ test.describe('User Settings - Preferences', () => {
       timeout: TIMEOUTS.UI_STANDARD
     });
 
-    const markdown = page.getByRole('radio', { name: /^Markdown/ });
+    const visual = page.getByRole('radio', { name: /^Visual/ });
     const returnToSend = page.getByRole('radio', { name: /^Return/ });
-    await markdown.click();
-    await returnToSend.click();
-    await expect(markdown).toHaveAttribute('aria-checked', 'true');
-    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
+    const modifierReturnToSend = page.getByRole('radio', { name: /^Cmd\/Ctrl\+Return/ });
+    await visual.click();
+    await modifierReturnToSend.click();
+    await expect(visual).toHaveAttribute('aria-checked', 'true');
+    await expect(modifierReturnToSend).toHaveAttribute('aria-checked', 'true');
     await expect
       .poll(() =>
         page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
       )
-      .toMatchObject({ composerEditor: 'markdown', composerSendMode: 'enter' });
+      .toMatchObject({ composerEditor: 'visual', composerSendMode: 'modifier-enter' });
 
     await page.reload();
-    await expect(markdown).toHaveAttribute('aria-checked', 'true');
-    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
+    await expect(visual).toHaveAttribute('aria-checked', 'true');
+    await expect(modifierReturnToSend).toHaveAttribute('aria-checked', 'true');
+  });
+
+  test('defaults to Markdown and Return-to-send when composer preferences are absent', async ({
+    page
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    await page.evaluate(() => {
+      const stored = JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}');
+      delete stored.composerEditor;
+      delete stored.composerSendMode;
+      localStorage.setItem('chatto:preferences', JSON.stringify(stored));
+    });
+    await page.reload();
+
+    await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+    await expect(page.getByRole('radio', { name: /^Return/ })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
   });
 
   test('uses the same composer preferences on a connected server', async ({
