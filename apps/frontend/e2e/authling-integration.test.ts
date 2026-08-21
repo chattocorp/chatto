@@ -65,7 +65,8 @@ test('transfers an editable Authling profile into a new Chatto account', async (
   const code = await waitForVerificationCode(request, authling.mailpitURL);
   await page.getByLabel('Verification code').fill(code);
   await page.getByRole('button', { name: 'Verify email' }).click();
-  await page.getByLabel('Password').fill(password);
+  await page.getByLabel('Password', { exact: true }).fill(password);
+  await page.getByLabel('Confirm password').fill(password);
   await page.getByRole('button', { name: 'Create account' }).click();
   await page.getByRole('link', { name: 'Edit profile' }).click();
   await page.getByLabel('Preferred username').fill(preferredUsername);
