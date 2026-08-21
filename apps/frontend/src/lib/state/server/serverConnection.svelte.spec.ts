@@ -1,7 +1,8 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockHandleAuthenticationRequired, mockServers } = vi.hoisted(() => ({
+const { mockHandleAuthenticationRequired, mockRenewServerAuthentication, mockServers } = vi.hoisted(() => ({
   mockHandleAuthenticationRequired: vi.fn(),
+  mockRenewServerAuthentication: vi.fn(),
   mockServers: new Map<string, { id: string; url: string; token: string | null }>()
 }));
 
@@ -12,7 +13,8 @@ vi.mock('./registry.svelte', () => ({
     get originServer() {
       return [...mockServers.values()].find((s) => s.url === window.location.origin);
     },
-    handleAuthenticationRequired: mockHandleAuthenticationRequired
+    handleAuthenticationRequired: mockHandleAuthenticationRequired,
+    renewServerAuthentication: mockRenewServerAuthentication
   }
 }));
 
@@ -52,6 +54,14 @@ describe('ServerConnection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockServers.clear();
+    mockRenewServerAuthentication.mockImplementation(async (id: string) => {
+      mockHandleAuthenticationRequired(id);
+      return null;
+    });
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('derives origin Connect and realtime endpoints', () => {
@@ -122,11 +132,11 @@ describe('ServerConnection', () => {
 
     expect(first).toBe(second);
     expect(factory).toHaveBeenCalledOnce();
-    expect(factory).toHaveBeenCalledWith({
+    expect(factory).toHaveBeenCalledWith(expect.objectContaining({
       serverId: 'remote-1',
       baseUrl: 'https://remote.example.com/api/connect',
       bearerToken: 'my-token'
-    });
+    }));
     client.dispose();
   });
 
@@ -238,12 +248,31 @@ describe('ServerConnection', () => {
     }
   });
 
-  it('notifies the registry on realtime authentication-required signals', () => {
+  it('asks the registry to renew on realtime authentication-required signals', async () => {
     const client = new ServerConnection(makeConfig({ token: 'my-token', serverId: 'remote-1' }));
 
-    client.handleAuthenticationRequired();
+    await client.handleAuthenticationRequired();
 
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
+    client.dispose();
+  });
+
+  it('schedules short-lived access renewal before expiry without an immediate loop', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const client = new ServerConnection(makeConfig({
+      token: 'my-token',
+      serverId: 'remote-1',
+      accessTokenExpiresAt: 31_000
+    }));
+
+    await vi.advanceTimersByTimeAsync(23_999);
+    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     client.dispose();
   });
 });

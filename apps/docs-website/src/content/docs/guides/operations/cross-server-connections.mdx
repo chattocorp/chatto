@@ -14,12 +14,21 @@ OAuth Authorization Code flow, it sends that HTTPS document URL as its
 `client_id`. The remote server retrieves and validates the document, including
 the exact callback URI. After the user approves the identified client, the
 frontend exchanges the short-lived code with PKCE and stores the resulting
-bearer token.
+short-lived access token, rotating refresh credential, and expiry metadata.
+Routine renewal happens in the background and does not reopen the remote
+server's authorization pages.
 
 Chatto accepts browser HTTP and realtime transport from any origin, but never
 enables credentialed cross-origin requests. A foreign origin cannot use an
 ambient Chatto session cookie; it must present the bearer token issued through
 the OAuth flow.
+
+The bundled frontend refreshes before access expiry, coordinates tabs on the
+same browser profile, and reconnects realtime with its existing opaque resume
+cursor. A transient refresh failure is retried without discarding the session.
+If the server rejects the refresh credential permanently, the current route
+and other connected servers remain intact and the affected server shows an
+explicit reconnect action; Chatto never opens OAuth automatically.
 
 <Aside type="note" title="Chatto Desktop and native apps">
   Chatto Desktop uses the built-in `chatto://desktop` client identity and exact
@@ -57,6 +66,9 @@ first-party sessions and connections from other clients remain active.
 
 - Run Chatto 0.5 or newer on both sides. Pre-0.5 origin-only clients are not
   compatible with this flow.
+- Upgrade all serving replicas and the bundled client together. Pre-renewal
+  bearer records are rejected and affected users sign in once to obtain a
+  renewable pair.
 - Serve browser client metadata over public HTTPS. Chatto blocks redirects,
   oversized responses, and private or other special-use network destinations
   when retrieving CIMD metadata. Loopback HTTP is supported only for loopback

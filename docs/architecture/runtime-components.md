@@ -33,6 +33,11 @@ frontend owns server registration, authentication, and routing.
 Electron's default persistent session stores browser state in the application's
 user-data directory. Browser and desktop deployments use the same popup-based
 OAuth flow and return the same-origin callback through `BroadcastChannel`.
+The shared frontend then persists the renewable bearer pair and expiry metadata
+per server, serializes background refresh with same-tab coalescing and a
+same-browser Web Lock, and updates its existing API and realtime transports in
+place. Permanent refresh failure preserves the current route and requires an
+explicit reconnect; it never opens OAuth automatically.
 
 The shell owns no Chatto backend, NATS resources, projections, or durable
 domain state. Every macOS build adds a narrow optional `screenShare` renderer

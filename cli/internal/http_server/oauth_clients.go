@@ -236,8 +236,22 @@ func validateOAuthClientMetadata(clientID string, identifier *url.URL, document 
 			return OAuthClient{}, fmt.Errorf("CIMD contains an invalid redirect URI")
 		}
 	}
-	if len(document.GrantTypes) > 0 && !(len(document.GrantTypes) == 1 && document.GrantTypes[0] == "authorization_code") {
-		return OAuthClient{}, fmt.Errorf("CIMD client supports an unsupported grant type")
+	if len(document.GrantTypes) > 0 {
+		hasAuthorizationCode := false
+		seenGrantTypes := make(map[string]struct{}, len(document.GrantTypes))
+		for _, grantType := range document.GrantTypes {
+			if grantType != "authorization_code" && grantType != "refresh_token" {
+				return OAuthClient{}, fmt.Errorf("CIMD client supports an unsupported grant type")
+			}
+			if _, exists := seenGrantTypes[grantType]; exists {
+				return OAuthClient{}, fmt.Errorf("CIMD grant_types contains a duplicate")
+			}
+			seenGrantTypes[grantType] = struct{}{}
+			hasAuthorizationCode = hasAuthorizationCode || grantType == "authorization_code"
+		}
+		if !hasAuthorizationCode {
+			return OAuthClient{}, fmt.Errorf("CIMD client must support authorization_code")
+		}
 	}
 	if len(document.ResponseTypes) > 0 && !(len(document.ResponseTypes) == 1 && document.ResponseTypes[0] == "code") {
 		return OAuthClient{}, fmt.Errorf("CIMD client supports an unsupported response type")

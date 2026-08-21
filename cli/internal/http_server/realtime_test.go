@@ -559,6 +559,25 @@ func TestRealtimeWebSocketAuthenticatesWithBearerHello(t *testing.T) {
 	subscribeRealtime(t, conn, token)
 }
 
+func TestRealtimeWebSocketRequestsReconnectAtBearerAccessExpiry(t *testing.T) {
+	env := setupWebSocketTestServerWithAccessTokenTTL(t, 2*time.Second)
+	user, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bearer-expiry", "RT Bearer Expiry", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	token, err := env.core.CreateAuthToken(env.ctx, user.Id)
+	if err != nil {
+		t.Fatalf("CreateAuthToken: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, token)
+	frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+	if !ok || frame.GetClose().GetCode() != "authentication_required" || !frame.GetClose().GetReconnect() {
+		t.Fatalf("expiry frame = %+v, want reconnecting authentication_required", frame)
+	}
+}
+
 func TestRealtimeWebSocketClosesWhenBotAPIKeyRotates(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-bot-owner", "RT Bot Owner", "password123")
@@ -796,6 +815,33 @@ func TestOAuthClientBlockCancelsAuthorizationBeforeCloseWriteCompletes(t *testin
 	case <-connectionClosed:
 	default:
 		t.Fatal("connection remained open after terminal-frame write completed")
+	}
+}
+
+func TestBearerExpiryCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var written *realtimev1.RealtimeServerFrame
+	closed := false
+
+	terminateRealtimeForBearerExpiry(
+		cancel,
+		func(frame *realtimev1.RealtimeServerFrame) error {
+			written = frame
+			return nil
+		},
+		func() { closed = true },
+	)
+
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("authorized context remained active after bearer expiry")
+	}
+	if !closed {
+		t.Fatal("connection remained open after bearer expiry")
+	}
+	if written.GetClose().GetCode() != "authentication_required" || !written.GetClose().GetReconnect() {
+		t.Fatalf("expiry frame = %+v, want reconnecting authentication_required", written)
 	}
 }
 

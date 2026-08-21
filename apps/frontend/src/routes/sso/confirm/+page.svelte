@@ -2,6 +2,7 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
+  import { directBearerSession } from '$lib/auth/bearerSession';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
@@ -90,10 +91,15 @@
     actionError = '';
     try {
       const result = await flowAPI.createAccount({ token: data.token, login, displayName });
-      const resumedReturnNavigation = await completeOriginAuthentication(result.token, {
-        id: result.userId,
-        login: result.login
-      });
+      const credentials = directBearerSession(result);
+      if (!credentials) throw new Error(m('auth.register.missing_token'));
+      const resumedReturnNavigation = await completeOriginAuthentication(
+        credentials,
+        {
+          id: result.userId,
+          login: result.login
+        }
+      );
       if (!resumedReturnNavigation) {
         goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
       }

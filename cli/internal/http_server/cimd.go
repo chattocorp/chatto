@@ -54,7 +54,7 @@ func (s *HTTPServer) setupCIMDRoutes() {
 		ApplicationType:         "web",
 		RedirectURIs:            frontendRedirects,
 		TokenEndpointAuthMethod: "none",
-		GrantTypes:              []string{"authorization_code"},
+		GrantTypes:              []string{"authorization_code", "refresh_token"},
 		ResponseTypes:           []string{"code"},
 	})
 }

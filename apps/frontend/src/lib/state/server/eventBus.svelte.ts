@@ -281,18 +281,39 @@ class EventBusManager {
       serverConnection.setRealtimeConnectionStatus(status);
     };
 
-    const stopForAuthenticationRequired = (current: RealtimeSocket, reason: string) => {
+    const recoverFromAuthenticationRequired = async (current: RealtimeSocket, reason: string) => {
       console.warn(`[eventBus:${serverId}] realtime authentication required`, {
         reason,
         ...debugState()
       });
-      mode = 'dormant';
       current.onclose = null;
       if (socket === current) socket = null;
+      socketSubscribed = false;
+      pendingHydrationRoomId = null;
+      clearHydrationRetryTimer();
+      sync.markStale();
       serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
       current.close(1000, 'authentication_required');
-      resolvePoll(false);
-      serverConnection.handleAuthenticationRequired();
+      try {
+        const renewed = await serverConnection.handleAuthenticationRequired();
+        if (stopped) return;
+        if (!renewed) {
+          mode = 'dormant';
+          resolvePoll(false);
+          return;
+        }
+        reconnectAttempts = 0;
+        if (mode === 'live') scheduleReconnect('access token renewed', 0);
+        else if (mode === 'polling') connect('access token renewed');
+      } catch (error) {
+        console.warn(`[eventBus:${serverId}] bearer renewal temporarily failed`, error);
+        if (stopped) return;
+        if (mode === 'live') scheduleReconnect('bearer renewal temporarily failed', RECONNECT_WAIT_MS);
+        else {
+          mode = 'dormant';
+          resolvePoll(false);
+        }
+      }
     };
 
     const stopForUnsupportedProtocol = (current: RealtimeSocket) => {
@@ -443,7 +464,7 @@ class EventBusManager {
                 fatal: frame.frame.value.fatal
               });
               if (frame.frame.value.code === 'authentication_required') {
-                stopForAuthenticationRequired(nextSocket, 'error frame');
+                void recoverFromAuthenticationRequired(nextSocket, 'error frame');
                 return;
               }
               if (frame.frame.value.code === 'unsupported_protocol') {
@@ -469,7 +490,7 @@ class EventBusManager {
               return;
             case 'close':
               if (frame.frame.value.code === 'authentication_required') {
-                stopForAuthenticationRequired(nextSocket, 'close frame');
+                void recoverFromAuthenticationRequired(nextSocket, 'close frame');
                 return;
               }
               nextSocket.onclose = null;

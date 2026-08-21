@@ -138,7 +138,8 @@ type CoreConfig struct {
 	ProjectionSnapshotRetention Duration       `toml:"projection_snapshot_retention,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_RETENTION" comment:"How long projection snapshot generations are retained. NATS enforces this as an Object Store TTL; Chatto uses it for optional S3 cleanup. Supports '7d', '1w', '168h', etc. Default: 7d."`
 	ProjectionSnapshotS3Cleanup *bool          `toml:"projection_snapshot_s3_cleanup,commented" env:"CHATTO_CORE_PROJECTION_SNAPSHOT_S3_CLEANUP" comment:"Delete S3 projection snapshot generations older than projection_snapshot_retention. Disable when an external S3 lifecycle policy owns expiry. Default: true."`
 	Assets                      AssetsConfig   `toml:"assets"`
-	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.TokenTTLOrDefault()
+	AuthTokenTTL                time.Duration  `toml:"-" env:"-"` // Renewable bearer maximum and per-cookie lifetime, set from AuthConfig.TokenTTLOrDefault().
+	AuthAccessTokenTTL          time.Duration  `toml:"-" env:"-"` // Set by caller from AuthConfig.AccessTokenTTLOrDefault().
 	EmailOTP                    EmailOTPConfig `toml:"-" env:"-"` // Set by caller from AuthConfig.EmailOTP
 	Replicas                    int            `toml:"-" env:"-"` // Set by caller from NATSConfig.ReplicasOrDefault()
 	Limits                      LimitsConfig   `toml:"-" env:"-"` // Set by caller from ChattoConfig.Limits

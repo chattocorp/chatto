@@ -3,6 +3,16 @@ import { SvelteMap } from 'svelte/reactivity';
 /** Device-local authentication state for one known Chatto server. */
 export interface ServerSession {
   token: string | null;
+  /** Rotating renewal credential; absent on pre-0.5 persisted sessions. */
+  refreshToken?: string | null;
+  /** Access credential expiry as Unix epoch milliseconds. */
+  accessTokenExpiresAt?: number | null;
+  /** Absolute renewable-session expiry as Unix epoch milliseconds. */
+  refreshTokenExpiresAt?: number | null;
+  /** Public OAuth client identifier, or null for direct origin login. */
+  oauthClientId?: string | null;
+  /** Persisted idempotency key for an in-flight refresh rotation. */
+  refreshRequestId?: string | null;
   userId: string | null;
   userLogin: string | null;
   userDisplayName: string | null;
@@ -13,6 +23,11 @@ export interface ServerSession {
 export function emptyServerSession(): ServerSession {
   return {
     token: null,
+    refreshToken: null,
+    accessTokenExpiresAt: null,
+    refreshTokenExpiresAt: null,
+    oauthClientId: null,
+    refreshRequestId: null,
     userId: null,
     userLogin: null,
     userDisplayName: null,

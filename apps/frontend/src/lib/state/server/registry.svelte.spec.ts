@@ -1,4 +1,4 @@
-import { afterEach, describe, it, expect, beforeEach } from 'vitest';
+import { afterEach, describe, it, expect, beforeEach, vi } from 'vitest';
 import {
 	generateServerId,
 	restorePersistedServerState,
@@ -70,6 +70,7 @@ describe('ServerRegistry', () => {
 
 	afterEach(() => {
 		serverRegistry.removeAll();
+		vi.unstubAllGlobals();
 	});
 
 	it('exports the singleton', async () => {
@@ -436,6 +437,166 @@ describe('ServerRegistry', () => {
 					expect.objectContaining({ token: 'persisted-token', userId: 'persisted-user' })
 				]
 			]);
+		});
+	});
+
+	describe('bearer renewal', () => {
+		function renewableServer() {
+			return makeServer({
+				id: 'renewable',
+				url: 'https://renewable.example',
+				token: 'access-1',
+				refreshToken: 'refresh-1',
+				accessTokenExpiresAt: Date.now() + 10 * 60_000,
+				refreshTokenExpiresAt: Date.now() + 24 * 60 * 60_000,
+				oauthClientId: 'https://client.example/oauth/client-metadata.json'
+			});
+		}
+
+		function refreshedResponse() {
+			return new Response(
+				JSON.stringify({
+					access_token: 'access-2',
+					refresh_token: 'refresh-2',
+					expires_in: 900,
+					refresh_token_expires_in: 86_400
+				}),
+				{ headers: { 'Content-Type': 'application/json' } }
+			);
+		}
+
+		it('coalesces concurrent rotations and installs the pair in place', async () => {
+			const fetchMock = vi.fn(async (input: string | URL | Request) => {
+				if (String(input).endsWith('/oauth/token')) return refreshedResponse();
+				return new Response('', { status: 503 });
+			});
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+
+			const [first, second] = await Promise.all([
+				serverRegistry.renewServerAuthentication('renewable', true),
+				serverRegistry.renewServerAuthentication('renewable', true)
+			]);
+
+			expect(first).toBe('access-2');
+			expect(second).toBe('access-2');
+			const tokenCalls = fetchMock.mock.calls.filter(([input]) =>
+				String(input).endsWith('/oauth/token')
+			);
+			expect(tokenCalls).toHaveLength(1);
+			expect(serverRegistry.getServer('renewable')).toMatchObject({
+				token: 'access-2',
+				refreshToken: 'refresh-2',
+				refreshRequestId: null,
+				reauthRequiredAt: null
+			});
+		});
+
+		it('reuses its persisted request ID after a lost refresh response', async () => {
+			let refreshAttempts = 0;
+			const requestBodies: Array<Record<string, string>> = [];
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+					if (!String(input).endsWith('/oauth/token')) return new Response('', { status: 503 });
+					requestBodies.push(JSON.parse(String(init?.body)) as Record<string, string>);
+					refreshAttempts++;
+					if (refreshAttempts === 1) throw new TypeError('response lost');
+					return refreshedResponse();
+				})
+			);
+			serverRegistry.addServer(renewableServer());
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).rejects.toThrow('response lost');
+			const persistedAfterFailure = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')[0];
+			expect(persistedAfterFailure.refreshRequestId).toBeTruthy();
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).resolves.toBe('access-2');
+			expect(requestBodies[1].refresh_request_id).toBe(requestBodies[0].refresh_request_id);
+		});
+
+		it("adopts another tab's persisted rotation after acquiring the refresh lock", async () => {
+			const fetchMock = vi.fn();
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+			const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+			persisted[0] = {
+				...persisted[0],
+				token: 'access-from-other-tab',
+				refreshToken: 'refresh-from-other-tab',
+				accessTokenExpiresAt: Date.now() + 15 * 60_000,
+				refreshRequestId: null
+			};
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).resolves.toBe('access-from-other-tab');
+			expect(
+				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
+			).toHaveLength(0);
+			expect(serverRegistry.getServer('renewable')).toMatchObject({
+				token: 'access-from-other-tab',
+				refreshToken: 'refresh-from-other-tab',
+				reauthRequiredAt: null
+			});
+		});
+
+		it("adopts another tab's request ID after a lost refresh response", async () => {
+			const requestBodies: Array<Record<string, string>> = [];
+			vi.stubGlobal(
+				'fetch',
+				vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
+					if (!String(input).endsWith('/oauth/token')) return new Response('', { status: 503 });
+					requestBodies.push(JSON.parse(String(init?.body)) as Record<string, string>);
+					return refreshedResponse();
+				})
+			);
+			serverRegistry.addServer(renewableServer());
+			const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
+			persisted[0] = {
+				...persisted[0],
+				refreshRequestId: 'request-from-other-tab'
+			};
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).resolves.toBe('access-2');
+			expect(requestBodies).toHaveLength(1);
+			expect(requestBodies[0].refresh_request_id).toBe('request-from-other-tab');
+		});
+
+		it('preserves the session and marks explicit reconnect after invalid_grant', async () => {
+			const fetchMock = vi.fn(async (input: string | URL | Request) => {
+					if (!String(input).endsWith('/oauth/token')) return new Response('', { status: 503 });
+					return new Response(JSON.stringify({ error: 'invalid_grant' }), {
+						status: 400,
+						headers: { 'Content-Type': 'application/json' }
+					});
+				});
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).resolves.toBeNull();
+			expect(serverRegistry.getServer('renewable')).toMatchObject({
+				token: 'access-1',
+				refreshToken: 'refresh-1',
+				reauthRequiredAt: expect.any(Number)
+			});
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).resolves.toBeNull();
+			expect(
+				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
+			).toHaveLength(1);
 		});
 	});
 

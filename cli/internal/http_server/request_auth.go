@@ -132,6 +132,7 @@ func (s *HTTPServer) bearerPresentedCredential(ctx context.Context, token string
 			UserID:        credential.UserID,
 			Handle:        token,
 			OAuthClientID: oauthClientIDForRuntimeCredential(credential),
+			ExpiresAt:     credential.ExpiresAt,
 		},
 	}, true, nil
 }

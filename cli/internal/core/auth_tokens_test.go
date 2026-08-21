@@ -146,15 +146,15 @@ func TestChattoCore_LegacyUntypedBearerTokenCannotBecomeFresh(t *testing.T) {
 		t.Fatalf("store token: %v", err)
 	}
 
-	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); !errors.Is(err, ErrFreshAuthRequired) {
-		t.Fatalf("MarkBearerTokenFresh err = %v, want ErrFreshAuthRequired", err)
+	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("MarkBearerTokenFresh err = %v, want ErrAuthTokenNotFound", err)
 	}
-	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
-		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrFreshAuthRequired", err)
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrAuthTokenNotFound", err)
 	}
 }
 
-func TestChattoCore_LegacyFreshBearerTokenCanSatisfyExistingFreshWindow(t *testing.T) {
+func TestChattoCore_LegacyFreshBearerTokenIsRejected(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -178,8 +178,8 @@ func TestChattoCore_LegacyFreshBearerTokenCanSatisfyExistingFreshWindow(t *testi
 		t.Fatalf("store token: %v", err)
 	}
 
-	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
-		t.Fatalf("RequireFreshAuthForBearerToken: %v", err)
+	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("RequireFreshAuthForBearerToken err = %v, want ErrAuthTokenNotFound", err)
 	}
 }
 
@@ -280,9 +280,9 @@ func TestChattoCore_AuthTokenFormat(t *testing.T) {
 		t.Errorf("Token %q does not start with 'cht_AT'", token)
 	}
 
-	// cht_ (4) + AT (2) + nanoid (14) = 20 chars
-	if len(token) != 20 {
-		t.Errorf("Token length is %d, want 20", len(token))
+	// cht_AT (6) + a base64url-encoded SHA-256 MAC (43) = 49 chars.
+	if len(token) != 49 {
+		t.Errorf("Token length is %d, want 49", len(token))
 	}
 }
 
@@ -435,7 +435,7 @@ func TestChattoCore_AuthTokenGenerationRejectsStaleAuthentication(t *testing.T) 
 	}
 }
 
-func TestChattoCore_ValidateAuthTokenGrandfathersLegacyGeneration(t *testing.T) {
+func TestChattoCore_ValidateAuthTokenRejectsPreRenewalBearer(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 
@@ -443,11 +443,6 @@ func TestChattoCore_ValidateAuthTokenGrandfathersLegacyGeneration(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
-	if err != nil {
-		t.Fatalf("CurrentAuthGeneration: %v", err)
-	}
-
 	token := NewAuthToken()
 	key := core.authTokenKey(token)
 	data, err := json.Marshal(AuthTokenData{
@@ -461,24 +456,11 @@ func TestChattoCore_ValidateAuthTokenGrandfathersLegacyGeneration(t *testing.T) 
 		t.Fatalf("store legacy token: %v", err)
 	}
 
-	gotUserID, err := core.ValidateAuthToken(ctx, token)
-	if err != nil {
-		t.Fatalf("ValidateAuthToken: %v", err)
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken err = %v, want ErrAuthTokenNotFound", err)
 	}
-	if gotUserID != user.Id {
-		t.Fatalf("ValidateAuthToken user ID = %q, want %q", gotUserID, user.Id)
-	}
-
-	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("get upgraded token: %v", err)
-	}
-	var upgraded AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &upgraded); err != nil {
-		t.Fatalf("unmarshal upgraded token: %v", err)
-	}
-	if upgraded.AuthGeneration != authGeneration {
-		t.Fatalf("upgraded auth generation = %d, want %d", upgraded.AuthGeneration, authGeneration)
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !errors.Is(err, jetstream.ErrKeyNotFound) {
+		t.Fatalf("pre-renewal token lookup error = %v, want ErrKeyNotFound", err)
 	}
 }
 

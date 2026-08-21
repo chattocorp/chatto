@@ -26,6 +26,7 @@ import { serverIdToSegment } from '$lib/navigation';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { clearCachedUser } from './loadAuth';
 import { saveReturnUrl } from './returnNavigation';
+import { oauthBearerSession, persistedBearerSession } from './bearerSession';
 
 const POPUP_WIDTH = 520;
 const POPUP_HEIGHT = 600;
@@ -256,9 +257,12 @@ export async function completeServerOAuthFlow(
       result.error_description || result.error || 'Failed to exchange the authorization code.'
     );
   }
-  if (!result.access_token) {
-    throw new OAuthPopupError('The server did not return an access token.');
+  const credentials = oauthBearerSession(result, flow.clientId);
+  if (!credentials) {
+    throw new OAuthPopupError('The server did not return a renewable bearer session.');
   }
+
+  const persistedCredentials = persistedBearerSession(credentials);
 
   const existing = serverRegistry.servers.find(
     (server) => server.url.toLowerCase() === flow.remoteUrl.toLowerCase()
@@ -269,7 +273,7 @@ export async function completeServerOAuthFlow(
       iconUrl: flow.serverIconUrl ?? existing.iconUrl
     });
     serverRegistry.replaceServerAuthentication(existing.id, {
-      token: result.access_token,
+      ...persistedCredentials,
       userId: result.user?.id ?? null,
       userLogin: result.user?.login ?? null,
       userDisplayName: result.user?.displayName ?? null,
@@ -294,7 +298,7 @@ export async function completeServerOAuthFlow(
       addedAt: Date.now()
     },
     {
-      token: result.access_token,
+      ...persistedCredentials,
       userId: result.user?.id ?? null,
       userLogin: result.user?.login ?? null,
       userDisplayName: result.user?.displayName ?? null,

@@ -1073,6 +1073,61 @@ func TestOAuthToken_FormEncoded(t *testing.T) {
 	}
 }
 
+func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
+	s := setupOAuthServer(t)
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "refresh-grant-user", "Refresh Grant User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := s.core.CreateBearerSessionWithSource(ctx, user.GetId(), "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+
+	exchange := func(requestID string) (int, map[string]any, http.Header) {
+		t.Helper()
+		body, err := json.Marshal(map[string]string{
+			"grant_type":         "refresh_token",
+			"refresh_token":      initial.RefreshToken,
+			"refresh_request_id": requestID,
+		})
+		if err != nil {
+			t.Fatalf("marshal request: %v", err)
+		}
+		req := httptest.NewRequest("POST", "/oauth/token", bytes.NewReader(body))
+		req.Header.Set("Content-Type", "application/json")
+		response := httptest.NewRecorder()
+		s.router.ServeHTTP(response, req)
+		var result map[string]any
+		if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+			t.Fatalf("decode response: %v", err)
+		}
+		return response.Code, result, response.Header()
+	}
+
+	status, first, headers := exchange("refresh-grant-request-0001")
+	if status != http.StatusOK {
+		t.Fatalf("first refresh status = %d, body = %v", status, first)
+	}
+	if first["access_token"] == "" || first["refresh_token"] == "" || first["expires_in"].(float64) <= 0 || first["refresh_token_expires_in"].(float64) <= 0 {
+		t.Fatalf("first refresh response = %v", first)
+	}
+	if headers.Get("Cache-Control") != "no-store" || headers.Get("Pragma") != "no-cache" {
+		t.Fatalf("token response cache headers = %v", headers)
+	}
+
+	status, retry, _ := exchange("refresh-grant-request-0001")
+	if status != http.StatusOK || retry["access_token"] != first["access_token"] || retry["refresh_token"] != first["refresh_token"] {
+		t.Fatalf("same-request retry status/body = %d, %v; first = %v", status, retry, first)
+	}
+
+	status, reused, _ := exchange("refresh-grant-request-0002")
+	if status != http.StatusBadRequest || reused["error"] != "invalid_grant" {
+		t.Fatalf("reuse status/body = %d, %v", status, reused)
+	}
+}
+
 func TestOAuthToken_CORS(t *testing.T) {
 	s := setupOAuthServer(t)
 

@@ -31,6 +31,10 @@ type wsTestEnv struct {
 }
 
 func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
+	return setupWebSocketTestServerWithAccessTokenTTL(t, 0)
+}
+
+func setupWebSocketTestServerWithAccessTokenTTL(t testing.TB, accessTokenTTL time.Duration) *wsTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -40,7 +44,8 @@ func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
 	t.Cleanup(cancel)
 
 	coreConfig := config.CoreConfig{
-		SecretKey: "test-core-secret",
+		SecretKey:          "test-core-secret",
+		AuthAccessTokenTTL: accessTokenTTL,
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
 		},

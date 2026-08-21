@@ -37,8 +37,9 @@ The authorization server retrieves a CIMD document itself and validates that:
 - the client identifier is an HTTPS URL with a non-root path, or an HTTP
   loopback URL when the Chatto server itself is in loopback development;
 - the document's `client_id` exactly equals the URL that served it;
-- the client is public (`token_endpoint_auth_method` is `none`) and supports
-  Authorization Code;
+- the client is public (`token_endpoint_auth_method` is `none`), supports
+  Authorization Code, and declares no grant outside Authorization Code and the
+  rotating refresh grant added by ADR-079;
 - the requested callback exactly equals one declared redirect URI; and
 - web callbacks use HTTPS, while native private-use schemes require
   `application_type = "native"`.
@@ -127,4 +128,5 @@ tokens record their issuing client.
 - [ADR-045](ADR-045-public-api-stability-tiers.md)
 - [ADR-046](ADR-046-typed-runtime-credentials.md)
 - [ADR-067](ADR-067-electron-desktop-client.md)
+- [ADR-079](ADR-079-renewable-bearer-sessions.md)
 - [FDR-023](../fdr/FDR-023-authentication-and-sessions.md)

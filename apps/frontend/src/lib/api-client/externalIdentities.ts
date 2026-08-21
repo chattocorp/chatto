@@ -59,6 +59,9 @@ export type CreatedExternalIdentityAccount = {
   userId: string;
   login: string;
   token: string;
+  refreshToken: string;
+  expiresIn: number;
+  refreshTokenExpiresIn: number;
 };
 
 export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
@@ -81,7 +84,10 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
       return {
         userId: response.userId,
         login: response.login,
-        token: response.token
+        token: response.token,
+        refreshToken: response.refreshToken,
+        expiresIn: Number(response.expiresIn),
+        refreshTokenExpiresIn: Number(response.refreshTokenExpiresIn)
       };
     },
 

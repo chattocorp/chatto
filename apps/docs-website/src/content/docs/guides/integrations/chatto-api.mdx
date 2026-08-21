@@ -32,13 +32,23 @@ Discovery is also the right place for custom clients to learn public server iden
 
 | Client shape | Credential |
 | ------------ | ---------- |
-| Same-origin browser app | HTTP-only cookie session, with bearer token support in the bundled client. |
-| Cross-origin Chatto frontend | OAuth authorization code with PKCE, then opaque bearer token. |
+| Same-origin browser app | HTTP-only cookie session, with renewable bearer-session support in the bundled client. |
+| Cross-origin Chatto frontend | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
 | Bot integration | Bot API key created in Server Admin → Bots. |
-| User-authorized client | OAuth authorization code with PKCE, then opaque bearer token. |
+| User-authorized client | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
 | Local recovery automation | Operator socket, not user auth. |
 
-Bearer tokens and bot API keys are opaque credentials. They are not JWTs. See
+Human bearer sessions return a short-lived access token, a rotating refresh
+credential, and both lifetimes. Send only the access token to ConnectRPC and
+realtime. Rotate through `/oauth/token` with `grant_type=refresh_token`, the
+issuing `client_id` when applicable, and a client-generated
+`refresh_request_id`. Persist that request ID before sending and reuse it until
+the complete response has been persisted; this lets an exact retry recover a
+lost successful response. Serialize refresh attempts. An `invalid_grant`
+response requires explicit authentication, while network failures and `5xx`
+responses may be retried with the same request ID.
+
+Bearer credentials and bot API keys are opaque. They are not JWTs. See
 [Bot Accounts](/guides/integrations/bot-accounts/) for unattended integration
 identities and their explicit permission model.
 
@@ -87,7 +97,7 @@ support inline timestamps.
 1. Prefer generated protobuf clients over hand-built JSON or path calls.
 2. Treat `NOT_FOUND` on singular reads as the normal absence signal.
 3. Use pagination fields instead of assuming unbounded lists.
-4. Keep bearer tokens out of logs, URLs, and issue reports.
+4. Keep access tokens, refresh credentials, and refresh request IDs out of logs, URLs, and issue reports.
 5. Handle permission failures explicitly; admin APIs are method-gated.
 6. Watch release notes for ConnectRPC package, service, or field changes during `0.x`.
 

@@ -12,6 +12,11 @@ import {
 	type ServerRegistrationMetadataPatch
 } from './catalog.svelte';
 import { emptyServerSession, ServerSessions, type ServerSession } from './sessions.svelte';
+import {
+	oauthBearerSession,
+	persistedBearerSession,
+	type NewBearerSession
+} from '$lib/auth/bearerSession';
 
 export type { ServerRegistration } from './catalog.svelte';
 export type { ServerSession } from './sessions.svelte';
@@ -86,6 +91,10 @@ function isOptionalNullableString(value: unknown): boolean {
 	return value === undefined || value === null || typeof value === 'string';
 }
 
+function isOptionalNullableNumber(value: unknown): boolean {
+	return value === undefined || value === null || (typeof value === 'number' && Number.isFinite(value));
+}
+
 function isPersistedServer(value: unknown): value is PersistedRegisteredServer {
 	if (typeof value !== 'object' || value === null) return false;
 	const server = value as Record<string, unknown>;
@@ -98,6 +107,11 @@ function isPersistedServer(value: unknown): value is PersistedRegisteredServer {
 		!Number.isFinite(server.addedAt) ||
 		!isOptionalNullableString(server.iconUrl) ||
 		!isOptionalNullableString(server.token) ||
+		!isOptionalNullableString(server.refreshToken) ||
+		!isOptionalNullableNumber(server.accessTokenExpiresAt) ||
+		!isOptionalNullableNumber(server.refreshTokenExpiresAt) ||
+		!isOptionalNullableString(server.oauthClientId) ||
+		!isOptionalNullableString(server.refreshRequestId) ||
 		!isOptionalNullableString(server.userId) ||
 		!isOptionalNullableString(server.userLogin) ||
 		!isOptionalNullableString(server.userDisplayName) ||
@@ -136,6 +150,11 @@ function registrationFromServer(server: RegisteredServer): ServerRegistration {
 function sessionFromServer(server: RegisteredServer): ServerSession {
 	return {
 		token: server.token,
+		refreshToken: server.refreshToken ?? null,
+		accessTokenExpiresAt: server.accessTokenExpiresAt ?? null,
+		refreshTokenExpiresAt: server.refreshTokenExpiresAt ?? null,
+		oauthClientId: server.oauthClientId ?? null,
+		refreshRequestId: server.refreshRequestId ?? null,
 		userId: server.userId,
 		userLogin: server.userLogin,
 		userDisplayName: server.userDisplayName,
@@ -208,6 +227,7 @@ class ServerRegistry {
 	readonly catalog: ServerCatalog;
 	readonly sessions: ServerSessions;
 	#stores = new SvelteMap<string, ServerStateStore>();
+	#renewalPromises = new Map<string, Promise<string | null>>();
 
 	constructor() {
 		const persisted = restorePersistedServerState();
@@ -332,7 +352,7 @@ class ServerRegistry {
 		url: string,
 		name: string,
 		iconUrl: string | null,
-		token: string | null = null,
+		credentials: string | NewBearerSession | null = null,
 		user: AuthenticatedUserSummary | null = null
 	): void {
 		this.addServer(
@@ -344,7 +364,11 @@ class ServerRegistry {
 				addedAt: Date.now()
 			},
 			{
-				token,
+				...(typeof credentials === 'string'
+					? { token: credentials }
+					: credentials
+						? persistedBearerSession(credentials)
+						: { token: null }),
 				userId: user?.id ?? null,
 				userLogin: user?.login ?? null,
 				userDisplayName: user?.displayName ?? user?.login ?? null,
@@ -354,7 +378,7 @@ class ServerRegistry {
 		);
 	}
 
-	authenticateOrigin(token: string, user: AuthenticatedUserSummary | null = null): void {
+	authenticateOrigin(credentials: string | NewBearerSession, user: AuthenticatedUserSummary | null = null): void {
 		if (typeof window === 'undefined') return;
 		const origin = this.originServer;
 		if (!origin) {
@@ -363,13 +387,15 @@ class ServerRegistry {
 				originUrl,
 				this.servers.map((s) => s.id)
 			);
-			this.#registerOrigin(id, originUrl, 'Chatto', null, token, user);
+			this.#registerOrigin(id, originUrl, 'Chatto', null, credentials, user);
 			this.originProbed = true;
 			return;
 		}
 
 		this.#replaceServerAuth(origin.id, {
-			token,
+			...(typeof credentials === 'string'
+				? { token: credentials }
+				: persistedBearerSession(credentials)),
 			userId: user?.id ?? origin.userId,
 			userLogin: user?.login ?? origin.userLogin,
 			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
@@ -395,6 +421,11 @@ class ServerRegistry {
 		if (!server) return;
 		this.#replaceServerAuth(id, {
 			token: null,
+			refreshToken: null,
+			accessTokenExpiresAt: null,
+			refreshTokenExpiresAt: null,
+			oauthClientId: null,
+			refreshRequestId: null,
 			userId: null,
 			userLogin: null,
 			userDisplayName: null,
@@ -433,6 +464,127 @@ class ServerRegistry {
 		if (!session || session.reauthRequiredAt === null) return;
 		this.sessions.update(id, { reauthRequiredAt: null });
 		this.#persist();
+	}
+
+	/** Return a usable access token, rotating the persisted pair when needed. */
+	renewServerAuthentication(id: string, force = false): Promise<string | null> {
+		const existing = this.#renewalPromises.get(id);
+		if (existing) {
+			if (!force) return existing;
+			const tokenBeforeWait = this.sessions.get(id)?.token ?? null;
+			return existing.then((token) => {
+				if (!token || token !== tokenBeforeWait) return token;
+				return this.renewServerAuthentication(id, true);
+			});
+		}
+		const renewal = this.#renewServerAuthentication(id, force).finally(() => {
+			if (this.#renewalPromises.get(id) === renewal) this.#renewalPromises.delete(id);
+		});
+		this.#renewalPromises.set(id, renewal);
+		return renewal;
+	}
+
+	async #renewServerAuthentication(id: string, force: boolean): Promise<string | null> {
+		const originalToken = this.sessions.get(id)?.token ?? null;
+		return this.#withRefreshLock(id, async () => {
+			this.#adoptPersistedBearerSession(id);
+			let session = this.sessions.get(id);
+			const registration = this.catalog.get(id);
+			if (!session || !registration || !session.token || !session.refreshToken) {
+				this.handleAuthenticationRequired(id);
+				return null;
+			}
+			if (session.reauthRequiredAt !== null) return null;
+
+			if (session.token !== originalToken) return session.token;
+			if (!force && (session.accessTokenExpiresAt ?? 0) > Date.now()) {
+				return session.token;
+			}
+
+			const requestId = session.refreshRequestId || crypto.randomUUID();
+			if (session.refreshRequestId !== requestId) {
+				this.sessions.update(id, { refreshRequestId: requestId });
+				this.#persist();
+				session = this.sessions.get(id);
+			}
+			if (!session?.refreshToken) {
+				this.handleAuthenticationRequired(id);
+				return null;
+			}
+
+			const response = await fetch(new URL('/oauth/token', registration.url), {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					grant_type: 'refresh_token',
+					refresh_token: session.refreshToken,
+					refresh_request_id: requestId,
+					client_id: session.oauthClientId ?? ''
+				}),
+				signal: AbortSignal.timeout(10_000)
+			});
+			const body: Record<string, unknown> = await response.json().catch(() => ({}));
+			if (!response.ok) {
+				if (response.status === 400 && body.error === 'invalid_grant') {
+					this.handleAuthenticationRequired(id);
+					return null;
+				}
+				throw new Error(
+					typeof body.error_description === 'string'
+						? body.error_description
+						: `Bearer session renewal failed (${response.status})`
+				);
+			}
+
+			const credentials = oauthBearerSession(body, session.oauthClientId ?? null);
+			if (!credentials) throw new Error('The server returned an invalid bearer session.');
+			this.#updateBearerSessionInPlace(id, {
+				...persistedBearerSession(credentials),
+				reauthRequiredAt: null
+			});
+			return credentials.token;
+		});
+	}
+
+	async #withRefreshLock<T>(id: string, operation: () => Promise<T>): Promise<T> {
+		if (typeof navigator !== 'undefined' && navigator.locks) {
+			return navigator.locks.request(`chatto:bearer-refresh:${id}`, operation);
+		}
+		return operation();
+	}
+
+	#adoptPersistedBearerSession(id: string): void {
+		const stored = serversSlot.get().find((server) => server.id === id);
+		if (!stored) return;
+		const persisted = sessionFromServer(normalizeRegisteredServer(stored));
+		const current = this.sessions.get(id);
+		if (!current || !persisted.token) return;
+		if (
+			persisted.token === current.token &&
+			persisted.refreshToken === current.refreshToken &&
+			persisted.accessTokenExpiresAt === current.accessTokenExpiresAt &&
+			persisted.refreshTokenExpiresAt === current.refreshTokenExpiresAt &&
+			persisted.oauthClientId === current.oauthClientId &&
+			persisted.refreshRequestId === current.refreshRequestId &&
+			persisted.reauthRequiredAt === current.reauthRequiredAt
+		) {
+			return;
+		}
+		this.#updateBearerSessionInPlace(id, {
+			token: persisted.token,
+			refreshToken: persisted.refreshToken,
+			accessTokenExpiresAt: persisted.accessTokenExpiresAt,
+			refreshTokenExpiresAt: persisted.refreshTokenExpiresAt,
+			oauthClientId: persisted.oauthClientId,
+			refreshRequestId: persisted.refreshRequestId,
+			reauthRequiredAt: persisted.reauthRequiredAt
+		});
+	}
+
+	#updateBearerSessionInPlace(id: string, data: Partial<ServerSession>): void {
+		if (!this.sessions.update(id, data)) return;
+		this.#persist();
+		serverConnectionManager.updateBearerSession(id);
 	}
 
 	/**
@@ -529,7 +681,17 @@ class ServerRegistry {
 		id: string,
 		data: Pick<
 			RegisteredServer,
-			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl' | 'reauthRequiredAt'
+			| 'token'
+			| 'refreshToken'
+			| 'accessTokenExpiresAt'
+			| 'refreshTokenExpiresAt'
+			| 'oauthClientId'
+			| 'refreshRequestId'
+			| 'userId'
+			| 'userLogin'
+			| 'userDisplayName'
+			| 'userAvatarUrl'
+			| 'reauthRequiredAt'
 		>
 	): boolean {
 		return this.#replaceServerAuth(id, data);
@@ -539,7 +701,17 @@ class ServerRegistry {
 		id: string,
 		data: Pick<
 			RegisteredServer,
-			'token' | 'userId' | 'userLogin' | 'userDisplayName' | 'userAvatarUrl' | 'reauthRequiredAt'
+			| 'token'
+			| 'refreshToken'
+			| 'accessTokenExpiresAt'
+			| 'refreshTokenExpiresAt'
+			| 'oauthClientId'
+			| 'refreshRequestId'
+			| 'userId'
+			| 'userLogin'
+			| 'userDisplayName'
+			| 'userAvatarUrl'
+			| 'reauthRequiredAt'
 		>
 	): boolean {
 		if (!this.catalog.get(id) || !this.sessions.get(id)) return false;

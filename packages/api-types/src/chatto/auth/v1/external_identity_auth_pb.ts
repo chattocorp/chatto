@@ -4,7 +4,7 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, protoInt64 } from "@bufbuild/protobuf";
 import { LinkedExternalIdentity } from "../../api/v1/external_identities_pb.js";
 
 /**
@@ -308,11 +308,32 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
   login = "";
 
   /**
-   * Bearer token for the new session.
+   * Short-lived bearer access token for the new session.
    *
    * @generated from field: string token = 3;
    */
   token = "";
+
+  /**
+   * Rotating refresh credential for renewing the bearer session.
+   *
+   * @generated from field: string refresh_token = 4;
+   */
+  refreshToken = "";
+
+  /**
+   * Lifetime of the access token in seconds.
+   *
+   * @generated from field: int64 expires_in = 5;
+   */
+  expiresIn = protoInt64.zero;
+
+  /**
+   * Remaining absolute lifetime of the renewable session in seconds.
+   *
+   * @generated from field: int64 refresh_token_expires_in = 6;
+   */
+  refreshTokenExpiresIn = protoInt64.zero;
 
   constructor(data?: PartialMessage<CreateExternalIdentityAccountResponse>) {
     super();
@@ -325,6 +346,9 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
     { no: 1, name: "user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 2, name: "login", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 4, name: "refresh_token", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 5, name: "expires_in", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
+    { no: 6, name: "refresh_token_expires_in", kind: "scalar", T: 3 /* ScalarType.INT64 */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateExternalIdentityAccountResponse {

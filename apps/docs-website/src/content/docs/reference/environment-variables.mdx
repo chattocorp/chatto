@@ -332,7 +332,11 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
-  Inactivity TTL for bearer auth tokens. Supports durations like `90d`, `2160h`. Successful validation refreshes the TTL; inactive tokens expire automatically.
+  Maximum lifetime of a renewable human bearer session and lifetime of each same-origin cookie credential. Bearer refresh never extends this maximum; cookie credentials keep their existing sliding rotation. Supports durations like `90d` or `2160h`.
+</EnvVar>
+
+<EnvVar name="CHATTO_AUTH_ACCESS_TOKEN_TTL" toml="auth.access_token_ttl" default="15m">
+  Fixed lifetime of each human bearer access token. Validation does not renew it; compatible clients rotate the paired refresh credential before expiry. Supports durations like `15m`, `30m`, or `1h`.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_EMAIL_OTP_THROTTLING_ENABLED" toml="auth.email_otp.throttling_enabled" default="true">

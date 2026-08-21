@@ -193,7 +193,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 	})
 
 	// POST /oauth/token — OAuth 2.0 Token endpoint.
-	// Exchanges an authorization code + PKCE verifier for a bearer token.
+	// Exchanges an authorization code or rotates a renewable bearer session.
 	// This endpoint has wildcard CORS since it's called cross-origin by clients.
 	oauth.OPTIONS("token", func(c *gin.Context) {
 		setOAuthTokenCORS(c)
@@ -202,6 +202,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 
 	oauth.POST("token", func(c *gin.Context) {
 		setOAuthTokenCORS(c)
+		c.Header("Cache-Control", "no-store")
+		c.Header("Pragma", "no-cache")
 
 		// Accept both JSON and form-encoded (per OAuth 2.0 spec, form-encoded is standard)
 		var req oauthTokenRequest
@@ -211,6 +213,8 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			req.CodeVerifier = c.PostForm("code_verifier")
 			req.RedirectURI = c.PostForm("redirect_uri")
 			req.ClientID = c.PostForm("client_id")
+			req.RefreshToken = c.PostForm("refresh_token")
+			req.RefreshRequestID = c.PostForm("refresh_request_id")
 		} else {
 			if err := c.ShouldBindJSON(&req); err != nil {
 				c.JSON(http.StatusBadRequest, gin.H{
@@ -221,70 +225,53 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			}
 		}
 
-		if req.GrantType != "authorization_code" {
+		ctx := c.Request.Context()
+		switch req.GrantType {
+		case "authorization_code":
+			if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" || req.ClientID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_request",
+					"error_description": "code, code_verifier, redirect_uri, and client_id are required",
+				})
+				return
+			}
+
+			credentials, userID, err := s.core.ExchangeAuthCodeForClientSession(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID)
+			if err != nil {
+				writeOAuthCodeExchangeError(c, err)
+				return
+			}
+			response := oauthBearerSessionResponse(credentials)
+			if user, err := s.core.GetUser(ctx, userID); err == nil {
+				response["user"] = gin.H{
+					"id":          user.Id,
+					"login":       user.Login,
+					"displayName": user.DisplayName,
+				}
+			}
+			c.JSON(http.StatusOK, response)
+
+		case "refresh_token":
+			if req.RefreshToken == "" || req.RefreshRequestID == "" {
+				c.JSON(http.StatusBadRequest, gin.H{
+					"error":             "invalid_request",
+					"error_description": "refresh_token and refresh_request_id are required",
+				})
+				return
+			}
+			credentials, err := s.core.RefreshBearerSession(ctx, req.RefreshToken, req.RefreshRequestID, req.ClientID)
+			if err != nil {
+				writeOAuthRefreshError(c, err)
+				return
+			}
+			c.JSON(http.StatusOK, oauthBearerSessionResponse(credentials))
+
+		default:
 			c.JSON(http.StatusBadRequest, gin.H{
 				"error":             "unsupported_grant_type",
-				"error_description": "Only grant_type=authorization_code is supported",
+				"error_description": "Only authorization_code and refresh_token grants are supported",
 			})
-			return
 		}
-
-		if req.Code == "" || req.CodeVerifier == "" || req.RedirectURI == "" || req.ClientID == "" {
-			c.JSON(http.StatusBadRequest, gin.H{
-				"error":             "invalid_request",
-				"error_description": "code, code_verifier, redirect_uri, and client_id are required",
-			})
-			return
-		}
-
-		ctx := c.Request.Context()
-
-		token, userID, err := s.core.ExchangeAuthCodeForClient(ctx, req.Code, req.CodeVerifier, req.RedirectURI, req.ClientID)
-		if err != nil {
-			status := http.StatusBadRequest
-			oauthErr := "invalid_grant"
-			desc := err.Error()
-
-			switch {
-			case errors.Is(err, core.ErrAuthCodeNotFound):
-				desc = "Authorization code is invalid or has expired"
-			case errors.Is(err, core.ErrAuthCodeInvalidVerifier):
-				desc = "PKCE code_verifier does not match code_challenge"
-			case errors.Is(err, core.ErrAuthCodeRedirectMismatch):
-				desc = "redirect_uri does not match the authorization request"
-			case errors.Is(err, core.ErrAuthCodeClientMismatch):
-				desc = "client_id does not match the authorization request"
-			case errors.Is(err, core.ErrOAuthClientBlocked):
-				oauthErr = "invalid_client"
-				desc = "The OAuth client is blocked by this server"
-			default:
-				status = http.StatusInternalServerError
-				oauthErr = "server_error"
-				log.Error("OAuth token exchange failed", "error", err)
-			}
-
-			c.JSON(status, gin.H{
-				"error":             oauthErr,
-				"error_description": desc,
-			})
-			return
-		}
-
-		// Fetch user info to include in the response
-		response := gin.H{
-			"access_token": token,
-			"token_type":   "Bearer",
-		}
-
-		if user, err := s.core.GetUser(ctx, userID); err == nil {
-			response["user"] = gin.H{
-				"id":          user.Id,
-				"login":       user.Login,
-				"displayName": user.DisplayName,
-			}
-		}
-
-		c.JSON(http.StatusOK, response)
 	})
 
 	oauth.GET("consent/request", func(c *gin.Context) {
@@ -411,11 +398,72 @@ func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCred
 }
 
 type oauthTokenRequest struct {
-	GrantType    string `json:"grant_type"`
-	Code         string `json:"code"`
-	CodeVerifier string `json:"code_verifier"`
-	RedirectURI  string `json:"redirect_uri"`
-	ClientID     string `json:"client_id"`
+	GrantType        string `json:"grant_type"`
+	Code             string `json:"code"`
+	CodeVerifier     string `json:"code_verifier"`
+	RedirectURI      string `json:"redirect_uri"`
+	ClientID         string `json:"client_id"`
+	RefreshToken     string `json:"refresh_token"`
+	RefreshRequestID string `json:"refresh_request_id"`
+}
+
+func oauthBearerSessionResponse(credentials core.BearerSessionCredentials) gin.H {
+	return gin.H{
+		"access_token":             credentials.AccessToken,
+		"token_type":               "Bearer",
+		"expires_in":               bearerSessionLifetimeSeconds(credentials.AccessTokenExpiresAt),
+		"refresh_token":            credentials.RefreshToken,
+		"refresh_token_expires_in": bearerSessionLifetimeSeconds(credentials.SessionExpiresAt),
+	}
+}
+
+func writeOAuthCodeExchangeError(c *gin.Context, err error) {
+	status := http.StatusBadRequest
+	oauthErr := "invalid_grant"
+	desc := "Authorization code is invalid or has expired"
+	switch {
+	case errors.Is(err, core.ErrAuthCodeNotFound):
+	case errors.Is(err, core.ErrAuthCodeInvalidVerifier):
+		desc = "PKCE code_verifier does not match code_challenge"
+	case errors.Is(err, core.ErrAuthCodeRedirectMismatch):
+		desc = "redirect_uri does not match the authorization request"
+	case errors.Is(err, core.ErrAuthCodeClientMismatch):
+		desc = "client_id does not match the authorization request"
+	case errors.Is(err, core.ErrOAuthClientBlocked):
+		oauthErr = "invalid_client"
+		desc = "The OAuth client is blocked by this server"
+	default:
+		status = http.StatusInternalServerError
+		oauthErr = "server_error"
+		desc = "Failed to exchange authorization code"
+		log.Error("OAuth token exchange failed", "error", err)
+	}
+	c.JSON(status, gin.H{"error": oauthErr, "error_description": desc})
+}
+
+func writeOAuthRefreshError(c *gin.Context, err error) {
+	if errors.Is(err, core.ErrRefreshRequestIDInvalid) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":             "invalid_request",
+			"error_description": "refresh_request_id is invalid",
+		})
+		return
+	}
+	if errors.Is(err, core.ErrRefreshTokenNotFound) ||
+		errors.Is(err, core.ErrRefreshTokenReused) ||
+		errors.Is(err, core.ErrRefreshTokenClientMismatch) ||
+		errors.Is(err, core.ErrOAuthClientBlocked) {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":             "invalid_grant",
+			"error_description": "Refresh token is invalid, expired, or revoked",
+		})
+		return
+	}
+	log.Error("OAuth token refresh failed", "error", err)
+	c.JSON(http.StatusInternalServerError, gin.H{
+		"error":             "server_error",
+		"error_description": "Failed to refresh bearer session",
+	})
 }
 
 type pendingOAuthAuthorize = core.PendingOAuthAuthorize

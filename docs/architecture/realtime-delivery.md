@@ -14,7 +14,9 @@ Key files:
 - [`apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte`](../../apps/frontend/src/lib/state/server/ServerRuntimeCoordinator.svelte)
 - [`apps/frontend/src/lib/presenceTracking.ts`](../../apps/frontend/src/lib/presenceTracking.ts)
 
-Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md) and [ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md).
+Related decisions: [ADR-049](../adr/ADR-049-process-wide-realtime-event-hub.md),
+[ADR-051](../adr/ADR-051-server-scoped-resumable-client-projection.md), and
+[ADR-079](../adr/ADR-079-renewable-bearer-sessions.md).
 
 The protobuf realtime API is mounted at `GET /api/realtime` and upgrades to a
 binary WebSocket. The first client frame must be `hello`; the server accepts
@@ -34,6 +36,14 @@ Registration and the projected-state check are atomic with projection
 application, so a block racing connection setup cannot leave an authorized
 socket behind. Cookie sessions, first-party bearer sessions, and OAuth sessions
 issued to other clients are unaffected.
+
+Human bearer connections also retain the fixed expiry of the access token
+accepted during hello. At that instant the handler cancels authorized work,
+best-effort sends a reconnecting `authentication_required` close, and tears
+down the socket. The bundled frontend serializes refresh for that server,
+installs the rotated pair without replacing its per-server state, and reconnects
+the same event bus with its RAM-only opaque resume cursor and retained-room set.
+Cookie sessions and bot API keys have no access-expiry timer.
 
 Bot API-key connections similarly retain only the non-secret HMAC verifier
 generation accepted during the hello. Each connection registers atomically

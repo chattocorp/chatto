@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-08-21
+**Updated:** 2026-08-22
 
 ## Context
 
@@ -65,12 +65,20 @@ Current occupants include:
   work, occurrences, and lifecycle facts do not live in `RUNTIME_STATE`; see
   ADR-076.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
-- Runtime credential verifiers: `session.{hmac}`, with per-key
-  `auth.token_ttl` sliding-window expiry. Values include credential kind
+- Runtime credential verifiers: `session.{hmac}`. Cookie-presentation records
+  keep `auth.token_ttl` sliding expiry. Human bearer access records instead use
+  fixed `auth.access_token_ttl` expiry and point to a stable
+  `renewable_session.{hmac}` authority whose TTL is the non-renewable remaining
+  `auth.token_ttl` maximum. Values include credential kind
   (`first_party_session` or `oauth_access_token`), presentation (`bearer` or
   `cookie`), source, safe request metadata, fresh-auth metadata, and the user
   auth generation they were issued against. User-wide cleanup scans these
   records and deletes entries whose stored user ID matches.
+- Renewable human bearer-session authorities: `renewable_session.{hmac}` with
+  user/client binding, absolute expiry, auth generation, current refresh
+  generation, last refresh request ID/time, and fresh-auth metadata. Rotation
+  uses KV revision OCC across replicas. The raw refresh credential is never
+  stored; deleting this key invalidates every access generation.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -97,13 +105,13 @@ revision to reach the index when local read-your-writes matters. One owning
 model therefore serves all requests and background repair without creating a
 watcher per request, user, or WebSocket.
 
-The HMAC keys for runtime credential handles, OAuth codes, and account workflow
-tokens are derived with `[core].secret_key` from the raw token/code plus a
-per-flow scope string. `RUNTIME_STATE` is included in backups, so active
-sessions and pending flows survive restore when the same secret is used;
-restoring with a different secret intentionally invalidates those credentials.
-Backup archives do not contain raw cookie credential handles, bearer tokens,
-links, or OAuth codes.
+The HMAC keys for runtime credential handles, renewable sessions, OAuth codes,
+and account workflow tokens are derived with `[core].secret_key` from opaque
+credential material plus a per-flow scope string. `RUNTIME_STATE` is included
+in backups, so active sessions and pending flows survive restore when the same
+secret is used; restoring with a different secret intentionally invalidates
+those credentials. Backup archives do not contain raw cookie credential
+handles, bearer access or refresh credentials, links, or OAuth codes.
 
 Attachment declarations and video derivative manifests are not a `RUNTIME_STATE`
 target. Uploaded assets are content and are declared with `AssetCreatedEvent`;

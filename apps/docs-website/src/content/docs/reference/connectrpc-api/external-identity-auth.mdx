@@ -88,7 +88,10 @@ Result of creating an account from a pending provider identity.
 | --- | --- | --- |
 | `user_id` | `string` | Newly created user ID. |
 | `login` | `string` | Newly created username. |
-| `token` | `string` | Bearer token for the new session. |
+| `token` | `string` | Short-lived bearer access token for the new session. |
+| `refresh_token` | `string` | Rotating refresh credential for renewing the bearer session. |
+| `expires_in` | `int64` | Lifetime of the access token in seconds. |
+| `refresh_token_expires_in` | `int64` | Remaining absolute lifetime of the renewable session in seconds. |
 
 
 <a id="chatto-auth-v1-ExternalIdentityAuthService-ConfirmExternalIdentityLink"></a>

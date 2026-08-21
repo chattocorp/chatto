@@ -47,7 +47,7 @@ Certain streams are intentionally excluded:
 </Aside>
 
 <Aside type="note">
-  `RUNTIME_STATE` is included in backups. Active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer tokens, cookie handles, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
+  `RUNTIME_STATE` is included in backups. Active runtime credentials and pending registration, email-verification, password-reset, account-deletion, and OAuth-code flows can survive a restore when the restored server uses the same `core.secret_key`. Backup archives contain HMAC verifier keys, not raw bearer access tokens, refresh credentials, cookie handles, links, or OAuth codes; changing `core.secret_key` intentionally invalidates those credentials.
 </Aside>
 
 <Aside type="note">
@@ -117,7 +117,7 @@ Non-interactive commands do not consume stdin unless `--passphrase-stdin` is pre
 Restore accepts regular files and directories only, rejects unsafe manifest and archive paths, and stops archives that exceed the built-in entry-count or expanded-size safety limits. These limits are intentionally generous for production backups while preventing malformed archives from expanding without a bound.
 
 <Aside type="tip">
-  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing bearer tokens, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
+  Keep the same `core.secret_key` in `chatto.toml` when restoring if you want existing renewable bearer sessions, cookie-session handles, OAuth codes, and pending account-flow credentials to remain valid. Using a new value is a clean way to invalidate them during disaster recovery.
 </Aside>
 
 <Steps>
