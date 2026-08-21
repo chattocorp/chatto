@@ -194,11 +194,17 @@ const codeHighlightPlugin = ViewPlugin.fromClass(
       const fences = collectCodeFences(view.state).filter((fence) => fence.language !== null);
       if (fences.length === 0) return;
 
-      void buildDecorations(fences).then((decorations) => {
-        if (this.#destroyed || generation !== this.#generation || view.state.doc !== document)
-          return;
-        view.dispatch({ effects: setCodeHighlights.of(decorations) });
-      });
+      void buildDecorations(fences)
+        .then((decorations) => {
+          if (this.#destroyed || generation !== this.#generation || view.state.doc !== document)
+            return;
+          view.dispatch({ effects: setCodeHighlights.of(decorations) });
+        })
+        .catch((error: unknown) => {
+          if (this.#destroyed || generation !== this.#generation || view.state.doc !== document)
+            return;
+          console.warn('[MarkdownEditor] Failed to highlight fenced code:', error);
+        });
     }
   }
 );
