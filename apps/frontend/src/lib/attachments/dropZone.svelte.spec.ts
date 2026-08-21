@@ -113,15 +113,17 @@ describe('dropZone attachment', () => {
   });
 
   describe('drop & MIME filtering', () => {
-    it('forwards files matching the default image/* filter', () => {
+    it('accepts every file type by default', () => {
       const onDrop = vi.fn();
       attach({ onDrop });
 
       const png = file('a.png', 'image/png');
-      host.dispatchEvent(dragEvent('drop', { files: [png] }));
+      const pdf = file('doc.pdf', 'application/pdf');
+      const unknown = file('archive.custom', '');
+      host.dispatchEvent(dragEvent('drop', { files: [png, pdf, unknown] }));
 
       expect(onDrop).toHaveBeenCalledOnce();
-      expect(onDrop.mock.calls[0][0]).toEqual([png]);
+      expect(onDrop.mock.calls[0][0]).toEqual([png, pdf, unknown]);
     });
 
     it('drops files that do not match the accepted types', () => {

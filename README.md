@@ -59,13 +59,14 @@ Conductor allocates ten ports to every local workspace. With base port
 - LiveKit: `https://livekit-<workspace>.localhost:42443`
 
 The daemons still bind only to their workspace's allocated ports: Chatto uses
-the base port and `+1`, Authling uses `+2`, LiveKit uses `+5` through `+7`, and
-Mailpit uses `+8` and `+9`. Pitchfork terminates trusted development HTTPS and
-proxies each hostname directly to the corresponding daemon's declared browser
-listener; no Caddy process or other adapter is involved. `mise dev` prints the
-browser URLs, starts the dependency group, then declares the HTTP listener when
-restarting the two multi-port daemons. Outside Conductor, the port layout falls
-back to base port `4000`.
+the base port for Vite, `+1` for its backend, and `+4` for embedded NATS;
+Authling uses `+2`; LiveKit uses `+5` through `+7`; and Mailpit uses `+8` and
+`+9`. Pitchfork terminates trusted development HTTPS and proxies each hostname
+directly to the corresponding daemon's declared browser listener; no Caddy
+process or other adapter is involved. `mise dev` prints the browser URLs,
+starts the dependency group, then declares the HTTP listener when restarting
+the two multi-port daemons. Outside Conductor, the port layout falls back to
+base port `4000`.
 
 Pitchfork derives each daemon namespace from the checkout directory name, so
 concurrent worktrees remain isolated. `mise dev` registers one workspace-named
