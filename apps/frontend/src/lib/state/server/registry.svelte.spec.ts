@@ -521,7 +521,7 @@ describe('ServerRegistry', () => {
 		});
 
 		it('does not rotate when the recovery request ID cannot be persisted', async () => {
-			const fetchMock = vi.fn(async () => refreshedResponse());
+			const fetchMock = vi.fn(async (..._args: Parameters<typeof fetch>) => refreshedResponse());
 			vi.stubGlobal('fetch', fetchMock);
 			serverRegistry.addServer(renewableServer());
 			vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
