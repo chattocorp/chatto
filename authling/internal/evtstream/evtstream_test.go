@@ -232,6 +232,48 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	}
 }
 
+func TestEventIDValidationRejectsSensitiveOrUnsafeTokens(t *testing.T) {
+	for _, eventID := range []string{
+		"person@example.com",
+		"evt.with.dots",
+		"evt/with/slashes",
+		"evt with spaces",
+		"evt\nwith-newline",
+	} {
+		t.Run(eventID, func(t *testing.T) {
+			event := accountCreatedEvent(eventID)
+			if _, err := encode(event); err == nil || !strings.Contains(err.Error(), "event id is invalid") {
+				t.Fatalf("encode event ID %q error = %v, want invalid event ID", eventID, err)
+			} else if strings.Contains(err.Error(), eventID) {
+				t.Fatalf("encode error leaked rejected event ID %q: %v", eventID, err)
+			}
+			data, err := proto.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "event id is invalid") {
+				t.Fatalf("decode event ID %q error = %v, want invalid event ID", eventID, err)
+			} else if strings.Contains(err.Error(), eventID) {
+				t.Fatalf("decode error leaked rejected event ID %q: %v", eventID, err)
+			}
+		})
+	}
+}
+
+func TestEventIDValidationAllowsHistoricalSubjectSafeTokens(t *testing.T) {
+	for _, eventID := range []string{"evt_legacy", "evt-legacy", "LegacyEvent_123"} {
+		t.Run(eventID, func(t *testing.T) {
+			record, err := encode(accountCreatedEvent(eventID))
+			if err != nil {
+				t.Fatalf("encode historical event ID %q: %v", eventID, err)
+			}
+			if _, err := Decode(record.Data); err != nil {
+				t.Fatalf("decode historical event ID %q: %v", eventID, err)
+			}
+		})
+	}
+}
+
 func profileUpdatedEvent(eventID string) *corev1.Event {
 	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_ProfileUpdated{ProfileUpdated: &corev1.ProfileUpdatedEvent{
 		AccountId: "acc_test", UserKeyRef: "key_user", CredentialKeyRef: "key_credential", ProfileEnvelopeVersion: 1,

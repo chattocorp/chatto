@@ -77,7 +77,8 @@ func (PasswordChangeKind) EnumDescriptor() ([]byte, []int) {
 // be removed, renumbered, or reused.
 type Event struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable event identifier used for idempotent publication.
+	// Stable opaque event identifier used for idempotent publication and
+	// correlation. Values are restricted to one NATS-safe subject token.
 	Id string `protobuf:"bytes,1,opt,name=id,proto3" json:"id,omitempty"`
 	// Time at which the durable fact was created.
 	CreatedAt *timestamppb.Timestamp `protobuf:"bytes,2,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`

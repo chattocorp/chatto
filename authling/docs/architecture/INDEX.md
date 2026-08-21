@@ -95,6 +95,11 @@ authority to delete keys that an in-flight replica could still reference.
 
 Persisted records use the `authling.core.v1.Event` protobuf envelope:
 
+New envelope IDs are opaque random `evt_...` values. Encoding and replay
+accept historical single-token identifiers but reject whitespace, subject
+separators, and email-address punctuation; correlation fields use the same
+token-safe vocabulary.
+
 | Event | Subject | Aggregate | Contents |
 |-------|---------|-----------|----------|
 | `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID, envelope creation time, and encrypted local credential fields including the preferred username |
