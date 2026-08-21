@@ -107,6 +107,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
   separate state owners. Server IDs and origins are immutable after
   registration. Never serialize Chatto bearer tokens, user summaries, or
   reauthentication state into a public or shared catalogue.
+- `StorageSlot.set` intentionally treats unavailable/full browser storage as a
+  best-effort no-op. When protocol correctness or security requires state to
+  survive a reload or lost response, persist it before the external effect and
+  read it back successfully before sending the request.
 - Treat an intentionally dormant inactive-server transport as healthy retained
   state, not as a failed connection. Only actual transport/auth/protocol
   failures should dim its server-gutter entry.
