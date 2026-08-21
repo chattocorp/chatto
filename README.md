@@ -30,9 +30,9 @@ repository once it no longer needs frequent atomic changes with the shared
 The root `mise dev` task runs the services needed for regular development as
 native processes: the Chatto backend and Vite frontend, Authling, Mailpit, and
 LiveKit. [Portless](https://portless.sh/) gives each browser-facing process a
-stable, worktree-aware HTTPS URL. The repository pins Portless as a development
-dependency and runs it with Node.js 24 without changing the Node.js 22 version
-used by the rest of the repository.
+stable, worktree-aware HTTPS URL. The Portless-backed mise tasks pin it as an
+isolated npm tool and run it with Node.js 24 without changing the Node.js 22
+version used by the rest of the repository.
 
 ```sh
 mise trust
@@ -88,7 +88,7 @@ Authling identity and establish a fresh issuer on the next start. Changing the
 Conductor workspace name changes the HTTPS issuer and selects a fresh Authling
 state namespace. Portless generates and trusts a development CA on its first run. If
 the non-interactive run cannot request macOS authorization, run
-`mise x node@24 -- node node_modules/portless/dist/cli.js trust` once in an
+`mise x node@24 npm:portless@0.15.5 -- portless trust` once in an
 interactive terminal. The services' internal listener and webhook
 connections remain on plain-HTTP loopback. This is not a production deployment
 example.

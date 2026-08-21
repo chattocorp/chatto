@@ -44,7 +44,7 @@ reads `.worktreeinclude` to copy gitignored local environment files, such as
 `.env` and `.env.*`, into new workspaces. Stopping the run command stops all
 five child processes and unregisters their Portless routes. The first run may
 require launching
-`mise x node@24 -- node node_modules/portless/dist/cli.js trust` in an
+`mise x node@24 npm:portless@0.15.5 -- portless trust` in an
 interactive terminal so macOS can trust Portless's development CA.
 
 ## Developing Outside of Conductor

@@ -31,8 +31,8 @@ Conductor lifecycle signals and reaps the complete child tree. Stopping
 `mise dev` is the single lifecycle operation for the stack.
 
 Portless replaces Pitchfork only as the HTTPS routing layer. Each
-browser-facing task runs its process through the repository-pinned Portless
-CLI. The tasks use Portless's direct named mode to expose Chatto, Authling,
+browser-facing task runs its process through the mise-pinned Portless CLI. The
+tasks use Portless's direct named mode to expose Chatto, Authling,
 Mailpit, and LiveKit as `<service>.<workspace>.localhost` on shared proxy port
 `42444`.
 Portless owns a route for exactly as long as its child process runs.
@@ -47,10 +47,10 @@ workspace-hostname-specific state beneath
 reuse of Pitchfork-era state whose immutable HTTPS issuer used a different
 proxy port.
 
-Portless requires Node.js 24 or newer. It is pinned as a root development
-dependency, and each Portless-backed mise task declares Node.js 24 as a
-task-specific tool; the repository's general Node.js 22 toolchain remains
-unchanged. Portless creates and trusts its
+Portless requires Node.js 24 or newer. Each Portless-backed mise task declares
+Node.js 24 and `npm:portless@0.15.5` as task-specific tools, keeping Portless
+out of the Node.js 22 pnpm workspace used by the rest of the repository.
+Portless creates and trusts its
 development CA once per machine. Its host-file synchronization is disabled
 because `.localhost` resolves to loopback in the supported browser workflow.
 

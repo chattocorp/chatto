@@ -317,16 +317,16 @@ exec tools/dev-supervisor.sh mise run --jobs 5 --output prefix \
 
 [tasks.dev-stack-mailpit]
 hide = true
-tools = { node = "24" }
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   CHATTO_DEV_MAILPIT_SMTP_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 8}}",
   CHATTO_DEV_MAILPIT_UI_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 9}}",
 }
 run = '''
 set -eu
-mailpit_url=$(node node_modules/portless/dist/cli.js get "mailpit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+mailpit_url=$(portless get "mailpit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 mailpit_url=${mailpit_url/http:/https:}
-exec node node_modules/portless/dist/cli.js \
+exec portless \
   "mailpit.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_DEV_MAILPIT_UI_PORT" -- \
   mailpit --smtp "127.0.0.1:$CHATTO_DEV_MAILPIT_SMTP_PORT" \
   --listen "127.0.0.1:$CHATTO_DEV_MAILPIT_UI_PORT" \
@@ -335,7 +335,7 @@ exec node node_modules/portless/dist/cli.js \
 
 [tasks.dev-stack-livekit]
 hide = true
-tools = { node = "24" }
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   CHATTO_DEV_BACKEND_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
   CHATTO_DEV_LIVEKIT_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 5}}",
@@ -345,7 +345,7 @@ env = {
 run = '''
 set -eu
 livekit_config=$(printf 'port: %s\nrtc:\n  tcp_port: %s\n  udp_port: %s\n  use_external_ip: false\n  enable_loopback_candidate: true\nkeys:\n  devkey: compose-only-livekit-secret-change-me\nwebhook:\n  urls:\n    - http://localhost:%s/webhooks/livekit\n  api_key: devkey\nlogging:\n  level: info\n' "$CHATTO_DEV_LIVEKIT_PORT" "$CHATTO_DEV_LIVEKIT_RTC_TCP_PORT" "$CHATTO_DEV_LIVEKIT_UDP_PORT" "$CHATTO_DEV_BACKEND_PORT")
-exec node node_modules/portless/dist/cli.js \
+exec portless \
   "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$CHATTO_DEV_LIVEKIT_PORT" -- \
   mise x 'go:github.com/livekit/livekit-server/cmd/server@v1.13.5' -- \
   server --bind 127.0.0.1 --node-ip 127.0.0.1 --config-body "$livekit_config"
@@ -353,7 +353,7 @@ exec node node_modules/portless/dist/cli.js \
 
 [tasks.dev-stack-authling]
 hide = true
-tools = { node = "24" }
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   AUTHLING_HTTP_BIND_ADDRESS = "127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 2}}",
   AUTHLING_HTTP_TRUST_PROXY_HEADERS = "true",
@@ -370,8 +370,8 @@ run = '''
 set -eu
 project_dir=$(pwd -P)
 workspace_slug=${CONDUCTOR_WORKSPACE_NAME:-$(basename "$project_dir")}
-chatto_url=$(node node_modules/portless/dist/cli.js get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
-authling_url=$(node node_modules/portless/dist/cli.js get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 chatto_url=${chatto_url/http:/https:}
 authling_url=${authling_url/http:/https:}
 chatto_host=${chatto_url#https://}
@@ -383,14 +383,14 @@ mise build
 export AUTHLING_HTTP_PUBLIC_URL="$authling_url"
 export AUTHLING_NATS_EMBEDDED_DATA_DIR="$data_root/nats"
 export AUTHLING_OIDC_CIMD_TRUSTED_LOOPBACK_HOSTS="$chatto_host"
-exec node "$project_dir/node_modules/portless/dist/cli.js" \
+exec portless \
   "authling.$CHATTO_DEV_ROUTE_SUFFIX" \
   --app-port "${AUTHLING_HTTP_BIND_ADDRESS##*:}" -- bin/authling run
 '''
 
 [tasks.dev-stack-backend]
 hide = true
-tools = { node = "24" }
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   CHATTO_WEBSERVER_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
   CHATTO_NATS_EMBEDDED_PORT = "{{env.CONDUCTOR_PORT | default(value='4000') | int + 4}}",
@@ -443,9 +443,9 @@ env = {
 run = '''
 set -eu
 project_dir=$(pwd -P)
-chatto_url=$(node node_modules/portless/dist/cli.js get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
-authling_url=$(node node_modules/portless/dist/cli.js get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
-livekit_url=$(node node_modules/portless/dist/cli.js get "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+chatto_url=$(portless get "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+authling_url=$(portless get "authling.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
+livekit_url=$(portless get "livekit.$CHATTO_DEV_ROUTE_SUFFIX" --no-worktree)
 chatto_url=${chatto_url/http:/https:}
 authling_url=${authling_url/http:/https:}
 livekit_url=${livekit_url/http:/https:}
@@ -466,16 +466,15 @@ exec bin/chatto-dev start
 
 [tasks.dev-stack-frontend]
 hide = true
-tools = { node = "24" }
+tools = { node = "24", "npm:portless" = "0.15.5" }
 env = {
   VITE_PORT = "{{env.CONDUCTOR_PORT | default(value='4000')}}",
   CHATTO_BACKEND_URL = "http://127.0.0.1:{{env.CONDUCTOR_PORT | default(value='4000') | int + 1}}",
 }
 run = '''
 set -eu
-project_dir=$(pwd -P)
 cd apps/frontend
-exec node "$project_dir/node_modules/portless/dist/cli.js" \
+exec portless \
   "chatto.$CHATTO_DEV_ROUTE_SUFFIX" --app-port "$VITE_PORT" -- \
   ./node_modules/.bin/vite dev --host 127.0.0.1
 '''

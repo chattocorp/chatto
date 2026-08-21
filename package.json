@@ -33,7 +33,6 @@
     ]
   },
   "devDependencies": {
-    "knip": "^6.22.0",
-    "portless": "0.15.5"
+    "knip": "^6.22.0"
   }
 }
