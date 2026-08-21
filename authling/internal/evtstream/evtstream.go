@@ -361,6 +361,9 @@ func validate(event *corev1.Event) error {
 	if strings.TrimSpace(event.GetId()) == "" {
 		return fmt.Errorf("Authling event id is required")
 	}
+	if !validSubjectToken(event.GetId()) {
+		return fmt.Errorf("Authling event id is invalid")
+	}
 	if event.GetCreatedAt() == nil {
 		return fmt.Errorf("Authling event created_at is required")
 	}
