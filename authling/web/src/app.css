@@ -27,6 +27,42 @@
 }
 
 @layer components {
+  .button {
+    @apply inline-flex cursor-pointer items-center justify-center rounded-xl px-5 py-3 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .button-primary {
+    @apply bg-authling-600 text-white hover:bg-authling-500;
+  }
+
+  .button-secondary {
+    @apply border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800;
+  }
+
+  .text-link {
+    @apply cursor-pointer font-semibold text-authling-600 underline decoration-authling-500/40 underline-offset-2 hover:text-authling-500 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 dark:text-authling-200 dark:hover:text-authling-50;
+  }
+
+  .form-control {
+    @apply mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3 focus:border-authling-500 focus:ring-authling-500 dark:border-slate-700;
+  }
+
+  .notice {
+    @apply mt-5 rounded-xl p-4;
+  }
+
+  .notice-error {
+    @apply bg-red-50 text-red-800 dark:bg-red-950 dark:text-red-100;
+  }
+
+  .notice-success {
+    @apply bg-green-50 text-green-900 dark:bg-green-950 dark:text-green-100;
+  }
+
+  .notice-warning {
+    @apply bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100;
+  }
+
   .otp-code {
     --otp-cell-size: clamp(1.8rem, 9vw, 3.5rem);
     --otp-gap: clamp(0.25rem, 1.5vw, 0.75rem);

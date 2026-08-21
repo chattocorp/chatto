@@ -97,7 +97,7 @@ func homePage() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200\">Authling</p><h1 class=\"text-4xl font-semibold tracking-tight text-balance sm:text-5xl\">Identity, under your control.</h1><p class=\"mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300\">Sign in with your verified email address, or create a new account.</p><div class=\"mt-8 flex flex-wrap gap-3\"><a class=\"inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" href=\"/login\">Sign in</a> <a class=\"inline-flex rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700\" href=\"/signup\">Create account</a></div>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 4, "<p class=\"mb-3 text-sm font-semibold tracking-widest text-authling-600 uppercase dark:text-authling-200\">Authling</p><h1 class=\"text-4xl font-semibold tracking-tight text-balance sm:text-5xl\">Identity, under your control.</h1><p class=\"mt-5 text-lg leading-8 text-slate-600 dark:text-slate-300\">Sign in with your verified email address, or create a new account.</p><div class=\"mt-8 flex flex-wrap gap-3\"><a class=\"button button-primary\" href=\"/login\">Sign in</a> <a class=\"button button-secondary\" href=\"/signup\">Create account</a></div>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -149,14 +149,14 @@ func loginPage(message, oidcRequest string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 6, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var7 string
 				templ_7745c5c3_Var7, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 47, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 47, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var7))
 				if templ_7745c5c3_Err != nil {
@@ -190,20 +190,20 @@ func loginPage(message, oidcRequest string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">Password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"password\" autocomplete=\"current-password\" maxlength=\"1024\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Sign in</button></form><p class=\"mt-4 text-sm\"><a class=\"font-semibold text-authling-700 underline dark:text-authling-200\" href=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 11, "<label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"form-control\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">Password</span><input class=\"form-control\" type=\"password\" name=\"password\" autocomplete=\"current-password\" maxlength=\"1024\" required></label> <button class=\"button button-primary w-full\" type=\"submit\">Sign in</button></form><p class=\"mt-4 text-sm\"><a class=\"text-link\" href=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var9 templ.SafeURL
 			templ_7745c5c3_Var9, templ_7745c5c3_Err = templ.JoinURLErrs(passwordResetURL(oidcRequest))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 57, Col: 138}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 57, Col: 83}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var9))
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\">Forgot your password?</a></p><p class=\"mt-6 text-sm text-slate-500\">No account yet? <a class=\"font-semibold text-authling-700 underline dark:text-authling-200\" href=\"/signup\">Create one</a>.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 12, "\">Forgot your password?</a></p><p class=\"mt-6 text-sm text-slate-500\">No account yet? <a class=\"text-link\" href=\"/signup\">Create one</a>.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -262,14 +262,14 @@ func passwordResetPage(message, oidcRequest string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 14, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var12 string
 				templ_7745c5c3_Var12, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 74, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 74, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var12))
 				if templ_7745c5c3_Err != nil {
@@ -303,7 +303,7 @@ func passwordResetPage(message, oidcRequest string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Email me a reset code</button></form><p class=\"mt-6 text-sm text-slate-500\"><a class=\"font-semibold text-authling-700 underline dark:text-authling-200\" href=\"/login\">Return to sign in</a>.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 19, "<label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"form-control\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <button class=\"button button-primary w-full\" type=\"submit\">Email me a reset code</button></form><p class=\"mt-6 text-sm text-slate-500\"><a class=\"text-link\" href=\"/login\">Return to sign in</a>.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -355,14 +355,14 @@ func passwordResetCodePage(flow, message, oidcRequest string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 21, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var16 string
 				templ_7745c5c3_Var16, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 92, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 92, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var16))
 				if templ_7745c5c3_Err != nil {
@@ -409,7 +409,7 @@ func passwordResetCodePage(flow, message, oidcRequest string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<label class=\"block\"><span class=\"font-medium\">Password reset code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 27, "<label class=\"block\"><span class=\"font-medium\">Password reset code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"button button-primary w-full\" type=\"submit\">Verify code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -474,14 +474,14 @@ func newPasswordPage(flow, message string, passwordMinimumLength int, oidcReques
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 30, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var22 string
 				templ_7745c5c3_Var22, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 110, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 110, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var22))
 				if templ_7745c5c3_Err != nil {
@@ -528,20 +528,20 @@ func newPasswordPage(flow, message string, passwordMinimumLength int, oidcReques
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<label class=\"block\"><span class=\"font-medium\">New password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"password\" autocomplete=\"new-password\" minlength=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 36, "<label class=\"block\"><span class=\"font-medium\">New password</span><input class=\"form-control\" type=\"password\" name=\"password\" autocomplete=\"new-password\" minlength=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var25 string
 			templ_7745c5c3_Var25, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(passwordMinimumLength))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 117, Col: 263}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 117, Col: 204}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var25)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" maxlength=\"1024\" autofocus required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Reset password</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 37, "\" maxlength=\"1024\" autofocus required></label> <button class=\"button button-primary w-full\" type=\"submit\">Reset password</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -588,7 +588,7 @@ func passwordResetCompletePage() templ.Component {
 				}()
 			}
 			ctx = templ.InitializeContext(ctx)
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<h1 class=\"text-3xl font-semibold tracking-tight\">Your password was reset</h1><p class=\"mt-3 text-slate-600 dark:text-slate-300\">Your new password is ready. Sign in to continue.</p><a class=\"mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" href=\"/login\">Sign in</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 38, "<h1 class=\"text-3xl font-semibold tracking-tight\">Your password was reset</h1><p class=\"mt-3 text-slate-600 dark:text-slate-300\">Your new password is ready. Sign in to continue.</p><a class=\"button button-primary mt-8\" href=\"/login\">Sign in</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -640,14 +640,14 @@ func emailChangePage(message string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 40, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var30 string
 				templ_7745c5c3_Var30, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 136, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 136, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var30))
 				if templ_7745c5c3_Err != nil {
@@ -658,7 +658,7 @@ func emailChangePage(message string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/account/email\"><label class=\"block\"><span class=\"font-medium\">New email address</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">Current password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"password\" autocomplete=\"current-password\" maxlength=\"1024\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Email me a change code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 42, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/account/email\"><label class=\"block\"><span class=\"font-medium\">New email address</span><input class=\"form-control\" type=\"email\" name=\"email\" autocomplete=\"email\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">Current password</span><input class=\"form-control\" type=\"password\" name=\"password\" autocomplete=\"current-password\" maxlength=\"1024\" required></label> <button class=\"button button-primary w-full\" type=\"submit\">Email me a change code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -710,14 +710,14 @@ func emailChangeCodePage(flow, message string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 44, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var33 string
 				templ_7745c5c3_Var33, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 151, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 151, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var33))
 				if templ_7745c5c3_Err != nil {
@@ -741,7 +741,7 @@ func emailChangeCodePage(flow, message string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\"> <label class=\"block\"><span class=\"font-medium\">Email change code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 47, "\"> <label class=\"block\"><span class=\"font-medium\">Email change code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"button button-primary w-full\" type=\"submit\">Verify code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -793,14 +793,14 @@ func emailChangeConfirmPage(flow, message string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 49, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var37 string
 				templ_7745c5c3_Var37, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 166, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 166, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var37))
 				if templ_7745c5c3_Err != nil {
@@ -824,7 +824,7 @@ func emailChangeConfirmPage(flow, message string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\"> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Change email address</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 52, "\"> <button class=\"button button-primary w-full\" type=\"submit\">Change email address</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -910,7 +910,7 @@ func consentPage(request oidcprovider.ConsentRequest) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\"> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\" name=\"decision\" value=\"allow\">Authorize</button> <button class=\"w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700\" type=\"submit\" name=\"decision\" value=\"deny\">Deny</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 56, "\"> <button class=\"button button-primary w-full\" type=\"submit\" name=\"decision\" value=\"allow\">Authorize</button> <button class=\"button button-secondary w-full\" type=\"submit\" name=\"decision\" value=\"deny\">Deny</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -962,14 +962,14 @@ func signupPage(message string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 58, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var46 string
 				templ_7745c5c3_Var46, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 198, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 198, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var46))
 				if templ_7745c5c3_Err != nil {
@@ -980,7 +980,7 @@ func signupPage(message string) templ.Component {
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/signup\"><label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"email\" name=\"email\" autocomplete=\"email\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Email me a code</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 60, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/signup\"><label class=\"block\"><span class=\"font-medium\">Email address</span><input class=\"form-control\" type=\"email\" name=\"email\" autocomplete=\"email\" required></label> <button class=\"button button-primary w-full\" type=\"submit\">Email me a code</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1032,14 +1032,14 @@ func codePage(flow, message string) templ.Component {
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 62, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var49 string
 				templ_7745c5c3_Var49, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 212, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 212, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var49))
 				if templ_7745c5c3_Err != nil {
@@ -1063,7 +1063,7 @@ func codePage(flow, message string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <label class=\"block\"><span class=\"font-medium\">Verification code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Verify email</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 65, "\"> <label class=\"block\"><span class=\"font-medium\">Verification code</span><span class=\"otp-code mt-2\"><span class=\"otp-code-boxes\" aria-hidden=\"true\"><span></span><span></span><span></span><span></span><span></span><span></span></span><input class=\"otp-code-input\" type=\"text\" name=\"code\" inputmode=\"numeric\" pattern=\"[0-9]{6}\" autocomplete=\"one-time-code\" maxlength=\"6\" autofocus required></span></label> <button class=\"button button-primary w-full\" type=\"submit\">Verify email</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1128,14 +1128,14 @@ func passwordPage(flow, message string, passwordMinimumLength int) templ.Compone
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 68, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var54 string
 				templ_7745c5c3_Var54, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 227, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 227, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var54))
 				if templ_7745c5c3_Err != nil {
@@ -1159,20 +1159,20 @@ func passwordPage(flow, message string, passwordMinimumLength int) templ.Compone
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\"> <label class=\"block\"><span class=\"font-medium\">Password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"password\" autocomplete=\"new-password\" minlength=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 71, "\"> <label class=\"block\"><span class=\"font-medium\">Password</span><input class=\"form-control\" type=\"password\" name=\"password\" autocomplete=\"new-password\" minlength=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var56 string
 			templ_7745c5c3_Var56, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(passwordMinimumLength))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 231, Col: 259}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 231, Col: 200}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var56)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" maxlength=\"1024\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Create account</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 72, "\" maxlength=\"1024\" required></label> <button class=\"button button-primary w-full\" type=\"submit\">Create account</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1232,7 +1232,7 @@ func accountCreatedPage(accountID string) templ.Component {
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</code></p><a class=\"mt-8 inline-flex rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" href=\"/login\">Sign in</a>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 74, "</code></p><a class=\"button button-primary mt-8\" href=\"/login\">Sign in</a>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1284,7 +1284,7 @@ func accountPage(accountID string, passwordChanged, emailChanged, notificationFa
 				return templ_7745c5c3_Err
 			}
 			if passwordChanged {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<p role=\"status\" class=\"mt-5 rounded-xl bg-green-50 p-4 text-green-900 dark:bg-green-950 dark:text-green-100\">Your password was changed. Your other Authling browser sessions were signed out.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 76, "<p role=\"status\" class=\"notice notice-success\">Your password was changed. Your other Authling browser sessions were signed out.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1294,7 +1294,7 @@ func accountPage(accountID string, passwordChanged, emailChanged, notificationFa
 				return templ_7745c5c3_Err
 			}
 			if emailChanged {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<p role=\"status\" class=\"mt-5 rounded-xl bg-green-50 p-4 text-green-900 dark:bg-green-950 dark:text-green-100\">Your email address was changed. Use your new email address the next time you sign in.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 78, "<p role=\"status\" class=\"notice notice-success\">Your email address was changed. Use your new email address the next time you sign in.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1304,7 +1304,7 @@ func accountPage(accountID string, passwordChanged, emailChanged, notificationFa
 				return templ_7745c5c3_Err
 			}
 			if notificationFailed {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-amber-50 p-4 text-amber-900 dark:bg-amber-950 dark:text-amber-100\">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 80, "<p role=\"alert\" class=\"notice notice-warning\">We couldn’t send a security notice to your previous address. Your email address was still changed.</p>")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
@@ -1322,7 +1322,7 @@ func accountPage(accountID string, passwordChanged, emailChanged, notificationFa
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</code></p><a class=\"mt-8 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700\" href=\"/account/email\">Change email address</a> <a class=\"mt-3 inline-flex w-full justify-center rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700\" href=\"/account/password\">Change password</a><form class=\"mt-3\" method=\"post\" action=\"/logout\"><button class=\"w-full rounded-xl border border-slate-300 px-5 py-3 font-semibold dark:border-slate-700\" type=\"submit\">Sign out</button></form>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 82, "</code></p><a class=\"button button-secondary mt-8 w-full\" href=\"/account/email\">Change email address</a> <a class=\"button button-secondary mt-3 w-full\" href=\"/account/password\">Change password</a><form class=\"mt-3\" method=\"post\" action=\"/logout\"><button class=\"button button-secondary w-full\" type=\"submit\">Sign out</button></form>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
@@ -1374,14 +1374,14 @@ func passwordChangePage(message string, passwordMinimumLength int) templ.Compone
 				return templ_7745c5c3_Err
 			}
 			if message != "" {
-				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<p role=\"alert\" class=\"mt-5 rounded-xl bg-red-50 p-4 text-red-800 dark:bg-red-950 dark:text-red-100\">")
+				templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 84, "<p role=\"alert\" class=\"notice notice-error\">")
 				if templ_7745c5c3_Err != nil {
 					return templ_7745c5c3_Err
 				}
 				var templ_7745c5c3_Var65 string
 				templ_7745c5c3_Var65, templ_7745c5c3_Err = templ.JoinStringErrs(message)
 				if templ_7745c5c3_Err != nil {
-					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 274, Col: 113}
+					return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 274, Col: 56}
 				}
 				_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ.EscapeString(templ_7745c5c3_Var65))
 				if templ_7745c5c3_Err != nil {
@@ -1392,33 +1392,33 @@ func passwordChangePage(message string, passwordMinimumLength int) templ.Compone
 					return templ_7745c5c3_Err
 				}
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/account/password\"><label class=\"block\"><span class=\"font-medium\">Current password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"current_password\" autocomplete=\"current-password\" maxlength=\"1024\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">New password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"new_password\" autocomplete=\"new-password\" minlength=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 86, " <form class=\"mt-8 space-y-5\" method=\"post\" action=\"/account/password\"><label class=\"block\"><span class=\"font-medium\">Current password</span><input class=\"form-control\" type=\"password\" name=\"current_password\" autocomplete=\"current-password\" maxlength=\"1024\" autofocus required></label> <label class=\"block\"><span class=\"font-medium\">New password</span><input class=\"form-control\" type=\"password\" name=\"new_password\" autocomplete=\"new-password\" minlength=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var66 string
 			templ_7745c5c3_Var66, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(passwordMinimumLength))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 278, Col: 267}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 278, Col: 208}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var66)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" maxlength=\"1024\" required></label> <label class=\"block\"><span class=\"font-medium\">Confirm new password</span><input class=\"mt-2 w-full rounded-xl border border-slate-300 bg-transparent px-4 py-3\" type=\"password\" name=\"new_password_confirmation\" autocomplete=\"new-password\" minlength=\"")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 87, "\" maxlength=\"1024\" required></label> <label class=\"block\"><span class=\"font-medium\">Confirm new password</span><input class=\"form-control\" type=\"password\" name=\"new_password_confirmation\" autocomplete=\"new-password\" minlength=\"")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
 			var templ_7745c5c3_Var67 string
 			templ_7745c5c3_Var67, templ_7745c5c3_Err = templ.ResolveAttributeValue(strconv.Itoa(passwordMinimumLength))
 			if templ_7745c5c3_Err != nil {
-				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 279, Col: 288}
+				return templ.Error{Err: templ_7745c5c3_Err, FileName: `internal/web/pages.templ`, Line: 279, Col: 229}
 			}
 			_, templ_7745c5c3_Err = templ_7745c5c3_Buffer.WriteString(templ_7745c5c3_Var67)
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
-			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "\" maxlength=\"1024\" required></label> <button class=\"w-full rounded-xl bg-authling-600 px-5 py-3 font-semibold text-white\" type=\"submit\">Change password</button></form><p class=\"mt-6 text-sm\"><a class=\"font-semibold text-authling-700 underline dark:text-authling-200\" href=\"/account\">Return to your account</a>.</p>")
+			templ_7745c5c3_Err = templruntime.WriteString(templ_7745c5c3_Buffer, 88, "\" maxlength=\"1024\" required></label> <button class=\"button button-primary w-full\" type=\"submit\">Change password</button></form><p class=\"mt-6 text-sm\"><a class=\"text-link\" href=\"/account\">Return to your account</a>.</p>")
 			if templ_7745c5c3_Err != nil {
 				return templ_7745c5c3_Err
 			}
