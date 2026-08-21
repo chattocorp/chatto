@@ -133,10 +133,13 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 		}
 		return AuthTokenData{}, nil, err
 	}
-	if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration {
+	if session.UserID != tokenData.UserID || session.ClientID != tokenData.ClientID || session.Kind != tokenData.kindOrDefault() || session.AuthGeneration != tokenData.AuthGeneration || tokenData.AccessGeneration > session.CurrentGeneration {
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return AuthTokenData{}, nil, ErrAuthTokenNotFound
 	}
+	tokenData.FreshAuthAt = session.FreshAuthAt
+	tokenData.FreshAuthMethod = session.FreshAuthMethod
+	tokenData.FreshAuthSource = session.FreshAuthSource
 	if _, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,
 		CreatedAt:      tokenData.CreatedAt,

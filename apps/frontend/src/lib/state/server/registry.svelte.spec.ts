@@ -71,6 +71,7 @@ describe('ServerRegistry', () => {
 	afterEach(() => {
 		serverRegistry.removeAll();
 		vi.unstubAllGlobals();
+		vi.restoreAllMocks();
 	});
 
 	it('exports the singleton', async () => {
@@ -517,6 +518,22 @@ describe('ServerRegistry', () => {
 				serverRegistry.renewServerAuthentication('renewable', true)
 			).resolves.toBe('access-2');
 			expect(requestBodies[1].refresh_request_id).toBe(requestBodies[0].refresh_request_id);
+		});
+
+		it('does not rotate when the recovery request ID cannot be persisted', async () => {
+			const fetchMock = vi.fn(async () => refreshedResponse());
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+			vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+					throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+				});
+
+			await expect(
+				serverRegistry.renewServerAuthentication('renewable', true)
+			).rejects.toThrow('Unable to persist bearer renewal state.');
+			expect(
+				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
+			).toHaveLength(0);
 		});
 
 		it("adopts another tab's persisted rotation after acquiring the refresh lock", async () => {

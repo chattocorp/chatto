@@ -504,12 +504,22 @@ class ServerRegistry {
 			const requestId = session.refreshRequestId || crypto.randomUUID();
 			if (session.refreshRequestId !== requestId) {
 				this.sessions.update(id, { refreshRequestId: requestId });
-				this.#persist();
 				session = this.sessions.get(id);
 			}
 			if (!session?.refreshToken) {
 				this.handleAuthenticationRequired(id);
 				return null;
+			}
+			// Rotation is unsafe unless a lost response can be retried with the
+			// exact same ID after a reload or in another tab. StorageSlot writes
+			// are intentionally best-effort elsewhere, so verify this security-
+			// sensitive write before sending the refresh credential.
+			this.#persist();
+			const persistedRequestId = serversSlot
+				.get()
+				.find((server) => server.id === id)?.refreshRequestId;
+			if (persistedRequestId !== requestId) {
+				throw new Error('Unable to persist bearer renewal state.');
 			}
 
 			const response = await fetch(new URL('/oauth/token', registration.url), {

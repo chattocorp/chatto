@@ -39,8 +39,11 @@ not stored.
 Refresh rotation uses JetStream KV revision checks across replicas. An exact
 retry with the same client-persisted request ID can recover a lost response;
 reuse of an older refresh generation under another request ID revokes the
-whole renewable session. Deleting the stable record invalidates every access
-generation immediately, even before their short-lived verifier records expire.
+whole renewable session. Deleting the stable record rejects every access
+generation on its next API request or realtime connection, even before its
+short-lived verifier record expires. A realtime socket that already
+authenticated can continue only until that access token's fixed expiry unless
+a separate logout or account-lifecycle signal closes it sooner.
 
 Browser sessions use signed cookies with the following options:
 

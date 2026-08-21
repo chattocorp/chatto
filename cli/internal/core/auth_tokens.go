@@ -195,6 +195,12 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			_ = c.storage.runtimeStateKV.Delete(ctx, key)
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
+		// Fresh authentication belongs to the renewable session so a rotation
+		// racing a password re-verification cannot strand the newly issued access
+		// generation with stale copied metadata.
+		tokenData.FreshAuthAt = session.FreshAuthAt
+		tokenData.FreshAuthMethod = session.FreshAuthMethod
+		tokenData.FreshAuthSource = session.FreshAuthSource
 		return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
 	}
 	if tokenData.kindOrDefault() == AuthTokenKindOAuthAccessToken {

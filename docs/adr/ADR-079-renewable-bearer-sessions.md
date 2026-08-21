@@ -56,13 +56,16 @@ of a session is clamped to the remaining session lifetime.
   session. Its JSON value contains the user, optional OAuth client ID,
   credential kind and source, safe audit request metadata, creation and
   absolute expiry times, user auth generation, current rotation generation,
-  previous refresh request ID and rotation time, and fresh-auth metadata.
+  previous refresh request ID and rotation time, and authoritative fresh-auth
+  metadata.
   Its per-key TTL is always the remaining absolute lifetime and is never
   extended.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
-  generation, and the established typed-credential metadata. Validation does
-  not renew its TTL.
+  generation, and the established typed-credential metadata. Fresh-auth fields
+  are copied at issuance, but validation resolves their current values from the
+  stable session so re-verification remains correct across concurrent rotation.
+  Validation does not renew the access record's TTL.
 
 The stable session ID is opaque and HMAC-keyed before it enters
 `RUNTIME_STATE`. Access tokens and refresh credentials are deterministic,
@@ -72,9 +75,12 @@ As with Chatto's other runtime credentials, restoring `RUNTIME_STATE` preserves
 sessions only when `[core].secret_key` is also preserved.
 
 Every access-token validation checks both its own fixed expiry and the stable
-renewable-session authority. Deleting that authority immediately invalidates
-all access generations even if their individual verifier records remain until
-TTL cleanup. Password and account lifecycle changes still use the durable user
+renewable-session authority. Deleting that authority rejects every access
+generation on its next API request or realtime connection, even if individual
+verifier records remain until TTL cleanup. A realtime socket that already
+completed authentication retains its authorized context only until that access
+token's fixed expiry, unless a separate logout or account-lifecycle signal ends
+it sooner. Password and account lifecycle changes still use the durable user
 auth generation as their primary revocation fence. Blocking an OAuth client
 also invalidates the stable sessions issued to that client.
 
@@ -121,7 +127,8 @@ reuse detection remain authoritative for clients without Web Locks.
 Rotating the refresh credential does not immediately revoke the previous
 short-lived access token. Its fixed expiry bounds that overlap. Reuse detection,
 explicit logout, user auth-generation changes, and OAuth-client blocking revoke
-the stable authority and therefore invalidate all overlap immediately.
+the stable authority, rejecting all overlap at its next validation. Established
+realtime sockets retain the same fixed-expiry bound described above.
 
 ### Client behavior
 
@@ -177,9 +184,10 @@ sign-in and coordinated-upgrade requirement.
   the attacker also obtains the rotating refresh credential.
 - Active users renew without navigation, OAuth popups, or losing their current
   server route and realtime projection.
-- Refresh reuse turns suspicious concurrency into immediate whole-session
-  revocation. Benign lost responses remain recoverable only through the exact
-  persisted request ID.
+- Refresh reuse turns suspicious concurrency into whole-session revocation for
+  subsequent requests and reconnects. Benign lost responses remain recoverable
+  only through the exact persisted request ID; an established realtime socket
+  cannot outlive the access token that authenticated it.
 - Correctness across replicas comes from one JetStream KV revision boundary;
   browser locks improve contention but are not a security primitive.
 - `RUNTIME_STATE` gains one stable record per renewable bearer session plus

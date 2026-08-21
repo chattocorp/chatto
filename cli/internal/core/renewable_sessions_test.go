@@ -148,6 +148,29 @@ func TestChattoCore_AccessExpiryDoesNotEndRenewableSession(t *testing.T) {
 	}
 }
 
+func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "fresh-rotation-user", "Fresh Rotation User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "unknown")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "rotate-before-fresh-auth", "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	if err := chattoCore.MarkBearerTokenFresh(ctx, initial.AccessToken, "password", "current_password"); err != nil {
+		t.Fatalf("MarkBearerTokenFresh: %v", err)
+	}
+	if err := chattoCore.RequireFreshAuthForBearerToken(ctx, rotated.AccessToken); err != nil {
+		t.Fatalf("rotated access token did not adopt session fresh auth: %v", err)
+	}
+}
+
 func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *testing.T) {
 	first, nc := setupTestCore(t)
 	ctx := testContext(t)

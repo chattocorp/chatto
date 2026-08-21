@@ -63,30 +63,35 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	token, err := core.CreateAuthTokenWithSource(ctx, user.Id, "password_login")
+	credentials, err := core.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
 	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource: %v", err)
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
+	token := credentials.AccessToken
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
 		t.Fatalf("new token should be fresh: %v", err)
 	}
 
-	key := core.authTokenKey(token)
-	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
+	sessionID, _, ok := core.parseRefreshToken(credentials.RefreshToken)
+	if !ok {
+		t.Fatal("refresh token did not parse")
+	}
+	sessionKey := core.renewableSessionKey(sessionID)
+	entry, err := core.storage.runtimeStateKV.Get(ctx, sessionKey)
 	if err != nil {
-		t.Fatalf("get token: %v", err)
+		t.Fatalf("get renewable session: %v", err)
 	}
-	var data AuthTokenData
-	if err := json.Unmarshal(entry.Value(), &data); err != nil {
-		t.Fatalf("unmarshal token: %v", err)
+	var session RenewableSession
+	if err := json.Unmarshal(entry.Value(), &session); err != nil {
+		t.Fatalf("unmarshal renewable session: %v", err)
 	}
-	data.FreshAuthAt = time.Now().Add(-FreshAuthWindow - time.Minute)
-	staleValue, err := json.Marshal(data)
+	session.FreshAuthAt = time.Now().Add(-FreshAuthWindow - time.Minute)
+	staleValue, err := json.Marshal(session)
 	if err != nil {
-		t.Fatalf("marshal stale token: %v", err)
+		t.Fatalf("marshal stale renewable session: %v", err)
 	}
-	if _, err := core.updateRuntimeStateTokenTTL(ctx, key, staleValue, entry.Revision(), core.authTokenTTL()); err != nil {
-		t.Fatalf("write stale token: %v", err)
+	if _, err := core.updateRuntimeStateTokenTTL(ctx, sessionKey, staleValue, entry.Revision(), session.ExpiresAt.Sub(time.Now())); err != nil {
+		t.Fatalf("write stale renewable session: %v", err)
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
 		t.Fatalf("stale token fresh auth err = %v, want ErrFreshAuthRequired", err)
