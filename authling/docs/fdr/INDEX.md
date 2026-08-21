@@ -17,3 +17,4 @@ record planned behavior as active functionality.
 | [FDR-007](FDR-007-verified-email-change.md) | Verified Email Change | Experimental | 2026-08-20 |
 | [FDR-008](FDR-008-signed-in-password-change.md) | Signed-in Password Change | Experimental | 2026-08-20 |
 | [FDR-009](FDR-009-browser-session-management.md) | Browser Session Management | Experimental | 2026-08-20 |
+| [FDR-010](FDR-010-account-profile.md) | Account Profile | Experimental | 2026-08-21 |

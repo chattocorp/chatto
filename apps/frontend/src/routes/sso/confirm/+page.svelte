@@ -10,6 +10,7 @@
     type PendingExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
   import { m } from '$lib/i18n/messages';
+  import { validateDisplayName } from '$lib/validation/displayName';
   import Hint from '$lib/ui/Hint.svelte';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import { TextInput, FormError, Button, z, validate } from '$lib/ui/form';
@@ -23,6 +24,7 @@
   let loading = $state(true);
   let submitting = $state(false);
   let login = $state('');
+  let displayName = $state('');
   let loadedToken = '';
 
   const loginSchema = z
@@ -34,10 +36,16 @@
     .refine((val) => !val.includes('..'), m('common.validation.username_no_consecutive_periods'));
 
   const loginError = $derived(login ? validate(loginSchema, login) : undefined);
+  const displayNameError = $derived.by(() => {
+    if (!displayName) return undefined;
+    return validateDisplayName(displayName).valid
+      ? undefined
+      : m('settings.profile.display_name.invalid');
+  });
   const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
   const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
   const canSubmit = $derived(
-    pending && !submitting && ((isCreate && login.trim() && !loginError) || isLink)
+    pending && !submitting && ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) || isLink)
   );
 
   $effect(() => {
@@ -60,6 +68,7 @@
       }
       pending = result;
       login = result.loginHint;
+      displayName = result.displayNameHint || result.loginHint;
     } catch (err) {
       if (err instanceof ConnectError && err.code === Code.NotFound) {
         loadError = m('auth.sso.invalid');
@@ -73,14 +82,14 @@
 
   async function handleCreate(e: Event) {
     e.preventDefault();
-    if (!pending || !data.token || loginError) {
-      actionError = loginError || m('common.validation.fix_errors');
+    if (!pending || !data.token || loginError || displayNameError) {
+      actionError = loginError || displayNameError || m('common.validation.fix_errors');
       return;
     }
     submitting = true;
     actionError = '';
     try {
-      const result = await flowAPI.createAccount({ token: data.token, login });
+      const result = await flowAPI.createAccount({ token: data.token, login, displayName });
       const resumedReturnNavigation = await completeOriginAuthentication(result.token, {
         id: result.userId,
         login: result.login
@@ -158,6 +167,18 @@
         required
         autocomplete="username"
         error={loginError}
+      />
+
+      <TextInput
+        id="sso-display-name"
+        label={m('settings.profile.display_name.label')}
+        bind:value={displayName}
+        placeholder={m('settings.profile.display_name.placeholder')}
+        disabled={submitting}
+        required
+        maxlength={32}
+        autocomplete="name"
+        error={displayNameError}
       />
 
       <FormError error={actionError} />

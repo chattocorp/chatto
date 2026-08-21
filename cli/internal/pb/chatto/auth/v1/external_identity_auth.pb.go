@@ -293,7 +293,10 @@ type CreateExternalIdentityAccountRequest struct {
 	// Raw pending create token from the provider callback redirect.
 	Token string `protobuf:"bytes,1,opt,name=token,proto3" json:"token,omitempty"`
 	// Desired username.
-	Login         string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	Login string `protobuf:"bytes,2,opt,name=login,proto3" json:"login,omitempty"`
+	// Desired display name. When omitted, the server uses a valid provider hint
+	// and otherwise falls back to the requested username.
+	DisplayName   string `protobuf:"bytes,3,opt,name=display_name,json=displayName,proto3" json:"display_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -338,6 +341,13 @@ func (x *CreateExternalIdentityAccountRequest) GetToken() string {
 func (x *CreateExternalIdentityAccountRequest) GetLogin() string {
 	if x != nil {
 		return x.Login
+	}
+	return ""
+}
+
+func (x *CreateExternalIdentityAccountRequest) GetDisplayName() string {
+	if x != nil {
+		return x.DisplayName
 	}
 	return ""
 }
@@ -610,10 +620,11 @@ const file_chatto_auth_v1_external_identity_auth_proto_rawDesc = "" +
 	"!GetPendingExternalIdentityRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\"g\n" +
 	"\"GetPendingExternalIdentityResponse\x12A\n" +
-	"\apending\x18\x01 \x01(\v2'.chatto.auth.v1.PendingExternalIdentityR\apending\"f\n" +
+	"\apending\x18\x01 \x01(\v2'.chatto.auth.v1.PendingExternalIdentityR\apending\"\x92\x01\n" +
 	"$CreateExternalIdentityAccountRequest\x12\x1d\n" +
 	"\x05token\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x05token\x12\x1f\n" +
-	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 R\x05login\"l\n" +
+	"\x05login\x18\x02 \x01(\tB\t\xbaH\x06r\x04\x10\x02\x18 R\x05login\x12*\n" +
+	"\fdisplay_name\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18 R\vdisplayName\"l\n" +
 	"%CreateExternalIdentityAccountResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12\x14\n" +

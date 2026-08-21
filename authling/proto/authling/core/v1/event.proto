@@ -25,7 +25,21 @@ message Event {
     PasswordResetRequestedEvent password_reset_requested = 104;
     EmailChangeRequestedEvent email_change_requested = 105;
     EmailChangedEvent email_changed = 106;
+    ProfileUpdatedEvent profile_updated = 107;
   }
+}
+
+// ProfileUpdatedEvent replaces the encrypted, non-unique identity hints that
+// Authling publishes to relying parties.
+message ProfileUpdatedEvent {
+  string account_id = 1;
+  string user_key_ref = 2;
+  string credential_key_ref = 3;
+  uint32 profile_envelope_version = 4;
+  bytes preferred_username_nonce = 5;
+  bytes preferred_username_ciphertext = 6;
+  bytes full_name_nonce = 7;
+  bytes full_name_ciphertext = 8;
 }
 
 // IssuerEstablishedEvent permanently binds one Authling deployment to its
@@ -61,6 +75,11 @@ message AccountCreatedEvent {
   uint32 credential_envelope_version = 6;
   bytes password_verifier_nonce = 7;
   bytes password_verifier_ciphertext = 8;
+
+  // Encrypted preferred username published to relying parties as the standard
+  // OpenID Connect preferred_username claim. Historical accounts omit it.
+  bytes preferred_username_nonce = 9;
+  bytes preferred_username_ciphertext = 10;
 }
 
 // PasswordChangedEvent replaces one local account's password verifier without

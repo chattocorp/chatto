@@ -440,3 +440,14 @@ var ErrUsernameBlocked = fmt.Errorf("this username is not available")
 func (c *ChattoCore) CheckLoginExists(ctx context.Context, login string) (bool, error) {
 	return c.userModel.loginExists(login), nil
 }
+
+// IsLoginAvailable reports whether a login currently passes validation and
+// conflicts with neither reserved names nor existing mention handles. The
+// result is advisory; account creation remains the race-safe authority.
+func (c *ChattoCore) IsLoginAvailable(login string) bool {
+	login = strings.TrimSpace(login)
+	return ValidateLogin(login) == nil &&
+		!c.configModel.IsUsernameBlocked(login) &&
+		!c.loginConflictsWithMentionHandle(login) &&
+		!c.userModel.loginExists(login)
+}

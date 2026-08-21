@@ -59,6 +59,9 @@ message CreateExternalIdentityAccountRequest {
     min_len: 2
     max_len: 32
   }];
+  // Desired display name. When omitted, the server uses a valid provider hint
+  // and otherwise falls back to the requested username.
+  string display_name = 3 [(buf.validate.field).string.max_len = 32];
 }
 
 // Result of creating an account from a pending provider identity.

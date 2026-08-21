@@ -126,7 +126,10 @@ func newRuntimeWithEmailChangeOptions(ctx context.Context, cfg config.Config, lo
 		return closeOnError(fmt.Errorf("construct CIMD resolver: %w", err))
 	}
 	clients := oidcprovider.NewResolver(cfg, cimd)
-	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService)
+	oidcStorage := oidcprovider.NewStorage(stores.RuntimeState, js, workflowKey, clients, issuerService, func(ctx context.Context, accountID string) (string, string, error) {
+		profile, err := accountService.Profile(ctx, accountID)
+		return profile.PreferredUsername, profile.FullName, err
+	})
 	oidcService := oidcprovider.New(cfg, issuerService, oidcStorage)
 	authenticationService := authentication.New(stores.RuntimeState, js, workflowKey, accountService)
 	return &Runtime{

@@ -97,11 +97,12 @@ Persisted records use the `authling.core.v1.Event` protobuf envelope:
 
 | Event | Subject | Aggregate | Contents |
 |-------|---------|-----------|----------|
-| `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID and envelope creation time |
+| `AccountCreatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account ID, envelope creation time, and encrypted local credential fields including the preferred username |
 | `PasswordResetRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-event IDs; the envelope ID identifies the audit request |
 | `PasswordChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, prior-credential, ceremony, and optional reset-request references plus the replacement encrypted password verifier |
 | `EmailChangeRequestedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and reauthenticated credential-event IDs |
 | `EmailChangedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account, credential-key, request, and prior-credential references plus the replacement encrypted email |
+| `ProfileUpdatedEvent` | `authling.evt.account.{accountId}` | Account | Opaque account and credential-key references plus replacement encrypted preferred-username and full-name fields |
 | `EmailClaimedEvent` | `authling.evt.account-registry` | Account registry | Opaque account and optional staged credential-event IDs |
 | `IssuerEstablishedEvent` | `authling.evt.issuer` | Issuer singleton | Immutable issuer URL and opaque signing-key reference and ID |
 
@@ -119,7 +120,8 @@ The account model consumes `authling.evt.account.*` and
 During replay it resolves and decrypts local credentials and rebuilds a keyed
 digest index of normalized emails. It retains encrypted verifier fields and
 opaque key references, but neither plaintext email nor plaintext password
-verifiers. The model retains bounded password-reset request correlations so
+verifiers. It retains encrypted profile fields and decrypts them only at the
+account-service read boundary. The model retains bounded password-reset request correlations so
 replay can validate recovery-produced password changes. Password changes
 validate their declared recovery or signed-in ceremony, replace the current
 encrypted verifier, and advance a durable account authentication version. The
@@ -261,7 +263,8 @@ body size, concurrency, and cache lifetime. Pending requests, code mappings,
 and opaque access-token records are encrypted and expire in runtime state.
 Authorization-code claim uses KV OCC so concurrent exchange has at most one
 winner. ID tokens use the persistent RS256 key; JWKS publishes only its public
-part. The initial UserInfo response contains only the account ID as `sub`.
+part. ID tokens and UserInfo return the account ID as `sub` and non-empty,
+encrypted-at-rest profile hints as `preferred_username` and `name`.
 
 The HTTP server bounds header, body-read, response-write, and idle time. Signup,
 password reset, signed-in password change, and email change also cap request

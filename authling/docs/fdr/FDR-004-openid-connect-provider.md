@@ -1,7 +1,7 @@
 # FDR-004: OpenID Connect Provider
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-14
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -28,9 +28,10 @@ to the relying party with an Authorization Code.
   client, redirect, and PKCE verifier, and succeeds in at most one concurrent
   exchange.
 - Successful exchange returns a five-minute RS256 ID token and opaque bearer
-  access token. The issuer is Authling's immutable public URL and `sub` is the
-  Authling account ID. UserInfo returns only `sub`. Access-token state also
-  binds the client and granted scopes.
+  access token. The issuer is Authling's immutable public URL, `sub` is the
+  Authling account ID, and local accounts also receive their non-empty durable
+  `preferred_username` and `name` identity hints. UserInfo returns the same
+  claims. Access-token state also binds the client and granted scopes.
 - Protocol state and token records are encrypted at rest and stored under
   non-reversible runtime keys. Raw codes and tokens are not durable keys and
   are never logged.
@@ -76,8 +77,9 @@ permits link-local, multicast, or other special-use destinations.
 
 - Only local password authentication and the `pwd` authentication-method
   reference exist.
-- Refresh tokens, token revocation, RP-initiated logout, further identity scopes and
-  claims, persistent consent, application grouping, key rotation, and official
+- Refresh tokens, token revocation, RP-initiated logout, further identity
+  scopes and claims beyond `preferred_username` and `name`, persistent consent,
+  application grouping, key rotation, and official
   conformance-suite automation are not implemented.
 - CIMD remains an Internet-Draft. Authling implements the reviewed draft-02
   profile and may need an explicit migration as the document evolves.
@@ -87,3 +89,4 @@ permits link-local, multicast, or other special-use destinations.
 - **ADR:** [ADR-004](../adr/ADR-004-cimd-native-openid-provider.md)
 - **Product boundary:** [ADR-007](../adr/ADR-007-limit-authling-to-identity-provider.md)
 - **Features:** [FDR-003](FDR-003-local-login-and-browser-sessions.md)
+- **Profiles:** [FDR-010](FDR-010-account-profile.md)
