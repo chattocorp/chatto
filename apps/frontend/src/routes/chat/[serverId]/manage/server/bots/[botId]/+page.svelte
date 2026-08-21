@@ -7,13 +7,16 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
+  import { viewerResponseToState } from '$lib/api-client/viewer';
   import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
+  import UserCombobox from '$lib/components/users/UserCombobox.svelte';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
+  import { adminQueryKeys } from '$lib/query/admin';
   import { settingsQueryKeys } from '$lib/query/settings';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
@@ -33,6 +36,15 @@
   const serverScope = useServerScope();
   const botId = $derived(page.params.botId!);
   const supportsBots = $derived(serverScope.store.serverInfo.supportsFeature('botAccounts'));
+  const supportsOwnerReassignment = $derived(
+    serverScope.store.serverInfo.supportsFeature('botOwnerReassignment')
+  );
+  const canReassignOwner = $derived.by(() => {
+    const viewer = serverScope.store.projection.viewer;
+    return viewer
+      ? (viewerResponseToState(viewer).viewerPermissions['bot.manage'] ?? false)
+      : false;
+  });
   const backHref = $derived(
     resolve('/chat/[serverId]/manage/server/bots', {
       serverId: serverIdToSegment(serverScope.serverId)
@@ -60,11 +72,7 @@
       const connection = serverScope.connection;
       const ownerUserId = bot?.ownerUserId ?? '';
       return {
-        queryKey: [
-          ...settingsQueryKeys.bot(serverId, connection, botId),
-          'owner',
-          ownerUserId
-        ],
+        queryKey: [...settingsQueryKeys.bot(serverId, connection, botId), 'owner', ownerUserId],
         queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
         enabled: supportsBots && !!ownerUserId
       };
@@ -89,6 +97,11 @@
   let rotateLoading = $state(false);
   let deleteVisible = $state(false);
   let deleteLoading = $state(false);
+  let reassignVisible = $state(false);
+  let reassignOwnerUserId = $state('');
+  let reassignOwnerText = $state('');
+  let reassignLoading = $state(false);
+  let reassignError = $state<string | null>(null);
 
   onDestroy(() => {
     componentActive = false;
@@ -104,8 +117,7 @@
   const normalizedEditLogin = $derived(editLogin.trim());
   const normalizedEditDisplayName = $derived(editDisplayName.trim());
   const editDirty = $derived(
-    normalizedEditLogin !== initialEditLogin ||
-      normalizedEditDisplayName !== initialEditDisplayName
+    normalizedEditLogin !== initialEditLogin || normalizedEditDisplayName !== initialEditDisplayName
   );
   const editLoginError = $derived(
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
@@ -200,6 +212,41 @@
     }
   }
 
+  function openReassignOwner() {
+    reassignOwnerUserId = '';
+    reassignOwnerText = '';
+    reassignError = null;
+    reassignVisible = true;
+  }
+
+  async function reassignOwner() {
+    if (!bot || !canReassignOwner || reassignOwnerUserId === bot.ownerUserId) return;
+    const mutationTarget = targetKey;
+    reassignLoading = true;
+    reassignError = null;
+    try {
+      const reassigned = await botAPI().reassignBotOwner(bot.id, reassignOwnerUserId);
+      if (!isCurrentTarget(mutationTarget)) return;
+      cacheBot(reassigned);
+      void queryClient.invalidateQueries({
+        queryKey: adminQueryKeys.userPermissions(
+          serverScope.serverId,
+          serverScope.connection,
+          bot.id
+        ),
+        exact: true
+      });
+      reassignVisible = false;
+      toast.success(m('settings.bots.owner_reassigned'));
+    } catch (error) {
+      if (!isCurrentTarget(mutationTarget)) return;
+      reassignError =
+        error instanceof Error ? error.message : m('settings.bots.owner_reassign_failed');
+    } finally {
+      if (isCurrentTarget(mutationTarget)) reassignLoading = false;
+    }
+  }
+
   async function deleteBot() {
     if (!bot) return;
     const mutationTarget = targetKey;
@@ -273,6 +320,12 @@
             <span class="iconify icon-[uil--refresh]" aria-hidden="true"></span>
             {m('settings.bots.rotate_key')}
           </Button>
+          {#if canReassignOwner && supportsOwnerReassignment}
+            <Button size="sm" variant="secondary" onclick={openReassignOwner}>
+              <span class="iconify icon-[uil--exchange]" aria-hidden="true"></span>
+              {m('settings.bots.reassign_owner')}
+            </Button>
+          {/if}
           <Button size="sm" variant="danger-secondary" onclick={() => (deleteVisible = true)}>
             <span class="iconify icon-[uil--trash]" aria-hidden="true"></span>
             {m('common.delete')}
@@ -289,9 +342,7 @@
               {#if owner}
                 <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
               {:else if ownerQuery.isPending}
-                <span
-                  class="skeleton block h-8 w-32 rounded-md"
-                  aria-label={m('common.loading')}
+                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
@@ -343,6 +394,28 @@
     maxlength={32}
     required
     bind:value={editDisplayName}
+  />
+</FormDialog>
+
+<FormDialog
+  bind:visible={reassignVisible}
+  title={m('settings.bots.reassign_owner')}
+  submitLabel={m('settings.bots.reassign_owner')}
+  loading={reassignLoading}
+  disabled={!reassignOwnerUserId || reassignOwnerUserId === bot?.ownerUserId}
+  error={reassignError}
+  onsubmit={reassignOwner}
+  onclose={() => (reassignVisible = false)}
+>
+  <Hint tone="warning">{m('settings.bots.reassign_owner_warning')}</Hint>
+  <UserCombobox
+    id="reassign-bot-owner"
+    label={m('settings.bots.owner')}
+    placeholder={m('admin.members.search_placeholder')}
+    humanOnly
+    allowFreeform={false}
+    bind:value={reassignOwnerUserId}
+    bind:text={reassignOwnerText}
   />
 </FormDialog>
 

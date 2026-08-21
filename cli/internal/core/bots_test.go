@@ -108,6 +108,169 @@ func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	}
 }
 
+func TestReassignBotOwnerRequiresGlobalManagementAndPreservesBotState(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "reassign-owner", "Reassign Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	newOwner, err := c.CreateUser(ctx, SystemActorID, "reassign-recipient", "Reassign Recipient", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	manager, err := c.CreateUser(ctx, SystemActorID, "reassign-manager", "Reassign Manager", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser manager: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "reassign_bot", "Reassign Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, owner.GetId(), PermMessagePost); err != nil {
+		t.Fatalf("grant owner message.post: %v", err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post: %v", err)
+	}
+	if err := c.DenyUserPermission(ctx, SystemActorID, newOwner.GetId(), PermMessagePost); err != nil {
+		t.Fatalf("deny recipient message.post: %v", err)
+	}
+
+	if _, err := c.ReassignBotOwner(ctx, owner.GetId(), bot.User.GetId(), newOwner.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("owner-only reassignment err = %v, want ErrPermissionDenied", err)
+	}
+	if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
+		t.Fatalf("grant manager bot.manage: %v", err)
+	}
+	fenceBefore, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence before reassignment: %v", err)
+	}
+	reassigned, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId())
+	if err != nil {
+		t.Fatalf("ReassignBotOwner: %v", err)
+	}
+	if reassigned.OwnerUserID != newOwner.GetId() || reassigned.User.GetBotOwnerUserId() != newOwner.GetId() {
+		t.Fatalf("reassigned bot = %+v, want owner %s", reassigned, newOwner.GetId())
+	}
+	fenceAfter, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence after reassignment: %v", err)
+	}
+	if fenceAfter <= fenceBefore {
+		t.Fatalf("authorization fence did not advance: before=%d after=%d", fenceBefore, fenceAfter)
+	}
+	if authenticated, err := c.ValidateBotAPIKey(ctx, bot.APIKey); err != nil || authenticated.GetId() != bot.User.GetId() {
+		t.Fatalf("existing bot key after reassignment = %v, %v", authenticated, err)
+	}
+	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("previous owner GetBot err = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := c.GetBot(ctx, newOwner.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("new owner GetBot: %v", err)
+	}
+	if override, err := c.GetUserExplicitServerOverride(ctx, bot.User.GetId(), PermMessagePost); err != nil || override != DecisionAllow {
+		t.Fatalf("stored bot grant after reassignment = %s, %v; want allow", override, err)
+	}
+	if effective, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || effective != DecisionDeny {
+		t.Fatalf("new owner-capped bot permission = %s, %v; want deny", effective, err)
+	}
+
+	fenceBeforeNoop, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence before no-op: %v", err)
+	}
+	if _, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId()); err != nil {
+		t.Fatalf("idempotent ReassignBotOwner: %v", err)
+	}
+	fenceAfterNoop, err := c.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence after no-op: %v", err)
+	}
+	if fenceAfterNoop != fenceBeforeNoop {
+		t.Fatalf("no-op reassignment advanced authorization fence: before=%d after=%d", fenceBeforeNoop, fenceAfterNoop)
+	}
+
+	otherBot, err := c.CreateBot(ctx, owner.GetId(), "recipient_bot", "Recipient Bot")
+	if err != nil {
+		t.Fatalf("CreateBot recipient: %v", err)
+	}
+	if _, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), otherBot.User.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("bot recipient reassignment err = %v, want ErrHumanAccountRequired", err)
+	}
+	if _, err := c.ReassignBotOwner(ctx, bot.User.GetId(), bot.User.GetId(), owner.GetId()); !errors.Is(err, ErrHumanAccountRequired) {
+		t.Fatalf("bot actor reassignment err = %v, want ErrHumanAccountRequired", err)
+	}
+}
+
+func TestReassignBotOwnerIsRaceSafeWithOwnerDeletion(t *testing.T) {
+	for _, tc := range []struct {
+		name           string
+		deletePrevious bool
+	}{
+		{name: "previous owner", deletePrevious: true},
+		{name: "new owner", deletePrevious: false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c, _ := setupTestCore(t)
+			ctx := testContext(t)
+			owner, err := c.CreateUser(ctx, SystemActorID, "race-owner", "Race Owner", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser owner: %v", err)
+			}
+			newOwner, err := c.CreateUser(ctx, SystemActorID, "race-recipient", "Race Recipient", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser recipient: %v", err)
+			}
+			manager, err := c.CreateUser(ctx, SystemActorID, "race-manager", "Race Manager", "password123")
+			if err != nil {
+				t.Fatalf("CreateUser manager: %v", err)
+			}
+			if err := c.GrantUserPermission(ctx, SystemActorID, manager.GetId(), PermBotManage); err != nil {
+				t.Fatalf("grant manager bot.manage: %v", err)
+			}
+			bot, err := c.CreateBot(ctx, owner.GetId(), "race_bot", "Race Bot")
+			if err != nil {
+				t.Fatalf("CreateBot: %v", err)
+			}
+
+			deletedOwner := newOwner
+			if tc.deletePrevious {
+				deletedOwner = owner
+			}
+			start := make(chan struct{})
+			reassigned := make(chan error, 1)
+			deleted := make(chan error, 1)
+			go func() {
+				<-start
+				_, err := c.ReassignBotOwner(ctx, manager.GetId(), bot.User.GetId(), newOwner.GetId())
+				reassigned <- err
+			}()
+			go func() {
+				<-start
+				deleted <- c.DeleteUser(ctx, deletedOwner.GetId(), deletedOwner.GetId())
+			}()
+			close(start)
+			reassignErr := <-reassigned
+			if deleteErr := <-deleted; deleteErr != nil {
+				t.Fatalf("DeleteUser: %v", deleteErr)
+			}
+
+			current, getErr := c.GetUser(ctx, bot.User.GetId())
+			if getErr == nil && current.GetBotOwnerUserId() == deletedOwner.GetId() {
+				t.Fatalf("bot survived with deleted owner %s after reassignment error %v", deletedOwner.GetId(), reassignErr)
+			}
+			if tc.deletePrevious && getErr == nil && current.GetBotOwnerUserId() != newOwner.GetId() {
+				t.Fatalf("surviving bot owner = %s, want %s", current.GetBotOwnerUserId(), newOwner.GetId())
+			}
+			if !tc.deletePrevious && reassignErr == nil && !errors.Is(getErr, ErrNotFound) {
+				t.Fatalf("successful reassignment to deleted owner left bot active: %+v, %v", current, getErr)
+			}
+		})
+	}
+}
+
 func TestBotAPIKeyInvalidationWatchFollowsDurableRotation(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

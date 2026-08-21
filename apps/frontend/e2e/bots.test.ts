@@ -13,6 +13,10 @@ interface ListRoomsResponse {
   rooms?: Array<{ room?: { id?: string } }>;
 }
 
+interface CreatedUserResponse {
+  id?: string;
+}
+
 const BOT_KEY_PATTERN = /^cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const BOT_KEY_IN_TEXT_PATTERN = /cht_BK_[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g;
 
@@ -84,6 +88,22 @@ async function getRoomAsBot(
   return { status: response.status, ...(code ? { code } : {}) };
 }
 
+async function createHumanOwner(
+  page: Page,
+  suffix: string
+): Promise<{ login: string; displayName: string }> {
+  const login = `botowner${suffix}`;
+  const displayName = `Bot Owner ${suffix}`;
+  const response = await page.request.post('/auth/test/create-user', {
+    headers: { 'Content-Type': 'application/json' },
+    data: { login, displayName, password: 'testpassword123' }
+  });
+  expect(response.ok()).toBeTruthy();
+  const created = (await response.json()) as CreatedUserResponse;
+  if (!created.id) throw new Error('The bot owner fixture did not return a user ID');
+  return { login, displayName };
+}
+
 test.describe('Bot account lifecycle', () => {
   // setup.ts gives every test its own server and removes that server's data
   // directory during fixture teardown, including after an early failure.
@@ -111,6 +131,7 @@ test.describe('Bot account lifecycle', () => {
     const suffix = Date.now().toString(36);
     const botLogin = `lifecycle_${suffix}_bot`;
     const botDisplayName = `Lifecycle Bot ${suffix}`;
+    const newOwner = await createHumanOwner(page, suffix);
 
     await page.getByRole('button', { name: 'Create Bot', exact: true }).click();
     const createDialog = page.getByRole('dialog', { name: 'Create Bot Account' });
@@ -145,6 +166,18 @@ test.describe('Bot account lifecycle', () => {
       })
     ).toBeVisible();
 
+    await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({ status: 200 });
+
+    await page.getByRole('button', { name: 'Reassign owner', exact: true }).click();
+    const reassignDialog = page.getByRole('dialog', { name: 'Reassign owner' });
+    await reassignDialog.getByRole('combobox', { name: 'Owner' }).fill(newOwner.login);
+    await page.getByRole('option').filter({ hasText: newOwner.login }).click();
+    await reassignDialog.getByRole('button', { name: 'Reassign owner', exact: true }).click();
+    await expect(page.getByText('Bot owner reassigned', { exact: true })).toBeVisible();
+    await expect(page.getByText(newOwner.displayName, { exact: true })).toBeVisible();
+
+    // Reassignment changes administrative responsibility without rotating or
+    // interrupting the integration credential.
     await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({ status: 200 });
 
     await page.getByRole('button', { name: 'Rotate Key', exact: true }).click();

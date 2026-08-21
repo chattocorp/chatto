@@ -289,6 +289,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.account_created`                         | `UserAccountCreatedEvent`                           |
 | `evt.user.{userId}.bot_api_key_created`                    | `BotApiKeyCreatedEvent`; HMAC verifier and issue timestamp, never the raw key |
 | `evt.user.{userId}.bot_api_key_rotated`                    | `BotApiKeyRotatedEvent`; replacement HMAC verifier and rotation timestamp |
+| `evt.user.{userId}.bot_owner_reassigned`                   | `BotOwnerReassignedEvent`; previous and new human owner IDs, with no credential change |
 | `evt.user.{userId}.login_changed`                           | `UserLoginChangedEvent`                             |
 | `evt.user.{userId}.display_name_changed`                    | `UserDisplayNameChangedEvent`                       |
 | `evt.user.{userId}.avatar_set`                              | `UserAvatarSetEvent`                                |

@@ -75,6 +75,12 @@ func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
 	botCreated.GetUserAccountCreated().IsBot = true
 	botCreated.GetUserAccountCreated().BotOwnerUserId = "owner"
 	require.NoError(t, original.Apply(userEvent("E2", createdAt.Add(time.Minute), botCreated), 4))
+	require.NoError(t, original.Apply(&corev1.Event{
+		Id: "E3",
+		Event: &corev1.Event_BotOwnerReassigned{BotOwnerReassigned: &corev1.BotOwnerReassignedEvent{
+			UserId: "bot", PreviousOwnerUserId: "owner", OwnerUserId: "new-owner",
+		}},
+	}, 5))
 
 	payload, err := original.Snapshot()
 	require.NoError(t, err)
@@ -84,9 +90,10 @@ func TestUserProjectionSnapshotPreservesBotIdentityAndOwnerIndex(t *testing.T) {
 	bot, ok := restored.Get("bot")
 	require.True(t, ok)
 	require.True(t, bot.GetIsBot())
-	require.Equal(t, "owner", bot.GetBotOwnerUserId())
+	require.Equal(t, "new-owner", bot.GetBotOwnerUserId())
 	require.Equal(t, []string{"bot"}, restored.BotIDs())
-	require.Equal(t, []string{"bot"}, restored.BotIDsOwnedBy("owner"))
+	require.Empty(t, restored.BotIDsOwnedBy("owner"))
+	require.Equal(t, []string{"bot"}, restored.BotIDsOwnedBy("new-owner"))
 }
 
 func TestUserProjectionSnapshotIsDeterministicAndTailReplayMatchesColdReplay(t *testing.T) {
@@ -262,7 +269,7 @@ func TestUserProjectionRestoreRejectsInconsistentProfileState(t *testing.T) {
 func TestUserAuthProjectionSubjectsStayFocused(t *testing.T) {
 	p := newUserAuthProjection()
 	require.NotContains(t, p.Subjects(), evtstream.UserSubjectFilter())
-	require.Len(t, p.Subjects(), 11)
+	require.Len(t, p.Subjects(), 12)
 }
 
 func TestUserAuthProjectionRebuildsAndRevokesCredentialState(t *testing.T) {

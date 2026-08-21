@@ -181,6 +181,7 @@ func isUserAuthEvent(event *corev1.Event) bool {
 	case *corev1.Event_UserAccountCreated,
 		*corev1.Event_BotApiKeyCreated,
 		*corev1.Event_BotApiKeyRotated,
+		*corev1.Event_BotOwnerReassigned,
 		*corev1.Event_UserPasswordHashChanged,
 		*corev1.Event_UserOidcSubjectLinked,
 		*corev1.Event_UserExternalIdentityLinked,
@@ -202,7 +203,8 @@ func isAuthorizationInputUserEvent(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
 	case *corev1.Event_UserAccountCreated,
 		*corev1.Event_UserVerifiedEmailAdded,
-		*corev1.Event_UserAccountDeleted:
+		*corev1.Event_UserAccountDeleted,
+		*corev1.Event_BotOwnerReassigned:
 		return true
 	default:
 		return false

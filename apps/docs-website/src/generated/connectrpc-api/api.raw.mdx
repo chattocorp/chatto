@@ -972,6 +972,42 @@ retrieved later.
 | `api_key` | `string` | Newly issued API key. |
 
 
+<a id="chatto-api-v1-BotService-ReassignBotOwner"></a>
+
+### ReassignBotOwner
+
+Reassigns a bot to another active human owner. Requires bot.manage. The
+current API key and configured permission allowlist remain unchanged,
+while effective permissions immediately use the new owner's ceiling.
+
+```http
+POST /api/connect/chatto.api.v1.BotService/ReassignBotOwner
+```
+
+<a id="chatto-api-v1-ReassignBotOwnerRequest"></a>
+
+#### Input: ReassignBotOwnerRequest
+
+Request an administrative reassignment of a bot to another human owner.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot_user_id` | `string` | Required bot user ID. |
+| `owner_user_id` | `string` | Required user ID of the new human owner. |
+
+
+<a id="chatto-api-v1-ReassignBotOwnerResponse"></a>
+
+#### Result: ReassignBotOwnerResponse
+
+Result of reassigning a bot owner. The bot's API key and configured
+permission allowlist are unchanged.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `bot` | [`Bot`](#chatto-api-v1-Bot) | Reassigned bot. |
+
+
 <a id="chatto-api-v1-UserService"></a>
 
 ## UserService

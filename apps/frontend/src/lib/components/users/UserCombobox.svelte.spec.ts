@@ -148,6 +148,49 @@ describe('UserCombobox', () => {
     expect(view.container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
   });
 
+  it('omits bot accounts when restricted to human users', async () => {
+    mocks.listUsers.mockResolvedValue({
+      members: [
+        {
+          id: 'bot-1',
+          login: 'helper_bot',
+          displayName: 'Helper',
+          deleted: false,
+          isBot: true,
+          avatarUrl: null,
+          presenceStatus: 'OFFLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        },
+        {
+          id: 'user-1',
+          login: 'alice',
+          displayName: 'Alice Admin',
+          deleted: false,
+          isBot: false,
+          avatarUrl: null,
+          presenceStatus: 'ONLINE',
+          customStatus: null,
+          roles: [],
+          createdAt: null
+        }
+      ],
+      totalCount: 2,
+      hasMore: false
+    });
+    const view = render(UserCombobox, {
+      props: { id: 'owner', label: 'Owner', humanOnly: true }
+    });
+
+    enterSearch(view.container, 'a');
+    await vi.advanceTimersByTimeAsync(220);
+    await settle();
+
+    expect(view.container.textContent).toContain('Alice Admin');
+    expect(view.container.textContent).not.toContain('Helper');
+  });
+
   it('cancels an in-flight search when unmounted', async () => {
     const pending = deferred<never>();
     mocks.listUsers.mockReturnValue(pending.promise);

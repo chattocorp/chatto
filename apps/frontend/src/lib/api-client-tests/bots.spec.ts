@@ -8,7 +8,8 @@ const mocks = vi.hoisted(() => ({
   listBots: vi.fn(),
   getBot: vi.fn(),
   createBot: vi.fn(),
-  rotateBotApiKey: vi.fn()
+  rotateBotApiKey: vi.fn(),
+  reassignBotOwner: vi.fn()
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -28,7 +29,8 @@ describe('createBotAPI', () => {
       listBots: mocks.listBots,
       getBot: mocks.getBot,
       createBot: mocks.createBot,
-      rotateBotApiKey: mocks.rotateBotApiKey
+      rotateBotApiKey: mocks.rotateBotApiKey,
+      reassignBotOwner: mocks.reassignBotOwner
     });
   });
 
@@ -111,5 +113,24 @@ describe('createBotAPI', () => {
 
     await expect(api.getBot('one', { signal })).resolves.toMatchObject({ id: 'one' });
     expect(mocks.getBot).toHaveBeenCalledWith({ botUserId: 'one' }, { headers: undefined, signal });
+  });
+
+  it('reassigns a bot owner and returns the updated bot', async () => {
+    mocks.reassignBotOwner.mockResolvedValue({
+      bot: {
+        user: { id: 'one', login: 'one_bot', displayName: 'One' },
+        ownerUserId: 'U-new-owner'
+      }
+    });
+    const api = createBotAPI({ baseUrl: '/api/connect', bearerToken: 'token' });
+
+    await expect(api.reassignBotOwner('one', 'U-new-owner')).resolves.toMatchObject({
+      id: 'one',
+      ownerUserId: 'U-new-owner'
+    });
+    expect(mocks.reassignBotOwner).toHaveBeenCalledWith(
+      { botUserId: 'one', ownerUserId: 'U-new-owner' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 });

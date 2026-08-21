@@ -120,6 +120,8 @@ func (p *UserProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyDEKGenerated(e.UserDekGenerated)
 	case *corev1.Event_UserAccountCreated:
 		return p.applyAccountCreated(event.GetId(), e.UserAccountCreated, event.GetCreatedAt())
+	case *corev1.Event_BotOwnerReassigned:
+		p.applyBotOwnerReassigned(e.BotOwnerReassigned)
 	case *corev1.Event_UserLoginChanged:
 		return p.applyLoginChanged(event.GetId(), e.UserLoginChanged, event.GetCreatedAt())
 	case *corev1.Event_UserDisplayNameChanged:
@@ -210,7 +212,7 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	u.user = &corev1.User{
 		Id:             e.GetUserId(),
 		CreatedAt:      envelopeCreatedAt,
-		IsBot:    isBot,
+		IsBot:          isBot,
 		BotOwnerUserId: e.GetBotOwnerUserId(),
 	}
 	if isBot && e.GetBotOwnerUserId() != "" {
@@ -226,6 +228,22 @@ func (p *UserProjection) applyAccountCreated(eventID string, e *corev1.UserAccou
 	u.shredded = false
 	p.loginIndex[loginHash] = e.GetUserId()
 	return nil
+}
+
+func (p *UserProjection) applyBotOwnerReassigned(e *corev1.BotOwnerReassignedEvent) {
+	if e == nil || e.GetUserId() == "" || e.GetOwnerUserId() == "" {
+		return
+	}
+	u := p.users[e.GetUserId()]
+	if u == nil || u.deleted || u.shredded || u.user == nil || !u.user.GetIsBot() {
+		return
+	}
+	p.removeBotOwnerIndexLocked(e.GetUserId(), u)
+	u.user.BotOwnerUserId = e.GetOwnerUserId()
+	if p.ownerBots[e.GetOwnerUserId()] == nil {
+		p.ownerBots[e.GetOwnerUserId()] = make(map[string]struct{})
+	}
+	p.ownerBots[e.GetOwnerUserId()][e.GetUserId()] = struct{}{}
 }
 
 func (p *UserProjection) applyLoginChanged(eventID string, e *corev1.UserLoginChangedEvent, envelopeCreatedAt *timestamppb.Timestamp) error {

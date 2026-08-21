@@ -73,6 +73,13 @@ exercise more authority than its human owner currently possesses.
   groups, so group-scoped permissions such as `room.create` remain usable.
 - A human user with `bot.manage` can manage any bot. Changes made by a global
   bot manager remain bounded by that bot's owner's permission ceiling.
+- A human user with `bot.manage` can reassign a bot to another active human
+  account. Ownership alone does not authorize reassignment, and the recipient
+  does not need to accept it or hold `bot.create`.
+- Reassignment preserves the bot's configured permission allowlist and active
+  API key. Effective permissions immediately use the new owner's permission
+  ceiling. The previous owner loses owner-derived management access, while the
+  new owner gains it; either person may still have independent `bot.manage`.
 - Bot accounts cannot create, own, or manage other bots, even if a
   bot-management permission appears in their stored allowlist.
 - Bots cannot have passwords, verified emails, external identities, browser
@@ -82,8 +89,9 @@ exercise more authority than its human owner currently possesses.
 - Bots cannot request their own deletion. Only their owner or a human user with
   `bot.manage` can delete them through `BotService`.
 - Deleting a bot uses the normal account-deletion and crypto-shredding
-  behavior. Deleting a human owner also deletes every bot they own and revokes
-  those bots' API keys.
+  behavior. Deleting a human owner also deletes every bot they own at deletion
+  time and revokes those bots' API keys. Bots reassigned beforehand remain
+  active.
 - Bot accounts count toward the server's user limit.
 
 ## Design Decisions
@@ -170,17 +178,21 @@ per bot are deferred. Established realtime connections retain only a
 non-secret verifier generation and close when the durable rotation reaches the
 local authentication projection.
 
-### 7. Owner deletion cascades to owned bots
+### 7. Administrative reassignment preserves running integrations
 
-**Decision:** Deleting a human owner also deletes all bots they own. Ownership
-cannot be transferred in this slice.
-**Why:** A bot must always have a human authority ceiling and accountable
-manager. Cascading deletion avoids leaving usable orphan credentials after the
-owner no longer exists.
-**Tradeoff:** Deleting one human account can disable multiple integrations and
-invoke deletion semantics for content authored by those bots. Ownership
-transfer must be added before operators can preserve those bots across an
-owner's departure.
+**Decision:** A human with `bot.manage` can reassign a bot directly to another
+active human account. Reassignment keeps the configured permission allowlist
+and active API key, while immediately applying the new owner's permission
+ceiling. Deleting a human still cascades to bots they own at deletion time.
+**Why:** Operational handoffs need a recovery path before an owner leaves, but
+do not require a two-party invitation protocol. Keeping credential rotation a
+separate explicit action avoids unnecessary integration downtime; an operator
+can still rotate immediately when credential custody is in doubt.
+**Tradeoff:** Chatto relies on the administrator to verify that the recipient
+requested or accepts the handoff. A permission may become active or inactive
+as soon as the owner changes, so the UI warns about the new ceiling. Existing
+credential holders retain access until an administrator separately rotates the
+key.
 
 ### 8. Bot identity is visible on canonical user surfaces
 
@@ -195,8 +207,8 @@ render a bot like an ordinary user until they are upgraded.
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
-- `bot.manage` — view and manage every bot on the server, while preserving each
-  bot owner's permission ceiling.
+- `bot.manage` — view and manage every bot on the server, including reassigning
+  its owner, while preserving the current owner's permission ceiling.
 
 Fresh RBAC bootstrap grants `bot.create` to `everyone` and `bot.manage` to
 `admin`. Effective owners have `bot.manage` through the virtual owner override,
@@ -210,6 +222,10 @@ override, but bots themselves cannot exercise bot-management operations.
 
 - `User.is_bot` and `BotService` are additive
   public API changes for Chatto 0.5.0.
+- `BotService.ReassignBotOwner` and the persisted bot-owner reassignment fact
+  are additive changes in the unreleased 0.5.0 train. Older clients continue
+  to work, and the bundled client gates the action through its server feature
+  table.
 - The existing `AdminPermissionService` user-permission operations accept bot
   user IDs. `PermissionMatrixCell.allow_permitted` is additive and reports when
   a target-specific delegation ceiling prevents an explicit allow.
@@ -226,6 +242,10 @@ override, but bots themselves cannot exercise bot-management operations.
   keys, while updated servers continue to accept the longer initial format.
   Operators should complete the normal rolling upgrade before creating or
   rotating bot credentials.
+- Operators must also complete the normal rolling upgrade before reassigning a
+  bot. A binary predating the ownership event cannot project the new owner, so
+  rolling back after ownership writes requires a binary that understands the
+  event.
 
 ## Related
 
@@ -239,7 +259,5 @@ override, but bots themselves cannot exercise bot-management operations.
 
 ## Open Questions
 
-- Ownership transfer and the rules for changing a bot's permission ceiling are
-  deferred to a later feature slice.
 - Multiple independently rotatable API keys, named keys, and key expiry are
   deferred until integrations demonstrate a need for them.

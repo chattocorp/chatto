@@ -149,6 +149,22 @@ func (s *botService) RotateBotApiKey(ctx context.Context, req *connect.Request[a
 	return connect.NewResponse(&apiv1.RotateBotApiKeyResponse{Bot: mapped, ApiKey: bot.APIKey}), nil
 }
 
+func (s *botService) ReassignBotOwner(ctx context.Context, req *connect.Request[apiv1.ReassignBotOwnerRequest]) (*connect.Response[apiv1.ReassignBotOwnerResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	bot, err := s.api.core.ReassignBotOwner(ctx, caller.UserID, req.Msg.GetBotUserId(), req.Msg.GetOwnerUserId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	mapped, err := apiBot(ctx, s.api, bot)
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(&apiv1.ReassignBotOwnerResponse{Bot: mapped}), nil
+}
+
 func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 	user, err := requiredUserSummary(ctx, api, bot.User)
 	if err != nil {

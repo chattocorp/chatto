@@ -127,6 +127,21 @@ message RotateBotApiKeyResponse {
   string api_key = 2;
 }
 
+// Request an administrative reassignment of a bot to another human owner.
+message ReassignBotOwnerRequest {
+  // Required bot user ID.
+  string bot_user_id = 1 [(buf.validate.field).string.min_len = 1];
+  // Required user ID of the new human owner.
+  string owner_user_id = 2 [(buf.validate.field).string.min_len = 1];
+}
+
+// Result of reassigning a bot owner. The bot's API key and configured
+// permission allowlist are unchanged.
+message ReassignBotOwnerResponse {
+  // Reassigned bot.
+  Bot bot = 1;
+}
+
 // Creates and manages bot accounts owned by human users. Bot API keys cannot
 // call this service.
 service BotService {
@@ -147,4 +162,10 @@ service BotService {
   }
   // Rotates the bot's sole API key and immediately invalidates the old key.
   rpc RotateBotApiKey(RotateBotApiKeyRequest) returns (RotateBotApiKeyResponse);
+  // Reassigns a bot to another active human owner. Requires bot.manage. The
+  // current API key and configured permission allowlist remain unchanged,
+  // while effective permissions immediately use the new owner's ceiling.
+  rpc ReassignBotOwner(ReassignBotOwnerRequest) returns (ReassignBotOwnerResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }
