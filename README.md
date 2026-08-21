@@ -27,12 +27,12 @@ repository once it no longer needs frequent atomic changes with the shared
 
 ## Local Development Stack
 
-The root [`pitchfork.toml`](pitchfork.toml) runs the services needed for regular
-development as native processes managed by
-[Pitchfork](https://pitchfork.jdx.dev/): the Chatto backend and Vite frontend,
-Authling, Mailpit, and LiveKit. `mise` installs their pinned tools and
-dependencies. Pitchfork supervises the processes, starts dependencies in
-order, and restarts the Go services after source changes.
+The root `mise dev` task runs the services needed for regular development as
+native processes: the Chatto backend and Vite frontend, Authling, Mailpit, and
+LiveKit. [Portless](https://portless.sh/) gives each browser-facing process a
+stable, worktree-aware HTTPS URL. The Portless-backed mise tasks pin it as an
+isolated npm tool and run it with Node.js 24 without changing the Node.js 22
+version used by the rest of the repository.
 
 ```sh
 mise trust
@@ -42,36 +42,31 @@ mise setup
 mise dev
 ```
 
-`mise dev` records the workspace's Conductor port base, starts a Pitchfork
-project session, and attaches to the five daemon logs. Vite reloads frontend
-source changes itself; Pitchfork rebuilds and restarts the Go services when
-their sources change. The shared API types and Lingua packages are built once
-by `mise setup` instead of running permanent package watchers. Chatto and
-Authling keep separate embedded-NATS state beneath
-`.context/dev/<workspace>/`.
+`mise dev` starts all five processes in one supervised process group and
+prefixes their combined output. Vite reloads frontend source changes itself;
+restart `mise dev` after changing Chatto or Authling Go code. The shared API
+types and Lingua packages are built once by `mise setup` instead of running
+permanent package watchers. Chatto and Authling keep separate embedded-NATS
+state: Chatto uses the worktree-local `cli/data/`, while Authling
+uses `.context/dev-portless/<workspace>/nested/authling/` because its issuer is
+bound to the workspace hostname.
 
-Conductor allocates ten ports to every local workspace. With base port
-`$CONDUCTOR_PORT`, Pitchfork exposes the useful browser endpoints as:
+The useful browser endpoints use the Conductor workspace name on the shared
+Portless development proxy port `42444`:
 
-- Chatto: `https://chatto-<workspace>.localhost:42443`
-- Authling: `https://authling-<workspace>.localhost:42443`
-- Mailpit: `https://mailpit-<workspace>.localhost:42443`
-- LiveKit: `https://livekit-<workspace>.localhost:42443`
+- Chatto: `https://chatto.<workspace>.localhost:42444`
+- Authling: `https://authling.<workspace>.localhost:42444`
+- Mailpit: `https://mailpit.<workspace>.localhost:42444`
+- LiveKit: `https://livekit.<workspace>.localhost:42444`
 
-The daemons still bind only to their workspace's allocated ports: Chatto uses
+Conductor still allocates ten ports to every local workspace. With base port
+`$CONDUCTOR_PORT`, the processes bind only to their allocated loopback ports:
+Chatto uses
 the base port for Vite, `+1` for its backend, and `+4` for embedded NATS;
 Authling uses `+2`; LiveKit uses `+5` through `+7`; and Mailpit uses `+8` and
-`+9`. Pitchfork terminates trusted development HTTPS and proxies each hostname
-directly to the corresponding daemon's declared browser listener; no Caddy
-process or other adapter is involved. `mise dev` prints the browser URLs,
-starts the dependency group, then declares the HTTP listener when restarting
-the two multi-port daemons. Outside Conductor, the port layout falls back to
-base port `4000`.
-
-Pitchfork derives each daemon namespace from the checkout directory name, so
-concurrent worktrees remain isolated. `mise dev` registers one workspace-named
-proxy route for each browser-facing service, and `mise dev-archive` removes
-them after stopping the current checkout's daemons.
+`+9`. Portless terminates trusted development HTTPS and proxies each worktree
+hostname to the corresponding listener. Outside Conductor, the listener layout
+falls back to base port `4000`.
 
 Create an Authling account, read its verification code in Mailpit, then choose
 **Authling** on Chatto's login screen. Chatto asks for a username on the first
@@ -85,14 +80,16 @@ server. Chatto's server catalogue, login tokens, and cached user details stay
 on the current device; Authling stores identity-provider state only.
 
 The checked-in credentials and bootstrap accounts are for local development
-only. Stop the attached run command to leave its Pitchfork project session and
-stop the workspace's processes. Remove `.context/dev/<workspace>/` while the
-stack is stopped to delete that workspace identity and both products' data,
-then establish a fresh Authling issuer on the next start. Changing the
-Conductor workspace name changes the HTTPS issuer and therefore selects a new
-state directory; the old directory remains available until it is removed.
-Pitchfork generates a development CA, trusts it once, and issues certificates
-for the workspace service hostnames. Their internal listener and webhook
+only. Stop the attached run command to stop the workspace's processes and
+unregister its Portless routes. Remove `cli/data/` while the stack is stopped to
+delete Chatto's local data. Remove
+`.context/dev-portless/<workspace>/nested/authling/` to delete that workspace's
+Authling identity and establish a fresh issuer on the next start. Changing the
+Conductor workspace name changes the HTTPS issuer and selects a fresh Authling
+state namespace. Portless generates and trusts a development CA on its first run. If
+the non-interactive run cannot request macOS authorization, run
+`mise x node@24 npm:portless@0.15.5 -- portless trust` once in an
+interactive terminal. The services' internal listener and webhook
 connections remain on plain-HTTP loopback. This is not a production deployment
 example.
 

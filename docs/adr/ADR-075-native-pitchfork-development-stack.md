@@ -6,7 +6,11 @@
 
 ## Status
 
-Accepted
+Superseded by [ADR-078](ADR-078-portless-native-development-stack.md)
+
+ADR-078 retains the native-process and Conductor port-allocation parts of this
+decision but replaces Pitchfork's persistent supervisor and reverse proxy with
+mise process orchestration and Portless routes.
 
 ## Context
 
