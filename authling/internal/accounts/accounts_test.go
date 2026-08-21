@@ -113,7 +113,7 @@ func TestEmailReplacementClaimRequiresCorrelationButHistoricalCreationDoesNot(t 
 	}
 }
 
-func TestPasswordMutationRejectsTheSplitEmailChangeBatch(t *testing.T) {
+func TestIdentityMutationRejectsTheSplitEmailChangeBatch(t *testing.T) {
 	projection := NewProjection(nil, []byte("index key"))
 	projection.credentials = map[string]protectedCredential{"acc_example": {
 		accountID: "acc_example", eventID: "evt_prior", userKeyRef: "key_user", credentialKeyRef: "key_credential",
@@ -122,12 +122,12 @@ func TestPasswordMutationRejectsTheSplitEmailChangeBatch(t *testing.T) {
 		eventID: "evt_email_change", replaces: true,
 		credential: protectedCredential{accountID: "acc_example", eventID: "evt_email_change"},
 	}}
-	if credential, ok := projection.credentialForPasswordMutation("acc_example"); ok {
-		t.Fatalf("password mutation observed staged email-change credential: %+v", credential)
+	if credential, ok := projection.credentialForIdentityMutation("acc_example"); ok {
+		t.Fatalf("identity mutation observed staged email-change credential: %+v", credential)
 	}
 	delete(projection.pendingEmails, "acc_example")
-	if credential, ok := projection.credentialForPasswordMutation("acc_example"); !ok || credential.eventID != "evt_prior" {
-		t.Fatalf("password mutation credential after registry claim = %+v, %v", credential, ok)
+	if credential, ok := projection.credentialForIdentityMutation("acc_example"); !ok || credential.eventID != "evt_prior" {
+		t.Fatalf("identity mutation credential after registry claim = %+v, %v", credential, ok)
 	}
 }
 

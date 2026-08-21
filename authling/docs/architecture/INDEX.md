@@ -136,7 +136,10 @@ model retains a bounded set of email-change requests per account
 so replay can require the exact reauthentication audit chain without retaining
 abandoned request IDs without bound. An email-change account event stages its
 encrypted replacement; the adjacent correlated registry event swaps the active
-digest and credential and advances the authentication version. Local
+digest and credential and advances the authentication version. Before a
+credential-generation-bound password or request-audit command evaluates its
+precondition, the account service captures and waits for both the account and
+registry tails and rejects a staged replacement that is not active yet. Local
 authentication, signed-in password change, and email-change reauthentication
 share distributed attempt limits and bounded Argon2 capacity. They resolve and
 decrypt a verifier only for one bounded Argon2id comparison; absent login
