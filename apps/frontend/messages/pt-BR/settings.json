@@ -383,7 +383,7 @@
       "deleted": "Bot excluído",
       "delete_failed": "Falha ao excluir o bot",
       "permissions": {
-        "owner_ceiling": "Os bots não recebem permissões automaticamente. Uma permissão funciona apenas enquanto o proprietário do bot tiver a mesma permissão nesse escopo; um cadeado marca uma permissão configurada atualmente bloqueada por esse teto.",
+        "owner_ceiling": "Escolha o que este bot pode fazer. Você só pode conceder a ele permissões que também possui. Se você perder uma permissão, o bot também não poderá mais usá-la.",
         "save_failed": "Falha ao atualizar a permissão do bot"
       }
     }

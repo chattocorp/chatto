@@ -383,7 +383,7 @@
       "deleted": "Bot kustutatud",
       "delete_failed": "Boti kustutamine ebaõnnestus",
       "permissions": {
-        "owner_ceiling": "Botid ei saa automaatselt lube. Luba töötab ainult siis, kui roboti omanikul on selles ulatuses samad õigused; lukk tähistab konfigureeritud luba, mis on praegu selle ülemmäära poolt blokeeritud.",
+        "owner_ceiling": "Vali, mida see bot teha tohib. Saad anda talle ainult õigusi, mis sul endal on. Kui kaotad mõne õiguse, ei saa ka bot seda enam kasutada.",
         "save_failed": "Boti loa värskendamine ebaõnnestus"
       }
     }

@@ -383,7 +383,7 @@
       "deleted": "Bot gelöscht",
       "delete_failed": "Bot konnte nicht gelöscht werden",
       "permissions": {
-        "owner_ceiling": "Bots erhalten automatisch keine Berechtigungen. Eine Zulassung funktioniert nur, solange der Besitzer des Bots in diesem Bereich über dieselbe Berechtigung verfügt. Eine Sperre markiert eine konfigurierte Erlaubnis, die derzeit durch diese Obergrenze blockiert wird.",
+        "owner_ceiling": "Wähle aus, was dein Bot tun darf. Du kannst ihm nur Berechtigungen geben, die du selbst hast. Wenn du eine Berechtigung verlierst, gilt das auch für deinen Bot.",
         "save_failed": "Bot-Berechtigung konnte nicht aktualisiert werden"
       }
     }

@@ -383,7 +383,7 @@
       "deleted": "Bot usunięty",
       "delete_failed": "Nie udało się usunąć bota",
       "permissions": {
-        "owner_ceiling": "Boty automatycznie nie otrzymują żadnych uprawnień. Zezwolenie działa tylko wtedy, gdy właściciel bota ma takie same uprawnienia w tym zakresie; kłódka oznacza skonfigurowane zezwolenie aktualnie zablokowane przez ten sufit.",
+        "owner_ceiling": "Wybierz, co ten bot może robić. Możesz nadać mu tylko uprawnienia, które masz samodzielnie. Jeśli utracisz uprawnienie, bot również nie będzie mógł go używać.",
         "save_failed": "Nie udało się zaktualizować uprawnień bota"
       }
     }

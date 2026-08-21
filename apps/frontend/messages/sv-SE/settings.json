@@ -383,7 +383,7 @@
       "deleted": "Botten raderad",
       "delete_failed": "Det gick inte att ta bort bot",
       "permissions": {
-        "owner_ceiling": "Bots får inga behörigheter automatiskt. En tillåtelse fungerar bara när botens ägare har samma behörighet i det omfattningen; ett lås markerar en konfigurerad tillåtelse som för närvarande är blockerad av detta tak.",
+        "owner_ceiling": "Välj vad den här boten får göra. Du kan bara ge den behörigheter som du själv har. Om du förlorar en behörighet kan boten inte heller använda den längre.",
         "save_failed": "Det gick inte att uppdatera botbehörighet"
       }
     }

@@ -383,7 +383,7 @@
       "deleted": "Bot eliminado",
       "delete_failed": "Error al eliminar el bot",
       "permissions": {
-        "owner_ceiling": "Los bots no reciben permisos automáticamente. Un permiso funciona solo mientras el propietario del bot tenga el mismo permiso en ese ámbito; un candado marca un permiso configurado actualmente bloqueado por este límite.",
+        "owner_ceiling": "Elige qué puede hacer este bot. Solo puedes concederle permisos que tú también tengas. Si pierdes un permiso, el bot tampoco podrá usarlo.",
         "save_failed": "Error al actualizar el permiso del bot"
       }
     }

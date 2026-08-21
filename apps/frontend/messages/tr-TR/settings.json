@@ -383,7 +383,7 @@
       "deleted": "Bot silindi",
       "delete_failed": "Bot silinemedi",
       "permissions": {
-        "owner_ceiling": "Botlar otomatik olarak hiçbir izin almaz. İzin verme yalnızca botun sahibi bu kapsamda aynı izne sahip olduğunda çalışır; bir kilit, şu anda bu tavan tarafından engellenen yapılandırılmış bir izin durumunu işaret eder.",
+        "owner_ceiling": "Bu botun neler yapabileceğini seçin. Yalnızca sizin de sahip olduğunuz izinleri verebilirsiniz. Bir izni kaybederseniz bot da artık o izni kullanamaz.",
         "save_failed": "Bot izni güncellenemedi"
       }
     }

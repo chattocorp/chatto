@@ -383,7 +383,7 @@
       "deleted": "Bot forigita",
       "delete_failed": "Malsukcesis forigi bot",
       "permissions": {
-        "owner_ceiling": "Botoj ricevas neniujn permesojn aŭtomate. Permeso funkcias nur dum la posedanto de la bot havas la saman permeson ĉe tiu amplekso; seruro markas agordan permeson nuntempe blokitan de ĉi tiu plafono.",
+        "owner_ceiling": "Elektu, kion ĉi tiu roboto rajtas fari. Vi povas doni al ĝi nur permesojn, kiujn vi mem havas. Se vi perdas permeson, ankaŭ la roboto ne plu povos uzi ĝin.",
         "save_failed": "Malsukcesis ĝisdatigi bot-permeson"
       }
     }

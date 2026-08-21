@@ -383,7 +383,7 @@
       "deleted": "Bot verwijderd",
       "delete_failed": "Kan bot niet verwijderen",
       "permissions": {
-        "owner_ceiling": "Bots krijgen automatisch geen rechten. Een toestemming werkt alleen als de eigenaar van de bot dezelfde toestemming heeft voor dat bereik; een slot markeert een geconfigureerde toestemming die momenteel wordt geblokkeerd door dit plafond.",
+        "owner_ceiling": "Kies wat deze bot mag doen. Je kunt alleen rechten geven die je zelf hebt. Als je een recht verliest, kan de bot het ook niet meer gebruiken.",
         "save_failed": "Kan de botrechten niet bijwerken"
       }
     }

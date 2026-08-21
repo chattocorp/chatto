@@ -383,7 +383,7 @@
       "deleted": "Bot supprimé",
       "delete_failed": "Échec de la suppression du bot",
       "permissions": {
-        "owner_ceiling": "Les robots ne reçoivent automatiquement aucune autorisation. Une autorisation ne fonctionne que lorsque le propriétaire du bot dispose de la même autorisation dans cette étendue ; un verrou marque une autorisation configurée actuellement bloquée par ce plafond.",
+        "owner_ceiling": "Choisissez ce que ce bot peut faire. Vous ne pouvez lui accorder que les autorisations dont vous disposez vous-même. Si vous perdez une autorisation, le bot ne pourra plus l’utiliser non plus.",
         "save_failed": "Échec de la mise à jour de l'autorisation du bot"
       }
     }

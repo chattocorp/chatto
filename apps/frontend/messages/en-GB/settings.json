@@ -383,7 +383,7 @@
       "deleted": "Bot deleted",
       "delete_failed": "Failed to delete bot",
       "permissions": {
-        "owner_ceiling": "Bots receive no permissions automatically. An allow works only while the bot's owner has the same permission at that scope; a lock marks a configured allow currently blocked by this ceiling.",
+        "owner_ceiling": "Choose what your bot can do. You can only give it permissions you have yourself. If you lose a permission, your bot loses it too.",
         "save_failed": "Failed to update bot permission"
       }
     }

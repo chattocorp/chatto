@@ -383,7 +383,7 @@
       "deleted": "Bobot byl smazán",
       "delete_failed": "Smazání robota se nezdařilo",
       "permissions": {
-        "owner_ceiling": "Boti automaticky nedostávají žádná oprávnění. Povolení funguje pouze tehdy, když má vlastník robota stejné oprávnění v tomto rozsahu; zámek označuje nakonfigurované povolení, které je aktuálně blokováno tímto stropem.",
+        "owner_ceiling": "Vyberte, co tento bot smí dělat. Můžete mu udělit jen oprávnění, která sami máte. Pokud o některé oprávnění přijdete, nebude ho moci používat ani bot.",
         "save_failed": "Nepodařilo se aktualizovat oprávnění robota"
       }
     }

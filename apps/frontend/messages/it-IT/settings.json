@@ -383,7 +383,7 @@
       "deleted": "Bot eliminato",
       "delete_failed": "Impossibile eliminare il bot",
       "permissions": {
-        "owner_ceiling": "I bot non ricevono automaticamente autorizzazioni. Un'autorizzazione funziona solo finché il proprietario del bot ha la stessa autorizzazione in quell'ambito; un blocco contrassegna un'autorizzazione configurata attualmente bloccata da questo limite.",
+        "owner_ceiling": "Scegli cosa può fare questo bot. Puoi assegnargli solo le autorizzazioni che possiedi. Se perdi un'autorizzazione, anche il bot non potrà più usarla.",
         "save_failed": "Impossibile aggiornare l'autorizzazione del bot"
       }
     }

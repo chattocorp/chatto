@@ -383,7 +383,7 @@
       "deleted": "Bots ir izdzēsts",
       "delete_failed": "Neizdevās izdzēst robotu",
       "permissions": {
-        "owner_ceiling": "Boti automātiski nesaņem atļaujas. Atļaut darbojas tikai tad, ja robota īpašniekam ir tāda pati atļauja šajā jomā; slēdzene apzīmē konfigurētu atļauju, kuru pašlaik bloķē šie griesti.",
+        "owner_ceiling": "Izvēlieties, ko šis bots drīkst darīt. Varat tam piešķirt tikai tās atļaujas, kas ir jums pašam. Ja zaudēsiet kādu atļauju, arī bots to vairs nevarēs izmantot.",
         "save_failed": "Neizdevās atjaunināt robota atļauju"
       }
     }

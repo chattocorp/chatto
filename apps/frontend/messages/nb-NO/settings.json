@@ -383,7 +383,7 @@
       "deleted": "Bote slettet",
       "delete_failed": "Kunne ikke slette bot",
       "permissions": {
-        "owner_ceiling": "Botter får ingen tillatelser automatisk. En tillatelse fungerer bare mens botens eier har samme tillatelse i det omfanget; en lås markerer en konfigurert tillatelse som for øyeblikket er blokkert av dette taket.",
+        "owner_ceiling": "Velg hva denne boten kan gjøre. Du kan bare gi den tillatelser du selv har. Hvis du mister en tillatelse, kan boten heller ikke bruke den lenger.",
         "save_failed": "Kunne ikke oppdatere bottillatelsen"
       }
     }
