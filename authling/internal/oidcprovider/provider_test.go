@@ -61,6 +61,44 @@ func TestAccessTokenCryptoAcceptsLegacyTokensAndUsesStableKey(t *testing.T) {
 	}
 }
 
+func TestJWKSCacheControlDependsOnResponseStatus(t *testing.T) {
+	tests := []struct {
+		name       string
+		serve      http.HandlerFunc
+		wantStatus int
+		wantCache  string
+	}{
+		{
+			name: "successful response is public",
+			serve: func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = w.Write([]byte(`{"keys":[]}`))
+			},
+			wantStatus: http.StatusOK,
+			wantCache:  "public, max-age=300",
+		},
+		{
+			name: "failed response is not stored",
+			serve: func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Cache-Control", "public, max-age=300")
+				http.Error(w, "key vault unavailable", http.StatusInternalServerError)
+			},
+			wantStatus: http.StatusInternalServerError,
+			wantCache:  "no-store",
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			handler := (&Service{}).wrap(test.serve)
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, "https://auth.example/oauth/jwks", nil))
+			if response.Code != test.wantStatus || response.Header().Get("Cache-Control") != test.wantCache {
+				t.Fatalf("JWKS status/cache = %d %q, want %d %q", response.Code, response.Header().Get("Cache-Control"), test.wantStatus, test.wantCache)
+			}
+		})
+	}
+}
+
 func TestValidateAuthorizeRequestRequiresExactCodePKCEProfile(t *testing.T) {
 	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
 	tests := []struct {

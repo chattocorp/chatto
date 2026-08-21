@@ -207,11 +207,43 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 			w.Header().Set("Cache-Control", "no-store")
 		}
 		if r.URL.Path == "/oauth/jwks" {
-			w.Header().Set("Cache-Control", "public, max-age=300")
+			response := &jwksResponseWriter{ResponseWriter: w}
+			next.ServeHTTP(response, r)
+			response.WriteHeader(http.StatusOK)
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
 }
+
+// jwksResponseWriter decides cacheability when the downstream status becomes
+// known, preventing shared caches from retaining transient JWKS failures.
+type jwksResponseWriter struct {
+	http.ResponseWriter
+	wroteHeader bool
+}
+
+func (w *jwksResponseWriter) WriteHeader(statusCode int) {
+	if w.wroteHeader {
+		return
+	}
+	w.wroteHeader = true
+	if statusCode >= http.StatusOK && statusCode < http.StatusMultipleChoices {
+		w.Header().Set("Cache-Control", "public, max-age=300")
+	} else {
+		w.Header().Set("Cache-Control", "no-store")
+	}
+	w.ResponseWriter.WriteHeader(statusCode)
+}
+
+func (w *jwksResponseWriter) Write(body []byte) (int, error) {
+	w.WriteHeader(http.StatusOK)
+	return w.ResponseWriter.Write(body)
+}
+
+// Unwrap lets net/http recover optional capabilities from the underlying
+// response writer through http.ResponseController.
+func (w *jwksResponseWriter) Unwrap() http.ResponseWriter { return w.ResponseWriter }
 
 func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
