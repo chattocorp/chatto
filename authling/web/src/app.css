@@ -39,6 +39,14 @@
     @apply border border-slate-300 hover:bg-slate-100 dark:border-slate-700 dark:hover:bg-slate-800;
   }
 
+  .button-danger {
+    @apply border border-red-300 text-red-700 hover:bg-red-50 dark:border-red-900 dark:text-red-300 dark:hover:bg-red-950;
+  }
+
+  .button-compact {
+    @apply px-3 py-2 text-sm;
+  }
+
   .text-link {
     @apply cursor-pointer font-semibold text-authling-600 underline decoration-authling-500/40 underline-offset-2 hover:text-authling-500 focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-authling-500 dark:text-authling-200 dark:hover:text-authling-50;
   }
@@ -61,6 +69,10 @@
 
   .notice-warning {
     @apply bg-amber-50 text-amber-900 dark:bg-amber-950 dark:text-amber-100;
+  }
+
+  .notice-neutral {
+    @apply bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100;
   }
 
   .otp-code {

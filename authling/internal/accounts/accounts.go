@@ -919,6 +919,17 @@ func (s *Service) PrepareEmailChange(ctx context.Context, accountID, password, n
 	return EmailChangeTarget{AccountID: accountID, CredentialEventID: credential.eventID, OldEmail: oldEmail}, nil
 }
 
+// EmailAddress returns the current verified sign-in address for an account.
+// Callers must already have authorized access to the account because the
+// returned value is PII.
+func (s *Service) EmailAddress(ctx context.Context, accountID string) (string, error) {
+	credential, ok := s.handle.Projection().credentialForAccount(accountID)
+	if !ok {
+		return "", ErrInvalidCredentials
+	}
+	return s.decryptCredentialEmail(ctx, credential)
+}
+
 // RecordEmailChangeRequested commits the PII-free request audit fact only if
 // the credential reauthenticated by PrepareEmailChange is still current.
 func (s *Service) RecordEmailChangeRequested(ctx context.Context, target EmailChangeTarget) (EmailChangeTarget, error) {

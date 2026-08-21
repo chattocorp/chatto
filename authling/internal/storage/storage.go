@@ -39,6 +39,18 @@ func UpdateKeyWithTTL(ctx context.Context, js jetstream.JetStream, bucket, key s
 	return ack.Sequence, nil
 }
 
+// DeleteKey performs an OCC KV deletion and returns the resulting stream
+// revision so an owning in-memory model can provide read-your-writes.
+func DeleteKey(ctx context.Context, js jetstream.JetStream, bucket, key string, revision uint64) (uint64, error) {
+	msg := nats.NewMsg("$KV." + bucket + "." + key)
+	msg.Header.Set("KV-Operation", "DEL")
+	ack, err := js.PublishMsg(ctx, msg, jetstream.WithExpectLastSequencePerSubject(revision))
+	if err != nil {
+		return 0, err
+	}
+	return ack.Sequence, nil
+}
+
 // Open ensures Authling's event stream exists and returns the JetStream
 // context and stream bound to the current NATS account.
 func Open(

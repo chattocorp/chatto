@@ -29,6 +29,12 @@ experience.
 - Signing out invalidates the current session on the server and removes its
   browser cookie. It does not sign out other browsers or relying-party
   sessions.
+- The account page lists the account's active browser sessions, identifies the
+  current browser, and can sign out one or all other browsers. It stores no
+  browser name, IP address, or location for this purpose; FDR-009 owns the
+  enumeration and remote-revocation behavior.
+- Signed-in Authling pages identify the active account by its current verified
+  email address in the shared site header.
 - Sessions remain valid across an Authling process restart when the browser
   still has its session cookie and runtime storage remains available.
 - Sessions carry the account's durable authentication version. Password reset,
@@ -102,8 +108,7 @@ attempt budget.
 
 ## Limitations
 
-- There is no "remember me", session list, selective remote session revocation,
-  or user-visible authentication history yet.
+- There is no "remember me" or user-visible authentication history yet.
 - Password-only login is a single-factor authentication ceremony. Authling
   does not yet implement MFA or phishing-resistant authenticators.
 - Authling's listener does not terminate TLS. Production operators must expose
@@ -119,7 +124,8 @@ attempt budget.
   [FDR-002](FDR-002-verified-email-signup.md),
   [FDR-006](FDR-006-password-reset.md),
   [FDR-007](FDR-007-verified-email-change.md),
-  [FDR-008](FDR-008-signed-in-password-change.md)
+  [FDR-008](FDR-008-signed-in-password-change.md),
+  [FDR-009](FDR-009-browser-session-management.md)
 - **Security baseline:** [NIST SP 800-63B](https://pages.nist.gov/800-63-4/sp800-63b.html),
   [OWASP Authentication](https://cheatsheetseries.owasp.org/cheatsheets/Authentication_Cheat_Sheet.html),
   and [OWASP Session Management](https://cheatsheetseries.owasp.org/cheatsheets/Session_Management_Cheat_Sheet.html)

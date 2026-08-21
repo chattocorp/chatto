@@ -29,6 +29,8 @@ for (const path of [
   '/account/email',
   '/account/email/verify',
   '/account/email/complete',
+  '/account/sessions/revoke',
+  '/account/sessions/revoke-others',
   '/oidc/consent'
 ]) {
   test(`rejects cross-origin form submission to ${path}`, async ({ request, stack }) => {

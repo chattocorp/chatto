@@ -42,9 +42,9 @@ to its own repository.
   issuers remain first-class.
 - The current experimental runtime persists and replays local accounts,
   exposes server-rendered verified-email signup, password login, browser
-  sessions, password reset, signed-in password change, verified email change,
-  and logout. It provides the narrow OpenID Connect surface recorded in
-  FDR-004. It has no public
+  sessions and session management, password reset, signed-in password change,
+  verified email change, and logout. It provides the narrow OpenID Connect
+  surface recorded in FDR-004. It has no public
   account-management, application-data, document, or synchronization API. Do
   not document other planned identity-provider behavior as implemented.
 
@@ -152,6 +152,13 @@ repository skills as non-product infrastructure.
   After a conflict, wait for and re-read the authoritative projection, then
   decide from the command's semantic preconditions. An audit-only event may
   advance an aggregate tail without changing its credential or identity state.
+- A command whose semantic precondition can be advanced by events on multiple
+  subjects must capture and wait for every relevant projection boundary before
+  evaluating that precondition. If an atomic cross-subject batch materializes
+  in stages, the command must also reject the interval while dependent state is
+  staged but not yet active. Add an adversarial interleaving test that proves
+  the command cannot commit history that fails ordered live projection or cold
+  replay.
 - Projectors must validate and deterministically replay every historical event.
   An audit-only event may intentionally leave the materialized account model
   unchanged, but it must not be silently ignored or weaken replay validation.

@@ -1248,9 +1248,10 @@ describe('MessageComposer', () => {
       });
     });
 
-    it('preserves literal HTML-looking text after unmatched backticks', async () => {
+    it('canonically escapes an unmatched backtick while preserving its literal text', async () => {
       const body = '` <b>literal</b>';
       const editedBody = `${body}!`;
+      const serializedBody = `\\${editedBody}`;
       sessionStorage.setItem('chatto:draft:room_unmatched_backtick_draft', body);
 
       const { container } = renderMessageComposer(
@@ -1265,7 +1266,7 @@ describe('MessageComposer', () => {
 
       await vi.waitFor(() =>
         expect(sessionStorage.getItem('chatto:draft:room_unmatched_backtick_draft')).toBe(
-          editedBody
+          serializedBody
         )
       );
     });
@@ -1316,9 +1317,10 @@ describe('MessageComposer', () => {
       expect(editor.querySelector('code')?.textContent).toContain('</b>');
     });
 
-    it('does not treat unmatched closing link syntax as a markdown link destination', async () => {
+    it('canonically escapes an unmatched closing bracket without creating a link', async () => {
       const body = 'not a link](<b>x</b>)';
       const editedBody = `${body}!`;
+      const serializedBody = editedBody.replace(']', '\\]');
       sessionStorage.setItem('chatto:draft:room_fake_link_draft', body);
 
       const { container } = renderMessageComposer(
@@ -1333,7 +1335,7 @@ describe('MessageComposer', () => {
       document.execCommand('insertText', false, '!');
 
       await vi.waitFor(() =>
-        expect(sessionStorage.getItem('chatto:draft:room_fake_link_draft')).toBe(editedBody)
+        expect(sessionStorage.getItem('chatto:draft:room_fake_link_draft')).toBe(serializedBody)
       );
     });
 

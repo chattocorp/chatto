@@ -19,8 +19,8 @@ to the relying party with an Authorization Code.
 - Redirect URI matching is exact. Authorization errors are sent to a client
   only after that client and redirect have been validated.
 - A signed-out person is sent through local login and then resumes the pending
-  consent screen. The screen identifies the client and explains that the
-  stable account identifier will be shared.
+  consent screen. The screen identifies the signed-in account and the client,
+  and explains that the stable account identifier will be shared.
 - Consent is requested for every authorization. Allowing binds the request to
   the current account; denying returns `access_denied` and the original state
   to the validated redirect URI.
