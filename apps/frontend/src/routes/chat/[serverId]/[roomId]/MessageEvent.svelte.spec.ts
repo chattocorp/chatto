@@ -238,7 +238,22 @@ describe('MessageEvent action model integration', () => {
         eventId: 'thread-reply',
         deleteEventId: 'thread-reply',
         permalinkThreadRootEventId: 'thread-root',
-        threadRootEventId: 'thread-root'
+        threadRootEventId: 'thread-root',
+        canAddChannelEcho: true
+      })
+    );
+
+    await rendered.rerender({
+      event: threadReply,
+      permalinkThreadRootEventId: 'thread-root',
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventId: 'thread-reply',
+        threadRootEventId: 'thread-root',
+        canAddChannelEcho: false
       })
     );
 
@@ -259,7 +274,11 @@ describe('MessageEvent action model integration', () => {
       echoOfEventId: 'original-thread-message',
       echoFromThreadRootEventId: 'thread-root'
     });
-    await rendered.rerender({ event: echo, permalinkThreadRootEventId: null });
+    await rendered.rerender({
+      event: echo,
+      permalinkThreadRootEventId: null,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
     (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
     expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
       expect.objectContaining({

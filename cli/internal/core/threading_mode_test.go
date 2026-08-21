@@ -119,6 +119,14 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 		ActorID: user.Id, RoomID: room.Id, Body: "historical thread", CreateThread: true,
 	})
 	require.NoError(t, err)
+	plainThreadReply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "historical reply without echo", ThreadRootEventID: threadedRoot.Event.Id,
+	})
+	require.NoError(t, err)
+	echoedThreadReply, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "historical reply with echo", ThreadRootEventID: threadedRoot.Event.Id, AlsoSendToChannel: true,
+	})
+	require.NoError(t, err)
 	room, err = chatto.SetRoomThreadingMode(ctx, SystemActorID, KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED)
 	require.NoError(t, err)
 
@@ -139,10 +147,47 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 	require.ErrorIs(t, chatto.Messages().SendTypingIndicator(ctx, TypingIndicatorInput{
 		ActorID: user.Id, RoomID: room.Id, ThreadRootEventID: &threadedRoot.Event.Id,
 	}), ErrRoomThreadingPolicy)
+	addEcho := true
+	_, _, err = chatto.Messages().UpdateMessage(ctx, MessageUpdateInput{
+		ActorID: user.Id, RoomID: room.Id, EventID: plainThreadReply.Event.Id, AlsoSendToChannel: &addEcho,
+	})
+	require.ErrorIs(t, err, ErrRoomThreadingPolicy, "disabled rooms must not gain echoes through historical reply edits")
+	removeEcho := false
+	_, _, err = chatto.Messages().UpdateMessage(ctx, MessageUpdateInput{
+		ActorID: user.Id, RoomID: room.Id, EventID: echoedThreadReply.Event.Id, AlsoSendToChannel: &removeEcho,
+	})
+	require.NoError(t, err, "authors may remove an existing historical echo while threading is disabled")
+	_, echoExists := chatto.roomModel.channelEchoEventID(echoedThreadReply.Event.Id)
+	require.False(t, echoExists)
 
 	events, err := chatto.GetThreadEvents(ctx, KindChannel, room.Id, threadedRoot.Event.Id)
 	require.NoError(t, err)
 	require.NotEmpty(t, events, "disabling threads must not hide historical threads")
+}
+
+func TestThreadingModeChangeReauthorizesAfterManageRevocation(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	manager, err := chatto.CreateUser(ctx, SystemActorID, "thread-mode-auth-race", "Thread Mode Auth Race", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "thread-mode-auth-race", "")
+	require.NoError(t, err)
+	require.NoError(t, chatto.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermRoomManage))
+
+	checks := 0
+	_, err = chatto.setRoomThreadingMode(ctx, manager.Id, KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED, func(attemptCtx context.Context) error {
+		checks++
+		if checks == 1 {
+			return chatto.DenyUserRoomPermission(attemptCtx, SystemActorID, room.Id, manager.Id, PermRoomManage)
+		}
+		_, authorizeErr := chatto.RoomCommands().authorizeRoomManage(attemptCtx, manager.Id, room.Id)
+		return authorizeErr
+	})
+	require.ErrorIs(t, err, ErrPermissionDenied)
+	require.GreaterOrEqual(t, checks, 2)
+	unchanged, err := chatto.GetRoom(ctx, KindChannel, room.Id)
+	require.NoError(t, err)
+	require.Equal(t, corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, EffectiveRoomThreadingMode(unchanged))
 }
 
 func TestThreadingModeChangeConflictsWithInFlightMessage(t *testing.T) {

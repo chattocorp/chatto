@@ -159,7 +159,10 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 		}
 	}
 	if input.ThreadingMode != nil {
-		room, err = s.core.SetRoomThreadingMode(ctx, input.ActorID, kind, input.RoomID, *input.ThreadingMode)
+		room, err = s.core.setRoomThreadingMode(ctx, input.ActorID, kind, input.RoomID, *input.ThreadingMode, func(attemptCtx context.Context) error {
+			_, authorizeErr := s.authorizeRoomManage(attemptCtx, input.ActorID, input.RoomID)
+			return authorizeErr
+		})
 		if err != nil {
 			return nil, err
 		}

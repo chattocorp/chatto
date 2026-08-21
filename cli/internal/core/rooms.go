@@ -431,6 +431,17 @@ func (c *ChattoCore) SetRoomSlowMode(ctx context.Context, actorID string, kind R
 // changes cannot commit from stale state.
 // Authorization: Caller must verify room.manage before calling.
 func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, kind RoomKind, roomID string, mode corev1.RoomThreadingMode) (*corev1.Room, error) {
+	return c.setRoomThreadingMode(ctx, actorID, kind, roomID, mode, nil)
+}
+
+func (c *ChattoCore) setRoomThreadingMode(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	roomID string,
+	mode corev1.RoomThreadingMode,
+	authorize func(context.Context) error,
+) (*corev1.Room, error) {
 	if kind == KindDM {
 		return nil, invalidArgument("DM rooms cannot configure threading")
 	}
@@ -441,18 +452,14 @@ func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, k
 	agg := evtstream.RoomAggregate(roomID)
 	filter := agg.AllEventsFilter()
 	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
-		authorizationSeq, err := c.authorizationFenceSeq(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("read authorization fence before threading-mode change: %w", err)
-		}
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, filter)
-		if err != nil {
-			return nil, fmt.Errorf("read threading-mode OCC tail: %w", err)
-		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForDirectory(ctx, events.SubjectPosition(filter, expectedSeq)); err != nil {
-				return nil, fmt.Errorf("wait for room before threading-mode change: %w", err)
+		prepared, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, func(attemptCtx context.Context) error {
+			if authorize != nil {
+				return authorize(attemptCtx)
 			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
 		}
 		room, err := c.GetRoom(ctx, kind, roomID)
 		if err != nil {
@@ -466,8 +473,8 @@ func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, k
 		}})
 		subject := agg.SubjectFor(event)
 		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
-		}}, authorizationSeq)
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
+		}}, prepared.authorizationSeq)
 		if errors.Is(err, events.ErrConflict) {
 			continue
 		}

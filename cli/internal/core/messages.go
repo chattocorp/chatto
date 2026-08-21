@@ -1276,9 +1276,10 @@ func validateMessageAttachmentAssetIDs(assetIDs []string) error {
 }
 
 type messageMutationAuthorization struct {
-	authorOnly             bool
-	enforceEditWindow      bool
-	requireEchoPermissions bool
+	authorOnly                  bool
+	enforceEditWindow           bool
+	requireEchoPermissions      bool
+	channelEchoCreationTargetID string
 }
 
 // authorizeMessageMutation resolves every mutable input to a user-facing
@@ -1318,6 +1319,12 @@ func (c *ChattoCore) authorizeMessageMutation(
 		}
 		if !canManage {
 			return ErrPermissionDenied
+		}
+	}
+	if policy.channelEchoCreationTargetID != "" && kind == KindChannel &&
+		EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+		if _, exists := c.roomModel.channelEchoEventID(policy.channelEchoCreationTargetID); !exists {
+			return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 		}
 	}
 	if policy.requireEchoPermissions {
@@ -1528,6 +1535,9 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		}
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
 		if *options.channelEcho {
+			if kind == KindChannel && EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED && !channelEchoExistedBefore {
+				return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
+			}
 			channelEchoCreationTargetID = echoTargetEvent.GetId()
 		} else {
 			channelEchoRetractionTargetID = echoTargetEvent.GetId()
@@ -1536,9 +1546,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 
 	agg := evtstream.RoomAggregate(roomID)
 	policy := messageMutationAuthorization{
-		authorOnly:             options.channelEcho != nil,
-		enforceEditWindow:      true,
-		requireEchoPermissions: options.channelEcho != nil && *options.channelEcho,
+		authorOnly:                  options.channelEcho != nil,
+		enforceEditWindow:           true,
+		requireEchoPermissions:      options.channelEcho != nil && *options.channelEcho,
+		channelEchoCreationTargetID: channelEchoCreationTargetID,
 	}
 	var authorize func(context.Context) error
 	var validateCommit func() error

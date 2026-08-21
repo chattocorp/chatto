@@ -213,7 +213,9 @@
     isAuthor &&
       !!editThreadRootEventId &&
       (!!editChannelEchoEventId ||
-        (roomPermissions.canEchoMessage && roomPermissions.canPostMessage))
+        (threadingMode !== RoomThreadingMode.DISABLED &&
+          roomPermissions.canEchoMessage &&
+          roomPermissions.canPostMessage))
   );
 
   // Common message data for rendering (body, attachments, reactions, updatedAt)
