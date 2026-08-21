@@ -299,6 +299,43 @@ function decodeSerializedMarkdownText(markdown: string): string {
   return transformMarkdownOutsideCode(markdown, decodeSerializedTextEntities);
 }
 
+function normalizeSerializedUnmatchedMarkdownEscapes(markdown: string): string {
+  // TipTap escapes all Markdown punctuation in text nodes. Remove only escapes
+  // whose delimiter cannot form syntax, preserving meaningful literal escapes.
+  return transformMarkdownOutsideCode(
+    markdown,
+    (text) => {
+      const backtickDelimiters = [...text.matchAll(/(?<!\\)\\(`+)/g)];
+      for (const delimiter of backtickDelimiters) {
+        const matchingDelimiters = backtickDelimiters.filter(
+          (candidate) => candidate[1].length === delimiter[1].length
+        );
+        if (matchingDelimiters.length === 1) {
+          text = text.replace(delimiter[0], delimiter[1]);
+        }
+      }
+
+      let result = '';
+      let openBrackets = 0;
+      for (let index = 0; index < text.length; index++) {
+        if (text[index] === '\\' && text[index + 1] === '[') {
+          openBrackets += 1;
+          result += text.slice(index, index + 2);
+          index += 1;
+          continue;
+        }
+        if (text[index] === '\\' && text[index + 1] === ']') {
+          if (openBrackets > 0) openBrackets -= 1;
+          else index += 1;
+        }
+        result += text[index];
+      }
+      return result;
+    },
+    { preserveInlineCode: false }
+  );
+}
+
 function hasTrailingEmptyParagraph(e: Editor): boolean {
   if (e.state.doc.childCount <= 1) return false;
   const lastChild = e.state.doc.lastChild;
@@ -356,7 +393,9 @@ export function getSerializedMarkdown(e: Editor): string {
   return normalizeSerializedHardBreaksBeforeLists(
     normalizeSerializedGfmTableHardBreaks(
       encodeSerializedHeadingClosingHashes(
-        trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+        normalizeSerializedUnmatchedMarkdownEscapes(
+          trimSerializedTrailingEmptyParagraph(decodeSerializedMarkdownText(e.getMarkdown()), e)
+        )
       )
     )
   );
