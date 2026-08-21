@@ -51,6 +51,14 @@
       "filter_label": "Filtruj uprawnienia",
       "filter_placeholder": "Filtruj uprawnienia...",
       "no_filter_matches": "Żadne uprawnienia nie pasują do tego filtra.",
+      "binary": {
+        "aria": "Stan uprawnienia {permission} dla {subject} w zakresie {scope}: {state}",
+        "enabled": "Włączone",
+        "disabled": "Wyłączone",
+        "inherited": "Odziedziczone z szerszego zakresu",
+        "unavailable": "Obecnie niedostępne",
+        "owner_ceiling": "Nie możesz przyznać uprawnienia {permission} w zakresie {scope}, ponieważ właściciel bota obecnie go nie ma."
+      },
       "categories": {
         "space": {
           "title": "Uprawnienia serwera",

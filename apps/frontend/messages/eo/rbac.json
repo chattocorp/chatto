@@ -51,6 +51,14 @@
       "filter_label": "Filtri permesojn",
       "filter_placeholder": "Filtri permesojn...",
       "no_filter_matches": "Neniuj permesoj kongruas kun ĉi tiu filtrilo.",
+      "binary": {
+        "aria": "{permission} estas {state} por {subject} ĉe {scope}",
+        "enabled": "Ŝaltita",
+        "disabled": "Malŝaltita",
+        "inherited": "Heredita de pli vasta amplekso",
+        "unavailable": "Nuntempe nedisponebla",
+        "owner_ceiling": "Vi ne povas doni {permission} ĉe {scope}, ĉar la posedanto de la roboto nuntempe ne havas ĝin."
+      },
       "categories": {
         "space": {
           "title": "Servilaj Permesoj",

@@ -365,6 +365,7 @@
       "edit_title": "Rediģēt robota kontu",
       "updated": "Bots ir atjaunināts",
       "update_failed": "Neizdevās atjaunināt robotu",
+      "update_conflict": "Kāds cits atjaunināja šo robotu. Pārlādē lapu un mēģini vēlreiz.",
       "username": "Lietotājvārds",
       "username_hint": "Bot lietotājvārdiem jābeidzas ar _bot.",
       "display_name": "Parādītais nosaukums",

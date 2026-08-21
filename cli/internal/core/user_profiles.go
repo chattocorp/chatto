@@ -136,10 +136,10 @@ func (c *ChattoCore) AdminUpdateUserDisplayName(ctx context.Context, userID, dis
 // single admin-authored mutation. When both fields are changed, both durable
 // events are appended atomically in one batch.
 func (c *ChattoCore) AdminUpdateUserProfile(ctx context.Context, userID string, login, displayName *string) (*corev1.User, error) {
-	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName)
+	return c.updateUserProfileAs(ctx, SystemActorID, userID, login, displayName, true)
 }
 
-func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string) (*corev1.User, error) {
+func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID string, login, displayName *string, retryConflicts bool) (*corev1.User, error) {
 	user, err := c.GetUser(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %w", err)
@@ -220,14 +220,22 @@ func (c *ChattoCore) updateUserProfileAs(ctx context.Context, actorID, userID st
 	}
 	if len(entries) > 0 {
 		if loginNeedsMentionCheck {
-			_, err = c.appendUserBatchWithMentionableCheck(ctx, userID, entries, func() error {
+			appendBatch := c.appendUserBatchWithMentionableCheck
+			if !retryConflicts {
+				appendBatch = c.appendUserBatchWithMentionableCheckOnce
+			}
+			_, err = appendBatch(ctx, userID, entries, func() error {
 				if err := checkUserExists(); err != nil {
 					return err
 				}
 				return c.requireLoginMentionHandleAvailable(nextLogin)
 			})
 		} else {
-			_, err = c.appendUserBatch(ctx, userID, entries, evtstream.UserSubjectFilter(), checkUserExists)
+			appendBatch := c.appendUserBatch
+			if !retryConflicts {
+				appendBatch = c.appendUserBatchOnce
+			}
+			_, err = appendBatch(ctx, userID, entries, "", checkUserExists)
 		}
 		if err != nil {
 			if errors.Is(err, ErrLoginAlreadyTaken) {
@@ -263,7 +271,7 @@ func (c *ChattoCore) AdminUpdateUser(ctx context.Context, actorID, targetUserID 
 	if err := c.requireHumanUser(ctx, targetUserID); err != nil {
 		return nil, err
 	}
-	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName)
+	return c.updateUserProfileAs(ctx, actorID, targetUserID, input.Login, input.DisplayName, true)
 }
 
 func (c *ChattoCore) AdminClearLoginChangeCooldown(ctx context.Context, actorID, targetUserID string) error {

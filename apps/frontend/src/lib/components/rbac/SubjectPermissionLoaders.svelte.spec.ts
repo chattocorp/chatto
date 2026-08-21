@@ -300,7 +300,7 @@ describe('subject permission loaders', () => {
     const room = scopedCellButton(rendered.container, 'room:lobby', 'message.post');
     const groupClassName = group.className;
 
-    expect(room.title).toContain('Enabled (inherited)');
+    expect(room.title).toContain('Enabled · Inherited from a broader scope');
     expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
     expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(room.disabled).toBe(true);

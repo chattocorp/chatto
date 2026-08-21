@@ -321,13 +321,23 @@ scrolling; the table only scrolls horizontally when its columns overflow.
               {@const ariaLabel = forceAllow
                 ? `${subjectKind} is always granted ${permission} at ${scope.label}`
                 : decisionMode === 'binary'
-                  ? `${permission} is ${binaryEnabled ? 'enabled' : 'disabled'} for ${subjectKind} at ${scope.label}`
+                  ? m('rbac.permissions.binary.aria', {
+                      permission,
+                      state: binaryEnabled
+                        ? m('rbac.permissions.binary.enabled')
+                        : m('rbac.permissions.binary.disabled'),
+                      subject: subjectKind,
+                      scope: scope.label
+                    })
                   : ov !== 'neutral'
                     ? `Override ${ov} for ${permission} at ${scope.label}`
                     : `No override for ${permission} at ${scope.label}, effective ${eff}`}
               {@const allowConstraint =
                 cell.allowPermitted === false
-                  ? `The bot's owner does not currently have ${permission} at ${scope.label}`
+                  ? m('rbac.permissions.binary.owner_ceiling', {
+                      permission,
+                      scope: scope.label
+                    })
                   : null}
               {@const titleParts = forceAllow
                 ? [
@@ -337,8 +347,18 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 : decisionMode === 'binary'
                   ? [
                       binaryEnabled
-                        ? `Enabled${cell.override === 'NONE' ? ' (inherited)' : ''}${cell.allowPermitted === false ? ', but currently unavailable' : ''}`
-                        : 'Disabled',
+                        ? [
+                            m('rbac.permissions.binary.enabled'),
+                            cell.override === 'NONE'
+                              ? m('rbac.permissions.binary.inherited')
+                              : null,
+                            cell.allowPermitted === false
+                              ? m('rbac.permissions.binary.unavailable')
+                              : null
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : m('rbac.permissions.binary.disabled'),
                       allowConstraint
                     ].filter(Boolean)
                   : [

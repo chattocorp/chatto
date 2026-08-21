@@ -30,6 +30,23 @@ func TestBotAPIKeyFormatIsCompactAndAcceptsLegacySecrets(t *testing.T) {
 	}
 }
 
+func TestParseBotAPIKeyRejectsNonCanonicalUserIDs(t *testing.T) {
+	encodedSecret := base64.RawURLEncoding.EncodeToString(make([]byte, botAPIKeySecretBytes))
+	for _, botID := range []string{
+		"*",
+		">",
+		"U123",
+		"R123456789ABCDE",
+		"U123456789ABCD*",
+	} {
+		t.Run(botID, func(t *testing.T) {
+			if parsedID, ok := parseBotAPIKey(botAPIKeyPrefix + botID + "." + encodedSecret); ok {
+				t.Fatalf("parseBotAPIKey accepted non-canonical bot ID %q as %q", botID, parsedID)
+			}
+		})
+	}
+}
+
 func TestBotAccountLifecycleAndAuthentication(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

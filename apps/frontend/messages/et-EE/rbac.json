@@ -51,6 +51,14 @@
       "filter_label": "Filtri õigused",
       "filter_placeholder": "Filtreeri õigused...",
       "no_filter_matches": "Sellele filtrile ei vasta ükski õigus.",
+      "binary": {
+        "aria": "Õiguse {permission} olek kasutajale {subject} ulatuses {scope}: {state}",
+        "enabled": "Lubatud",
+        "disabled": "Keelatud",
+        "inherited": "Päritud laiemast ulatusest",
+        "unavailable": "Praegu pole saadaval",
+        "owner_ceiling": "Õigust {permission} ei saa ulatuses {scope} anda, sest boti omanikul pole seda praegu."
+      },
       "categories": {
         "space": {
           "title": "Serveri load",

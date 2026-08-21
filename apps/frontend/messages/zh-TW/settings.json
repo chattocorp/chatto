@@ -365,6 +365,7 @@
       "edit_title": "編輯機器人帳號",
       "updated": "機器人已更新",
       "update_failed": "更新機器人失敗",
+      "update_conflict": "其他人已更新此機器人。請重新載入頁面後再試。",
       "username": "使用者名稱",
       "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
       "display_name": "顯示名稱",

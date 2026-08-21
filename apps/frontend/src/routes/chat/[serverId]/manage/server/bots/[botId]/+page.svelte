@@ -4,12 +4,14 @@
   import { page } from '$app/state';
   import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
+  import { Code, ConnectError } from '@connectrpc/connect';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
   import { createUserAPI } from '$lib/api-client/users';
   import { CopyId, Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
   import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
+  import { getLocale } from '$lib/i18n/runtime';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
   import { settingsQueryKeys } from '$lib/query/settings';
@@ -25,6 +27,7 @@
   } from '$lib/ui';
   import { Button, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
+  import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { onDestroy } from 'svelte';
 
   const serverScope = useServerScope();
@@ -76,6 +79,8 @@
   let editVisible = $state(false);
   let editLogin = $state('');
   let editDisplayName = $state('');
+  let initialEditLogin = $state('');
+  let initialEditDisplayName = $state('');
   let editLoading = $state(false);
   let editError = $state<{ targetKey: string; message: string } | null>(null);
   let apiKeyVisible = $state(false);
@@ -97,10 +102,19 @@
     .refine((value) => !value.endsWith('.'), m('common.validation.username_end_alphanumeric'))
     .refine((value) => value.toLowerCase().endsWith('_bot'), m('settings.bots.username_hint'));
   const normalizedEditLogin = $derived(editLogin.trim());
+  const normalizedEditDisplayName = $derived(editDisplayName.trim());
+  const editDirty = $derived(
+    normalizedEditLogin !== initialEditLogin ||
+      normalizedEditDisplayName !== initialEditDisplayName
+  );
   const editLoginError = $derived(
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
   );
   const visibleEditError = $derived(editError?.targetKey === targetKey ? editError.message : null);
+  const timeSettings = $derived(
+    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+  );
+  const activeLocale = $derived(getLocale());
 
   function botAPI() {
     return serverScope.connection.getAPI(createBotAPI);
@@ -124,20 +138,24 @@
     if (!bot) return;
     editLogin = bot.login;
     editDisplayName = bot.displayName;
+    initialEditLogin = bot.login;
+    initialEditDisplayName = bot.displayName;
     editError = null;
     editVisible = true;
   }
 
   async function updateBot() {
-    if (!bot || !normalizedEditLogin || editLoginError) return;
+    if (!bot || !normalizedEditLogin || editLoginError || !editDirty) return;
     const mutationTarget = targetKey;
     editLoading = true;
     editError = null;
     try {
       const updated = await botAPI().updateBot({
         botUserId: bot.id,
-        login: normalizedEditLogin,
-        displayName: editDisplayName.trim()
+        ...(normalizedEditLogin !== initialEditLogin ? { login: normalizedEditLogin } : {}),
+        ...(normalizedEditDisplayName !== initialEditDisplayName
+          ? { displayName: normalizedEditDisplayName }
+          : {})
       });
       if (!isCurrentTarget(mutationTarget)) return;
       cacheBot(updated);
@@ -145,10 +163,17 @@
       toast.success(m('settings.bots.updated'));
     } catch (error) {
       if (!isCurrentTarget(mutationTarget)) return;
+      const conflict = error instanceof ConnectError && error.code === Code.Aborted;
+      const message = conflict
+        ? m('settings.bots.update_conflict')
+        : error instanceof Error
+          ? error.message
+          : m('settings.bots.update_failed');
       editError = {
         targetKey: mutationTarget,
-        message: error instanceof Error ? error.message : m('settings.bots.update_failed')
+        message
       };
+      if (conflict) toast.error(message);
     } finally {
       if (isCurrentTarget(mutationTarget)) editLoading = false;
     }
@@ -215,11 +240,7 @@
   }
 
   function formatDate(value: Date | null): string {
-    return value
-      ? new Intl.DateTimeFormat(undefined, { dateStyle: 'medium', timeStyle: 'short' }).format(
-          value
-        )
-      : '—';
+    return value ? formatDateTime(value, timeSettings, activeLocale) : '—';
   }
 </script>
 
@@ -303,7 +324,7 @@
   title={m('settings.bots.edit_title')}
   submitLabel={m('common.save')}
   loading={editLoading}
-  disabled={!normalizedEditLogin || !!editLoginError || !editDisplayName.trim()}
+  disabled={!normalizedEditLogin || !!editLoginError || !normalizedEditDisplayName || !editDirty}
   error={visibleEditError}
   onsubmit={updateBot}
   onclose={() => (editVisible = false)}

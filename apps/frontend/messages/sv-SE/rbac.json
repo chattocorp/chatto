@@ -51,6 +51,14 @@
       "filter_label": "Filtrera behörigheter",
       "filter_placeholder": "Filtrera behörigheter...",
       "no_filter_matches": "Inga behörigheter matchar detta filter.",
+      "binary": {
+        "aria": "{permission} är {state} för {subject} i {scope}",
+        "enabled": "aktiverad",
+        "disabled": "inaktiverad",
+        "inherited": "Ärvd från ett bredare omfång",
+        "unavailable": "Inte tillgänglig just nu",
+        "owner_ceiling": "Du kan inte ge {permission} i {scope} eftersom botens ägare inte har behörigheten just nu."
+      },
       "categories": {
         "space": {
           "title": "Serverbehörigheter",

@@ -365,6 +365,7 @@
       "edit_title": "Redakti Bot-Konton",
       "updated": "Bot ĝisdatigita",
       "update_failed": "Malsukcesis ĝisdatigi bot",
+      "update_conflict": "Iu alia ĝisdatigis ĉi tiun roboton. Reŝargu la paĝon kaj provu denove.",
       "username": "Uzantnomo",
       "username_hint": "Bot uzantnomoj devas finiĝi per _bot.",
       "display_name": "Montra nomo",

@@ -51,6 +51,14 @@
       "filter_label": "Oprávnění filtrovat",
       "filter_placeholder": "Oprávnění filtrovat...",
       "no_filter_matches": "Tomuto filtru neodpovídají žádná oprávnění.",
+      "binary": {
+        "aria": "Stav {permission} pro {subject} v rozsahu {scope}: {state}",
+        "enabled": "Povoleno",
+        "disabled": "Zakázáno",
+        "inherited": "Zděděno z širšího rozsahu",
+        "unavailable": "Momentálně nedostupné",
+        "owner_ceiling": "Oprávnění {permission} v rozsahu {scope} nelze udělit, protože ho vlastník bota momentálně nemá."
+      },
       "categories": {
         "space": {
           "title": "Oprávnění serveru",

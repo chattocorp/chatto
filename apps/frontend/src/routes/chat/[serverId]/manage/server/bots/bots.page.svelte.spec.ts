@@ -111,5 +111,8 @@ describe('Bot administration page', () => {
     expect(container.textContent).not.toContain('owner-user-id');
     expect(container.querySelectorAll('[data-testid="user-identity"]')).toHaveLength(2);
     expect(container.querySelector('[data-testid="bot-badge"]')).not.toBeNull();
+    expect(
+      container.querySelector('a[href$="/manage/server/bots/bot-user-id"]')
+    ).not.toBeNull();
   });
 });

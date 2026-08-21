@@ -365,6 +365,7 @@
       "edit_title": "Muutke robotikontot",
       "updated": "Botit värskendati",
       "update_failed": "Boti värskendamine ebaõnnestus",
+      "update_conflict": "Keegi teine värskendas seda boti. Laadi leht uuesti ja proovi veel kord.",
       "username": "Kasutajanimi",
       "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
       "display_name": "Kuvatav nimi",

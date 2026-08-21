@@ -365,6 +365,7 @@
       "edit_title": "Edytuj konto bota",
       "updated": "Bot zaktualizowany",
       "update_failed": "Nie udało się zaktualizować bota",
+      "update_conflict": "Ktoś inny zaktualizował tego bota. Odśwież stronę i spróbuj ponownie.",
       "username": "Nazwa użytkownika",
       "username_hint": "Nazwy użytkowników botów muszą kończyć się na _bot.",
       "display_name": "Nazwa wyświetlana",

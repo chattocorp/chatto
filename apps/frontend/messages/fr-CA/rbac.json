@@ -51,6 +51,14 @@
       "filter_label": "Filtrer les autorisations",
       "filter_placeholder": "Filtrer les autorisations...",
       "no_filter_matches": "Aucune autorisation ne correspond à ce filtre.",
+      "binary": {
+        "aria": "{permission} est {state} pour {subject} dans {scope}",
+        "enabled": "activée",
+        "disabled": "désactivée",
+        "inherited": "Héritée d'une portée plus large",
+        "unavailable": "Actuellement indisponible",
+        "owner_ceiling": "Tu ne peux pas accorder {permission} dans {scope}, car le propriétaire du robot ne l'a pas actuellement."
+      },
       "categories": {
         "space": {
           "title": "Autorisations du serveur",

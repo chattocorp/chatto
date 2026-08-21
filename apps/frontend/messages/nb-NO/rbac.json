@@ -51,6 +51,14 @@
       "filter_label": "Filtrer tillatelser",
       "filter_placeholder": "Filtrer tillatelser...",
       "no_filter_matches": "Ingen tillatelser samsvarer med dette filteret.",
+      "binary": {
+        "aria": "{permission} er {state} for {subject} i {scope}",
+        "enabled": "aktivert",
+        "disabled": "deaktivert",
+        "inherited": "Arvet fra et bredere område",
+        "unavailable": "Ikke tilgjengelig for øyeblikket",
+        "owner_ceiling": "Du kan ikke gi {permission} i {scope} fordi botens eier ikke har tillatelsen for øyeblikket."
+      },
       "categories": {
         "space": {
           "title": "Servertillatelser",

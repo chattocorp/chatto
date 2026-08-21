@@ -51,6 +51,14 @@
       "filter_label": "権限を絞り込む",
       "filter_placeholder": "権限を絞り込む...",
       "no_filter_matches": "このフィルターに一致する権限はありません。",
+      "binary": {
+        "aria": "{scope} の {subject} に対する {permission} は{state}です",
+        "enabled": "有効",
+        "disabled": "無効",
+        "inherited": "より広いスコープから継承",
+        "unavailable": "現在利用できません",
+        "owner_ceiling": "ボットの所有者が現在この権限を持っていないため、{scope} で {permission} を付与できません。"
+      },
       "categories": {
         "space": {
           "title": "サーバー権限",

@@ -365,6 +365,7 @@
       "edit_title": "Edit Bot Account",
       "updated": "Bot updated",
       "update_failed": "Failed to update bot",
+      "update_conflict": "Someone else updated this bot. Reload the page and try again.",
       "username": "Username",
       "username_hint": "Bot usernames must end in _bot.",
       "display_name": "Display Name",

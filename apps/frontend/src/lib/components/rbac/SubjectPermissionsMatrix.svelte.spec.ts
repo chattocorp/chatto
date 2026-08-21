@@ -1,8 +1,15 @@
 import '../../../app.css';
-import { expect, it, vi } from 'vitest';
+import { beforeEach, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
+import { loadLocaleMessages } from '$lib/i18n/messages';
+import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SubjectPermissionsMatrix, { type MatrixData } from './SubjectPermissionsMatrix.svelte';
+
+beforeEach(async () => {
+  await loadLocaleMessages('en-GB');
+  setReactiveLocale('en-GB');
+});
 
 const data: MatrixData = {
   applicablePermissions: ['message.post', 'message.delete'],
@@ -266,8 +273,8 @@ it('locks an inherited room grant while allowing an older denial to be cleared',
       'td[data-scope="room:lobby"][data-permission="message.post"] button'
     ) as HTMLButtonElement;
 
-  expect(roomCell().title).toContain('Enabled (inherited)');
-  expect(roomCell().title).toContain('currently unavailable');
+  expect(roomCell().title).toContain('Enabled · Inherited from a broader scope');
+  expect(roomCell().title).toContain('Currently unavailable');
   expect(roomCell().title).toContain("bot's owner");
   expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
   expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
@@ -294,8 +301,40 @@ it('locks an inherited room grant while allowing an older denial to be cleared',
   );
 
   await rendered.rerender({ data: roomData, onCycle, decisionMode: 'binary' });
-  expect(roomCell().title).toContain('Enabled (inherited)');
+  expect(roomCell().title).toContain('Enabled · Inherited from a broader scope');
   expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
   expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
   expect(roomCell().disabled).toBe(true);
+});
+
+it('localizes binary cell labels, state details, and owner ceilings', async () => {
+  await loadLocaleMessages('de-DE');
+  setReactiveLocale('de-DE');
+  const { container } = render(SubjectPermissionsMatrix, {
+    props: {
+      data: {
+        applicablePermissions: ['message.post'],
+        scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+        cells: [
+          {
+            permission: 'message.post',
+            scopeId: 'server',
+            override: 'ALLOW',
+            effective: 'ALLOW',
+            allowPermitted: false
+          }
+        ]
+      },
+      onCycle: vi.fn(),
+      subjectKind: 'Bot',
+      decisionMode: 'binary'
+    }
+  });
+  const button = container.querySelector(
+    'button[aria-label^="message.post"]'
+  ) as HTMLButtonElement;
+
+  expect(button.ariaLabel).toBe('message.post ist für Bot in Server aktiviert');
+  expect(button.title).toContain('Derzeit nicht verfügbar');
+  expect(button.title).toContain('Du kannst message.post in Server nicht vergeben');
 });

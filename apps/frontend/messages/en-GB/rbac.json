@@ -51,6 +51,14 @@
       "filter_label": "Filter permissions",
       "filter_placeholder": "Filter permissions...",
       "no_filter_matches": "No permissions match this filter.",
+      "binary": {
+        "aria": "{permission} is {state} for {subject} at {scope}",
+        "enabled": "Enabled",
+        "disabled": "Disabled",
+        "inherited": "Inherited from a broader scope",
+        "unavailable": "Currently unavailable",
+        "owner_ceiling": "You can't grant {permission} at {scope} because the bot's owner doesn't currently have it."
+      },
       "categories": {
         "space": {
           "title": "Server Permissions",

@@ -365,6 +365,7 @@
       "edit_title": "ボット アカウントを編集",
       "updated": "ボットが更新されました",
       "update_failed": "ボットを更新できませんでした",
+      "update_conflict": "別のユーザーがこのボットを更新しました。ページを再読み込みして、もう一度お試しください。",
       "username": "ユーザー名",
       "username_hint": "ボットのユーザー名は _bot で終わる必要があります。",
       "display_name": "表示名",

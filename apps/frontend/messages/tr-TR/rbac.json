@@ -51,6 +51,14 @@
       "filter_label": "İzinleri filtrele",
       "filter_placeholder": "İzinleri filtrele...",
       "no_filter_matches": "Bu filtreyle eşleşen izin yok.",
+      "binary": {
+        "aria": "{scope} kapsamında {subject} için {permission} durumu: {state}",
+        "enabled": "Etkin",
+        "disabled": "Devre dışı",
+        "inherited": "Daha geniş bir kapsamdan devralındı",
+        "unavailable": "Şu anda kullanılamıyor",
+        "owner_ceiling": "Bot sahibi şu anda bu izne sahip olmadığı için {scope} kapsamında {permission} iznini veremezsin."
+      },
       "categories": {
         "space": {
           "title": "Sunucu İzinleri",

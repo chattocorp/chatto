@@ -365,6 +365,7 @@
       "edit_title": "Bot-account bewerken",
       "updated": "Bot bijgewerkt",
       "update_failed": "Kan bot niet updaten",
+      "update_conflict": "Iemand anders heeft deze bot bijgewerkt. Herlaad de pagina en probeer opnieuw.",
       "username": "Gebruikersnaam",
       "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
       "display_name": "Weergavenaam",

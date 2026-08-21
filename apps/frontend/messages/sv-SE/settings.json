@@ -365,6 +365,7 @@
       "edit_title": "Redigera botkonto",
       "updated": "Botten uppdaterad",
       "update_failed": "Det gick inte att uppdatera bot",
+      "update_conflict": "Någon annan uppdaterade den här boten. Ladda om sidan och försök igen.",
       "username": "Användarnamn",
       "username_hint": "Botanvändarnamn måste sluta på _bot.",
       "display_name": "Visningsnamn",

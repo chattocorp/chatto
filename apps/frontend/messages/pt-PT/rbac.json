@@ -51,6 +51,14 @@
       "filter_label": "Filtrar permissões",
       "filter_placeholder": "Filtrar permissões...",
       "no_filter_matches": "Nenhuma permissão corresponde a este filtro.",
+      "binary": {
+        "aria": "{permission} está {state} para {subject} em {scope}",
+        "enabled": "ativada",
+        "disabled": "desativada",
+        "inherited": "Herdada de um âmbito mais amplo",
+        "unavailable": "Atualmente indisponível",
+        "owner_ceiling": "Não podes conceder {permission} em {scope} porque o proprietário do bot não tem atualmente essa permissão."
+      },
       "categories": {
         "space": {
           "title": "Permissões do servidor",
