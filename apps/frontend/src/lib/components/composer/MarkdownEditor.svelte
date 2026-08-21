@@ -6,9 +6,18 @@ the same API as the visual editor while keeping the stored Markdown visible.
 -->
 <script lang="ts">
   import { tick, untrack } from 'svelte';
-  import { defaultKeymap, history, historyKeymap } from '@codemirror/commands';
+  import {
+    defaultKeymap,
+    history,
+    historyKeymap,
+    insertNewlineAndIndent
+  } from '@codemirror/commands';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
-  import { commonmarkLanguage, markdown } from '@codemirror/lang-markdown';
+  import {
+    commonmarkLanguage,
+    insertNewlineContinueMarkup,
+    markdown
+  } from '@codemirror/lang-markdown';
   import { Compartment, EditorSelection, EditorState, Prec, Transaction } from '@codemirror/state';
   import {
     drawSelection,
@@ -81,8 +90,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     '.cm-placeholder': { color: 'var(--color-muted)', fontStyle: 'normal' },
     '.cm-code-fence': {
       boxSizing: 'border-box',
-      backgroundColor:
-        'color-mix(in srgb, var(--color-surface-emphasized) 68%, transparent)',
+      backgroundColor: 'color-mix(in srgb, var(--color-surface-emphasized) 68%, transparent)',
       paddingInline: '0.5rem'
     },
     '.cm-code-fence-open': {
@@ -111,9 +119,10 @@ the same API as the visual editor while keeping the stored Markdown visible.
       paddingBottom: '0.2rem',
       color: 'var(--color-muted)'
     },
-    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, ::selection': {
-      backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
-    },
+    '&.cm-focused > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, > .cm-scroller > .cm-selectionLayer .cm-selectionBackground, ::selection':
+      {
+        backgroundColor: 'color-mix(in srgb, var(--color-action) 20%, transparent)'
+      },
     '.hljs-comment, .hljs-quote': {
       color: 'var(--composer-code-comment)',
       fontStyle: 'italic'
@@ -224,6 +233,11 @@ the same API as the visual editor while keeping the stored Markdown visible.
         if (destroyed) return;
         const cursor = position === 'start' ? 0 : editorView.state.doc.length;
         editorView.dispatch({ selection: EditorSelection.cursor(cursor), scrollIntoView: true });
+        editorView.focus();
+      },
+      performEnter: () => {
+        if (destroyed) return;
+        if (!insertNewlineContinueMarkup(editorView)) insertNewlineAndIndent(editorView);
         editorView.focus();
       },
       getTextBeforeCursor: () =>

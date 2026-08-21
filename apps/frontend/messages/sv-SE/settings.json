@@ -134,6 +134,17 @@
           "description": "Redigera Markdown-källkod med syntaxmarkering"
         }
       },
+      "send_mode": {
+        "title": "Skicka meddelanden med",
+        "enter": {
+          "label": "Retur",
+          "description": "Retur skickar; Cmd/Ctrl+Retur utför redigerarens vanliga Retur-åtgärd"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retur",
+          "description": "Cmd/Ctrl+Retur skickar; Retur utför redigerarens vanliga åtgärd"
+        }
+      },
       "language": {
         "title": "Språk",
         "description": "Välj språk och regional formulering för den här webbläsaren.",

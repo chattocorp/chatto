@@ -8,6 +8,7 @@
   import {
     userPreferences,
     type ComposerEditorKind,
+    type ComposerSendMode,
     type DisplayTheme
   } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
@@ -166,6 +167,19 @@
     }
   ] satisfies Array<{ value: ComposerEditorKind; label: string; description: string }>);
 
+  const sendModeOptions = $derived([
+    {
+      value: 'enter',
+      label: m('settings.preferences.send_mode.enter.label'),
+      description: m('settings.preferences.send_mode.enter.description')
+    },
+    {
+      value: 'modifier-enter',
+      label: m('settings.preferences.send_mode.modifier_enter.label'),
+      description: m('settings.preferences.send_mode.modifier_enter.description')
+    }
+  ] satisfies Array<{ value: ComposerSendMode; label: string; description: string }>);
+
   const timeFormatOptions = $derived([
     {
       value: TimeFormat.TIME_FORMAT_AUTO,
@@ -228,6 +242,24 @@
           description={option.description}
           selected={userPreferences.composerEditor === option.value}
           onclick={() => (userPreferences.composerEditor = option.value)}
+        />
+      {/each}
+    </div>
+  </FormSection>
+
+  <FormSection title={m('settings.preferences.send_mode.title')} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m('settings.preferences.send_mode.title')}
+    >
+      {#each sendModeOptions as option (option.value)}
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={userPreferences.composerSendMode === option.value}
+          onclick={() => (userPreferences.composerSendMode = option.value)}
         />
       {/each}
     </div>

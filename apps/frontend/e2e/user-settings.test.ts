@@ -57,7 +57,7 @@ test.describe('User Settings - Preferences', () => {
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
   });
 
-  test('can choose and persist the browser-wide composer editor', async ({ page }) => {
+  test('can choose and persist browser-wide composer preferences', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
     await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
@@ -65,19 +65,23 @@ test.describe('User Settings - Preferences', () => {
     });
 
     const markdown = page.getByRole('radio', { name: /^Markdown/ });
+    const returnToSend = page.getByRole('radio', { name: /^Return/ });
     await markdown.click();
+    await returnToSend.click();
     await expect(markdown).toHaveAttribute('aria-checked', 'true');
+    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
     await expect
       .poll(() =>
         page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
       )
-      .toMatchObject({ composerEditor: 'markdown' });
+      .toMatchObject({ composerEditor: 'markdown', composerSendMode: 'enter' });
 
     await page.reload();
     await expect(markdown).toHaveAttribute('aria-checked', 'true');
+    await expect(returnToSend).toHaveAttribute('aria-checked', 'true');
   });
 
-  test('uses the same composer editor preference on a connected server', async ({
+  test('uses the same composer preferences on a connected server', async ({
     page,
     chatPage
   }, testInfo) => {
@@ -86,6 +90,7 @@ test.describe('User Settings - Preferences', () => {
       await createAndLoginTestUser(page);
       await page.goto(routes.settingsPreferences);
       await page.getByRole('radio', { name: /^Markdown/ }).click();
+      await page.getByRole('radio', { name: /^Return/ }).click();
       await chatPage.goto();
 
       const baseURL = remoteServer.baseURL.replace('localhost', '127.0.0.1');
@@ -99,6 +104,10 @@ test.describe('User Settings - Preferences', () => {
       await page.getByTitle('User Settings').click();
       await page.getByRole('link', { name: 'Preferences' }).click();
       await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      );
+      await expect(page.getByRole('radio', { name: /^Return/ })).toHaveAttribute(
         'aria-checked',
         'true'
       );

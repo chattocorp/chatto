@@ -134,6 +134,17 @@
           "description": "Redaktu Markdown-fonton kun sintaksa reliefigo"
         }
       },
+      "send_mode": {
+        "title": "Sendi mesaĝojn per",
+        "enter": {
+          "label": "Return",
+          "description": "Return sendas; Cmd/Ctrl+Return plenumas la normalan Return-agon de la redaktilo"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sendas; Return plenumas la normalan agon de la redaktilo"
+        }
+      },
       "language": {
         "title": "Lingvo",
         "description": "Elektu la lingvon kaj regionan vortumon por ĉi tiu retumilo.",

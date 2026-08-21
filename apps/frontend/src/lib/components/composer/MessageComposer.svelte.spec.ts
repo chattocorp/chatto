@@ -299,7 +299,12 @@ async function selectEditorContents(editor: HTMLElement) {
 async function pressEditorKey(
   editor: HTMLElement,
   key: string,
-  options: { ctrlKey?: boolean; metaKey?: boolean; shiftKey?: boolean } = {}
+  options: {
+    ctrlKey?: boolean;
+    metaKey?: boolean;
+    shiftKey?: boolean;
+    isComposing?: boolean;
+  } = {}
 ) {
   editor.dispatchEvent(
     new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options })
@@ -344,6 +349,7 @@ function selectFirstAttachment(input: HTMLInputElement, file = imageFile()) {
 describe('MessageComposer', () => {
   beforeEach(() => {
     userPreferences.composerEditor = 'visual';
+    userPreferences.composerSendMode = 'modifier-enter';
     window.getSelection()?.removeAllRanges();
     mockInstanceStores.serverInfo.videoProcessingEnabled = false;
     mockInstanceStores.serverInfo.maxUploadSize = 25 * 1024 * 1024;
@@ -614,6 +620,29 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({
         roomId,
         body: 'first\nsecond'
+      });
+    });
+
+    it('uses Ctrl+Enter for normal Markdown continuation when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container, roomId } = renderMessageComposer({ roomId: 'markdown-enter-send' });
+      const editor = await findEditor(container);
+      await typeEditorKeys(editor, '- first');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      await userEvent.type(editor, 'second');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll('.cm-line')).toHaveLength(2));
+      expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
+        '- first',
+        '- second'
+      ]);
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: '- first\n- second'
       });
     });
 
@@ -1072,6 +1101,9 @@ describe('MessageComposer', () => {
       await findEditor(container);
       const hint = q(container, '[title*="to send"]');
       expect(hint?.textContent).toMatch(/^(?:Cmd|Ctrl)\+Enter to send$/);
+
+      userPreferences.composerSendMode = 'enter';
+      await vi.waitFor(() => expect(hint?.textContent).toBe('Enter to send'));
     });
 
     it('treats an empty block element as sendable composer content', async () => {
@@ -1828,6 +1860,7 @@ describe('MessageComposer', () => {
 
     it('lets bare Enter insert a line break on touch-primary devices', async () => {
       mockTouchPrimaryPointer();
+      userPreferences.composerSendMode = 'enter';
       const { container, roomId } = renderMessageComposer({ roomId: 'room_456' });
       const editor = await findEditor(container);
 
@@ -1974,6 +2007,50 @@ describe('MessageComposer', () => {
         roomId,
         body: 'hello from shortcut'
       });
+    });
+
+    it('uses Ctrl+Enter for a structural paragraph break when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container, roomId } = renderMessageComposer({ roomId: 'room-enter-send' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'first');
+      await pressEditorKey(editor, 'Enter', { ctrlKey: true });
+      expect(mutationMock).not.toHaveBeenCalled();
+      await vi.waitFor(() => expect(editor.querySelectorAll(':scope > p')).toHaveLength(2));
+      await insertEditorLiteralText(editor, 'second');
+
+      await pressEditorKey(editor, 'Enter');
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        roomId,
+        body: 'first\n\nsecond'
+      });
+    });
+
+    it('keeps Shift+Enter as a visual hard break when Return sends', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container } = renderMessageComposer({ roomId: 'room-hard-break' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'first');
+      await pressEditorKey(editor, 'Enter', { shiftKey: true });
+      await insertEditorLiteralText(editor, 'second');
+
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(editor.querySelectorAll(':scope > p')).toHaveLength(1);
+      expect(editor.querySelector('p > br')).toBeTruthy();
+    });
+
+    it('does not send while an input method is composing text', async () => {
+      userPreferences.composerSendMode = 'enter';
+      const { container } = renderMessageComposer({ roomId: 'room-composing-enter' });
+      const editor = await findEditor(container);
+
+      await typeEditorLiteralText(editor, 'composing');
+      await pressEditorKey(editor, 'Enter', { isComposing: true });
+
+      expect(mutationMock).not.toHaveBeenCalled();
     });
 
     it('posts markdown after TipTap formatting shortcuts are applied', async () => {
@@ -3151,9 +3228,9 @@ describe('MessageComposer', () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       await findEditor(container);
 
-      await expect
-        .element(q(container, 'button[aria-label="Send message"]'))
-        .toHaveAttribute('title', 'Send message (Ctrl/Cmd+Enter)');
+      expect(q(container, 'button[aria-label="Send message"]')?.getAttribute('title')).toMatch(
+        /^(?:Cmd|Ctrl)\+Enter to send$/
+      );
     });
   });
 });

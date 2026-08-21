@@ -18,7 +18,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a visual editor by default and an optional syntax-highlighted Markdown source editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - Editor choice is a browser-local preference shared across every Chatto server in that browser. It is not synchronized to other browsers or devices.
-- Enter always performs the selected editor's native action, including paragraph and list continuation. Ctrl+Enter on Windows and Linux or Cmd+Enter on macOS sends. Touch-primary devices use Return for new lines and the visible Send button.
+- Sending keys are a browser-local preference shared across every Chatto server in that browser. People can choose Return to send or the platform modifier plus Return to send.
+- The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.
+- Touch-primary devices always use Return for editing and the visible Send button, even when Return-to-send is selected.
 
 ## Design Decisions
 
@@ -42,9 +44,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 ### 4. Composer presentation is a client preference
 
-**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor choice in its browser-wide preferences. Both editors retain their native Enter behavior and use the platform modifier plus Enter to send.
-**Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. Stable editor-native keyboard behavior avoids surprising content-dependent rules.
-**Tradeoff:** Preferences do not follow a person to another browser or device, and each editor must maintain equivalent composer integrations and formatting controls.
+**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor and send-key choices in its browser-wide preferences. The key not assigned to sending retains the editor's context-sensitive Return behavior.
+**Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut without losing structural editing behavior in paragraphs, lists, or code blocks.
+**Tradeoff:** Preferences do not follow a person to another browser or device, each editor must maintain equivalent composer integrations and formatting controls, and the alternate Return shortcut changes meaning with the selected send mode.
 
 ## Related
 

@@ -1,6 +1,7 @@
 <script lang="ts">
   import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { m } from '$lib/i18n/messages';
+  import type { ComposerSendMode } from '$lib/state/userPreferences.svelte';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
   import type {
     ComposerFormattingCommand,
@@ -10,6 +11,7 @@
 
   let {
     formattingState,
+    sendMode,
     editorApi,
     inputDisabled,
     canAttach,
@@ -26,6 +28,7 @@
     onsubmit
   }: {
     formattingState: ComposerFormattingState;
+    sendMode: ComposerSendMode;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
     canAttach: boolean;
@@ -55,13 +58,14 @@
     { command: 'blockquote', icon: 'icon-[mdi--format-quote-open]' },
     { command: 'codeBlock', icon: 'icon-[mdi--code-block-braces]' }
   ];
-  const submitShortcut = getSubmitShortcut();
+  const submitShortcut = $derived(getSubmitShortcut(sendMode));
   const submitHint = $derived(
     submitShortcut ? m('composer.shortcut_send', { shortcut: submitShortcut }) : null
   );
 
-  function getSubmitShortcut(): string | null {
+  function getSubmitShortcut(mode: ComposerSendMode): string | null {
     if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
+    if (mode === 'enter') return 'Enter';
 
     const userAgentDataPlatform =
       'userAgentData' in navigator
@@ -205,7 +209,7 @@
       disabled={!canSubmit}
       class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5"
       aria-label={m('composer.send')}
-      title={m('composer.send_ctrl_enter')}
+      title={submitHint ?? m('composer.send')}
     >
       <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
       <span class="hidden @min-[560px]:inline">{m('composer.send_label')}</span>

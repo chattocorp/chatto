@@ -134,6 +134,17 @@
           "description": "使用语法高亮编辑 Markdown 源文本"
         }
       },
+      "send_mode": {
+        "title": "发送消息的按键",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter 发送消息；Cmd/Ctrl+Enter 执行编辑器通常的 Enter 操作"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter 发送消息；Enter 执行编辑器的通常操作"
+        }
+      },
       "language": {
         "title": "语言",
         "description": "选择此浏览器使用的语言和地区用语。",

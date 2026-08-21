@@ -134,6 +134,17 @@
           "description": "Bewerk Markdown-broncode met syntaxismarkering"
         }
       },
+      "send_mode": {
+        "title": "Berichten verzenden met",
+        "enter": {
+          "label": "Return",
+          "description": "Return verzendt; Cmd/Ctrl+Return voert de normale Return-actie van de editor uit"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return verzendt; Return voert de normale actie van de editor uit"
+        }
+      },
       "language": {
         "title": "Taal",
         "description": "Kies de taal en regionale bewoording voor deze browser.",

@@ -134,6 +134,17 @@
           "description": "Rediger Markdown-kilde med syntaksutheving"
         }
       },
+      "send_mode": {
+        "title": "Send meldinger med",
+        "enter": {
+          "label": "Return",
+          "description": "Return sender; Cmd/Ctrl+Return utfører redigeringsprogrammets vanlige Return-handling"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sender; Return utfører redigeringsprogrammets vanlige handling"
+        }
+      },
       "language": {
         "title": "Språk",
         "description": "Velg språk og regionale ordlyd for denne nettleseren.",

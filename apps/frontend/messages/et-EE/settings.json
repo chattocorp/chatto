@@ -134,6 +134,17 @@
           "description": "Muuda Markdowni lähtekoodi süntaksi esiletõstuga"
         }
       },
+      "send_mode": {
+        "title": "Sõnumite saatmine klahviga",
+        "enter": {
+          "label": "Return",
+          "description": "Return saadab; Cmd/Ctrl+Return teeb redaktori tavapärase Return-toimingu"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return saadab; Return teeb redaktori tavapärase toimingu"
+        }
+      },
       "language": {
         "title": "Keel",
         "description": "Valige selle brauseri jaoks keel ja piirkondlik sõnastus.",

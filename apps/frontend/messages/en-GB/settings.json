@@ -134,6 +134,17 @@
           "description": "Edit Markdown source with syntax highlighting"
         }
       },
+      "send_mode": {
+        "title": "Send messages with",
+        "enter": {
+          "label": "Return",
+          "description": "Return sends; Cmd/Ctrl+Return performs the editor's normal Return action"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sends; Return performs the editor's normal action"
+        }
+      },
       "language": {
         "title": "Language",
         "description": "Choose the language and regional wording for this browser.",

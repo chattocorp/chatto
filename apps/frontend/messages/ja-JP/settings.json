@@ -134,6 +134,17 @@
           "description": "構文強調表示付きで Markdown ソースを編集します"
         }
       },
+      "send_mode": {
+        "title": "メッセージの送信キー",
+        "enter": {
+          "label": "Return",
+          "description": "Return で送信し、Cmd/Ctrl+Return でエディターの通常の Return 操作を実行します"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return で送信し、Return でエディターの通常の操作を実行します"
+        }
+      },
       "language": {
         "title": "言語",
         "description": "このブラウザの言語と地域の文言を選択してください。",

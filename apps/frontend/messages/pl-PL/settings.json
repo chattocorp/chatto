@@ -134,6 +134,17 @@
           "description": "Edytuj źródło Markdown z podświetlaniem składni"
         }
       },
+      "send_mode": {
+        "title": "Wysyłaj wiadomości za pomocą",
+        "enter": {
+          "label": "Return",
+          "description": "Return wysyła; Cmd/Ctrl+Return wykonuje zwykłą akcję Return edytora"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return wysyła; Return wykonuje zwykłą akcję edytora"
+        }
+      },
       "language": {
         "title": "Język",
         "description": "Wybierz język i sformułowania regionalne dla tej przeglądarki.",

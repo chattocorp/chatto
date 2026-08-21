@@ -134,6 +134,17 @@
           "description": "使用語法醒目提示編輯 Markdown 原始碼"
         }
       },
+      "send_mode": {
+        "title": "傳送訊息的按鍵",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter 傳送訊息；Cmd/Ctrl+Enter 執行編輯器一般的 Enter 操作"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter 傳送訊息；Enter 執行編輯器的一般操作"
+        }
+      },
       "language": {
         "title": "語言",
         "description": "選擇此瀏覽器使用的語言與地區用語。",

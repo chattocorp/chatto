@@ -134,6 +134,17 @@
           "description": "Edita el código Markdown con resaltado de sintaxis"
         }
       },
+      "send_mode": {
+        "title": "Enviar mensajes con",
+        "enter": {
+          "label": "Return",
+          "description": "Return envía; Cmd/Ctrl+Return realiza la acción normal de Return en el editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return envía; Return realiza la acción normal del editor"
+        }
+      },
       "language": {
         "title": "Idioma",
         "description": "Elija el idioma y la redacción regional para este navegador.",

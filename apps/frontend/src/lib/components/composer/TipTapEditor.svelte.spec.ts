@@ -1,8 +1,9 @@
 import { page } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import TipTapEditor from './TipTapEditor.svelte';
+import type { ComposerEditorApi } from './editorTypes';
 
 describe('TipTapEditor accessibility', () => {
   it('keeps its accessible name synchronized with the placeholder', async () => {
@@ -17,6 +18,28 @@ describe('TipTapEditor accessibility', () => {
 });
 
 describe('TipTapEditor wrapping', () => {
+  it('performs the normal structural Enter action through its API', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const onKeyDown = vi.fn(() => true);
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onKeyDown,
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('- first');
+    api.focus('end');
+    api.performEnter();
+
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('.ProseMirror ul li')).toHaveLength(2)
+    );
+    expect(onKeyDown).not.toHaveBeenCalled();
+  });
+
   it('uses stable wrapping instead of global prose wrapping', async () => {
     const { container } = render(TipTapEditor, { props: { placeholder: 'Write a message' } });
 

@@ -134,6 +134,17 @@
           "description": "Редактируйте исходный текст Markdown с подсветкой синтаксиса"
         }
       },
+      "send_mode": {
+        "title": "Отправлять сообщения с помощью",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter отправляет; Cmd/Ctrl+Enter выполняет обычное действие Enter в редакторе"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter отправляет; Enter выполняет обычное действие редактора"
+        }
+      },
       "language": {
         "title": "Язык",
         "description": "Выберите язык и региональную формулировку для этого браузера.",

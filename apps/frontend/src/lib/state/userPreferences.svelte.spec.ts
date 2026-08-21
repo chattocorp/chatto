@@ -76,23 +76,34 @@ describe('UserPreferencesState', () => {
       expect(state.composerEditor).toBe('visual');
     });
 
+    it('uses modifier-enter sending when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.composerSendMode).toBe('modifier-enter');
+    });
+
     it('hydrates a valid composer preference', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'markdown' }));
       const state = new UserPreferencesState();
       expect(state.composerEditor).toBe('markdown');
     });
 
-    it('drops the removed send-mode preference on the next write', () => {
+    it.each(['enter', 'modifier-enter'] as const)(
+      'hydrates a valid %s send-mode preference',
+      (composerSendMode) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerSendMode }));
+        const state = new UserPreferencesState();
+        expect(state.composerSendMode).toBe(composerSendMode);
+      }
+    );
+
+    it('falls back from an invalid send-mode preference independently', () => {
       localStorage.setItem(
         STORAGE_KEY,
-        JSON.stringify({ composerEditor: 'markdown', composerSendMode: 'modifier-enter' })
+        JSON.stringify({ composerEditor: 'markdown', composerSendMode: 'spacebar' })
       );
       const state = new UserPreferencesState();
-      state.composerEditor = 'visual';
-
-      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).not.toHaveProperty(
-        'composerSendMode'
-      );
+      expect(state.composerEditor).toBe('markdown');
+      expect(state.composerSendMode).toBe('modifier-enter');
     });
 
     it('falls back from an invalid composer preference', () => {
@@ -259,6 +270,16 @@ describe('UserPreferencesState', () => {
       expect(state.composerEditor).toBe('markdown');
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
         composerEditor: 'markdown'
+      });
+    });
+
+    it('updates and persists the composer send mode', () => {
+      const state = new UserPreferencesState();
+      state.composerSendMode = 'enter';
+
+      expect(state.composerSendMode).toBe('enter');
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        composerSendMode: 'enter'
       });
     });
 

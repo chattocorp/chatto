@@ -134,6 +134,17 @@
           "description": "עריכת מקור Markdown עם הדגשת תחביר"
         }
       },
+      "send_mode": {
+        "title": "שליחת הודעות באמצעות",
+        "enter": {
+          "label": "Return",
+          "description": "Return שולח; Cmd/Ctrl+Return מבצע את פעולת Return הרגילה של העורך"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return שולח; Return מבצע את הפעולה הרגילה של העורך"
+        }
+      },
       "language": {
         "title": "שפה",
         "description": "בחר את השפה והניסוח האזורי עבור דפדפן זה.",

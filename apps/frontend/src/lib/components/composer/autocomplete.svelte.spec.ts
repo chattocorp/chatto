@@ -35,6 +35,7 @@ function editor(
         cursor = text.length;
       },
       focus: () => {},
+      performEnter: () => {},
       getTextBeforeCursor: () => text.slice(0, cursor),
       isInCodeBlock: () => false,
       replaceTextBeforeCursor: (charCount, replacement) => {

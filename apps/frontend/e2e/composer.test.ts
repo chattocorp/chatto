@@ -209,6 +209,34 @@ test.describe('Composer keyboard behavior', () => {
     await expect(roomPage.getMessage('first').locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await expect(roomPage.messageInput).toHaveText('');
   });
+
+  test('uses Control+Enter for structural editing when Return sends', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Return/ }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const first = `Return send first ${Date.now()}`;
+    const second = `Return send second ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(`- ${first}`);
+    await expect(page.getByText('Enter to send')).toBeVisible();
+
+    await roomPage.messageInput.press('Control+Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);
+    await roomPage.messageInput.pressSequentially(second);
+    await expect(roomPage.getMessage(first).locator).not.toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(first).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.getMessage(second).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+  });
 });
 
 test.describe('Markdown composer', () => {

@@ -134,6 +134,17 @@
           "description": "Edite o código Markdown com realce de sintaxe"
         }
       },
+      "send_mode": {
+        "title": "Enviar mensagens com",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter envia; Cmd/Ctrl+Enter executa a ação normal de Enter do editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter envia; Enter executa a ação normal do editor"
+        }
+      },
       "language": {
         "title": "Idioma",
         "description": "Escolha o idioma e o texto regional para este navegador.",

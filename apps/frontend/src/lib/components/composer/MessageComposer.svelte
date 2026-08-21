@@ -111,6 +111,7 @@
     getSlowModeBlocked: () => slowModeBlocked,
     getCanCreateThread: () => showCreateThread,
     getAutoFocus: () => autoFocus,
+    getComposerSendMode: () => userPreferences.composerSendMode,
     getPlaceholder: () => placeholder,
     getOnReady: () => onReady,
     getCallbacks: () => ({
@@ -236,6 +237,7 @@
 
     <ComposerToolbar
       formattingState={composer.formattingState}
+      sendMode={userPreferences.composerSendMode}
       editorApi={composer.editorApi}
       inputDisabled={composer.inputDisabled}
       {canAttach}

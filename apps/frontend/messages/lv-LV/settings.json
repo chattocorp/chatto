@@ -134,6 +134,17 @@
           "description": "Rediģējiet Markdown avotu ar sintakses izcelšanu"
         }
       },
+      "send_mode": {
+        "title": "Sūtīt ziņojumus ar",
+        "enter": {
+          "label": "Return",
+          "description": "Return nosūta; Cmd/Ctrl+Return izpilda redaktora parasto Return darbību"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return nosūta; Return izpilda redaktora parasto darbību"
+        }
+      },
       "language": {
         "title": "Valoda",
         "description": "Izvēlieties valodu un reģionālo formulējumu šai pārlūkprogrammai.",

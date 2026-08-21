@@ -134,6 +134,17 @@
           "description": "Modifica il sorgente Markdown con evidenziazione della sintassi"
         }
       },
+      "send_mode": {
+        "title": "Invia messaggi con",
+        "enter": {
+          "label": "Invio",
+          "description": "Invio spedisce; Cmd/Ctrl+Invio esegue la normale azione Invio dell'editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Invio",
+          "description": "Cmd/Ctrl+Invio spedisce; Invio esegue la normale azione dell'editor"
+        }
+      },
       "language": {
         "title": "Lingua",
         "description": "Scegli la lingua e la dicitura regionale per questo browser.",

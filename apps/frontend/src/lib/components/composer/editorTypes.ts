@@ -19,6 +19,8 @@ export type ComposerEditorApi = {
   setContent: (markdown: string) => void;
   /** Focus the editor. */
   focus: (position?: 'start' | 'end') => void;
+  /** Perform the editor's normal, context-sensitive Enter action. */
+  performEnter: () => void;
   /** Get plain text from document start to cursor position. */
   getTextBeforeCursor: () => string;
   /** Whether the current selection is inside a code block. */

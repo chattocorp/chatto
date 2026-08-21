@@ -57,6 +57,7 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
 describe('Preferences settings page', () => {
   beforeEach(() => {
     userPreferences.composerEditor = 'visual';
+    userPreferences.composerSendMode = 'modifier-enter';
     mocks.currentUser = new CurrentUserState();
   });
 
@@ -100,6 +101,20 @@ describe('Preferences settings page', () => {
     expect(userPreferences.composerEditor).toBe('markdown');
     expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
       composerEditor: 'markdown'
+    });
+  });
+
+  it('persists the send-key choice immediately for this browser', async () => {
+    const { container, getByRole } = render(PreferencesPage);
+    await settle();
+
+    expect(container.textContent).toContain('Send messages with');
+    await getByRole('radio', { name: /^Return/ }).click();
+    await settle();
+
+    expect(userPreferences.composerSendMode).toBe('enter');
+    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+      composerSendMode: 'enter'
     });
   });
 });

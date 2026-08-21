@@ -13,6 +13,8 @@ import type { createMessageAPI, UpdateMessageInput } from '$lib/api-client/messa
 import type { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 import { hasVisibleContent } from '$lib/validation';
 import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
+import { prefersTouchActions } from '$lib/utils/inputCapabilities';
+import type { ComposerSendMode } from '$lib/state/userPreferences.svelte';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
@@ -71,6 +73,7 @@ type MessageComposerDependencies = {
   getSlowModeBlocked: () => boolean;
   getCanCreateThread: () => boolean;
   getAutoFocus: () => boolean;
+  getComposerSendMode: () => ComposerSendMode;
   getPlaceholder: () => string | undefined;
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
@@ -511,7 +514,21 @@ export class MessageComposerState {
   }
 
   #handleEnter(event: KeyboardEvent): boolean {
-    if (!event.metaKey && !event.ctrlKey) return false;
+    if (event.isComposing) return false;
+    if (event.shiftKey || event.altKey) return false;
+
+    const usesModifier = event.metaKey || event.ctrlKey;
+    if (this.#dependencies.getComposerSendMode() === 'modifier-enter') {
+      if (!usesModifier) return false;
+      if (this.canSubmit) void this.submit();
+      return true;
+    }
+
+    if (usesModifier) {
+      this.editorApi?.performEnter();
+      return true;
+    }
+    if (prefersTouchActions()) return false;
     if (this.canSubmit) void this.submit();
     return true;
   }

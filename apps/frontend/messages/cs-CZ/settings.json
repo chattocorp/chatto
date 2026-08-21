@@ -134,6 +134,17 @@
           "description": "Upravujte zdroj Markdown se zvýrazněním syntaxe"
         }
       },
+      "send_mode": {
+        "title": "Odesílat zprávy pomocí",
+        "enter": {
+          "label": "Return",
+          "description": "Return odešle zprávu; Cmd/Ctrl+Return provede běžnou akci klávesy Return v editoru"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return odešle zprávu; Return provede běžnou akci editoru"
+        }
+      },
       "language": {
         "title": "Jazyk",
         "description": "Vyberte jazyk a regionální znění pro tento prohlížeč.",

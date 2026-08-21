@@ -134,6 +134,17 @@
           "description": "Markdown-Quelltext mit Syntaxhervorhebung bearbeiten"
         }
       },
+      "send_mode": {
+        "title": "Nachrichten senden mit",
+        "enter": {
+          "label": "Return",
+          "description": "Return sendet; Cmd/Strg+Return führt die normale Return-Aktion des Editors aus"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Strg+Return",
+          "description": "Cmd/Strg+Return sendet; Return führt die normale Aktion des Editors aus"
+        }
+      },
       "language": {
         "title": "Sprache",
         "description": "Wähle Sprache und regionale Formulierungen für diesen Browser.",

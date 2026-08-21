@@ -134,6 +134,17 @@
           "description": "حرّر مصدر Markdown مع تمييز بناء الجملة"
         }
       },
+      "send_mode": {
+        "title": "إرسال الرسائل باستخدام",
+        "enter": {
+          "label": "Return",
+          "description": "يرسل Return الرسالة؛ وينفّذ Cmd/Ctrl+Return إجراء Return المعتاد في المحرر"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "يرسل Cmd/Ctrl+Return الرسالة؛ وينفّذ Return الإجراء المعتاد في المحرر"
+        }
+      },
       "language": {
         "title": "اللغة",
         "description": "اختر اللغة والصياغة الإقليمية لهذا المتصفح.",

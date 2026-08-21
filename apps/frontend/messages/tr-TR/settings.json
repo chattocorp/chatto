@@ -134,6 +134,17 @@
           "description": "Markdown kaynağını sözdizimi vurgulamayla düzenleyin"
         }
       },
+      "send_mode": {
+        "title": "Mesajları şu tuşla gönder",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter gönderir; Cmd/Ctrl+Enter düzenleyicinin normal Enter işlemini gerçekleştirir"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter gönderir; Enter düzenleyicinin normal işlemini gerçekleştirir"
+        }
+      },
       "language": {
         "title": "Dil",
         "description": "Bu tarayıcı için dili ve bölgesel ifadeyi seçin.",

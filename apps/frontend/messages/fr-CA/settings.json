@@ -134,6 +134,17 @@
           "description": "Modifiez le code Markdown avec coloration syntaxique"
         }
       },
+      "send_mode": {
+        "title": "Envoyer les messages avec",
+        "enter": {
+          "label": "Retour",
+          "description": "Retour envoie; Cmd/Ctrl+Retour exécute l'action Retour normale de l'éditeur"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retour",
+          "description": "Cmd/Ctrl+Retour envoie; Retour exécute l'action normale de l'éditeur"
+        }
+      },
       "language": {
         "title": "Langue",
         "description": "Choisissez la langue et la formulation régionale de ce navigateur.",

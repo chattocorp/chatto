@@ -63,6 +63,17 @@ describe('MarkdownEditor', () => {
     expect(formatting.at(-1)?.bulletList).toBe(true);
   });
 
+  it('performs Markdown list continuation through its normal Enter API', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    api.setContent('- first');
+    api.performEnter();
+
+    expect(api.getText()).toBe('- first\n- ');
+  });
+
   it('uses the visual editor font at 16px with per-line bidirectional text', async () => {
     const readyApis: ComposerEditorApi[] = [];
     const { container } = await renderEditor({
@@ -108,7 +119,9 @@ describe('MarkdownEditor', () => {
     expect(getComputedStyle(keywordText).backgroundColor).toBe('rgba(0, 0, 0, 0)');
 
     readyApis[0]!.setContent('```js\nconst unfinished = true;');
-    await vi.waitFor(() => expect(container.querySelectorAll('.cm-code-fence-body')).toHaveLength(1));
+    await vi.waitFor(() =>
+      expect(container.querySelectorAll('.cm-code-fence-body')).toHaveLength(1)
+    );
     expect(container.querySelector('.cm-code-fence-body')?.textContent).toBe(
       'const unfinished = true;'
     );

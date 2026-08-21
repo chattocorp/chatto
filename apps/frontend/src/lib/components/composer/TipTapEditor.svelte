@@ -71,6 +71,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
+  let replayingEnter = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -327,6 +328,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
+      performEnter: () => {
+        if (e.isDestroyed) return;
+        replayingEnter = true;
+        try {
+          e.commands.enter();
+        } finally {
+          replayingEnter = false;
+        }
+        tick().then(syncControls);
+      },
+
       getTextBeforeCursor: () => {
         if (e.isDestroyed) return '';
         const { from } = e.state.selection;
@@ -429,6 +441,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               ...(testid ? { 'data-testid': testid } : {})
             },
             handleKeyDown: (_view, event) => {
+              if (replayingEnter && event.key === 'Enter') return false;
               return onKeyDown?.(event) ?? false;
             },
             clipboardTextParser: (text, context, _plain, view) => {
