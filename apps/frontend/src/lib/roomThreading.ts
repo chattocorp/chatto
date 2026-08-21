@@ -4,10 +4,12 @@ export { RoomThreadingMode };
 
 export function normalizeRoomThreadingMode(
   kind: RoomKind,
-  mode: RoomThreadingMode
+  mode: RoomThreadingMode | undefined
 ): RoomThreadingMode {
   if (kind === RoomKind.DM) return RoomThreadingMode.UNSPECIFIED;
-  if (mode === RoomThreadingMode.UNSPECIFIED) return RoomThreadingMode.ENABLED;
+  if (mode === undefined || mode === RoomThreadingMode.UNSPECIFIED) {
+    return RoomThreadingMode.ENABLED;
+  }
   switch (mode) {
     case RoomThreadingMode.REQUIRED:
     case RoomThreadingMode.ENCOURAGED:

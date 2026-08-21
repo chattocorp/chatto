@@ -958,7 +958,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if kind == KindChannel {
 		switch EffectiveRoomThreadingMode(room) {
 		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
-			if options.createThread || inThread != "" {
+			replyTargetsThread := false
+			if replyTarget != nil {
+				if targetPost := replyTarget.GetMessagePosted(); targetPost != nil {
+					replyTargetsThread = targetPost.GetInThread() != "" || targetPost.GetEchoOfEventId() != ""
+				}
+			}
+			if options.createThread || inThread != "" || replyTargetsThread {
 				return nil, fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
 			}
 		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:

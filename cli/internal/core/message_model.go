@@ -380,8 +380,11 @@ func (s *MessageModel) validateRoomThreadingPolicy(ctx context.Context, room *co
 			if err != nil {
 				return fmt.Errorf("resolve reply target for threading policy: %w", err)
 			}
-			if target != nil && target.GetMessagePosted().GetInThread() != "" {
-				return fmt.Errorf("%w: thread replies are disabled in this room", ErrRoomThreadingPolicy)
+			if target != nil {
+				if targetPost := target.GetMessagePosted(); targetPost != nil &&
+					(targetPost.GetInThread() != "" || targetPost.GetEchoOfEventId() != "") {
+					return fmt.Errorf("%w: thread replies are disabled in this room", ErrRoomThreadingPolicy)
+				}
 			}
 		}
 		return nil

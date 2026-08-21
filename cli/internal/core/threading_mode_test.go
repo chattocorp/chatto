@@ -151,6 +151,8 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 	require.NoError(t, err)
 	room, err = chatto.SetRoomThreadingMode(ctx, SystemActorID, KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED)
 	require.NoError(t, err)
+	echoID, exists := chatto.roomModel.channelEchoEventID(echoedThreadReply.Event.Id)
+	require.True(t, exists)
 
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{ActorID: user.Id, RoomID: room.Id, Body: "ordinary disabled root"})
 	require.NoError(t, err)
@@ -164,6 +166,10 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 	require.ErrorIs(t, err, ErrRoomThreadingPolicy)
 	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
 		ActorID: user.Id, RoomID: room.Id, Body: "forbidden thread", CreateThread: true,
+	})
+	require.ErrorIs(t, err, ErrRoomThreadingPolicy)
+	_, err = chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "forbidden reply to echo", InReplyTo: echoID,
 	})
 	require.ErrorIs(t, err, ErrRoomThreadingPolicy)
 	require.ErrorIs(t, chatto.Messages().SendTypingIndicator(ctx, TypingIndicatorInput{
