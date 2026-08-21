@@ -368,6 +368,7 @@
       "username": "用户名",
       "username_hint": "机器人用户名必须以 _bot 结尾。",
       "display_name": "显示名称",
+      "owner": "所有者",
       "api_key_title": "保存此 API 密钥",
       "api_key_warning": "该键仅显示一次。在关闭此窗口之前将其存储在安全的地方。",
       "key_created": "API 密钥已创建",

@@ -2,10 +2,13 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { page } from '$app/state';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
   import { createQuery } from '@tanstack/svelte-query';
   import { createBotAPI, type Bot } from '$lib/api-client/bots';
+  import { createUserAPI } from '$lib/api-client/users';
   import { Panel } from '$lib/components/admin';
   import { UserPermissionsMatrix } from '$lib/components/rbac';
+  import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
   import { queryClient } from '$lib/query/client';
@@ -48,6 +51,24 @@
   );
 
   const bot = $derived(botQuery.data ?? null);
+  const ownerQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      const ownerUserId = bot?.ownerUserId ?? '';
+      return {
+        queryKey: [
+          ...settingsQueryKeys.bot(serverId, connection, botId),
+          'owner',
+          ownerUserId
+        ],
+        queryFn: () => connection.getAPI(createUserAPI).batchGetUsers([ownerUserId]),
+        enabled: supportsBots && !!ownerUserId
+      };
+    },
+    () => queryClient
+  );
+  const owner = $derived(ownerQuery.data?.[0] ?? null);
   const targetKey = $derived(
     `${serverScope.serverId}:${serverScope.connection.queryScope}:${botId}`
   );
@@ -236,10 +257,25 @@
             {m('common.delete')}
           </Button>
         {/snippet}
-        <dl class="grid gap-4 text-sm sm:grid-cols-3">
+        <dl class="grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <dt class="text-muted">{m('admin.members.user_id')}</dt>
-            <dd class="mt-1 font-mono">{bot.id}</dd>
+            <dd class="mt-1 font-mono text-xs break-all">{bot.id}</dd>
+          </div>
+          <div>
+            <dt class="text-muted">{m('settings.bots.owner')}</dt>
+            <dd class="mt-1">
+              {#if owner}
+                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+              {:else if ownerQuery.isPending}
+                <span
+                  class="skeleton block h-8 w-32 rounded-md"
+                  aria-label={m('common.loading')}
+                ></span>
+              {:else}
+                <span class="text-muted">{m('common.unknown')}</span>
+              {/if}
+            </dd>
           </div>
           <div>
             <dt class="text-muted">{m('settings.bots.key_created')}</dt>

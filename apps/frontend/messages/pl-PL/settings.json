@@ -368,6 +368,7 @@
       "username": "Nazwa użytkownika",
       "username_hint": "Nazwy użytkowników botów muszą kończyć się na _bot.",
       "display_name": "Nazwa wyświetlana",
+      "owner": "Właściciel",
       "api_key_title": "Zapisz ten klucz API",
       "api_key_warning": "Ten klucz jest wyświetlany tylko raz. Przed zamknięciem tego okna przechowuj go w bezpiecznym miejscu.",
       "key_created": "Utworzono klucz API",

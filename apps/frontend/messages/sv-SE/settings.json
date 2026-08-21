@@ -368,6 +368,7 @@
       "username": "Användarnamn",
       "username_hint": "Botanvändarnamn måste sluta på _bot.",
       "display_name": "Visningsnamn",
+      "owner": "Ägare",
       "api_key_title": "Spara denna API-nyckel",
       "api_key_warning": "Denna nyckel visas bara en gång. Förvara den på ett säkert ställe innan du stänger det här fönstret.",
       "key_created": "API-nyckel skapad",

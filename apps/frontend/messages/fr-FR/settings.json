@@ -368,6 +368,7 @@
       "username": "Nom d'utilisateur",
       "username_hint": "Les noms d'utilisateur des robots doivent se terminer par _bot.",
       "display_name": "Nom d'affichage",
+      "owner": "Propriétaire",
       "api_key_title": "Enregistrer cette clé API",
       "api_key_warning": "Cette clé n'est affichée qu'une seule fois. Conservez-le dans un endroit sécurisé avant de fermer cette fenêtre.",
       "key_created": "Clé API créée",

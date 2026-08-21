@@ -368,6 +368,7 @@
       "username": "Benutzername",
       "username_hint": "Bot-Benutzernamen müssen auf _bot enden.",
       "display_name": "Anzeigename",
+      "owner": "Owner",
       "api_key_title": "Diesen API-Schlüssel speichern",
       "api_key_warning": "Dieser Schlüssel wird nur einmal angezeigt. Speichere ihn an einem sicheren Ort, bevor du dieses Fenster schließt.",
       "key_created": "API-Schlüssel erstellt",

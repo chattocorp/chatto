@@ -368,6 +368,7 @@
       "username": "Gebruikersnaam",
       "username_hint": "Bot-gebruikersnamen moeten eindigen op _bot.",
       "display_name": "Weergavenaam",
+      "owner": "Eigenaar",
       "api_key_title": "Bewaar deze API-sleutel",
       "api_key_warning": "Deze sleutel wordt slechts één keer weergegeven. Bewaar het op een veilige plek voordat u dit venster sluit.",
       "key_created": "API-sleutel gemaakt",

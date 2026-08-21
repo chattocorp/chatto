@@ -8,6 +8,8 @@ ContextMenu, which handles both modes automatically.
 **Props:**
 - `user` - The user to display (must include id, login, displayName, presenceStatus)
 - `anchorRect` - Bounding rect of the trigger element (used for desktop positioning)
+- `position` - Viewport point used by right-click and long-press triggers
+- `presentation` - Optional floating/sheet presentation selected by the trigger
 - `canSendMessage` - Whether to show the "Send Message" button
 - `onSendMessage` - Callback when "Send Message" is clicked
 - `canBanFromRoom` - Whether to show the room-ban action
@@ -32,6 +34,8 @@ ContextMenu, which handles both modes automatically.
   let {
     user,
     anchorRect,
+    position,
+    presentation = 'auto',
     canSendMessage = false,
     canBanFromRoom = false,
     banningFromRoom = false,
@@ -48,6 +52,8 @@ ContextMenu, which handles both modes automatically.
       customStatus?: CustomUserStatus | null;
     };
     anchorRect?: { top: number; bottom: number; left: number } | null;
+    position?: { x: number; y: number };
+    presentation?: 'auto' | 'floating' | 'sheet';
     canSendMessage?: boolean;
     canBanFromRoom?: boolean;
     banningFromRoom?: boolean;
@@ -70,7 +76,9 @@ ContextMenu, which handles both modes automatically.
 </script>
 
 <ContextMenu
+  {position}
   anchor={anchorRect}
+  {presentation}
   role="dialog"
   ariaLabel={m('chat.user_menu.profile')}
   class="w-64"

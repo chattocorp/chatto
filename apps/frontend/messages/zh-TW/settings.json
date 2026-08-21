@@ -368,6 +368,7 @@
       "username": "使用者名稱",
       "username_hint": "機器人使用者名稱必須以 _bot 結尾。",
       "display_name": "顯示名稱",
+      "owner": "擁有者",
       "api_key_title": "儲存此 API 金鑰",
       "api_key_warning": "該鍵僅顯示一次。在關閉此視窗之前將其儲存在安全的地方。",
       "key_created": "API 金鑰已建立",

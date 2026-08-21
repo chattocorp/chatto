@@ -368,6 +368,7 @@
       "username": "Uživatelské jméno",
       "username_hint": "Uživatelská jména robotů musí končit _bot.",
       "display_name": "Zobrazovaný název",
+      "owner": "Vlastník",
       "api_key_title": "Uložit tento klíč API",
       "api_key_warning": "Tento klíč se zobrazuje pouze jednou. Než toto okno zavřete, uložte jej na bezpečném místě.",
       "key_created": "Vytvořen klíč API",

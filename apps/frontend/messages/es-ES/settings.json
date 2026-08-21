@@ -368,6 +368,7 @@
       "username": "Nombre de usuario",
       "username_hint": "Los nombres de usuario de los bots deben terminar en _bot.",
       "display_name": "Nombre para mostrar",
+      "owner": "Propietario",
       "api_key_title": "Guardar esta clave API",
       "api_key_warning": "Esta clave se muestra solo una vez. Guárdelo en un lugar seguro antes de cerrar esta ventana.",
       "key_created": "Clave API creada",

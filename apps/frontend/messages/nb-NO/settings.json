@@ -368,6 +368,7 @@
       "username": "Brukernavn",
       "username_hint": "Botebrukernavn må ende på _bot.",
       "display_name": "Visningsnavn",
+      "owner": "Eier",
       "api_key_title": "Lagre denne API-nøkkelen",
       "api_key_warning": "Denne nøkkelen vises bare én gang. Oppbevar det et sikkert sted før du lukker dette vinduet.",
       "key_created": "API-nøkkel opprettet",

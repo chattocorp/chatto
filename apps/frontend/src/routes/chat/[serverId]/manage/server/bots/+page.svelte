@@ -1,10 +1,13 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { createInfiniteQuery } from '@tanstack/svelte-query';
+  import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+  import { createInfiniteQuery, createQuery } from '@tanstack/svelte-query';
   import { createBotAPI } from '$lib/api-client/bots';
+  import { createUserAPI } from '$lib/api-client/users';
   import { viewerResponseToState } from '$lib/api-client/viewer';
   import { DataTable, Panel } from '$lib/components/admin';
+  import UserIdentity from '$lib/components/users/UserIdentity.svelte';
   import { useDebounce } from '$lib/hooks/useDebounce.svelte';
   import { m } from '$lib/i18n/messages';
   import { serverIdToSegment } from '$lib/navigation';
@@ -70,6 +73,34 @@
     );
   });
   const totalCount = $derived(botsQuery.data?.pages.at(-1)?.totalCount ?? bots.length);
+  const ownerUserIds = $derived.by(() => {
+    const ids = new SvelteSet<string>();
+    for (const bot of bots) ids.add(bot.ownerUserId);
+    return [...ids];
+  });
+  const ownersQuery = createQuery(
+    () => {
+      const serverId = serverScope.serverId;
+      const connection = serverScope.connection;
+      const userIds = ownerUserIds;
+      return {
+        queryKey: [...settingsQueryKeys.botsRoot(serverId, connection), 'owners', userIds],
+        queryFn: async () => {
+          const api = connection.getAPI(createUserAPI);
+          const batches = [];
+          for (let offset = 0; offset < userIds.length; offset += 100) {
+            batches.push(api.batchGetUsers(userIds.slice(offset, offset + 100)));
+          }
+          return (await Promise.all(batches)).flat();
+        },
+        enabled: supportsBots && userIds.length > 0
+      };
+    },
+    () => queryClient
+  );
+  const ownersById = $derived(
+    new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner]))
+  );
 
   let createVisible = $state(false);
   let createLogin = $state('');
@@ -207,7 +238,7 @@
         {/snippet}
         <DataTable
           items={bots}
-          columns={2}
+          columns={3}
           emptyMessage={botsQuery.isPending
             ? m('settings.bots.loading')
             : m('settings.bots.empty_body')}
@@ -226,20 +257,36 @@
           {#snippet header()}
             <th class="table-header-cell">{m('settings.bots.singular')}</th>
             <th class="table-header-cell">{m('settings.bots.username')}</th>
+            <th class="table-header-cell">{m('settings.bots.owner')}</th>
           {/snippet}
           {#snippet row(bot)}
+            {@const owner = ownersById.get(bot.ownerUserId)}
             <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <span
-                  class="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-surface-emphasized text-neutral-action"
-                  aria-hidden="true"
-                >
-                  <span class="iconify icon-[uil--robot] text-lg"></span>
-                </span>
-                <span class="font-medium text-text-top">{bot.displayName}</span>
-              </div>
+              <UserIdentity
+                user={{
+                  id: bot.id,
+                  login: bot.login,
+                  displayName: bot.displayName,
+                  avatarUrl: bot.avatarUrl,
+                  deleted: false,
+                  isBot: true,
+                  presenceStatus: PresenceStatus.OFFLINE
+                }}
+              />
             </td>
             <td class="px-4 py-3 text-muted">@{bot.login}</td>
+            <td class="px-4 py-3">
+              {#if owner}
+                <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
+              {:else if ownersQuery.isPending}
+                <span
+                  class="skeleton block h-8 w-32 rounded-md"
+                  aria-label={m('common.loading')}
+                ></span>
+              {:else}
+                <span class="text-muted">{m('common.unknown')}</span>
+              {/if}
+            </td>
           {/snippet}
         </DataTable>
       </Panel>

@@ -368,6 +368,7 @@
       "username": "Lietotājvārds",
       "username_hint": "Bot lietotājvārdiem jābeidzas ar _bot.",
       "display_name": "Parādītais nosaukums",
+      "owner": "Īpašnieks",
       "api_key_title": "Saglabājiet šo API atslēgu",
       "api_key_warning": "Šī atslēga tiek rādīta tikai vienu reizi. Pirms šī loga aizvēršanas glabājiet to drošā vietā.",
       "key_created": "API atslēga ir izveidota",

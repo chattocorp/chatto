@@ -368,6 +368,7 @@
       "username": "Kullanıcı adı",
       "username_hint": "Bot kullanıcı adları _bot ile bitmelidir.",
       "display_name": "Görünen Ad",
+      "owner": "Sahibi",
       "api_key_title": "Bu API Anahtarını Kaydet",
       "api_key_warning": "Bu anahtar yalnızca bir kez gösterilir. Bu pencereyi kapatmadan önce onu güvenli bir yerde saklayın.",
       "key_created": "API anahtarı oluşturuldu",

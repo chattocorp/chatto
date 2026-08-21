@@ -368,6 +368,7 @@
       "username": "Kasutajanimi",
       "username_hint": "Boti kasutajanimed peavad lõppema numbriga _bot.",
       "display_name": "Kuvatav nimi",
+      "owner": "Omanik",
       "api_key_title": "Salvesta see API võti",
       "api_key_warning": "Seda klahvi näidatakse ainult üks kord. Enne selle akna sulgemist hoidke seda kuskil turvalises kohas.",
       "key_created": "API-võti on loodud",
