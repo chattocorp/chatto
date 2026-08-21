@@ -182,6 +182,9 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 		}
 		if r.URL.Path == "/oauth/authorize" {
 			if err := validateAuthorizeRequest(r); err != nil {
+				if s.redirectAuthorizationError(w, r, err) {
+					return
+				}
 				w.Header().Set("Cache-Control", "no-store")
 				http.Error(w, "invalid authorization request", http.StatusBadRequest)
 				return
@@ -214,6 +217,51 @@ func (s *Service) wrap(next http.Handler) http.Handler {
 		}
 		next.ServeHTTP(w, r)
 	})
+}
+
+type authorizationRequestError struct {
+	code         string
+	redirectable bool
+}
+
+func (e *authorizationRequestError) Error() string { return "invalid authorization request" }
+
+// redirectAuthorizationError returns a protocol error only after the exact
+// client and redirect URI have been resolved. Unsafe or ambiguous requests stay
+// local so an attacker cannot turn Authling into an open redirector.
+func (s *Service) redirectAuthorizationError(w http.ResponseWriter, r *http.Request, requestErr *authorizationRequestError) bool {
+	if !requestErr.redirectable || s.storage == nil {
+		return false
+	}
+	query := r.URL.Query()
+	client, err := s.storage.GetClientByClientID(r.Context(), query.Get("client_id"))
+	if err != nil {
+		return false
+	}
+	redirectURI := query.Get("redirect_uri")
+	validRedirect := false
+	for _, candidate := range client.RedirectURIs() {
+		if candidate == redirectURI {
+			validRedirect = true
+			break
+		}
+	}
+	if !validRedirect {
+		return false
+	}
+	target, err := url.Parse(redirectURI)
+	if err != nil || target.Scheme == "" || target.Host == "" || target.Fragment != "" {
+		return false
+	}
+	parameters := target.Query()
+	parameters.Set("error", requestErr.code)
+	if state := query.Get("state"); state != "" {
+		parameters.Set("state", state)
+	}
+	target.RawQuery = parameters.Encode()
+	w.Header().Set("Cache-Control", "no-store")
+	http.Redirect(w, r, target.String(), http.StatusFound)
+	return true
 }
 
 // jwksResponseWriter decides cacheability when the downstream status becomes
@@ -285,38 +333,55 @@ func (s *Service) serveDiscovery(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-func validateAuthorizeRequest(r *http.Request) error {
+func validateAuthorizeRequest(r *http.Request) *authorizationRequestError {
+	localError := func() *authorizationRequestError {
+		return &authorizationRequestError{code: "invalid_request"}
+	}
+	clientError := func(code string) *authorizationRequestError {
+		return &authorizationRequestError{code: code, redirectable: true}
+	}
 	if r.Method != http.MethodGet {
-		return fmt.Errorf("authorization requires GET")
+		return localError()
 	}
 	if len(r.URL.RawQuery) > 8<<10 {
-		return fmt.Errorf("authorization query is too large")
+		return localError()
 	}
 	query := r.URL.Query()
-	for _, name := range []string{"client_id", "redirect_uri", "response_type", "scope", "code_challenge", "code_challenge_method", "state", "nonce", "prompt"} {
+	for _, name := range []string{"client_id", "redirect_uri", "response_type", "response_mode", "scope", "code_challenge", "code_challenge_method", "state", "nonce", "prompt"} {
 		if len(query[name]) > 1 {
-			return fmt.Errorf("duplicate parameter")
+			return localError()
 		}
 	}
-	if query.Get("client_id") == "" || query.Get("redirect_uri") == "" || query.Get("response_type") != string(liboidc.ResponseTypeCode) {
-		return fmt.Errorf("invalid request shape")
+	if query.Get("client_id") == "" || query.Get("redirect_uri") == "" {
+		return localError()
 	}
-	if len(query.Get("client_id")) > 2048 || len(query.Get("redirect_uri")) > 2048 || len(query.Get("state")) > 1024 || len(query.Get("nonce")) > 1024 {
-		return fmt.Errorf("authorization parameter is too large")
+	if len(query.Get("client_id")) > 2048 || len(query.Get("redirect_uri")) > 2048 || len(query.Get("state")) > 1024 {
+		return localError()
+	}
+	// The response mode determines how a protocol error can be returned. An
+	// unsupported value therefore has no safe client redirect representation.
+	if responseMode := query.Get("response_mode"); responseMode != "" && responseMode != string(liboidc.ResponseModeQuery) {
+		return localError()
+	}
+	if query.Get("response_type") != string(liboidc.ResponseTypeCode) {
+		return clientError("unauthorized_client")
 	}
 	if !validAuthorizeScopes(query.Get("scope")) {
-		return fmt.Errorf("unsupported scope")
+		return clientError("invalid_scope")
 	}
 	challenge := query.Get("code_challenge")
 	if !validPKCEValue(challenge) || query.Get("code_challenge_method") != string(liboidc.CodeChallengeMethodS256) {
-		return fmt.Errorf("S256 PKCE required")
+		return clientError("invalid_request")
 	}
 	prompts := strings.Fields(query.Get("prompt"))
 	if len(prompts) > 0 && !(len(prompts) == 1 && prompts[0] == liboidc.PromptConsent) {
-		return fmt.Errorf("unsupported prompt")
+		return clientError("invalid_request")
 	}
-	if query.Get("request") != "" || query.Has("max_age") || (query.Get("response_mode") != "" && query.Get("response_mode") != string(liboidc.ResponseModeQuery)) {
-		return fmt.Errorf("unsupported request mode")
+	if query.Get("request") != "" {
+		return clientError("request_not_supported")
+	}
+	if query.Has("max_age") || len(query.Get("nonce")) > 1024 {
+		return clientError("invalid_request")
 	}
 	return nil
 }

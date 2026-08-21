@@ -246,6 +246,62 @@ func TestAccountSubjectRejectsUnsafeTokens(t *testing.T) {
 	}
 }
 
+func TestDecodeRejectsPartialAccountCreatedCredentialEnvelopes(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*corev1.AccountCreatedEvent)
+	}{
+		{
+			name: "preferred username without credential",
+			mutate: func(event *corev1.AccountCreatedEvent) {
+				event.PreferredUsernameNonce = []byte("nonce")
+				event.PreferredUsernameCiphertext = []byte("ciphertext")
+			},
+		},
+		{
+			name: "partial preferred username",
+			mutate: func(event *corev1.AccountCreatedEvent) {
+				event.CredentialEnvelopeVersion = 1
+				event.UserKeyRef = "key_user"
+				event.CredentialKeyRef = "key_credential"
+				event.EmailNonce = []byte("nonce")
+				event.EmailCiphertext = []byte("ciphertext")
+				event.PasswordVerifierNonce = []byte("nonce")
+				event.PasswordVerifierCiphertext = []byte("ciphertext")
+				event.PreferredUsernameNonce = []byte("nonce")
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			event := accountCreatedEvent("evt_created")
+			test.mutate(event.GetAccountCreated())
+			data, err := proto.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Decode(data); err == nil {
+				t.Fatal("partial account credential envelope was accepted")
+			}
+		})
+	}
+}
+
+func TestAccountCreatedValidationAllowsHistoricalCredentialWithoutPreferredUsername(t *testing.T) {
+	event := accountCreatedEvent("evt_created")
+	credential := event.GetAccountCreated()
+	credential.CredentialEnvelopeVersion = 1
+	credential.UserKeyRef = "key_user"
+	credential.CredentialKeyRef = "key_credential"
+	credential.EmailNonce = []byte("nonce")
+	credential.EmailCiphertext = []byte("ciphertext")
+	credential.PasswordVerifierNonce = []byte("nonce")
+	credential.PasswordVerifierCiphertext = []byte("ciphertext")
+	if _, err := encode(event); err != nil {
+		t.Fatalf("historical credential without preferred username: %v", err)
+	}
+}
+
 func accountCreatedEvent(eventID string) *corev1.Event {
 	return &corev1.Event{
 		Id:        eventID,

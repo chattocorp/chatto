@@ -118,8 +118,9 @@ binary; Node.js is not needed to run the resulting executable.
 Authling publishes discovery at `/.well-known/openid-configuration`. The
 initial profile supports Authorization Code, requires `openid` and S256 PKCE
 for every client, signs ID tokens with RS256, and exposes a minimal UserInfo
-response containing only the account ID as `sub`. It exposes no
-application-data scopes.
+response containing the account ID as `sub` plus non-empty
+`preferred_username` and `name` identity hints. It exposes no application-data
+scopes.
 
 Authling rotates its RS256 signing key automatically every 90 days. A new
 public key is published before use, and the preceding public key remains in

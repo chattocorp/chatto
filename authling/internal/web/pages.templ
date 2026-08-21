@@ -17,6 +17,7 @@ templ layout(title, signedInAs string) {
 			<meta charset="utf-8"/>
 			<meta name="viewport" content="width=device-width, initial-scale=1"/>
 			<meta name="color-scheme" content="light dark"/>
+			<meta name="description" content="Authling is a self-hosted OpenID Connect identity provider."/>
 			<title>{ title }</title>
 			<link rel="stylesheet" href="/assets/app.css"/>
 		</head>
@@ -75,7 +76,7 @@ templ loginPage(message, oidcRequest string) {
 			<button class="button button-primary w-full" type="submit">Sign in</button>
 		</form>
 		<p class="mt-4 text-sm"><a class="text-link" href={ passwordResetURL(oidcRequest) }>Forgot your password?</a></p>
-		<p class="mt-6 text-sm text-slate-500">No account yet? <a class="text-link" href="/signup">Create one</a>.</p>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400">No account yet? <a class="text-link" href="/signup">Create one</a>.</p>
 	}
 }
 
@@ -100,7 +101,7 @@ templ passwordResetPage(message, oidcRequest string) {
 			<label class="block"><span class="font-medium">Email address</span><input class="form-control" type="email" name="email" autocomplete="email" autofocus required/></label>
 			<button class="button button-primary w-full" type="submit">Email me a reset code</button>
 		</form>
-		<p class="mt-6 text-sm text-slate-500"><a class="text-link" href="/login">Return to sign in</a>.</p>
+		<p class="mt-6 text-sm text-slate-500 dark:text-slate-400"><a class="text-link" href="/login">Return to sign in</a>.</p>
 	}
 }
 
@@ -387,7 +388,7 @@ templ profilePage(profile accounts.Profile, message, signedInAs string) {
 			<p role="alert" class="notice notice-error">{ message }</p>
 		}
 		<form class="mt-8 space-y-5" method="post" action="/account/profile">
-			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-slate-500">This does not have to be unique.</span></label>
+			<label class="block"><span class="font-medium">Preferred username</span><input class="form-control" type="text" name="preferred_username" autocomplete="username" minlength="2" maxlength="64" value={ profile.PreferredUsername } autofocus required/><span class="mt-2 block text-sm text-slate-500 dark:text-slate-400">This does not have to be unique.</span></label>
 			<label class="block"><span class="font-medium">Full name</span><input class="form-control" type="text" name="full_name" autocomplete="name" maxlength="128" value={ profile.FullName }/></label>
 			<button class="button button-primary w-full" type="submit">Save profile</button>
 		</form>

@@ -41,3 +41,4 @@ USER authling
 WORKDIR /data
 EXPOSE 8080
 ENTRYPOINT ["/authling"]
+CMD ["run"]
