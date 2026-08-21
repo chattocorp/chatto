@@ -200,8 +200,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024,
         supportsFeature: (feature: string) =>
-          (feature === 'messageSearch' && mocks.messageSearchSupported) ||
-          feature === 'threadCreation'
+          feature === 'messageSearch' && mocks.messageSearchSupported
       },
       messageSearch: {
         statusLoading: false,

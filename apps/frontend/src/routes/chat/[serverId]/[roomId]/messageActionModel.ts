@@ -16,6 +16,7 @@ export type MessageActionModel = {
   isPinned: boolean;
   replyInRoomLabel: string;
   replyThreadLabel: string;
+  threadReplyFirst?: boolean;
   replyInRoom?: () => void;
   replyThread?: () => void;
   hasReacted: (emoji: string) => boolean;
@@ -41,7 +42,8 @@ export function buildMessageActionModel({
   replyInRoomLabel,
   replyThreadLabel,
   replyInRoom,
-  replyThread
+  replyThread,
+  threadReplyFirst = false
 }: {
   actions: MessageActions;
   params: MessageActionParams;
@@ -56,6 +58,7 @@ export function buildMessageActionModel({
   replyThreadLabel: string;
   replyInRoom?: () => void;
   replyThread?: () => void;
+  threadReplyFirst?: boolean;
 }): MessageActionModel {
   const viewerReactions = new Set(
     reactions
@@ -76,6 +79,7 @@ export function buildMessageActionModel({
     replyThreadLabel,
     replyInRoom,
     replyThread,
+    threadReplyFirst,
     hasReacted,
     toggleReaction: (emoji) => actions.toggleReaction(params, emoji, hasReacted(emoji)),
     edit: () => actions.startEdit(params),

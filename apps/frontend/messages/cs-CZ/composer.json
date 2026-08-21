@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Pomalý režim: další zprávu můžete poslat za {countdown}.",
     "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",
     "slow_mode_rejected": "Je zapnutý pomalý režim. Před odesláním další zprávy počkejte.",
+    "threads_encouraged": "V této místnosti se doporučuje používat vlákna.",
     "edit_failed": "Zprávu se nepodařilo upravit",
     "upload": {
       "preparing": "Příprava…",

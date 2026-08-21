@@ -51,6 +51,7 @@
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
   import { buildMessageActionModel } from './messageActionModel';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -58,7 +59,8 @@
     roomId,
     permalinkThreadRootEventId = null,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
     compact?: boolean;
@@ -66,6 +68,7 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
   const connection = () => serverScope.connection;
@@ -240,22 +243,38 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const replyInRoomActionLabel = $derived(
-    isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
+    isEcho
+      ? m('room.message.actions.reply_thread')
+      : isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED
+        ? m('room.message.actions.reply_room')
+        : m('room.message.actions.reply')
   );
   const replyThreadActionLabel = $derived(
-    isEcho ? m('room.message.actions.open_thread') : m('room.message.actions.reply_thread')
+    isEcho || (isRootMessage && threadingMode === RoomThreadingMode.DISABLED && hasThread)
+      ? m('room.message.actions.open_thread')
+      : m('room.message.actions.reply_thread')
   );
   const canUseReplyAction = $derived(
     isEcho
-      ? roomPermissions.canPostInThread &&
+      ? threadingMode !== RoomThreadingMode.DISABLED &&
+          roomPermissions.canPostInThread &&
           !!onOpenThread &&
           !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostMessage
+      : !(threadingMode === RoomThreadingMode.DISABLED && permalinkThreadRootEventId) &&
+          roomPermissions.canPostMessage &&
+          !(isRootMessage && threadingMode === RoomThreadingMode.REQUIRED)
   );
   const canUseThreadAction = $derived(
     isEcho
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostInThread && !!onOpenThread
+      : threadingMode === RoomThreadingMode.DISABLED
+        ? !permalinkThreadRootEventId && isRootMessage && hasThread && !!onOpenThread
+        : roomPermissions.canPostInThread && !!onOpenThread
+  );
+  const threadReplyFirst = $derived(
+    isRootMessage &&
+      (threadingMode === RoomThreadingMode.REQUIRED ||
+        threadingMode === RoomThreadingMode.ENCOURAGED)
   );
   const actionModel = $derived(
     buildMessageActionModel({
@@ -293,7 +312,8 @@
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
       replyInRoom: canUseReplyAction ? handleReplyInRoom : undefined,
-      replyThread: canUseThreadAction ? handleOpenThread : undefined
+      replyThread: canUseThreadAction ? handleOpenThread : undefined,
+      threadReplyFirst
     })
   );
 

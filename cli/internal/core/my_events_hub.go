@@ -893,7 +893,8 @@ func isRoomDirectoryProjectionEvent(event *corev1.Event) bool {
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
 		*corev1.Event_RoomUniversalChanged,
-		*corev1.Event_RoomSlowModeChanged:
+		*corev1.Event_RoomSlowModeChanged,
+		*corev1.Event_RoomThreadingModeChanged:
 		return true
 	default:
 		return false

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -71,7 +72,8 @@ describe('CreateRoom', () => {
       name: 'general',
       description: null,
       groupId: 'group-1',
-      universal: false
+      universal: false,
+      threadingMode: RoomThreadingMode.ENABLED
     });
     expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
   });
@@ -92,7 +94,8 @@ describe('CreateRoom', () => {
       name: 'general',
       description: null,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      threadingMode: RoomThreadingMode.ENABLED
     });
   });
 
@@ -109,8 +112,27 @@ describe('CreateRoom', () => {
         name: 'Team chat 💬 / Küche!',
         description: null,
         groupId: 'group-1',
-        universal: false
+        universal: false,
+        threadingMode: RoomThreadingMode.ENABLED
       });
+    });
+  });
+
+  it('passes the selected threading mode to ConnectRPC', async () => {
+    const { container } = render(CreateRoom, {
+      groupId: 'group-1',
+      onroomcreated: mocks.onroomcreated
+    });
+
+    const select = q(container, '#room-threading-mode') as HTMLSelectElement;
+    select.value = String(RoomThreadingMode.REQUIRED);
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+    await fillNameAndSubmit(container);
+
+    await vi.waitFor(() => {
+      expect(mocks.createRoom).toHaveBeenCalledWith(
+        expect.objectContaining({ threadingMode: RoomThreadingMode.REQUIRED })
+      );
     });
   });
 

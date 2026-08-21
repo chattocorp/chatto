@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Langsamer Modus: erneut senden in {countdown}.",
     "slow_mode_bypassed": "Langsamer Modus: {interval} (du bist ausgenommen).",
     "slow_mode_rejected": "Der langsame Modus ist aktiv. Warte, bevor du eine weitere Nachricht sendest.",
+    "threads_encouraged": "In diesem Raum werden Antworten in Threads empfohlen.",
     "edit_failed": "Nachricht konnte nicht bearbeitet werden",
     "upload": {
       "preparing": "Wird vorbereitet…",

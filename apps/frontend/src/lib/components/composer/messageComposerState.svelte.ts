@@ -61,6 +61,7 @@ export type MessageComposerProps = {
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
   showCreateThread?: boolean;
+  threadsEncouraged?: boolean;
 };
 
 type MessageComposerDependencies = {

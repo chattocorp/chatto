@@ -28,6 +28,7 @@
     "slow_mode_waiting": "الوضع البطيء: يمكنك الإرسال مجددًا بعد {countdown}.",
     "slow_mode_bypassed": "الوضع البطيء: {interval} (أنت مُعفى).",
     "slow_mode_rejected": "الوضع البطيء مفعّل. انتظر قبل إرسال رسالة أخرى.",
+    "threads_encouraged": "يُنصح باستخدام سلاسل المحادثات في هذه الغرفة.",
     "edit_failed": "فشل في تحرير الرسالة",
     "upload": {
       "preparing": "جارٍ التحضير...",

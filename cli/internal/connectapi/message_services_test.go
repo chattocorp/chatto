@@ -635,6 +635,65 @@ func TestMessageServiceCreateMessageReturnsCreatedEmptyThread(t *testing.T) {
 	}
 }
 
+func TestMessageServiceEnforcesRoomThreadingMode(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("message-threading-mode")
+	ctx := withCaller(env.ctx, env.viewer)
+
+	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED); err != nil {
+		t.Fatalf("SetRoomThreadingMode required: %v", err)
+	}
+	rootResponse, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: room.Id,
+		Body:   "required root",
+	}))
+	if err != nil {
+		t.Fatalf("CreateMessage required root: %v", err)
+	}
+	root := rootResponse.Msg.GetMessage()
+	if root.GetThread() == nil {
+		t.Fatalf("required root thread = nil, message = %+v", root)
+	}
+
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:    room.Id,
+		Body:      "flat root reply",
+		InReplyTo: root.GetId(),
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("flat required reply code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	}
+
+	if _, err := env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:            room.Id,
+		Body:              "threaded root reply",
+		InReplyTo:         root.GetId(),
+		ThreadRootEventId: root.GetId(),
+	})); err != nil {
+		t.Fatalf("CreateMessage required thread reply: %v", err)
+	}
+
+	if _, err := env.core.SetRoomThreadingMode(env.ctx, core.SystemActorID, core.KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED); err != nil {
+		t.Fatalf("SetRoomThreadingMode disabled: %v", err)
+	}
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:       room.Id,
+		Body:         "forbidden new thread",
+		CreateThread: true,
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("disabled thread creation code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	}
+	_, err = env.messages.CreateMessage(ctx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId:            room.Id,
+		Body:              "forbidden thread reply",
+		ThreadRootEventId: root.GetId(),
+	}))
+	if connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("disabled thread reply code = %v, want %v", connect.CodeOf(err), connect.CodeFailedPrecondition)
+	}
+}
+
 func TestMessageServiceCreateMessageRequiresThreadPostPermissionToCreateThread(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("thread-root-permission")

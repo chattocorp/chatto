@@ -1,11 +1,13 @@
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import { normalizeRoomName } from '$lib/utils/roomName';
+import type { RoomThreadingMode } from '$lib/roomThreading';
 
 export type RoomSettingsValues = {
   name: string;
   description: string;
   universal: boolean;
   slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
 };
 
 type RoomUpdateInput = Parameters<RoomCommandAPI['updateRoom']>[0];
@@ -25,6 +27,9 @@ export function buildRoomSettingsUpdate(
   if (current.universal !== original.universal) input.universal = current.universal;
   if (current.slowModeSeconds !== original.slowModeSeconds) {
     input.slowModeSeconds = current.slowModeSeconds;
+  }
+  if (current.threadingMode !== original.threadingMode) {
+    input.threadingMode = current.threadingMode;
   }
 
   return input;

@@ -28,6 +28,7 @@
     "slow_mode_waiting": "低速モード：あと{countdown}で再送信できます。",
     "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",
     "slow_mode_rejected": "低速モードが有効です。次のメッセージを送信するまでお待ちください。",
+    "threads_encouraged": "このルームではスレッドの使用が推奨されています。",
     "edit_failed": "メッセージの編集に失敗しました",
     "upload": {
       "preparing": "準備中…",

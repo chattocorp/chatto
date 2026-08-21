@@ -228,6 +228,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.room.{roomId}.room_unarchived`                          | `RoomUnarchivedEvent`                               |
 | `evt.room.{roomId}.room_universal_changed`                   | `RoomUniversalChangedEvent`                         |
 | `evt.room.{roomId}.room_slow_mode_changed`                   | `RoomSlowModeChangedEvent`                          |
+| `evt.room.{roomId}.room_threading_mode_changed`              | `RoomThreadingModeChangedEvent`                     |
 | `evt.room.{roomId}.room_deleted`                             | `RoomDeletedEvent`                                  |
 | `evt.room.{roomId}.user_joined`                              | `UserJoinedRoomEvent`                               |
 | `evt.room.{roomId}.user_left`                                | `UserLeftRoomEvent`                                 |

@@ -15,7 +15,8 @@ import type {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, type RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode } from '$lib/roomThreading';
 
 export type RoomDirectoryAPIConfig = ConnectAPIConfig;
 
@@ -27,6 +28,7 @@ export type DirectoryRoomSummary = {
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
@@ -197,6 +199,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     archived: entry.room.archived,
     isUniversal: entry.room.universal,
     slowModeSeconds: entry.room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(entry.room.kind, entry.room.threadingMode),
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,

@@ -46,6 +46,61 @@ proto3.util.setEnumType(RoomKind, "chatto.api.v1.RoomKind", [
 ]);
 
 /**
+ * Policy governing thread creation and reply placement in a channel room.
+ * Direct-message rooms do not support threads and use UNSPECIFIED.
+ *
+ * @generated from enum chatto.api.v1.RoomThreadingMode
+ */
+export enum RoomThreadingMode {
+  /**
+   * No mode was supplied. CreateRoom treats this as ENABLED so older stored
+   * rooms and omitted request fields preserve Chatto's default behavior.
+   *
+   * @generated from enum value: ROOM_THREADING_MODE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * Every new root message establishes a thread, and replies to root messages
+   * must be posted in that root's thread.
+   *
+   * @generated from enum value: ROOM_THREADING_MODE_REQUIRED = 1;
+   */
+  REQUIRED = 1,
+
+  /**
+   * Clients should steer replies into threads, but the server accepts both
+   * threaded and ordinary in-room replies.
+   *
+   * @generated from enum value: ROOM_THREADING_MODE_ENCOURAGED = 2;
+   */
+  ENCOURAGED = 2,
+
+  /**
+   * Threads are available and clients may freely choose whether to use them.
+   *
+   * @generated from enum value: ROOM_THREADING_MODE_ENABLED = 3;
+   */
+  ENABLED = 3,
+
+  /**
+   * New threads and thread replies are rejected. Existing threads remain
+   * readable and ordinary in-room reply attribution remains available.
+   *
+   * @generated from enum value: ROOM_THREADING_MODE_DISABLED = 4;
+   */
+  DISABLED = 4,
+}
+// Retrieve enum metadata with: proto3.getEnumType(RoomThreadingMode)
+proto3.util.setEnumType(RoomThreadingMode, "chatto.api.v1.RoomThreadingMode", [
+  { no: 0, name: "ROOM_THREADING_MODE_UNSPECIFIED" },
+  { no: 1, name: "ROOM_THREADING_MODE_REQUIRED" },
+  { no: 2, name: "ROOM_THREADING_MODE_ENCOURAGED" },
+  { no: 3, name: "ROOM_THREADING_MODE_ENABLED" },
+  { no: 4, name: "ROOM_THREADING_MODE_DISABLED" },
+]);
+
+/**
  * Public room metadata returned by room commands.
  *
  * @generated from message chatto.api.v1.Room
@@ -109,6 +164,14 @@ export class Room extends Message<Room> {
    */
   slowModeSeconds = 0;
 
+  /**
+   * Threading policy for this channel room. Direct-message rooms report
+   * UNSPECIFIED because they do not support threads.
+   *
+   * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 9;
+   */
+  threadingMode = RoomThreadingMode.UNSPECIFIED;
+
   constructor(data?: PartialMessage<Room>) {
     super();
     proto3.util.initPartial(data, this);
@@ -125,6 +188,7 @@ export class Room extends Message<Room> {
     { no: 6, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 7, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 8, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */ },
+    { no: 9, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): Room {
@@ -239,6 +303,13 @@ export class CreateRoomRequest extends Message<CreateRoomRequest> {
    */
   universal = false;
 
+  /**
+   * Threading policy for the new channel. UNSPECIFIED selects ENABLED.
+   *
+   * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 5;
+   */
+  threadingMode = RoomThreadingMode.UNSPECIFIED;
+
   constructor(data?: PartialMessage<CreateRoomRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -251,6 +322,7 @@ export class CreateRoomRequest extends Message<CreateRoomRequest> {
     { no: 2, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "group_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 4, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): CreateRoomRequest {
@@ -357,6 +429,14 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
    */
   slowModeSeconds?: number;
 
+  /**
+   * New threading policy. Direct-message rooms cannot set this field, and an
+   * explicitly supplied UNSPECIFIED or unknown value is rejected.
+   *
+   * @generated from field: optional chatto.api.v1.RoomThreadingMode threading_mode = 6;
+   */
+  threadingMode?: RoomThreadingMode;
+
   constructor(data?: PartialMessage<UpdateRoomRequest>) {
     super();
     proto3.util.initPartial(data, this);
@@ -370,6 +450,7 @@ export class UpdateRoomRequest extends Message<UpdateRoomRequest> {
     { no: 3, name: "description", kind: "scalar", T: 9 /* ScalarType.STRING */, opt: true },
     { no: 4, name: "universal", kind: "scalar", T: 8 /* ScalarType.BOOL */, opt: true },
     { no: 5, name: "slow_mode_seconds", kind: "scalar", T: 13 /* ScalarType.UINT32 */, opt: true },
+    { no: 6, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UpdateRoomRequest {

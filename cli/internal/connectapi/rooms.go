@@ -3,6 +3,7 @@ package connectapi
 import (
 	"context"
 	"errors"
+	"fmt"
 	"time"
 
 	"connectrpc.com/connect"
@@ -28,12 +29,17 @@ func (s *roomService) CreateRoom(ctx context.Context, req *connect.Request[apiv1
 		return nil, err
 	}
 
+	threadingMode, err := coreRoomThreadingMode(req.Msg.GetThreadingMode(), true)
+	if err != nil {
+		return nil, connectError(err)
+	}
 	room, err := s.api.core.RoomCommands().CreateRoom(ctx, core.RoomCreateInput{
-		ActorID:     caller.UserID,
-		GroupID:     req.Msg.GroupId,
-		Name:        req.Msg.Name,
-		Description: req.Msg.Description,
-		Universal:   req.Msg.Universal,
+		ActorID:       caller.UserID,
+		GroupID:       req.Msg.GroupId,
+		Name:          req.Msg.Name,
+		Description:   req.Msg.Description,
+		Universal:     req.Msg.Universal,
+		ThreadingMode: threadingMode,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -47,6 +53,14 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		return nil, err
 	}
 
+	var threadingMode *corev1.RoomThreadingMode
+	if req.Msg.ThreadingMode != nil {
+		value, conversionErr := coreRoomThreadingMode(*req.Msg.ThreadingMode, false)
+		if conversionErr != nil {
+			return nil, connectError(conversionErr)
+		}
+		threadingMode = &value
+	}
 	room, err := s.api.core.RoomCommands().UpdateRoom(ctx, core.RoomUpdateInput{
 		ActorID:         caller.UserID,
 		RoomID:          req.Msg.RoomId,
@@ -54,6 +68,7 @@ func (s *roomService) UpdateRoom(ctx context.Context, req *connect.Request[apiv1
 		Description:     req.Msg.Description,
 		Universal:       req.Msg.Universal,
 		SlowModeSeconds: req.Msg.SlowModeSeconds,
+		ThreadingMode:   threadingMode,
 	})
 	if err != nil {
 		return nil, connectError(err)
@@ -355,6 +370,40 @@ func apiRoom(room *corev1.Room) *apiv1.Room {
 		GroupId:         room.GroupId,
 		Universal:       room.Universal,
 		SlowModeSeconds: room.SlowModeSeconds,
+		ThreadingMode:   apiRoomThreadingMode(room),
+	}
+}
+
+func coreRoomThreadingMode(mode apiv1.RoomThreadingMode, allowUnspecified bool) (corev1.RoomThreadingMode, error) {
+	switch mode {
+	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED:
+		if allowUnspecified {
+			return corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, nil
+		}
+	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED, nil
+	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED, nil
+	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED:
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED, nil
+	case apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED, nil
+	}
+	return corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED, fmt.Errorf("%w: invalid room threading mode", core.ErrInvalidArgument)
+}
+
+func apiRoomThreadingMode(room *corev1.Room) apiv1.RoomThreadingMode {
+	switch core.EffectiveRoomThreadingMode(room) {
+	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED
+	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED
+	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED:
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
+	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED
+	default:
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
 	}
 }
 

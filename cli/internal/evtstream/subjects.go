@@ -66,19 +66,20 @@ const AuthServerID = "server"
 // string literals.
 const (
 	// Room aggregate
-	EventRoomCreated          = "room_created"
-	EventRoomUpdated          = "room_updated"
-	EventRoomArchived         = "room_archived"
-	EventRoomUnarchived       = "room_unarchived"
-	EventRoomUniversalChanged = "room_universal_changed"
-	EventRoomSlowModeChanged  = "room_slow_mode_changed"
-	EventRoomDeleted          = "room_deleted"
-	EventUserJoinedRoom       = "user_joined"
-	EventUserLeftRoom         = "user_left"
-	EventRoomMemberBanned     = "room_member_banned"
-	EventRoomMemberUnbanned   = "room_member_unbanned"
-	EventRoomMemberAdded      = "room_member_added"
-	EventRoomMemberRemoved    = "room_member_removed"
+	EventRoomCreated              = "room_created"
+	EventRoomUpdated              = "room_updated"
+	EventRoomArchived             = "room_archived"
+	EventRoomUnarchived           = "room_unarchived"
+	EventRoomUniversalChanged     = "room_universal_changed"
+	EventRoomSlowModeChanged      = "room_slow_mode_changed"
+	EventRoomThreadingModeChanged = "room_threading_mode_changed"
+	EventRoomDeleted              = "room_deleted"
+	EventUserJoinedRoom           = "user_joined"
+	EventUserLeftRoom             = "user_left"
+	EventRoomMemberBanned         = "room_member_banned"
+	EventRoomMemberUnbanned       = "room_member_unbanned"
+	EventRoomMemberAdded          = "room_member_added"
+	EventRoomMemberRemoved        = "room_member_removed"
 
 	// Messages (also under the room aggregate — every message event for
 	// a room lives under evt.room.{R}.message_*, so a subscriber on
@@ -237,6 +238,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventRoomUniversalChanged
 	case *corev1.Event_RoomSlowModeChanged:
 		return EventRoomSlowModeChanged
+	case *corev1.Event_RoomThreadingModeChanged:
+		return EventRoomThreadingModeChanged
 	case *corev1.Event_RoomDeleted:
 		return EventRoomDeleted
 	case *corev1.Event_UserJoinedRoom:

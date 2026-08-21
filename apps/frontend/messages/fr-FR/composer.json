@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Mode lent : nouvel envoi dans {countdown}.",
     "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
     "slow_mode_rejected": "Le mode lent est activé. Attendez avant d’envoyer un autre message.",
+    "threads_encouraged": "L’utilisation des fils de discussion est encouragée dans ce salon.",
     "edit_failed": "Échec de la modification du message",
     "upload": {
       "preparing": "Préparation…",

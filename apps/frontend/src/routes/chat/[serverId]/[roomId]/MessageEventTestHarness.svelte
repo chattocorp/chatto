@@ -14,6 +14,7 @@
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import MessageEvent from './MessageEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -25,6 +26,7 @@
     canViewPinnedMessages = false,
     canPinMessages = false,
     pinStatus = null,
+    threadingMode = RoomThreadingMode.ENABLED,
     onOpenThread
   }: {
     event: TimelineEventView;
@@ -36,6 +38,7 @@
     canViewPinnedMessages?: boolean;
     canPinMessages?: boolean;
     pinStatus?: boolean | null;
+    threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
   } = $props();
 
@@ -92,5 +95,6 @@
   {roomId}
   {permalinkThreadRootEventId}
   messageStore={messageStore as never}
+  {threadingMode}
   {onOpenThread}
 />

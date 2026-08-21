@@ -1,5 +1,6 @@
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import { mapDirectoryRoomDetails, RoomKind } from '$lib/api-client/roomDirectory';
+import type { RoomThreadingMode } from '$lib/roomThreading';
 import { useServerScope } from '$lib/state/server/scope.svelte';
 
 export type RoomData = {
@@ -10,6 +11,7 @@ export type RoomData = {
     description?: string | null;
     isUniversal: boolean;
     slowModeSeconds: number;
+    threadingMode: RoomThreadingMode;
     archived?: boolean;
   };
   spaceName: string | null;
@@ -63,6 +65,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
         type: room.kind,
         isUniversal: room.isUniversal,
         slowModeSeconds: room.slowModeSeconds,
+        threadingMode: room.threadingMode,
         archived: room.archived
       },
       spaceName: currentStore.serverInfo.name ?? null,

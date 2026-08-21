@@ -173,6 +173,19 @@ surface-specific sizing and menu semantics.
 {/snippet}
 
 {#snippet primaryActions()}
+  {#if action.threadReplyFirst}
+    {@render replyThreadAction()}
+    {@render replyInRoomAction()}
+  {:else}
+    {@render replyInRoomAction()}
+    {@render replyThreadAction()}
+  {/if}
+  {#if action.canEdit}
+    {@render actionButton(m('room.message.actions.edit_short'), 'icon-[uil--pen]', handleEdit)}
+  {/if}
+{/snippet}
+
+{#snippet replyInRoomAction()}
   {#if action.replyInRoom}
     {@render actionButton(
       action.replyInRoomLabel,
@@ -182,11 +195,11 @@ surface-specific sizing and menu semantics.
       true
     )}
   {/if}
+{/snippet}
+
+{#snippet replyThreadAction()}
   {#if action.replyThread}
     {@render actionButton(action.replyThreadLabel, 'icon-[uil--comment-alt-lines]', handleReply)}
-  {/if}
-  {#if action.canEdit}
-    {@render actionButton(m('room.message.actions.edit_short'), 'icon-[uil--pen]', handleEdit)}
   {/if}
 {/snippet}
 

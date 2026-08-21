@@ -55,16 +55,17 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 
 	createResp, err := env.rooms.CreateRoom(ctx, connect.NewRequest(&apiv1.CreateRoomRequest{
-		Name:        "Connect room 💬",
-		Description: "created through ConnectRPC",
-		GroupId:     groupID,
-		Universal:   true,
+		Name:          "Connect room 💬",
+		Description:   "created through ConnectRPC",
+		GroupId:       groupID,
+		Universal:     true,
+		ThreadingMode: apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
 	}))
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
 	room := createResp.Msg.GetRoom()
-	if room.GetId() == "" || room.GetKind() != apiv1.RoomKind_ROOM_KIND_CHANNEL || room.GetGroupId() != groupID || !room.GetUniversal() {
+	if room.GetId() == "" || room.GetKind() != apiv1.RoomKind_ROOM_KIND_CHANNEL || room.GetGroupId() != groupID || !room.GetUniversal() || room.GetThreadingMode() != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED {
 		t.Fatalf("created room = %+v", room)
 	}
 
@@ -78,6 +79,22 @@ func TestRoomServiceLifecycleCommands(t *testing.T) {
 	}
 	if updateResp.Msg.GetRoom().GetName() != "Connect / renamed!" {
 		t.Fatalf("UpdateRoom name = %q, want flexible name", updateResp.Msg.GetRoom().GetName())
+	}
+	encouraged := apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED
+	threadingResp, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(), ThreadingMode: &encouraged,
+	}))
+	if err != nil {
+		t.Fatalf("UpdateRoom threading mode: %v", err)
+	}
+	if got := threadingResp.Msg.GetRoom().GetThreadingMode(); got != encouraged {
+		t.Fatalf("UpdateRoom threading_mode = %v, want %v", got, encouraged)
+	}
+	unspecified := apiv1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
+		RoomId: room.GetId(), ThreadingMode: &unspecified,
+	})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("unspecified threading mode update code = %v, want invalid argument", connect.CodeOf(err))
 	}
 	if _, err := env.rooms.UpdateRoom(ctx, connect.NewRequest(&apiv1.UpdateRoomRequest{
 		RoomId: room.GetId(),

@@ -1245,7 +1245,8 @@ Result of fetching link preview metadata.
 Creates a message for the current user. The user must be a room member and
 must have message.post for room messages or message.post-in-thread for
 thread replies. Echoing a thread reply also requires message.echo and
-message.post.
+message.post. The room's Threading Mode may automatically establish a root
+thread or reject a thread placement that the mode does not allow.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/CreateMessage
@@ -1608,6 +1609,7 @@ Request to create a channel room.
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for the new channel. UNSPECIFIED selects ENABLED. |
 
 
 <a id="chatto-api-v1-CreateRoomResponse"></a>
@@ -1645,6 +1647,7 @@ Request to update a room's editable metadata.
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `threading_mode` | optional [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>
@@ -4498,6 +4501,7 @@ Public room metadata returned by room commands.
 | `group_id` | `string` | Room group ID for channel rooms. Empty for direct-message rooms. |
 | `universal` | `bool` | True when a channel grants effective membership to eligible server members. |
 | `slow_mode_seconds` | `uint32` | Minimum number of seconds a non-exempt member must wait between message posts. Channel rooms only; zero means slow mode is disabled. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Threading policy for this channel room. Direct-message rooms report UNSPECIFIED because they do not support threads. |
 
 
 
@@ -5074,6 +5078,22 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
+
+
+<a id="chatto-api-v1-RoomThreadingMode"></a>
+
+### RoomThreadingMode
+
+Policy governing thread creation and reply placement in a channel room.
+Direct-message rooms do not support threads and use UNSPECIFIED.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_THREADING_MODE_UNSPECIFIED` | `0` | No mode was supplied. CreateRoom treats this as ENABLED so older stored rooms and omitted request fields preserve Chatto's default behavior. |
+| `ROOM_THREADING_MODE_REQUIRED` | `1` | Every new root message establishes a thread, and replies to root messages must be posted in that root's thread. |
+| `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
+| `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
+| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads and thread replies are rejected. Existing threads remain readable and ordinary in-room reply attribution remains available. |
 
 
 <a id="chatto-api-v1-NotificationAttentionLevel"></a>

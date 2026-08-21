@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Modalità lenta: puoi inviare di nuovo tra {countdown}.",
     "slow_mode_bypassed": "Modalità lenta: {interval} (sei esente).",
     "slow_mode_rejected": "La modalità lenta è attiva. Attendi prima di inviare un altro messaggio.",
+    "threads_encouraged": "In questa stanza è consigliato usare i thread.",
     "edit_failed": "Impossibile modificare il messaggio",
     "upload": {
       "preparing": "Preparazione…",

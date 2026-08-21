@@ -6,7 +6,8 @@ import {
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
 import type { DirectorySidebarLink } from './roomDirectory.js';
-import type { Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, type Room, type RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode } from '$lib/roomThreading';
 
 export type AdminRoomLayoutAPIConfig = {
   serverId?: string;
@@ -22,6 +23,7 @@ export type AdminRoomInfo = {
   archived: boolean;
   isUniversal: boolean;
   slowModeSeconds: number;
+  threadingMode: RoomThreadingMode;
 };
 
 export type AdminManagedRoom = AdminRoomInfo & {
@@ -292,7 +294,8 @@ function mapAdminRoom(room: Room): AdminRoomInfo {
     description: room.description || null,
     archived: room.archived ?? false,
     isUniversal: room.universal ?? false,
-    slowModeSeconds: room.slowModeSeconds
+    slowModeSeconds: room.slowModeSeconds ?? 0,
+    threadingMode: normalizeRoomThreadingMode(RoomKind.CHANNEL, room.threadingMode)
   };
 }
 

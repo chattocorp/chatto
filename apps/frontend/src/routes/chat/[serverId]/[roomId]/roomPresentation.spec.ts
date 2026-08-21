@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { DMData, RoomData } from '$lib/hooks/useRoomData.svelte';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import { buildRoomPresentation } from './roomPresentation';
 
 function roomData(overrides: Partial<RoomData> = {}): RoomData {
@@ -11,7 +12,8 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
       type: RoomKind.CHANNEL,
       description: ' Room description ',
       isUniversal: false,
-      slowModeSeconds: 0
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED
     },
     spaceName: 'Test Space',
     canPostMessage: true,
@@ -55,7 +57,8 @@ describe('buildRoomPresentation', () => {
         type: RoomKind.CHANNEL,
         description: ' ',
         isUniversal: false,
-        slowModeSeconds: 0
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.ENABLED
       },
       spaceName: null
     });

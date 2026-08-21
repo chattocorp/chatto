@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Lēnais režīms: sūtiet vēlreiz pēc {countdown}.",
     "slow_mode_bypassed": "Lēnais režīms: {interval} (uz jums ierobežojums neattiecas).",
     "slow_mode_rejected": "Lēnais režīms ir aktīvs. Uzgaidiet pirms nākamā ziņojuma sūtīšanas.",
+    "threads_encouraged": "Šajā telpā ieteicams izmantot pavedienus.",
     "edit_failed": "Neizdevās rediģēt ziņojumu",
     "upload": {
       "preparing": "Notiek sagatavošana…",

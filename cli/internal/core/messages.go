@@ -932,11 +932,15 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// This keeps the data invariant intact even when callers (bots, older clients,
 	// extensions) only set inReplyTo. inReplyTo is attribution-only, so a lookup
 	// failure here is not fatal — fall through and let the message post as a root.
-	if inReplyTo != "" && inThread == "" {
+	var replyTarget *corev1.Event
+	if inReplyTo != "" {
 		target, err := c.GetRoomEventByEventID(ctx, kind, room_id, inReplyTo)
 		if err == nil && target != nil {
+			replyTarget = target
 			if msg := target.GetMessagePosted(); msg != nil && msg.InThread != "" {
-				inThread = msg.InThread
+				if inThread == "" {
+					inThread = msg.InThread
+				}
 			}
 		}
 	}
@@ -945,6 +949,21 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if kind == KindDM && inThread != "" {
 		return nil, ErrDMThreadsUnsupported
+	}
+	if kind == KindChannel {
+		switch EffectiveRoomThreadingMode(room) {
+		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+			if options.createThread || inThread != "" {
+				return nil, fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
+			}
+		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+			if inReplyTo == "" && inThread == "" && !options.createThread {
+				return nil, fmt.Errorf("%w: root messages must establish a thread in this room", ErrRoomThreadingPolicy)
+			}
+			if replyTarget != nil && replyTarget.GetMessagePosted() != nil && replyTarget.GetMessagePosted().GetInThread() == "" && inThread != replyTarget.GetId() {
+				return nil, fmt.Errorf("%w: replies to root messages must be posted in that root's thread", ErrRoomThreadingPolicy)
+			}
+		}
 	}
 	var commitAuthorize func(context.Context) error
 	if options.commitAuthorize != nil {

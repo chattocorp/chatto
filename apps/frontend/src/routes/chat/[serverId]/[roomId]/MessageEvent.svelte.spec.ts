@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { q } from '$lib/test-utils';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -57,6 +58,8 @@ type MessageOverrides = Partial<{
   echoOfEventId: string | null;
   echoFromThreadRootEventId: string | null;
   channelEchoEventId: string | null;
+  threadExists: boolean;
+  replyCount: number;
 }>;
 
 function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
@@ -93,9 +96,10 @@ function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
       echoOfEventId: overrides.echoOfEventId ?? null,
       echoFromThreadRootEventId: overrides.echoFromThreadRootEventId ?? null,
       channelEchoEventId: overrides.channelEchoEventId ?? null,
-      replyCount: 0,
+      replyCount: overrides.replyCount ?? 0,
       lastReplyAt: null,
       threadParticipants: [],
+      threadExists: overrides.threadExists ?? false,
       viewerIsFollowingThread: false
     }
   } as TimelineEventView;
@@ -149,6 +153,54 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('orders and constrains reply actions for each threading mode', async () => {
+    const onOpenThread = vi.fn();
+    const event = messageEvent({ threadExists: true });
+    const rendered = render(MessageEventTestHarness, {
+      props: { event, onOpenThread, threadingMode: RoomThreadingMode.REQUIRED }
+    });
+
+    const toolbarReplyLabels = () =>
+      Array.from(
+        q(rendered.container, '[role="toolbar"]')!.querySelectorAll<HTMLButtonElement>('button')
+      )
+        .map((button) => button.getAttribute('aria-label'))
+        .filter((label) => label?.startsWith('Reply') || label === 'Open thread');
+
+    expect(toolbarReplyLabels()).toEqual(['Reply in thread']);
+    (q(rendered.container, 'button[aria-label="Reply in thread"]') as HTMLButtonElement).click();
+    expect(onOpenThread).toHaveBeenLastCalledWith(event.id, expect.any(Object));
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.ENCOURAGED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply in thread', 'Reply in room']);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.ENABLED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Open thread']);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      permalinkThreadRootEventId: event.id,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    expect(toolbarReplyLabels()).toEqual([]);
+  });
+
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });

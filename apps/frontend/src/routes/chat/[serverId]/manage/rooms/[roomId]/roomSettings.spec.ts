@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest';
 import { buildRoomSettingsUpdate, type RoomSettingsValues } from './roomSettings';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const original: RoomSettingsValues = {
   name: 'general',
   description: 'General discussion',
   universal: false,
-  slowModeSeconds: 0
+  slowModeSeconds: 0,
+  threadingMode: RoomThreadingMode.ENABLED
 };
 
 describe('buildRoomSettingsUpdate', () => {
@@ -34,5 +36,15 @@ describe('buildRoomSettingsUpdate', () => {
     expect(
       buildRoomSettingsUpdate('room-1', { ...original, slowModeSeconds: 30 }, original)
     ).toEqual({ roomId: 'room-1', slowModeSeconds: 30 });
+  });
+
+  it('includes Threading Mode only when its value changes', () => {
+    expect(
+      buildRoomSettingsUpdate(
+        'room-1',
+        { ...original, threadingMode: RoomThreadingMode.REQUIRED },
+        original
+      )
+    ).toEqual({ roomId: 'room-1', threadingMode: RoomThreadingMode.REQUIRED });
   });
 });

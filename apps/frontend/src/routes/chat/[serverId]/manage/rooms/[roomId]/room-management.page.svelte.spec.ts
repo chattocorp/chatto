@@ -127,6 +127,7 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import RoomManagementPage from './+page.svelte';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 function managedRoom(
   name: string,
@@ -144,6 +145,7 @@ function managedRoom(
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
     slowModeSeconds: 0,
+    threadingMode: RoomThreadingMode.ENABLED,
     canManageRoom: overrides.canManageRoom ?? true,
     canManagePermissions: overrides.canManagePermissions ?? true
   };

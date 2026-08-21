@@ -5,6 +5,7 @@ import { goto } from '$app/navigation';
 import { q } from '$lib/test-utils';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import {
   AdminRoomLayoutStore,
   type AdminRoomGroup,
@@ -57,7 +58,8 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     description: overrides.description ?? null,
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
-    slowModeSeconds: overrides.slowModeSeconds ?? 0
+    slowModeSeconds: overrides.slowModeSeconds ?? 0,
+    threadingMode: overrides.threadingMode ?? RoomThreadingMode.ENABLED
   };
 }
 

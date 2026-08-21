@@ -4,6 +4,7 @@ import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 import { createRoomDirectoryAPI } from '$lib/api-client/roomDirectory';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const Permission = {
   Attach: 'message.attach',
@@ -127,6 +128,7 @@ describe('createRoomDirectoryAPI', () => {
         archived: false,
         isUniversal: true,
         slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.ENABLED,
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: true,
@@ -141,6 +143,7 @@ describe('createRoomDirectoryAPI', () => {
         archived: true,
         isUniversal: false,
         slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.UNSPECIFIED,
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: false,
@@ -196,6 +199,7 @@ describe('createRoomDirectoryAPI', () => {
       archived: false,
       isUniversal: true,
       slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED,
       slowModeNextPostAt: null,
       isMember: true,
       hasUnread: true,

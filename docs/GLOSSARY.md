@@ -70,6 +70,8 @@ User-facing concepts. If a user might say the word, it goes here.
 
 **Thread** — Reply chain rooted at a message. See [FDR-002](fdr/FDR-002-replies-and-threads.md).
 
+**Threading Mode** — Per-channel policy for creating threads and placing replies: Required, Encouraged, Enabled, or Disabled. It governs new writes without hiding or rewriting historical threads. See [FDR-002](fdr/FDR-002-replies-and-threads.md).
+
 **Echo** — Reposting a thread reply back to its parent channel so non-thread participants see it. Gated by `message.echo`. See [FDR-003](fdr/FDR-003-thread-reply-echo.md).
 
 **Reaction** — Emoji attached to a message by a user. See [FDR-005](fdr/FDR-005-reactions.md).

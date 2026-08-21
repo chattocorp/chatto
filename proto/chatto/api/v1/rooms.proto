@@ -23,6 +23,25 @@ enum RoomKind {
   ROOM_KIND_DM = 2;
 }
 
+// Policy governing thread creation and reply placement in a channel room.
+// Direct-message rooms do not support threads and use UNSPECIFIED.
+enum RoomThreadingMode {
+  // No mode was supplied. CreateRoom treats this as ENABLED so older stored
+  // rooms and omitted request fields preserve Chatto's default behavior.
+  ROOM_THREADING_MODE_UNSPECIFIED = 0;
+  // Every new root message establishes a thread, and replies to root messages
+  // must be posted in that root's thread.
+  ROOM_THREADING_MODE_REQUIRED = 1;
+  // Clients should steer replies into threads, but the server accepts both
+  // threaded and ordinary in-room replies.
+  ROOM_THREADING_MODE_ENCOURAGED = 2;
+  // Threads are available and clients may freely choose whether to use them.
+  ROOM_THREADING_MODE_ENABLED = 3;
+  // New threads and thread replies are rejected. Existing threads remain
+  // readable and ordinary in-room reply attribution remains available.
+  ROOM_THREADING_MODE_DISABLED = 4;
+}
+
 // Public room metadata returned by room commands.
 message Room {
   // Stable room ID.
@@ -43,6 +62,9 @@ message Room {
   // Minimum number of seconds a non-exempt member must wait between message
   // posts. Channel rooms only; zero means slow mode is disabled.
   uint32 slow_mode_seconds = 8;
+  // Threading policy for this channel room. Direct-message rooms report
+  // UNSPECIFIED because they do not support threads.
+  RoomThreadingMode threading_mode = 9;
 }
 
 // Lightweight room reference for cross-resource rows.
@@ -72,6 +94,8 @@ message CreateRoomRequest {
   // Whether the new channel should grant effective membership to eligible
   // server members.
   bool universal = 4;
+  // Threading policy for the new channel. UNSPECIFIED selects ENABLED.
+  RoomThreadingMode threading_mode = 5;
 }
 
 // Result of creating a room.
@@ -100,6 +124,9 @@ message UpdateRoomRequest {
   // maximum supported interval is six hours. Direct-message rooms cannot use
   // slow mode.
   optional uint32 slow_mode_seconds = 5 [(buf.validate.field).uint32.lte = 21600];
+  // New threading policy. Direct-message rooms cannot set this field, and an
+  // explicitly supplied UNSPECIFIED or unknown value is rejected.
+  optional RoomThreadingMode threading_mode = 6;
 }
 
 // Result of updating a room.
