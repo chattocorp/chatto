@@ -542,56 +542,58 @@ describe('MessageComposer', () => {
       expect(mutationMock.mock.calls[0][1].input).toMatchObject({ roomId, body: '- first' });
     });
 
-    it('indents list items with the toolbar and Tab without capturing Tab in prose', async () => {
+    it('uses CodeMirror line indentation with the toolbar and Tab', async () => {
       const { container } = renderMessageComposer({ roomId: 'markdown-list-indent' });
       const editor = await findEditor(container);
-      const indent = q(container, 'button[aria-label="Indent list item"]') as HTMLButtonElement;
-      const outdent = q(container, 'button[aria-label="Outdent list item"]') as HTMLButtonElement;
+      const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
+      const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
 
-      expect(indent.disabled).toBe(true);
-      expect(outdent.disabled).toBe(true);
-      await typeEditorKeys(editor, '- first');
+      await vi.waitFor(() => expect(indent.disabled).toBe(false));
+      expect(outdent.disabled).toBe(false);
+      await typeEditorKeys(editor, 'first');
       await pressEditorKey(editor, 'Enter');
       await userEvent.type(editor, 'second');
-      await vi.waitFor(() => expect(indent.disabled).toBe(false));
 
       await pressEditorKey(editor, 'Tab');
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
-          '- first',
-          '  - second'
+          'first',
+          '  second'
         ])
       );
-      expect(outdent.disabled).toBe(false);
 
       await userEvent.click(outdent);
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
-          '- first',
-          '- second'
+          'first',
+          'second'
         ])
       );
       await userEvent.click(indent);
       await pressEditorKey(editor, 'Tab', { shiftKey: true });
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
-          '- first',
-          '- second'
+          'first',
+          'second'
         ])
       );
       await pressEditorKey(editor, 'Tab', { shiftKey: true });
       await vi.waitFor(() =>
         expect([...editor.querySelectorAll('.cm-line')].map((line) => line.textContent)).toEqual([
-          '- first',
-          '',
+          'first',
           'second'
         ])
       );
+    });
 
-      await typeEditorKeys(editor, 'plain text');
-      const tab = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true, cancelable: true });
-      editor.dispatchEvent(tab);
-      expect(tab.defaultPrevented).toBe(false);
+    it('lets Escape followed by Tab leave the Markdown composer', async () => {
+      const { container } = renderMessageComposer({ roomId: 'markdown-tab-focus' });
+      const editor = await findEditor(container);
+
+      await userEvent.click(editor);
+      await userEvent.keyboard('{Escape}{Tab}');
+
+      expect(document.activeElement).toBe(q(container, 'button[aria-label="Bold"]'));
     });
 
     it('completes mentions before Enter can submit Markdown', async () => {
@@ -2748,8 +2750,8 @@ describe('MessageComposer', () => {
     it('indents visual list items with both the toolbar and Tab', async () => {
       const { container } = renderMessageComposer({ roomId: 'visual-list-indent' });
       const editor = await findEditor(container);
-      const indent = q(container, 'button[aria-label="Indent list item"]') as HTMLButtonElement;
-      const outdent = q(container, 'button[aria-label="Outdent list item"]') as HTMLButtonElement;
+      const indent = q(container, 'button[aria-label="Indent"]') as HTMLButtonElement;
+      const outdent = q(container, 'button[aria-label="Outdent"]') as HTMLButtonElement;
 
       await typeEditorLiteralText(editor, '- first');
       await pressEditorKey(editor, 'Enter');

@@ -45,8 +45,8 @@
       "ordered_list": "Číslovaný seznam",
       "blockquote": "Citace",
       "code_block": "Blok kódu",
-      "outdent_list_item": "Zmenšit odsazení položky seznamu",
-      "indent_list_item": "Zvětšit odsazení položky seznamu"
+      "outdent": "Zmenšit odsazení",
+      "indent": "Zvětšit odsazení"
     },
     "timestamp": {
       "title": "Vložte časové razítko",

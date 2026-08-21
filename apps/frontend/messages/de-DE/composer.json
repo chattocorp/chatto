@@ -45,8 +45,8 @@
       "ordered_list": "Nummerierte Liste",
       "blockquote": "Zitat",
       "code_block": "Codeblock",
-      "outdent_list_item": "Listenelement ausrücken",
-      "indent_list_item": "Listenelement einrücken"
+      "outdent": "Ausrücken",
+      "indent": "Einrücken"
     },
     "timestamp": {
       "title": "Zeitstempel einfügen",

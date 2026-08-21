@@ -45,8 +45,8 @@
       "ordered_list": "Numurēts saraksts",
       "blockquote": "Citāts",
       "code_block": "Koda bloks",
-      "outdent_list_item": "Samazināt saraksta vienuma atkāpi",
-      "indent_list_item": "Palielināt saraksta vienuma atkāpi"
+      "outdent": "Samazināt atkāpi",
+      "indent": "Palielināt atkāpi"
     },
     "timestamp": {
       "title": "Ievietojiet laikspiedolu",

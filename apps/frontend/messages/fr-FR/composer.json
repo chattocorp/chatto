@@ -45,8 +45,8 @@
       "ordered_list": "Liste numérotée",
       "blockquote": "Citation",
       "code_block": "Bloc de code",
-      "outdent_list_item": "Diminuer le retrait de l’élément de liste",
-      "indent_list_item": "Augmenter le retrait de l’élément de liste"
+      "outdent": "Diminuer le retrait",
+      "indent": "Augmenter le retrait"
     },
     "timestamp": {
       "title": "Insérer un horodatage",

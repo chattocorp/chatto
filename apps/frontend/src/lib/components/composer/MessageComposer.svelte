@@ -229,7 +229,7 @@
           onKeyDown={(event) => composer.handleEditorKeyDown(event)}
           onPaste={(event) => composer.handlePaste(event)}
           onFormattingStateChange={(formatting) => (composer.formattingState = { ...formatting })}
-          onListIndentStateChange={(state) => (composer.listIndentState = { ...state })}
+          onIndentStateChange={(state) => (composer.indentState = { ...state })}
           onReady={(api) => composer.handleEditorReady(api)}
           onDestroy={(api) => composer.handleEditorDestroyed(api)}
         />
@@ -238,7 +238,7 @@
 
     <ComposerToolbar
       formattingState={composer.formattingState}
-      listIndentState={composer.listIndentState}
+      indentState={composer.indentState}
       sendMode={userPreferences.composerSendMode}
       editorApi={composer.editorApi}
       inputDisabled={composer.inputDisabled}

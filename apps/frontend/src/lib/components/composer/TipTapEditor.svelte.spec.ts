@@ -47,7 +47,7 @@ describe('TipTapEditor wrapping', () => {
       props: {
         placeholder: 'Write a message',
         onReady: (api: ComposerEditorApi) => readyApis.push(api),
-        onListIndentStateChange: (state) => indentation.push(state)
+        onIndentStateChange: (state) => indentation.push(state)
       }
     });
     await vi.waitFor(() => expect(readyApis).toHaveLength(1));
@@ -56,13 +56,13 @@ describe('TipTapEditor wrapping', () => {
     api.focus('end');
     await vi.waitFor(() => expect(indentation.at(-1)?.canIndent).toBe(true));
 
-    expect(api.adjustListIndent('indent')).toBe(true);
+    expect(api.adjustIndent('indent')).toBe(true);
     await vi.waitFor(() =>
       expect(container.querySelectorAll('.ProseMirror ul ul li')).toHaveLength(1)
     );
     expect(indentation.at(-1)).toEqual({ canIndent: false, canOutdent: true });
 
-    expect(api.adjustListIndent('outdent')).toBe(true);
+    expect(api.adjustIndent('outdent')).toBe(true);
     await vi.waitFor(() =>
       expect(container.querySelectorAll('.ProseMirror > ul > li')).toHaveLength(2)
     );

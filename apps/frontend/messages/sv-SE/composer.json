@@ -45,8 +45,8 @@
       "ordered_list": "Numrerad lista",
       "blockquote": "Citat",
       "code_block": "Kodblock",
-      "outdent_list_item": "Minska indrag för listobjekt",
-      "indent_list_item": "Öka indrag för listobjekt"
+      "outdent": "Minska indrag",
+      "indent": "Öka indrag"
     },
     "timestamp": {
       "title": "Infoga tidsstämpel",

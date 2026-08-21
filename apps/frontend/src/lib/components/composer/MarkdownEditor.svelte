@@ -10,7 +10,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
     defaultKeymap,
     history,
     historyKeymap,
-    insertNewlineAndIndent
+    indentLess,
+    indentMore,
+    indentWithTab,
+    insertNewlineAndIndent,
+    simplifySelection,
+    temporarilySetTabFocusMode
   } from '@codemirror/commands';
   import { syntaxHighlighting, HighlightStyle } from '@codemirror/language';
   import {
@@ -32,16 +37,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import type {
     ComposerEditorApi,
     ComposerEditorProps,
-    ComposerFormattingState
+    ComposerFormattingState,
+    ComposerIndentState
   } from './editorTypes';
-  import { emptyComposerListIndentState } from './editorTypes';
+  import { emptyComposerIndentState } from './editorTypes';
   import { serializeQuoteInsertionContent } from './quotes';
-  import {
-    adjustSourceListIndent,
-    applySourceFormatting,
-    getSourceFormattingState,
-    getSourceListIndentState
-  } from './sourceFormatting';
+  import { applySourceFormatting, getSourceFormattingState } from './sourceFormatting';
 
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
@@ -52,6 +53,16 @@ the same API as the visual editor while keeping the stored Markdown visible.
     orderedList: false,
     blockquote: false,
     codeBlock: false
+  };
+
+  const sourceIndentState: ComposerIndentState = {
+    canIndent: true,
+    canOutdent: true
+  };
+
+  const escapeWithTabFocus = (editorView: EditorView): boolean => {
+    simplifySelection(editorView);
+    return temporarilySetTabFocusMode(editorView);
   };
 
   const markdownHighlightStyle = HighlightStyle.define([
@@ -159,7 +170,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     onKeyDown,
     onPaste,
     onFormattingStateChange,
-    onListIndentStateChange,
+    onIndentStateChange,
     onReady,
     onDestroy
   }: ComposerEditorProps = $props();
@@ -180,7 +191,12 @@ the same API as the visual editor while keeping the stored Markdown visible.
         extensions: [
           history(),
           drawSelection(),
-          keymap.of([...historyKeymap, ...defaultKeymap]),
+          keymap.of([
+            { key: 'Escape', run: escapeWithTabFocus },
+            indentWithTab,
+            ...historyKeymap,
+            ...defaultKeymap
+          ]),
           markdown({
             base: commonmarkLanguage,
             extensions: [Table, Autolink],
@@ -216,7 +232,6 @@ the same API as the visual editor while keeping the stored Markdown visible.
             if (update.docChanged && !suppressUpdate) onUpdate?.(update.state.doc.toString());
             if (update.docChanged || update.selectionSet) {
               onFormattingStateChange?.(getSourceFormattingState(update.state));
-              onListIndentStateChange?.(getSourceListIndentState(update.state));
             }
           })
         ]
@@ -282,15 +297,10 @@ the same API as the visual editor while keeping the stored Markdown visible.
         });
         editorView.focus();
       },
-      adjustListIndent: (direction) => {
+      adjustIndent: (direction) => {
         if (destroyed) return false;
-        const result = adjustSourceListIndent(editorView.state, direction);
-        if (!result) return false;
-        editorView.dispatch({
-          changes: { from: 0, to: editorView.state.doc.length, insert: result.text },
-          selection: EditorSelection.single(result.anchor, result.head),
-          scrollIntoView: true
-        });
+        const applied = direction === 'indent' ? indentMore(editorView) : indentLess(editorView);
+        if (!applied) return false;
         editorView.focus();
         return true;
       },
@@ -358,7 +368,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
     return () => {
       destroyed = true;
       onFormattingStateChange?.(emptyFormattingState);
-      onListIndentStateChange?.(emptyComposerListIndentState);
+      onIndentStateChange?.(emptyComposerIndentState);
       onDestroy?.(api);
       editorView.destroy();
       if (view === editorView) view = null;
@@ -378,7 +388,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
 
   function publishFormattingState(editorView: EditorView): void {
     onFormattingStateChange?.(getSourceFormattingState(editorView.state));
-    onListIndentStateChange?.(getSourceListIndentState(editorView.state));
+    onIndentStateChange?.(sourceIndentState);
   }
 </script>
 

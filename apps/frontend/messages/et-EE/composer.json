@@ -45,8 +45,8 @@
       "ordered_list": "Nummerdatud loend",
       "blockquote": "Tsiteeri",
       "code_block": "Koodiplokk",
-      "outdent_list_item": "Vähenda loendiüksuse taanet",
-      "indent_list_item": "Suurenda loendiüksuse taanet"
+      "outdent": "Vähenda taanet",
+      "indent": "Suurenda taanet"
     },
     "timestamp": {
       "title": "Sisestage ajatempel",

@@ -45,8 +45,8 @@
       "ordered_list": "Elenco numerato",
       "blockquote": "Citazione",
       "code_block": "Blocco di codice",
-      "outdent_list_item": "Riduci rientro della voce elenco",
-      "indent_list_item": "Aumenta rientro della voce elenco"
+      "outdent": "Riduci rientro",
+      "indent": "Aumenta rientro"
     },
     "timestamp": {
       "title": "Inserisci il timestamp",

@@ -45,8 +45,8 @@
       "ordered_list": "Lista numerada",
       "blockquote": "Citação",
       "code_block": "Bloco de código",
-      "outdent_list_item": "Diminuir recuo do item da lista",
-      "indent_list_item": "Aumentar recuo do item da lista"
+      "outdent": "Diminuir recuo",
+      "indent": "Aumentar recuo"
     },
     "timestamp": {
       "title": "Inserir carimbo de data/hora",

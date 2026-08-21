@@ -1,17 +1,11 @@
 import { syntaxTree } from '@codemirror/language';
 import type { EditorState } from '@codemirror/state';
-import type {
-  ComposerFormattingCommand,
-  ComposerFormattingState,
-  ComposerListIndentDirection,
-  ComposerListIndentState
-} from './editorTypes';
+import type { ComposerFormattingCommand, ComposerFormattingState } from './editorTypes';
 
 export type SourceSelection = { anchor: number; head: number };
 export type SourceFormattingResult = SourceSelection & { text: string };
 
 type SourceEdit = { from: number; to: number; insert: string };
-type SourceSyntaxNode = ReturnType<ReturnType<typeof syntaxTree>['resolveInner']>;
 
 const inlineDelimiters: Partial<Record<ComposerFormattingCommand, [string, string]>> = {
   bold: ['**', '**'],
@@ -52,83 +46,6 @@ export function getSourceFormattingState(state: EditorState): ComposerFormatting
     blockquote: activeNames.has('Blockquote'),
     codeBlock: activeNames.has('FencedCode') || activeNames.has('CodeBlock')
   };
-}
-
-/** Report which structural list-nesting actions apply to the primary selection. */
-export function getSourceListIndentState(state: EditorState): ComposerListIndentState {
-  const items = selectedListItems(state);
-  if (!items) return { canIndent: false, canOutdent: false };
-
-  return {
-    canIndent: previousListItem(items[0]!) !== null,
-    canOutdent: true
-  };
-}
-
-/** Structurally indent or outdent selected Markdown list items. */
-export function adjustSourceListIndent(
-  state: EditorState,
-  direction: ComposerListIndentDirection
-): SourceFormattingResult | null {
-  const items = selectedListItems(state);
-  if (!items) return null;
-
-  if (direction === 'outdent' && !parentListItem(items[0]!)) {
-    return liftRootListItems(state, items);
-  }
-
-  const amount =
-    direction === 'indent'
-      ? indentationWidthForListItem(state, previousListItem(items[0]!))
-      : outdentWidthForListItem(state, items[0]!);
-  if (amount <= 0) return null;
-
-  const selection = state.selection.main;
-  const edits = indentationEdits(
-    state.doc.toString(),
-    items[0]!.from,
-    items.at(-1)!.to,
-    amount,
-    direction
-  );
-  if (edits.length === 0) return null;
-  return applySourceEdits(
-    state.doc.toString(),
-    { anchor: selection.anchor, head: selection.head },
-    edits
-  );
-}
-
-function liftRootListItems(
-  state: EditorState,
-  items: SourceSyntaxNode[]
-): SourceFormattingResult | null {
-  const text = state.doc.toString();
-  const selection = state.selection.main;
-  const edits: SourceEdit[] = [];
-
-  for (const item of items) {
-    const markerWidth = indentationWidthForListItem(state, item);
-    if (markerWidth <= 0) return null;
-    edits.push({ from: item.from, to: item.from + markerWidth, insert: '' });
-    edits.push(...indentationEdits(text, item.from, item.to, markerWidth, 'outdent'));
-  }
-
-  const previous = previousListItem(items[0]!);
-  if (previous && itemsAreOnAdjacentLines(state, previous, items[0]!)) {
-    edits.push(listSeparatorEdit(text, state.doc.lineAt(items[0]!.from).from));
-  }
-  for (let index = 1; index < items.length; index += 1) {
-    if (itemsAreOnAdjacentLines(state, items[index - 1]!, items[index]!)) {
-      edits.push(listSeparatorEdit(text, state.doc.lineAt(items[index]!.from).from));
-    }
-  }
-  const next = nextListItem(items.at(-1)!);
-  if (next && itemsAreOnAdjacentLines(state, items.at(-1)!, next)) {
-    edits.push(listSeparatorEdit(text, state.doc.lineAt(next.from).from));
-  }
-
-  return applySourceEdits(text, { anchor: selection.anchor, head: selection.head }, edits);
 }
 
 function toggleInline(
@@ -292,7 +209,7 @@ function applySourceEdits(
   selection: SourceSelection,
   edits: SourceEdit[]
 ): SourceFormattingResult {
-  const ordered = edits.toSorted((a, b) => a.from - b.from || a.to - b.to);
+  const ordered = edits.toSorted((a, b) => a.from - b.from);
   let result = '';
   let cursor = 0;
   for (const edit of ordered) {
@@ -306,137 +223,6 @@ function applySourceEdits(
     anchor: mapPosition(selection.anchor, ordered),
     head: mapPosition(selection.head, ordered)
   };
-}
-
-function selectedListItems(state: EditorState): SourceSyntaxNode[] | null {
-  const selection = state.selection.main;
-  const start = listItemAt(state, selection.from, selection.from === state.doc.length ? -1 : 1);
-  const endPosition = selection.empty ? selection.head : Math.max(selection.from, selection.to - 1);
-  const end = listItemAt(state, endPosition, -1);
-  if (!start || !end || !sameNode(start.parent, end.parent)) return null;
-
-  const items: SourceSyntaxNode[] = [];
-  for (let node: SourceSyntaxNode | null = start; node; node = node.nextSibling) {
-    if (node.name === 'ListItem') items.push(node);
-    if (sameNode(node, end)) break;
-  }
-  return items.length > 0 && sameNode(items.at(-1)!, end) ? items : null;
-}
-
-function listItemAt(state: EditorState, position: number, side: -1 | 1): SourceSyntaxNode | null {
-  let node: SourceSyntaxNode | null = syntaxTree(state).resolveInner(position, side);
-  while (node) {
-    if (node.name === 'ListItem') return node;
-    node = node.parent;
-  }
-  return null;
-}
-
-function previousListItem(item: SourceSyntaxNode): SourceSyntaxNode | null {
-  for (let node = item.prevSibling; node; node = node.prevSibling) {
-    if (node.name === 'ListItem') return node;
-  }
-  return null;
-}
-
-function nextListItem(item: SourceSyntaxNode): SourceSyntaxNode | null {
-  for (let node = item.nextSibling; node; node = node.nextSibling) {
-    if (node.name === 'ListItem') return node;
-  }
-  return null;
-}
-
-function parentListItem(item: SourceSyntaxNode): SourceSyntaxNode | null {
-  const parent = item.parent?.parent;
-  return parent?.name === 'ListItem' ? parent : null;
-}
-
-function sameNode(left: SourceSyntaxNode | null, right: SourceSyntaxNode | null): boolean {
-  return (
-    left !== null &&
-    right !== null &&
-    left.name === right.name &&
-    left.from === right.from &&
-    left.to === right.to
-  );
-}
-
-function indentationWidthForListItem(state: EditorState, item: SourceSyntaxNode | null): number {
-  if (!item) return 0;
-  const line = state.doc.lineAt(item.from);
-  const marker = line.text.slice(item.from - line.from).match(/^([-+*]|\d{1,9}[.)])([ \t]+)/);
-  return marker?.[0].length ?? 0;
-}
-
-function outdentWidthForListItem(state: EditorState, item: SourceSyntaxNode): number {
-  const parent = parentListItem(item);
-  if (!parent) return 0;
-  return Math.max(0, listItemIndent(state, item) - listItemIndent(state, parent));
-}
-
-function listItemIndent(state: EditorState, item: SourceSyntaxNode): number {
-  const line = state.doc.lineAt(item.from);
-  return item.from - line.from - blockquotePrefixLength(line.text);
-}
-
-function indentationEdits(
-  text: string,
-  from: number,
-  to: number,
-  amount: number,
-  direction: ComposerListIndentDirection
-): SourceEdit[] {
-  const edits: SourceEdit[] = [];
-  const firstLineStart = text.lastIndexOf('\n', Math.max(0, from - 1)) + 1;
-  const finalBreak = text.indexOf('\n', to);
-  const rangeEnd = finalBreak === -1 ? text.length : finalBreak;
-  let lineStart = firstLineStart;
-
-  while (lineStart <= rangeEnd) {
-    const lineEnd = text.indexOf('\n', lineStart);
-    const effectiveEnd = lineEnd === -1 || lineEnd > rangeEnd ? rangeEnd : lineEnd;
-    const line = text.slice(lineStart, effectiveEnd);
-    const prefixLength = blockquotePrefixLength(line);
-    const content = line.slice(prefixLength);
-    if (content.trim().length > 0) {
-      const editFrom = lineStart + prefixLength;
-      if (direction === 'indent') {
-        edits.push({ from: editFrom, to: editFrom, insert: ' '.repeat(amount) });
-      } else {
-        const whitespace = content.match(/^[ \t]*/)?.[0].length ?? 0;
-        const remove = Math.min(amount, whitespace);
-        if (remove > 0) edits.push({ from: editFrom, to: editFrom + remove, insert: '' });
-      }
-    }
-    if (lineEnd === -1 || lineEnd >= rangeEnd) break;
-    lineStart = lineEnd + 1;
-  }
-  return edits;
-}
-
-function itemsAreOnAdjacentLines(
-  state: EditorState,
-  first: SourceSyntaxNode,
-  second: SourceSyntaxNode
-): boolean {
-  return state.doc.lineAt(second.from).number === state.doc.lineAt(first.to).number + 1;
-}
-
-function listSeparatorEdit(text: string, lineStart: number): SourceEdit {
-  const lineEnd = text.indexOf('\n', lineStart);
-  const line = text.slice(lineStart, lineEnd === -1 ? text.length : lineEnd);
-  const quotePrefix = line.slice(0, blockquotePrefixLength(line)).trimEnd();
-  return { from: lineStart, to: lineStart, insert: quotePrefix ? `${quotePrefix}\n` : '\n' };
-}
-
-function blockquotePrefixLength(line: string): number {
-  let length = 0;
-  while (length < line.length) {
-    const match = line.slice(length).match(/^[ \t]{0,3}>[ \t]?/);
-    if (!match) break;
-    length += match[0].length;
-  }
-  return length;
 }
 
 function mapPosition(position: number, edits: SourceEdit[]): number {

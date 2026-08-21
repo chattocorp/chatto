@@ -287,7 +287,7 @@ test.describe('Markdown composer', () => {
     });
   });
 
-  test('indents list items with Tab and the shared toolbar actions', async ({
+  test('uses CodeMirror line indentation with Tab and the toolbar', async ({
     page,
     chatPage,
     roomPage
@@ -299,23 +299,28 @@ test.describe('Markdown composer', () => {
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
-    await roomPage.messageInput.fill('- first\n- second');
-    const indent = page.getByRole('button', { name: 'Indent list item' });
-    const outdent = page.getByRole('button', { name: 'Outdent list item' });
+    await roomPage.messageInput.fill('first\nsecond');
+    const indent = page.getByRole('button', { name: 'Indent', exact: true });
+    const outdent = page.getByRole('button', { name: 'Outdent', exact: true });
     await expect(indent).toBeEnabled();
     await expect(outdent).toBeEnabled();
 
     await roomPage.messageInput.press('Tab');
-    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '  - second']);
-    await expect(outdent).toBeEnabled();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', '  second']);
 
     await outdent.click();
-    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '- second']);
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
     await indent.click();
     await roomPage.messageInput.press('Shift+Tab');
-    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '- second']);
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
     await roomPage.messageInput.press('Shift+Tab');
-    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['- first', '', 'second']);
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
+
+    await roomPage.messageInput.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+    await indent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['  first', '  second']);
+    await outdent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
   });
 });
 

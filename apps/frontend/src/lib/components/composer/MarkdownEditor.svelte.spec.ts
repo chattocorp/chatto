@@ -1,10 +1,13 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import MarkdownEditor from './MarkdownEditor.svelte';
-import type { ComposerEditorApi, ComposerFormattingState } from './editorTypes';
-import type { ComposerListIndentState } from './editorTypes';
+import type {
+  ComposerEditorApi,
+  ComposerFormattingState,
+  ComposerIndentState
+} from './editorTypes';
 
 async function renderEditor(props: Record<string, unknown> = {}) {
   const rendered = render(MarkdownEditor, {
@@ -75,25 +78,36 @@ describe('MarkdownEditor', () => {
     expect(api.getText()).toBe('- first\n- ');
   });
 
-  it('indents list items and reports whether nesting actions apply', async () => {
+  it('uses CodeMirror line indentation through the shared API', async () => {
     const readyApis: ComposerEditorApi[] = [];
-    const indentation: ComposerListIndentState[] = [];
+    const indentation: ComposerIndentState[] = [];
     await renderEditor({
       onReady: (api: ComposerEditorApi) => readyApis.push(api),
-      onListIndentStateChange: (state: ComposerListIndentState) => indentation.push(state)
+      onIndentStateChange: (state: ComposerIndentState) => indentation.push(state)
     });
     await vi.waitFor(() => expect(readyApis).toHaveLength(1));
     const api = readyApis[0]!;
-    api.setContent('- first\n- second');
+    api.setContent('first\nsecond');
 
     expect(indentation.at(-1)).toEqual({ canIndent: true, canOutdent: true });
-    expect(api.adjustListIndent('indent')).toBe(true);
-    expect(api.getText()).toBe('- first\n  - second');
-    expect(indentation.at(-1)).toEqual({ canIndent: false, canOutdent: true });
-    expect(api.adjustListIndent('outdent')).toBe(true);
-    expect(api.getText()).toBe('- first\n- second');
-    expect(api.adjustListIndent('outdent')).toBe(true);
-    expect(api.getText()).toBe('- first\n\nsecond');
+    expect(api.adjustIndent('indent')).toBe(true);
+    expect(api.getText()).toBe('first\n  second');
+    expect(api.adjustIndent('outdent')).toBe(true);
+    expect(api.getText()).toBe('first\nsecond');
+    expect(api.adjustIndent('outdent')).toBe(true);
+    expect(api.getText()).toBe('first\nsecond');
+  });
+
+  it('lets Escape followed by Tab move focus out of the editor', async () => {
+    const { container } = await renderEditor();
+    const afterEditor = document.createElement('button');
+    afterEditor.textContent = 'After editor';
+    container.append(afterEditor);
+
+    await userEvent.click(page.getByRole('textbox', { name: 'Write Markdown' }));
+    await userEvent.keyboard('{Escape}{Tab}');
+
+    expect(document.activeElement).toBe(afterEditor);
   });
 
   it('uses the visual editor font at 16px with per-line bidirectional text', async () => {

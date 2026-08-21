@@ -45,8 +45,8 @@
       "ordered_list": "Numbered list",
       "blockquote": "Quote",
       "code_block": "Code block",
-      "outdent_list_item": "Outdent list item",
-      "indent_list_item": "Indent list item"
+      "outdent": "Outdent",
+      "indent": "Indent"
     },
     "timestamp": {
       "title": "Insert timestamp",

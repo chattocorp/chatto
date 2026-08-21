@@ -45,8 +45,8 @@
       "ordered_list": "רשימה ממוספרת",
       "blockquote": "ציטוט",
       "code_block": "בלוק קוד",
-      "outdent_list_item": "הקטנת הזחה של פריט ברשימה",
-      "indent_list_item": "הגדלת הזחה של פריט ברשימה"
+      "outdent": "הקטנת הזחה",
+      "indent": "הגדלת הזחה"
     },
     "timestamp": {
       "title": "הכנס חותמת זמן",

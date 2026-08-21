@@ -45,8 +45,8 @@
       "ordered_list": "Nummerert liste",
       "blockquote": "Sitat",
       "code_block": "Kodeblokk",
-      "outdent_list_item": "Reduser innrykk for listeelement",
-      "indent_list_item": "Øk innrykk for listeelement"
+      "outdent": "Reduser innrykk",
+      "indent": "Øk innrykk"
     },
     "timestamp": {
       "title": "Sett inn tidsstempel",

@@ -7,12 +7,12 @@
     ComposerFormattingCommand,
     ComposerFormattingState,
     ComposerEditorApi,
-    ComposerListIndentState
+    ComposerIndentState
   } from './editorTypes';
 
   let {
     formattingState,
-    listIndentState,
+    indentState,
     sendMode,
     editorApi,
     inputDisabled,
@@ -30,7 +30,7 @@
     onsubmit
   }: {
     formattingState: ComposerFormattingState;
-    listIndentState: ComposerListIndentState;
+    indentState: ComposerIndentState;
     sendMode: ComposerSendMode;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
@@ -133,11 +133,11 @@
           <button
             type="button"
             onpointerdown={(event) => event.preventDefault()}
-            onclick={() => editorApi?.adjustListIndent('outdent')}
-            disabled={inputDisabled || !editorApi || !listIndentState.canOutdent}
-            aria-label={m('composer.format.outdent_list_item')}
+            onclick={() => editorApi?.adjustIndent('outdent')}
+            disabled={inputDisabled || !editorApi || !indentState.canOutdent}
+            aria-label={m('composer.format.outdent')}
             aria-keyshortcuts="Shift+Tab"
-            title={m('composer.format.outdent_list_item')}
+            title={m('composer.format.outdent')}
             class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span class="iconify icon-[mdi--format-indent-decrease] text-[15px] rtl:scale-x-[-1]"
@@ -146,11 +146,11 @@
           <button
             type="button"
             onpointerdown={(event) => event.preventDefault()}
-            onclick={() => editorApi?.adjustListIndent('indent')}
-            disabled={inputDisabled || !editorApi || !listIndentState.canIndent}
-            aria-label={m('composer.format.indent_list_item')}
+            onclick={() => editorApi?.adjustIndent('indent')}
+            disabled={inputDisabled || !editorApi || !indentState.canIndent}
+            aria-label={m('composer.format.indent')}
             aria-keyshortcuts="Tab"
-            title={m('composer.format.indent_list_item')}
+            title={m('composer.format.indent')}
             class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span class="iconify icon-[mdi--format-indent-increase] text-[15px] rtl:scale-x-[-1]"

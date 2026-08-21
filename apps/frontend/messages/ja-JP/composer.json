@@ -45,8 +45,8 @@
       "ordered_list": "番号付きリスト",
       "blockquote": "引用",
       "code_block": "コードブロック",
-      "outdent_list_item": "リスト項目のインデントを減らす",
-      "indent_list_item": "リスト項目のインデントを増やす"
+      "outdent": "インデントを減らす",
+      "indent": "インデントを増やす"
     },
     "timestamp": {
       "title": "タイムスタンプを挿入",
