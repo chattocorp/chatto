@@ -59,6 +59,10 @@ exercise more authority than its human owner currently possesses.
 - Losing one of the owner's permissions immediately removes the corresponding
   effective permission from every bot they own. A stored bot grant can become
   effective again if the owner later regains the required permission.
+- The bot editor marks permissions the owner cannot grant as locked. A stored
+  bot grant that is currently ineffective because of the owner's permission
+  ceiling remains visibly enabled, but is shown as unavailable and distinct
+  from both active grants and unconfigured permissions.
 - A bot owner can view, update, rotate the key for, configure permissions for,
   and delete their own bots. Losing `bot.create` does not remove management of
   bots they already own.

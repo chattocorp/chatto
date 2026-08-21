@@ -143,8 +143,30 @@ describe('MatrixCell', () => {
     const { container } = renderCell({ override: 'allow', ceilingBlocked: true });
     const button = container.querySelector('button')!;
 
-    expect(button.className).toContain('ring-warning/50');
+    expect(button.className).not.toContain('ring-warning');
+    expect(button.querySelector('[class~="bg-warning"]')).not.toBeNull();
+    expect(button.querySelector('[class~="bg-success"]')).toBeNull();
     expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  });
+
+  it('uses a quiet warning state for a blocked inherited allow', () => {
+    const { container } = renderCell({ inherited: 'allow', ceilingBlocked: true });
+    const button = container.querySelector('button')!;
+
+    expect(button.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
+    expect(button.querySelector('[class~="bg-success/15"]')).toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--check]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+  });
+
+  it('marks a permission the owner cannot grant without dimming the lock', () => {
+    const { container } = renderCell({ decisionMode: 'binary', allowBlocked: true });
+    const button = container.querySelector('button')!;
+
+    expect(button.hasAttribute('disabled')).toBe(true);
+    expect(button.className).not.toContain('opacity-60');
+    expect(button.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(button.querySelector('[class~="icon-[uil--minus]"]')).not.toBeNull();
   });
 
   it('toggles only enabled and disabled in binary mode', () => {

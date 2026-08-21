@@ -328,7 +328,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                     : `No override for ${permission} at ${scope.label}, effective ${eff}`}
               {@const allowConstraint =
                 cell.allowPermitted === false
-                  ? `The delegation ceiling blocks ${permission} at ${scope.label}`
+                  ? `The bot's owner does not currently have ${permission} at ${scope.label}`
                   : null}
               {@const titleParts = forceAllow
                 ? [
@@ -338,7 +338,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                 : decisionMode === 'binary'
                   ? [
                       binaryEnabled
-                        ? `Enabled${cell.override === 'NONE' ? ' (inherited)' : ''}`
+                        ? `Enabled${cell.override === 'NONE' ? ' (inherited)' : ''}${cell.allowPermitted === false ? ', but currently unavailable' : ''}`
                         : 'Disabled',
                       allowConstraint
                     ].filter(Boolean)

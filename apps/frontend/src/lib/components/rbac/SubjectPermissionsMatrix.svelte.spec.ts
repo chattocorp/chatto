@@ -163,6 +163,8 @@ it('maps binary disable to a deny only when it must override an inherited allow'
   const inheritedAllow = container.querySelector(
     'td[data-scope="group:general"][data-permission="message.post"] button'
   ) as HTMLButtonElement;
+  expect(inheritedAllow.querySelector('[class~="bg-success/15"]')).not.toBeNull();
+  expect(inheritedAllow.querySelector('[class~="icon-[uil--lock]"]')).toBeNull();
   inheritedAllow.click();
   expect(onCycle).toHaveBeenLastCalledWith(
     expect.objectContaining({ id: 'group:general' }),
@@ -222,7 +224,9 @@ it('returns a room permission to its inherited group grant', async () => {
     ) as HTMLButtonElement;
 
   expect(roomCell().title).toContain('Enabled (inherited)');
-  expect(roomCell().querySelector('[class~="bg-success/15"]')).not.toBeNull();
+  expect(roomCell().title).toContain('currently unavailable');
+  expect(roomCell().title).toContain("bot's owner");
+  expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
   roomCell().click();
   expect(onCycle).toHaveBeenLastCalledWith(
     expect.objectContaining({ id: 'room:lobby' }),
@@ -250,7 +254,7 @@ it('returns a room permission to its inherited group grant', async () => {
 
   await rendered.rerender({ data: roomData, onCycle, decisionMode: 'binary' });
   expect(roomCell().title).toContain('Enabled (inherited)');
-  expect(roomCell().querySelector('[class~="bg-success/15"]')).not.toBeNull();
+  expect(roomCell().querySelector('[class~="bg-warning/20"]')).not.toBeNull();
   expect(roomCell().querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
   expect(roomCell().disabled).toBe(false);
 });

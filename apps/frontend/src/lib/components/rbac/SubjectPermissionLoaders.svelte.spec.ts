@@ -307,7 +307,7 @@ describe('subject permission loaders', () => {
     const groupClassName = group.className;
 
     expect(room.title).toContain('Enabled (inherited)');
-    expect(room.querySelector('[class~="bg-success/15"]')).not.toBeNull();
+    expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
     expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(room.disabled).toBe(false);
 
@@ -341,7 +341,7 @@ describe('subject permission loaders', () => {
         state: 'neutral'
       })
     );
-    expect(room.querySelector('[class~="bg-success/15"]')).not.toBeNull();
+    expect(room.querySelector('[class~="bg-warning/20"]')).not.toBeNull();
     expect(room.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
     expect(room.disabled).toBe(false);
     expect(rendered.container.querySelector('table')).toBe(table);

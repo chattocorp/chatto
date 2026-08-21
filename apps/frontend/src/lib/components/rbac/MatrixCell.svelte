@@ -89,7 +89,15 @@ to render an inert "—" cell with an explanation tooltip.
     neutral: 'bg-surface-emphasized/60 text-muted/60 hover:bg-surface-strong/80'
   };
 
-  const surfaceClasses = $derived(isOverride ? overrideClasses[visual] : inheritedClasses[visual]);
+  const surfaceClasses = $derived(
+    ceilingBlocked
+      ? isOverride
+        ? 'bg-warning text-on-warning hover:bg-warning/90'
+        : 'bg-warning/20 text-warning hover:bg-warning/30'
+      : isOverride
+        ? overrideClasses[visual]
+        : inheritedClasses[visual]
+  );
 
   const icon = $derived.by(() => {
     if (visual === 'allow') return 'icon-[uil--check]';
@@ -116,9 +124,8 @@ to render an inert "—" cell with an explanation tooltip.
     class={[
       'relative inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded-md transition-[scale] active:scale-[0.96]',
       updating ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
-      ceilingBlocked ? 'bg-warning/15 ring-2 ring-warning/50 ring-inset' : '',
       interactionDisabled || updating ? 'cursor-not-allowed' : '',
-      interactionDisabled ? 'opacity-60' : ''
+      interactionDisabled && !allowBlocked ? 'opacity-60' : ''
     ]}
     disabled={interactionDisabled || updating}
     {title}
@@ -139,7 +146,7 @@ to render an inert "—" cell with an explanation tooltip.
         <span class={['iconify h-3 w-3', icon]}></span>
       {/if}
     </span>
-    {#if ceilingBlocked && !updating}
+    {#if (allowBlocked || ceilingBlocked) && !updating}
       <span
         class="iconify absolute top-0.5 right-0.5 icon-[uil--lock] h-3 w-3 text-warning"
         aria-hidden="true"
