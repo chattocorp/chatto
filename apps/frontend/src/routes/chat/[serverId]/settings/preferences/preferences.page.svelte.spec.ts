@@ -5,6 +5,7 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte';
 import { q } from '$lib/test-utils';
+import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const mocks = vi.hoisted(() => ({
   currentUser: null as unknown as CurrentUserState
@@ -55,6 +56,7 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
 
 describe('Preferences settings page', () => {
   beforeEach(() => {
+    userPreferences.composerEditor = 'visual';
     mocks.currentUser = new CurrentUserState();
   });
 
@@ -82,5 +84,22 @@ describe('Preferences settings page', () => {
       .element(buttonWithText(container, '24-hour'))
       .toHaveAttribute('aria-checked', 'true');
     await expect.element(saveButton).toBeDisabled();
+  });
+
+  it('persists the editor choice immediately for this browser', async () => {
+    const { container, getByRole } = render(PreferencesPage);
+    await settle();
+
+    expect(container.textContent).toContain('Choose how Chatto looks and behaves');
+    expect(container.textContent).toContain(
+      'This choice applies to every Chatto server in this browser.'
+    );
+    await getByRole('radio', { name: /^Markdown/ }).click();
+    await settle();
+
+    expect(userPreferences.composerEditor).toBe('markdown');
+    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+      composerEditor: 'markdown'
+    });
   });
 });

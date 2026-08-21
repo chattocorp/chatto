@@ -97,7 +97,7 @@ test.describe('Message Threading', () => {
     await roomPage.waitForInputEditable();
     await page.getByRole('button', { name: 'Post as thread' }).click();
     await roomPage.messageInput.fill(rootMessage);
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     await expect(roomPage.threadPane).toBeHidden();
     await roomPage.expectThreadRouteClosed();
@@ -255,7 +255,7 @@ test.describe('Message Threading', () => {
         await roomPage.expectThreadEditModeActive();
         const editedReply = `Edited reply ${Date.now()}`;
         await roomPage.threadReplyInput.fill(editedReply);
-        await roomPage.threadReplyInput.press('Enter');
+        await roomPage.threadReplyInput.press('Control+Enter');
 
         // User B should see the new content and the (edited) marker.
         await expect(roomPage2.threadPane.getByText(editedReply)).toBeVisible({
@@ -1346,11 +1346,7 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadRouteClosed();
   });
 
-  test('clicking the room list keeps the thread open', async ({
-    page,
-    chatPage,
-    roomPage
-  }) => {
+  test('clicking the room list keeps the thread open', async ({ page, chatPage, roomPage }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');

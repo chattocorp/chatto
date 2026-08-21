@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-07-19
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -16,6 +16,9 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Backslashes normally remain literal so common chat text such as Windows paths and kaomoji is not unexpectedly changed. An escaped pipe inside a GFM table cell is still interpreted as cell content rather than a column boundary.
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
+- The bundled client offers a visual editor by default and an optional syntax-highlighted Markdown source editor. Both edit the same Markdown body and provide the same formatting and composer features.
+- Editor choice is a browser-local preference shared across every Chatto server in that browser. It is not synchronized to other browsers or devices.
+- Enter always performs the selected editor's native action, including paragraph and list continuation. Ctrl+Enter on Windows and Linux or Cmd+Enter on macOS sends. Touch-primary devices use Return for new lines and the visible Send button.
 
 ## Design Decisions
 
@@ -35,8 +38,15 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 
 **Decision:** Tables use semantic rows, headers, cells, and GFM column alignment, with native horizontal scrolling when their content is wider than the message.
 **Why:** Tables are useful for compact comparisons and status data, but message authors should not be able to use them to force the conversation column wider or create arbitrary page layouts.
-**Tradeoff:** Large tables require horizontal scrolling on narrow screens and are less convenient to author in the bundled rich composer than ordinary prose.
+**Tradeoff:** Large tables require horizontal scrolling on narrow screens and are less convenient to author in the bundled visual editor than ordinary prose.
+
+### 4. Composer presentation is a client preference
+
+**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor choice in its browser-wide preferences. Both editors retain their native Enter behavior and use the platform modifier plus Enter to send.
+**Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. Stable editor-native keyboard behavior avoids surprising content-dependent rules.
+**Tradeoff:** Preferences do not follow a person to another browser or device, and each editor must maintain equivalent composer integrations and formatting controls.
 
 ## Related
 
 - **FDRs:** FDR-004 (Message Editing & Deletion), FDR-006 (@Mentions), FDR-030 (Inline Message Timestamps)
+- **Guide:** [Format Messages](../../apps/docs-website/src/content/docs/getting-started/message-formatting.mdx)

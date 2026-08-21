@@ -2,7 +2,7 @@ import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { describe, it, expect } from 'vitest';
 
 import type { RoomMember } from '$lib/state/room';
-import type { TipTapEditorApi } from './editorTypes';
+import type { ComposerEditorApi } from './editorTypes';
 import { AutocompleteState } from './autocomplete.svelte';
 
 function member(login: string, displayName = login, deleted = false): RoomMember {
@@ -20,7 +20,7 @@ function editor(
   initialText: string,
   initialCursor = initialText.length
 ): {
-  api: TipTapEditorApi;
+  api: ComposerEditorApi;
   getText: () => string;
   setText: (text: string) => void;
   setCursor: (position: number) => void;
@@ -46,7 +46,6 @@ function editor(
         cursor += inserted.length;
       },
       toggleFormatting: () => {},
-      insertBlockBreak: () => {},
       insertQuote: () => {}
     },
     getText: () => text,

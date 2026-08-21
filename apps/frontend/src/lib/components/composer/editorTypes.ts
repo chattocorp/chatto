@@ -12,8 +12,8 @@ export type ComposerFormattingCommand =
 
 export type ComposerFormattingState = Record<ComposerFormattingCommand, boolean>;
 
-export type TipTapEditorApi = {
-  /** Get the editor's plain text content. */
+export type ComposerEditorApi = {
+  /** Get the editor's current text content for empty-state checks. */
   getText: () => string;
   /** Set editor content from Markdown. */
   setContent: (markdown: string) => void;
@@ -35,6 +35,17 @@ export type TipTapEditorApi = {
   toggleFormatting: (command: ComposerFormattingCommand) => void;
   /** Insert selected reply text as a blockquote at the current cursor. */
   insertQuote: (text: QuoteInsertionContent) => void;
-  /** Insert the same block break the editor would create for a plain Enter key. */
-  insertBlockBreak: () => void;
+};
+
+export type ComposerEditorProps = {
+  placeholder?: string;
+  editable?: boolean;
+  autofocus?: boolean;
+  testid?: string;
+  onUpdate?: (markdown: string) => void;
+  onKeyDown?: (event: KeyboardEvent) => boolean;
+  onPaste?: (event: ClipboardEvent) => boolean;
+  onFormattingStateChange?: (state: ComposerFormattingState) => void;
+  onReady?: (api: ComposerEditorApi) => void;
+  onDestroy?: (api: ComposerEditorApi) => void;
 };

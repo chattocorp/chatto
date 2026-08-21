@@ -21,46 +21,6 @@
 </script>
 
 <Story
-  name="composer mode surface"
-  asChild
-  parameters={{
-    docs: {
-      description: {
-        story:
-          '`composer-mode-surface` keeps simple mode unadorned and adds an action-gradient ring when `data-composer-mode="rich"` is present.'
-      }
-    }
-  }}
->
-  <div class="flex max-w-2xl flex-col gap-5">
-    <p class="max-w-prose text-sm text-muted">
-      The composer uses the same surface in both modes. Rich mode adds emphasis without changing
-      layout, and fades cleanly as the composer moves between these states.
-    </p>
-    <div class="grid gap-5 sm:grid-cols-2">
-      <section>
-        <p class="mb-2 text-sm font-medium text-muted">Simple mode</p>
-        <div
-          class="composer-mode-surface flex min-h-12 items-center rounded-xl bg-surface px-4"
-          data-composer-mode="simple"
-        >
-          <span class="text-muted">Write a message…</span>
-        </div>
-      </section>
-      <section>
-        <p class="mb-2 text-sm font-medium text-muted">Rich mode</p>
-        <div
-          class="composer-mode-surface flex min-h-12 items-center rounded-xl bg-surface px-4"
-          data-composer-mode="rich"
-        >
-          <span class="text-text">A message with multiple paragraphs</span>
-        </div>
-      </section>
-    </div>
-  </div>
-</Story>
-
-<Story
   name="selectable list"
   asChild
   parameters={{
@@ -164,7 +124,7 @@
       <p dir="auto" class="mt-2">שלום <bdi>Bob</bdi> — https://example.com/room-42</p>
     </div>
 
-    <div class="composer-mode-surface flex min-h-12 items-center gap-3 rounded-xl bg-surface px-3">
+    <div class="flex min-h-12 items-center gap-3 rounded-xl bg-surface px-3">
       <button type="button" class="icon-action" aria-label="إرسال">
         <span class="iconify icon-[uil--message] rtl:-scale-x-100" aria-hidden="true"></span>
       </button>

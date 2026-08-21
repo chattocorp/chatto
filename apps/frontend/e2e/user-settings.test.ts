@@ -3,11 +3,11 @@ import { createAndLoginTestUser } from './fixtures/testUser';
 import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
-test.describe('User Settings - Display', () => {
-  test('can navigate to display page', async ({ page }) => {
+test.describe('User Settings - Preferences', () => {
+  test('can navigate to preferences page', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   });
@@ -16,7 +16,7 @@ test.describe('User Settings - Display', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -51,10 +51,30 @@ test.describe('User Settings - Display', () => {
     await expect(page.locator('html')).toHaveCSS('color-scheme', 'dark');
   });
 
+  test('can choose and persist the browser-wide composer editor', async ({ page }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
+      timeout: TIMEOUTS.UI_STANDARD
+    });
+
+    const markdown = page.getByRole('radio', { name: /^Markdown/ });
+    await markdown.click();
+    await expect(markdown).toHaveAttribute('aria-checked', 'true');
+    await expect
+      .poll(() =>
+        page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
+      )
+      .toMatchObject({ composerEditor: 'markdown' });
+
+    await page.reload();
+    await expect(markdown).toHaveAttribute('aria-checked', 'true');
+  });
+
   test('can choose and persist a regional locale', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -67,7 +87,7 @@ test.describe('User Settings - Display', () => {
     });
 
     await page.getByRole('radio', { name: 'German (Germany)' }).click();
-    await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Einstellungen' }).last()).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.locator('html')).toHaveAttribute('lang', 'de-DE');
@@ -82,7 +102,7 @@ test.describe('User Settings - Display', () => {
       .toBe(pageMarker);
 
     await page.reload();
-    await expect(page.getByRole('heading', { name: 'Darstellung' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Einstellungen' }).last()).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.getByRole('radio', { name: 'Deutsch (Deutschland)' })).toHaveAttribute(
@@ -91,7 +111,7 @@ test.describe('User Settings - Display', () => {
     );
 
     await page.getByRole('radio', { name: 'Englisch (Vereinigte Staaten)' }).click();
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
     await expect(page.locator('html')).toHaveAttribute('lang', 'en-US');
@@ -106,7 +126,7 @@ test.describe('User Settings - Display', () => {
   test('can set timezone and save', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -115,12 +135,12 @@ test.describe('User Settings - Display', () => {
     await timezoneInput.fill('Europe/Berlin');
 
     // Save button should be enabled
-    const saveButton = page.getByRole('button', { name: 'Save Display Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
     await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
     await saveButton.click();
 
     // Should see success toast
-    await expect(page.getByText('Display settings saved')).toBeVisible({
+    await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -134,7 +154,7 @@ test.describe('User Settings - Display', () => {
   test('can set time format to 24-hour and save', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -150,11 +170,11 @@ test.describe('User Settings - Display', () => {
     await expect(currentTime).not.toContainText(/[AP]M$/);
 
     // Save
-    const saveButton = page.getByRole('button', { name: 'Save Display Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
     await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
     await saveButton.click();
 
-    await expect(page.getByText('Display settings saved')).toBeVisible({
+    await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -172,7 +192,7 @@ test.describe('User Settings - Display', () => {
   test('can clear timezone back to browser default', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -180,9 +200,9 @@ test.describe('User Settings - Display', () => {
     const timezoneInput = page.getByTestId('timezone-input');
     await timezoneInput.fill('America/New_York');
 
-    const saveButton = page.getByRole('button', { name: 'Save Display Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
     await saveButton.click();
-    await expect(page.getByText('Display settings saved')).toBeVisible({
+    await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -196,7 +216,7 @@ test.describe('User Settings - Display', () => {
     // Save again
     await expect(saveButton).toBeEnabled({ timeout: TIMEOUTS.UI_STANDARD });
     await saveButton.click();
-    await expect(page.getByText('Display settings saved')).toBeVisible({
+    await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -210,7 +230,7 @@ test.describe('User Settings - Display', () => {
   test('shows validation error for invalid timezone', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -224,16 +244,15 @@ test.describe('User Settings - Display', () => {
     });
 
     // Save button should be disabled
-    const saveButton = page.getByRole('button', { name: 'Save Display Settings' });
+    const saveButton = page.getByRole('button', { name: 'Save Time Settings' });
     await expect(saveButton).toBeDisabled();
   });
 
-  test('display nav item is visible in settings sidebar', async ({ page }) => {
+  test('preferences nav item is visible in settings sidebar', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settings);
 
-    // Check that Display is in the nav
-    await expect(page.getByRole('link', { name: 'Display' })).toBeVisible({
+    await expect(page.getByRole('link', { name: 'Preferences' })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
   });

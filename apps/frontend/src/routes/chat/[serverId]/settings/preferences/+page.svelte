@@ -5,7 +5,11 @@
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
+  import {
+    userPreferences,
+    type ComposerEditorKind,
+    type DisplayTheme
+  } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
   import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
@@ -149,6 +153,19 @@
     }))
   );
 
+  const editorOptions = $derived([
+    {
+      value: 'visual',
+      label: m('settings.preferences.editor.visual.label'),
+      description: m('settings.preferences.editor.visual.description')
+    },
+    {
+      value: 'markdown',
+      label: m('settings.preferences.editor.markdown.label'),
+      description: m('settings.preferences.editor.markdown.description')
+    }
+  ] satisfies Array<{ value: ComposerEditorKind; label: string; description: string }>);
+
   const timeFormatOptions = $derived([
     {
       value: TimeFormat.TIME_FORMAT_AUTO,
@@ -193,6 +210,24 @@
           description={option.description}
           selected={isSelected}
           onclick={() => (userPreferences.displayTheme = option.value)}
+        />
+      {/each}
+    </div>
+  </FormSection>
+
+  <FormSection title={m('settings.preferences.editor.title')} maxWidth="max-w-md" bordered>
+    <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
+    <div
+      class="flex flex-col gap-2"
+      role="radiogroup"
+      aria-label={m('settings.preferences.editor.title')}
+    >
+      {#each editorOptions as option (option.value)}
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={userPreferences.composerEditor === option.value}
+          onclick={() => (userPreferences.composerEditor = option.value)}
         />
       {/each}
     </div>

@@ -15,7 +15,8 @@ export default defineConfig({
     "/guides/community-structure": "/guides/operations/community-structure",
     "/guides/identity-login": "/guides/operations/identity-login",
     "/guides/permissions": "/guides/operations/permissions",
-    "/guides/notifications-web-push": "/guides/operations/notifications-web-push",
+    "/guides/notifications-web-push":
+      "/guides/operations/notifications-web-push",
     "/guides/privacy-erasure": "/guides/operations/privacy-erasure",
     "/guides/server-operations": "/guides/operations/server-operations",
     "/guides/backup-restore": "/guides/operations/backup-restore",
@@ -28,7 +29,8 @@ export default defineConfig({
     "/guides/video-processing": "/guides/infrastructure/video-processing",
     "/guides/voice-calls": "/guides/infrastructure/voice-calls",
     "/guides/integrating-with-chatto": "/guides/integrations/chatto-api",
-    "/guides/external-login-providers": "/guides/integrations/external-login-providers",
+    "/guides/external-login-providers":
+      "/guides/integrations/external-login-providers",
     "/guides/community-shields": "/guides/integrations/community-shields",
   },
   integrations: [
@@ -54,6 +56,7 @@ export default defineConfig({
           items: [
             "getting-started/introduction",
             "getting-started/quick-start",
+            "getting-started/message-formatting",
             "getting-started/faq",
           ],
         },

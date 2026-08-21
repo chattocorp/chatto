@@ -1,0 +1,52 @@
+---
+title: Format Messages
+description: Choose a visual or Markdown editor and use Chatto's supported Markdown.
+---
+
+Chatto stores every message as Markdown. You can write with the visual editor or edit the Markdown source directly; recipients see the same formatted message either way.
+
+## Choose an editor
+
+Open **Settings → Preferences → Message editor** and choose:
+
+- **Visual** to format text without seeing Markdown markers. This is the default.
+- **Markdown** to edit source syntax directly, with Markdown and fenced-code highlighting.
+
+The setting applies to every Chatto server you use in the current browser. It does not sync to other browsers or devices.
+
+Both editors provide the same formatting toolbar, mentions, emoji completion, attachments, reply quotes, timestamps, and message editing. The Markdown editor always shows source; it does not include a separate preview.
+
+## Write and send
+
+In both editors, `Enter` performs the editor's normal action, such as starting a paragraph or continuing a list. Send with `Ctrl+Enter` on Windows and Linux or `Cmd+Enter` on macOS.
+
+On touch-primary devices, Return starts a new line. Use the visible **Send** button to send.
+
+## Supported Markdown
+
+Chatto formats:
+
+- paragraphs and ATX headings such as `## Heading`;
+- bold and italic text;
+- links and automatically detected URLs;
+- inline code and fenced code blocks;
+- blockquotes;
+- ordered and unordered lists;
+- GFM pipe tables, including column alignment and escaped pipes; and
+- Chatto timestamp tokens inserted from the composer toolbar.
+
+```md
+## Release status
+
+- **Ready:** web client
+- **Waiting:** desktop package
+
+> Deploy after the final check.
+
+| Component | State   |
+| --------- | ------- |
+| Web       | Ready   |
+| Desktop   | Waiting |
+```
+
+Chatto displays source HTML, horizontal rules, reference-style links, and setext headings as literal text. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.

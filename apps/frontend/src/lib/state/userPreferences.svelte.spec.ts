@@ -71,6 +71,36 @@ describe('UserPreferencesState', () => {
       expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
     });
 
+    it('uses visual editing when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('visual');
+    });
+
+    it('hydrates a valid composer preference', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'markdown' }));
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('markdown');
+    });
+
+    it('drops the removed send-mode preference on the next write', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ composerEditor: 'markdown', composerSendMode: 'modifier-enter' })
+      );
+      const state = new UserPreferencesState();
+      state.composerEditor = 'visual';
+
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).not.toHaveProperty(
+        'composerSendMode'
+      );
+    });
+
+    it('falls back from an invalid composer preference', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'plain-text' }));
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('visual');
+    });
+
     it('hydrates a valid persisted sound', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ notificationSound: 'silent' }));
       const state = new UserPreferencesState();
@@ -220,6 +250,16 @@ describe('UserPreferencesState', () => {
 
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
       expect(stored.notificationSound).toBe('pop');
+    });
+
+    it('updates and persists the composer preference', () => {
+      const state = new UserPreferencesState();
+      state.composerEditor = 'markdown';
+
+      expect(state.composerEditor).toBe('markdown');
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        composerEditor: 'markdown'
+      });
     });
 
     it('updates and persists individual notification sound filters', () => {

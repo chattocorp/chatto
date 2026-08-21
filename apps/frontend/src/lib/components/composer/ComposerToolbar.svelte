@@ -5,7 +5,7 @@
   import type {
     ComposerFormattingCommand,
     ComposerFormattingState,
-    TipTapEditorApi
+    ComposerEditorApi
   } from './editorTypes';
 
   let {
@@ -15,8 +15,6 @@
     canAttach,
     isEditing,
     canSubmit,
-    isRichComposer,
-    nextEnterWillSend,
     fileInputElement,
     effectiveTimezone,
     showCreateThread = false,
@@ -28,13 +26,11 @@
     onsubmit
   }: {
     formattingState: ComposerFormattingState;
-    editorApi: TipTapEditorApi | null;
+    editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
     canAttach: boolean;
     isEditing: boolean;
     canSubmit: boolean;
-    isRichComposer: boolean;
-    nextEnterWillSend: boolean;
     fileInputElement?: HTMLInputElement;
     effectiveTimezone?: string;
     showCreateThread?: boolean;
@@ -59,16 +55,12 @@
     { command: 'blockquote', icon: 'icon-[mdi--format-quote-open]' },
     { command: 'codeBlock', icon: 'icon-[mdi--code-block-braces]' }
   ];
-  const shortcutHints = getShortcutHints();
+  const submitShortcut = getSubmitShortcut();
   const submitHint = $derived(
-    shortcutHints && isRichComposer
-      ? nextEnterWillSend
-        ? shortcutHints.enterAgain
-        : shortcutHints.submit
-      : null
+    submitShortcut ? m('composer.shortcut_send', { shortcut: submitShortcut }) : null
   );
 
-  function getShortcutHints(): { submit: string; enterAgain: string } | null {
+  function getSubmitShortcut(): string | null {
     if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
 
     const userAgentDataPlatform =
@@ -76,10 +68,7 @@
         ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
         : undefined;
     const platform = userAgentDataPlatform ?? navigator.platform ?? '';
-    const usesReturn = /Mac|iPhone|iPad|iPod/i.test(platform);
-    return usesReturn
-      ? { submit: 'Cmd+Return to Send', enterAgain: 'Return again to Send' }
-      : { submit: 'Ctrl+Return to Send', enterAgain: 'Enter again to Send' };
+    return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Cmd+Enter' : 'Ctrl+Enter';
   }
 
   function formattingLabel(command: ComposerFormattingCommand): string {
@@ -166,7 +155,7 @@
           aria-pressed={createThread}
           title={m('composer.post_as_thread')}
           class={[
-            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5',
             createThread
               ? 'bg-action/10 text-action'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
@@ -187,7 +176,7 @@
           aria-pressed={alsoSendToChannel}
           title={m('composer.also_send_to_channel')}
           class={[
-            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5',
             alsoSendToChannel
               ? 'bg-action/10 text-action'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'
@@ -199,11 +188,11 @@
       {/if}
     </div>
 
-    {#if submitHint && canSubmit}
+    {#if submitHint}
       <span
         aria-hidden="true"
         title={submitHint}
-        class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted/75"
+        class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted"
       >
         {submitHint}
       </span>
@@ -214,9 +203,9 @@
       onpointerdown={(event) => event.preventDefault()}
       onclick={onsubmit}
       disabled={!canSubmit}
-      class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50"
+      class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5"
       aria-label={m('composer.send')}
-      title={isRichComposer ? m('composer.send_ctrl_enter') : m('composer.send_enter')}
+      title={m('composer.send_ctrl_enter')}
     >
       <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
       <span class="hidden @min-[560px]:inline">{m('composer.send_label')}</span>
