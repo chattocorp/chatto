@@ -245,7 +245,9 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const isInThreadPane = $derived(!!permalinkThreadRootEventId);
-  const replyInRoomActionLabel = $derived(m('room.message.actions.reply'));
+  const replyInRoomActionLabel = $derived(
+    isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
+  );
   const replyThreadActionLabel = $derived(
     isEcho || (isRootMessage && threadingMode === RoomThreadingMode.DISABLED && hasThread)
       ? m('room.message.actions.open_thread')

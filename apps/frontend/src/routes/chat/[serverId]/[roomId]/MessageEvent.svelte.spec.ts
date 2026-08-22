@@ -390,7 +390,7 @@ describe('MessageEvent action model integration', () => {
       new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2 })
     );
     await openContextMenu(rendered.container);
-    menuButton(rendered.container, 'Reply')!.click();
+    menuButton(rendered.container, 'Reply in thread')!.click();
     expect(onOpenThread).toHaveBeenCalledWith(
       'thread-root',
       expect.objectContaining({
