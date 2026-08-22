@@ -53,7 +53,7 @@ test('Slow Mode updates live and shares one room timer with threads', async ({
     const replyText = `Slow Mode reply ${Date.now()}`;
     await roomPage.threadReplyInput.fill(replyText);
     await expect(threadSend).toBeEnabled();
-    await roomPage.threadReplyInput.press('Enter');
+    await roomPage.threadReplyInput.press('Control+Enter');
     await roomPage.expectTextInThreadPane(replyText);
     await expect(threadSend).toBeDisabled();
 

@@ -4,7 +4,7 @@
       "title": "Ustawienia",
       "back_to_server": "Powrót do serwera",
       "profile": "Profil",
-      "display": "Wyświetlacz",
+      "display": "Preferencje",
       "notifications": "Powiadomienia",
       "account": "Konto",
       "bots": "Boty"
@@ -105,8 +105,9 @@
       "save_button": "Zapisz zmiany"
     },
     "preferences": {
-      "title": "Wyświetlacz",
-      "subtitle": "Wybierz sposób wyświetlania Chatto",
+      "title": "Preferencje",
+      "subtitle": "Wybierz wygląd i zachowanie Chatto",
+      "browser_scope": "Ten wybór dotyczy wszystkich serwerów Chatto w tej przeglądarce.",
       "theme": {
         "title": "Temat",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Ciemno",
           "description": "Użyj ciemnego interfejsu w tej przeglądarce"
+        }
+      },
+      "editor": {
+        "title": "Edytor wiadomości",
+        "visual": {
+          "label": "Wizualny",
+          "description": "Formatuj wiadomości bez wyświetlania składni Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edytuj źródło Markdown z podświetlaniem składni"
+        }
+      },
+      "send_mode": {
+        "title": "Wysyłaj wiadomości za pomocą",
+        "enter": {
+          "label": "Return",
+          "description": "Return wysyła; Cmd/Ctrl+Return wykonuje zwykłą akcję Return edytora"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return wysyła; Return wykonuje zwykłą akcję edytora"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "np. 14:30"
         }
       },
-      "save_button": "Zapisz ustawienia wyświetlania",
-      "saved": "Ustawienia wyświetlacza zostały zapisane",
-      "save_failed": "Nie udało się zapisać ustawień wyświetlania"
+      "save_button": "Zapisz ustawienia czasu",
+      "saved": "Ustawienia czasu zapisane",
+      "save_failed": "Nie udało się zapisać ustawień czasu"
     },
     "notifications": {
       "title": "Powiadomienia",

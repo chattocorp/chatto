@@ -4,7 +4,7 @@
       "title": "Налаштування",
       "back_to_server": "Назад на сервер",
       "profile": "Профіль",
-      "display": "Дисплей",
+      "display": "Налаштування",
       "notifications": "Сповіщення",
       "account": "Обліковий запис",
       "bots": "Боти"
@@ -105,8 +105,9 @@
       "save_button": "Зберегти зміни"
     },
     "preferences": {
-      "title": "Дисплей",
-      "subtitle": "Виберіть, як виглядатиме Chatto",
+      "title": "Налаштування",
+      "subtitle": "Виберіть вигляд і поведінку Chatto",
+      "browser_scope": "Цей вибір застосовується до всіх серверів Chatto в цьому браузері.",
       "theme": {
         "title": "Тема",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Темно",
           "description": "Використовуйте темний інтерфейс у цьому браузері"
+        }
+      },
+      "editor": {
+        "title": "Редактор повідомлень",
+        "visual": {
+          "label": "Візуальний",
+          "description": "Форматуйте повідомлення, не бачачи синтаксис Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Редагуйте вихідний текст Markdown із підсвічуванням синтаксису"
+        }
+      },
+      "send_mode": {
+        "title": "Надсилати повідомлення за допомогою",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter надсилає; Cmd/Ctrl+Enter виконує звичайну дію Enter у редакторі"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter надсилає; Enter виконує звичайну дію редактора"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "наприклад, 14:30"
         }
       },
-      "save_button": "Зберегти налаштування дисплея",
-      "saved": "Налаштування дисплея збережено",
-      "save_failed": "Не вдалося зберегти налаштування дисплея"
+      "save_button": "Зберегти налаштування часу",
+      "saved": "Налаштування часу збережено",
+      "save_failed": "Не вдалося зберегти налаштування часу"
     },
     "notifications": {
       "title": "Сповіщення",

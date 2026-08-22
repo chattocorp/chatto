@@ -4,7 +4,7 @@
       "title": "الإعدادات",
       "back_to_server": "العودة إلى الخادم",
       "profile": "الملف الشخصي",
-      "display": "العرض",
+      "display": "التفضيلات",
       "notifications": "الإشعارات",
       "account": "الحساب",
       "bots": "الروبوتات"
@@ -105,8 +105,9 @@
       "save_button": "احفظ التغييرات"
     },
     "preferences": {
-      "title": "العرض",
-      "subtitle": "اختر كيفية ظهور Chatto",
+      "title": "التفضيلات",
+      "subtitle": "اختر مظهر Chatto وطريقة عمله",
+      "browser_scope": "ينطبق هذا الاختيار على كل خوادم Chatto في هذا المتصفح.",
       "theme": {
         "title": "السمة",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "داكن",
           "description": "استخدم الواجهة الداكنة في هذا المتصفح"
+        }
+      },
+      "editor": {
+        "title": "محرر الرسائل",
+        "visual": {
+          "label": "مرئي",
+          "description": "نسّق الرسائل دون رؤية صيغة Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "حرّر مصدر Markdown مع تمييز بناء الجملة"
+        }
+      },
+      "send_mode": {
+        "title": "إرسال الرسائل باستخدام",
+        "enter": {
+          "label": "Return",
+          "description": "يرسل Return الرسالة؛ وينفّذ Cmd/Ctrl+Return إجراء Return المعتاد في المحرر"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "يرسل Cmd/Ctrl+Return الرسالة؛ وينفّذ Return الإجراء المعتاد في المحرر"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "، على سبيل المثال، 14:30"
         }
       },
-      "save_button": "حفظ إعدادات العرض",
-      "saved": "تم حفظ إعدادات العرض",
-      "save_failed": "فشل في حفظ إعدادات العرض"
+      "save_button": "حفظ إعدادات الوقت",
+      "saved": "تم حفظ إعدادات الوقت",
+      "save_failed": "تعذّر حفظ إعدادات الوقت"
     },
     "notifications": {
       "title": "الإشعارات",

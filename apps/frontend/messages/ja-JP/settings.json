@@ -4,7 +4,7 @@
       "title": "設定",
       "back_to_server": "サーバーに戻る",
       "profile": "プロフィール",
-      "display": "ディスプレイ",
+      "display": "設定",
       "notifications": "通知",
       "account": "アカウント",
       "bots": "ボット"
@@ -105,8 +105,9 @@
       "save_button": "変更を保存"
     },
     "preferences": {
-      "title": "ディスプレイ",
-      "subtitle": "Chatto の表示方法を選択してください",
+      "title": "設定",
+      "subtitle": "Chatto の表示と動作を選択します",
+      "browser_scope": "この選択は、このブラウザーのすべての Chatto サーバーに適用されます。",
       "theme": {
         "title": "テーマ",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "ダーク",
           "description": "このブラウザではダーク インターフェースを使用してください"
+        }
+      },
+      "editor": {
+        "title": "メッセージエディター",
+        "visual": {
+          "label": "ビジュアル",
+          "description": "Markdown 記法を表示せずにメッセージを装飾します"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "構文強調表示付きで Markdown ソースを編集します"
+        }
+      },
+      "send_mode": {
+        "title": "メッセージの送信キー",
+        "enter": {
+          "label": "Return",
+          "description": "Return で送信し、Cmd/Ctrl+Return でエディターの通常の Return 操作を実行します"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return で送信し、Return でエディターの通常の操作を実行します"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "例: 14:30"
         }
       },
-      "save_button": "表示設定の保存",
-      "saved": "表示設定が保存されました",
-      "save_failed": "表示設定の保存に失敗しました"
+      "save_button": "時刻設定を保存",
+      "saved": "時刻設定を保存しました",
+      "save_failed": "時刻設定を保存できませんでした"
     },
     "notifications": {
       "title": "通知",

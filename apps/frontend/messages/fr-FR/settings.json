@@ -4,7 +4,7 @@
       "title": "Paramètres",
       "back_to_server": "Retour au serveur",
       "profile": "Profil",
-      "display": "Affichage",
+      "display": "Préférences",
       "notifications": "Notifications",
       "account": "Compte",
       "bots": "Robots"
@@ -105,8 +105,9 @@
       "save_button": "Enregistrer les modifications"
     },
     "preferences": {
-      "title": "Affichage",
-      "subtitle": "Choisissez comment Chatto apparaît",
+      "title": "Préférences",
+      "subtitle": "Choisissez l’apparence et le comportement de Chatto",
+      "browser_scope": "Ce choix s’applique à tous les serveurs Chatto dans ce navigateur.",
       "theme": {
         "title": "Thème",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Sombre",
           "description": "Utiliser l'interface sombre sur ce navigateur"
+        }
+      },
+      "editor": {
+        "title": "Éditeur de messages",
+        "visual": {
+          "label": "Visuel",
+          "description": "Mettez les messages en forme sans voir la syntaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Modifiez le code Markdown avec coloration syntaxique"
+        }
+      },
+      "send_mode": {
+        "title": "Envoyer les messages avec",
+        "enter": {
+          "label": "Retour",
+          "description": "Retour envoie ; Cmd/Ctrl+Retour exécute l'action Retour normale de l'éditeur"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retour",
+          "description": "Cmd/Ctrl+Retour envoie ; Retour exécute l'action normale de l'éditeur"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "par exemple, 14h30"
         }
       },
-      "save_button": "Enregistrer les paramètres d'affichage",
-      "saved": "Paramètres d'affichage enregistrés",
-      "save_failed": "Échec de l'enregistrement des paramètres d'affichage"
+      "save_button": "Enregistrer les réglages horaires",
+      "saved": "Réglages horaires enregistrés",
+      "save_failed": "Impossible d’enregistrer les réglages horaires"
     },
     "notifications": {
       "title": "Notifications",

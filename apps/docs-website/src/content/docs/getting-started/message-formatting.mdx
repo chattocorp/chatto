@@ -1,0 +1,59 @@
+---
+title: Format Messages
+description: Choose a visual or Markdown editor and use Chatto's supported Markdown.
+---
+
+Chatto stores every message as Markdown. You can write with the visual editor or edit the Markdown source directly; recipients see the same formatted message either way.
+
+## Choose an editor
+
+Open **Settings → Preferences → Message editor** and choose:
+
+- **Markdown** to edit source syntax directly, with Markdown and fenced-code highlighting. This is the default.
+- **Visual** to format text without seeing Markdown markers.
+
+The setting applies to every Chatto server you use in the current browser. It does not sync to other browsers or devices.
+
+Both editors provide the same formatting toolbar, mentions, emoji completion, attachments, reply quotes, timestamps, and message editing. The Markdown editor always shows source; it does not include a separate preview.
+
+The toolbar's indent and outdent actions follow the selected editor. In the visual editor they nest and unnest list items. In the Markdown editor they indent or outdent the current source line, or every line in a selection; Tab and Shift+Tab perform the same source-line actions. Tab continues to accept an active mention or emoji suggestion first. To move keyboard focus out of the Markdown editor, press Escape and then Tab.
+
+## Write and send
+
+Open **Settings → Preferences → Send messages with** and choose:
+
+- **Return** to send with Return. This is the default. Use `Ctrl+Return` on Windows and Linux or `Cmd+Return` on macOS for the editor's normal Return action.
+- **Cmd/Ctrl+Return** to send with `Ctrl+Return` on Windows and Linux or `Cmd+Return` on macOS. Return performs the editor's normal action.
+
+The normal Return action starts a new paragraph or line, continues a list, leaves an empty list item, or adds a line inside a code block as appropriate. In the visual editor, `Shift+Return` always inserts a hard line break.
+
+On touch-primary devices, Return always edits the message. Use the visible **Send** button to send.
+
+## Supported Markdown
+
+Chatto formats:
+
+- paragraphs and ATX headings such as `## Heading`;
+- bold and italic text;
+- links and automatically detected URLs;
+- inline code and fenced code blocks;
+- blockquotes;
+- ordered and unordered lists;
+- GFM pipe tables, including column alignment and escaped pipes; and
+- Chatto timestamp tokens inserted from the composer toolbar.
+
+```md
+## Release status
+
+- **Ready:** web client
+- **Waiting:** desktop package
+
+> Deploy after the final check.
+
+| Component | State   |
+| --------- | ------- |
+| Web       | Ready   |
+| Desktop   | Waiting |
+```
+
+Chatto displays source HTML, horizontal rules, reference-style links, and setext headings as literal text. Markdown image syntax does not embed remote images; upload an attachment instead. Label a fenced code block with a supported language, such as `js`, `go`, or `ruby`, to highlight its programming syntax while composing and after sending.

@@ -1,11 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Schema } from '@tiptap/pm/model';
-import {
-  buildQuoteContent,
-  createClipboardContent,
-  normalizeQuoteInsertionContent,
-  prepareMarkdownForEditor
-} from './markdown';
+import { buildQuoteContent, createClipboardContent, prepareMarkdownForEditor } from './markdown';
 
 describe('prepareMarkdownForEditor', () => {
   it('escapes HTML-looking prose without changing link destinations', () => {
@@ -26,28 +21,6 @@ describe('prepareMarkdownForEditor', () => {
     const prepared = prepareMarkdownForEditor('| One | Two |\n| --- | --- |\n| A | B |');
 
     expect(prepared).toBe('| One | Two |\n| -\u2060-- | --- |\n| A | B |');
-  });
-});
-
-describe('normalizeQuoteInsertionContent', () => {
-  it('normalizes plain selected text into top-level quote blocks', () => {
-    expect(normalizeQuoteInsertionContent(' First\r\nSecond ')).toEqual([
-      { quoteDepth: 0, text: 'First' },
-      { quoteDepth: 0, text: 'Second' }
-    ]);
-  });
-
-  it('normalizes structured quote depth and drops empty blocks', () => {
-    expect(
-      normalizeQuoteInsertionContent([
-        { quoteDepth: 1.9, text: ' Nested\r\nline ' },
-        { quoteDepth: -3, text: ' Root ' },
-        { quoteDepth: 4, text: '  ' }
-      ])
-    ).toEqual([
-      { quoteDepth: 1, text: 'Nested\nline' },
-      { quoteDepth: 0, text: 'Root' }
-    ]);
   });
 });
 

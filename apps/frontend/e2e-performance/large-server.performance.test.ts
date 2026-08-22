@@ -9,7 +9,7 @@ import {
 } from '@playwright/test';
 import { connectPost } from '../e2e/fixtures/connectHelpers';
 import { startServer, stopServer, type ServerInfo } from '../e2e/fixtures/server';
-import { loginAsAdmin } from '../e2e/fixtures/testUser';
+import { composerTestStorageState, loginAsAdmin } from '../e2e/fixtures/testUser';
 import { RoomPage } from '../e2e/pages';
 import * as routes from '../e2e/routes';
 
@@ -196,8 +196,9 @@ async function measureLargeServer(
   fixture: PerformanceFixtureManifest,
   sample: number
 ): Promise<PerformanceSample> {
-  const context = await browser.newContext({ baseURL: server.baseURL });
-  const receiverContext = await browser.newContext({ baseURL: server.baseURL });
+  const storageState = composerTestStorageState(server.baseURL);
+  const context = await browser.newContext({ baseURL: server.baseURL, storageState });
+  const receiverContext = await browser.newContext({ baseURL: server.baseURL, storageState });
   try {
     const page = await context.newPage();
     await loginAsAdmin(page);

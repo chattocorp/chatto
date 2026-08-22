@@ -55,7 +55,7 @@ test.describe('video player @ffmpeg', () => {
         });
 
         // Send the message
-        await roomPage.messageInput.press('Enter');
+        await roomPage.messageInput.press('Control+Enter');
 
         // Wait for preview to clear (message sent)
         await expect(roomPage.videoAttachmentPreview).not.toBeVisible({
@@ -201,7 +201,7 @@ test.describe('video player @ffmpeg', () => {
       });
       await expect(roomPage.videoAttachmentPreview).toBeVisible({ timeout: TIMEOUTS.UI_STANDARD });
 
-      await roomPage.messageInput.press('Enter');
+      await roomPage.messageInput.press('Control+Enter');
       await expect(roomPage.videoAttachmentPreview).not.toBeVisible({
         timeout: TIMEOUTS.COMPLEX_OPERATION
       });

@@ -4,7 +4,7 @@
       "title": "Settings",
       "back_to_server": "Back to Server",
       "profile": "Profile",
-      "display": "Display",
+      "display": "Preferences",
       "notifications": "Notifications",
       "account": "Account",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Save Changes"
     },
     "preferences": {
-      "title": "Display",
-      "subtitle": "Choose how Chatto appears",
+      "title": "Preferences",
+      "subtitle": "Choose how Chatto looks and behaves",
+      "browser_scope": "This choice applies to every Chatto server in this browser.",
       "theme": {
         "title": "Theme",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Dark",
           "description": "Use the dark interface on this browser"
+        }
+      },
+      "editor": {
+        "title": "Message editor",
+        "visual": {
+          "label": "Visual",
+          "description": "Format messages without seeing Markdown syntax"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edit Markdown source with syntax highlighting"
+        }
+      },
+      "send_mode": {
+        "title": "Send messages with",
+        "enter": {
+          "label": "Return",
+          "description": "Return sends; Cmd/Ctrl+Return performs the editor's normal Return action"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sends; Return performs the editor's normal action"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "e.g., 14:30"
         }
       },
-      "save_button": "Save Display Settings",
-      "saved": "Display settings saved",
-      "save_failed": "Failed to save display settings"
+      "save_button": "Save Time Settings",
+      "saved": "Time settings saved",
+      "save_failed": "Failed to save time settings"
     },
     "notifications": {
       "title": "Notifications",

@@ -4,7 +4,7 @@
       "title": "Definições",
       "back_to_server": "Voltar ao servidor",
       "profile": "Perfil",
-      "display": "Exibição",
+      "display": "Preferências",
       "notifications": "Notificações",
       "account": "Conta",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Guardar alterações"
     },
     "preferences": {
-      "title": "Exibição",
-      "subtitle": "Escolha como aparece Chatto",
+      "title": "Preferências",
+      "subtitle": "Escolha o aspeto e o comportamento do Chatto",
+      "browser_scope": "Esta escolha aplica-se a todos os servidores Chatto neste navegador.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Escuro",
           "description": "Utilize a interface escura neste browser"
+        }
+      },
+      "editor": {
+        "title": "Editor de mensagens",
+        "visual": {
+          "label": "Visual",
+          "description": "Formate mensagens sem ver a sintaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edite o código Markdown com realce de sintaxe"
+        }
+      },
+      "send_mode": {
+        "title": "Enviar mensagens com",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter envia; Cmd/Ctrl+Enter executa a ação normal de Enter do editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter envia; Enter executa a ação normal do editor"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "por exemplo, 14h30"
         }
       },
-      "save_button": "Guardar definições de visualização",
-      "saved": "Definições de visualização guardadas",
-      "save_failed": "Falha ao guardar as definições de visualização"
+      "save_button": "Guardar definições de hora",
+      "saved": "Definições de hora guardadas",
+      "save_failed": "Não foi possível guardar as definições de hora"
     },
     "notifications": {
       "title": "Notificações",

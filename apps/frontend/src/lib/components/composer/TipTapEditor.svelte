@@ -12,8 +12,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 - `onUpdate` - Called with markdown content on each change
 - `onKeyDown` - Keyboard event handler; return true to prevent TipTap default
 - `onPaste` - Paste event handler; return true to prevent TipTap default
-- `onNextEnterWillSendChange` - Called when selection enters/leaves a trailing empty paragraph
-- `onRichStructureChange` - Called when the document gains/loses structural Markdown blocks
 - `onReady` - Called with editor API when editor is initialized
 -->
 <script lang="ts">
@@ -22,12 +20,14 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   import { Slice } from '@tiptap/pm/model';
   import { CODE_LANGUAGE_OPTIONS, ensureCodeLanguagesLoaded } from '$lib/codeHighlighting';
   import { m } from '$lib/i18n/messages';
-  import type { QuoteInsertionContent } from '$lib/state/room';
   import type {
+    ComposerEditorApi,
+    ComposerEditorProps,
     ComposerFormattingCommand,
     ComposerFormattingState,
-    TipTapEditorApi
+    ComposerIndentState
   } from './editorTypes';
+  import { emptyComposerIndentState } from './editorTypes';
   import { createComposerExtensions } from './extensions';
   import {
     applyDestinationMarks,
@@ -35,11 +35,9 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     createClipboardContent,
     getSerializedMarkdown,
     hasDefaultEmptyDocument,
-    hasRichStructure,
-    isSelectionInTrailingEmptyParagraph,
-    normalizeQuoteInsertionContent,
     prepareMarkdownForEditor
   } from './markdown';
+  import { normalizeQuoteInsertionContent } from './quotes';
 
   const emptyFormattingState: ComposerFormattingState = {
     bold: false,
@@ -60,23 +58,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     onUpdate,
     onKeyDown,
     onPaste,
-    onNextEnterWillSendChange,
-    onRichStructureChange,
     onFormattingStateChange,
-    onReady
-  }: {
-    placeholder?: string;
-    editable?: boolean;
-    autofocus?: boolean;
-    testid?: string;
-    onUpdate?: (text: string) => void;
-    onKeyDown?: (event: KeyboardEvent) => boolean;
-    onPaste?: (event: ClipboardEvent) => boolean;
-    onNextEnterWillSendChange?: (value: boolean) => void;
-    onRichStructureChange?: (value: boolean) => void;
-    onFormattingStateChange?: (state: ComposerFormattingState) => void;
-    onReady?: (api: TipTapEditorApi) => void;
-  } = $props();
+    onIndentStateChange,
+    onReady,
+    onDestroy
+  }: ComposerEditorProps = $props();
 
   let editorElement = $state<HTMLDivElement>();
   let editorFrameElement = $state<HTMLDivElement>();
@@ -88,8 +74,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
   let linkHrefDraft = $state('');
   let linkDraftInitializedFor = $state<string | null>(null);
   let codeLanguageLoadToken = 0;
-  let lastNextEnterWillSend = false;
-  let lastRichStructure = false;
+  let replayingEnter = false;
 
   let hasLinkControls = $derived(activeLinkHref !== null);
   let activeCodeBlockLanguageLabel = $derived(
@@ -165,20 +150,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     };
   }
 
-  function updateNextEnterWillSend(e: Editor) {
-    const value = !e.isDestroyed && isSelectionInTrailingEmptyParagraph(e);
-    if (value === lastNextEnterWillSend) return;
-    lastNextEnterWillSend = value;
-    onNextEnterWillSendChange?.(value);
-  }
-
-  function updateRichStructure(e: Editor) {
-    const value = !e.isDestroyed && hasRichStructure(e);
-    if (value === lastRichStructure) return;
-    lastRichStructure = value;
-    onRichStructureChange?.(value);
-  }
-
   function getFormattingState(e: Editor): ComposerFormattingState {
     if (e.isDestroyed) return emptyFormattingState;
     return {
@@ -193,8 +164,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     };
   }
 
+  function getIndentState(e: Editor): ComposerIndentState {
+    if (e.isDestroyed) return emptyComposerIndentState;
+    return {
+      canIndent: e.can().sinkListItem('listItem'),
+      canOutdent: e.can().liftListItem('listItem')
+    };
+  }
+
   function updateActiveControls(e: Editor) {
     onFormattingStateChange?.(getFormattingState(e));
+    onIndentStateChange?.(getIndentState(e));
 
     if (e.isActive('codeBlock')) {
       activeCodeBlockLanguage = e.getAttributes('codeBlock').language || 'text';
@@ -335,12 +315,10 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     window.open(href, '_blank', 'noopener,noreferrer');
   }
 
-  function buildApi(e: Editor): TipTapEditorApi {
+  function buildApi(e: Editor): ComposerEditorApi {
     const syncControls = () => {
       if (e.isDestroyed) return;
       updateActiveControls(e);
-      updateNextEnterWillSend(e);
-      updateRichStructure(e);
     };
 
     return {
@@ -352,7 +330,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           contentType: 'markdown',
           emitUpdate: false
         });
-        updateRichStructure(e);
         ensureEditorCodeLanguages(e);
         tick().then(syncControls);
       },
@@ -360,6 +337,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
       focus: (position: 'start' | 'end' = 'end') => {
         if (e.isDestroyed) return;
         e.commands.focus(position);
+        tick().then(syncControls);
+      },
+
+      performEnter: () => {
+        if (e.isDestroyed) return;
+        replayingEnter = true;
+        try {
+          e.commands.enter();
+        } finally {
+          replayingEnter = false;
+        }
         tick().then(syncControls);
       },
 
@@ -422,7 +410,17 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
         tick().then(syncControls);
       },
 
-      insertQuote: (text: QuoteInsertionContent) => {
+      adjustIndent: (direction) => {
+        if (e.isDestroyed) return false;
+        const applied =
+          direction === 'indent'
+            ? e.chain().focus().sinkListItem('listItem').run()
+            : e.chain().focus().liftListItem('listItem').run();
+        if (applied) tick().then(syncControls);
+        return applied;
+      },
+
+      insertQuote: (text) => {
         if (e.isDestroyed) return;
         const quoteBlocks = normalizeQuoteInsertionContent(text);
         if (quoteBlocks.length === 0) return;
@@ -438,12 +436,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
             { type: 'paragraph' }
           ])
           .run();
-        tick().then(syncControls);
-      },
-
-      insertBlockBreak: () => {
-        if (e.isDestroyed) return;
-        e.chain().focus().splitBlock().run();
         tick().then(syncControls);
       }
     };
@@ -471,6 +463,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
               ...(testid ? { 'data-testid': testid } : {})
             },
             handleKeyDown: (_view, event) => {
+              if (replayingEnter && event.key === 'Enter') return false;
               return onKeyDown?.(event) ?? false;
             },
             clipboardTextParser: (text, context, _plain, view) => {
@@ -504,36 +497,30 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
           },
           onUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
-            updateNextEnterWillSend(ed);
-            updateRichStructure(ed);
             ensureEditorCodeLanguages(ed);
             onUpdate?.(hasDefaultEmptyDocument(ed) ? '' : getSerializedMarkdown(ed));
           },
           onSelectionUpdate: ({ editor: ed }) => {
             updateActiveControls(ed);
-            updateNextEnterWillSend(ed);
-            updateRichStructure(ed);
           }
         })
     );
 
     editor = e;
 
+    const api = buildApi(e);
+
     // Notify parent that editor is ready with API
     tick().then(() => {
       if (e.isDestroyed || editor !== e) return;
       updateActiveControls(e);
-      updateNextEnterWillSend(e);
-      updateRichStructure(e);
-      onReady?.(buildApi(e));
+      onReady?.(api);
     });
 
     return () => {
-      lastNextEnterWillSend = false;
-      onNextEnterWillSendChange?.(false);
-      lastRichStructure = false;
-      onRichStructureChange?.(false);
       onFormattingStateChange?.(emptyFormattingState);
+      onIndentStateChange?.(emptyComposerIndentState);
+      onDestroy?.(api);
       editor?.destroy();
       editor = null;
     };
@@ -563,7 +550,11 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
 
 <svelte:window onresize={() => editor && updateActiveControls(editor)} />
 
-<div bind:this={editorFrameElement} class="relative flex min-w-0 flex-1 flex-col gap-1">
+<div
+  bind:this={editorFrameElement}
+  data-composer-editor="visual"
+  class="relative flex min-w-0 flex-1 flex-col gap-1"
+>
   {#if hasLinkControls}
     <div class="flex min-w-0 flex-wrap items-center gap-1.5 text-xs text-muted">
       <div class="flex min-w-0 items-center gap-1">
@@ -611,7 +602,7 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     bind:this={editorElement}
     onscroll={() => editor && updateActiveControls(editor)}
     class={[
-      'tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
+      'composer-code-palette tiptap-editor max-h-50 min-h-8 min-w-0 flex-1 overflow-x-hidden overflow-y-auto bg-transparent py-1 text-text',
       !editable && 'cursor-not-allowed'
     ]}
   ></div>
@@ -834,26 +825,6 @@ and exposes a typed API for text manipulation (mentions, emoji, drafts).
     line-height: inherit;
     color: var(--composer-code-text);
     white-space: pre;
-  }
-
-  :global(.tiptap-editor) {
-    --composer-code-text: #24292f;
-    --composer-code-comment: #6e7781;
-    --composer-code-keyword: #cf222e;
-    --composer-code-string: #0a3069;
-    --composer-code-title: #8250df;
-    --composer-code-literal: #0550ae;
-    --composer-code-attribute: #953800;
-  }
-
-  :global(:root[data-theme='dark'] .tiptap-editor) {
-    --composer-code-text: #d0d7de;
-    --composer-code-comment: #8b949e;
-    --composer-code-keyword: #ff7b72;
-    --composer-code-string: #a5d6ff;
-    --composer-code-title: #d2a8ff;
-    --composer-code-literal: #79c0ff;
-    --composer-code-attribute: #ffa657;
   }
 
   :global(.tiptap-editor .ProseMirror .hljs-comment),

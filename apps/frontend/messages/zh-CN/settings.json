@@ -4,7 +4,7 @@
       "title": "设置",
       "back_to_server": "返回服务器",
       "profile": "个人资料",
-      "display": "显示",
+      "display": "偏好设置",
       "notifications": "通知",
       "account": "账号",
       "bots": "机器人"
@@ -105,8 +105,9 @@
       "save_button": "保存更改"
     },
     "preferences": {
-      "title": "显示",
-      "subtitle": "选择 Chatto 的显示方式",
+      "title": "偏好设置",
+      "subtitle": "选择 Chatto 的外观和行为",
+      "browser_scope": "此选择适用于本浏览器中的所有 Chatto 服务器。",
       "theme": {
         "title": "主题",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "深色",
           "description": "在此浏览器中使用深色界面"
+        }
+      },
+      "editor": {
+        "title": "消息编辑器",
+        "visual": {
+          "label": "可视化",
+          "description": "无需查看 Markdown 语法即可设置消息格式"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "使用语法高亮编辑 Markdown 源文本"
+        }
+      },
+      "send_mode": {
+        "title": "发送消息的按键",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter 发送消息；Cmd/Ctrl+Enter 执行编辑器通常的 Enter 操作"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter 发送消息；Enter 执行编辑器的通常操作"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "例如：14:30"
         }
       },
-      "save_button": "保存显示设置",
-      "saved": "显示设置已保存",
-      "save_failed": "显示设置保存失败"
+      "save_button": "保存时间设置",
+      "saved": "时间设置已保存",
+      "save_failed": "无法保存时间设置"
     },
     "notifications": {
       "title": "通知",
