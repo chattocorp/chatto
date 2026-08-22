@@ -144,6 +144,20 @@ func (c *ChattoCore) requireBotManager(ctx context.Context, actorID, botID strin
 	return bot, nil
 }
 
+func (c *ChattoCore) requireBotReassignmentManager(ctx context.Context, actorID string) error {
+	if err := c.requireHumanUser(ctx, actorID); err != nil {
+		return err
+	}
+	allowed, err := c.CanManageBots(ctx, actorID)
+	if err != nil {
+		return err
+	}
+	if !allowed {
+		return ErrPermissionDenied
+	}
+	return nil
+}
+
 func (c *ChattoCore) botFromUser(user *corev1.User) (*Bot, error) {
 	if user == nil || !user.GetIsBot() {
 		return nil, ErrNotFound
@@ -309,6 +323,107 @@ func (c *ChattoCore) RotateBotAPIKey(ctx context.Context, actorID, botID string)
 	}
 	bot.APIKey = key
 	return bot, nil
+}
+
+// ReassignBotOwner changes the human account responsible for a bot without
+// changing its configured permission allowlist or active API key. The command
+// is fenced against bot changes, authorization changes, and owner deletion.
+func (c *ChattoCore) ReassignBotOwner(ctx context.Context, actorID, botID, ownerUserID string) (*Bot, error) {
+	// Resolve once before building subject filters so malformed public IDs can
+	// never become NATS wildcards. Every decision is repeated inside the OCC
+	// loop before the durable fact commits.
+	if err := c.requireBotReassignmentManager(ctx, actorID); err != nil {
+		return nil, err
+	}
+	if _, err := c.GetUser(ctx, botID); err != nil {
+		return nil, err
+	}
+	if _, err := c.GetUser(ctx, ownerUserID); err != nil {
+		return nil, err
+	}
+
+	botFilter := evtstream.UserAggregate(botID).AllEventsFilter()
+	actorFilter := evtstream.UserAggregate(actorID).AllEventsFilter()
+	ownerFilter := evtstream.UserAggregate(ownerUserID).AllEventsFilter()
+	rbacFilter := evtstream.RBACSubjectFilter()
+
+	for attempt := 0; attempt < maxUserMutationRetries; attempt++ {
+		authorizationSeq, err := c.authorizationFenceSeq(ctx)
+		if err != nil {
+			return nil, fmt.Errorf("read authorization fence seq: %w", err)
+		}
+		botSeq, err := c.EventPublisher.LastSubjectSeq(ctx, botFilter)
+		if err != nil {
+			return nil, fmt.Errorf("read bot OCC filter seq: %w", err)
+		}
+		if err := c.userModel.waitForUsersCurrent(ctx, "bot owner reassignment", actorFilter, botFilter, ownerFilter); err != nil {
+			return nil, err
+		}
+		rbacSeq, err := c.EventPublisher.LastSubjectSeq(ctx, rbacFilter)
+		if err != nil {
+			return nil, fmt.Errorf("read RBAC projection position: %w", err)
+		}
+		if err := c.rbacModel.waitFor(ctx, events.SubjectPosition(rbacFilter, rbacSeq)); err != nil {
+			return nil, fmt.Errorf("wait for RBAC projection: %w", err)
+		}
+
+		if err := c.requireBotReassignmentManager(ctx, actorID); err != nil {
+			return nil, err
+		}
+		bot, err := c.GetUser(ctx, botID)
+		if err != nil {
+			return nil, err
+		}
+		if !bot.GetIsBot() {
+			return nil, ErrNotFound
+		}
+		owner, err := c.GetUser(ctx, ownerUserID)
+		if err != nil {
+			return nil, err
+		}
+		if owner.GetIsBot() {
+			return nil, ErrHumanAccountRequired
+		}
+		if bot.GetBotOwnerUserId() == ownerUserID {
+			return c.botFromUser(bot)
+		}
+
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_BotOwnerReassigned{
+			BotOwnerReassigned: &corev1.BotOwnerReassignedEvent{
+				UserId:              botID,
+				PreviousOwnerUserId: bot.GetBotOwnerUserId(),
+				OwnerUserId:         ownerUserID,
+			},
+		}})
+		subject := evtstream.UserAggregate(botID).SubjectFor(event)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: botSeq, FilterSubject: botFilter,
+		}}, authorizationSeq)
+		if err == nil {
+			position := events.SubjectPosition(subject, seqs[0])
+			if err := c.userModel.waitForUsers(ctx, position); err != nil {
+				return nil, fmt.Errorf("wait for reassigned bot projection: %w", err)
+			}
+			if err := c.userModel.waitForUserAuth(ctx, position); err != nil {
+				return nil, fmt.Errorf("wait for reassigned bot auth projection: %w", err)
+			}
+			updated, err := c.GetUser(ctx, botID)
+			if err != nil {
+				return nil, err
+			}
+			return c.botFromUser(updated)
+		}
+		if !errors.Is(err, events.ErrConflict) {
+			return nil, err
+		}
+
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
+		}
+	}
+	return nil, fmt.Errorf("bot owner reassignment OCC retry exhausted after %d attempts: %w", maxUserMutationRetries, events.ErrConflict)
 }
 
 // DeleteBot permanently deletes a managed bot. Repeated calls are idempotent.

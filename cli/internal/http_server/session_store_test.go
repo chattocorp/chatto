@@ -35,7 +35,7 @@ func TestDebugSessionStoreSuppressesSecureCookieDecodeErrors(t *testing.T) {
 	req.AddCookie(&http.Cookie{
 		Name: cookieName,
 		Value: expiredSecureCookieValue(t, authKey, cookieName, map[interface{}]interface{}{
-			sessionKeyUserID: "user_123",
+			retiredSessionKeyUserID: "user_123",
 		}),
 	})
 

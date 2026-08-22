@@ -361,6 +361,9 @@ func validate(event *corev1.Event) error {
 	if strings.TrimSpace(event.GetId()) == "" {
 		return fmt.Errorf("Authling event id is required")
 	}
+	if !validSubjectToken(event.GetId()) {
+		return fmt.Errorf("Authling event id is invalid")
+	}
 	if event.GetCreatedAt() == nil {
 		return fmt.Errorf("Authling event created_at is required")
 	}
@@ -373,7 +376,11 @@ func validate(event *corev1.Event) error {
 			return err
 		}
 		credential := payload.AccountCreated
-		hasCredential := credential.GetCredentialEnvelopeVersion() != 0 || credential.GetUserKeyRef() != "" || credential.GetCredentialKeyRef() != "" || len(credential.GetEmailNonce()) != 0 || len(credential.GetEmailCiphertext()) != 0 || len(credential.GetPasswordVerifierNonce()) != 0 || len(credential.GetPasswordVerifierCiphertext()) != 0
+		hasPreferredUsername := len(credential.GetPreferredUsernameNonce()) != 0 || len(credential.GetPreferredUsernameCiphertext()) != 0
+		if hasPreferredUsername && (len(credential.GetPreferredUsernameNonce()) == 0 || len(credential.GetPreferredUsernameCiphertext()) == 0) {
+			return fmt.Errorf("account preferred username envelope is incomplete")
+		}
+		hasCredential := credential.GetCredentialEnvelopeVersion() != 0 || credential.GetUserKeyRef() != "" || credential.GetCredentialKeyRef() != "" || len(credential.GetEmailNonce()) != 0 || len(credential.GetEmailCiphertext()) != 0 || len(credential.GetPasswordVerifierNonce()) != 0 || len(credential.GetPasswordVerifierCiphertext()) != 0 || hasPreferredUsername
 		if hasCredential {
 			if credential.GetCredentialEnvelopeVersion() != 1 || !validSubjectToken(credential.GetUserKeyRef()) || !validSubjectToken(credential.GetCredentialKeyRef()) || len(credential.GetEmailNonce()) == 0 || len(credential.GetEmailCiphertext()) == 0 || len(credential.GetPasswordVerifierNonce()) == 0 || len(credential.GetPasswordVerifierCiphertext()) == 0 {
 				return fmt.Errorf("account credential envelope is incomplete or unsupported")

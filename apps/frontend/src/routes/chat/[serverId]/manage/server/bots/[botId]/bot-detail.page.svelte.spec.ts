@@ -11,10 +11,13 @@ import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 const mocks = vi.hoisted(() => ({
 	getBot: vi.fn(),
 	batchGetUsers: vi.fn(),
+	listUsers: vi.fn(),
 	updateBot: vi.fn(),
+	reassignBotOwner: vi.fn(),
 	toastSuccess: vi.fn(),
 	toastError: vi.fn(),
 	settings: null as { timezone: string; timeFormat: TimeFormat } | null,
+	canManageBots: true,
 	bot: {
 		id: 'bot-user-id',
 		login: 'helper_bot',
@@ -34,14 +37,24 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
 		serverId: 'server-1',
 		store: {
 			serverInfo: { supportsFeature: () => true },
-			currentUser: { user: { settings: mocks.settings } }
+			currentUser: { user: { settings: mocks.settings } },
+			projection: {
+				viewer: {
+					user: { profile: { id: 'viewer', login: 'viewer', displayName: 'Viewer' } },
+					viewerPermissions: {
+						permissions: [{ permission: 'bot.manage', granted: mocks.canManageBots }]
+					}
+				}
+			}
 		},
 		connection: {
 			queryScope: 'session-1',
 			getAPI: () => ({
 				getBot: mocks.getBot,
 				batchGetUsers: mocks.batchGetUsers,
-				updateBot: mocks.updateBot
+				listUsers: mocks.listUsers,
+				updateBot: mocks.updateBot,
+				reassignBotOwner: mocks.reassignBotOwner
 			})
 		},
 		isCurrent: () => true
@@ -82,14 +95,19 @@ describe('Bot detail page', () => {
 		queryClient.clear();
 		vi.clearAllMocks();
 		mocks.settings = null;
+		mocks.canManageBots = true;
 		mocks.getBot.mockResolvedValue(mocks.bot);
 		mocks.batchGetUsers.mockResolvedValue([]);
+		mocks.listUsers.mockResolvedValue({ members: [], totalCount: 0, hasMore: false });
 		mocks.updateBot.mockImplementation((input: { login?: string; displayName?: string }) =>
 			Promise.resolve({
 				...mocks.bot,
 				login: input.login ?? mocks.bot.login,
 				displayName: input.displayName ?? mocks.bot.displayName
 			})
+		);
+		mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
+			Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
 		);
 		await loadLocaleMessages('en-GB');
 		setReactiveLocale('en-GB');
@@ -178,5 +196,56 @@ describe('Bot detail page', () => {
 			'en-GB'
 		);
 		expect(container.textContent).toContain(expected);
+	});
+
+	it('shows owner reassignment only to bot managers', async () => {
+		mocks.canManageBots = false;
+		const { container } = render(BotDetailPage);
+		await settle();
+
+		expect(container.textContent).not.toContain('Reassign owner');
+	});
+
+	it('reassigns the bot to a selected human owner', async () => {
+		mocks.listUsers.mockResolvedValue({
+			members: [
+				{
+					id: 'recipient-user-id',
+					login: 'recipient',
+					displayName: 'Recipient User',
+					deleted: false,
+					isBot: false,
+					avatarUrl: null,
+					presenceStatus: 'OFFLINE',
+					customStatus: null,
+					roles: [],
+					createdAt: null
+				}
+			],
+			totalCount: 1,
+			hasMore: false
+		});
+		const rendered = render(BotDetailPage);
+		await settle();
+
+		buttonByText(rendered.container, 'Reassign owner').click();
+		flushSync();
+		setInput(document.querySelector('#reassign-bot-owner') as HTMLInputElement, 'recipient');
+		await new Promise((resolve) => setTimeout(resolve, 250));
+		await vi.waitFor(() => expect(document.body.textContent).toContain('Recipient User'));
+		const recipientOption = document.querySelector('button[role="option"]');
+		if (!(recipientOption instanceof HTMLButtonElement)) throw new Error('Recipient not found');
+		recipientOption.click();
+		flushSync();
+		const submit = [...document.querySelectorAll('button')]
+			.filter((button) => button.textContent?.trim() === 'Reassign owner')
+			.at(-1);
+		if (!(submit instanceof HTMLButtonElement)) throw new Error('Reassign submit not found');
+		submit.click();
+
+		await vi.waitFor(() =>
+			expect(mocks.reassignBotOwner).toHaveBeenCalledWith('bot-user-id', 'recipient-user-id')
+		);
+		expect(mocks.toastSuccess).toHaveBeenCalledWith('Bot owner reassigned');
 	});
 });

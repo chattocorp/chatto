@@ -32,7 +32,7 @@ type botAPIKeyWatcher struct {
 
 type projectedUserAuth struct {
 	deleted            bool
-	isBot               bool
+	isBot              bool
 	botOwnerUserID     string
 	botAPIKeyVerifier  []byte
 	botAPIKeyCreatedAt time.Time
@@ -66,6 +66,7 @@ func (p *UserAuthProjection) Subjects() []string {
 		evtstream.UserEventTypeFilter(evtstream.EventUserKeyShredded),
 		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyCreated),
 		evtstream.UserEventTypeFilter(evtstream.EventBotAPIKeyRotated),
+		evtstream.UserEventTypeFilter(evtstream.EventBotOwnerReassigned),
 	}
 }
 
@@ -89,6 +90,13 @@ func (p *UserAuthProjection) Apply(event *corev1.Event, seq uint64) error {
 		p.applyBotAPIKeyCreated(e.BotApiKeyCreated, event.GetCreatedAt())
 	case *corev1.Event_BotApiKeyRotated:
 		p.applyBotAPIKeyRotated(e.BotApiKeyRotated, event.GetCreatedAt())
+	case *corev1.Event_BotOwnerReassigned:
+		if e.BotOwnerReassigned != nil {
+			u := p.ensureUserLocked(e.BotOwnerReassigned.GetUserId())
+			if u.isBot && !u.deleted {
+				u.botOwnerUserID = e.BotOwnerReassigned.GetOwnerUserId()
+			}
+		}
 	case *corev1.Event_UserPasswordHashChanged:
 		p.applyPasswordHashChanged(e.UserPasswordHashChanged, event.GetCreatedAt(), seq)
 	case *corev1.Event_UserOidcSubjectLinked:

@@ -112,6 +112,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
+- Browser sessions that still use the retired pre-typed cookie format are not accepted by
+  0.5. Affected users are signed out once and must sign in again; current typed browser
+  sessions stored under `session.*` remain valid.
 - Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
   environment-variable equivalents) from server configuration; those settings no longer
   exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and

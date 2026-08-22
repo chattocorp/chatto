@@ -17,8 +17,10 @@ import (
 
 const (
 	sessionKeyRuntimeCredentialID = "runtime_credential_id"
-	sessionKeyUserID              = "user_id"
-	sessionKeyCookieSessionID     = "cookie_session_id"
+	// Retired signed-session keys are deleted when cookie auth is saved or
+	// cleared, but are never accepted as authentication inputs.
+	retiredSessionKeyUserID       = "user_id"
+	retiredSessionKeyCredentialID = "cookie_session_id"
 )
 
 func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) error {
@@ -26,7 +28,7 @@ func (s *HTTPServer) createCookieSession(c *gin.Context, userID, source string) 
 	if err != nil {
 		return err
 	}
-	return saveCookieSession(c, userID, sessionID)
+	return saveCookieSession(c, sessionID)
 }
 
 func (s *HTTPServer) createCookieSessionForGeneration(c *gin.Context, userID, source string, authGeneration uint64) error {
@@ -34,7 +36,7 @@ func (s *HTTPServer) createCookieSessionForGeneration(c *gin.Context, userID, so
 	if err != nil {
 		return err
 	}
-	return saveCookieSession(c, userID, sessionID)
+	return saveCookieSession(c, sessionID)
 }
 
 func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source string) (connectapi.BrowserSession, error) {
@@ -42,10 +44,10 @@ func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source 
 		return connectapi.BrowserSession{}, err
 	}
 	session := sessions.Default(c)
-	cookieCredential, _ := cookieCredentialFromSession(session)
+	sessionID, _ := cookieCredentialIDFromSession(session)
 	browserSession := connectapi.BrowserSession{
 		Revoke: func(ctx context.Context) error {
-			_ = s.core.RevokeCookieSession(ctx, userID, cookieCredential.sessionID)
+			_ = s.core.RevokeCookieSession(ctx, sessionID)
 			clearCookieSessionAuth(session)
 			clearCSRFCookie(c)
 			return nil
@@ -58,11 +60,11 @@ func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source 
 	return browserSession, nil
 }
 
-func saveCookieSession(c *gin.Context, userID, sessionID string) error {
+func saveCookieSession(c *gin.Context, sessionID string) error {
 	session := sessions.Default(c)
 	session.Set(sessionKeyRuntimeCredentialID, sessionID)
-	session.Delete(sessionKeyUserID)
-	session.Delete(sessionKeyCookieSessionID)
+	session.Delete(retiredSessionKeyUserID)
+	session.Delete(retiredSessionKeyCredentialID)
 	return session.Save()
 }
 
@@ -71,15 +73,9 @@ func clearCookieSessionAuth(session sessions.Session) {
 		return
 	}
 	session.Delete(sessionKeyRuntimeCredentialID)
-	session.Delete(sessionKeyUserID)
-	session.Delete(sessionKeyCookieSessionID)
+	session.Delete(retiredSessionKeyUserID)
+	session.Delete(retiredSessionKeyCredentialID)
 	_ = session.Save()
-}
-
-type cookieCredential struct {
-	userID    string
-	sessionID string
-	legacy    bool
 }
 
 type presentedRuntimeCredential struct {
@@ -88,24 +84,14 @@ type presentedRuntimeCredential struct {
 	cookieRecord *corev1.CookieSession
 }
 
-func cookieCredentialFromSession(session sessions.Session) (cookieCredential, bool) {
+func cookieCredentialIDFromSession(session sessions.Session) (string, bool) {
 	if session == nil {
-		return cookieCredential{}, false
+		return "", false
 	}
 	if sessionID, _ := session.Get(sessionKeyRuntimeCredentialID).(string); sessionID != "" {
-		return cookieCredential{sessionID: sessionID}, true
+		return sessionID, true
 	}
-	userID, _ := session.Get(sessionKeyUserID).(string)
-	sessionID, _ := session.Get(sessionKeyCookieSessionID).(string)
-	return cookieCredential{userID: userID, sessionID: sessionID, legacy: true}, userID != "" && sessionID != ""
-}
-
-func cookieSessionIDs(session sessions.Session) (string, string, bool) {
-	credential, ok := cookieCredentialFromSession(session)
-	if !ok {
-		return "", "", false
-	}
-	return credential.userID, credential.sessionID, true
+	return "", false
 }
 
 func (s *HTTPServer) validateCookieSession(c *gin.Context) (string, string, *corev1.CookieSession, bool) {
@@ -121,23 +107,17 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		return presentedRuntimeCredential{}, false, nil
 	}
 	session := sessions.Default(c)
-	credential, ok := cookieCredentialFromSession(session)
+	sessionID, ok := cookieCredentialIDFromSession(session)
 	if !ok {
 		if session.Get(sessionKeyRuntimeCredentialID) != nil ||
-			session.Get(sessionKeyUserID) != nil ||
-			session.Get(sessionKeyCookieSessionID) != nil {
+			session.Get(retiredSessionKeyUserID) != nil ||
+			session.Get(retiredSessionKeyCredentialID) != nil {
 			clearCookieSessionAuth(session)
 		}
 		return presentedRuntimeCredential{}, false, nil
 	}
 
-	var record *corev1.CookieSession
-	var err error
-	if credential.userID != "" {
-		record, err = s.core.ValidateCookieSession(c.Request.Context(), credential.userID, credential.sessionID)
-	} else {
-		record, err = s.core.ValidateCookieCredential(c.Request.Context(), credential.sessionID)
-	}
+	record, err := s.core.ValidateCookieCredential(c.Request.Context(), sessionID)
 	if err != nil {
 		if errors.Is(err, core.ErrCookieSessionNotFound) {
 			clearCookieSessionAuth(session)
@@ -163,7 +143,7 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		auth: authctx.RuntimeCredential{
 			Kind:   authctx.RuntimeCredentialKindCookieSession,
 			UserID: userID,
-			Handle: credential.sessionID,
+			Handle: sessionID,
 		},
 		cookieRecord: record,
 	}, true, nil
@@ -188,15 +168,15 @@ func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSess
 
 	session := sessions.Default(c)
 	session.Set(sessionKeyRuntimeCredentialID, newSessionID)
-	session.Delete(sessionKeyUserID)
-	session.Delete(sessionKeyCookieSessionID)
+	session.Delete(retiredSessionKeyUserID)
+	session.Delete(retiredSessionKeyCredentialID)
 	if err := session.Save(); err != nil {
 		log.Warn("Failed to save rotated cookie session", "userId", userID, "error", err)
-		_ = s.core.RevokeCookieSession(c.Request.Context(), userID, newSessionID)
+		_ = s.core.RevokeCookieSession(c.Request.Context(), newSessionID)
 		return
 	}
 
-	if err := s.core.RevokeCookieSession(c.Request.Context(), userID, oldSessionID); err != nil {
+	if err := s.core.RevokeCookieSession(c.Request.Context(), oldSessionID); err != nil {
 		log.Warn("Failed to revoke old rotated cookie session", "userId", userID, "error", err)
 	}
 }

@@ -54,7 +54,8 @@ message search results:
 | Floating menu or tooltip                  | `ContextMenu`, `HelpTooltip`, or `FloatingPopover`                         | Hand-written fixed positioning and z-index                   |
 | Standard pane page                        | `PageTitle`, `PaneHeader`, `PaneContent`, and titled `Panel` sections      | Hand-rolled page widths, scrolling, and section cards        |
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
-| Inline icon action                        | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
+| Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
+| Mini icon action directly beside a value  | `mini-icon-action`                                                         | Adding padding, a background fill, or press scaling          |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
 | Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
@@ -269,6 +270,10 @@ in the component explaining why Tailwind or a semantic utility is insufficient.
 Menus, compact chat hover bars, media overlays, and icon toolbars use their
 context-specific primitive.
 
+Context-menu action groups use sibling `menu-section` surfaces. Let the
+`ContextMenu` gap separate those surfaces; never draw a hairline divider inside
+a `menu-section`, because it conflicts with the standard surface-gap separator.
+
 The supported variants are `action`, `neutral`, `secondary`, `ghost`,
 `warning`, `danger`, and `danger-secondary`. Use the variant whose meaning
 matches the action.
@@ -294,7 +299,9 @@ matches the action.
   drag, resize, or text-selection behavior.
 - Respect `prefers-reduced-motion` for non-essential animation.
 - Keep interactive hit areas at least 40 by 40 pixels unless a dense desktop
-  toolbar has a documented non-overlapping exception.
+  toolbar has a documented non-overlapping exception. `mini-icon-action` is
+  the narrow exception for a subordinate icon placed directly beside the text
+  or value it acts on; do not use it for standalone or toolbar actions.
 
 Chatto deliberately uses browser/platform text rendering. Do not add global
 font smoothing. Ordinary controls are solid rather than gradient-filled;

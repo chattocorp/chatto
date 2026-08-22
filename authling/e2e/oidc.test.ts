@@ -129,11 +129,15 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-test('rejects authorization without S256 PKCE before starting consent', async ({ request, stack }) => {
+test('returns a missing-PKCE error to the validated client before consent', async ({ request, stack }) => {
+  const state = randomUUID();
   const response = await request.get(`${stack.baseURL}/oauth/authorize`, {
-    params: { client_id: 'authling-e2e', redirect_uri: stack.callbackURL, response_type: 'code', scope: 'openid' },
+    params: { client_id: 'authling-e2e', redirect_uri: stack.callbackURL, response_type: 'code', scope: 'openid', state },
     maxRedirects: 0
   });
-  expect(response.status()).toBe(400);
-  expect(await response.text()).toBe('invalid authorization request\n');
+  expect(response.status()).toBe(302);
+  const location = new URL(response.headers().location ?? '');
+  expect(`${location.origin}${location.pathname}`).toBe(stack.callbackURL);
+  expect(location.searchParams.get('error')).toBe('invalid_request');
+  expect(location.searchParams.get('state')).toBe(state);
 });

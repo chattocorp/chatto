@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
+import { BatchGetBotsRequest, BatchGetBotsResponse, CreateBotRequest, CreateBotResponse, DeleteBotRequest, DeleteBotResponse, GetBotRequest, GetBotResponse, ListBotsRequest, ListBotsResponse, ReassignBotOwnerRequest, ReassignBotOwnerResponse, RotateBotApiKeyRequest, RotateBotApiKeyResponse, UpdateBotRequest, UpdateBotResponse } from "./bots_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -93,6 +93,20 @@ export const BotService = {
       I: RotateBotApiKeyRequest,
       O: RotateBotApiKeyResponse,
       kind: MethodKind.Unary,
+    },
+    /**
+     * Reassigns a bot to another active human owner. Requires bot.manage. The
+     * current API key and configured permission allowlist remain unchanged,
+     * while effective permissions immediately use the new owner's ceiling.
+     *
+     * @generated from rpc chatto.api.v1.BotService.ReassignBotOwner
+     */
+    reassignBotOwner: {
+      name: "ReassignBotOwner",
+      I: ReassignBotOwnerRequest,
+      O: ReassignBotOwnerResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
     },
   }
 } as const;

@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Kasutajaprofiil",
-      "send_message": "Saada sõnum"
+      "send_message": "Saada sõnum",
+      "copy_user_id": "Kopeeri kasutaja ID"
     },
     "server_gutter": {
       "add_server": "Lisa server",

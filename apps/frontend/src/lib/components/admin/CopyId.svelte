@@ -16,7 +16,7 @@
   <button
     type="button"
     onclick={copy}
-    class="icon-action shrink-0"
+    class="mini-icon-action"
     title={m('common.copy_to_clipboard')}
   >
     <span class="iconify icon-[uil--copy] text-base leading-none"></span>

@@ -33,6 +33,13 @@ Administrators can remove that default through the permission matrix.
 Administrators and effective owners can manage every bot through `bot.manage`;
 the creator can always manage bots they already own.
 
+A person with `bot.manage` can also choose **Reassign owner** on a bot's detail
+page and select another active human account. Reassignment does not require the
+recipient to accept it or hold `bot.create`. It keeps the configured bot
+permissions and API key, but effective permissions immediately follow the new
+owner's permission ceiling. Rotate the key separately if its previous custody
+is a concern.
+
 Bots do not inherit `everyone`, named roles, or the owner's roles. The bot
 matrix exposes a simple enabled/disabled allowlist. A configured permission is
 effective only while the owner currently has the same permission at that
@@ -68,12 +75,14 @@ also closed. Update every consumer before dismissing it.
 
 Deleting a bot invalidates its key and permanently deletes the account through
 the normal account-deletion process. Deleting the human owner also deletes all
-of their bots. Ownership transfer is not available yet.
+bots they still own, so reassign long-lived integrations before deleting that
+account.
 
 ## API reference
 
-`BotService` exposes bot lifecycle and key rotation. The raw key appears only
-in `CreateBot` and `RotateBotApiKey` responses. Bot permissions use the same
-`AdminPermissionService` user-permission RPCs as human accounts, with the bot's
-user ID as the target. See the [BotService reference](/reference/connectrpc-api/bots/)
-and [AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).
+`BotService` exposes bot lifecycle, owner reassignment, and key rotation. The
+raw key appears only in `CreateBot` and `RotateBotApiKey` responses. Bot
+permissions use the same `AdminPermissionService` user-permission RPCs as human
+accounts, with the bot's user ID as the target. See the
+[BotService reference](/reference/connectrpc-api/bots/) and
+[AdminPermissionService reference](/reference/connectrpc-api/admin-permissions/).

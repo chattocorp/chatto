@@ -23,7 +23,7 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 
 ### Sessions and tokens
 
-Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about. Deprecated legacy cookie-session records remain readable for now so upgrades do not sign out existing browser sessions.
+Chatto issues **opaque bearer tokens**, not JWTs. Bearer-token and same-origin cookie-session handles are stored as typed runtime credentials in `RUNTIME_STATE` under HMAC-derived `session.{hmac}` keys, with a sliding TTL: every successful validation re-puts the entry, extending its expiry. Revocation is a single KV delete -- there is no signed-but-still-valid window to worry about.
 
 Browser sessions use signed cookies with the following options:
 

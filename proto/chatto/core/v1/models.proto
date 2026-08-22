@@ -94,9 +94,9 @@ message AuditRequestMetadata {
   string ip_hash = 2;
 }
 
-// CookieSession is the server-side runtime-state record for the embedded SPA's
-// HTTP cookie session. The raw session ID is never stored in this payload; it is
-// represented only by the HMAC-derived RUNTIME_STATE key.
+// CookieSession describes a validated embedded-SPA cookie credential. The
+// authoritative stored value is a typed runtime credential; its opaque handle
+// is not exposed in this normalized view.
 message CookieSession {
   string user_id = 1;
   google.protobuf.Timestamp created_at = 2;

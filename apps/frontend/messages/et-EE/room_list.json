@@ -15,6 +15,8 @@
     "mark_as_read": "Märgi loetuks",
     "remove_server": "Eemalda server",
     "leave_room": "Jätke ruumi",
+    "copy_room_id": "Kopeeri ruumi ID",
+    "copy_server_hostname": "Kopeeri serveri hostinimi",
     "room_settings": "Ruumi seaded",
     "group_settings": "Seaded: {group}",
     "server_actions": "Toimingud: {server}",

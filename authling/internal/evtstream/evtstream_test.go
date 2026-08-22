@@ -232,6 +232,48 @@ func TestDecodeRejectsMalformedEvents(t *testing.T) {
 	}
 }
 
+func TestEventIDValidationRejectsSensitiveOrUnsafeTokens(t *testing.T) {
+	for _, eventID := range []string{
+		"person@example.com",
+		"evt.with.dots",
+		"evt/with/slashes",
+		"evt with spaces",
+		"evt\nwith-newline",
+	} {
+		t.Run(eventID, func(t *testing.T) {
+			event := accountCreatedEvent(eventID)
+			if _, err := encode(event); err == nil || !strings.Contains(err.Error(), "event id is invalid") {
+				t.Fatalf("encode event ID %q error = %v, want invalid event ID", eventID, err)
+			} else if strings.Contains(err.Error(), eventID) {
+				t.Fatalf("encode error leaked rejected event ID %q: %v", eventID, err)
+			}
+			data, err := proto.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Decode(data); err == nil || !strings.Contains(err.Error(), "event id is invalid") {
+				t.Fatalf("decode event ID %q error = %v, want invalid event ID", eventID, err)
+			} else if strings.Contains(err.Error(), eventID) {
+				t.Fatalf("decode error leaked rejected event ID %q: %v", eventID, err)
+			}
+		})
+	}
+}
+
+func TestEventIDValidationAllowsHistoricalSubjectSafeTokens(t *testing.T) {
+	for _, eventID := range []string{"evt_legacy", "evt-legacy", "LegacyEvent_123"} {
+		t.Run(eventID, func(t *testing.T) {
+			record, err := encode(accountCreatedEvent(eventID))
+			if err != nil {
+				t.Fatalf("encode historical event ID %q: %v", eventID, err)
+			}
+			if _, err := Decode(record.Data); err != nil {
+				t.Fatalf("decode historical event ID %q: %v", eventID, err)
+			}
+		})
+	}
+}
+
 func profileUpdatedEvent(eventID string) *corev1.Event {
 	return &corev1.Event{Id: eventID, CreatedAt: timestamppb.Now(), Event: &corev1.Event_ProfileUpdated{ProfileUpdated: &corev1.ProfileUpdatedEvent{
 		AccountId: "acc_test", UserKeyRef: "key_user", CredentialKeyRef: "key_credential", ProfileEnvelopeVersion: 1,
@@ -243,6 +285,62 @@ func profileUpdatedEvent(eventID string) *corev1.Event {
 func TestAccountSubjectRejectsUnsafeTokens(t *testing.T) {
 	if _, err := AccountSubject("account.with.dots"); err == nil {
 		t.Fatal("account subject accepted a multi-token account ID")
+	}
+}
+
+func TestDecodeRejectsPartialAccountCreatedCredentialEnvelopes(t *testing.T) {
+	tests := []struct {
+		name   string
+		mutate func(*corev1.AccountCreatedEvent)
+	}{
+		{
+			name: "preferred username without credential",
+			mutate: func(event *corev1.AccountCreatedEvent) {
+				event.PreferredUsernameNonce = []byte("nonce")
+				event.PreferredUsernameCiphertext = []byte("ciphertext")
+			},
+		},
+		{
+			name: "partial preferred username",
+			mutate: func(event *corev1.AccountCreatedEvent) {
+				event.CredentialEnvelopeVersion = 1
+				event.UserKeyRef = "key_user"
+				event.CredentialKeyRef = "key_credential"
+				event.EmailNonce = []byte("nonce")
+				event.EmailCiphertext = []byte("ciphertext")
+				event.PasswordVerifierNonce = []byte("nonce")
+				event.PasswordVerifierCiphertext = []byte("ciphertext")
+				event.PreferredUsernameNonce = []byte("nonce")
+			},
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			event := accountCreatedEvent("evt_created")
+			test.mutate(event.GetAccountCreated())
+			data, err := proto.Marshal(event)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if _, err := Decode(data); err == nil {
+				t.Fatal("partial account credential envelope was accepted")
+			}
+		})
+	}
+}
+
+func TestAccountCreatedValidationAllowsHistoricalCredentialWithoutPreferredUsername(t *testing.T) {
+	event := accountCreatedEvent("evt_created")
+	credential := event.GetAccountCreated()
+	credential.CredentialEnvelopeVersion = 1
+	credential.UserKeyRef = "key_user"
+	credential.CredentialKeyRef = "key_credential"
+	credential.EmailNonce = []byte("nonce")
+	credential.EmailCiphertext = []byte("ciphertext")
+	credential.PasswordVerifierNonce = []byte("nonce")
+	credential.PasswordVerifierCiphertext = []byte("ciphertext")
+	if _, err := encode(event); err != nil {
+		t.Fatalf("historical credential without preferred username: %v", err)
 	}
 }
 

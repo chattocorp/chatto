@@ -282,6 +282,61 @@ func TestValidateAuthorizeRequestRejectsDuplicateSecurityParameters(t *testing.T
 	}
 }
 
+func TestAuthorizeValidationErrorsRedirectOnlyToValidatedClients(t *testing.T) {
+	valid := "https://auth.example/oauth/authorize?client_id=client&redirect_uri=https%3A%2F%2Fclient.example%2Fcallback&response_type=code&scope=openid&state=opaque-state&code_challenge=" + strings.Repeat("a", 43) + "&code_challenge_method=S256"
+	invalidScope := strings.ReplaceAll(valid, "scope=openid", "scope=openid%20email")
+	service := &Service{storage: &Storage{clients: &Resolver{configured: map[string]*Client{
+		"client": {IDValue: "client", Redirects: []string{"https://client.example/callback"}},
+	}}}}
+	tests := []struct {
+		name       string
+		raw        string
+		wantStatus int
+		wantError  string
+	}{
+		{name: "unsupported scope", raw: invalidScope, wantStatus: http.StatusFound, wantError: "invalid_scope"},
+		{name: "missing PKCE", raw: strings.ReplaceAll(valid, "&code_challenge="+strings.Repeat("a", 43), ""), wantStatus: http.StatusFound, wantError: "invalid_request"},
+		{name: "request object", raw: valid + "&request=opaque", wantStatus: http.StatusFound, wantError: "request_not_supported"},
+		{name: "unsupported response type", raw: strings.ReplaceAll(valid, "response_type=code", "response_type=token"), wantStatus: http.StatusFound, wantError: "unauthorized_client"},
+		{name: "unknown client", raw: strings.ReplaceAll(invalidScope, "client_id=client", "client_id=unknown"), wantStatus: http.StatusBadRequest},
+		{name: "unregistered redirect", raw: strings.ReplaceAll(invalidScope, "client.example%2Fcallback", "attacker.example%2Fcallback"), wantStatus: http.StatusBadRequest},
+		{name: "unsupported response mode", raw: valid + "&response_mode=form_post", wantStatus: http.StatusBadRequest},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			nextCalled := false
+			handler := service.wrap(http.HandlerFunc(func(http.ResponseWriter, *http.Request) { nextCalled = true }))
+			response := httptest.NewRecorder()
+			handler.ServeHTTP(response, httptest.NewRequest(http.MethodGet, test.raw, nil))
+			if nextCalled {
+				t.Fatal("invalid authorization request reached the provider")
+			}
+			if response.Code != test.wantStatus || response.Header().Get("Cache-Control") != "no-store" {
+				t.Fatalf("status/cache = %d %q, want %d no-store", response.Code, response.Header().Get("Cache-Control"), test.wantStatus)
+			}
+			location, err := response.Result().Location()
+			if test.wantStatus != http.StatusFound {
+				if err == nil {
+					t.Fatalf("unsafe request redirected to %q", location)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("parse error redirect: %v", err)
+			}
+			if got := location.Scheme + "://" + location.Host + location.Path; got != "https://client.example/callback" {
+				t.Fatalf("error redirect target = %q", got)
+			}
+			if got := location.Query().Get("error"); got != test.wantError {
+				t.Fatalf("error = %q, want %q", got, test.wantError)
+			}
+			if got := location.Query().Get("state"); got != "opaque-state" {
+				t.Fatalf("state = %q, want opaque-state", got)
+			}
+		})
+	}
+}
+
 func TestValidateCIMDEnforcesPublicCodeClientProfile(t *testing.T) {
 	identifier, err := validateClientIdentifierURL("https://client.example/oidc.json")
 	if err != nil {
@@ -321,9 +376,17 @@ func TestCIMDRejectsSpecialUseNetworksAndUnsafeIdentifiers(t *testing.T) {
 			t.Fatalf("unsafe client identifier %q was accepted", raw)
 		}
 	}
-	for _, raw := range []string{"127.0.0.1", "10.0.0.1", "100.64.0.1", "192.0.2.1", "198.51.100.1", "203.0.113.1", "224.0.0.1", "2001:db8::1"} {
+	for _, raw := range []string{
+		"127.0.0.1", "10.0.0.1", "100.64.0.1", "192.0.2.1", "192.31.196.1", "192.52.193.1", "192.88.99.1", "192.175.48.1", "198.51.100.1", "203.0.113.1", "224.0.0.1",
+		"::ffff:8.8.8.8", "64:ff9b::1", "64:ff9b:1::1", "100::1", "100:0:0:1::1", "2001::1", "2001:db8::1", "2002::1", "2620:4f:8000::1", "3fff::1", "5f00::1",
+	} {
 		if address := netip.MustParseAddr(raw); !blockedCIMDAddress(address) {
 			t.Fatalf("special-use address %s was accepted", address)
+		}
+	}
+	for _, raw := range []string{"8.8.8.8", "2606:4700:4700::1111"} {
+		if address := netip.MustParseAddr(raw); blockedCIMDAddress(address) {
+			t.Fatalf("ordinary public address %s was rejected", address)
 		}
 	}
 }

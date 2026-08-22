@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Kullanıcı profili",
-      "send_message": "Mesaj Gönder"
+      "send_message": "Mesaj Gönder",
+      "copy_user_id": "Kullanıcı kimliğini kopyala"
     },
     "server_gutter": {
       "add_server": "Sunucu Ekle",

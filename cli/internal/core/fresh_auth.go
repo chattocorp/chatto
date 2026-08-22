@@ -9,9 +9,6 @@ import (
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
-	"google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 const FreshAuthWindow = 30 * time.Minute
@@ -130,8 +127,8 @@ func (c *ChattoCore) authTokenData(ctx context.Context, token string) (AuthToken
 	return tokenData, entry, nil
 }
 
-func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, userID, sessionID string) error {
-	record, err := c.ValidateCookieSession(ctx, userID, sessionID)
+func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, sessionID string) error {
+	record, err := c.ValidateCookieCredential(ctx, sessionID)
 	if err != nil {
 		return err
 	}
@@ -141,19 +138,10 @@ func (c *ChattoCore) RequireFreshAuthForCookieSession(ctx context.Context, userI
 	return ErrFreshAuthRequired
 }
 
-func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, userID, sessionID, method, source string) error {
-	if userID == "" || sessionID == "" {
+func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, method, source string) error {
+	if sessionID == "" {
 		return ErrCookieSessionNotFound
 	}
-	if err := c.markTokenBackedCookieSessionFresh(ctx, userID, sessionID, method, source); err == nil {
-		return nil
-	} else if !errors.Is(err, ErrCookieSessionNotFound) {
-		return err
-	}
-	return c.markLegacyCookieSessionFresh(ctx, userID, sessionID, method, source)
-}
-
-func (c *ChattoCore) markTokenBackedCookieSessionFresh(ctx context.Context, userID, sessionID, method, source string) error {
 	key := c.authTokenKey(sessionID)
 	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
 	if err != nil {
@@ -168,7 +156,7 @@ func (c *ChattoCore) markTokenBackedCookieSessionFresh(ctx context.Context, user
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ErrCookieSessionNotFound
 	}
-	if tokenData.UserID != userID ||
+	if tokenData.UserID == "" ||
 		tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
 		tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
 		tokenData.CreatedAt.IsZero() {
@@ -176,7 +164,7 @@ func (c *ChattoCore) markTokenBackedCookieSessionFresh(ctx context.Context, user
 		return ErrCookieSessionNotFound
 	}
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         userID,
+		UserID:         tokenData.UserID,
 		CreatedAt:      tokenData.CreatedAt,
 		AuthGeneration: tokenData.AuthGeneration,
 	})
@@ -198,62 +186,6 @@ func (c *ChattoCore) markTokenBackedCookieSessionFresh(ctx context.Context, user
 		return fmt.Errorf("failed to marshal cookie session token: %w", err)
 	}
 	_, err = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
-	if err != nil {
-		return fmt.Errorf("failed to mark cookie session fresh: %w", err)
-	}
-	return nil
-}
-
-func (c *ChattoCore) markLegacyCookieSessionFresh(ctx context.Context, userID, sessionID, method, source string) error {
-	key := c.cookieSessionKey(userID, sessionID)
-	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		if errors.Is(err, jetstream.ErrKeyNotFound) {
-			return ErrCookieSessionNotFound
-		}
-		return fmt.Errorf("failed to get cookie session: %w", err)
-	}
-	var record corev1.CookieSession
-	if err := proto.Unmarshal(entry.Value(), &record); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return ErrCookieSessionNotFound
-	}
-	if record.GetUserId() != userID || record.GetExpiresAt() == nil || !time.Now().Before(record.GetExpiresAt().AsTime()) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return ErrCookieSessionNotFound
-	}
-	if record.GetCreatedAt() == nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return ErrCookieSessionNotFound
-	}
-	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
-		UserID:         userID,
-		CreatedAt:      record.GetCreatedAt().AsTime(),
-		AuthGeneration: record.GetAuthGeneration(),
-	})
-	if err != nil {
-		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
-			return ErrCookieSessionNotFound
-		}
-		return err
-	}
-	if validation.ShouldPersistAuthGeneration {
-		record.AuthGeneration = validation.AuthGeneration
-	}
-	record.FreshAuthAt = timestamppb.Now()
-	record.FreshAuthMethod = method
-	record.FreshAuthSource = source
-	value, err := proto.Marshal(&record)
-	if err != nil {
-		return fmt.Errorf("failed to marshal cookie session: %w", err)
-	}
-	ttl := time.Until(record.GetExpiresAt().AsTime())
-	if ttl <= 0 {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
-		return ErrCookieSessionNotFound
-	}
-	_, err = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), ttl)
 	if err != nil {
 		return fmt.Errorf("failed to mark cookie session fresh: %w", err)
 	}

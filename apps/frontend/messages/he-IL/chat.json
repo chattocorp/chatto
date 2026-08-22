@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "פרופיל משתמש",
-      "send_message": "שלח הודעה"
+      "send_message": "שלח הודעה",
+      "copy_user_id": "העתקת מזהה המשתמש"
     },
     "server_gutter": {
       "add_server": "הוסף שרת",

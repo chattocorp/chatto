@@ -713,3 +713,94 @@ export class RotateBotApiKeyResponse extends Message<RotateBotApiKeyResponse> {
     return proto3.util.equals(RotateBotApiKeyResponse, a, b);
   }
 }
+
+/**
+ * Request an administrative reassignment of a bot to another human owner.
+ *
+ * @generated from message chatto.api.v1.ReassignBotOwnerRequest
+ */
+export class ReassignBotOwnerRequest extends Message<ReassignBotOwnerRequest> {
+  /**
+   * Required bot user ID.
+   *
+   * @generated from field: string bot_user_id = 1;
+   */
+  botUserId = "";
+
+  /**
+   * Required user ID of the new human owner.
+   *
+   * @generated from field: string owner_user_id = 2;
+   */
+  ownerUserId = "";
+
+  constructor(data?: PartialMessage<ReassignBotOwnerRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReassignBotOwnerRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "owner_user_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReassignBotOwnerRequest {
+    return new ReassignBotOwnerRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReassignBotOwnerRequest {
+    return new ReassignBotOwnerRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReassignBotOwnerRequest {
+    return new ReassignBotOwnerRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReassignBotOwnerRequest | PlainMessage<ReassignBotOwnerRequest> | undefined, b: ReassignBotOwnerRequest | PlainMessage<ReassignBotOwnerRequest> | undefined): boolean {
+    return proto3.util.equals(ReassignBotOwnerRequest, a, b);
+  }
+}
+
+/**
+ * Result of reassigning a bot owner. The bot's API key and configured
+ * permission allowlist are unchanged.
+ *
+ * @generated from message chatto.api.v1.ReassignBotOwnerResponse
+ */
+export class ReassignBotOwnerResponse extends Message<ReassignBotOwnerResponse> {
+  /**
+   * Reassigned bot.
+   *
+   * @generated from field: chatto.api.v1.Bot bot = 1;
+   */
+  bot?: Bot;
+
+  constructor(data?: PartialMessage<ReassignBotOwnerResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ReassignBotOwnerResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "bot", kind: "message", T: Bot },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ReassignBotOwnerResponse {
+    return new ReassignBotOwnerResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ReassignBotOwnerResponse {
+    return new ReassignBotOwnerResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ReassignBotOwnerResponse {
+    return new ReassignBotOwnerResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ReassignBotOwnerResponse | PlainMessage<ReassignBotOwnerResponse> | undefined, b: ReassignBotOwnerResponse | PlainMessage<ReassignBotOwnerResponse> | undefined): boolean {
+    return proto3.util.equals(ReassignBotOwnerResponse, a, b);
+  }
+}

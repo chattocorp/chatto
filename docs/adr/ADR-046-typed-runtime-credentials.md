@@ -4,8 +4,8 @@
 
 ## Context
 
-Chatto currently authenticates runtime requests through two persisted credential
-models:
+Chatto historically authenticated runtime requests through two persisted
+credential models:
 
 - Bearer auth token records under `RUNTIME_STATE` `session.{hmac}` keys.
 - HTTP-only browser cookie session records under `RUNTIME_STATE`
@@ -66,24 +66,23 @@ client to that server ID/base URL. Same-origin cookie auth remains an optimizati
 and compatibility transport for the origin server only. The app must not rely on
 cookies for remote registered servers.
 
-Migration is phased:
+The migration completed at the 0.5 compatibility boundary:
 
 1. Write explicit credential types on newly issued bearer-token records.
 2. Update fresh-auth and runtime-credential helpers to reason from the typed
    credential, not from ad-hoc source-string checks.
 3. Write browser cookie sessions as first-party `session.{hmac}` runtime
-   credentials with `presentation = "cookie"` while continuing to validate
-   legacy `cookie_session.*` records.
-4. Store only the opaque runtime credential handle in newly written signed
-   browser sessions. Keep dual-read support for legacy signed sessions that
-   contain `user_id` plus `cookie_session_id`.
+   credentials with `presentation = "cookie"`.
+4. Store only the opaque runtime credential handle in signed browser sessions.
+   Retired signed-session fields such as `user_id` and `cookie_session_id` are
+   cleared but never accepted as authentication inputs.
 5. Keep cookie rotation, revocation, logout audit, live session termination, and
    auth-context injection on the shared credential path once the presentation
    channel has been checked.
-6. Keep legacy record validation and cleanup until existing TTLs expire or a
-   documented pre-1.0 compatibility cutoff removes them. The
-   `cookie_session.*` keyspace is deprecated compatibility-only storage and must
-   not receive new writes.
+6. Stop reading, refreshing, revoking, or scanning legacy `cookie_session.*`
+   records in 0.5. Any remaining records are inert and disappear through their
+   existing TTL; browsers that still carry the retired signed-session shape
+   must sign in again.
 
 ## Consequences
 
@@ -102,10 +101,10 @@ creating or resuming a first-party session can use the same runtime credential
 record whether the browser presents it via cookie or the SPA receives it as a
 bearer credential.
 
-The migration has compatibility cost. Deprecated `cookie_session.*` and untyped
-`session.*` records must remain readable during the rollout, and user-wide
-cleanup must scan both old and new keys until those records have expired or been
-explicitly retired.
+The 0.5 cutoff has a deliberate compatibility cost: browsers that still carry
+the retired cookie-session shape are signed out once. In return, every active
+browser session now follows the same typed validation, sliding TTL, and
+revocation rules, and user-wide cleanup scans only `session.*` records.
 
 The multi-server frontend continues to carry bearer tokens in browser storage for
 remote servers, so XSS prevention remains part of the client auth boundary. This

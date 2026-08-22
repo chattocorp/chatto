@@ -190,6 +190,7 @@ message Event {
     UserKeyShreddingRequestedEvent user_key_shredding_requested = 718;
     BotApiKeyCreatedEvent bot_api_key_created = 719;
     BotApiKeyRotatedEvent bot_api_key_rotated = 720;
+    BotOwnerReassignedEvent bot_owner_reassigned = 721;
 
     // ----- RBAC (800-839, durable, evt.rbac.>) -----
     RbacRoleCreatedEvent rbac_role_created = 800;

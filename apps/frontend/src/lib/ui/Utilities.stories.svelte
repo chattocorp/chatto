@@ -334,23 +334,45 @@
     docs: {
       description: {
         story:
-          '`icon-action` is the compact inline icon button for row/input affordances. Use HeaderIconButton for toolbar actions instead.'
+          '`icon-action` is the compact icon button with a standard hit area for row/input affordances. Use HeaderIconButton for toolbar actions instead.'
       }
     }
   }}
 >
   <div class="flex max-w-md flex-col gap-3">
     <p class="max-w-prose text-sm text-muted">
-      Use for low-emphasis actions that sit inside another element: copy an ID, clear a field,
-      dismiss a row.
+      Use for low-emphasis actions that sit inside another element and still need a standard hit
+      area, such as clearing a field or dismissing a row.
     </p>
     <div class="flex items-center gap-2 surface-box p-3">
-      <code class="text-xs">USR-7Q9M2N</code>
-      <button type="button" class="icon-action" title="Copy to clipboard">
-        <span class="iconify icon-[uil--copy]"></span>
-      </button>
+      <span class="text-muted">Active filter</span>
       <button type="button" class="ml-auto icon-action" title="Dismiss">
         <span class="iconify icon-[uil--times]"></span>
+      </button>
+    </div>
+  </div>
+</Story>
+
+<Story
+  name="mini icon button"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          '`mini-icon-action` is an unframed, icon-sized action that changes only text colour on hover and focus. Reserve it for a subordinate command directly beside the value it affects.'
+      }
+    }
+  }}
+>
+  <div class="flex max-w-md flex-col gap-3">
+    <p class="max-w-prose text-sm text-muted">
+      Use for a small secondary affordance whose associated value supplies the surrounding context.
+    </p>
+    <div class="inline-flex items-center gap-1.5 self-start surface-box p-3">
+      <code class="text-xs">USR-7Q9M2N</code>
+      <button type="button" class="mini-icon-action" title="Copy to clipboard">
+        <span class="iconify icon-[uil--copy]"></span>
       </button>
     </div>
   </div>

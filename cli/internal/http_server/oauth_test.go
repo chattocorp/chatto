@@ -1113,30 +1113,27 @@ func TestCookieSessionRotationClearsStaleGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
+	oldSessionID, staleRecord, err := s.core.CreateCookieSessionForGeneration(ctx, user.Id, "password_login", authGeneration)
+	if err != nil {
+		t.Fatalf("CreateCookieSessionForGeneration: %v", err)
+	}
+	staleRecord.ExpiresAt = timestamppb.New(time.Now().Add(time.Hour))
 	if err := s.core.SetPasswordHash(ctx, user.Id, "newpassword456"); err != nil {
 		t.Fatalf("SetPasswordHash: %v", err)
 	}
 
 	s.router.GET("/test/rotate-stale-session", func(c *gin.Context) {
 		session := sessions.Default(c)
-		session.Set(sessionKeyUserID, user.Id)
-		session.Set(sessionKeyCookieSessionID, "old-session")
+		session.Set(sessionKeyRuntimeCredentialID, oldSessionID)
 		if err := session.Save(); err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
 
-		staleRecord := &corev1.CookieSession{
-			UserId:         user.Id,
-			CreatedAt:      timestamppb.New(time.Now().Add(-time.Hour)),
-			ExpiresAt:      timestamppb.New(time.Now().Add(time.Hour)),
-			Source:         "password_login",
-			AuthGeneration: authGeneration,
-		}
-		s.rotateCookieSessionIfNeeded(c, user.Id, "old-session", staleRecord)
+		s.rotateCookieSessionIfNeeded(c, user.Id, oldSessionID, staleRecord)
 
-		userID, sessionID, ok := cookieSessionIDs(session)
-		if ok || userID != "" || sessionID != "" {
+		sessionID, ok := cookieCredentialIDFromSession(session)
+		if ok || sessionID != "" {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "session auth was not cleared"})
 			return
 		}
@@ -1149,6 +1146,38 @@ func TestCookieSessionRotationClearsStaleGeneration(t *testing.T) {
 
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("stale rotation status = %d, want 204: %s", w.Code, w.Body.String())
+	}
+}
+
+func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T) {
+	s := setupOAuthServer(t)
+
+	s.router.GET("/test/retired-cookie-session", func(c *gin.Context) {
+		session := sessions.Default(c)
+		session.Set(retiredSessionKeyUserID, "Ulegacy")
+		session.Set(retiredSessionKeyCredentialID, "cht_CSlegacy")
+		if err := session.Save(); err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+			return
+		}
+
+		if _, ok, err := s.cookiePresentedCredential(c); err != nil || ok {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields authenticated"})
+			return
+		}
+		if session.Get(retiredSessionKeyUserID) != nil || session.Get(retiredSessionKeyCredentialID) != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields were not cleared"})
+			return
+		}
+		c.Status(http.StatusNoContent)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/test/retired-cookie-session", nil)
+	w := httptest.NewRecorder()
+	s.router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusNoContent {
+		t.Fatalf("retired cookie-session status = %d, want 204: %s", w.Code, w.Body.String())
 	}
 }
 

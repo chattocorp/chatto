@@ -173,6 +173,9 @@ type Projection struct {
 	profiles       map[string]protectedProfile
 	vault          *keyvault.Vault
 	indexKey       []byte
+	// beforeEmailClaimApply is a test-only synchronization seam for holding
+	// the ordered projector between an atomic email change's two messages.
+	beforeEmailClaimApply func()
 }
 
 // NewProjection creates the protected account projection.
@@ -402,6 +405,12 @@ func (p *Projection) Apply(event *corev1.Event, sequence uint64) error {
 		if claim == nil {
 			return fmt.Errorf("unsupported account event")
 		}
+		p.RLock()
+		beforeApply := p.beforeEmailClaimApply
+		p.RUnlock()
+		if beforeApply != nil {
+			beforeApply()
+		}
 		p.Lock()
 		defer p.Unlock()
 		pending, ok := p.pendingEmails[claim.GetAccountId()]
@@ -556,12 +565,12 @@ func (p *Projection) credentialForAccount(accountID string) (protectedCredential
 	return credential, ok
 }
 
-// credentialForPasswordMutation rejects the interval in which an atomic email
+// credentialForIdentityMutation rejects the interval in which an atomic email
 // change has staged its account event but its adjacent registry claim has not
-// yet activated the new credential. Appending against the old credential in
-// that interval would create an event that fails ordered replay after the
-// registry claim advances the credential generation.
-func (p *Projection) credentialForPasswordMutation(accountID string) (protectedCredential, bool) {
+// yet activated the new credential. Credential-bound commands must not append
+// against the old credential in that interval because ordered replay would
+// reject the event after the registry claim advances the generation.
+func (p *Projection) credentialForIdentityMutation(accountID string) (protectedCredential, bool) {
 	p.RLock()
 	defer p.RUnlock()
 	if pending, ok := p.pendingEmails[accountID]; ok && pending.replaces {
@@ -1029,7 +1038,7 @@ func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarge
 	if err != nil {
 		return Account{}, err
 	}
-	tail, credential, err := s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+	tail, credential, err := s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
 	if err != nil {
 		return Account{}, err
 	}
@@ -1059,7 +1068,7 @@ func (s *Service) ChangePassword(ctx context.Context, target PasswordChangeTarge
 	for range 5 {
 		position, err := s.publisher.AppendPasswordChanged(ctx, event, tail)
 		if errors.Is(err, events.ErrConflict) {
-			tail, _, err = s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+			tail, _, err = s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
 			if err != nil {
 				return Account{}, err
 			}
@@ -1126,20 +1135,9 @@ func (s *Service) RecordEmailChangeRequested(ctx context.Context, target EmailCh
 		AccountId: target.AccountID, CredentialEventId: target.CredentialEventID,
 	}}}
 	for range 5 {
-		tail, err := s.publisher.AccountTail(ctx, target.AccountID)
+		tail, _, err := s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
 		if err != nil {
-			return EmailChangeTarget{}, fmt.Errorf("read email-change account tail: %w", err)
-		}
-		subject, err := evtstream.AccountSubject(target.AccountID)
-		if err != nil {
-			return EmailChangeTarget{}, ErrCredentialChanged
-		}
-		if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
-			return EmailChangeTarget{}, fmt.Errorf("wait for email-change account: %w", err)
-		}
-		current, ok := s.handle.Projection().credentialForAccount(target.AccountID)
-		if !ok || current.eventID != target.CredentialEventID {
-			return EmailChangeTarget{}, ErrCredentialChanged
+			return EmailChangeTarget{}, err
 		}
 		position, err := s.publisher.AppendEmailChangeRequested(ctx, event, tail)
 		if errors.Is(err, events.ErrConflict) {
@@ -1275,25 +1273,21 @@ func (s *Service) RecordPasswordResetRequested(ctx context.Context, email string
 		if !ok {
 			return PasswordResetTarget{}, false, nil
 		}
-		accountID := target.AccountID
-		tail, err := s.publisher.AccountTail(ctx, accountID)
+		tail, _, err := s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+		if errors.Is(err, ErrCredentialChanged) {
+			continue
+		}
 		if err != nil {
-			return PasswordResetTarget{}, false, fmt.Errorf("read password reset account tail: %w", err)
+			return PasswordResetTarget{}, false, err
 		}
-		subject, err := evtstream.AccountSubject(accountID)
-		if err != nil {
-			return PasswordResetTarget{}, false, fmt.Errorf("resolve password reset account subject: %w", err)
-		}
-		if err := s.handle.Projector().WaitFor(ctx, events.SubjectPosition(subject, tail)); err != nil {
-			return PasswordResetTarget{}, false, fmt.Errorf("wait for password reset account: %w", err)
-		}
-		target, ok = s.handle.Projection().passwordResetTarget(email)
+		current, ok := s.handle.Projection().passwordResetTarget(email)
 		if !ok {
 			return PasswordResetTarget{}, false, nil
 		}
-		if target.AccountID != accountID {
+		if current.AccountID != target.AccountID || current.CredentialEventID != target.CredentialEventID {
 			continue
 		}
+		target = current
 		event := &corev1.Event{Id: eventID, CreatedAt: createdAt, Event: &corev1.Event_PasswordResetRequested{PasswordResetRequested: &corev1.PasswordResetRequestedEvent{
 			AccountId: target.AccountID, CredentialEventId: target.CredentialEventID,
 		}}}
@@ -1382,10 +1376,16 @@ func (s *Service) ResetPassword(ctx context.Context, target PasswordResetTarget,
 }
 
 func (s *Service) passwordResetCredentialAtTail(ctx context.Context, target PasswordResetTarget) (uint64, protectedCredential, error) {
-	return s.passwordCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
+	return s.identityCredentialAtTail(ctx, target.AccountID, target.CredentialEventID)
 }
 
-func (s *Service) passwordCredentialAtTail(ctx context.Context, accountID, credentialEventID string) (uint64, protectedCredential, error) {
+// identityCredentialAtTail captures both subjects that can advance a local
+// credential, waits until the projection has crossed both boundaries, and then
+// verifies the caller's credential generation. Capturing the registry tail is
+// essential because an email change is stored as an adjacent cross-subject
+// batch whose account event stages the credential and whose registry event
+// activates it.
+func (s *Service) identityCredentialAtTail(ctx context.Context, accountID, credentialEventID string) (uint64, protectedCredential, error) {
 	tail, err := s.publisher.AccountTail(ctx, accountID)
 	if err != nil {
 		return 0, protectedCredential{}, fmt.Errorf("read account tail: %w", err)
@@ -1409,7 +1409,7 @@ func (s *Service) passwordCredentialAtTail(ctx context.Context, accountID, crede
 			return 0, protectedCredential{}, fmt.Errorf("wait for account registry credential: %w", err)
 		}
 	}
-	credential, ok := s.handle.Projection().credentialForPasswordMutation(accountID)
+	credential, ok := s.handle.Projection().credentialForIdentityMutation(accountID)
 	if !ok || credential.eventID != credentialEventID {
 		return 0, protectedCredential{}, ErrCredentialChanged
 	}

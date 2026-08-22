@@ -34,6 +34,25 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if err != nil || got.Msg.GetBot().GetUser().GetLogin() != "connect_bot" {
 		t.Fatalf("GetBot = %+v, %v", got, err)
 	}
+	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	_, err = service.ReassignBotOwner(ctx, connect.NewRequest(&apiv1.ReassignBotOwnerRequest{
+		BotUserId: bot.GetUser().GetId(), OwnerUserId: recipient.GetId(),
+	}))
+	if connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("owner-only ReassignBotOwner code = %v, want permission denied", connect.CodeOf(err))
+	}
+	if err := env.core.GrantUserPermission(env.ctx, core.SystemActorID, env.viewer.GetId(), core.PermBotManage); err != nil {
+		t.Fatalf("GrantUserPermission bot.manage: %v", err)
+	}
+	reassigned, err := service.ReassignBotOwner(ctx, connect.NewRequest(&apiv1.ReassignBotOwnerRequest{
+		BotUserId: bot.GetUser().GetId(), OwnerUserId: recipient.GetId(),
+	}))
+	if err != nil || reassigned.Msg.GetBot().GetOwnerUserId() != recipient.GetId() {
+		t.Fatalf("ReassignBotOwner = %+v, %v", reassigned, err)
+	}
 
 	_, err = env.permissions.SetUserPermission(ctx, connect.NewRequest(&adminv1.SetUserPermissionRequest{
 		UserId: bot.GetUser().GetId(), Permission: string(core.PermMessagePost),

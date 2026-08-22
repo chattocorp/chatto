@@ -136,7 +136,9 @@ Use it for tasks such as:
   server deployment across these releases: their message lifecycle projections
   make different decisions when an edit races a deletion. Upgrade the bundled
   frontend with the server replicas because realtime protocol 2 is also a
-  coordinated compatibility boundary.
+  coordinated compatibility boundary. Users whose browsers still carry the
+  retired pre-typed cookie-session format are signed out once and must sign in
+  again after the upgrade.
 </Aside>
 
 1. Read the release notes before upgrading.

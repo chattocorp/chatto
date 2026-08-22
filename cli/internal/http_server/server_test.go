@@ -2777,7 +2777,7 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredential, ok := cookieCredentialFromSession(sessions.Default(c))
+			cookieCredentialID, ok := cookieCredentialIDFromSession(sessions.Default(c))
 
 			capture.Lock()
 			defer capture.Unlock()
@@ -2786,13 +2786,8 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 				capture.err = errors.New("cookie session was not saved before hook")
 				return
 			}
-			if cookieCredential.userID != "" {
-				capture.err = errors.New("new cookie session should not duplicate user ID")
-				return
-			}
-
 			capture.userID = userID
-			capture.sessionID = cookieCredential.sessionID
+			capture.sessionID = cookieCredentialID
 			capture.err = s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456")
 		}
 	})
@@ -2838,8 +2833,8 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 		t.Fatal("Stale login response should not include a bearer token")
 	}
 
-	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
 	}
 }
 
@@ -2852,14 +2847,14 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredential, ok := cookieCredentialFromSession(sessions.Default(c))
+			cookieCredentialID, ok := cookieCredentialIDFromSession(sessions.Default(c))
 
 			capture.Lock()
 			defer capture.Unlock()
 
 			if ok {
 				capture.userID = userID
-				capture.sessionID = cookieCredential.sessionID
+				capture.sessionID = cookieCredentialID
 			}
 			s.core.EventPublisher = nil
 		}
@@ -2902,8 +2897,8 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 		t.Fatal("Failed login response should not include a bearer token")
 	}
 
-	if _, err := chattoCore.ValidateCookieSession(ctx, capturedUserID, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
 	}
 }
 

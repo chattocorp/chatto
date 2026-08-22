@@ -74,6 +74,13 @@ export function createBotAPI(config: BotAPIConfig) {
     async rotateBotAPIKey(botUserId: string): Promise<{ bot: Bot; apiKey: string }> {
       const response = await client.rotateBotApiKey({ botUserId }, { headers: headers() });
       return { bot: botFromAPI(requiredBot(response.bot)), apiKey: response.apiKey };
+    },
+    async reassignBotOwner(botUserId: string, ownerUserId: string): Promise<Bot> {
+      const response = await client.reassignBotOwner(
+        { botUserId, ownerUserId },
+        { headers: headers() }
+      );
+      return botFromAPI(requiredBot(response.bot));
     }
   };
 }

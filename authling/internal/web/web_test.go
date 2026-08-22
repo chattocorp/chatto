@@ -24,6 +24,9 @@ func TestHandlerRendersHomePageWithoutScripts(t *testing.T) {
 	if !strings.Contains(body, "Identity, under your control.") {
 		t.Fatalf("body does not contain the Authling heading: %q", body)
 	}
+	if !strings.Contains(body, `<meta name="description" content="Authling is a self-hosted OpenID Connect identity provider."`) {
+		t.Fatalf("body does not contain the Authling description: %q", body)
+	}
 	if strings.Contains(body, "<script") {
 		t.Fatalf("body unexpectedly contains a script: %q", body)
 	}

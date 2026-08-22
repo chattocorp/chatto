@@ -16,13 +16,21 @@
     label,
     value = $bindable(''),
     text = $bindable(''),
-    placeholder = m('admin.members.search_placeholder')
+    placeholder = m('admin.members.search_placeholder'),
+    humanOnly = false,
+    allowFreeform = true,
+    emptyMessage = m('admin.users.empty'),
+    clearLabel = m('common.clear')
   }: {
     id: string;
     label: string;
     value?: string;
     text?: string;
     placeholder?: string;
+    humanOnly?: boolean;
+    allowFreeform?: boolean;
+    emptyMessage?: string;
+    clearLabel?: string;
   } = $props();
 
   const serverScope = useServerScope();
@@ -48,7 +56,9 @@
     () => queryClient
   );
   const users = $derived<User[]>(
-    activeSearch && !debouncePending ? (usersQuery.data?.members ?? []) : []
+    activeSearch && !debouncePending
+      ? (usersQuery.data?.members ?? []).filter((user) => !humanOnly || !user.isBot)
+      : []
   );
   const loading = $derived(debouncePending || (!!activeSearch && usersQuery.isFetching));
 
@@ -85,8 +95,9 @@
   getLabel={userLabel}
   {placeholder}
   {loading}
-  emptyMessage="No users found"
-  clearLabel="Clear actor"
+  {allowFreeform}
+  {emptyMessage}
+  {clearLabel}
   ontextchange={scheduleSearch}
 >
   {#snippet item({ item: user })}

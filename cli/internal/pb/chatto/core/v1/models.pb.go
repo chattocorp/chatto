@@ -622,9 +622,9 @@ func (x *AuditRequestMetadata) GetIpHash() string {
 	return ""
 }
 
-// CookieSession is the server-side runtime-state record for the embedded SPA's
-// HTTP cookie session. The raw session ID is never stored in this payload; it is
-// represented only by the HMAC-derived RUNTIME_STATE key.
+// CookieSession describes a validated embedded-SPA cookie credential. The
+// authoritative stored value is a typed runtime credential; its opaque handle
+// is not exposed in this normalized view.
 type CookieSession struct {
 	state           protoimpl.MessageState `protogen:"open.v1"`
 	UserId          string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

@@ -11,7 +11,8 @@ option go_package = "hmans.de/authling/internal/pb/authling/core/v1;corev1";
 // This message is a storage contract. Existing fields and oneof tags must not
 // be removed, renumbered, or reused.
 message Event {
-  // Stable event identifier used for idempotent publication.
+  // Stable opaque event identifier used for idempotent publication and
+  // correlation. Values are restricted to one NATS-safe subject token.
   string id = 1;
 
   // Time at which the durable fact was created.

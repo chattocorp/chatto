@@ -613,14 +613,21 @@
   @apply -m-2 flex h-11 w-11 cursor-pointer items-center justify-center rounded transition-[background-color,color,scale] hover:text-text active:scale-[0.96] active:bg-surface-emphasized;
 }
 
-/* Compact inline icon-only action for row/input affordances such as copy,
- * dismiss, and clear. Larger toolbar icons should use HeaderIconButton or
+/* Compact inline icon-only action for row/input affordances such as dismiss
+ * and clear. Larger toolbar icons should use HeaderIconButton or
  * pane-header-icon-button instead.
  */
 @utility icon-action {
   @apply inline-flex h-10 w-10 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] active:scale-[0.96];
   @apply hover:bg-surface-emphasized hover:text-text;
   @apply disabled:cursor-not-allowed disabled:opacity-50;
+}
+
+/* Unframed icon-sized action for a subordinate command placed directly beside
+ * the text or value it affects. Use icon-action for a standard hit area.
+ */
+@utility mini-icon-action {
+  @apply inline-flex shrink-0 cursor-pointer text-muted transition-colors hover:text-text focus-visible:text-text;
 }
 
 /* Hide scrollbar while maintaining scroll functionality */

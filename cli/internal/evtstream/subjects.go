@@ -171,6 +171,7 @@ const (
 	EventUserCustomStatusCleared      = "custom_status_cleared"
 	EventBotAPIKeyCreated             = "bot_api_key_created"
 	EventBotAPIKeyRotated             = "bot_api_key_rotated"
+	EventBotOwnerReassigned           = "bot_owner_reassigned"
 
 	// RBAC aggregate
 	EventRBACRoleCreated            = "role_created"
@@ -361,6 +362,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventBotAPIKeyCreated
 	case *corev1.Event_BotApiKeyRotated:
 		return EventBotAPIKeyRotated
+	case *corev1.Event_BotOwnerReassigned:
+		return EventBotOwnerReassigned
 	case *corev1.Event_UserLoginChanged:
 		return EventUserLoginChanged
 	case *corev1.Event_UserDisplayNameChanged:
