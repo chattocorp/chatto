@@ -4,7 +4,6 @@
     "send": "Wyślij wiadomość",
     "send_label": "Wyślij",
     "send_ctrl_enter": "Wyślij wiadomość (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut}, aby wysłać",
     "also_send_to_channel": "Wyślij także do kanału",
     "post_as_thread": "Opublikuj jako wątek",
     "thread_label": "Wątek",

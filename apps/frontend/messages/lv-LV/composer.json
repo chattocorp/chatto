@@ -4,7 +4,6 @@
     "send": "Nosūtīt ziņu",
     "send_label": "Sūtīt",
     "send_ctrl_enter": "Sūtīt ziņojumu (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} nosūtīšanai",
     "also_send_to_channel": "Sūtīt arī uz kanālu",
     "post_as_thread": "Publicēt kā pavedienu",
     "thread_label": "Pavediens",

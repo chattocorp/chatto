@@ -4,7 +4,6 @@
     "send": "Odeslat zprávu",
     "send_label": "Odeslat",
     "send_ctrl_enter": "Odeslat zprávu (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} pro odeslání",
     "also_send_to_channel": "Také odeslat na kanál",
     "post_as_thread": "Publikovat jako vlákno",
     "thread_label": "Vlákno",

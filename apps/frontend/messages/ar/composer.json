@@ -4,7 +4,6 @@
     "send": "أرسل الرسالة",
     "send_label": "إرسال",
     "send_ctrl_enter": "إرسال رسالة (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} للإرسال",
     "also_send_to_channel": "أرسل أيضًا إلى القناة",
     "post_as_thread": "نشر كموضوع",
     "thread_label": "الموضوع",

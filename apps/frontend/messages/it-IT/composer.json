@@ -4,7 +4,6 @@
     "send": "Invia messaggio",
     "send_label": "Invia",
     "send_ctrl_enter": "Invia messaggio (Ctrl/Cmd+Invio)",
-    "shortcut_send": "{shortcut} per inviare",
     "also_send_to_channel": "Invia anche al canale",
     "post_as_thread": "Pubblica come thread",
     "thread_label": "Filo",

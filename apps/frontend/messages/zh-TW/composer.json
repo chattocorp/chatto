@@ -4,7 +4,6 @@
     "send": "傳送訊息",
     "send_label": "傳送",
     "send_ctrl_enter": "傳送訊息 (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} 傳送",
     "also_send_to_channel": "同時傳送至頻道",
     "post_as_thread": "發佈為討論串",
     "thread_label": "討論串",

@@ -1150,14 +1150,12 @@ describe('MessageComposer', () => {
       expect(surface).not.toHaveClass('composer-mode-surface');
     });
 
-    it('shows a stable send hint', async () => {
+    it('does not show a send shortcut hint', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       await findEditor(container);
-      const hint = q(container, '[title*="to send"]');
-      expect(hint?.textContent).toMatch(/^(?:Cmd|Ctrl)\+Enter to send$/);
-
-      userPreferences.composerSendMode = 'enter';
-      await vi.waitFor(() => expect(hint?.textContent).toBe('Enter to send'));
+      const toolbar = q(container, '[data-testid="composer-toolbar"]');
+      expect(toolbar?.textContent).not.toMatch(/to send/i);
+      expect(toolbar?.querySelector('[title*="to send"]')).toBeNull();
     });
 
     it('treats an empty block element as sendable composer content', async () => {
@@ -3300,12 +3298,12 @@ describe('MessageComposer', () => {
         .toHaveAttribute('title', 'Attach file');
     });
 
-    it('send button title describes the keyboard shortcut', async () => {
+    it('send button title describes the action', async () => {
       const { container } = renderMessageComposer({ roomId: 'room_456' });
       await findEditor(container);
 
-      expect(q(container, 'button[aria-label="Send message"]')?.getAttribute('title')).toMatch(
-        /^(?:Cmd|Ctrl)\+Enter to send$/
+      expect(q(container, 'button[aria-label="Send message"]')?.getAttribute('title')).toBe(
+        'Send message'
       );
     });
   });

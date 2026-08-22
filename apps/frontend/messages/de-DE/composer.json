@@ -4,7 +4,6 @@
     "send": "Nachricht senden",
     "send_label": "Senden",
     "send_ctrl_enter": "Nachricht senden (Strg/Cmd+Enter)",
-    "shortcut_send": "{shortcut} zum Senden",
     "also_send_to_channel": "Auch an Kanal senden",
     "post_as_thread": "Als Thread posten",
     "thread_label": "Thread",

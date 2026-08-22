@@ -1,7 +1,5 @@
 <script lang="ts">
-  import { prefersTouchActions } from '$lib/utils/inputCapabilities';
   import { m } from '$lib/i18n/messages';
-  import type { ComposerSendMode } from '$lib/state/userPreferences.svelte';
   import ComposerTimestampPicker from './ComposerTimestampPicker.svelte';
   import type {
     ComposerFormattingCommand,
@@ -13,7 +11,6 @@
   let {
     formattingState,
     indentState,
-    sendMode,
     editorApi,
     inputDisabled,
     canAttach,
@@ -31,7 +28,6 @@
   }: {
     formattingState: ComposerFormattingState;
     indentState: ComposerIndentState;
-    sendMode: ComposerSendMode;
     editorApi: ComposerEditorApi | null;
     inputDisabled: boolean;
     canAttach: boolean;
@@ -61,23 +57,6 @@
     { command: 'blockquote', icon: 'icon-[mdi--format-quote-open]' },
     { command: 'codeBlock', icon: 'icon-[mdi--code-block-braces]' }
   ];
-  const submitShortcut = $derived(getSubmitShortcut(sendMode));
-  const submitHint = $derived(
-    submitShortcut ? m('composer.shortcut_send', { shortcut: submitShortcut }) : null
-  );
-
-  function getSubmitShortcut(mode: ComposerSendMode): string | null {
-    if (typeof navigator === 'undefined' || prefersTouchActions()) return null;
-    if (mode === 'enter') return 'Enter';
-
-    const userAgentDataPlatform =
-      'userAgentData' in navigator
-        ? (navigator.userAgentData as { platform?: string } | undefined)?.platform
-        : undefined;
-    const platform = userAgentDataPlatform ?? navigator.platform ?? '';
-    return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'Cmd+Enter' : 'Ctrl+Enter';
-  }
-
   function formattingLabel(command: ComposerFormattingCommand): string {
     switch (command) {
       case 'bold':
@@ -223,16 +202,6 @@
       {/if}
     </div>
 
-    {#if submitHint}
-      <span
-        aria-hidden="true"
-        title={submitHint}
-        class="px-0.5 text-xs leading-none font-medium whitespace-nowrap text-muted"
-      >
-        {submitHint}
-      </span>
-    {/if}
-
     <button
       type="button"
       onpointerdown={(event) => event.preventDefault()}
@@ -240,7 +209,7 @@
       disabled={!canSubmit}
       class="flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium text-muted transition-[background-color,color,scale] duration-100 active:scale-[0.96] enabled:hover:bg-surface-emphasized enabled:hover:text-text disabled:cursor-not-allowed disabled:opacity-50 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5"
       aria-label={m('composer.send')}
-      title={submitHint ?? m('composer.send')}
+      title={m('composer.send')}
     >
       <span class="iconify icon-[uil--telegram-alt] text-[15px]"></span>
       <span class="hidden @min-[560px]:inline">{m('composer.send_label')}</span>

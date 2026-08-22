@@ -4,7 +4,6 @@
     "send": "Send melding",
     "send_label": "Send",
     "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} for å sende",
     "also_send_to_channel": "Send også til kanalen",
     "post_as_thread": "Publiser som tråd",
     "thread_label": "Tråd",

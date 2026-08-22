@@ -4,7 +4,6 @@
     "send": "メッセージを送信",
     "send_label": "送信",
     "send_ctrl_enter": "メッセージを送信 (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} で送信",
     "also_send_to_channel": "チャンネルにも送信します",
     "post_as_thread": "スレッドとして投稿",
     "thread_label": "スレッド",

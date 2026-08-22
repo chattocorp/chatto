@@ -161,7 +161,7 @@ test.describe('Composer focus', () => {
 });
 
 test.describe('Composer keyboard behavior', () => {
-  test('uses native Enter and Control+Enter to send with a stable shortcut hint', async ({
+  test('uses native Enter and Control+Enter to send without a shortcut hint', async ({
     page,
     chatPage,
     roomPage
@@ -174,7 +174,7 @@ test.describe('Composer keyboard behavior', () => {
     const message = `Keyboard send ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(message);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Enter to send/)).toBeVisible();
+    await expect(page.getByTestId('composer-toolbar')).not.toContainText(/to send/i);
 
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.getMessage(message).locator).not.toBeVisible();
@@ -226,7 +226,6 @@ test.describe('Composer keyboard behavior', () => {
     const second = `Return send second ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(`- ${first}`);
-    await expect(page.getByText('Enter to send')).toBeVisible();
 
     await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);

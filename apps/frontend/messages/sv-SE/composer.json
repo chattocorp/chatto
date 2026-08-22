@@ -4,7 +4,6 @@
     "send": "Skicka meddelande",
     "send_label": "Skicka",
     "send_ctrl_enter": "Skicka meddelande (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} för att skicka",
     "also_send_to_channel": "Skicka även till kanal",
     "post_as_thread": "Publicera som tråd",
     "thread_label": "Tråd",

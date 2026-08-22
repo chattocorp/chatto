@@ -4,7 +4,6 @@
     "send": "Saada sõnum",
     "send_label": "Saada",
     "send_ctrl_enter": "Saada sõnum (Ctrl/Cmd+Enter)",
-    "shortcut_send": "{shortcut} saatmiseks",
     "also_send_to_channel": "Saada ka kanalile",
     "post_as_thread": "Postita lõimena",
     "thread_label": "Niit",

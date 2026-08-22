@@ -239,7 +239,6 @@
     <ComposerToolbar
       formattingState={composer.formattingState}
       indentState={composer.indentState}
-      sendMode={userPreferences.composerSendMode}
       editorApi={composer.editorApi}
       inputDisabled={composer.inputDisabled}
       {canAttach}
