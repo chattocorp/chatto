@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import { render } from 'vitest-browser-svelte';
 import { q } from '$lib/test-utils';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const { mocks } = vi.hoisted(() => ({
   mocks: {
@@ -71,7 +72,8 @@ describe('CreateRoom', () => {
       name: 'general',
       description: null,
       groupId: 'group-1',
-      universal: false
+      universal: false,
+      threadingMode: RoomThreadingMode.ENABLED
     });
     expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
   });
@@ -92,7 +94,8 @@ describe('CreateRoom', () => {
       name: 'general',
       description: null,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      threadingMode: RoomThreadingMode.ENABLED
     });
   });
 
@@ -109,8 +112,34 @@ describe('CreateRoom', () => {
         name: 'Team chat 💬 / Küche!',
         description: null,
         groupId: 'group-1',
-        universal: false
+        universal: false,
+        threadingMode: RoomThreadingMode.ENABLED
       });
+    });
+  });
+
+  it('passes the selected threading mode to ConnectRPC', async () => {
+    const { container } = render(CreateRoom, {
+      groupId: 'group-1',
+      onroomcreated: mocks.onroomcreated
+    });
+
+    const choices = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    expect(choices).toHaveLength(4);
+    expect(choices.map((choice) => choice.textContent?.trim())).toEqual([
+      expect.stringContaining('Required'),
+      expect.stringContaining('Encouraged'),
+      expect.stringContaining('Enabled'),
+      expect.stringContaining('Disabled')
+    ]);
+    expect(choices[2]).toHaveAttribute('aria-checked', 'true');
+    choices[0].click();
+    await fillNameAndSubmit(container);
+
+    await vi.waitFor(() => {
+      expect(mocks.createRoom).toHaveBeenCalledWith(
+        expect.objectContaining({ threadingMode: RoomThreadingMode.REQUIRED })
+      );
     });
   });
 

@@ -87,6 +87,7 @@
         "add_reaction": "添加回应",
         "more_reactions": "更多回应",
         "reply": "回复",
+        "reply_room": "在房间中回复",
         "reply_thread": "在话题串中回复",
         "open_thread": "打开话题串",
         "edit": "编辑消息",

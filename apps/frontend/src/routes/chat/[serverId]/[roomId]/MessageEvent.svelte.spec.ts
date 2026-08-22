@@ -4,6 +4,7 @@ import { render } from 'vitest-browser-svelte';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
 import { q } from '$lib/test-utils';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import MessageEventTestHarness from './MessageEventTestHarness.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -57,6 +58,8 @@ type MessageOverrides = Partial<{
   echoOfEventId: string | null;
   echoFromThreadRootEventId: string | null;
   channelEchoEventId: string | null;
+  threadExists: boolean;
+  replyCount: number;
 }>;
 
 function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
@@ -93,9 +96,10 @@ function messageEvent(overrides: MessageOverrides = {}): TimelineEventView {
       echoOfEventId: overrides.echoOfEventId ?? null,
       echoFromThreadRootEventId: overrides.echoFromThreadRootEventId ?? null,
       channelEchoEventId: overrides.channelEchoEventId ?? null,
-      replyCount: 0,
+      replyCount: overrides.replyCount ?? 0,
       lastReplyAt: null,
       threadParticipants: [],
+      threadExists: overrides.threadExists ?? false,
       viewerIsFollowingThread: false
     }
   } as TimelineEventView;
@@ -149,6 +153,112 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('orders and constrains reply actions for each threading mode', async () => {
+    const onOpenThread = vi.fn();
+    const event = messageEvent({ threadExists: true });
+    const rendered = render(MessageEventTestHarness, {
+      props: { event, onOpenThread, threadingMode: RoomThreadingMode.REQUIRED }
+    });
+
+    const toolbarReplyLabels = () =>
+      Array.from(
+        q(rendered.container, '[role="toolbar"]')!.querySelectorAll<HTMLButtonElement>('button')
+      )
+        .map((button) => button.getAttribute('aria-label'))
+        .filter((label) => label?.startsWith('Reply') || label === 'Open thread');
+
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+    (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).toHaveBeenLastCalledWith(
+      event.id,
+      expect.objectContaining({
+        reply: expect.objectContaining({ eventId: event.id })
+      })
+    );
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.ENCOURAGED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+    (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).toHaveBeenLastCalledWith(
+      event.id,
+      expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+    );
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Reply in room')).toBeTruthy();
+    menuButton(rendered.container, 'Reply in room')!.click();
+    await expect
+      .element(q(rendered.container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.ENABLED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Open thread']);
+
+    await rendered.rerender({
+      event,
+      onOpenThread,
+      permalinkThreadRootEventId: event.id,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    expect(toolbarReplyLabels()).toEqual([]);
+  });
+
+  it('keeps reply attribution available inside Required threads with thread-only permission', async () => {
+    const event = messageEvent({ id: 'thread-reply', threadRootEventId: 'thread-root' });
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event,
+        permalinkThreadRootEventId: 'thread-root',
+        threadingMode: RoomThreadingMode.REQUIRED,
+        canPostMessage: false,
+        canPostInThread: true
+      }
+    });
+
+    const reply = q(container, 'button[aria-label="Reply"]') as HTMLButtonElement;
+    expect(reply).toBeTruthy();
+    reply.click();
+    await expect
+      .element(q(container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
+  });
+
+  it('falls back to an in-room reply in Encouraged mode without thread permission', async () => {
+    const event = messageEvent();
+    const onOpenThread = vi.fn();
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event,
+        onOpenThread,
+        threadingMode: RoomThreadingMode.ENCOURAGED,
+        canPostMessage: true,
+        canPostInThread: false
+      }
+    });
+
+    expect(q(container, 'button[aria-label="Reply"]')).toBeTruthy();
+    expect(q(container, 'button[aria-label="Reply in thread"]')).toBeNull();
+    (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
+  });
+
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
     const regular = messageEvent();
     const rendered = render(MessageEventTestHarness, { props: { event: regular } });
@@ -186,7 +296,22 @@ describe('MessageEvent action model integration', () => {
         eventId: 'thread-reply',
         deleteEventId: 'thread-reply',
         permalinkThreadRootEventId: 'thread-root',
-        threadRootEventId: 'thread-root'
+        threadRootEventId: 'thread-root',
+        canAddChannelEcho: true
+      })
+    );
+
+    await rendered.rerender({
+      event: threadReply,
+      permalinkThreadRootEventId: 'thread-root',
+      threadingMode: RoomThreadingMode.DISABLED
+    });
+    (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
+    expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        eventId: 'thread-reply',
+        threadRootEventId: 'thread-root',
+        canAddChannelEcho: false
       })
     );
 
@@ -207,7 +332,11 @@ describe('MessageEvent action model integration', () => {
       echoOfEventId: 'original-thread-message',
       echoFromThreadRootEventId: 'thread-root'
     });
-    await rendered.rerender({ event: echo, permalinkThreadRootEventId: null });
+    await rendered.rerender({
+      event: echo,
+      permalinkThreadRootEventId: null,
+      threadingMode: RoomThreadingMode.DISABLED
+    });
     (q(rendered.container, 'button[aria-label="Edit message"]') as HTMLButtonElement).click();
     expect(mocks.actions.startEdit).toHaveBeenLastCalledWith(
       expect.objectContaining({

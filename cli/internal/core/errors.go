@@ -115,6 +115,10 @@ var (
 	// attribution, but thread containment is a channel-room-only capability.
 	ErrDMThreadsUnsupported = errors.New("threads are not supported in direct messages")
 
+	// ErrRoomThreadingPolicy is returned when thread creation or message
+	// placement conflicts with the channel's current threading mode.
+	ErrRoomThreadingPolicy = errors.New("message conflicts with the room threading policy")
+
 	// ErrDisplayNameTooLong is returned when a display name exceeds the maximum length.
 	ErrDisplayNameTooLong = errors.New("display name exceeds maximum length")
 

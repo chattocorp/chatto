@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Aeglane režiim: saada uuesti {countdown} pärast.",
     "slow_mode_bypassed": "Aeglane režiim: {interval} (sina oled piirangust vabastatud).",
     "slow_mode_rejected": "Aeglane režiim on aktiivne. Oota enne järgmise sõnumi saatmist.",
+    "threads_encouraged": "Selles ruumis on lõimede kasutamine soovitatud.",
     "edit_failed": "Sõnumi muutmine ebaõnnestus",
     "upload": {
       "preparing": "Ettevalmistus…",

@@ -43,6 +43,11 @@ surface-specific sizing and menu semantics.
     onClose();
   }
 
+  function handleSecondaryReplyInRoom() {
+    action.secondaryReplyInRoom?.();
+    onClose();
+  }
+
   function handleEdit() {
     action.edit();
     onClose();
@@ -149,7 +154,7 @@ surface-specific sizing and menu semantics.
     {/if}
   {/if}
 
-  {#if action.replyInRoom || action.replyThread || action.canEdit}
+  {#if action.replyInRoom || action.replyThread || action.secondaryReplyInRoom || action.canEdit}
     {@render actionGroup(primaryActions)}
   {/if}
 
@@ -173,6 +178,23 @@ surface-specific sizing and menu semantics.
 {/snippet}
 
 {#snippet primaryActions()}
+  {@render replyInRoomAction()}
+  {@render replyThreadAction()}
+  {#if action.secondaryReplyInRoom && action.secondaryReplyInRoomLabel}
+    {@render actionButton(
+      action.secondaryReplyInRoomLabel,
+      'icon-[uil--corner-up-left]',
+      handleSecondaryReplyInRoom,
+      false,
+      true
+    )}
+  {/if}
+  {#if action.canEdit}
+    {@render actionButton(m('room.message.actions.edit_short'), 'icon-[uil--pen]', handleEdit)}
+  {/if}
+{/snippet}
+
+{#snippet replyInRoomAction()}
   {#if action.replyInRoom}
     {@render actionButton(
       action.replyInRoomLabel,
@@ -182,11 +204,11 @@ surface-specific sizing and menu semantics.
       true
     )}
   {/if}
+{/snippet}
+
+{#snippet replyThreadAction()}
   {#if action.replyThread}
     {@render actionButton(action.replyThreadLabel, 'icon-[uil--comment-alt-lines]', handleReply)}
-  {/if}
-  {#if action.canEdit}
-    {@render actionButton(m('room.message.actions.edit_short'), 'icon-[uil--pen]', handleEdit)}
   {/if}
 {/snippet}
 

@@ -51,6 +51,7 @@
   } from './messageEventModel';
   import { ThreadFollowState } from './threadFollowState.svelte';
   import { buildMessageActionModel } from './messageActionModel';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -58,7 +59,8 @@
     roomId,
     permalinkThreadRootEventId = null,
     messageStore = null,
-    onOpenThread
+    onOpenThread,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
     event: TimelineEventView;
     compact?: boolean;
@@ -66,6 +68,7 @@
     permalinkThreadRootEventId?: string | null;
     messageStore?: MessagesStore | null;
     onOpenThread?: OpenThreadHandler;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
   const connection = () => serverScope.connection;
@@ -210,7 +213,9 @@
     isAuthor &&
       !!editThreadRootEventId &&
       (!!editChannelEchoEventId ||
-        (roomPermissions.canEchoMessage && roomPermissions.canPostMessage))
+        (threadingMode !== RoomThreadingMode.DISABLED &&
+          roomPermissions.canEchoMessage &&
+          roomPermissions.canPostMessage))
   );
 
   // Common message data for rendering (body, attachments, reactions, updatedAt)
@@ -239,23 +244,48 @@
   const hasThread = $derived(
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
+  const isInThreadPane = $derived(!!permalinkThreadRootEventId);
   const replyInRoomActionLabel = $derived(
     isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
   );
   const replyThreadActionLabel = $derived(
-    isEcho ? m('room.message.actions.open_thread') : m('room.message.actions.reply_thread')
+    isEcho || (isRootMessage && threadingMode === RoomThreadingMode.DISABLED && hasThread)
+      ? m('room.message.actions.open_thread')
+      : m('room.message.actions.reply_thread')
   );
-  const canUseReplyAction = $derived(
-    isEcho
-      ? roomPermissions.canPostInThread &&
-          !!onOpenThread &&
-          !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostMessage
+  const canUseReplyAction = $derived.by(() => {
+    if (threadingMode === RoomThreadingMode.DISABLED && isInThreadPane) return false;
+    if (isEcho) {
+      return (
+        threadingMode !== RoomThreadingMode.DISABLED &&
+        roomPermissions.canPostInThread &&
+        !!onOpenThread &&
+        !!messageEvent?.echoFromThreadRootEventId
+      );
+    }
+    if (isInThreadPane) return roomPermissions.canPostInThread;
+    if (isRootMessage && threadingMode === RoomThreadingMode.REQUIRED) {
+      return roomPermissions.canPostInThread && !!onOpenThread;
+    }
+    if (isRootMessage && threadingMode === RoomThreadingMode.ENCOURAGED) {
+      return (roomPermissions.canPostInThread && !!onOpenThread) || roomPermissions.canPostMessage;
+    }
+    return roomPermissions.canPostMessage;
+  });
+  const canUseSecondaryRoomReply = $derived(
+    isRootMessage &&
+      !isInThreadPane &&
+      threadingMode === RoomThreadingMode.ENCOURAGED &&
+      roomPermissions.canPostInThread &&
+      !!onOpenThread &&
+      roomPermissions.canPostMessage
   );
   const canUseThreadAction = $derived(
     isEcho
       ? !!onOpenThread && !!messageEvent?.echoFromThreadRootEventId
-      : roomPermissions.canPostInThread && !!onOpenThread
+      : threadingMode === RoomThreadingMode.DISABLED
+        ? !permalinkThreadRootEventId && isRootMessage && hasThread && !!onOpenThread
+        : roomPermissions.canPostInThread && !!onOpenThread
   );
   const actionModel = $derived(
     buildMessageActionModel({
@@ -292,8 +322,12 @@
       },
       replyInRoomLabel: replyInRoomActionLabel,
       replyThreadLabel: replyThreadActionLabel,
-      replyInRoom: canUseReplyAction ? handleReplyInRoom : undefined,
-      replyThread: canUseThreadAction ? handleOpenThread : undefined
+      replyInRoom: canUseReplyAction ? handleReply : undefined,
+      replyThread: canUseThreadAction ? handleOpenThread : undefined,
+      secondaryReplyInRoomLabel: canUseSecondaryRoomReply
+        ? m('room.message.actions.reply_room')
+        : undefined,
+      secondaryReplyInRoom: canUseSecondaryRoomReply ? handleReplyInCurrentComposer : undefined
     })
   );
 
@@ -435,7 +469,7 @@
     }
   }
 
-  function handleReplyInRoom() {
+  function handleReply() {
     const quote = takeSelectedReplyQuote();
     const excerpt = (msg?.body ?? '').slice(0, 80);
     if (isEcho && messageEvent?.echoOfEventId && messageEvent.echoFromThreadRootEventId) {
@@ -450,6 +484,39 @@
       });
       return;
     }
+
+    if (isInThreadPane) {
+      startReplyInCurrentComposer(quote);
+      return;
+    }
+
+    if (
+      isRootMessage &&
+      (threadingMode === RoomThreadingMode.REQUIRED ||
+        (threadingMode === RoomThreadingMode.ENCOURAGED &&
+          roomPermissions.canPostInThread &&
+          !!onOpenThread))
+    ) {
+      onOpenThread?.(event.id, {
+        quoteText: quote ?? undefined,
+        reply: {
+          eventId: roomReplyTargetEventId(event),
+          actorDisplayName: displayName,
+          excerpt
+        }
+      });
+      return;
+    }
+
+    startReplyInCurrentComposer(quote);
+  }
+
+  function handleReplyInCurrentComposer() {
+    startReplyInCurrentComposer(takeSelectedReplyQuote());
+  }
+
+  function startReplyInCurrentComposer(quote: QuoteInsertionContent | null) {
+    const excerpt = (msg?.body ?? '').slice(0, 80);
     replyState.startReply(roomReplyTargetEventId(event), displayName, excerpt);
     if (quote) {
       composerContext.quoteInsertionState.requestInsertQuote(quote);
@@ -459,7 +526,10 @@
   function handleOpenThread() {
     if (onOpenThread) {
       // For echoes, use the original thread root event ID (not the echo's wrapper event ID)
-      const threadRoot = (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ?? event.id;
+      const threadRoot =
+        (isEcho ? messageEvent?.echoFromThreadRootEventId : null) ??
+        permalinkThreadRootEventId ??
+        event.id;
       if (isEcho) {
         selectedReplyQuoteSnapshot = null;
         onOpenThread(threadRoot);

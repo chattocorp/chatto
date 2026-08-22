@@ -17,6 +17,17 @@ enum RoomKind {
   ROOM_KIND_DM = 2;
 }
 
+// RoomThreadingMode controls thread creation and reply placement for channel
+// rooms. Historical channel events with UNSPECIFIED are interpreted as ENABLED.
+// Direct-message rooms remain UNSPECIFIED because they do not support threads.
+enum RoomThreadingMode {
+  ROOM_THREADING_MODE_UNSPECIFIED = 0;
+  ROOM_THREADING_MODE_REQUIRED = 1;
+  ROOM_THREADING_MODE_ENCOURAGED = 2;
+  ROOM_THREADING_MODE_ENABLED = 3;
+  ROOM_THREADING_MODE_DISABLED = 4;
+}
+
 // Room represents a chat room on the server.
 // For channel rooms, group_id MUST point to a RoomGroup; DM rooms leave it empty.
 message Room {
@@ -49,6 +60,9 @@ message Room {
   // Minimum number of seconds a non-exempt member must wait between original
   // message posts. Channel rooms only; zero disables slow mode.
   uint32 slow_mode_seconds = 10;
+  // Thread policy for channel rooms. See RoomThreadingMode for legacy and DM
+  // normalization rules.
+  RoomThreadingMode threading_mode = 11;
 }
 
 // User represents a user account

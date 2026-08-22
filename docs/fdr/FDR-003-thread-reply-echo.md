@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-07-03
+**Last reviewed:** 2026-08-22
 
 ## Overview
 
@@ -20,7 +20,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - The thread's reply count is not incremented by the echo; the echo represents the same reply, not an additional one.
 - Mention notifications fire once for the reply, not twice (the echo doesn't re-notify).
 - The main-room composer never shows the echo checkbox — the action only makes sense from inside a thread.
-- During the normal edit window, editing a thread reply shows the same "Also send to channel" checkbox. Saving with it checked creates or keeps the channel echo; saving with it unchecked hides the existing echo from the room timeline while keeping the thread reply readable.
+- During the normal edit window, editing a thread reply shows the same "Also send to channel" checkbox. Saving with it checked creates or keeps the channel echo; saving with it unchecked hides the existing echo from the room timeline while keeping the thread reply readable. A Disabled room cannot gain a new echo from a historical reply, but an existing echo can still be removed.
 
 ## Design Decisions
 

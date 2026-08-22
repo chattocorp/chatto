@@ -28,6 +28,7 @@
     "slow_mode_waiting": "מצב איטי: ניתן לשלוח שוב בעוד {countdown}.",
     "slow_mode_bypassed": "מצב איטי: {interval} (ההגבלה לא חלה עליך).",
     "slow_mode_rejected": "מצב איטי פעיל. יש להמתין לפני שליחת הודעה נוספת.",
+    "threads_encouraged": "מומלץ להשתמש בשרשורים בחדר הזה.",
     "edit_failed": "נכשל בעריכת ההודעה",
     "upload": {
       "preparing": "מכין...",

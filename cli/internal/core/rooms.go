@@ -130,6 +130,7 @@ const maxRoomNameClaimRetries = 5
 
 type createRoomOptions struct {
 	universal                  bool
+	threadingMode              corev1.RoomThreadingMode
 	applyAnnouncementsDefaults bool
 }
 
@@ -142,6 +143,49 @@ func WithUniversalRoom(universal bool) CreateRoomOption {
 	return func(options *createRoomOptions) {
 		options.universal = universal
 	}
+}
+
+// WithRoomThreadingMode sets the initial threading policy for a channel room.
+// Omitting this option preserves the ENABLED default.
+func WithRoomThreadingMode(mode corev1.RoomThreadingMode) CreateRoomOption {
+	return func(options *createRoomOptions) {
+		options.threadingMode = mode
+	}
+}
+
+// IsValidRoomThreadingMode reports whether mode is an explicit channel-room
+// policy. UNSPECIFIED is reserved for omitted historical data and DMs.
+func IsValidRoomThreadingMode(mode corev1.RoomThreadingMode) bool {
+	switch mode {
+	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
+		corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+		corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED,
+		corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+		return true
+	default:
+		return false
+	}
+}
+
+// EffectiveRoomThreadingMode normalizes persisted room data. Historical
+// channel events predate the field and therefore resolve UNSPECIFIED to
+// ENABLED. Unknown future values fail closed to DISABLED. DMs remain
+// threadless.
+func EffectiveRoomThreadingMode(room *corev1.Room) corev1.RoomThreadingMode {
+	if room == nil || room.GetKind() == corev1.RoomKind_ROOM_KIND_DM {
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED
+	}
+	if room.GetThreadingMode() == corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
+		return corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENABLED
+	}
+	if IsValidRoomThreadingMode(room.GetThreadingMode()) {
+		return room.GetThreadingMode()
+	}
+	return corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED
+}
+
+func normalizedRoomThreadingMode(kind corev1.RoomKind, mode corev1.RoomThreadingMode) corev1.RoomThreadingMode {
+	return EffectiveRoomThreadingMode(&corev1.Room{Kind: kind, ThreadingMode: mode})
 }
 
 // WithAnnouncementsRoomDefaults applies the built-in announcements room's
@@ -194,6 +238,13 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	if kind == KindDM && options.applyAnnouncementsDefaults {
 		return nil, fmt.Errorf("DM rooms cannot use announcements defaults")
 	}
+	if kind == KindDM && options.threadingMode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED {
+		return nil, invalidArgument("DM rooms cannot configure threading")
+	}
+	if kind == KindChannel && options.threadingMode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(options.threadingMode) {
+		return nil, invalidArgument("invalid room threading mode")
+	}
+	threadingMode := normalizedRoomThreadingMode(ProtoKindForRoomKind(kind), options.threadingMode)
 
 	if groupID != "" {
 		if _, err := c.GetRoomGroup(ctx, groupID); err != nil {
@@ -213,22 +264,24 @@ func (c *ChattoCore) CreateRoom(ctx context.Context, actorID string, kind RoomKi
 	room_id := NewRoomID()
 
 	room := &corev1.Room{
-		Id:          room_id,
-		Kind:        ProtoKindForRoomKind(kind),
-		Name:        name,
-		Description: description,
-		GroupId:     groupID,
-		Universal:   options.universal,
+		Id:            room_id,
+		Kind:          ProtoKindForRoomKind(kind),
+		Name:          name,
+		Description:   description,
+		GroupId:       groupID,
+		Universal:     options.universal,
+		ThreadingMode: threadingMode,
 	}
 
 	createdEvent := newEvent(actorID, &corev1.Event{
 		Event: &corev1.Event_RoomCreated{
 			RoomCreated: &corev1.RoomCreatedEvent{
-				RoomId:      room_id,
-				Name:        name,
-				Description: description,
-				Kind:        ProtoKindForRoomKind(kind),
-				Universal:   options.universal,
+				RoomId:        room_id,
+				Name:          name,
+				Description:   description,
+				Kind:          ProtoKindForRoomKind(kind),
+				Universal:     options.universal,
+				ThreadingMode: threadingMode,
 			},
 		},
 	})
@@ -375,6 +428,71 @@ func (c *ChattoCore) SetRoomSlowMode(ctx context.Context, actorID string, kind R
 
 	c.logger.Info("Room slow mode updated", "kind", kind, "room_id", roomID, "seconds", seconds)
 	return c.GetRoom(ctx, kind, roomID)
+}
+
+// SetRoomThreadingMode updates a channel room's threading policy. The room
+// aggregate and authorization fence are checked together so concurrent policy
+// changes cannot commit from stale state.
+// Authorization: Caller must verify room.manage before calling.
+func (c *ChattoCore) SetRoomThreadingMode(ctx context.Context, actorID string, kind RoomKind, roomID string, mode corev1.RoomThreadingMode) (*corev1.Room, error) {
+	return c.setRoomThreadingMode(ctx, actorID, kind, roomID, mode, nil)
+}
+
+func (c *ChattoCore) setRoomThreadingMode(
+	ctx context.Context,
+	actorID string,
+	kind RoomKind,
+	roomID string,
+	mode corev1.RoomThreadingMode,
+	authorize func(context.Context) error,
+) (*corev1.Room, error) {
+	if kind == KindDM {
+		return nil, invalidArgument("DM rooms cannot configure threading")
+	}
+	if !IsValidRoomThreadingMode(mode) {
+		return nil, invalidArgument("invalid room threading mode")
+	}
+
+	agg := evtstream.RoomAggregate(roomID)
+	filter := agg.AllEventsFilter()
+	for attempt := 0; attempt < maxJoinRoomRetries; attempt++ {
+		prepared, err := c.prepareMessageAppendAttempt(ctx, agg, actorID, func(attemptCtx context.Context) error {
+			if authorize != nil {
+				return authorize(attemptCtx)
+			}
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
+		room, err := c.GetRoom(ctx, kind, roomID)
+		if err != nil {
+			return nil, err
+		}
+		if EffectiveRoomThreadingMode(room) == mode {
+			return room, nil
+		}
+		event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RoomThreadingModeChanged{
+			RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{RoomId: roomID, ThreadingMode: mode},
+		}})
+		subject := agg.SubjectFor(event)
+		seqs, err := c.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
+			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: prepared.roomSeq, FilterSubject: filter,
+		}}, prepared.authorizationSeq)
+		if errors.Is(err, events.ErrConflict) {
+			continue
+		}
+		if err != nil {
+			return nil, fmt.Errorf("publish RoomThreadingModeChangedEvent: %w", err)
+		}
+		pos := events.SubjectPosition(subject, seqs[0])
+		if err := c.roomModel.waitForDirectoryAndTimeline(ctx, pos); err != nil {
+			return nil, err
+		}
+		c.logger.Info("Room threading mode updated", "kind", kind, "room_id", roomID, "threading_mode", mode.String())
+		return c.GetRoom(ctx, kind, roomID)
+	}
+	return nil, fmt.Errorf("publish threading-mode change retry exhausted after %d attempts: %w", maxJoinRoomRetries, events.ErrConflict)
 }
 
 // publishRoomEventWithNameOCC publishes a name-claiming room event

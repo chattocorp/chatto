@@ -39,6 +39,7 @@ type roomCatalogEntry struct {
 	archived        bool
 	universal       bool
 	slowModeSeconds uint32
+	threadingMode   corev1.RoomThreadingMode
 }
 
 // NewRoomCatalogProjection returns an empty projection.
@@ -74,10 +75,11 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RoomCreated:
 		c := e.RoomCreated
 		p.rooms[c.GetRoomId()] = &roomCatalogEntry{
-			name:        c.GetName(),
-			description: c.GetDescription(),
-			kind:        c.GetKind(),
-			universal:   c.GetUniversal(),
+			name:          c.GetName(),
+			description:   c.GetDescription(),
+			kind:          c.GetKind(),
+			universal:     c.GetUniversal(),
+			threadingMode: c.GetThreadingMode(),
 		}
 	case *corev1.Event_RoomUpdated:
 		u := e.RoomUpdated
@@ -100,6 +102,10 @@ func (p *RoomCatalogProjection) Apply(event *corev1.Event, seq uint64) error {
 	case *corev1.Event_RoomSlowModeChanged:
 		if entry := p.rooms[e.RoomSlowModeChanged.GetRoomId()]; entry != nil {
 			entry.slowModeSeconds = e.RoomSlowModeChanged.GetSlowModeSeconds()
+		}
+	case *corev1.Event_RoomThreadingModeChanged:
+		if entry := p.rooms[e.RoomThreadingModeChanged.GetRoomId()]; entry != nil {
+			entry.threadingMode = e.RoomThreadingModeChanged.GetThreadingMode()
 		}
 	case *corev1.Event_RoomDeleted:
 		delete(p.rooms, e.RoomDeleted.GetRoomId())
@@ -198,6 +204,7 @@ func entryToRoom(id string, entry *roomCatalogEntry) *corev1.Room {
 		Kind:            entry.kind,
 		Universal:       entry.universal,
 		SlowModeSeconds: entry.slowModeSeconds,
+		ThreadingMode:   normalizedRoomThreadingMode(entry.kind, entry.threadingMode),
 	}
 	// Defensive clone — the proto contains a Mutex internally that
 	// vet would flag if we ever returned the same pointer twice and

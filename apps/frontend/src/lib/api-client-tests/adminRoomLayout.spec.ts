@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
 import { AdminRoomLayoutItemKind } from '@chatto/api-types/admin/v1/room_layout_pb';
 import { createAdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
@@ -136,7 +137,9 @@ describe('createAdminRoomLayoutAPI', () => {
             name: 'general',
             description: null,
             archived: true,
-            isUniversal: false
+            isUniversal: false,
+            slowModeSeconds: 0,
+            threadingMode: RoomThreadingMode.ENABLED
           }
         ],
         items: [
@@ -148,7 +151,9 @@ describe('createAdminRoomLayoutAPI', () => {
               name: 'general',
               description: null,
               archived: true,
-              isUniversal: false
+              isUniversal: false,
+              slowModeSeconds: 0,
+              threadingMode: RoomThreadingMode.ENABLED
             }
           }
         ]

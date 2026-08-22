@@ -30,6 +30,7 @@
     visibleUnreadMarkerEventId
   } from './tombstoneVisibility';
   import { TimelineViewportController } from './TimelineViewportController.svelte';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     roomId,
@@ -72,7 +73,8 @@
     onJumpToPresent,
     onReachedPresent,
     onReachedBottom,
-    pendingHighlightId = null
+    pendingHighlightId = null,
+    threadingMode = RoomThreadingMode.ENABLED
   }: {
     roomId: string;
     permalinkThreadRootEventId?: string | null;
@@ -116,6 +118,7 @@
     onReachedBottom?: () => void;
     // Suppress auto-scroll while a highlight is pending (used by ThreadPane)
     pendingHighlightId?: string | null;
+    threadingMode?: RoomThreadingMode;
   } = $props();
 
   type RefreshAnchor = {
@@ -797,6 +800,7 @@
                   onOpenThread={getOpenThreadHandler(eventData)}
                   activeCallId={stores.activeCallRooms.getCallId(roomId)}
                   {onOpenCall}
+                  {threadingMode}
                 />
               {/if}
             {/if}

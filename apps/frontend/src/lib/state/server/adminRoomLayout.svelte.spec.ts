@@ -2,6 +2,7 @@ import { afterEach, describe, it, expect, vi } from 'vitest';
 import { flushSync } from 'svelte';
 import type { AdminRoomLayoutAPI } from '$lib/api-client/adminRoomLayout';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import {
   AdminRoomLayoutStore,
   buildGroupRoomOrder,
@@ -22,7 +23,8 @@ function room(id: string, overrides: Partial<AdminRoomInfo> = {}): AdminRoomInfo
     description: overrides.description ?? null,
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
-    slowModeSeconds: overrides.slowModeSeconds ?? 0
+    slowModeSeconds: overrides.slowModeSeconds ?? 0,
+    threadingMode: overrides.threadingMode ?? RoomThreadingMode.ENABLED
   };
 }
 

@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Långsamt läge: skicka igen om {countdown}.",
     "slow_mode_bypassed": "Långsamt läge: {interval} (du är undantagen).",
     "slow_mode_rejected": "Långsamt läge är aktivt. Vänta innan du skickar ett nytt meddelande.",
+    "threads_encouraged": "Trådar rekommenderas i det här rummet.",
     "edit_failed": "Det gick inte att redigera meddelandet",
     "upload": {
       "preparing": "Förbereder…",

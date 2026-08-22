@@ -928,15 +928,24 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		return nil, ErrRoomArchived
 	}
 
-	// If replying to a message inside a thread, inherit its thread root.
+	// If replying to a message inside a thread, or its visible channel echo,
+	// inherit the canonical thread root.
 	// This keeps the data invariant intact even when callers (bots, older clients,
 	// extensions) only set inReplyTo. inReplyTo is attribution-only, so a lookup
 	// failure here is not fatal — fall through and let the message post as a root.
-	if inReplyTo != "" && inThread == "" {
+	var replyTarget *corev1.Event
+	if inReplyTo != "" {
 		target, err := c.GetRoomEventByEventID(ctx, kind, room_id, inReplyTo)
 		if err == nil && target != nil {
-			if msg := target.GetMessagePosted(); msg != nil && msg.InThread != "" {
-				inThread = msg.InThread
+			replyTarget = target
+			if msg := target.GetMessagePosted(); msg != nil {
+				targetThreadRootID := msg.GetInThread()
+				if targetThreadRootID == "" && msg.GetEchoOfEventId() != "" {
+					targetThreadRootID = msg.GetEchoFromThreadRootEventId()
+				}
+				if inThread == "" {
+					inThread = targetThreadRootID
+				}
 			}
 		}
 	}
@@ -945,6 +954,38 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 	if kind == KindDM && inThread != "" {
 		return nil, ErrDMThreadsUnsupported
+	}
+	if kind == KindChannel {
+		switch EffectiveRoomThreadingMode(room) {
+		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED:
+			replyTargetsThread := false
+			if replyTarget != nil {
+				if targetPost := replyTarget.GetMessagePosted(); targetPost != nil {
+					replyTargetsThread = targetPost.GetInThread() != "" || targetPost.GetEchoOfEventId() != ""
+				}
+			}
+			if options.createThread || inThread != "" || replyTargetsThread {
+				return nil, fmt.Errorf("%w: threads are disabled in this room", ErrRoomThreadingPolicy)
+			}
+		case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
+			if inReplyTo == "" && inThread == "" && !options.createThread {
+				return nil, fmt.Errorf("%w: root messages must establish a thread in this room", ErrRoomThreadingPolicy)
+			}
+			if replyTarget != nil {
+				if targetPost := replyTarget.GetMessagePosted(); targetPost != nil {
+					targetThreadRootID := targetPost.GetInThread()
+					if targetThreadRootID == "" && targetPost.GetEchoOfEventId() != "" {
+						targetThreadRootID = targetPost.GetEchoFromThreadRootEventId()
+					}
+					if targetThreadRootID == "" {
+						targetThreadRootID = replyTarget.GetId()
+					}
+					if inThread != targetThreadRootID {
+						return nil, fmt.Errorf("%w: replies to root messages must be posted in that root's thread", ErrRoomThreadingPolicy)
+					}
+				}
+			}
+		}
 	}
 	var commitAuthorize func(context.Context) error
 	if options.commitAuthorize != nil {
@@ -1257,9 +1298,10 @@ func validateMessageAttachmentAssetIDs(assetIDs []string) error {
 }
 
 type messageMutationAuthorization struct {
-	authorOnly             bool
-	enforceEditWindow      bool
-	requireEchoPermissions bool
+	authorOnly                  bool
+	enforceEditWindow           bool
+	requireEchoPermissions      bool
+	channelEchoCreationTargetID string
 }
 
 // authorizeMessageMutation resolves every mutable input to a user-facing
@@ -1299,6 +1341,12 @@ func (c *ChattoCore) authorizeMessageMutation(
 		}
 		if !canManage {
 			return ErrPermissionDenied
+		}
+	}
+	if policy.channelEchoCreationTargetID != "" && kind == KindChannel &&
+		EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+		if _, exists := c.roomModel.channelEchoEventID(policy.channelEchoCreationTargetID); !exists {
+			return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
 		}
 	}
 	if policy.requireEchoPermissions {
@@ -1509,6 +1557,9 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		}
 		_, channelEchoExistedBefore = c.roomModel.channelEchoEventID(echoTargetEvent.GetId())
 		if *options.channelEcho {
+			if kind == KindChannel && EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED && !channelEchoExistedBefore {
+				return fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
+			}
 			channelEchoCreationTargetID = echoTargetEvent.GetId()
 		} else {
 			channelEchoRetractionTargetID = echoTargetEvent.GetId()
@@ -1517,9 +1568,10 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 
 	agg := evtstream.RoomAggregate(roomID)
 	policy := messageMutationAuthorization{
-		authorOnly:             options.channelEcho != nil,
-		enforceEditWindow:      true,
-		requireEchoPermissions: options.channelEcho != nil && *options.channelEcho,
+		authorOnly:                  options.channelEcho != nil,
+		enforceEditWindow:           true,
+		requireEchoPermissions:      options.channelEcho != nil && *options.channelEcho,
+		channelEchoCreationTargetID: channelEchoCreationTargetID,
 	}
 	var authorize func(context.Context) error
 	var validateCommit func() error

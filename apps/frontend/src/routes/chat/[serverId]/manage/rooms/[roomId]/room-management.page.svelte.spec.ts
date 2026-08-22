@@ -127,12 +127,14 @@ vi.mock('$lib/ui/toast', () => ({
 }));
 
 import RoomManagementPage from './+page.svelte';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 function managedRoom(
   name: string,
   overrides: Partial<{
     archived: boolean;
     isUniversal: boolean;
+    threadingMode: RoomThreadingMode;
     canManageRoom: boolean;
     canManagePermissions: boolean;
   }> = {}
@@ -144,6 +146,7 @@ function managedRoom(
     archived: overrides.archived ?? false,
     isUniversal: overrides.isUniversal ?? false,
     slowModeSeconds: 0,
+    threadingMode: overrides.threadingMode ?? RoomThreadingMode.ENABLED,
     canManageRoom: overrides.canManageRoom ?? true,
     canManagePermissions: overrides.canManagePermissions ?? true
   };
@@ -195,6 +198,8 @@ describe('room management page identity and realtime authority', () => {
       name: 'general',
       description: '',
       universal: false,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED,
       archived: false
     });
     roomManagementPageTestState.reset();
@@ -323,6 +328,36 @@ describe('room management page identity and realtime authority', () => {
         name: 'Team chat 💬 / Küche!'
       });
     });
+  });
+
+  it('saves a threading mode selected from the explanatory radio choices', async () => {
+    mocks.getRoom.mockResolvedValue(managedRoom('general'));
+    mocks.updateRoom.mockResolvedValueOnce({
+      id: 'shared-room',
+      name: 'general',
+      description: '',
+      universal: false,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.REQUIRED,
+      archived: false
+    });
+    const { container } = render(RoomManagementPage);
+    await settle();
+
+    const choices = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    expect(choices).toHaveLength(4);
+    expect(choices[2]).toHaveAttribute('aria-checked', 'true');
+    choices[0].click();
+    flushSync();
+    (container.querySelector('form button[type="submit"]') as HTMLButtonElement).click();
+
+    await vi.waitFor(() => {
+      expect(mocks.updateRoom).toHaveBeenCalledWith({
+        roomId: 'shared-room',
+        threadingMode: RoomThreadingMode.REQUIRED
+      });
+    });
+    await vi.waitFor(() => expect(choices[0]).toHaveAttribute('aria-checked', 'true'));
   });
 
   it('rejects invisible-only room names', async () => {

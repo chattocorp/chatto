@@ -54,7 +54,9 @@
     onCancelReply,
     onEscape,
     showAlsoSendToChannel = false,
-    showCreateThread = false
+    showCreateThread = false,
+    createThreadRequired = false,
+    threadsEncouraged = false
   }: MessageComposerProps = $props();
 
   const clock = new SvelteDate();
@@ -65,9 +67,10 @@
   );
   const slowModeDeadline = $derived.by<number | null>(() => {
     if (slowModeSeconds <= 0 || slowModeBypassed) return null;
-    const optimisticDeadline = optimisticPost?.roomId === roomId
-      ? optimisticPost.createdAt + slowModeSeconds * 1000
-      : Number.NaN;
+    const optimisticDeadline =
+      optimisticPost?.roomId === roomId
+        ? optimisticPost.createdAt + slowModeSeconds * 1000
+        : Number.NaN;
     const deadlines = [authoritativeNextPostAt, optimisticDeadline].filter(Number.isFinite);
     return deadlines.length > 0 ? Math.max(...deadlines) : null;
   });
@@ -99,6 +102,7 @@
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
     getCanCreateThread: () => showCreateThread,
+    getCreateThreadRequired: () => createThreadRequired,
     getAutoFocus: () => autoFocus,
     getPlaceholder: () => placeholder,
     getOnReady: () => onReady,
@@ -169,6 +173,12 @@
     </p>
   {/if}
 
+  {#if threadsEncouraged && inReplyTo && !inThread}
+    <p class="px-0.5 text-xs text-muted" data-testid="threads-encouraged-hint">
+      {m('composer.threads_encouraged')}
+    </p>
+  {/if}
+
   {#if canAttach && !composer.isEditing}
     <input
       bind:this={composer.fileInputElement}
@@ -182,7 +192,7 @@
   <div
     data-testid="composer-input-surface"
     data-composer-mode={composer.isRichComposer ? 'rich' : 'simple'}
-    class="composer-mode-surface @container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+    class="@container composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
@@ -237,7 +247,8 @@
       fileInputElement={composer.fileInputElement}
       effectiveTimezone={userSettings.effectiveTimezone}
       showCreateThread={showCreateThread && !composer.isEditing && !inThread}
-      createThread={composer.createThread}
+      createThread={createThreadRequired || composer.createThread}
+      {createThreadRequired}
       onToggleCreateThread={() => (composer.createThread = !composer.createThread)}
       showAlsoSendToChannel={(showAlsoSendToChannel && !composer.isEditing) ||
         composer.showEditEchoToggle}

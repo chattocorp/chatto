@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Yavaş mod: {countdown} sonra tekrar gönderin.",
     "slow_mode_bypassed": "Yavaş mod: {interval} (muafsınız).",
     "slow_mode_rejected": "Yavaş mod etkin. Başka bir mesaj göndermeden önce bekleyin.",
+    "threads_encouraged": "Bu odada konuların kullanılması teşvik edilir.",
     "edit_failed": "Mesaj düzenlenemedi",
     "upload": {
       "preparing": "Hazırlanıyor…",

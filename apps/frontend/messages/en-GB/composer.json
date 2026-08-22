@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Slow Mode: send again in {countdown}.",
     "slow_mode_bypassed": "Slow Mode: {interval} (you're exempt).",
     "slow_mode_rejected": "Slow Mode is active. Wait before sending another message.",
+    "threads_encouraged": "Threads are encouraged in this room.",
     "edit_failed": "Failed to edit message",
     "upload": {
       "preparing": "Preparing…",

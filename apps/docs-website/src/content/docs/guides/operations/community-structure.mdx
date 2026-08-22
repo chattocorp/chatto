@@ -81,6 +81,24 @@ not available for DMs and does not replace posting permissions: use
   during a mixed-version rolling window.
 </Aside>
 
+## Threading Mode
+
+Use **Server Admin → Rooms → [room] → General → Threading Mode** to choose how
+conversation should branch in a channel:
+
+| Mode | Member experience |
+| ---- | ----------------- |
+| **Required** | Every new root message automatically gets a thread. The composer shows **Thread** selected and locked. Both root reply actions open the thread, and **Reply** keeps reply attribution. The server rejects flat replies to roots. |
+| **Encouraged** | **Reply** opens the thread with attribution, while **Reply in room** remains in the expanded menu. The reply icons keep their normal order, and creating a thread with a new root stays opt-in. |
+| **Enabled** | The default. Members freely choose between room replies and threads, and may use **Post as thread**. |
+| **Disabled** | New threads, thread replies, and channel echoes are unavailable. Existing threads and echoes remain readable, and members can still use ordinary reply attribution in the room. |
+
+Changing the mode affects future posts only. It neither creates threads for
+old roots nor removes existing threads. Threading Mode also does not replace
+permissions: `message.post` controls room posts and `message.post-in-thread`
+controls actual thread replies. Required rooms automatically establish each
+root's empty thread with `message.post` alone.
+
 ## Permissions Strategy
 
 Start broad and add local exceptions:

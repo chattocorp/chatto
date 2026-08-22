@@ -33,6 +33,30 @@ sheet, plus toolbar-only controls for opening those surfaces.
   );
 </script>
 
+{#snippet replyInRoomButton()}
+  {#if action.replyInRoom}
+    <button
+      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+      onclick={action.replyInRoom}
+      aria-label={action.replyInRoomLabel}
+    >
+      <span class="iconify icon-[uil--corner-up-left] text-base rtl:-scale-x-100"></span>
+    </button>
+  {/if}
+{/snippet}
+
+{#snippet replyThreadButton()}
+  {#if action.replyThread}
+    <button
+      class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
+      onclick={action.replyThread}
+      aria-label={action.replyThreadLabel}
+    >
+      <span class="iconify icon-[uil--comment-alt-lines] text-base"></span>
+    </button>
+  {/if}
+{/snippet}
+
 <div
   class={[
     'invisible absolute end-0 bottom-full z-10 mb-[-6px] hidden flex-row gap-0.5 rounded-t-md rounded-b-none border border-b-0 border-border bg-surface p-0.5 hover-actions:flex',
@@ -74,25 +98,8 @@ sheet, plus toolbar-only controls for opening those surfaces.
 
   {#if hasActions}
     <div class="flex items-center menu-section-sm">
-      {#if action.replyInRoom}
-        <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-          onclick={action.replyInRoom}
-          aria-label={action.replyInRoomLabel}
-        >
-          <span class="iconify icon-[uil--corner-up-left] text-base rtl:-scale-x-100"></span>
-        </button>
-      {/if}
-
-      {#if action.replyThread}
-        <button
-          class="flex h-7 w-7 cursor-pointer items-center justify-center rounded text-muted transition-[background-color,color,scale] hover:bg-surface hover:text-text active:scale-[0.96]"
-          onclick={action.replyThread}
-          aria-label={action.replyThreadLabel}
-        >
-          <span class="iconify icon-[uil--comment-alt-lines] text-base"></span>
-        </button>
-      {/if}
+      {@render replyInRoomButton()}
+      {@render replyThreadButton()}
 
       {#if action.canEdit}
         <button

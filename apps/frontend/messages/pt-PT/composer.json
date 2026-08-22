@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Modo lento: envie novamente dentro de {countdown}.",
     "slow_mode_bypassed": "Modo lento: {interval} (está isento).",
     "slow_mode_rejected": "O modo lento está ativo. Aguarde antes de enviar outra mensagem.",
+    "threads_encouraged": "A utilização de tópicos é recomendada nesta sala.",
     "edit_failed": "Falha ao editar mensagem",
     "upload": {
       "preparing": "A preparar…",

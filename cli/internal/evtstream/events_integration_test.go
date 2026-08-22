@@ -2373,6 +2373,17 @@ func TestEventTypeOf_MessageEvents(t *testing.T) {
 			want: EventRoomSlowModeChanged,
 		},
 		{
+			name: "RoomThreadingModeChanged",
+			event: &corev1.Event{
+				Event: &corev1.Event_RoomThreadingModeChanged{
+					RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+						RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
+					},
+				},
+			},
+			want: EventRoomThreadingModeChanged,
+		},
+		{
 			name: "MessagePosted",
 			event: &corev1.Event{
 				Event: &corev1.Event_MessagePosted{

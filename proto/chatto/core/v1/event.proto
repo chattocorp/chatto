@@ -77,6 +77,7 @@ message Event {
     // Field 306 was RoomBecameRegularEvent. Removed alongside the auto-join
     // feature; oneof tags don't reserve, so don't reuse that number.
     RoomSlowModeChangedEvent room_slow_mode_changed = 307;
+    RoomThreadingModeChangedEvent room_threading_mode_changed = 308;
 
     // ----- Room membership (310-329) -----
     UserJoinedRoomEvent user_joined_room = 310;

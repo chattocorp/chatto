@@ -115,6 +115,7 @@ func connectError(err error) error {
 		return connect.NewError(connect.CodeResourceExhausted, err)
 	}
 	if errors.Is(err, core.ErrRoomArchived) ||
+		errors.Is(err, core.ErrRoomThreadingPolicy) ||
 		errors.Is(err, core.ErrEditWindowExpired) ||
 		errors.Is(err, core.ErrLimitExceeded) ||
 		errors.Is(err, core.ErrFreshAuthRequired) ||

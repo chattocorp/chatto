@@ -5,6 +5,7 @@ import { queryClient } from '$lib/query/client';
 import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
 import type { DirectoryMember } from '$lib/api-client/memberDirectory';
 import type { RoomBanSummary } from '$lib/api-client/rooms';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import ModerationPage from './+page.svelte';
 
 const mocks = vi.hoisted(() => ({
@@ -113,7 +114,8 @@ function ban(
       archived: false,
       groupId: '',
       universal: false,
-      slowModeSeconds: 0
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED
     },
     userId: `user-${id}`,
     user,

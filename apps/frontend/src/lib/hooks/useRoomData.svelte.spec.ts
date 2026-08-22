@@ -4,6 +4,7 @@ import { SvelteMap } from 'svelte/reactivity';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import { useRoomData } from './useRoomData.svelte';
 
 const { mocks } = vi.hoisted(() => ({
@@ -25,7 +26,11 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({ store: mocks.store })
 }));
 
-function projectedRoom(roomId: string, kind = RoomKind.DM) {
+function projectedRoom(
+  roomId: string,
+  kind = RoomKind.DM,
+  threadingMode = RoomThreadingMode.ENABLED
+) {
   return {
     room: {
       room: {
@@ -33,6 +38,7 @@ function projectedRoom(roomId: string, kind = RoomKind.DM) {
         name: roomId,
         description: '',
         kind,
+        threadingMode,
         archived: false,
         universal: false
       },
@@ -126,6 +132,34 @@ describe('useRoomData projection selector', () => {
       expect(room.roomData?.room.id).toBe('dm-b');
       expect(room.dmData?.participants[0]?.id).toBe('dm-b');
       expect(room.isRoomLoading).toBe(false);
+    } finally {
+      destroy();
+    }
+  });
+
+  it('updates the room threading policy when realtime replaces its projection entry', () => {
+    mocks.store.projection.rooms.set(
+      'channel',
+      projectedRoom('channel', RoomKind.CHANNEL, RoomThreadingMode.ENABLED)
+    );
+    mocks.store.realtimeSync.phase = 'ready';
+
+    let room!: ReturnType<typeof useRoomData>;
+    const destroy = $effect.root(() => {
+      room = useRoomData(() => ({ roomId: 'channel' }));
+      flushSync();
+    });
+
+    try {
+      expect(room.roomData?.room.threadingMode).toBe(RoomThreadingMode.ENABLED);
+
+      mocks.store.projection.rooms.set(
+        'channel',
+        projectedRoom('channel', RoomKind.CHANNEL, RoomThreadingMode.REQUIRED)
+      );
+      flushSync();
+
+      expect(room.roomData?.room.threadingMode).toBe(RoomThreadingMode.REQUIRED);
     } finally {
       destroy();
     }

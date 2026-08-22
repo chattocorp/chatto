@@ -28,6 +28,7 @@
     "slow_mode_waiting": "慢速模式：{countdown} 後可再次傳送。",
     "slow_mode_bypassed": "慢速模式：{interval}（你不受限制）。",
     "slow_mode_rejected": "慢速模式已啟用。請稍候再傳送下一則訊息。",
+    "threads_encouraged": "建議在此聊天室使用討論串。",
     "edit_failed": "訊息編輯失敗",
     "upload": {
       "preparing": "準備中…",

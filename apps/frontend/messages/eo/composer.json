@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Malrapida reĝimo: sendu denove post {countdown}.",
     "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
     "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
+    "threads_encouraged": "Fadenoj estas instigitaj en ĉi tiu ĉambro.",
     "edit_failed": "Malsukcesis redakti mesaĝon",
     "upload": {
       "preparing": "Preparante…",

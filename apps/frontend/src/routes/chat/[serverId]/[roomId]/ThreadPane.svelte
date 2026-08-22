@@ -28,6 +28,7 @@
   import EventList from './EventList.svelte';
   import type { PendingThreadReplyRequest } from './threadOpenOptions';
   import { ThreadFollowState } from './threadFollowState.svelte';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     roomId,
@@ -43,6 +44,7 @@
     highlightEventId = null,
     pendingQuote = null,
     pendingReply = null,
+    threadingMode = RoomThreadingMode.ENABLED,
     onHighlightComplete,
     onQuoteConsumed,
     onReplyConsumed
@@ -60,6 +62,7 @@
     highlightEventId?: string | null;
     pendingQuote?: QuoteInsertionRequest | null;
     pendingReply?: PendingThreadReplyRequest | null;
+    threadingMode?: RoomThreadingMode;
     onHighlightComplete?: () => void;
     onQuoteConsumed?: () => void;
     onReplyConsumed?: () => void;
@@ -322,6 +325,7 @@
       onHighlightComplete?.();
     }}
     pendingHighlightId={highlightEventId}
+    {threadingMode}
   />
   <MessageComposer
     {roomId}
@@ -342,7 +346,7 @@
       composerApi = api;
       api.focus();
     }}
-    onTyping={() => typingIndicator?.sendTypingIndicator()}
+    onTyping={canPost ? () => typingIndicator?.sendTypingIndicator() : undefined}
     onMessageSent={(event) => {
       typingIndicator?.resetDebounce();
       if (event) {

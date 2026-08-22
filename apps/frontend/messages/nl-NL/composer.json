@@ -28,6 +28,7 @@
     "slow_mode_waiting": "Langzame modus: opnieuw verzenden over {countdown}.",
     "slow_mode_bypassed": "Langzame modus: {interval} (je bent vrijgesteld).",
     "slow_mode_rejected": "De langzame modus is actief. Wacht voordat je nog een bericht verzendt.",
+    "threads_encouraged": "Threads worden in deze ruimte aangemoedigd.",
     "edit_failed": "Kan bericht niet bewerken",
     "upload": {
       "preparing": "Voorbereiden…",

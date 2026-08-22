@@ -49,6 +49,7 @@ Request to create a channel room.
 | `description` | `string` | Optional room description. |
 | `group_id` | `string` | Required. Room group that should contain the new channel. |
 | `universal` | `bool` | Whether the new channel should grant effective membership to eligible server members. |
+| `threading_mode` | [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | Threading policy for the new channel. UNSPECIFIED selects ENABLED. |
 
 
 <a id="chatto-api-v1-CreateRoomResponse"></a>
@@ -86,6 +87,7 @@ Request to update a room's editable metadata.
 | `description` | `optional string` | New room description, when changing it. Empty clears the description. |
 | `universal` | `optional bool` | New universal membership state, when changing it. Direct-message rooms cannot be universal. |
 | `slow_mode_seconds` | `optional uint32` | New per-user posting interval in seconds. Zero disables slow mode. The maximum supported interval is six hours. Direct-message rooms cannot use slow mode. |
+| `threading_mode` | optional [`RoomThreadingMode`](/reference/connectrpc-api/types/#chatto-api-v1-RoomThreadingMode) | New threading policy. Direct-message rooms cannot set this field, and an explicitly supplied UNSPECIFIED or unknown value is rejected. |
 
 
 <a id="chatto-api-v1-UpdateRoomResponse"></a>

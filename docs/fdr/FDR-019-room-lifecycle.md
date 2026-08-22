@@ -1,7 +1,7 @@
 # FDR-019: Room Lifecycle
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-22
 
 ## Overview
 
@@ -9,15 +9,15 @@ A channel room goes through a lifecycle of create, edit, archive, unarchive, and
 
 ## Behavior
 
-- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a visible 1–30-code-point Unicode name, an optional description, a room group, and optionally the Universal setting. Names are unique across the server after Unicode compatibility normalization and full case folding.
-- **Edit** — `room.manage` holders can change the name, description, group, Universal setting, and explicit member set of an existing channel room.
+- **Create** — server admins (or anyone with `room.create` in the target group) create a channel room by giving it a visible 1–30-code-point Unicode name, an optional description, a room group, and the desired Threading Mode, with Enabled as the default. They may also enable Universal. Names are unique across the server after Unicode compatibility normalization and full case folding.
+- **Edit** — `room.manage` holders can change the name, description, group, Universal setting, Threading Mode, and explicit member set of an existing channel room.
 - **Settings access** — a joined room's context menu links `room.manage` holders directly to that room's management page. Effective `room.manage` holders can change general settings; server-wide `role.manage` holders can configure the room's role permission matrix without receiving general room-management authority. The management read can load private-room metadata for either capability and is deliberately separate from the visibility-gated room directory.
 - **Display** — when set, the optional description appears after the channel room name in the desktop room pane header.
 - **Join preview** — a non-member who is allowed to list and join a visible channel room sees its group, description, exact effective member count, and up to five member identities before joining. Messages, files, and activity remain hidden. A user who cannot join sees only the access-denied state.
 - **Universal** — a channel room with Universal enabled behaves as joined for every server member who is currently eligible to join it. The system does not fan out `UserJoinedRoomEvent` facts for implicit membership. Existing explicit memberships remain intact, so disabling Universal restores the prior explicit membership set.
 - **Bootstrap defaults** — fresh servers seed `#announcements` as Universal with announcement-only posting defaults and `#general` as a normal channel room in the default Lobby group. Those posting defaults are an explicit trusted seed option; a user-created room merely named `announcements` receives ordinary permissions.
 - **Join / leave** — joining a Universal room succeeds without writing an explicit membership event. Leaving a Universal room is rejected; users can instead configure that room's notification policy. DMs cannot be Universal.
-- **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
+- **API surface** — ConnectRPC `RoomService` exposes create, edit, archive, unarchive, Universal, Threading Mode, join, leave, manager add/remove, ban, and unban commands. ConnectRPC `RoomDirectoryService` exposes the complementary room list, room-group/sidebar list, single-room refresh, per-room viewer capability state, and group join-all command.
 - **Archive** — `room.manage` toggles an `archived` flag on the room. Archived rooms vanish from the sidebar, the Browse Rooms page, and search results, but members stay joined and history is intact. The owner can still navigate to the room directly.
 - **Unarchive** — same permission, flips the flag back. The room reappears in the sidebar and discovery surfaces.
 - **Manage members** — `room.manage` holders can list, inspect, add, or remove members of channel rooms, including when they are not themselves members or eligible to join. Adding can bring a user into a private room even when that user could not self-join through `room.join`. Active room bans still block adding; the user must be unbanned first. DM membership remains visible only to its participants.
@@ -105,10 +105,16 @@ realtime projection pattern in ADR-051.
 **Why:** A room name is human-facing presentation metadata. Communities should be able to write natural names such as `Team chat 💬`, Traditional Chinese, or combining scripts without introducing a second display-name concept. Compatibility normalization and full case folding prevent confusing width, styled-letter, ligature, and case variants such as `Straße` and `STRASSE` from claiming separate names.
 **Tradeoff:** NFKC intentionally loses compatibility distinctions for comparison while preserving the NFC display spelling in storage. It does not apply stricter cross-script homoglyph matching, so visually similar Latin `a` and Cyrillic `а` remain distinct. The public protobuf fields and limits do not change: invalid or invisible names continue to produce `INVALID_ARGUMENT`, equivalent names produce `ALREADY_EXISTS`, and an older server may reject a newer client's expanded name without affecting other operations.
 
+### 13. Threading Mode is direct room metadata
+
+**Decision:** Every channel exposes one of Required, Encouraged, Enabled, or Disabled as ordinary room metadata. New and historically unspecified channels resolve to Enabled. DMs remain threadless and report Unspecified. `room.manage` changes append a dedicated room event and update every room-directory and realtime representation.
+**Why:** Conversation shape is a durable property of a room, not a side effect of permissions or a client-local preference. Keeping it beside Universal and Slow Mode makes creation, administration, API use, replay, and live updates converge on one setting.
+**Tradeoff:** Threading Mode and posting permissions are separate controls. Administrators must still grant the location permissions needed by the chosen mode; Required only waives `message.post-in-thread` for the automatic creation of a root's empty thread.
+
 ## Permissions
 
 - `room.create` — create a new channel room in a group. Configurable per group.
-- `room.manage` — edit, archive, unarchive, delete, change Universal state, and list, inspect, add, or remove members for a channel room. Configurable per group and per room.
+- `room.manage` — edit, archive, unarchive, delete, change Universal and Threading Mode state, and list, inspect, add, or remove members for a channel room. Configurable per group and per room.
 - `role.manage` — configure role permission decisions at room scope without granting general room-management authority.
 - `room.ban-member` — ban members from a channel room. Configurable per group and per room.
 - `room.join` — gates whether a user can become an explicit member of an unarchived room and whether a user is an implicit member of a Universal room. Configurable per group and per room.
@@ -117,4 +123,4 @@ realtime projection pattern in ADR-051.
 ## Related
 
 - **ADRs:** ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state with projections), ADR-035 (per-aggregate phased migration), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-007 (Direct Messages), FDR-012 (Notifications), FDR-017 (Room Groups & Sidebar Layout)

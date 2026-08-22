@@ -14,10 +14,14 @@ export type MessageActionModel = {
   canDelete: boolean;
   canPin: boolean;
   isPinned: boolean;
+  /** Mode-aware standard Reply action. Required and Encouraged roots route it into a thread. */
   replyInRoomLabel: string;
   replyThreadLabel: string;
   replyInRoom?: () => void;
   replyThread?: () => void;
+  /** Encouraged-mode fallback available in expanded action surfaces, not the quick toolbar. */
+  secondaryReplyInRoomLabel?: string;
+  secondaryReplyInRoom?: () => void;
   hasReacted: (emoji: string) => boolean;
   toggleReaction: (emoji: string) => Promise<void>;
   edit: () => void;
@@ -41,7 +45,9 @@ export function buildMessageActionModel({
   replyInRoomLabel,
   replyThreadLabel,
   replyInRoom,
-  replyThread
+  replyThread,
+  secondaryReplyInRoomLabel,
+  secondaryReplyInRoom
 }: {
   actions: MessageActions;
   params: MessageActionParams;
@@ -56,6 +62,8 @@ export function buildMessageActionModel({
   replyThreadLabel: string;
   replyInRoom?: () => void;
   replyThread?: () => void;
+  secondaryReplyInRoomLabel?: string;
+  secondaryReplyInRoom?: () => void;
 }): MessageActionModel {
   const viewerReactions = new Set(
     reactions
@@ -76,6 +84,8 @@ export function buildMessageActionModel({
     replyThreadLabel,
     replyInRoom,
     replyThread,
+    secondaryReplyInRoomLabel,
+    secondaryReplyInRoom,
     hasReacted,
     toggleReaction: (emoji) => actions.toggleReaction(params, emoji, hasReacted(emoji)),
     edit: () => actions.startEdit(params),

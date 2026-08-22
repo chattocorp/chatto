@@ -11,7 +11,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 // Changing field numbers or structure below affects JetStream-stored data.
 //
 // Top-level Event oneof tags owned by this file:
-//   - 300-305, 307: room lifecycle on evt.room.{roomId}.*
+//   - 300-305, 307-308: room lifecycle on evt.room.{roomId}.*
 //   - 310-311: room membership on evt.room.{roomId}.*
 //   - 320: server-wide account deletion fan-out
 //   - 330-333: voice call lifecycle and participant lifecycle on evt.room.{roomId}.*
@@ -38,6 +38,9 @@ message RoomCreatedEvent {
   // Whether this channel room grants effective membership to every
   // join-eligible server member. DM rooms must leave this false.
   bool universal = 6;
+  // Threading policy for this channel. Historical events omit the field and
+  // are interpreted as ENABLED. DM rooms leave it UNSPECIFIED.
+  RoomThreadingMode threading_mode = 7;
 }
 
 message RoomUpdatedEvent {
@@ -84,6 +87,13 @@ message RoomUniversalChangedEvent {
 message RoomSlowModeChangedEvent {
   string room_id = 1;
   uint32 slow_mode_seconds = 2;
+}
+
+// RoomThreadingModeChangedEvent is published when a channel room's thread
+// creation and reply-placement policy changes.
+message RoomThreadingModeChangedEvent {
+  string room_id = 1;
+  RoomThreadingMode threading_mode = 2;
 }
 
 // ============================================================================

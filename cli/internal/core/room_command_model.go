@@ -23,11 +23,12 @@ type RoomCommandModel struct {
 }
 
 type RoomCreateInput struct {
-	ActorID     string
-	GroupID     string
-	Name        string
-	Description string
-	Universal   bool
+	ActorID       string
+	GroupID       string
+	Name          string
+	Description   string
+	Universal     bool
+	ThreadingMode corev1.RoomThreadingMode
 }
 
 type RoomUpdateInput struct {
@@ -37,6 +38,7 @@ type RoomUpdateInput struct {
 	Description     *string
 	Universal       *bool
 	SlowModeSeconds *uint32
+	ThreadingMode   *corev1.RoomThreadingMode
 }
 
 type RoomIDInput struct {
@@ -89,7 +91,11 @@ func (s *RoomCommandModel) CreateRoom(ctx context.Context, input RoomCreateInput
 	if !can {
 		return nil, ErrPermissionDenied
 	}
-	return s.core.CreateRoom(ctx, input.ActorID, KindChannel, input.GroupID, input.Name, input.Description, WithUniversalRoom(input.Universal))
+	if input.ThreadingMode != corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED && !IsValidRoomThreadingMode(input.ThreadingMode) {
+		return nil, invalidArgument("invalid room threading mode")
+	}
+	return s.core.CreateRoom(ctx, input.ActorID, KindChannel, input.GroupID, input.Name, input.Description,
+		WithUniversalRoom(input.Universal), WithRoomThreadingMode(input.ThreadingMode))
 }
 
 func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput) (*corev1.Room, error) {
@@ -97,7 +103,7 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	if err != nil {
 		return nil, err
 	}
-	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil {
+	if input.Name == nil && input.Description == nil && input.Universal == nil && input.SlowModeSeconds == nil && input.ThreadingMode == nil {
 		return nil, fmt.Errorf("%w: provide at least one room field to update", ErrInvalidArgument)
 	}
 	room, err := s.core.GetRoom(ctx, kind, input.RoomID)
@@ -113,6 +119,14 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 		}
 		if *input.SlowModeSeconds > MaxRoomSlowModeSeconds {
 			return nil, invalidArgument("slow mode cannot exceed 21600 seconds")
+		}
+	}
+	if input.ThreadingMode != nil {
+		if kind == KindDM {
+			return nil, invalidArgument("DM rooms cannot configure threading")
+		}
+		if !IsValidRoomThreadingMode(*input.ThreadingMode) {
+			return nil, invalidArgument("invalid room threading mode")
 		}
 	}
 	name := room.GetName()
@@ -140,6 +154,15 @@ func (s *RoomCommandModel) UpdateRoom(ctx context.Context, input RoomUpdateInput
 	}
 	if input.SlowModeSeconds != nil {
 		room, err = s.core.SetRoomSlowMode(ctx, input.ActorID, kind, input.RoomID, *input.SlowModeSeconds)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.ThreadingMode != nil {
+		room, err = s.core.setRoomThreadingMode(ctx, input.ActorID, kind, input.RoomID, *input.ThreadingMode, func(attemptCtx context.Context) error {
+			_, authorizeErr := s.authorizeRoomManage(attemptCtx, input.ActorID, input.RoomID)
+			return authorizeErr
+		})
 		if err != nil {
 			return nil, err
 		}

@@ -21,6 +21,7 @@
     effectiveTimezone,
     showCreateThread = false,
     createThread = false,
+    createThreadRequired = false,
     onToggleCreateThread = () => {},
     showAlsoSendToChannel = false,
     alsoSendToChannel = false,
@@ -39,6 +40,7 @@
     effectiveTimezone?: string;
     showCreateThread?: boolean;
     createThread?: boolean;
+    createThreadRequired?: boolean;
     onToggleCreateThread?: () => void;
     showAlsoSendToChannel?: boolean;
     alsoSendToChannel?: boolean;
@@ -161,12 +163,13 @@
           type="button"
           onpointerdown={(event) => event.preventDefault()}
           onclick={onToggleCreateThread}
-          disabled={inputDisabled}
+          disabled={inputDisabled || createThreadRequired}
           aria-label={m('composer.post_as_thread')}
           aria-pressed={createThread}
           title={m('composer.post_as_thread')}
           class={[
-            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5 disabled:cursor-not-allowed disabled:opacity-50',
+            'flex h-6 w-6 shrink-0 cursor-pointer items-center justify-center rounded text-xs font-medium transition-[background-color,color] duration-100 disabled:cursor-not-allowed @min-[560px]:w-auto @min-[560px]:gap-1 @min-[560px]:px-1.5',
+            inputDisabled && 'opacity-50',
             createThread
               ? 'bg-action/10 text-action'
               : 'text-muted enabled:hover:bg-surface-emphasized enabled:hover:text-text'

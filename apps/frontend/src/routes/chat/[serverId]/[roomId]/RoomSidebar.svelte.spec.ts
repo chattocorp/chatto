@@ -10,6 +10,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { ROOM_MEMBERS_PAGE_SIZE, type RoomMember } from '$lib/state/room/members.svelte';
 import type { PresenceCache } from '$lib/state/presenceCache.svelte';
 import type { RoomData } from '$lib/hooks/useRoomData.svelte';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import { RoomKind as SearchRoomKind } from '$lib/api-client/roomDirectory';
 import {
   MessageSearchOrder,
@@ -273,7 +274,8 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
       name: 'general',
       type: RoomKind.CHANNEL,
       isUniversal: false,
-      slowModeSeconds: 0
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENABLED
     },
     spaceName: 'Test Server',
     canPostMessage: true,
@@ -1589,9 +1591,9 @@ describe('RoomSidebar', () => {
 
     expect(buttonByText(container, 'Online (1)')).toBeTruthy();
     expect(buttonByText(container, 'Offline (1)')).toBeTruthy();
-    expect(
-      container.querySelectorAll('[data-testid="room-group-section"].border-t')
-    ).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
+      1
+    );
   });
 
   it('coalesces a burst of presence-driven member group movement', async () => {
@@ -1977,9 +1979,9 @@ describe('RoomSidebar', () => {
 
     await flushRoomFilesPanel();
     expect(roomFileGroupHeadings(container)).toEqual(['Today', 'Yesterday']);
-    expect(
-      container.querySelectorAll('[data-testid="room-group-section"].border-t')
-    ).toHaveLength(1);
+    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
+      1
+    );
     expect(roomFileRowLabels(container)).toHaveLength(2);
     expect(roomFileRowLabels(container)[0]).toContain('today.txt');
     expect(roomFileRowLabels(container)[1]).toContain('yesterday.txt');
@@ -2002,9 +2004,9 @@ describe('RoomSidebar', () => {
       'This month',
       'May 2026'
     ]);
-    expect(
-      container.querySelectorAll('[data-testid="room-group-section"].border-t')
-    ).toHaveLength(4);
+    expect(container.querySelectorAll('[data-testid="room-group-section"].border-t')).toHaveLength(
+      4
+    );
     const labels = roomFileRowLabels(container);
     expect(labels).toHaveLength(5);
     expect(labels.filter((label) => label.includes('today.txt'))).toHaveLength(1);

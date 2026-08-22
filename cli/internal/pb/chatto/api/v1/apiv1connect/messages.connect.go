@@ -74,11 +74,13 @@ type MessageServiceClient interface {
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
-	// message.post.
+	// message.post. The room's Threading Mode may automatically establish a root
+	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
-	// state.
+	// state. Disabled rooms reject creation of a new channel echo while allowing
+	// an existing echo to be removed.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.
@@ -252,11 +254,13 @@ type MessageServiceHandler interface {
 	// Creates a message for the current user. The user must be a room member and
 	// must have message.post for room messages or message.post-in-thread for
 	// thread replies. Echoing a thread reply also requires message.echo and
-	// message.post.
+	// message.post. The room's Threading Mode may automatically establish a root
+	// thread or reject a thread placement that the mode does not allow.
 	CreateMessage(context.Context, *connect.Request[v1.CreateMessageRequest]) (*connect.Response[v1.CreateMessageResponse], error)
 	// Edits a message body. Authors can edit their own messages within the edit
 	// window. Non-authors need message.manage and cannot change channel echo
-	// state.
+	// state. Disabled rooms reject creation of a new channel echo while allowing
+	// an existing echo to be removed.
 	UpdateMessage(context.Context, *connect.Request[v1.UpdateMessageRequest]) (*connect.Response[v1.UpdateMessageResponse], error)
 	// Retracts a message. Authors can delete their own messages. Non-authors need
 	// message.manage.

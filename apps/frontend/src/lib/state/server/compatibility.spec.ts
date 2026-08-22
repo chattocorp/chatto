@@ -49,11 +49,6 @@ describe('server compatibility evaluation', () => {
     });
   });
 
-  it('gates author-created threads to 0.5 servers', () => {
-    expect(supportsServerFeature('0.5.0', 'threadCreation')).toBe(true);
-    expect(supportsServerFeature('0.4.9', 'threadCreation')).toBe(false);
-  });
-
   it('rejects pre-0.5 servers and preserves unknown custom versions', () => {
     expect(
       evaluateServerCompatibility({

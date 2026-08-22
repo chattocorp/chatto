@@ -61,6 +61,8 @@ export type MessageComposerProps = {
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
   showCreateThread?: boolean;
+  createThreadRequired?: boolean;
+  threadsEncouraged?: boolean;
 };
 
 type MessageComposerDependencies = {
@@ -71,6 +73,7 @@ type MessageComposerDependencies = {
   getCanAttach: () => boolean;
   getSlowModeBlocked: () => boolean;
   getCanCreateThread: () => boolean;
+  getCreateThreadRequired: () => boolean;
   getAutoFocus: () => boolean;
   getPlaceholder: () => string | undefined;
   getOnReady: () => MessageComposerProps['onReady'];
@@ -157,6 +160,7 @@ export class MessageComposerState {
     this.#synchronizeDraftText();
     this.#synchronizeLinkPreviews();
     this.#synchronizeAttachmentPermission();
+    this.#synchronizeThreadCreationPolicy();
     this.#synchronizeAutoFocus();
     this.#synchronizeQuoteInsertion();
     this.#synchronizePublicApi();
@@ -205,7 +209,7 @@ export class MessageComposerState {
   get inputDisabled(): boolean {
     return (
       this.submission.loading ||
-      !this.#dependencies.getCanPost() ||
+      (!this.#dependencies.getCanPost() && !this.isEditing) ||
       this.#dependencies.isConnectionLost()
     );
   }
@@ -420,6 +424,17 @@ export class MessageComposerState {
     });
   }
 
+  #synchronizeThreadCreationPolicy(): void {
+    $effect(() => {
+      if (
+        !this.#dependencies.getCanCreateThread() ||
+        this.#dependencies.getCreateThreadRequired()
+      ) {
+        this.createThread = false;
+      }
+    });
+  }
+
   #synchronizeAutoFocus(): void {
     $effect(() => {
       const autoFocus = this.#dependencies.getAutoFocus();
@@ -502,9 +517,10 @@ export class MessageComposerState {
       linkPreviewToken: this.linkPreviews.buildToken(),
       alsoSendToChannel: this.alsoSendToChannel,
       createThread:
-        this.#dependencies.getCanCreateThread() &&
-        !this.#dependencies.getThreadRootEventId() &&
-        this.createThread
+        this.#dependencies.getCreateThreadRequired() ||
+        (this.#dependencies.getCanCreateThread() &&
+          !this.#dependencies.getThreadRootEventId() &&
+          this.createThread)
     });
   }
 

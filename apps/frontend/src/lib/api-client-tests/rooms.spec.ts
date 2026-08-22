@@ -3,6 +3,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { Timestamp } from '@bufbuild/protobuf';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { configureApiClientHooks } from '$lib/api-client/hooks';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 import { PresenceStatus as APIPresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
 import { createRoomCommandAPI } from '$lib/api-client/rooms';
@@ -141,7 +142,9 @@ describe('createRoomCommandAPI', () => {
         description: 'General chat',
         archived: false,
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.REQUIRED
       }
     });
 
@@ -154,7 +157,8 @@ describe('createRoomCommandAPI', () => {
       name: 'general',
       description: 'General chat',
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      threadingMode: RoomThreadingMode.REQUIRED
     });
 
     expect(mocks.createConnectTransport).toHaveBeenCalledWith({
@@ -166,7 +170,8 @@ describe('createRoomCommandAPI', () => {
         name: 'general',
         description: 'General chat',
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.REQUIRED
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
@@ -176,7 +181,9 @@ describe('createRoomCommandAPI', () => {
       description: 'General chat',
       archived: false,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.REQUIRED
     });
   });
 
@@ -188,7 +195,9 @@ describe('createRoomCommandAPI', () => {
         description: 'Updated',
         archived: false,
         groupId: 'group-1',
-        universal: true
+        universal: true,
+        slowModeSeconds: 0,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       }
     });
 
@@ -202,7 +211,8 @@ describe('createRoomCommandAPI', () => {
         roomId: 'room-1',
         name: 'renamed',
         description: 'Updated',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       })
     ).resolves.toEqual({
       id: 'room-1',
@@ -210,7 +220,9 @@ describe('createRoomCommandAPI', () => {
       description: 'Updated',
       archived: false,
       groupId: 'group-1',
-      universal: true
+      universal: true,
+      slowModeSeconds: 0,
+      threadingMode: RoomThreadingMode.ENCOURAGED
     });
 
     expect(mocks.updateRoom).toHaveBeenCalledWith(
@@ -218,7 +230,8 @@ describe('createRoomCommandAPI', () => {
         roomId: 'room-1',
         name: 'renamed',
         description: 'Updated',
-        universal: true
+        universal: true,
+        threadingMode: RoomThreadingMode.ENCOURAGED
       },
       { headers: { Authorization: 'Bearer remote-token' } }
     );
@@ -410,7 +423,9 @@ describe('createRoomCommandAPI', () => {
             description: 'General chat',
             archived: false,
             groupId: 'group-1',
-            universal: false
+            universal: false,
+            slowModeSeconds: 0,
+            threadingMode: RoomThreadingMode.ENABLED
           },
           userId: 'user-1',
           user: {

@@ -14,6 +14,7 @@
   import { createUserProfileCache } from '$lib/state/userProfiles.svelte';
   import MessageEvent from './MessageEvent.svelte';
   import type { OpenThreadHandler } from './threadOpenOptions';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -21,10 +22,13 @@
     serverId = 'remote-server',
     permalinkThreadRootEventId = null,
     canReact = true,
+    canPostMessage = true,
+    canPostInThread = true,
     canManageOthersMessage = false,
     canViewPinnedMessages = false,
     canPinMessages = false,
     pinStatus = null,
+    threadingMode = RoomThreadingMode.ENABLED,
     onOpenThread
   }: {
     event: TimelineEventView;
@@ -32,10 +36,13 @@
     serverId?: string;
     permalinkThreadRootEventId?: string | null;
     canReact?: boolean;
+    canPostMessage?: boolean;
+    canPostInThread?: boolean;
     canManageOthersMessage?: boolean;
     canViewPinnedMessages?: boolean;
     canPinMessages?: boolean;
     pinStatus?: boolean | null;
+    threadingMode?: RoomThreadingMode;
     onOpenThread?: OpenThreadHandler;
   } = $props();
 
@@ -63,13 +70,13 @@
     store,
     isCurrent: () => true
   });
-  createComposerContext({ scroll: true });
+  const composerContext = createComposerContext({ scroll: true });
   createMentionRoles();
   createRoomMembers();
   createRoomPermissions(() => ({
     ...DEFAULT_ROOM_PERMISSIONS,
-    canPostMessage: true,
-    canPostInThread: true,
+    canPostMessage,
+    canPostInThread,
     canReact,
     canManageOthersMessage,
     canEchoMessage: true,
@@ -92,5 +99,10 @@
   {roomId}
   {permalinkThreadRootEventId}
   messageStore={messageStore as never}
+  {threadingMode}
   {onOpenThread}
 />
+
+<output data-testid="active-reply-target">
+  {composerContext.replyState.messageEventId ?? ''}
+</output>
