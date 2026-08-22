@@ -7,12 +7,12 @@
     TextInput,
     TextArea,
     Checkbox,
-    Select,
     Button,
     FormError,
     createFormState,
     z
   } from '$lib/ui/form';
+  import { ChoiceRow } from '$lib/ui';
   import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
@@ -55,19 +55,23 @@
   const threadingModeOptions = $derived([
     {
       value: String(RoomThreadingMode.REQUIRED),
-      label: m('admin.rooms_admin.threading_mode_required')
+      label: m('admin.rooms_admin.threading_mode_required'),
+      description: m('admin.rooms_admin.threading_mode_required_description')
     },
     {
       value: String(RoomThreadingMode.ENCOURAGED),
-      label: m('admin.rooms_admin.threading_mode_encouraged')
+      label: m('admin.rooms_admin.threading_mode_encouraged'),
+      description: m('admin.rooms_admin.threading_mode_encouraged_description')
     },
     {
       value: String(RoomThreadingMode.ENABLED),
-      label: m('admin.rooms_admin.threading_mode_enabled')
+      label: m('admin.rooms_admin.threading_mode_enabled'),
+      description: m('admin.rooms_admin.threading_mode_enabled_description')
     },
     {
       value: String(RoomThreadingMode.DISABLED),
-      label: m('admin.rooms_admin.threading_mode_disabled')
+      label: m('admin.rooms_admin.threading_mode_disabled'),
+      description: m('admin.rooms_admin.threading_mode_disabled_description')
     }
   ]);
 
@@ -148,15 +152,27 @@
     description={m('room.create.universal_description')}
   />
 
-  <Select
-    id="room-threading-mode"
-    bind:value={form.values.threadingMode}
-    disabled={isLoading}
-    onchange={clearSubmitError}
-    label={m('admin.rooms_admin.threading_mode')}
-    description={m('admin.rooms_admin.threading_mode_description')}
-    options={threadingModeOptions}
-  />
+  <div class="flex flex-col gap-2">
+    <div>
+      <p id="room-threading-mode-label" class="font-medium">
+        {m('admin.rooms_admin.threading_mode')}
+      </p>
+    </div>
+    <div class="flex flex-col gap-2" role="radiogroup" aria-labelledby="room-threading-mode-label">
+      {#each threadingModeOptions as option (option.value)}
+        <ChoiceRow
+          label={option.label}
+          description={option.description}
+          selected={form.values.threadingMode === option.value}
+          disabled={isLoading}
+          onclick={() => {
+            form.values.threadingMode = option.value;
+            clearSubmitError();
+          }}
+        />
+      {/each}
+    </div>
+  </div>
 
   <FormError error={submitError} />
 

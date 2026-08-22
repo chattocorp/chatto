@@ -98,13 +98,8 @@ sheet, plus toolbar-only controls for opening those surfaces.
 
   {#if hasActions}
     <div class="flex items-center menu-section-sm">
-      {#if action.threadReplyFirst}
-        {@render replyThreadButton()}
-        {@render replyInRoomButton()}
-      {:else}
-        {@render replyInRoomButton()}
-        {@render replyThreadButton()}
-      {/if}
+      {@render replyInRoomButton()}
+      {@render replyThreadButton()}
 
       {#if action.canEdit}
         <button

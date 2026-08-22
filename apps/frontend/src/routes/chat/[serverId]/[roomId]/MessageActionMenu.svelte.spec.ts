@@ -46,8 +46,10 @@ type ActionOverrides = {
   canDelete?: boolean;
   replyInRoomLabel?: string;
   replyThreadLabel?: string;
+  secondaryReplyInRoomLabel?: string;
   onReplyInRoom?: () => void;
   onReply?: () => void;
+  onSecondaryReplyInRoom?: () => void;
 };
 
 function buildAction(overrides: ActionOverrides = {}) {
@@ -65,7 +67,9 @@ function buildAction(overrides: ActionOverrides = {}) {
     replyInRoomLabel: overrides.replyInRoomLabel ?? 'Reply',
     replyThreadLabel: overrides.replyThreadLabel ?? 'Reply in thread',
     replyInRoom: overrides.onReplyInRoom,
-    replyThread: overrides.onReply
+    replyThread: overrides.onReply,
+    secondaryReplyInRoomLabel: overrides.secondaryReplyInRoomLabel,
+    secondaryReplyInRoom: overrides.onSecondaryReplyInRoom
   });
 }
 
@@ -148,6 +152,23 @@ describe('MessageActionMenu', () => {
     const replyIcon = container.querySelector('[role="menuitem"] .iconify');
     expect(replyIcon?.classList).toContain('icon-[uil--corner-up-left]');
     expect(replyIcon?.classList).toContain('rtl:-scale-x-100');
+  });
+
+  it('keeps reply actions in a stable order and puts the room fallback last', () => {
+    const { container } = renderMenu({
+      onReplyInRoom: vi.fn(),
+      onReply: vi.fn(),
+      secondaryReplyInRoomLabel: 'Reply in room',
+      onSecondaryReplyInRoom: vi.fn()
+    });
+
+    expect(navActionLabels(container)).toEqual([
+      'Reply',
+      'Reply in thread',
+      'Reply in room',
+      'Copy text',
+      'Copy link'
+    ]);
   });
 
   it('orders clipboard actions between edit and delete', () => {

@@ -3,7 +3,7 @@ import { render } from 'vitest-browser-svelte';
 import { tick } from 'svelte';
 import { SvelteMap } from 'svelte/reactivity';
 import { q } from '$lib/test-utils';
-import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomKind, RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
 import { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
 import type { RoomTimelineAPI } from '$lib/api-client/roomTimeline';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
@@ -55,6 +55,7 @@ const { mocks } = vi.hoisted(() => {
       messageSearchSupported: false,
       livekitUrl: null as string | null,
       roomKind: 1,
+      threadingMode: 3,
       canPostMessage: true,
       canPostInThread: true,
       getAppUiState: vi.fn(),
@@ -119,7 +120,8 @@ vi.mock('$lib/hooks', () => ({
         name: 'general',
         description: 'Room description',
         type: mocks.roomKind,
-        isUniversal: false
+        isUniversal: false,
+        threadingMode: mocks.threadingMode
       },
       spaceName: 'Test Space',
       canPostMessage: mocks.canPostMessage,
@@ -404,6 +406,7 @@ beforeEach(() => {
   mocks.livekitUrl = null;
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
+  mocks.threadingMode = RoomThreadingMode.ENABLED;
   mocks.canPostMessage = true;
   mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();
@@ -710,6 +713,19 @@ describe('Room local message echo', () => {
     await expect
       .element(q(container, '[data-testid="composer-can-create-thread"]'))
       .toHaveTextContent('false');
+  });
+
+  it('keeps Required thread creation visible and locked on without thread-post permission', async () => {
+    mocks.threadingMode = RoomThreadingMode.REQUIRED;
+    mocks.canPostInThread = false;
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="composer-can-create-thread"]'))
+      .toHaveTextContent('true');
+    await expect
+      .element(q(container, '[data-testid="composer-requires-thread"]'))
+      .toHaveTextContent('true');
   });
 
   it('does not advance the current room read cursor for a stale returned post from another room', async () => {

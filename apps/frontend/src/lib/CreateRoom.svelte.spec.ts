@@ -124,9 +124,16 @@ describe('CreateRoom', () => {
       onroomcreated: mocks.onroomcreated
     });
 
-    const select = q(container, '#room-threading-mode') as HTMLSelectElement;
-    select.value = String(RoomThreadingMode.REQUIRED);
-    select.dispatchEvent(new Event('change', { bubbles: true }));
+    const choices = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
+    expect(choices).toHaveLength(4);
+    expect(choices.map((choice) => choice.textContent?.trim())).toEqual([
+      expect.stringContaining('Required'),
+      expect.stringContaining('Encouraged'),
+      expect.stringContaining('Enabled'),
+      expect.stringContaining('Disabled')
+    ]);
+    expect(choices[2]).toHaveAttribute('aria-checked', 'true');
+    choices[0].click();
     await fillNameAndSubmit(container);
 
     await vi.waitFor(() => {

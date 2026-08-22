@@ -161,6 +161,7 @@
                   description: updated.description || null,
                   isUniversal: updated.universal,
                   slowModeSeconds: updated.slowModeSeconds,
+                  threadingMode: updated.threadingMode,
                   archived: updated.archived
                 }
               : current

@@ -3,6 +3,7 @@
   import type { AdminManagedRoom } from '$lib/api-client/adminRoomLayout';
   import { Panel } from '$lib/components/admin';
   import { Button, Checkbox, Select, TextArea, TextInput } from '$lib/ui/form';
+  import { ChoiceRow } from '$lib/ui';
   import { normalizeRoomName, roomNameValidationError } from '$lib/utils/roomName';
   import { UNIVERSAL_ROOM_HELP_TEXT } from '$lib/utils/roomCopy';
   import { buildRoomSettingsUpdate } from './roomSettings';
@@ -103,19 +104,23 @@
   const threadingModeOptions = $derived([
     {
       value: String(RoomThreadingMode.REQUIRED),
-      label: m('admin.rooms_admin.threading_mode_required')
+      label: m('admin.rooms_admin.threading_mode_required'),
+      description: m('admin.rooms_admin.threading_mode_required_description')
     },
     {
       value: String(RoomThreadingMode.ENCOURAGED),
-      label: m('admin.rooms_admin.threading_mode_encouraged')
+      label: m('admin.rooms_admin.threading_mode_encouraged'),
+      description: m('admin.rooms_admin.threading_mode_encouraged_description')
     },
     {
       value: String(RoomThreadingMode.ENABLED),
-      label: m('admin.rooms_admin.threading_mode_enabled')
+      label: m('admin.rooms_admin.threading_mode_enabled'),
+      description: m('admin.rooms_admin.threading_mode_enabled_description')
     },
     {
       value: String(RoomThreadingMode.DISABLED),
-      label: m('admin.rooms_admin.threading_mode_disabled')
+      label: m('admin.rooms_admin.threading_mode_disabled'),
+      description: m('admin.rooms_admin.threading_mode_disabled_description')
     }
   ]);
 
@@ -177,14 +182,28 @@
       description={m('admin.rooms_admin.slow_mode_description')}
       options={slowModeOptions}
     />
-    <Select
-      id="room-settings-threading-mode"
-      bind:value={threadingMode}
-      disabled={saving}
-      label={m('admin.rooms_admin.threading_mode')}
-      description={m('admin.rooms_admin.threading_mode_description')}
-      options={threadingModeOptions}
-    />
+    <div class="flex flex-col gap-2">
+      <div>
+        <p id="room-settings-threading-mode-label" class="font-medium">
+          {m('admin.rooms_admin.threading_mode')}
+        </p>
+      </div>
+      <div
+        class="flex flex-col gap-2"
+        role="radiogroup"
+        aria-labelledby="room-settings-threading-mode-label"
+      >
+        {#each threadingModeOptions as option (option.value)}
+          <ChoiceRow
+            label={option.label}
+            description={option.description}
+            selected={threadingMode === option.value}
+            disabled={saving}
+            onclick={() => (threadingMode = option.value)}
+          />
+        {/each}
+      </div>
+    </div>
     <div class="flex justify-end">
       <Button type="submit" loading={saving} disabled={!name.trim() || !!nameError || !changed}>
         {m('admin.permissions.save_changes')}

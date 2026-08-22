@@ -167,16 +167,32 @@ describe('MessageEvent action model integration', () => {
         .map((button) => button.getAttribute('aria-label'))
         .filter((label) => label?.startsWith('Reply') || label === 'Open thread');
 
-    expect(toolbarReplyLabels()).toEqual(['Reply in thread']);
-    (q(rendered.container, 'button[aria-label="Reply in thread"]') as HTMLButtonElement).click();
-    expect(onOpenThread).toHaveBeenLastCalledWith(event.id, expect.any(Object));
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+    (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).toHaveBeenLastCalledWith(
+      event.id,
+      expect.objectContaining({
+        reply: expect.objectContaining({ eventId: event.id })
+      })
+    );
 
     await rendered.rerender({
       event,
       onOpenThread,
       threadingMode: RoomThreadingMode.ENCOURAGED
     });
-    expect(toolbarReplyLabels()).toEqual(['Reply in thread', 'Reply in room']);
+    expect(toolbarReplyLabels()).toEqual(['Reply', 'Reply in thread']);
+    (q(rendered.container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).toHaveBeenLastCalledWith(
+      event.id,
+      expect.objectContaining({ reply: expect.objectContaining({ eventId: event.id }) })
+    );
+    await openContextMenu(rendered.container);
+    expect(menuButton(rendered.container, 'Reply in room')).toBeTruthy();
+    menuButton(rendered.container, 'Reply in room')!.click();
+    await expect
+      .element(q(rendered.container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
 
     await rendered.rerender({
       event,
@@ -199,6 +215,48 @@ describe('MessageEvent action model integration', () => {
       threadingMode: RoomThreadingMode.DISABLED
     });
     expect(toolbarReplyLabels()).toEqual([]);
+  });
+
+  it('keeps reply attribution available inside Required threads with thread-only permission', async () => {
+    const event = messageEvent({ id: 'thread-reply', threadRootEventId: 'thread-root' });
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event,
+        permalinkThreadRootEventId: 'thread-root',
+        threadingMode: RoomThreadingMode.REQUIRED,
+        canPostMessage: false,
+        canPostInThread: true
+      }
+    });
+
+    const reply = q(container, 'button[aria-label="Reply"]') as HTMLButtonElement;
+    expect(reply).toBeTruthy();
+    reply.click();
+    await expect
+      .element(q(container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
+  });
+
+  it('falls back to an in-room reply in Encouraged mode without thread permission', async () => {
+    const event = messageEvent();
+    const onOpenThread = vi.fn();
+    const { container } = render(MessageEventTestHarness, {
+      props: {
+        event,
+        onOpenThread,
+        threadingMode: RoomThreadingMode.ENCOURAGED,
+        canPostMessage: true,
+        canPostInThread: false
+      }
+    });
+
+    expect(q(container, 'button[aria-label="Reply"]')).toBeTruthy();
+    expect(q(container, 'button[aria-label="Reply in thread"]')).toBeNull();
+    (q(container, 'button[aria-label="Reply"]') as HTMLButtonElement).click();
+    expect(onOpenThread).not.toHaveBeenCalled();
+    await expect
+      .element(q(container, '[data-testid="active-reply-target"]'))
+      .toHaveTextContent(event.id);
   });
 
   it('rebinds every action surface when a virtualized row changes message shape', async () => {
@@ -332,7 +390,7 @@ describe('MessageEvent action model integration', () => {
       new MouseEvent('mousedown', { bubbles: true, cancelable: true, button: 2 })
     );
     await openContextMenu(rendered.container);
-    menuButton(rendered.container, 'Reply in thread')!.click();
+    menuButton(rendered.container, 'Reply')!.click();
     expect(onOpenThread).toHaveBeenCalledWith(
       'thread-root',
       expect.objectContaining({

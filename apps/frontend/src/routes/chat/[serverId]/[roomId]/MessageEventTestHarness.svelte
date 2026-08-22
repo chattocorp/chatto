@@ -22,6 +22,8 @@
     serverId = 'remote-server',
     permalinkThreadRootEventId = null,
     canReact = true,
+    canPostMessage = true,
+    canPostInThread = true,
     canManageOthersMessage = false,
     canViewPinnedMessages = false,
     canPinMessages = false,
@@ -34,6 +36,8 @@
     serverId?: string;
     permalinkThreadRootEventId?: string | null;
     canReact?: boolean;
+    canPostMessage?: boolean;
+    canPostInThread?: boolean;
     canManageOthersMessage?: boolean;
     canViewPinnedMessages?: boolean;
     canPinMessages?: boolean;
@@ -66,13 +70,13 @@
     store,
     isCurrent: () => true
   });
-  createComposerContext({ scroll: true });
+  const composerContext = createComposerContext({ scroll: true });
   createMentionRoles();
   createRoomMembers();
   createRoomPermissions(() => ({
     ...DEFAULT_ROOM_PERMISSIONS,
-    canPostMessage: true,
-    canPostInThread: true,
+    canPostMessage,
+    canPostInThread,
     canReact,
     canManageOthersMessage,
     canEchoMessage: true,
@@ -98,3 +102,7 @@
   {threadingMode}
   {onOpenThread}
 />
+
+<output data-testid="active-reply-target">
+  {composerContext.replyState.messageEventId ?? ''}
+</output>

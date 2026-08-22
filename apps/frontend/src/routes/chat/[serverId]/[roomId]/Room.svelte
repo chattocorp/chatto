@@ -196,9 +196,13 @@
   let composerCanCreateThread = $derived(
     !room.isDM &&
       permissions.canPostMessage &&
-      permissions.canPostInThread &&
-      (threadingMode === RoomThreadingMode.ENABLED ||
-        threadingMode === RoomThreadingMode.ENCOURAGED)
+      (threadingMode === RoomThreadingMode.REQUIRED ||
+        (permissions.canPostInThread &&
+          (threadingMode === RoomThreadingMode.ENABLED ||
+            threadingMode === RoomThreadingMode.ENCOURAGED)))
+  );
+  let composerRequiresThread = $derived(
+    !room.isDM && permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
   );
 
   createRoomPermissions(() => permissions);
@@ -690,6 +694,7 @@
           slowModeNextPostAt={room.roomData?.slowModeNextPostAt ?? null}
           slowModeBypassed={permissions.canManageRoom || permissions.canManageOthersMessage}
           showCreateThread={composerCanCreateThread}
+          createThreadRequired={composerRequiresThread}
           threadsEncouraged={threadingMode === RoomThreadingMode.ENCOURAGED}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}

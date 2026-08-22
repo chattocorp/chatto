@@ -55,6 +55,7 @@
     onEscape,
     showAlsoSendToChannel = false,
     showCreateThread = false,
+    createThreadRequired = false,
     threadsEncouraged = false
   }: MessageComposerProps = $props();
 
@@ -101,6 +102,7 @@
     getCanAttach: () => canAttach,
     getSlowModeBlocked: () => slowModeBlocked,
     getCanCreateThread: () => showCreateThread,
+    getCreateThreadRequired: () => createThreadRequired,
     getAutoFocus: () => autoFocus,
     getPlaceholder: () => placeholder,
     getOnReady: () => onReady,
@@ -245,7 +247,8 @@
       fileInputElement={composer.fileInputElement}
       effectiveTimezone={userSettings.effectiveTimezone}
       showCreateThread={showCreateThread && !composer.isEditing && !inThread}
-      createThread={composer.createThread}
+      createThread={createThreadRequired || composer.createThread}
+      {createThreadRequired}
       onToggleCreateThread={() => (composer.createThread = !composer.createThread)}
       showAlsoSendToChannel={(showAlsoSendToChannel && !composer.isEditing) ||
         composer.showEditEchoToggle}

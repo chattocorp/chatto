@@ -1,17 +1,16 @@
 <script lang="ts">
-  import {
-    TimelineEventKind,
-    type TimelineEventView
-  } from '$lib/render/timelineEvents';
+  import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineEvents';
   import { getComposerContext } from '$lib/state/room';
 
   let {
     inReplyTo,
     showCreateThread = false,
+    createThreadRequired = false,
     onMessageSent
   }: {
     inReplyTo?: string;
     showCreateThread?: boolean;
+    createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
   } = $props();
 
@@ -89,3 +88,4 @@
 
 <output data-testid="composer-in-reply-to">{inReplyTo ?? ''}</output>
 <output data-testid="composer-can-create-thread">{String(showCreateThread)}</output>
+<output data-testid="composer-requires-thread">{String(createThreadRequired)}</output>

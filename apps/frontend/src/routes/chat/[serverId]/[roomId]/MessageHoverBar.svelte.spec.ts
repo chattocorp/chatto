@@ -170,5 +170,10 @@ describe('MessageHoverBar', () => {
 
     await expect.element(q(container, '[aria-label="Reply in thread"]')).toBeInTheDocument();
     await expect.element(q(container, '[aria-label="Open thread"]')).toBeInTheDocument();
+    expect(
+      Array.from(q(container, '[role="toolbar"]')!.querySelectorAll<HTMLButtonElement>('button'))
+        .map((button) => button.getAttribute('aria-label'))
+        .filter((label) => label === 'Reply in thread' || label === 'Open thread')
+    ).toEqual(['Reply in thread', 'Open thread']);
   });
 });
