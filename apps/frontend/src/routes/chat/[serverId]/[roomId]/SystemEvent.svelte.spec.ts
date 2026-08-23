@@ -72,7 +72,7 @@ describe('SystemEvent', () => {
     expect(container.textContent).toContain('Alice left the room');
   });
 
-  it('renders an actor-attributed Threading Mode change', () => {
+  it('renders an actor-attributed threading mode change', () => {
     const event = systemEvent(TimelineEventKind.RoomArchived, 'Alice');
     event.event = {
       kind: TimelineEventKind.RoomThreadingModeChanged,
@@ -82,10 +82,10 @@ describe('SystemEvent', () => {
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('Alice changed Threading Mode to Encouraged');
+    expect(container.textContent).toContain('Alice changed threading mode to Encouraged');
   });
 
-  it('renders an unknown Threading Mode as Disabled', () => {
+  it('renders an unknown threading mode as Disabled', () => {
     const event = systemEvent(TimelineEventKind.RoomArchived, 'Alice');
     event.event = {
       kind: TimelineEventKind.RoomThreadingModeChanged,
@@ -95,7 +95,7 @@ describe('SystemEvent', () => {
 
     const { container } = render(SystemEvent, { props: { event } });
 
-    expect(container.textContent).toContain('Alice changed Threading Mode to Disabled');
+    expect(container.textContent).toContain('Alice changed threading mode to Disabled');
   });
 
   it('renders an actionable call-start event while its call is active', async () => {
