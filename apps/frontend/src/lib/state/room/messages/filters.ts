@@ -20,6 +20,7 @@ export function isRootRoomEvent(event: TimelineEventView): boolean {
     case TimelineEventKind.RoomArchived:
     case TimelineEventKind.RoomUnarchived:
     case TimelineEventKind.RoomCreated:
+    case TimelineEventKind.RoomThreadingModeChanged:
     case TimelineEventKind.CallStarted:
     case TimelineEventKind.CallEnded:
       return true;

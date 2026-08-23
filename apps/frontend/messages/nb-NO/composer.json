@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Sakte modus: {interval} (du er unntatt).",
     "slow_mode_rejected": "Sakte modus er aktiv. Vent før du sender en ny melding.",
     "threads_encouraged": "Tråder anbefales i dette rommet.",
+    "recent_thread_confirm_title": "Fortsette i den forrige tråden?",
+    "recent_thread_confirm_body": "Den forrige meldingen din har allerede en tråd. Hvor skal denne meldingen publiseres?",
+    "post_as_new_message": "Publiser som ny melding",
+    "continue_in_thread": "Fortsett i tråden",
     "edit_failed": "Kunne ikke redigere meldingen",
     "upload": {
       "preparing": "Klargjør…",

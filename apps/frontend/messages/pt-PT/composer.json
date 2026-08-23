@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Modo lento: {interval} (está isento).",
     "slow_mode_rejected": "O modo lento está ativo. Aguarde antes de enviar outra mensagem.",
     "threads_encouraged": "A utilização de tópicos é recomendada nesta sala.",
+    "recent_thread_confirm_title": "Continuar no tópico anterior?",
+    "recent_thread_confirm_body": "A sua mensagem anterior já tem um tópico. Onde pretende publicar esta mensagem?",
+    "post_as_new_message": "Publicar como nova mensagem",
+    "continue_in_thread": "Continuar no tópico",
     "edit_failed": "Falha ao editar mensagem",
     "upload": {
       "preparing": "A preparar…",

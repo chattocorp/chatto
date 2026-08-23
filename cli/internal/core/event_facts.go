@@ -155,8 +155,8 @@ func isAssetLifecycleEvent(event *corev1.Event) bool {
 //     live, but not displayed as chat timeline items.
 //
 // Visible: root messages, room lifecycle (created/updated/archived/
-// unarchived/deleted), memberships (user_joined / user_left), and voice call
-// lifecycle (started / ended).
+// unarchived/deleted), Threading Mode changes, memberships (user_joined /
+// user_left), and voice call lifecycle (started / ended).
 func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 	if event == nil {
 		return false
@@ -169,6 +169,7 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_RoomDeleted,
 		*corev1.Event_RoomArchived,
 		*corev1.Event_RoomUnarchived,
+		*corev1.Event_RoomThreadingModeChanged,
 		*corev1.Event_UserJoinedRoom,
 		*corev1.Event_UserLeftRoom,
 		*corev1.Event_VoiceCallStarted,
@@ -179,7 +180,6 @@ func isVisibleRoomTimelineEntry(event *corev1.Event) bool {
 		*corev1.Event_ThreadCreated,
 		*corev1.Event_RoomUniversalChanged,
 		*corev1.Event_RoomSlowModeChanged,
-		*corev1.Event_RoomThreadingModeChanged,
 		*corev1.Event_RoomMemberBanned, *corev1.Event_RoomMemberUnbanned,
 		*corev1.Event_RoomMemberAdded, *corev1.Event_RoomMemberRemoved,
 		*corev1.Event_AssetCreated, *corev1.Event_AssetDeleted, *corev1.Event_AssetAttached,

@@ -337,6 +337,12 @@ function timelinePayload(
         kind: TimelineEventKind.RoomUnarchived,
         roomId: event.event.value.roomId
       };
+    case 'roomThreadingModeChanged':
+      return {
+        kind: TimelineEventKind.RoomThreadingModeChanged,
+        roomId: event.event.value.roomId,
+        threadingMode: event.event.value.threadingMode
+      };
     case 'userJoinedRoom':
       return {
         kind: TimelineEventKind.UserJoinedRoom,

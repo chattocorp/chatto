@@ -131,6 +131,7 @@
       "unarchived": "desarquivou a sala",
       "call_started": "iniciou uma chamada nesta sala",
       "call_ended": "A chamada ativa terminou",
+      "threading_mode_changed": "alterou o modo de tópicos para {mode}",
       "and": "e",
       "other_people_count": {
         "one": "outro",

@@ -131,6 +131,7 @@
       "unarchived": "ルームのアーカイブを解除しました",
       "call_started": "がこのルームで通話を開始しました",
       "call_ended": "通話が終了しました",
+      "threading_mode_changed": "スレッドモードを「{mode}」に変更しました",
       "and": "と",
       "other_people_count": {
         "one": "その他",

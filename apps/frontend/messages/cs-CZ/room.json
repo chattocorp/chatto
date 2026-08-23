@@ -131,6 +131,7 @@
       "unarchived": "zrušil archivaci místnosti",
       "call_started": "zahájil hovor v této místnosti",
       "call_ended": "Aktivní hovor skončil",
+      "threading_mode_changed": "změnil(a) režim vláken na {mode}",
       "and": "a",
       "other_people_count": {
         "one": "jiné",

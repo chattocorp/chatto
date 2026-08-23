@@ -1,4 +1,5 @@
-import { RoomKind, RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
+import { RoomThreadingMode } from '@chatto/api-types/api/v1/common_pb';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
 
 export { RoomThreadingMode };
 

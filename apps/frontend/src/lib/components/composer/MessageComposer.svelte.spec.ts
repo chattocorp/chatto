@@ -3045,6 +3045,95 @@ describe('MessageComposer', () => {
       await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
     });
 
+    it('defaults Thread on for Encouraged drafts while preserving an explicit opt-out', async () => {
+      const rendered = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        threadsEncouraged: true
+      });
+      const threadToggle = q(
+        rendered.container,
+        'button[aria-label="Post as thread"]'
+      ) as HTMLButtonElement;
+
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+      await userEvent.click(threadToggle);
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+
+      await rendered.rerender({ threadsEncouraged: true });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'false');
+
+      const editor = await findEditor(rendered.container);
+      await typeInEditor(editor, 'flat by choice');
+      await userEvent.click(
+        q(rendered.container, 'button[aria-label="Send message"]') as HTMLButtonElement
+      );
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({ createThread: false });
+      await expect.element(threadToggle).toHaveAttribute('aria-pressed', 'true');
+    });
+
+    it('offers a recent thread before upload and routes the draft into it', async () => {
+      const onMessageSent = vi.fn();
+      const onThreadMessageSent = vi.fn();
+      const getRecentThreadRootCandidate = vi.fn(() => ({
+        threadRootEventId: 'previous-root'
+      }));
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        getRecentThreadRootCandidate,
+        onMessageSent,
+        onThreadMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'continue this thought');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+
+      await expect
+        .element(getByRole('dialog', { name: 'Continue your previous thread?' }))
+        .toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+      await userEvent.click(getByRole('button', { name: 'Continue in thread' }));
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'continue this thought',
+        threadRootEventId: 'previous-root',
+        createThread: false
+      });
+      expect(onMessageSent).not.toHaveBeenCalled();
+      expect(onThreadMessageSent).toHaveBeenCalledWith(
+        'previous-root',
+        expect.objectContaining({ id: 'msg_123' })
+      );
+    });
+
+    it('keeps the prepared root unchanged when the user confirms a new message', async () => {
+      const onMessageSent = vi.fn();
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        showCreateThread: true,
+        createThreadDefault: true,
+        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' }),
+        onMessageSent
+      });
+      const editor = await findEditor(container);
+      await typeInEditor(editor, 'a distinct topic');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+      await userEvent.click(getByRole('button', { name: 'Post as new message' }));
+
+      await vi.waitFor(() => expect(mutationMock).toHaveBeenCalledOnce());
+      expect(mutationMock.mock.calls[0][1].input).toMatchObject({
+        body: 'a distinct topic',
+        threadRootEventId: null,
+        createThread: true
+      });
+      expect(onMessageSent).toHaveBeenCalledOnce();
+    });
+
     it('keeps Required thread creation visible, locked on, and reactive to policy changes', async () => {
       const rendered = renderMessageComposer({
         roomId: 'room_456',

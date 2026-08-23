@@ -9,6 +9,7 @@
   import { getLiveDisplayName } from '$lib/state/userProfiles.svelte';
   import DeletedUserLabel from '$lib/components/DeletedUserLabel.svelte';
   import { m } from '$lib/i18n/messages';
+  import { RoomThreadingMode } from '$lib/roomThreading';
 
   let {
     event,
@@ -41,6 +42,21 @@
 
   const eventKind = $derived(timelineEventKind(event.event));
 
+  function threadingModeLabel(mode: RoomThreadingMode): string {
+    switch (mode) {
+      case RoomThreadingMode.REQUIRED:
+        return m('admin.rooms_admin.threading_mode_required');
+      case RoomThreadingMode.ENCOURAGED:
+        return m('admin.rooms_admin.threading_mode_encouraged');
+      case RoomThreadingMode.ENABLED:
+        return m('admin.rooms_admin.threading_mode_enabled');
+      case RoomThreadingMode.DISABLED:
+        return m('admin.rooms_admin.threading_mode_disabled');
+      default:
+        return m('admin.rooms_admin.threading_mode_enabled');
+    }
+  }
+
   const action = $derived.by(() => {
     switch (eventKind) {
       case TimelineEventKind.UserJoinedRoom:
@@ -53,6 +69,12 @@
         return m('room.system_events.unarchived');
       case TimelineEventKind.CallStarted:
         return m('room.system_events.call_started');
+      case TimelineEventKind.RoomThreadingModeChanged:
+        return event.event.kind === TimelineEventKind.RoomThreadingModeChanged
+          ? m('room.system_events.threading_mode_changed', {
+              mode: threadingModeLabel(event.event.threadingMode)
+            })
+          : null;
       default:
         return null;
     }

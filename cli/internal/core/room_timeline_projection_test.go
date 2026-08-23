@@ -262,18 +262,27 @@ func TestRoomTimeline_AppendsVisibleEventKinds(t *testing.T) {
 		leftEvent("ENV-LEFT-U2", "R1", "U2", 8),
 		callStartedTimelineEvent("ENV-CALL-STARTED", "R1", "U1", "CALL1", 9),
 		callEndedTimelineEvent("ENV-CALL-ENDED", "R1", "U1", "CALL1", 10),
+		{
+			Id:      "ENV-THREADING-MODE",
+			ActorId: "U1",
+			Event: &corev1.Event_RoomThreadingModeChanged{
+				RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+					RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+				},
+			},
+		},
 	})
 
-	if got := p.RoomEventCount("R1"); got != 8 {
-		t.Errorf("RoomEventCount = %d, want 8 visible room entries", got)
+	if got := p.RoomEventCount("R1"); got != 9 {
+		t.Errorf("RoomEventCount = %d, want 9 visible room entries", got)
 	}
 
 	// Newest-first ordering.
 	got := p.RoomEvents("R1", 50, 0)
-	if len(got) != 8 {
-		t.Fatalf("RoomEvents len = %d, want 8", len(got))
+	if len(got) != 9 {
+		t.Fatalf("RoomEvents len = %d, want 9", len(got))
 	}
-	wantOrder := []string{"ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-LEFT-U2", "ENV-M2", "ENV-JOIN-U2", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
+	wantOrder := []string{"ENV-THREADING-MODE", "ENV-CALL-ENDED", "ENV-CALL-STARTED", "ENV-LEFT-U2", "ENV-M2", "ENV-JOIN-U2", "ENV-M1", "ENV-JOIN-U1", "ENV-CREATE"}
 	for i, e := range got {
 		if e.Event.GetId() != wantOrder[i] {
 			t.Errorf("entry[%d] envelope id = %q, want %q", i, e.Event.GetId(), wantOrder[i])
@@ -600,6 +609,34 @@ func TestRoomTimeline_SnapshotPreservesBodyLifecycle(t *testing.T) {
 	}
 	if got := restored.CurrentRoomAttachmentMessages("R1"); len(got) != 0 {
 		t.Fatalf("CurrentRoomAttachmentMessages after restore = %v, want empty", got)
+	}
+}
+
+func TestRoomTimeline_SnapshotPreservesVisibleThreadingModeChanges(t *testing.T) {
+	p := NewRoomTimelineProjection()
+	event := &corev1.Event{
+		Id:      "THREADING-MODE-CHANGED",
+		ActorId: "U1",
+		Event: &corev1.Event_RoomThreadingModeChanged{
+			RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+				RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED,
+			},
+		},
+	}
+	if err := p.Apply(event, 41); err != nil {
+		t.Fatalf("Apply: %v", err)
+	}
+	payload, err := p.Snapshot()
+	if err != nil {
+		t.Fatalf("Snapshot: %v", err)
+	}
+	restored := NewRoomTimelineProjection()
+	if err := restored.Restore(payload); err != nil {
+		t.Fatalf("Restore: %v", err)
+	}
+	events := restored.RoomEvents("R1", 10, 0)
+	if len(events) != 1 || events[0].Event.GetId() != event.GetId() {
+		t.Fatalf("restored room events = %+v, want threading mode change", events)
 	}
 }
 

@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Modalità lenta: {interval} (sei esente).",
     "slow_mode_rejected": "La modalità lenta è attiva. Attendi prima di inviare un altro messaggio.",
     "threads_encouraged": "In questa stanza è consigliato usare i thread.",
+    "recent_thread_confirm_title": "Continuare nel thread precedente?",
+    "recent_thread_confirm_body": "Il tuo messaggio precedente ha già un thread. Dove vuoi pubblicare questo messaggio?",
+    "post_as_new_message": "Pubblica come nuovo messaggio",
+    "continue_in_thread": "Continua nel thread",
     "edit_failed": "Impossibile modificare il messaggio",
     "upload": {
       "preparing": "Preparazione…",

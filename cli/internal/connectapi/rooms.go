@@ -393,7 +393,11 @@ func coreRoomThreadingMode(mode apiv1.RoomThreadingMode, allowUnspecified bool) 
 }
 
 func apiRoomThreadingMode(room *corev1.Room) apiv1.RoomThreadingMode {
-	switch core.EffectiveRoomThreadingMode(room) {
+	return apiRoomThreadingModeValue(core.EffectiveRoomThreadingMode(room))
+}
+
+func apiRoomThreadingModeValue(mode corev1.RoomThreadingMode) apiv1.RoomThreadingMode {
+	switch mode {
 	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED:
 		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_REQUIRED
 	case corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED:

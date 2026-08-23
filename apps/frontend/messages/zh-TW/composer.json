@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "慢速模式：{interval}（你不受限制）。",
     "slow_mode_rejected": "慢速模式已啟用。請稍候再傳送下一則訊息。",
     "threads_encouraged": "建議在此聊天室使用討論串。",
+    "recent_thread_confirm_title": "要繼續上一個討論串嗎？",
+    "recent_thread_confirm_body": "你的上一則訊息已有討論串。要將這則訊息發佈到哪裡？",
+    "post_as_new_message": "發佈為新訊息",
+    "continue_in_thread": "在討論串中繼續",
     "edit_failed": "訊息編輯失敗",
     "upload": {
       "preparing": "準備中…",

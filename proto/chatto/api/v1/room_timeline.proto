@@ -3,6 +3,7 @@ syntax = "proto3";
 package chatto.api.v1;
 
 import "buf/validate/validate.proto";
+import "chatto/api/v1/common.proto";
 import "chatto/api/v1/message_types.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
@@ -30,6 +31,14 @@ message RoomTimelineCallEvent {
   string room_id = 1;
   // Stable identifier for this call session.
   string call_id = 2;
+}
+
+// Payload for a room Threading Mode change shown in the room timeline.
+message RoomTimelineThreadingModeChangedEvent {
+  // Room whose Threading Mode changed.
+  string room_id = 1;
+  // Newly configured Threading Mode.
+  RoomThreadingMode threading_mode = 2;
 }
 
 // Payload for a message-posted timeline event.
@@ -63,6 +72,8 @@ message RoomTimelineEvent {
     RoomTimelineRoomEvent room_archived = 23;
     // The room was unarchived.
     RoomTimelineRoomEvent room_unarchived = 24;
+    // The room's Threading Mode changed.
+    RoomTimelineThreadingModeChangedEvent room_threading_mode_changed = 25;
     // A user joined the room.
     RoomTimelineRoomEvent user_joined_room = 30;
     // A user left the room.

@@ -131,6 +131,7 @@
       "unarchived": "разархивировал комнату",
       "call_started": "начал звонок в этой комнате",
       "call_ended": "Активный звонок завершён",
+      "threading_mode_changed": "изменил(а) режим веток на {mode}",
       "and": "и",
       "other_people_count": {
         "one": "другой",

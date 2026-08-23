@@ -2,6 +2,7 @@ import type { LinkPreviewView } from './linkPreviews';
 import type { MessageAttachmentView } from './messageAttachments';
 import type { ReactionSummaryView } from './reactions';
 import type { UserAvatarUserView } from './users';
+import type { RoomThreadingMode } from '$lib/roomThreading';
 
 /**
  * Renderable durable events returned by the room and thread timeline APIs.
@@ -14,6 +15,7 @@ export const TimelineEventKind = {
   RoomArchived: 'roomArchived',
   RoomCreated: 'roomCreated',
   RoomDeleted: 'roomDeleted',
+  RoomThreadingModeChanged: 'roomThreadingModeChanged',
   RoomUnarchived: 'roomUnarchived',
   RoomUpdated: 'roomUpdated',
   UserJoinedRoom: 'userJoinedRoom',
@@ -52,6 +54,11 @@ export type TimelineEventPayload =
   | { kind: typeof TimelineEventKind.RoomArchived; roomId: string }
   | { kind: typeof TimelineEventKind.RoomCreated; roomId: string }
   | { kind: typeof TimelineEventKind.RoomDeleted; roomId: string }
+  | {
+      kind: typeof TimelineEventKind.RoomThreadingModeChanged;
+      roomId: string;
+      threadingMode: RoomThreadingMode;
+    }
   | { kind: typeof TimelineEventKind.RoomUnarchived; roomId: string }
   | { kind: typeof TimelineEventKind.RoomUpdated; roomId: string }
   | { kind: typeof TimelineEventKind.UserJoinedRoom; roomId: string }

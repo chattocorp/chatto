@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "低速モード：{interval}（あなたは対象外です）。",
     "slow_mode_rejected": "低速モードが有効です。次のメッセージを送信するまでお待ちください。",
     "threads_encouraged": "このルームではスレッドの使用が推奨されています。",
+    "recent_thread_confirm_title": "前のスレッドを続けますか？",
+    "recent_thread_confirm_body": "前のメッセージにはすでにスレッドがあります。このメッセージをどこに投稿しますか？",
+    "post_as_new_message": "新しいメッセージとして投稿",
+    "continue_in_thread": "スレッドで続ける",
     "edit_failed": "メッセージの編集に失敗しました",
     "upload": {
       "preparing": "準備中…",

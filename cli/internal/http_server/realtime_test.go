@@ -419,6 +419,59 @@ func TestRealtimeProjectionMapsDurableCallTransition(t *testing.T) {
 	}
 }
 
+func TestRealtimeProjectionMapsThreadingModeChangeToRoomAndTimeline(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-threading-mode", "RT Threading Mode", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-threading-mode-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if _, err := env.core.SetRoomThreadingMode(env.ctx, viewer.Id, core.KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED); err != nil {
+		t.Fatalf("SetRoomThreadingMode: %v", err)
+	}
+	events, _, err := env.core.EventPublisher.SubjectEvents(
+		env.ctx,
+		evtstream.RoomAggregate(room.Id).Subject(evtstream.EventRoomThreadingModeChanged),
+	)
+	if err != nil {
+		t.Fatalf("SubjectEvents: %v", err)
+	}
+	if len(events) != 1 {
+		t.Fatalf("threading mode events = %d, want 1", len(events))
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(events[0]))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled || frame.GetProjectionEvent() == nil {
+		t.Fatalf("threading mode projection frame = %+v, handled=%v", frame, handled)
+	}
+	var roomUpsert *realtimev1.RealtimeProjectionRoom
+	var timelineUpsert *realtimev1.RealtimeProjectionRoomTimelineEventUpsert
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if upsert := operation.GetRoomUpsert(); upsert != nil {
+			roomUpsert = upsert
+		}
+		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil {
+			timelineUpsert = upsert
+		}
+	}
+	if roomUpsert == nil || roomUpsert.GetRoom().GetRoom().GetThreadingMode() != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED {
+		t.Fatalf("room upsert = %+v, want encouraged threading mode", roomUpsert)
+	}
+	change := timelineUpsert.GetEvent().GetRoomThreadingModeChanged()
+	if timelineUpsert == nil || timelineUpsert.GetRoomId() != room.Id || change == nil || change.GetThreadingMode() != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED {
+		t.Fatalf("timeline upsert = %+v, want visible encouraged threading mode change", timelineUpsert)
+	}
+}
+
 func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.config.LiveKit = config.LiveKitConfig{

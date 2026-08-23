@@ -10,8 +10,7 @@ import { Timestamp } from '@bufbuild/protobuf';
 import { RoomService } from '@chatto/api-types/api/v1/rooms_connect';
 import type {
   Room,
-  RoomBan as APIRoomBan,
-  RoomThreadingMode
+  RoomBan as APIRoomBan
 } from '@chatto/api-types/api/v1/rooms_pb';
 import { mapDirectoryMember, type DirectoryMember } from './memberDirectory.js';
 import {
@@ -19,7 +18,7 @@ import {
   ROOM_NAME_MAX_LENGTH,
   roomNameCharacterCount
 } from '$lib/utils/roomName';
-import { normalizeRoomThreadingMode } from '$lib/roomThreading';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type { ConnectAPIConfig } from './connect.js';
 

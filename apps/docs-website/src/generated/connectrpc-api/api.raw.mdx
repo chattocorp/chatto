@@ -4413,6 +4413,7 @@ Clients should inspect the event oneof to choose the renderer for the event.
 | `event.room_deleted` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was deleted. |
 | `event.room_archived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was archived. |
 | `event.room_unarchived` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | The room was unarchived. |
+| `event.room_threading_mode_changed` | [`RoomTimelineThreadingModeChangedEvent`](#chatto-api-v1-RoomTimelineThreadingModeChangedEvent) | The room's Threading Mode changed. |
 | `event.user_joined_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user joined the room. |
 | `event.user_left_room` | [`RoomTimelineRoomEvent`](#chatto-api-v1-RoomTimelineRoomEvent) | A user left the room. |
 | `event.call_started` | [`RoomTimelineCallEvent`](#chatto-api-v1-RoomTimelineCallEvent) | A voice call started in the room. |
@@ -4471,6 +4472,19 @@ Payload for room lifecycle and membership timeline events.
 | Field | Type | Description |
 | --- | --- | --- |
 | `room_id` | `string` | Room affected by the event. |
+
+
+
+<a id="chatto-api-v1-RoomTimelineThreadingModeChangedEvent"></a>
+
+### RoomTimelineThreadingModeChangedEvent
+
+Payload for a room Threading Mode change shown in the room timeline.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Room whose Threading Mode changed. |
+| `threading_mode` | [`RoomThreadingMode`](#chatto-api-v1-RoomThreadingMode) | Newly configured Threading Mode. |
 
 
 
@@ -4977,6 +4991,22 @@ Fit mode used when generating transformed image URLs.
 | `IMAGE_FIT_MODE_COVER` | `2` | Fill the requested bounds, cropping when needed. |
 
 
+<a id="chatto-api-v1-RoomThreadingMode"></a>
+
+### RoomThreadingMode
+
+Policy governing thread creation and reply placement in a channel room.
+Direct-message rooms do not support threads and use UNSPECIFIED.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `ROOM_THREADING_MODE_UNSPECIFIED` | `0` | No mode was supplied. CreateRoom treats this as ENABLED so older stored rooms and omitted request fields preserve Chatto's default behavior. |
+| `ROOM_THREADING_MODE_REQUIRED` | `1` | Every new root message establishes a thread, and replies to root messages must be posted in that root's thread. |
+| `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
+| `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
+| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
+
+
 <a id="chatto-api-v1-PresenceStatus"></a>
 
 ### PresenceStatus
@@ -5079,22 +5109,6 @@ Kind of room represented by the public API.
 | `ROOM_KIND_UNSPECIFIED` | `0` | The room kind was not specified. |
 | `ROOM_KIND_CHANNEL` | `1` | A regular channel governed by server and room permissions. |
 | `ROOM_KIND_DM` | `2` | A direct-message conversation between members. |
-
-
-<a id="chatto-api-v1-RoomThreadingMode"></a>
-
-### RoomThreadingMode
-
-Policy governing thread creation and reply placement in a channel room.
-Direct-message rooms do not support threads and use UNSPECIFIED.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `ROOM_THREADING_MODE_UNSPECIFIED` | `0` | No mode was supplied. CreateRoom treats this as ENABLED so older stored rooms and omitted request fields preserve Chatto's default behavior. |
-| `ROOM_THREADING_MODE_REQUIRED` | `1` | Every new root message establishes a thread, and replies to root messages must be posted in that root's thread. |
-| `ROOM_THREADING_MODE_ENCOURAGED` | `2` | Clients should steer replies into threads, but the server accepts both threaded and ordinary in-room replies. |
-| `ROOM_THREADING_MODE_ENABLED` | `3` | Threads are available and clients may freely choose whether to use them. |
-| `ROOM_THREADING_MODE_DISABLED` | `4` | New threads, thread replies, and channel echoes are rejected. Existing threads and echoes remain readable and ordinary in-room reply attribution remains available. |
 
 
 <a id="chatto-api-v1-NotificationAttentionLevel"></a>

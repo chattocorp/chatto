@@ -135,6 +135,7 @@
       "unarchived": "cofnął archiwizację pokoju",
       "call_started": "rozpoczął rozmowę w tym pokoju",
       "call_ended": "Aktywna rozmowa zakończyła się",
+      "threading_mode_changed": "zmienił(a) tryb wątków na {mode}",
       "and": "i",
       "other_people_count": {
         "one": "inna osoba",

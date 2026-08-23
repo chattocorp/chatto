@@ -131,6 +131,7 @@
       "unarchived": "odayı arşivden çıkardım",
       "call_started": "bu odada bir arama başlattı",
       "call_ended": "Etkin arama sona erdi",
+      "threading_mode_changed": "ileti dizisi modunu {mode} olarak değiştirdi",
       "and": "ve",
       "other_people_count": {
         "one": "diğer",

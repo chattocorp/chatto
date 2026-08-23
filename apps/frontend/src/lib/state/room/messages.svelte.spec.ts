@@ -10,6 +10,7 @@ import {
 } from '@chatto/api-types/api/v1/room_timeline_pb';
 import { Message } from '@chatto/api-types/api/v1/message_types_pb';
 import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import { MessagesStore } from './messages.svelte';
 import { JumpToMessageState } from './composerContext.svelte';
 
@@ -176,6 +177,7 @@ function roomSystemEvent(
     | typeof TimelineEventKind.RoomUpdated
     | typeof TimelineEventKind.RoomArchived
     | typeof TimelineEventKind.RoomUnarchived
+    | typeof TimelineEventKind.RoomThreadingModeChanged
     | typeof TimelineEventKind.CallStarted
     | typeof TimelineEventKind.CallEnded,
   actor: unknown = null
@@ -191,6 +193,10 @@ function roomSystemEvent(
       callId:
         kind === TimelineEventKind.CallStarted || kind === TimelineEventKind.CallEnded
           ? 'call-1'
+          : undefined,
+      threadingMode:
+        kind === TimelineEventKind.RoomThreadingModeChanged
+          ? RoomThreadingMode.ENCOURAGED
           : undefined
     }
   };
@@ -1886,6 +1892,44 @@ describe('MessagesStore — room lifecycle ownership', () => {
     expect(store.rootEvents.map((event) => event.event.kind)).toEqual([
       TimelineEventKind.CallStarted,
       TimelineEventKind.CallEnded
+    ]);
+    store.dispose();
+  });
+
+  it('inserts already-renderable Threading Mode changes without refetching', async () => {
+    const fake = new FakeQueryClient(
+      roomEventsResult({
+        events: [],
+        startCursor: null,
+        endCursor: null,
+        hasOlder: false,
+        hasNewer: false
+      })
+    );
+    const store = new MessagesStore(
+      fake as unknown as ServerConnection,
+      () => null,
+      timelineFromFixtures(fake)
+    );
+
+    store.setRoom('room-1');
+    await settle();
+    fake.queryMock.mockClear();
+
+    store.ingestEvent(
+      roomSystemEvent('threading-mode-1', TimelineEventKind.RoomThreadingModeChanged) as never
+    );
+
+    expect(fake.queryMock).not.toHaveBeenCalled();
+    expect(store.rootEvents).toMatchObject([
+      {
+        id: 'threading-mode-1',
+        event: {
+          kind: TimelineEventKind.RoomThreadingModeChanged,
+          roomId: 'room-1',
+          threadingMode: RoomThreadingMode.ENCOURAGED
+        }
+      }
     ]);
     store.dispose();
   });

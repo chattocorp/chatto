@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Yavaş mod: {interval} (muafsınız).",
     "slow_mode_rejected": "Yavaş mod etkin. Başka bir mesaj göndermeden önce bekleyin.",
     "threads_encouraged": "Bu odada konuların kullanılması teşvik edilir.",
+    "recent_thread_confirm_title": "Önceki ileti dizinize devam edilsin mi?",
+    "recent_thread_confirm_body": "Önceki mesajınızın zaten bir ileti dizisi var. Bu mesaj nereye gönderilsin?",
+    "post_as_new_message": "Yeni mesaj olarak gönder",
+    "continue_in_thread": "İleti dizisinde devam et",
     "edit_failed": "Mesaj düzenlenemedi",
     "upload": {
       "preparing": "Hazırlanıyor…",

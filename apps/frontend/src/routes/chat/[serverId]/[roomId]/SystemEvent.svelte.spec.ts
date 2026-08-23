@@ -5,6 +5,7 @@ import { TimelineEventKind, type TimelineEventView } from '$lib/render/timelineE
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import SystemEvent from './SystemEvent.svelte';
+import { RoomThreadingMode } from '$lib/roomThreading';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
   getLiveDisplayName: (_userId: string, fallback: string) => fallback,
@@ -69,6 +70,19 @@ describe('SystemEvent', () => {
     });
 
     expect(container.textContent).toContain('Alice left the room');
+  });
+
+  it('renders an actor-attributed Threading Mode change', () => {
+    const event = systemEvent(TimelineEventKind.RoomArchived, 'Alice');
+    event.event = {
+      kind: TimelineEventKind.RoomThreadingModeChanged,
+      roomId: 'room-1',
+      threadingMode: RoomThreadingMode.ENCOURAGED
+    };
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('Alice changed Threading Mode to Encouraged');
   });
 
   it('renders an actionable call-start event while its call is active', async () => {

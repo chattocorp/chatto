@@ -611,6 +611,7 @@ export class MessagesStore {
       kind === TimelineEventKind.RoomArchived ||
       kind === TimelineEventKind.RoomUnarchived ||
       kind === TimelineEventKind.RoomCreated ||
+      kind === TimelineEventKind.RoomThreadingModeChanged ||
       kind === TimelineEventKind.CallStarted ||
       kind === TimelineEventKind.CallEnded
     ) {

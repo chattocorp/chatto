@@ -67,6 +67,18 @@ describe('room message event filters', () => {
     ).toBe(true);
   });
 
+  it('keeps Threading Mode changes in the room timeline', () => {
+    expect(
+      isRootRoomEvent(
+        event({
+          kind: TimelineEventKind.RoomThreadingModeChanged,
+          roomId: 'room-1',
+          threadingMode: 2
+        } as never)
+      )
+    ).toBe(true);
+  });
+
   it('ignores payloads without a local event kind', () => {
     expect(isRootRoomEvent(event({ roomId: 'room-1' } as never))).toBe(false);
   });

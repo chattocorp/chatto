@@ -135,6 +135,7 @@
       "unarchived": "розархівував кімнату",
       "call_started": "розпочав дзвінок у цій кімнаті",
       "call_ended": "Активний дзвінок завершився",
+      "threading_mode_changed": "змінив(-ла) режим гілок на {mode}",
       "and": "і",
       "other_people_count": {
         "one": "інша людина",

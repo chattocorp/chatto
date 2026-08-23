@@ -131,6 +131,7 @@
       "unarchived": "hat die Archivierung des Raums aufgehoben",
       "call_started": "hat einen Anruf in diesem Raum gestartet",
       "call_ended": "Der aktive Anruf wurde beendet",
+      "threading_mode_changed": "hat den Thread-Modus zu {mode} geändert",
       "and": "und",
       "other_people_count": {
         "one": "weitere Person",

@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Mode lent : {interval} (vous êtes exempté).",
     "slow_mode_rejected": "Le mode lent est activé. Attendez avant d’envoyer un autre message.",
     "threads_encouraged": "L’utilisation des fils de discussion est encouragée dans ce salon.",
+    "recent_thread_confirm_title": "Continuer dans votre fil précédent ?",
+    "recent_thread_confirm_body": "Votre message précédent possède déjà un fil. Où souhaitez-vous publier ce message ?",
+    "post_as_new_message": "Publier comme nouveau message",
+    "continue_in_thread": "Continuer dans le fil",
     "edit_failed": "Échec de la modification du message",
     "upload": {
       "preparing": "Préparation…",

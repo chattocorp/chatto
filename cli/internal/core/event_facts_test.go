@@ -46,6 +46,16 @@ func TestEventFactsRoomIDAndVisibility(t *testing.T) {
 			visible: false,
 		},
 		{
+			name: "threading mode changed",
+			event: &corev1.Event{Event: &corev1.Event_RoomThreadingModeChanged{
+				RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+					RoomId: "R1", ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+				},
+			}},
+			roomID:  "R1",
+			visible: true,
+		},
+		{
 			name: "room member joined",
 			event: &corev1.Event{Event: &corev1.Event_UserJoinedRoom{
 				UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"},

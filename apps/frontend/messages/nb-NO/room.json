@@ -131,6 +131,7 @@
       "unarchived": "fjernet arkivet fra rommet",
       "call_started": "startet en samtale i dette rommet",
       "call_ended": "Den aktive samtalen er avsluttet",
+      "threading_mode_changed": "endret trådmodus til {mode}",
       "and": "og",
       "other_people_count": {
         "one": "annet",

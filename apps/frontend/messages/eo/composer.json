@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Malrapida reĝimo: {interval} (vi estas esceptita).",
     "slow_mode_rejected": "Malrapida reĝimo estas aktiva. Atendu antaŭ ol sendi alian mesaĝon.",
     "threads_encouraged": "Fadenoj estas instigitaj en ĉi tiu ĉambro.",
+    "recent_thread_confirm_title": "Ĉu daŭrigi vian antaŭan fadenon?",
+    "recent_thread_confirm_body": "Via antaŭa mesaĝo jam havas fadenon. Kien ĉi tiu mesaĝo estu afiŝita?",
+    "post_as_new_message": "Afiŝi kiel novan mesaĝon",
+    "continue_in_thread": "Daŭrigi en la fadeno",
     "edit_failed": "Malsukcesis redakti mesaĝon",
     "upload": {
       "preparing": "Preparante…",

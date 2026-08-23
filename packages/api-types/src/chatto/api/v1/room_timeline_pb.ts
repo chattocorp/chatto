@@ -6,6 +6,7 @@
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { User } from "./users_pb.js";
+import { RoomThreadingMode } from "./common_pb.js";
 import { Message as Message$1 } from "./message_types_pb.js";
 
 /**
@@ -145,6 +146,55 @@ export class RoomTimelineCallEvent extends Message<RoomTimelineCallEvent> {
 }
 
 /**
+ * Payload for a room Threading Mode change shown in the room timeline.
+ *
+ * @generated from message chatto.api.v1.RoomTimelineThreadingModeChangedEvent
+ */
+export class RoomTimelineThreadingModeChangedEvent extends Message<RoomTimelineThreadingModeChangedEvent> {
+  /**
+   * Room whose Threading Mode changed.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Newly configured Threading Mode.
+   *
+   * @generated from field: chatto.api.v1.RoomThreadingMode threading_mode = 2;
+   */
+  threadingMode = RoomThreadingMode.UNSPECIFIED;
+
+  constructor(data?: PartialMessage<RoomTimelineThreadingModeChangedEvent>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomTimelineThreadingModeChangedEvent";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "threading_mode", kind: "enum", T: proto3.getEnumType(RoomThreadingMode) },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomTimelineThreadingModeChangedEvent {
+    return new RoomTimelineThreadingModeChangedEvent().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomTimelineThreadingModeChangedEvent {
+    return new RoomTimelineThreadingModeChangedEvent().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomTimelineThreadingModeChangedEvent {
+    return new RoomTimelineThreadingModeChangedEvent().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomTimelineThreadingModeChangedEvent | PlainMessage<RoomTimelineThreadingModeChangedEvent> | undefined, b: RoomTimelineThreadingModeChangedEvent | PlainMessage<RoomTimelineThreadingModeChangedEvent> | undefined): boolean {
+    return proto3.util.equals(RoomTimelineThreadingModeChangedEvent, a, b);
+  }
+}
+
+/**
  * Payload for a message-posted timeline event.
  *
  * @generated from message chatto.api.v1.RoomMessagePosted
@@ -269,6 +319,14 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     case: "roomUnarchived";
   } | {
     /**
+     * The room's Threading Mode changed.
+     *
+     * @generated from field: chatto.api.v1.RoomTimelineThreadingModeChangedEvent room_threading_mode_changed = 25;
+     */
+    value: RoomTimelineThreadingModeChangedEvent;
+    case: "roomThreadingModeChanged";
+  } | {
+    /**
      * A user joined the room.
      *
      * @generated from field: chatto.api.v1.RoomTimelineRoomEvent user_joined_room = 30;
@@ -318,6 +376,7 @@ export class RoomTimelineEvent extends Message<RoomTimelineEvent> {
     { no: 22, name: "room_deleted", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 23, name: "room_archived", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 24, name: "room_unarchived", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
+    { no: 25, name: "room_threading_mode_changed", kind: "message", T: RoomTimelineThreadingModeChangedEvent, oneof: "event" },
     { no: 30, name: "user_joined_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 31, name: "user_left_room", kind: "message", T: RoomTimelineRoomEvent, oneof: "event" },
     { no: 40, name: "call_started", kind: "message", T: RoomTimelineCallEvent, oneof: "event" },

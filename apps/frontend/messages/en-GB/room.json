@@ -131,6 +131,7 @@
       "unarchived": "unarchived the room",
       "call_started": "started a call in this room",
       "call_ended": "The active call has ended",
+      "threading_mode_changed": "changed Threading Mode to {mode}",
       "and": "and",
       "other_people_count": {
         "one": "other",

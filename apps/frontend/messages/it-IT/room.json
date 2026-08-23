@@ -131,6 +131,7 @@
       "unarchived": "ha annullato l'archiviazione della stanza",
       "call_started": "ha avviato una chiamata in questa stanza",
       "call_ended": "La chiamata attiva è terminata",
+      "threading_mode_changed": "ha impostato la modalità thread su {mode}",
       "and": "e",
       "other_people_count": {
         "one": "altro",

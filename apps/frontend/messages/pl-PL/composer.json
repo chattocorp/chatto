@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Tryb powolny: {interval} (ograniczenie Cię nie dotyczy).",
     "slow_mode_rejected": "Tryb powolny jest aktywny. Zaczekaj przed wysłaniem kolejnej wiadomości.",
     "threads_encouraged": "W tym pokoju zalecane jest używanie wątków.",
+    "recent_thread_confirm_title": "Kontynuować w poprzednim wątku?",
+    "recent_thread_confirm_body": "Twoja poprzednia wiadomość ma już wątek. Gdzie opublikować tę wiadomość?",
+    "post_as_new_message": "Opublikuj jako nową wiadomość",
+    "continue_in_thread": "Kontynuuj w wątku",
     "edit_failed": "Nie udało się edytować wiadomości",
     "upload": {
       "preparing": "Przygotowywanie…",

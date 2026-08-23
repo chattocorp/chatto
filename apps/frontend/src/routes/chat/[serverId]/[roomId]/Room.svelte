@@ -54,6 +54,7 @@
   import { buildRoomPresentation } from './roomPresentation';
   import type { ThreadOpenOptions } from './threadOpenOptions';
   import { RoomThreadingMode } from '$lib/roomThreading';
+  import { recentThreadRootCandidate } from './recentThreadRoot';
 
   let threadPaneModule: Promise<typeof import('./ThreadPane.svelte')> | null = null;
   let threadPaneLoadAttempt = $state(0);
@@ -204,6 +205,19 @@
   let composerRequiresThread = $derived(
     !room.isDM && permissions.canPostMessage && threadingMode === RoomThreadingMode.REQUIRED
   );
+
+  function getRecentThreadRootCandidate() {
+    const currentUserId = currentUser.user?.id;
+    if (
+      !currentUserId ||
+      room.isDM ||
+      !permissions.canPostInThread ||
+      threadingMode === RoomThreadingMode.DISABLED
+    ) {
+      return null;
+    }
+    return recentThreadRootCandidate(roomMessageStore.rootEvents, roomId, currentUserId, Date.now());
+  }
 
   createRoomPermissions(() => permissions);
 
@@ -695,7 +709,9 @@
           slowModeBypassed={permissions.canManageRoom || permissions.canManageOthersMessage}
           showCreateThread={composerCanCreateThread}
           createThreadRequired={composerRequiresThread}
+          createThreadDefault={threadingMode === RoomThreadingMode.ENCOURAGED}
           threadsEncouraged={threadingMode === RoomThreadingMode.ENCOURAGED}
+          {getRecentThreadRootCandidate}
           inReplyTo={replyState.messageEventId ?? undefined}
           replyDisplayName={replyState.actorDisplayName || undefined}
           replyExcerpt={replyState.excerpt || undefined}
@@ -710,6 +726,10 @@
             } else {
               void roomMessageStore.refreshCurrentWindow(null);
             }
+          }}
+          onThreadMessageSent={(threadRootEventId, event) => {
+            typingIndicator?.resetDebounce();
+            openThread(threadRootEventId, { highlightEventId: event?.id });
           }}
         />
       </div>

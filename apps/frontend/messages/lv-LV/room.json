@@ -131,6 +131,7 @@
       "unarchived": "atarhivēta telpa",
       "call_started": "uzsāka zvanu šajā telpā",
       "call_ended": "Aktīvais zvans ir beidzies",
+      "threading_mode_changed": "mainīja pavedienu režīmu uz {mode}",
       "and": "un",
       "other_people_count": {
         "one": "cits",

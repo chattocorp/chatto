@@ -131,6 +131,7 @@
       "unarchived": "heeft het archief van de chatruimte verwijderd",
       "call_started": "heeft een gesprek gestart in deze chatruimte",
       "call_ended": "Het actieve gesprek is beëindigd",
+      "threading_mode_changed": "heeft de threadmodus gewijzigd in {mode}",
       "and": "en",
       "other_people_count": {
         "one": "anders",

@@ -131,6 +131,7 @@
       "unarchived": "malarkivigis la ĉambron",
       "call_started": "komencis vokon en ĉi tiu ĉambro",
       "call_ended": "La aktiva voko finiĝis",
+      "threading_mode_changed": "ŝanĝis la Fadenan Reĝimon al {mode}",
       "and": "kaj",
       "other_people_count": {
         "one": "alia",

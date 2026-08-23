@@ -6,8 +6,8 @@ import {
   type AdminRoomLayoutItem as APIAdminRoomLayoutItem
 } from '@chatto/api-types/admin/v1/room_layout_pb';
 import type { DirectorySidebarLink } from './roomDirectory.js';
-import { RoomKind, type Room, type RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
-import { normalizeRoomThreadingMode } from '$lib/roomThreading';
+import { RoomKind, type Room } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type AdminRoomLayoutAPIConfig = {
   serverId?: string;

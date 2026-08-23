@@ -15,8 +15,8 @@ import type {
   RoomWithViewerState
 } from '@chatto/api-types/api/v1/room_directory_pb';
 import { RoomDirectoryScope } from '@chatto/api-types/api/v1/room_directory_pb';
-import { RoomKind, type RoomThreadingMode } from '@chatto/api-types/api/v1/rooms_pb';
-import { normalizeRoomThreadingMode } from '$lib/roomThreading';
+import { RoomKind } from '@chatto/api-types/api/v1/rooms_pb';
+import { normalizeRoomThreadingMode, type RoomThreadingMode } from '$lib/roomThreading';
 
 export type RoomDirectoryAPIConfig = ConnectAPIConfig;
 

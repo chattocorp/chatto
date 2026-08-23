@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Slow Mode: {interval} (you're exempt).",
     "slow_mode_rejected": "Slow Mode is active. Wait before sending another message.",
     "threads_encouraged": "Threads are encouraged in this room.",
+    "recent_thread_confirm_title": "Continue your previous thread?",
+    "recent_thread_confirm_body": "Your previous message already has a thread. Where should this message go?",
+    "post_as_new_message": "Post as new message",
+    "continue_in_thread": "Continue in thread",
     "edit_failed": "Failed to edit message",
     "upload": {
       "preparing": "Preparing…",

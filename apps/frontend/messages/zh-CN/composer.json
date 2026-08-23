@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "慢速模式：{interval}（你不受限制）。",
     "slow_mode_rejected": "慢速模式已启用。请等待后再发送下一条消息。",
     "threads_encouraged": "建议在此房间使用话题。",
+    "recent_thread_confirm_title": "继续之前的话题？",
+    "recent_thread_confirm_body": "你的上一条消息已有话题。要将此消息发布到哪里？",
+    "post_as_new_message": "作为新消息发布",
+    "continue_in_thread": "在话题中继续",
     "edit_failed": "消息编辑失败",
     "upload": {
       "preparing": "正在准备…",

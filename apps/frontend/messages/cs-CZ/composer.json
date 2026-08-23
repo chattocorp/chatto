@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Pomalý režim: {interval} (máte výjimku).",
     "slow_mode_rejected": "Je zapnutý pomalý režim. Před odesláním další zprávy počkejte.",
     "threads_encouraged": "V této místnosti se doporučuje používat vlákna.",
+    "recent_thread_confirm_title": "Pokračovat v předchozím vlákně?",
+    "recent_thread_confirm_body": "Vaše předchozí zpráva už má vlákno. Kam se má tato zpráva odeslat?",
+    "post_as_new_message": "Poslat jako novou zprávu",
+    "continue_in_thread": "Pokračovat ve vlákně",
     "edit_failed": "Zprávu se nepodařilo upravit",
     "upload": {
       "preparing": "Příprava…",

@@ -47,6 +47,10 @@ export type MessageComposerApi = {
   insertQuote: (text: QuoteInsertionContent) => void;
 };
 
+export type RecentThreadRootCandidate = {
+  threadRootEventId: string;
+};
+
 export type MessageComposerProps = {
   roomId: string;
   inThread?: string;
@@ -68,7 +72,13 @@ export type MessageComposerProps = {
   showAlsoSendToChannel?: boolean;
   showCreateThread?: boolean;
   createThreadRequired?: boolean;
+  createThreadDefault?: boolean;
   threadsEncouraged?: boolean;
+  getRecentThreadRootCandidate?: () => RecentThreadRootCandidate | null;
+  onThreadMessageSent?: (
+    threadRootEventId: string,
+    event: TimelineEventView | null
+  ) => void;
 };
 
 type MessageComposerDependencies = {
@@ -80,13 +90,15 @@ type MessageComposerDependencies = {
   getSlowModeBlocked: () => boolean;
   getCanCreateThread: () => boolean;
   getCreateThreadRequired: () => boolean;
+  getCreateThreadDefault: () => boolean;
+  getRecentThreadRootCandidate: () => RecentThreadRootCandidate | null;
   getAutoFocus: () => boolean;
   getComposerSendMode: () => ComposerSendMode;
   getPlaceholder: () => string | undefined;
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
     MessageComposerProps,
-    'onTyping' | 'onMessageSent' | 'onCancelReply' | 'onEscape'
+    'onTyping' | 'onMessageSent' | 'onThreadMessageSent' | 'onCancelReply' | 'onEscape'
   >;
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
@@ -138,6 +150,12 @@ export class MessageComposerState {
   #autocompleteRoomId = '';
   #insertedQuoteRequestId = 0;
   #focusRequested = false;
+  #threadCreationPolicyKey = '';
+  #threadDestinationChoicePending = false;
+  pendingThreadDestinationConfirmation = $state<{
+    post: PreparedPost;
+    candidate: RecentThreadRootCandidate;
+  } | null>(null);
 
   constructor(dependencies: MessageComposerDependencies) {
     this.#dependencies = dependencies;
@@ -294,6 +312,7 @@ export class MessageComposerState {
       this.submission.roleMentionCheckLoading ||
       this.submission.roleMentionConfirmationLoading ||
       this.submission.pendingRoleMentionConfirmation ||
+      this.pendingThreadDestinationConfirmation ||
       this.inputDisabled ||
       (!this.isEditing && this.#dependencies.getSlowModeBlocked()) ||
       this.attachments.pendingCount > 0
@@ -301,6 +320,39 @@ export class MessageComposerState {
       return;
     }
     await (this.isEditing ? this.#editMessage() : this.#createMessage());
+  }
+
+  cancelThreadDestinationConfirmation(): void {
+    if (this.#threadDestinationChoicePending) return;
+    this.pendingThreadDestinationConfirmation = null;
+  }
+
+  async postInRecentThread(): Promise<void> {
+    const pending = this.pendingThreadDestinationConfirmation;
+    if (!pending || this.#threadDestinationChoicePending) return;
+    this.#threadDestinationChoicePending = true;
+    this.pendingThreadDestinationConfirmation = null;
+    try {
+      await this.submission.requestPost({
+        ...pending.post,
+        threadRootEventId: pending.candidate.threadRootEventId,
+        createThread: false
+      });
+    } finally {
+      this.#threadDestinationChoicePending = false;
+    }
+  }
+
+  async postAsNewRoot(): Promise<void> {
+    const pending = this.pendingThreadDestinationConfirmation;
+    if (!pending || this.#threadDestinationChoicePending) return;
+    this.#threadDestinationChoicePending = true;
+    this.pendingThreadDestinationConfirmation = null;
+    try {
+      await this.submission.requestPost(pending.post);
+    } finally {
+      this.#threadDestinationChoicePending = false;
+    }
   }
 
   cancelEdit(): void {
@@ -385,7 +437,6 @@ export class MessageComposerState {
       if (this.#autocompleteRoomId !== roomId) {
         this.#autocompleteRoomId = roomId;
         this.autocomplete.resetForRoom();
-        this.createThread = false;
       }
       if (this.isEditing) {
         this.draft.switchKey(this.draftKey);
@@ -421,12 +472,14 @@ export class MessageComposerState {
 
   #synchronizeThreadCreationPolicy(): void {
     $effect(() => {
-      if (
-        !this.#dependencies.getCanCreateThread() ||
-        this.#dependencies.getCreateThreadRequired()
-      ) {
-        this.createThread = false;
-      }
+      const roomId = this.#dependencies.getRoomId();
+      const canCreateThread = this.#dependencies.getCanCreateThread();
+      const required = this.#dependencies.getCreateThreadRequired();
+      const defaultEnabled = this.#dependencies.getCreateThreadDefault();
+      const policyKey = `${roomId}\u0000${canCreateThread}\u0000${required}\u0000${defaultEnabled}`;
+      if (policyKey === this.#threadCreationPolicyKey) return;
+      this.#threadCreationPolicyKey = policyKey;
+      this.createThread = canCreateThread && !required && defaultEnabled;
     });
   }
 
@@ -470,7 +523,10 @@ export class MessageComposerState {
     this.autocomplete.reset();
     this.message = '';
     this.alsoSendToChannel = false;
-    this.createThread = false;
+    this.createThread =
+      this.#dependencies.getCanCreateThread() &&
+      !this.#dependencies.getCreateThreadRequired() &&
+      this.#dependencies.getCreateThreadDefault();
     this.editorApi?.setContent('');
   }
 
@@ -482,9 +538,14 @@ export class MessageComposerState {
       this.#resetEditor();
       this.attachments.clear();
       this.linkPreviews.clear();
-      this.#dependencies.getCallbacks().onMessageSent?.(event);
+      const callbacks = this.#dependencies.getCallbacks();
+      if (post.threadRootEventId && callbacks.onThreadMessageSent) {
+        callbacks.onThreadMessageSent(post.threadRootEventId, event);
+      } else {
+        callbacks.onMessageSent?.(event);
+      }
       this.#dependencies.context.scrollState?.requestScrollToBottom();
-      this.#dependencies.getCallbacks().onCancelReply?.();
+      callbacks.onCancelReply?.();
     } else {
       for (const { url } of stashedFiles) URL.revokeObjectURL(url);
     }
@@ -501,7 +562,7 @@ export class MessageComposerState {
     const filesToSend = this.hasSendableAttachments ? [...this.attachments.selectedFiles] : null;
     if (!hasVisibleContent(bodyToSend) && !filesToSend) return;
 
-    await this.submission.requestPost({
+    const post: PreparedPost = {
       draftKey: this.draftKey,
       roomId: this.#dependencies.getRoomId(),
       bodyToSend,
@@ -515,7 +576,16 @@ export class MessageComposerState {
         (this.#dependencies.getCanCreateThread() &&
           !this.#dependencies.getThreadRootEventId() &&
           this.createThread)
-    });
+    };
+    const candidate =
+      post.threadRootEventId === null && post.inReplyTo === null
+        ? this.#dependencies.getRecentThreadRootCandidate()
+        : null;
+    if (candidate) {
+      this.pendingThreadDestinationConfirmation = { post, candidate };
+      return;
+    }
+    await this.submission.requestPost(post);
   }
 
   async #editMessage(): Promise<void> {

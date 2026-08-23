@@ -89,7 +89,7 @@ conversation should branch in a channel:
 | Mode | Member experience |
 | ---- | ----------------- |
 | **Required** | Every new root message automatically gets a thread. The composer shows **Thread** selected and locked. Both root reply actions open the thread, and **Reply** keeps reply attribution. The server rejects flat replies to roots. |
-| **Encouraged** | **Reply** opens the thread with attribution, while **Reply in room** remains in the expanded menu. The reply icons keep their normal order, and creating a thread with a new root stays opt-in. |
+| **Encouraged** | **Reply** opens the thread with attribution, while **Reply in room** remains in the expanded menu. The reply icons keep their normal order. **Thread** starts selected for each new root draft, but members may turn it off. |
 | **Enabled** | The default. Members freely choose between room replies and threads, and may use **Post as thread**. |
 | **Disabled** | New threads, thread replies, and channel echoes are unavailable. Existing threads and echoes remain readable, and members can still use ordinary reply attribution in the room. |
 
@@ -98,6 +98,12 @@ old roots nor removes existing threads. Threading Mode also does not replace
 permissions: `message.post` controls room posts and `message.post-in-thread`
 controls actual thread replies. Required rooms automatically establish each
 root's empty thread with `message.post` alone.
+
+Mode changes appear in the room timeline with the member who changed the
+setting. If your latest root gained a thread and you try to post another root
+within five minutes, Chatto asks whether to continue in that thread or keep the
+new message in the room. The choice is offered only when both destinations are
+currently allowed; cancelling keeps the draft intact.
 
 ## Permissions Strategy
 

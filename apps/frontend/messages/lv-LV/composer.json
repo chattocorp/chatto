@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Lēnais režīms: {interval} (uz jums ierobežojums neattiecas).",
     "slow_mode_rejected": "Lēnais režīms ir aktīvs. Uzgaidiet pirms nākamā ziņojuma sūtīšanas.",
     "threads_encouraged": "Šajā telpā ieteicams izmantot pavedienus.",
+    "recent_thread_confirm_title": "Vai turpināt iepriekšējā pavedienā?",
+    "recent_thread_confirm_body": "Jūsu iepriekšējam ziņojumam jau ir pavediens. Kur publicēt šo ziņojumu?",
+    "post_as_new_message": "Publicēt kā jaunu ziņojumu",
+    "continue_in_thread": "Turpināt pavedienā",
     "edit_failed": "Neizdevās rediģēt ziņojumu",
     "upload": {
       "preparing": "Notiek sagatavošana…",

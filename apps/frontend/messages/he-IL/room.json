@@ -134,6 +134,7 @@
       "unarchived": "הוציא את החדר מהארכיון",
       "call_started": "התחיל שיחה בחדר הזה",
       "call_ended": "השיחה הפעילה הסתיימה",
+      "threading_mode_changed": "שינה את מצב השרשורים ל־{mode}",
       "and": "ו",
       "other_people_count": {
         "one": "אחר",

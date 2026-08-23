@@ -5,9 +5,9 @@
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
 import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
+import { ImageTransformOptions, RoomThreadingMode } from "./common_pb.js";
 import { DirectoryMember } from "./member_directory_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
-import { ImageTransformOptions } from "./common_pb.js";
 import { RoomAttachmentListItem } from "./attachments_pb.js";
 import { Message as Message$1 } from "./message_types_pb.js";
 
@@ -43,62 +43,6 @@ proto3.util.setEnumType(RoomKind, "chatto.api.v1.RoomKind", [
   { no: 0, name: "ROOM_KIND_UNSPECIFIED" },
   { no: 1, name: "ROOM_KIND_CHANNEL" },
   { no: 2, name: "ROOM_KIND_DM" },
-]);
-
-/**
- * Policy governing thread creation and reply placement in a channel room.
- * Direct-message rooms do not support threads and use UNSPECIFIED.
- *
- * @generated from enum chatto.api.v1.RoomThreadingMode
- */
-export enum RoomThreadingMode {
-  /**
-   * No mode was supplied. CreateRoom treats this as ENABLED so older stored
-   * rooms and omitted request fields preserve Chatto's default behavior.
-   *
-   * @generated from enum value: ROOM_THREADING_MODE_UNSPECIFIED = 0;
-   */
-  UNSPECIFIED = 0,
-
-  /**
-   * Every new root message establishes a thread, and replies to root messages
-   * must be posted in that root's thread.
-   *
-   * @generated from enum value: ROOM_THREADING_MODE_REQUIRED = 1;
-   */
-  REQUIRED = 1,
-
-  /**
-   * Clients should steer replies into threads, but the server accepts both
-   * threaded and ordinary in-room replies.
-   *
-   * @generated from enum value: ROOM_THREADING_MODE_ENCOURAGED = 2;
-   */
-  ENCOURAGED = 2,
-
-  /**
-   * Threads are available and clients may freely choose whether to use them.
-   *
-   * @generated from enum value: ROOM_THREADING_MODE_ENABLED = 3;
-   */
-  ENABLED = 3,
-
-  /**
-   * New threads, thread replies, and channel echoes are rejected. Existing
-   * threads and echoes remain readable and ordinary in-room reply attribution
-   * remains available.
-   *
-   * @generated from enum value: ROOM_THREADING_MODE_DISABLED = 4;
-   */
-  DISABLED = 4,
-}
-// Retrieve enum metadata with: proto3.getEnumType(RoomThreadingMode)
-proto3.util.setEnumType(RoomThreadingMode, "chatto.api.v1.RoomThreadingMode", [
-  { no: 0, name: "ROOM_THREADING_MODE_UNSPECIFIED" },
-  { no: 1, name: "ROOM_THREADING_MODE_REQUIRED" },
-  { no: 2, name: "ROOM_THREADING_MODE_ENCOURAGED" },
-  { no: 3, name: "ROOM_THREADING_MODE_ENABLED" },
-  { no: 4, name: "ROOM_THREADING_MODE_DISABLED" },
 ]);
 
 /**

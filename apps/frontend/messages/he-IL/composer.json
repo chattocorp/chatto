@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "מצב איטי: {interval} (ההגבלה לא חלה עליך).",
     "slow_mode_rejected": "מצב איטי פעיל. יש להמתין לפני שליחת הודעה נוספת.",
     "threads_encouraged": "מומלץ להשתמש בשרשורים בחדר הזה.",
+    "recent_thread_confirm_title": "להמשיך בשרשור הקודם שלך?",
+    "recent_thread_confirm_body": "להודעה הקודמת שלך כבר יש שרשור. היכן לפרסם את ההודעה הזו?",
+    "post_as_new_message": "פרסום כהודעה חדשה",
+    "continue_in_thread": "המשך בשרשור",
     "edit_failed": "נכשל בעריכת ההודעה",
     "upload": {
       "preparing": "מכין...",

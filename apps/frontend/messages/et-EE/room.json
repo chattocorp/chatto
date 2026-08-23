@@ -131,6 +131,7 @@
       "unarchived": "eemaldas ruumi arhiivist",
       "call_started": "alustas selles ruumis kõnet",
       "call_ended": "Aktiivne kõne on lõppenud",
+      "threading_mode_changed": "muutis lõimerežiimiks {mode}",
       "and": "ja",
       "other_people_count": {
         "one": "muud",

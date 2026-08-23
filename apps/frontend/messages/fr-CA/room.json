@@ -131,6 +131,7 @@
       "unarchived": "a désarchivé la salle",
       "call_started": "a lancé un appel dans cette salle",
       "call_ended": "L’appel en cours est terminé",
+      "threading_mode_changed": "a défini le mode des fils sur {mode}",
       "and": "et",
       "other_people_count": {
         "one": "autre",

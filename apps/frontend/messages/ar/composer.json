@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "الوضع البطيء: {interval} (أنت مُعفى).",
     "slow_mode_rejected": "الوضع البطيء مفعّل. انتظر قبل إرسال رسالة أخرى.",
     "threads_encouraged": "يُنصح باستخدام سلاسل المحادثات في هذه الغرفة.",
+    "recent_thread_confirm_title": "هل تريد متابعة سلسلة المحادثة السابقة؟",
+    "recent_thread_confirm_body": "لرسالتك السابقة سلسلة محادثة بالفعل. أين يجب نشر هذه الرسالة؟",
+    "post_as_new_message": "نشر كرسالة جديدة",
+    "continue_in_thread": "المتابعة في سلسلة المحادثة",
     "edit_failed": "فشل في تحرير الرسالة",
     "upload": {
       "preparing": "جارٍ التحضير...",

@@ -75,7 +75,7 @@ func TestProjectionSnapshotContractsIncludeCurrentSchema(t *testing.T) {
 		{reactionSnapshotContractID, "v1", &corev1.ReactionProjectionSnapshot{}},
 		{roomDirectorySnapshotContractID, "v1", &corev1.RoomDirectoryProjectionSnapshot{}},
 		{roomGroupLayoutSnapshotContractID, "v1", &corev1.RoomGroupLayoutProjectionSnapshot{}},
-		{roomTimelineSnapshotContractID, "v6", &corev1.RoomTimelineProjectionSnapshot{}},
+		{roomTimelineSnapshotContractID, "v7", &corev1.RoomTimelineProjectionSnapshot{}},
 		{threadSnapshotContractID, "v2", &corev1.ThreadProjectionSnapshot{}},
 		{userSnapshotContractID, "v4", &corev1.UserProfileProjectionSnapshot{}},
 	}
@@ -94,6 +94,7 @@ func TestPrivacyBoundaryProjectionContractsRejectPreRequestSnapshots(t *testing.
 		{userSnapshotContractID, snapshotContractID("v3", &corev1.UserProfileProjectionSnapshot{})},
 		{mentionablesSnapshotContractID, snapshotContractID("v1", &corev1.MentionablesProjectionSnapshot{})},
 		{roomTimelineSnapshotContractID, snapshotContractID("v5", &corev1.RoomTimelineProjectionSnapshot{})},
+		{roomTimelineSnapshotContractID, snapshotContractID("v6", &corev1.RoomTimelineProjectionSnapshot{})},
 		{threadSnapshotContractID, snapshotContractID("v1", &corev1.ThreadProjectionSnapshot{})},
 	}
 	for _, tt := range tests {
@@ -341,7 +342,7 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 	expectedContractPrefix := map[string]string{
 		"room_directory": "v1-", "server_config": "v1-", "room_group_layout": "v1-",
 		"notification_decisions": "v1-", "notifications": "v2-",
-		"room_timeline": "v6-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
+		"room_timeline": "v7-", "call_state": "v1-", "assets": "v3-", "reactions": "v1-",
 		"content_keys": "v1-", "rbac": "v1-", "mentionables": "v2-", "users": "v4-",
 	}
 	for _, tt := range tests {

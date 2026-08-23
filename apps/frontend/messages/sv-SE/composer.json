@@ -27,6 +27,10 @@
     "slow_mode_bypassed": "Långsamt läge: {interval} (du är undantagen).",
     "slow_mode_rejected": "Långsamt läge är aktivt. Vänta innan du skickar ett nytt meddelande.",
     "threads_encouraged": "Trådar rekommenderas i det här rummet.",
+    "recent_thread_confirm_title": "Fortsätta i din förra tråd?",
+    "recent_thread_confirm_body": "Ditt förra meddelande har redan en tråd. Var ska det här meddelandet publiceras?",
+    "post_as_new_message": "Publicera som nytt meddelande",
+    "continue_in_thread": "Fortsätt i tråden",
     "edit_failed": "Det gick inte att redigera meddelandet",
     "upload": {
       "preparing": "Förbereder…",

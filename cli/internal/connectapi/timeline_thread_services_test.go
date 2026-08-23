@@ -530,6 +530,18 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 			},
 		},
 		{
+			name: "room threading mode changed",
+			event: &corev1.Event{
+				Id:      "Eroom-threading-mode-changed",
+				ActorId: env.viewer.Id,
+				Event: &corev1.Event_RoomThreadingModeChanged{
+					RoomThreadingModeChanged: &corev1.RoomThreadingModeChangedEvent{
+						RoomId: room.Id, ThreadingMode: corev1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED,
+					},
+				},
+			},
+		},
+		{
 			name: "user joined room",
 			event: &corev1.Event{
 				Id:      "Euser-joined",
@@ -576,8 +588,15 @@ func TestRoomTimelineHydratorSupportsVisibleCoreEvents(t *testing.T) {
 			if !core.IsVisibleRoomTimelineEntry(tt.event) {
 				t.Fatalf("test event is not visible according to core")
 			}
-			if _, err := h.event(env.ctx, &core.RoomEvent{Event: tt.event}); err != nil {
+			hydrated, err := h.event(env.ctx, &core.RoomEvent{Event: tt.event})
+			if err != nil {
 				t.Fatalf("hydrate visible event: %v", err)
+			}
+			if tt.event.GetRoomThreadingModeChanged() != nil {
+				change := hydrated.GetRoomThreadingModeChanged()
+				if change.GetRoomId() != room.Id || change.GetThreadingMode() != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_ENCOURAGED {
+					t.Fatalf("threading mode change = %+v", change)
+				}
 			}
 		})
 	}

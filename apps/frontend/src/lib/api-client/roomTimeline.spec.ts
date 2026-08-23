@@ -6,7 +6,39 @@ import {
   SocialPostPreview
 } from '@chatto/api-types/api/v1/link_previews_pb';
 import { describe, expect, it } from 'vitest';
-import { messagePostedPayload } from './roomTimeline';
+import {
+  RoomTimelineEvent,
+  RoomTimelineThreadingModeChangedEvent
+} from '@chatto/api-types/api/v1/room_timeline_pb';
+import { RoomThreadingMode } from '$lib/roomThreading';
+import { TimelineEventKind } from '$lib/render/timelineEvents';
+import { messagePostedPayload, roomTimelineEventToView } from './roomTimeline';
+
+describe('roomTimelineEventToView', () => {
+  it('maps a Threading Mode change into a renderable system event', () => {
+    const event = new RoomTimelineEvent({
+      id: 'mode-change',
+      actorId: 'admin',
+      event: {
+        case: 'roomThreadingModeChanged',
+        value: new RoomTimelineThreadingModeChangedEvent({
+          roomId: 'room-1',
+          threadingMode: RoomThreadingMode.ENCOURAGED
+        })
+      }
+    });
+
+    expect(roomTimelineEventToView(event, {})).toMatchObject({
+      id: 'mode-change',
+      actorId: 'admin',
+      event: {
+        kind: TimelineEventKind.RoomThreadingModeChanged,
+        roomId: 'room-1',
+        threadingMode: RoomThreadingMode.ENCOURAGED
+      }
+    });
+  });
+});
 
 describe('messagePostedPayload', () => {
   it('maps current pin state', () => {

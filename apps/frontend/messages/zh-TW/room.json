@@ -131,6 +131,7 @@
       "unarchived": "取消封存聊天室",
       "call_started": "在此聊天室發起了通話",
       "call_ended": "目前通話已結束",
+      "threading_mode_changed": "將討論串模式變更為{mode}",
       "and": "和",
       "other_people_count": {
         "one": "另 1 人",
