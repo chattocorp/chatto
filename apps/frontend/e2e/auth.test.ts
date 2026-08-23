@@ -173,30 +173,26 @@ test.describe('Authentication', () => {
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));
     await expect(page.getByTitle('Sign out')).toBeVisible();
 
-    const strippedOriginTokens = await page.evaluate(() => {
+    const originAuthState = await page.evaluate(() => {
       const instances = JSON.parse(localStorage.getItem('chatto:instances') || '[]');
-      let stripped = 0;
-      localStorage.setItem(
-        'chatto:instances',
-        JSON.stringify(
-          instances.map((instance: { url?: string; token?: string | null }) => {
-            if (instance.url) {
-              try {
-                if (new URL(instance.url).origin === window.location.origin) {
-                  if (instance.token) stripped += 1;
-                  return { ...instance, token: null };
-                }
-              } catch {
-                // Ignore malformed test state; the app will handle it on reload.
-              }
+      let matches = 0;
+      let bearerTokens = 0;
+      for (const instance of instances as Array<{ url?: string; token?: string | null }>) {
+        if (instance.url) {
+          try {
+            if (new URL(instance.url).origin === window.location.origin) {
+              matches += 1;
+              if (instance.token) bearerTokens += 1;
             }
-            return instance;
-          })
-        )
-      );
-      return stripped;
+          } catch {
+            // Ignore malformed test state; the app will handle it on reload.
+          }
+        }
+      }
+      return { matches, bearerTokens };
     });
-    expect(strippedOriginTokens).toBeGreaterThan(0);
+    expect(originAuthState.matches).toBeGreaterThan(0);
+    expect(originAuthState.bearerTokens).toBe(0);
 
     await page.reload();
     await page.waitForURL((url) => url.pathname.startsWith('/chat'));

@@ -71,7 +71,10 @@ func (s *HTTPServer) presentedCredentialFromRequest(c *gin.Context) (presentedRu
 
 // requestIsSameOrigin treats requests without an Origin header as same-origin
 // or non-browser traffic. Browser requests with an Origin may use ambient
-// cookie authentication only when it exactly matches Chatto's public origin.
+// cookie authentication only when it exactly matches the request target or
+// Chatto's configured public origin. The latter covers TLS-terminating proxies;
+// the former keeps direct hostname aliases usable without trusting forwarded
+// headers.
 func (s *HTTPServer) requestIsSameOrigin(r *http.Request) bool {
 	origin := strings.TrimSpace(r.Header.Get("Origin"))
 	if origin == "" {
@@ -81,11 +84,27 @@ func (s *HTTPServer) requestIsSameOrigin(r *http.Request) bool {
 	if !ok {
 		return false
 	}
+	presentedOrigin := canonicalOrigin(presented)
+	if presentedOrigin == directRequestOrigin(r) {
+		return true
+	}
 	base, err := url.Parse(s.requestBaseURL(r))
 	if err != nil || base.Scheme == "" || base.Host == "" {
 		return false
 	}
-	return canonicalOrigin(presented) == canonicalOrigin(base)
+	return presentedOrigin == canonicalOrigin(base)
+}
+
+func directRequestOrigin(r *http.Request) string {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	direct, err := url.Parse(scheme + "://" + r.Host)
+	if err != nil || direct.Host == "" || direct.User != nil {
+		return ""
+	}
+	return canonicalOrigin(direct)
 }
 
 func parseBrowserOrigin(raw string) (*url.URL, bool) {

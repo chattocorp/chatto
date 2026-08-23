@@ -77,6 +77,29 @@ func TestBrowserCookieAuthenticationCanonicalizesDefaultPort(t *testing.T) {
 	}
 }
 
+func TestBrowserCookieAuthenticationAcceptsDirectOriginAlias(t *testing.T) {
+	server := setupOAuthServer(t)
+	server.config.Webserver.URL = "https://configured.example"
+	cookies, user := loginOAuthTestUser(t, server, "same-origin-alias")
+	server.router.GET("/test/alias-whoami", func(c *gin.Context) {
+		request := server.injectUserIntoContext(c)
+		if authenticated := authctx.ForContext(request.Context()); authenticated != nil {
+			c.String(http.StatusOK, authenticated.Id)
+			return
+		}
+		c.Status(http.StatusUnauthorized)
+	})
+
+	request := httptest.NewRequest(http.MethodGet, "http://127.0.0.1:4321/test/alias-whoami", nil)
+	request.Header.Set("Origin", "http://127.0.0.1:4321")
+	addCookies(request, cookies)
+	response := httptest.NewRecorder()
+	server.router.ServeHTTP(response, request)
+	if response.Code != http.StatusOK || response.Body.String() != user.Id {
+		t.Fatalf("direct alias status/body = %d/%q", response.Code, response.Body.String())
+	}
+}
+
 func TestParseBrowserOrigin(t *testing.T) {
 	tests := []struct {
 		origin string
