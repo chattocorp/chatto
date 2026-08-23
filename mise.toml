@@ -730,6 +730,10 @@ depends = ["setup-cli"]
 dir = "cli"
 run = ["rm chatto.toml", "go run . init"]
 
+[tasks.reset]
+description = "Reset the local development environment"
+run = [{ task = "reset-data" }]
+
 [tasks.reset-data]
 description = "Reset the development environment (NATS data etc.)"
 confirm = "Are you sure you want to reset the development environment? This will delete all data."
