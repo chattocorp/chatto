@@ -24,6 +24,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   import { buildDirectMessagePresentation, type UserAvatarUserView } from '$lib/render/users';
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import NotificationBadge from '$lib/ui/NotificationBadge.svelte';
+  import SidebarNavigationItem from '$lib/ui/SidebarNavigationItem.svelte';
   import UnreadDot from '$lib/ui/UnreadDot.svelte';
   import { notificationTarget } from '$lib/state/server/notifications.svelte';
   import { prepareUiForNotificationTarget } from '$lib/notifications/notificationNavigationUi';
@@ -151,12 +152,6 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       toast.error(m('common.error.generic'));
       console.error('Error updating DM archive state:', result.error);
     }
-  }
-
-  function handleDMRowArchive(event: MouseEvent, room: RoomsListItem): void {
-    event.preventDefault();
-    event.stopPropagation();
-    void handleDMArchive(room, true);
   }
 
   // --- Derived layout helpers ---
@@ -409,11 +404,53 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   {@const isJoined = room.viewerIsMember}
   {@const showUnread = hasUnread && (isDM || isJoined)}
   {@const showActiveCall = hasActiveCall && (isDM || isJoined)}
+  {@const showStatus = ((isDM || isJoined) && room.viewerNotificationCount > 0) || showUnread}
   {@const presentation = isDM ? dmPresentation(room) : null}
-  <a
+
+  {#snippet status()}
+    {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
+      <button
+        type="button"
+        onclick={(e) => handleNotificationBadgeClick(e, room.id, isDM)}
+        class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
+        aria-label={isDM
+          ? m('room_list.go_to_dm_notifications', { count: room.viewerNotificationCount })
+          : m('room_list.go_to_notifications', { count: room.viewerNotificationCount })}
+      >
+        <NotificationBadge
+          count={room.viewerNotificationCount}
+          color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
+          testid={isDM ? 'dm-notification-badge' : 'room-notification-badge'}
+        />
+      </button>
+      <span class="sr-only">
+        {isDM
+          ? m('room_list.new_direct_messages', { count: room.viewerNotificationCount })
+          : m('room_list.notifications', { count: room.viewerNotificationCount })}
+      </span>
+    {:else if showUnread}
+      <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
+      <span class="sr-only">{m('room_list.unread_messages')}</span>
+    {/if}
+  {/snippet}
+
+  {#snippet archiveAction()}
+    <button
+      type="button"
+      onclick={() => void handleDMArchive(room, true)}
+      class="mini-icon-action disabled:cursor-not-allowed disabled:opacity-50"
+      aria-label={m('room_list.archive_direct_message')}
+      title={m('room_list.archive_direct_message')}
+      disabled={stores.roomDirectory.dmArchivePendingIds.has(room.id)}
+      data-testid="archive-dm-row"
+    >
+      <span class="iconify icon-[uil--archive] text-base" aria-hidden="true"></span>
+    </button>
+  {/snippet}
+
+  <SidebarNavigationItem
     href={resolve('/chat/[serverId]/[roomId]', { serverId: serverSegment, roomId: room.id })}
     class={[
-      'group/badges @container sidebar-item',
       room.id === activeRoomId ? 'bg-surface' : '',
       showUnread && room.id !== activeRoomId ? 'sidebar-item-attention' : '',
       !isDM && !isJoined ? 'opacity-60 hover:opacity-85' : ''
@@ -421,7 +458,10 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     aria-current={room.id === activeRoomId ? 'page' : undefined}
     onclick={(e) => handleRoomLinkClick(e, room)}
     onkeydown={(e) => handleRoomLinkKeydown(e, room)}
-    {@attach roomMenuTrigger(room)}
+    contextMenuTrigger={roomMenuTrigger(room)}
+    status={showStatus ? status : undefined}
+    hoverAction={isDM && supportsDMArchive ? archiveAction : undefined}
+    testid="room-navigation-item"
   >
     {#if presentation}
       <div class="flex shrink-0 -space-x-1">
@@ -461,73 +501,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@render activeCallParticipants(room.id)}
       {@render activeCallIcon()}
     {/if}
-
-    {#if isDM && supportsDMArchive}
-      <span class="relative flex h-6 min-w-6 shrink-0 items-center justify-center">
-        <button
-          type="button"
-          onclick={(event) => handleDMRowArchive(event, room)}
-          class="mini-icon-action peer pointer-events-none absolute inset-0 z-10 items-center justify-center opacity-0 transition-opacity group-hover/badges:pointer-events-auto group-hover/badges:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
-          aria-label={m('room_list.archive_direct_message')}
-          title={m('room_list.archive_direct_message')}
-          disabled={stores.roomDirectory.dmArchivePendingIds.has(room.id)}
-          data-testid="archive-dm-row"
-        >
-          <span class="iconify icon-[uil--archive] text-base" aria-hidden="true"></span>
-        </button>
-
-        {#if room.viewerNotificationCount > 0}
-          <button
-            type="button"
-            onclick={(e) => handleNotificationBadgeClick(e, room.id, true)}
-            class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot transition-opacity group-hover/badges:pointer-events-none group-hover/badges:opacity-0 peer-focus-visible:pointer-events-none peer-focus-visible:opacity-0"
-            aria-label={m('room_list.go_to_dm_notifications', {
-              count: room.viewerNotificationCount
-            })}
-          >
-            <NotificationBadge
-              count={room.viewerNotificationCount}
-              color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
-              testid="dm-notification-badge"
-            />
-          </button>
-          <span class="sr-only">
-            {m('room_list.new_direct_messages', { count: room.viewerNotificationCount })}
-          </span>
-        {:else if showUnread}
-          <UnreadDot
-            color="neutral"
-            class="transition-opacity group-hover/badges:opacity-0 peer-focus-visible:opacity-0"
-            testid="dm-unread-dot"
-          />
-          <span class="sr-only">{m('room_list.unread_messages')}</span>
-        {/if}
-      </span>
-    {:else if (isDM || isJoined) && room.viewerNotificationCount > 0}
-      <button
-        type="button"
-        onclick={(e) => handleNotificationBadgeClick(e, room.id, isDM)}
-        class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot"
-        aria-label={isDM
-          ? m('room_list.go_to_dm_notifications', { count: room.viewerNotificationCount })
-          : m('room_list.go_to_notifications', { count: room.viewerNotificationCount })}
-      >
-        <NotificationBadge
-          count={room.viewerNotificationCount}
-          color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
-          testid={isDM ? 'dm-notification-badge' : 'room-notification-badge'}
-        />
-      </button>
-      <span class="sr-only">
-        {isDM
-          ? m('room_list.new_direct_messages', { count: room.viewerNotificationCount })
-          : m('room_list.notifications', { count: room.viewerNotificationCount })}
-      </span>
-    {:else if showUnread}
-      <UnreadDot color="neutral" testid={isDM ? 'dm-unread-dot' : 'room-unread-dot'} />
-      <span class="sr-only">{m('room_list.unread_messages')}</span>
-    {/if}
-  </a>
+  </SidebarNavigationItem>
 {/snippet}
 
 {#snippet sidebarLink(item: RoomsListGroupItem)}

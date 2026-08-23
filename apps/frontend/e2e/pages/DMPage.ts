@@ -81,7 +81,7 @@ export class DMPage {
    */
   getConversation(displayName: string): Locator {
     return this.page
-      .locator('nav a.sidebar-item')
+      .locator('nav [data-testid="room-navigation-item"]')
       .filter({ has: this.page.getByText(displayName, { exact: true }) });
   }
 
@@ -90,7 +90,7 @@ export class DMPage {
    * Returns a RoomPage for interacting with messages.
    */
   async openConversation(displayName: string): Promise<RoomPage> {
-    await this.getConversation(displayName).click();
+    await this.getConversation(displayName).getByRole('link').click();
     await this.page.waitForURL(routes.patterns.anyRoom);
     const roomPage = new RoomPage(this.page);
     await expect(roomPage.messageInput).toBeVisible({ timeout: 5000 });

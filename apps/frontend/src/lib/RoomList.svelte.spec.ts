@@ -7,6 +7,12 @@ import { NotificationSignalKind } from '$lib/api-client/notifications';
 import type { RoomsListGroup } from '$lib/state/server/rooms.svelte';
 import { getToasts, toast } from '$lib/ui/toast';
 
+function navigationItem(link: HTMLAnchorElement): HTMLElement {
+  const item = link.closest<HTMLElement>('[data-testid="room-navigation-item"]');
+  if (!item) throw new Error('Expected room navigation item');
+  return item;
+}
+
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeCallRoomIds: new Set<string>(),
@@ -618,11 +624,13 @@ describe('RoomList', () => {
   it('offers an archive action for direct-message rooms on compatible servers', async () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
-    const rowArchive = q(row, '[data-testid="archive-dm-row"]') as HTMLButtonElement;
+    const rowArchive = q(
+      navigationItem(row),
+      '[data-testid="archive-dm-row"]'
+    ) as HTMLButtonElement;
 
     await expect.element(rowArchive).toHaveAttribute('aria-label', 'Archive conversation');
-    expect(rowArchive.classList).toContain('opacity-0');
-    expect(rowArchive.classList).toContain('group-hover/badges:opacity-100');
+    expect(rowArchive.closest('a')).toBeNull();
     rowArchive.click();
 
     await vi.waitFor(() =>
@@ -650,19 +658,18 @@ describe('RoomList', () => {
     );
   });
 
-  it('replaces a DM notification badge with the archive action on row hover', () => {
+  it('provides DM status and archive controls to the reusable trailing slot', () => {
     setRoomNotificationCount('dm-with-participants', 3);
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
-    const archive = q(row, '[data-testid="archive-dm-row"]') as HTMLButtonElement;
-    const badge = q(row, '[data-testid="dm-notification-badge"]') as HTMLElement;
-    const notificationControl = badge.parentElement as HTMLButtonElement;
+    const item = navigationItem(row);
+    const archive = q(item, '[data-testid="archive-dm-row"]') as HTMLButtonElement;
+    const badge = q(item, '[data-testid="dm-notification-badge"]') as HTMLElement;
 
-    expect(archive.parentElement).toBe(notificationControl.parentElement);
-    expect(archive.classList).toContain('absolute');
-    expect(archive.classList).toContain('group-hover/badges:opacity-100');
-    expect(notificationControl.classList).toContain('group-hover/badges:opacity-0');
-    expect(notificationControl.classList).toContain('group-hover/badges:pointer-events-none');
+    expect(archive.closest('[data-sidebar-hover-action]')).not.toBeNull();
+    expect(badge.closest('[data-sidebar-status]')).not.toBeNull();
+    expect(archive.closest('a')).toBeNull();
+    expect(badge.closest('a')).toBeNull();
   });
 
   it('does not expose DM archive actions to servers without the capability', async () => {
@@ -670,8 +677,9 @@ describe('RoomList', () => {
     setRoomNotificationCount('dm-with-participants', 1);
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
-    expect(row.querySelector('[data-testid="archive-dm-row"]')).toBeNull();
-    expect(row.querySelector('[data-testid="dm-notification-badge"]')).not.toBeNull();
+    const item = navigationItem(row);
+    expect(item.querySelector('[data-testid="archive-dm-row"]')).toBeNull();
+    expect(item.querySelector('[data-testid="dm-notification-badge"]')).not.toBeNull();
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
 
@@ -911,7 +919,7 @@ describe('RoomList', () => {
 
     const row = q(container, '[href="/chat/-/joinable-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
-    expect(row.className).toContain('opacity-60');
+    expect(navigationItem(row).className).toContain('opacity-60');
 
     const event = new MouseEvent('click', { bubbles: true, cancelable: true });
     const wasNotCanceled = row.dispatchEvent(event);
@@ -925,7 +933,7 @@ describe('RoomList', () => {
 
     const row = q(container, '[href="/chat/-/restricted-channel"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
-    expect(row.className).toContain('opacity-60');
+    expect(navigationItem(row).className).toContain('opacity-60');
     const icon = row.querySelector('.sidebar-icon');
     expect(icon?.classList.contains('icon-[uil--lock]')).toBe(true);
     expect(row.querySelectorAll('[class~="icon-[uil--lock]"]')).toHaveLength(1);
@@ -945,7 +953,7 @@ describe('RoomList', () => {
     const row = q(container, '[href="/chat/-/channel-1"]') as HTMLAnchorElement;
     await expect.element(row).toBeInTheDocument();
     const icon = row.querySelector('.sidebar-icon');
-    expect(row.classList.contains('sidebar-item-attention')).toBe(true);
+    expect(navigationItem(row).classList.contains('sidebar-item-attention')).toBe(true);
     expect(icon?.classList.contains('text-text-top')).toBe(true);
     expect(icon?.classList.contains('text-muted')).toBe(false);
   });

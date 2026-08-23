@@ -56,6 +56,7 @@ message search results:
 | Pane title and toolbar                    | `PaneHeader` with `HeaderIconButton` actions                               | Textual primary actions in the pane header                   |
 | Inline icon action with standard hit area | `icon-action`                                                              | Repeating hit-area, hover, and pressed classes               |
 | Mini icon action directly beside a value  | `mini-icon-action`                                                         | Adding padding, a background fill, or press scaling          |
+| Sidebar row with trailing status/action   | `SidebarNavigationItem`                                                    | Nesting buttons inside a navigation link                     |
 | Global app-header icon                    | `app-header-icon`                                                          | `icon-action` with compensating margins                      |
 | Durable content container                 | `Panel` or `panel-shell`                                                   | Ad hoc card borders, radius, and elevation                   |
 | Compact nested row                        | `surface-box`                                                              | A panel nested inside another panel                          |
