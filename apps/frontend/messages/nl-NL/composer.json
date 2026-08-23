@@ -3,7 +3,6 @@
     "attach_file": "Bestand bijvoegen",
     "send": "Bericht verzenden",
     "send_label": "Verzenden",
-    "send_ctrl_enter": "Bericht verzenden (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Stuur ook naar kanaal",
     "post_as_thread": "Als thread plaatsen",
     "thread_label": "Discussie",

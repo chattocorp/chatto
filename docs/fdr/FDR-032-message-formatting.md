@@ -1,7 +1,7 @@
 # FDR-032: Message Formatting
 
 **Status:** Active
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
@@ -17,6 +17,7 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Inline timestamp tokens render in the viewer's locale and timezone when supported by the client.
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
+- Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
 - Editor choice is a browser-local preference shared across every Chatto server in that browser. It is not synchronized to other browsers or devices.
 - Sending keys are a browser-local preference shared across every Chatto server in that browser. Return sends by default; people can instead choose the platform modifier plus Return to send.
 - The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.
