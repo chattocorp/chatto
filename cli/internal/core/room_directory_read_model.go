@@ -40,6 +40,7 @@ type DirectoryRoom struct {
 type DirectoryRoomViewerState struct {
 	IsMember               bool
 	HasUnread              bool
+	IsDMArchived           bool
 	CanListRoom            bool
 	CanJoinRoom            bool
 	CanPostMessage         bool
@@ -395,10 +396,17 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		return DirectoryRoomViewerState{}, err
 	}
 	hasUnread := false
+	isDMArchived := false
 	if isMember {
 		hasUnread, err = s.core.HasUnread(ctx, kind, actorID, room.Id)
 		if err != nil {
 			return DirectoryRoomViewerState{}, err
+		}
+		if kind == KindDM {
+			isDMArchived, err = s.core.DMArchive().IsArchived(ctx, actorID, room.Id)
+			if err != nil {
+				return DirectoryRoomViewerState{}, err
+			}
 		}
 	}
 	canList, err := s.canSeeRoom(ctx, actorID, kind, room.Id)
@@ -463,6 +471,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	return DirectoryRoomViewerState{
 		IsMember:               isMember,
 		HasUnread:              hasUnread,
+		IsDMArchived:           isDMArchived,
 		CanListRoom:            canList,
 		CanJoinRoom:            canJoin,
 		CanPostMessage:         canPostMessage,

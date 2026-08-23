@@ -20,6 +20,8 @@
     "room_settings": "ルーム設定",
     "group_settings": "{group}の設定",
     "server_actions": "{server}のアクション",
+    "archive_direct_message": "会話をアーカイブ",
+    "unarchive_direct_message": "会話をアーカイブから戻す",
     "room_actions": "#{room}のアクション"
   }
 }

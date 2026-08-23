@@ -20,6 +20,8 @@
     "room_settings": "Oda ayarları",
     "group_settings": "{group} ayarları",
     "server_actions": "{server} için eylemler",
+    "archive_direct_message": "Konuşmayı arşivle",
+    "unarchive_direct_message": "Konuşmayı arşivden çıkar",
     "room_actions": "#{room} için eylemler"
   }
 }

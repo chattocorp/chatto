@@ -18,6 +18,11 @@ message RoomViewerState {
   // Earliest time the current user may create another message. Absent when
   // slow mode is disabled, expired, or bypassed by moderation permissions.
   google.protobuf.Timestamp slow_mode_next_post_at = 4;
+  // True when the current user has archived this DM conversation and no newer
+  // root message has arrived. Always false for channel rooms. Archiving affects
+  // navigation presentation only; membership, access, unread state, and
+  // notification policy are unchanged.
+  bool is_dm_archived = 5;
 }
 
 // Room kinds to include in directory responses.
@@ -182,6 +187,31 @@ message BatchGetRoomsResponse {
   repeated RoomWithViewerState rooms = 1;
 }
 
+// Request to archive one direct-message conversation for the current user.
+message ArchiveDMRequest {
+  // Required. Direct-message room to archive.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Updated direct-message room after archiving it for the current user.
+message ArchiveDMResponse {
+  // Resolved room and current viewer state.
+  RoomWithViewerState room = 1;
+}
+
+// Request to restore one archived direct-message conversation for the current
+// user.
+message UnarchiveDMRequest {
+  // Required. Direct-message room to restore.
+  string room_id = 1 [(buf.validate.field).string.min_len = 1];
+}
+
+// Updated direct-message room after restoring it for the current user.
+message UnarchiveDMResponse {
+  // Resolved room and current viewer state.
+  RoomWithViewerState room = 1;
+}
+
 // Reads room directory data.
 service RoomDirectoryService {
   // Lists rooms visible to the current user. Channel rooms are non-archived
@@ -211,4 +241,14 @@ service RoomDirectoryService {
   // rooms hidden from the caller are omitted. Results preserve first-seen
   // request order and repeated IDs are de-duplicated.
   rpc BatchGetRooms(BatchGetRoomsRequest) returns (BatchGetRoomsResponse);
+  // Archives a non-empty DM conversation for the current user. The room stays
+  // accessible and discoverable through direct directory reads. A later root
+  // message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+  // channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+  // participant.
+  rpc ArchiveDM(ArchiveDMRequest) returns (ArchiveDMResponse);
+  // Explicitly restores an archived DM conversation for the current user.
+  // The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+  // and PERMISSION_DENIED when the caller is not a participant.
+  rpc UnarchiveDM(UnarchiveDMRequest) returns (UnarchiveDMResponse);
 }

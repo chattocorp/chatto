@@ -20,6 +20,8 @@
     "room_settings": "Ruimte-instellingen",
     "group_settings": "Instellingen voor {group}",
     "server_actions": "Acties voor {server}",
+    "archive_direct_message": "Gesprek archiveren",
+    "unarchive_direct_message": "Gesprek uit archief halen",
     "room_actions": "Acties voor #{room}"
   }
 }

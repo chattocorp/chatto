@@ -42,6 +42,7 @@ type ChattoCore struct {
 	notificationPolicy        *NotificationPolicyModel
 	roomTimelineReads         *RoomTimelineReadModel
 	readStateModel            *ReadStateModel
+	dmArchiveModel            *DMArchiveModel
 	notificationBoundaries    *notificationBoundaryIndex
 	notificationOccurrences   *NotificationOccurrenceModel
 	notificationMaterializer  *NotificationMaterializer
@@ -163,6 +164,9 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 		if err := c.readStateModel.WaitReady(gctx); err != nil {
 			return fmt.Errorf("wait for read state index: %w", err)
 		}
+		if err := c.dmArchiveModel.WaitReady(gctx); err != nil {
+			return fmt.Errorf("wait for DM archive index: %w", err)
+		}
 		if err := c.notificationOccurrences.WaitReady(gctx); err != nil {
 			return fmt.Errorf("wait for notification occurrence index: %w", err)
 		}
@@ -194,6 +198,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
+	g.Go(func() error { return c.dmArchiveModel.Run(gctx) })
 	g.Go(func() error { return c.notificationBoundaries.run(gctx) })
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })

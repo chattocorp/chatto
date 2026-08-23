@@ -81,6 +81,7 @@ export default defineConfig({
             "guides/operations/security",
             "guides/operations/privacy-erasure",
             "guides/operations/server-operations",
+            "guides/operations/direct-messages",
             "guides/operations/pinned-messages",
             "guides/operations/search",
             "guides/operations/operator-cli",

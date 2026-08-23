@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
@@ -15,6 +15,9 @@ Users can start a private, one-to-one conversation with anyone they can see in a
 - Starting a DM creates the durable room and participant memberships immediately so the complete composer is available, but the empty conversation stays out of every participant's navigation until its first message is sent.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- A user can archive a non-empty DM from its sidebar context menu or from the open conversation header. Archiving removes the conversation only from that user's sidebar; it remains available through direct navigation and the quick switcher.
+- Any later root message from either participant automatically restores an archived DM to the sidebar. Edits, reactions, retractions, replies to a historical thread written by an older client, and call activity do not restore it. Retracting the message that restored it does not archive it again.
+- A user can explicitly unarchive an open conversation. Archive state is independent for each participant and does not change membership, access, unread state, notification policy, or delivery.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
 - Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `message.post`.
@@ -75,6 +78,12 @@ message. Self-DMs do not notify their author, and ordinary DMs default to Alert.
 **Why:** Early creation keeps routing, permissions, attachments, previews, and the ordinary room composer simple while avoiding an unsolicited empty conversation in another participant's UI.
 **Tradeoff:** Empty DM rooms remain in durable history and authorized client state even though they are absent from navigation. This small amount of latent state avoids a separate draft-conversation model and disappears automatically from presentation after replay.
 
+### 8. Archive is a viewer-specific root-message boundary
+
+**Decision:** Archiving stores the current latest root-message event ID in the viewer's `RUNTIME_STATE` entry for that DM. The conversation is effectively archived only while that marker still equals the room's current latest root-message event ID. A later root message makes the marker stale and therefore restores the conversation without writing a second state change. Explicit unarchive deletes the marker.
+**Why:** Archive is personal navigation state, not reconstructable room content or a shared room lifecycle fact. Comparing a latest-value marker to the room projection makes message-driven restoration deterministic across replicas, replay, reconnect, and server restart without coupling message posting to archive cleanup. See ADR-036.
+**Tradeoff:** Archive markers must be included in backups and removed during account deletion. Realtime snapshots and compacted-reset reconciliation also fence concurrent archive-marker changes, because those latest values are outside the EVT log. Older clients and servers do not expose the control; older clients simply continue to show every active DM.
+
 ## Permissions
 
 - `message.post` — start DMs and send messages in DM rooms.
@@ -84,5 +93,5 @@ DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-036 (`RUNTIME_STATE` boundary), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)

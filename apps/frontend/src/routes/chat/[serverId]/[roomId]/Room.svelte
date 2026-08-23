@@ -40,6 +40,7 @@
   import { toast } from '$lib/ui/toast';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import HeaderIconButton from '$lib/ui/HeaderIconButton.svelte';
   import { tick } from 'svelte';
   import RoomEventsPane from './RoomEventsPane.svelte';
   import RoomSidebarPane from './RoomSidebarPane.svelte';
@@ -160,6 +161,7 @@
   // --- Extracted hooks ---
   const room = useRoomData(() => ({ roomId }));
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
+  const supportsDMArchive = $derived(serverInfo.supportsFeature('dmArchive'));
   const roomPinsStore = $derived(
     room.roomData && !room.isDM && supportsPinnedMessages ? stores.pinsForRoom(roomId) : null
   );
@@ -358,6 +360,17 @@
   });
   // Channel rooms can be left unless membership is granted by Universal policy.
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
+  const dmArchivePending = $derived(stores.roomDirectory.dmArchivePendingIds.has(roomId));
+
+  async function toggleDMArchive(): Promise<void> {
+    if (!room.roomData || !room.isDM) return;
+    const result = await stores.roomDirectory.setDMArchived(roomId, !room.roomData.isDMArchived);
+    if (!serverScope.isCurrent()) return;
+    if (!result.ok) {
+      toast.error(m('common.error.generic'));
+      console.error('Error updating DM archive state:', result.error);
+    }
+  }
   const activeRoomSidebarPanel = $derived(
     roomSidebarPanelForRoom(
       room.isDM,
@@ -648,6 +661,17 @@
           loading={!room.roomData}
         >
           {#snippet actions()}
+            {#if room.isDM && room.roomData?.hasMessageHistory !== false && supportsDMArchive}
+              <HeaderIconButton
+                icon="icon-[uil--archive]"
+                label={room.roomData.isDMArchived
+                  ? m('room_list.unarchive_direct_message')
+                  : m('room_list.archive_direct_message')}
+                tone={room.roomData.isDMArchived ? 'active' : 'default'}
+                disabled={dmArchivePending}
+                onclick={() => void toggleDMArchive()}
+              />
+            {/if}
             <RoomSidebarToggle
               mode="mobile"
               activePanel={mobileRoomSidebarPanel}

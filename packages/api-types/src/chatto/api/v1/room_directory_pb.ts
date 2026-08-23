@@ -85,6 +85,16 @@ export class RoomViewerState extends Message<RoomViewerState> {
    */
   slowModeNextPostAt?: Timestamp;
 
+  /**
+   * True when the current user has archived this DM conversation and no newer
+   * root message has arrived. Always false for channel rooms. Archiving affects
+   * navigation presentation only; membership, access, unread state, and
+   * notification policy are unchanged.
+   *
+   * @generated from field: bool is_dm_archived = 5;
+   */
+  isDmArchived = false;
+
   constructor(data?: PartialMessage<RoomViewerState>) {
     super();
     proto3.util.initPartial(data, this);
@@ -97,6 +107,7 @@ export class RoomViewerState extends Message<RoomViewerState> {
     { no: 2, name: "has_unread", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
     { no: 3, name: "permissions", kind: "message", T: PermissionGrant, repeated: true },
     { no: 4, name: "slow_mode_next_post_at", kind: "message", T: Timestamp },
+    { no: 5, name: "is_dm_archived", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomViewerState {
@@ -876,5 +887,170 @@ export class BatchGetRoomsResponse extends Message<BatchGetRoomsResponse> {
 
   static equals(a: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined, b: BatchGetRoomsResponse | PlainMessage<BatchGetRoomsResponse> | undefined): boolean {
     return proto3.util.equals(BatchGetRoomsResponse, a, b);
+  }
+}
+
+/**
+ * Request to archive one direct-message conversation for the current user.
+ *
+ * @generated from message chatto.api.v1.ArchiveDMRequest
+ */
+export class ArchiveDMRequest extends Message<ArchiveDMRequest> {
+  /**
+   * Required. Direct-message room to archive.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<ArchiveDMRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ArchiveDMRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArchiveDMRequest {
+    return new ArchiveDMRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ArchiveDMRequest {
+    return new ArchiveDMRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ArchiveDMRequest {
+    return new ArchiveDMRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ArchiveDMRequest | PlainMessage<ArchiveDMRequest> | undefined, b: ArchiveDMRequest | PlainMessage<ArchiveDMRequest> | undefined): boolean {
+    return proto3.util.equals(ArchiveDMRequest, a, b);
+  }
+}
+
+/**
+ * Updated direct-message room after archiving it for the current user.
+ *
+ * @generated from message chatto.api.v1.ArchiveDMResponse
+ */
+export class ArchiveDMResponse extends Message<ArchiveDMResponse> {
+  /**
+   * Resolved room and current viewer state.
+   *
+   * @generated from field: chatto.api.v1.RoomWithViewerState room = 1;
+   */
+  room?: RoomWithViewerState;
+
+  constructor(data?: PartialMessage<ArchiveDMResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ArchiveDMResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: RoomWithViewerState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ArchiveDMResponse {
+    return new ArchiveDMResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ArchiveDMResponse {
+    return new ArchiveDMResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ArchiveDMResponse {
+    return new ArchiveDMResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ArchiveDMResponse | PlainMessage<ArchiveDMResponse> | undefined, b: ArchiveDMResponse | PlainMessage<ArchiveDMResponse> | undefined): boolean {
+    return proto3.util.equals(ArchiveDMResponse, a, b);
+  }
+}
+
+/**
+ * Request to restore one archived direct-message conversation for the current
+ * user.
+ *
+ * @generated from message chatto.api.v1.UnarchiveDMRequest
+ */
+export class UnarchiveDMRequest extends Message<UnarchiveDMRequest> {
+  /**
+   * Required. Direct-message room to restore.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  constructor(data?: PartialMessage<UnarchiveDMRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UnarchiveDMRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnarchiveDMRequest {
+    return new UnarchiveDMRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnarchiveDMRequest {
+    return new UnarchiveDMRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnarchiveDMRequest {
+    return new UnarchiveDMRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnarchiveDMRequest | PlainMessage<UnarchiveDMRequest> | undefined, b: UnarchiveDMRequest | PlainMessage<UnarchiveDMRequest> | undefined): boolean {
+    return proto3.util.equals(UnarchiveDMRequest, a, b);
+  }
+}
+
+/**
+ * Updated direct-message room after restoring it for the current user.
+ *
+ * @generated from message chatto.api.v1.UnarchiveDMResponse
+ */
+export class UnarchiveDMResponse extends Message<UnarchiveDMResponse> {
+  /**
+   * Resolved room and current viewer state.
+   *
+   * @generated from field: chatto.api.v1.RoomWithViewerState room = 1;
+   */
+  room?: RoomWithViewerState;
+
+  constructor(data?: PartialMessage<UnarchiveDMResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.UnarchiveDMResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room", kind: "message", T: RoomWithViewerState },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): UnarchiveDMResponse {
+    return new UnarchiveDMResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): UnarchiveDMResponse {
+    return new UnarchiveDMResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): UnarchiveDMResponse {
+    return new UnarchiveDMResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: UnarchiveDMResponse | PlainMessage<UnarchiveDMResponse> | undefined, b: UnarchiveDMResponse | PlainMessage<UnarchiveDMResponse> | undefined): boolean {
+    return proto3.util.equals(UnarchiveDMResponse, a, b);
   }
 }

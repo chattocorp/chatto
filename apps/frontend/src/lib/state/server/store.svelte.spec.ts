@@ -68,6 +68,8 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
   apiMocks: {
     listRooms: vi.fn(() => Promise.resolve([])),
     listRoomGroups: vi.fn(() => Promise.resolve([])),
+    archiveDM: vi.fn(() => Promise.resolve(null)),
+    unarchiveDM: vi.fn(() => Promise.resolve(null)),
     listRoomMembers: vi.fn(() =>
       Promise.resolve({
         members: [],
@@ -188,7 +190,9 @@ vi.mock('$lib/api-client/roomDirectory', () => ({
   mapRoomGroup: (group: unknown) => group,
   createRoomDirectoryAPI: vi.fn(() => ({
     listRooms: apiMocks.listRooms,
-    listRoomGroups: apiMocks.listRoomGroups
+    listRoomGroups: apiMocks.listRoomGroups,
+    archiveDM: apiMocks.archiveDM,
+    unarchiveDM: apiMocks.unarchiveDM
   }))
 }));
 

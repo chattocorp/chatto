@@ -73,6 +73,7 @@ message LiveEvent {
     // ----- Unread indicators -----
     RoomMarkedAsReadEvent room_marked_as_read = 80;
     MentionStatusClearedEvent mention_status_cleared = 81;
+    DMArchiveChangedEvent dm_archive_changed = 82;
 
     // ----- Room layout -----
     RoomGroupsUpdatedEvent room_groups_updated = 90;
@@ -188,6 +189,14 @@ message RoomMarkedAsReadEvent {
 // use this to drop the orange dot for the room without waiting for a refetch.
 message MentionStatusClearedEvent {
   // Room ID whose mention indicator was cleared
+  string room_id = 1;
+}
+
+// User-scoped invalidation emitted after a viewer archives or restores a DM.
+// RUNTIME_STATE remains authoritative; consumers rebuild the complete room
+// viewer state instead of treating this payload as durable state.
+message DMArchiveChangedEvent {
+  // Direct-message room whose viewer-specific archive state changed.
   string room_id = 1;
 }
 

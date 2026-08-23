@@ -581,6 +581,7 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 		{"notification occurrences invalidated", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{}}}},
 		{"thread follow", &corev1.LiveEvent{Event: &corev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{RoomId: "R1", ThreadRootEventId: "M1"}}}},
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
+		{"DM archive", &corev1.LiveEvent{Event: &corev1.LiveEvent_DmArchiveChanged{DmArchiveChanged: &corev1.DMArchiveChangedEvent{RoomId: "R1"}}}},
 		{"server updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUpdated{ServerUpdated: &corev1.ServerUpdatedEvent{}}}},
 		{"profile updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_UserProfileUpdated{UserProfileUpdated: &corev1.UserProfileUpdatedEvent{UserId: "U1"}}}},
 		{"preferences updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUserPreferencesUpdated{ServerUserPreferencesUpdated: &corev1.ServerUserPreferencesUpdatedEvent{}}}},
@@ -1200,7 +1201,11 @@ func TestRealtimeProjectionCompactedReconciliationRepairsOnlyRoomMarkersChangedD
 		t.Fatalf("MarkRoomAsRead: %v", err)
 	}
 
-	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &snapshot.RoomMarkerFence)
+	fences := realtimeProjectionRuntimeFences{
+		roomRead:  snapshot.RoomMarkerFence,
+		dmArchive: snapshot.DMArchiveFence,
+	}
+	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &fences)
 	if err != nil {
 		t.Fatalf("realtimeProjectionReconciliationFrame: %v", err)
 	}
@@ -2220,6 +2225,120 @@ func TestRealtimeProjectionRoomReadReplacesOnlyThatRoomViewerState(t *testing.T)
 		t.Fatal("room-read event did not replace current notification state")
 	} else if len(notifications.GetOccurrences().GetOccurrences()) != 0 {
 		t.Fatalf("room-read notifications = %+v, want no unread notification state", notifications)
+	}
+}
+
+func TestRealtimeProjectionDMArchiveConvergesLiveAndAfterRootMessage(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-archive-viewer", "RT DM Archive Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-archive-other", "RT DM Archive Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	room, _, err := env.core.FindOrCreateDM(env.ctx, viewer.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, room.Id, viewer.Id, "first", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage first: %v", err)
+	}
+	if err := env.core.DMArchive().Archive(env.ctx, viewer.Id, room.Id); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id: "dm-archive-live-1", ActorId: viewer.Id,
+		Event: &corev1.LiveEvent_DmArchiveChanged{DmArchiveChanged: &corev1.DMArchiveChangedEvent{RoomId: room.Id}},
+	}))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent archive: %v", err)
+	}
+	if !handled {
+		t.Fatal("DM archive invalidation was not handled")
+	}
+	operations := frame.GetProjectionEvent().GetOperations()
+	if len(operations) != 1 {
+		t.Fatalf("DM archive operations = %d, want one viewer-state replacement", len(operations))
+	}
+	replacement := operations[0].GetRoomViewerStateReplace()
+	if replacement.GetRoomId() != room.Id || !replacement.GetViewerState().GetIsDmArchived() {
+		t.Fatalf("DM archive replacement = %+v, want room %q archived", replacement, room.Id)
+	}
+
+	newMessage, err := env.core.PostMessage(env.ctx, core.KindDM, room.Id, other.Id, "new root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage new root: %v", err)
+	}
+	frame, handled, err = env.httpServer.realtimeProjectionFrameForEventWithRooms(
+		env.ctx,
+		viewer.Id,
+		core.NewEVTEventEnvelope(newMessage),
+		map[string]struct{}{},
+	)
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEventWithRooms message: %v", err)
+	}
+	if !handled {
+		t.Fatal("new DM root message was not handled")
+	}
+	var restored *realtimev1.RealtimeProjectionRoomViewerStateReplace
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if candidate := operation.GetRoomViewerStateReplace(); candidate != nil {
+			restored = candidate
+			break
+		}
+	}
+	if restored == nil || restored.GetRoomId() != room.Id || restored.GetViewerState().GetIsDmArchived() {
+		t.Fatalf("new-message viewer state = %+v, want room %q restored", restored, room.Id)
+	}
+}
+
+func TestRealtimeCompactedResetRepairsConcurrentDMArchiveChange(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-archive-fence-viewer", "RT DM Archive Fence Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	other, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-dm-archive-fence-other", "RT DM Archive Fence Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	room, _, err := env.core.FindOrCreateDM(env.ctx, viewer.Id, []string{other.Id})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindDM, room.Id, viewer.Id, "first", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, viewer.Id, nil)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	if err := env.core.DMArchive().Archive(env.ctx, viewer.Id, room.Id); err != nil {
+		t.Fatalf("Archive: %v", err)
+	}
+	fences := realtimeProjectionRuntimeFences{
+		roomRead:  snapshot.RoomMarkerFence,
+		dmArchive: snapshot.DMArchiveFence,
+	}
+	frame, err := env.httpServer.realtimeProjectionReconciliationFrame(env.ctx, viewer.Id, &fences)
+	if err != nil {
+		t.Fatalf("realtimeProjectionReconciliationFrame: %v", err)
+	}
+	var replacement *realtimev1.RealtimeProjectionRoomViewerStateReplace
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		candidate := operation.GetRoomViewerStateReplace()
+		if candidate.GetRoomId() == room.Id {
+			replacement = candidate
+			break
+		}
+	}
+	if replacement == nil || !replacement.GetViewerState().GetIsDmArchived() {
+		t.Fatalf("concurrent archive repair = %+v, want archived room %q", replacement, room.Id)
 	}
 }
 

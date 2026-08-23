@@ -33,6 +33,7 @@ test.describe('Direct Messages (room-shaped)', () => {
 
     await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
       const roomB = await new DMPage(pageB).startConversation(userA.login);
+      await expect(pageB.getByRole('button', { name: 'Archive conversation' })).toHaveCount(0);
 
       await page.goto(routes.browseRooms);
       await page.waitForURL(routes.browseRooms);
@@ -42,6 +43,9 @@ test.describe('Direct Messages (room-shaped)', () => {
       await roomB.sendAttachment('e2e/fixtures/brighton.jpg');
 
       await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await expect(pageB.getByRole('button', { name: 'Archive conversation' })).toBeVisible({
+        timeout: TIMEOUTS.REALTIME_EVENT
+      });
     });
   });
 
@@ -127,6 +131,53 @@ test.describe('Direct Messages (room-shaped)', () => {
       await dmLink.click();
       await page.waitForURL(routes.patterns.anyRoom);
       expect(page.url()).not.toContain('/chat/dm/');
+    });
+  });
+
+  test('archive hides only the sidebar row and a new root message restores it', async ({
+    page,
+    browser,
+    serverURL
+  }) => {
+    const userA = await createAndLoginTestUser(page);
+
+    await withServerUser(browser, serverURL, async ({ page: pageB, user: userB }) => {
+      const roomB = await new DMPage(pageB).startConversation(userA.login);
+      await roomB.sendMessage('archive seed');
+
+      await page.goto(routes.browseRooms);
+      await page.waitForURL(routes.browseRooms);
+
+      const dmPageA = new DMPage(page);
+      const conversation = dmPageA.getConversation(userB.displayName);
+      await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      await conversation.click({ button: 'right' });
+      await page.getByRole('menuitem', { name: 'Archive conversation' }).click();
+      await expect(conversation).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      // Archiving is a sidebar preference, not access revocation. The quick
+      // switcher retains the canonical DM and opening it does not restore it.
+      await page.getByRole('button', { name: 'Open quick switcher' }).click();
+      const switcher = page.locator('dialog.quick-switcher');
+      await expect(switcher).toBeVisible();
+      await switcher
+        .getByPlaceholder('Go somewhere, or type ? to search messages...')
+        .fill(userB.displayName);
+      await switcher.locator('button.sidebar-item').filter({ hasText: userB.displayName }).click();
+      await expect(page.getByRole('button', { name: 'Unarchive conversation' })).toBeVisible();
+      await expect(conversation).not.toBeVisible();
+
+      // A later root message makes the stored latest-root boundary stale and
+      // restores the row without a second archive-state write.
+      await roomB.sendMessage(`restore ${Date.now()}`);
+      await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+
+      // The open-room control supports an explicit archive/unarchive cycle.
+      await page.getByRole('button', { name: 'Archive conversation' }).click();
+      await expect(conversation).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+      await page.getByRole('button', { name: 'Unarchive conversation' }).click();
+      await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
     });
   });
 

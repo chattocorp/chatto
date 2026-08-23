@@ -20,6 +20,8 @@
     "room_settings": "הגדרות החדר",
     "group_settings": "הגדרות עבור {group}",
     "server_actions": "פעולות עבור {server}",
+    "archive_direct_message": "העברת השיחה לארכיון",
+    "unarchive_direct_message": "הוצאת השיחה מהארכיון",
     "room_actions": "פעולות עבור #{room}"
   }
 }

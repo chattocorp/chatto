@@ -221,3 +221,74 @@ Visible room batch response for direct room hydration.
 | Field | Type | Description |
 | --- | --- | --- |
 | `rooms` | repeated [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-ArchiveDM"></a>
+
+### ArchiveDM
+
+Archives a non-empty DM conversation for the current user. The room stays
+accessible and discoverable through direct directory reads. A later root
+message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+participant.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ArchiveDM
+```
+
+<a id="chatto-api-v1-ArchiveDMRequest"></a>
+
+#### Input: ArchiveDMRequest
+
+Request to archive one direct-message conversation for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Direct-message room to archive. |
+
+
+<a id="chatto-api-v1-ArchiveDMResponse"></a>
+
+#### Result: ArchiveDMResponse
+
+Updated direct-message room after archiving it for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Resolved room and current viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-UnarchiveDM"></a>
+
+### UnarchiveDM
+
+Explicitly restores an archived DM conversation for the current user.
+The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+and PERMISSION_DENIED when the caller is not a participant.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/UnarchiveDM
+```
+
+<a id="chatto-api-v1-UnarchiveDMRequest"></a>
+
+#### Input: UnarchiveDMRequest
+
+Request to restore one archived direct-message conversation for the current
+user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Direct-message room to restore. |
+
+
+<a id="chatto-api-v1-UnarchiveDMResponse"></a>
+
+#### Result: UnarchiveDMResponse
+
+Updated direct-message room after restoring it for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomWithViewerState`](/reference/connectrpc-api/types/#chatto-api-v1-RoomWithViewerState) | Resolved room and current viewer state. |

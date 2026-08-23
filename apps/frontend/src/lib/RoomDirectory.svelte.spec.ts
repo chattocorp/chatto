@@ -23,6 +23,7 @@ const listedRoom = (id: string, overrides: Partial<RoomsListItem> = {}): RoomsLi
   viewerIsMember: overrides.viewerIsMember ?? true,
   viewerCanJoinRoom: overrides.viewerCanJoinRoom ?? true,
   viewerCanManageRoom: overrides.viewerCanManageRoom ?? false,
+  viewerDMArchived: overrides.viewerDMArchived ?? false,
   viewerNotificationCount: overrides.viewerNotificationCount ?? 0,
   viewerImportantNotificationCount: overrides.viewerImportantNotificationCount ?? 0,
   members: overrides.members ?? []
@@ -32,8 +33,7 @@ const joined = (id: string): RoomsListItem => listedRoom(id, { viewerIsMember: t
 
 function findButton(container: Element, label: string): HTMLButtonElement | undefined {
   return [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === label) as
-    | HTMLButtonElement
-    | undefined;
+    HTMLButtonElement | undefined;
 }
 
 describe('RoomDirectory', () => {

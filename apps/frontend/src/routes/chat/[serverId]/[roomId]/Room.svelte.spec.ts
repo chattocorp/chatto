@@ -57,6 +57,8 @@ const { mocks } = vi.hoisted(() => {
       livekitUrl: null as string | null,
       roomKind: 1,
       threadingMode: 3,
+      dmArchived: false,
+      setDMArchived: vi.fn().mockResolvedValue({ ok: true, isArchived: true }),
       canPostMessage: true,
       canPostInThread: true,
       getAppUiState: vi.fn(),
@@ -132,7 +134,9 @@ vi.mock('$lib/hooks', () => ({
       canManageOthersMessage: false,
       canEchoMessage: true,
       canManageRoom: false,
-      canBanRoomMembers: false
+      canBanRoomMembers: false,
+      hasMessageHistory: true,
+      isDMArchived: mocks.dmArchived
     },
     dmData: null,
     isDM: mocks.roomKind === RoomKind.DM,
@@ -203,7 +207,9 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
         maxUploadSize: 25 * 1024 * 1024,
         maxVideoUploadSize: 25 * 1024 * 1024,
         supportsFeature: (feature: string) =>
-          feature === 'messageSearch' && mocks.messageSearchSupported
+          (feature === 'messageSearch' && mocks.messageSearchSupported) ||
+          feature === 'threadCreation' ||
+          feature === 'dmArchive'
       },
       messageSearch: {
         statusLoading: false,
@@ -217,6 +223,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
       },
       notifications: {
         markOccurrenceRead: mocks.markOccurrenceRead
+      },
+      roomDirectory: {
+        setDMArchived: mocks.setDMArchived,
+        dmArchivePendingIds: new Set<string>()
       },
       activeCallRooms: {
         has: vi.fn((roomId: string) => mocks.activeCallRoomIds.has(roomId))
@@ -408,6 +418,9 @@ beforeEach(() => {
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.threadingMode = RoomThreadingMode.ENABLED;
+  mocks.dmArchived = false;
+  mocks.setDMArchived.mockReset();
+  mocks.setDMArchived.mockResolvedValue({ ok: true, isArchived: true });
   mocks.canPostMessage = true;
   mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();

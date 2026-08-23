@@ -51,6 +51,12 @@ const (
 	// RoomDirectoryServiceBatchGetRoomsProcedure is the fully-qualified name of the
 	// RoomDirectoryService's BatchGetRooms RPC.
 	RoomDirectoryServiceBatchGetRoomsProcedure = "/chatto.api.v1.RoomDirectoryService/BatchGetRooms"
+	// RoomDirectoryServiceArchiveDMProcedure is the fully-qualified name of the RoomDirectoryService's
+	// ArchiveDM RPC.
+	RoomDirectoryServiceArchiveDMProcedure = "/chatto.api.v1.RoomDirectoryService/ArchiveDM"
+	// RoomDirectoryServiceUnarchiveDMProcedure is the fully-qualified name of the
+	// RoomDirectoryService's UnarchiveDM RPC.
+	RoomDirectoryServiceUnarchiveDMProcedure = "/chatto.api.v1.RoomDirectoryService/UnarchiveDM"
 )
 
 // RoomDirectoryServiceClient is a client for the chatto.api.v1.RoomDirectoryService service.
@@ -82,6 +88,16 @@ type RoomDirectoryServiceClient interface {
 	// rooms hidden from the caller are omitted. Results preserve first-seen
 	// request order and repeated IDs are de-duplicated.
 	BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error)
+	// Archives a non-empty DM conversation for the current user. The room stays
+	// accessible and discoverable through direct directory reads. A later root
+	// message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+	// channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+	// participant.
+	ArchiveDM(context.Context, *connect.Request[v1.ArchiveDMRequest]) (*connect.Response[v1.ArchiveDMResponse], error)
+	// Explicitly restores an archived DM conversation for the current user.
+	// The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+	// and PERMISSION_DENIED when the caller is not a participant.
+	UnarchiveDM(context.Context, *connect.Request[v1.UnarchiveDMRequest]) (*connect.Response[v1.UnarchiveDMResponse], error)
 }
 
 // NewRoomDirectoryServiceClient constructs a client for the chatto.api.v1.RoomDirectoryService
@@ -131,6 +147,18 @@ func NewRoomDirectoryServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRooms")),
 			connect.WithClientOptions(opts...),
 		),
+		archiveDM: connect.NewClient[v1.ArchiveDMRequest, v1.ArchiveDMResponse](
+			httpClient,
+			baseURL+RoomDirectoryServiceArchiveDMProcedure,
+			connect.WithSchema(roomDirectoryServiceMethods.ByName("ArchiveDM")),
+			connect.WithClientOptions(opts...),
+		),
+		unarchiveDM: connect.NewClient[v1.UnarchiveDMRequest, v1.UnarchiveDMResponse](
+			httpClient,
+			baseURL+RoomDirectoryServiceUnarchiveDMProcedure,
+			connect.WithSchema(roomDirectoryServiceMethods.ByName("UnarchiveDM")),
+			connect.WithClientOptions(opts...),
+		),
 	}
 }
 
@@ -142,6 +170,8 @@ type roomDirectoryServiceClient struct {
 	batchGetRoomGroups *connect.Client[v1.BatchGetRoomGroupsRequest, v1.BatchGetRoomGroupsResponse]
 	getRoom            *connect.Client[v1.GetRoomRequest, v1.GetRoomResponse]
 	batchGetRooms      *connect.Client[v1.BatchGetRoomsRequest, v1.BatchGetRoomsResponse]
+	archiveDM          *connect.Client[v1.ArchiveDMRequest, v1.ArchiveDMResponse]
+	unarchiveDM        *connect.Client[v1.UnarchiveDMRequest, v1.UnarchiveDMResponse]
 }
 
 // ListRooms calls chatto.api.v1.RoomDirectoryService.ListRooms.
@@ -174,6 +204,16 @@ func (c *roomDirectoryServiceClient) BatchGetRooms(ctx context.Context, req *con
 	return c.batchGetRooms.CallUnary(ctx, req)
 }
 
+// ArchiveDM calls chatto.api.v1.RoomDirectoryService.ArchiveDM.
+func (c *roomDirectoryServiceClient) ArchiveDM(ctx context.Context, req *connect.Request[v1.ArchiveDMRequest]) (*connect.Response[v1.ArchiveDMResponse], error) {
+	return c.archiveDM.CallUnary(ctx, req)
+}
+
+// UnarchiveDM calls chatto.api.v1.RoomDirectoryService.UnarchiveDM.
+func (c *roomDirectoryServiceClient) UnarchiveDM(ctx context.Context, req *connect.Request[v1.UnarchiveDMRequest]) (*connect.Response[v1.UnarchiveDMResponse], error) {
+	return c.unarchiveDM.CallUnary(ctx, req)
+}
+
 // RoomDirectoryServiceHandler is an implementation of the chatto.api.v1.RoomDirectoryService
 // service.
 type RoomDirectoryServiceHandler interface {
@@ -204,6 +244,16 @@ type RoomDirectoryServiceHandler interface {
 	// rooms hidden from the caller are omitted. Results preserve first-seen
 	// request order and repeated IDs are de-duplicated.
 	BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error)
+	// Archives a non-empty DM conversation for the current user. The room stays
+	// accessible and discoverable through direct directory reads. A later root
+	// message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+	// channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+	// participant.
+	ArchiveDM(context.Context, *connect.Request[v1.ArchiveDMRequest]) (*connect.Response[v1.ArchiveDMResponse], error)
+	// Explicitly restores an archived DM conversation for the current user.
+	// The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+	// and PERMISSION_DENIED when the caller is not a participant.
+	UnarchiveDM(context.Context, *connect.Request[v1.UnarchiveDMRequest]) (*connect.Response[v1.UnarchiveDMResponse], error)
 }
 
 // NewRoomDirectoryServiceHandler builds an HTTP handler from the service implementation. It returns
@@ -249,6 +299,18 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 		connect.WithSchema(roomDirectoryServiceMethods.ByName("BatchGetRooms")),
 		connect.WithHandlerOptions(opts...),
 	)
+	roomDirectoryServiceArchiveDMHandler := connect.NewUnaryHandler(
+		RoomDirectoryServiceArchiveDMProcedure,
+		svc.ArchiveDM,
+		connect.WithSchema(roomDirectoryServiceMethods.ByName("ArchiveDM")),
+		connect.WithHandlerOptions(opts...),
+	)
+	roomDirectoryServiceUnarchiveDMHandler := connect.NewUnaryHandler(
+		RoomDirectoryServiceUnarchiveDMProcedure,
+		svc.UnarchiveDM,
+		connect.WithSchema(roomDirectoryServiceMethods.ByName("UnarchiveDM")),
+		connect.WithHandlerOptions(opts...),
+	)
 	return "/chatto.api.v1.RoomDirectoryService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
 		case RoomDirectoryServiceListRoomsProcedure:
@@ -263,6 +325,10 @@ func NewRoomDirectoryServiceHandler(svc RoomDirectoryServiceHandler, opts ...con
 			roomDirectoryServiceGetRoomHandler.ServeHTTP(w, r)
 		case RoomDirectoryServiceBatchGetRoomsProcedure:
 			roomDirectoryServiceBatchGetRoomsHandler.ServeHTTP(w, r)
+		case RoomDirectoryServiceArchiveDMProcedure:
+			roomDirectoryServiceArchiveDMHandler.ServeHTTP(w, r)
+		case RoomDirectoryServiceUnarchiveDMProcedure:
+			roomDirectoryServiceUnarchiveDMHandler.ServeHTTP(w, r)
 		default:
 			http.NotFound(w, r)
 		}
@@ -294,4 +360,12 @@ func (UnimplementedRoomDirectoryServiceHandler) GetRoom(context.Context, *connec
 
 func (UnimplementedRoomDirectoryServiceHandler) BatchGetRooms(context.Context, *connect.Request[v1.BatchGetRoomsRequest]) (*connect.Response[v1.BatchGetRoomsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.BatchGetRooms is not implemented"))
+}
+
+func (UnimplementedRoomDirectoryServiceHandler) ArchiveDM(context.Context, *connect.Request[v1.ArchiveDMRequest]) (*connect.Response[v1.ArchiveDMResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.ArchiveDM is not implemented"))
+}
+
+func (UnimplementedRoomDirectoryServiceHandler) UnarchiveDM(context.Context, *connect.Request[v1.UnarchiveDMRequest]) (*connect.Response[v1.UnarchiveDMResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.RoomDirectoryService.UnarchiveDM is not implemented"))
 }

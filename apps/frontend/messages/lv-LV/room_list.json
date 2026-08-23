@@ -20,6 +20,8 @@
     "room_settings": "Telpas iestatījumi",
     "group_settings": "Iestatījumi {group}",
     "server_actions": "Darbības {server}",
+    "archive_direct_message": "Arhivēt sarunu",
+    "unarchive_direct_message": "Atjaunot sarunu no arhīva",
     "room_actions": "Darbības ar #{room}"
   }
 }

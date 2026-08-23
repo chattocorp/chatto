@@ -13,7 +13,7 @@ import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_p
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import { NavigationStore } from './rooms.svelte';
+import { isNavigationVisibleRoom, NavigationStore } from './rooms.svelte';
 
 function navigationFor(
   projection: ServerProjectionStore,
@@ -30,12 +30,14 @@ function projectedRoom(
     kind = RoomKind.CHANNEL,
     member = true,
     memberUserIds = [],
-    hasMessageHistory
+    hasMessageHistory,
+    dmArchived = false
   }: {
     kind?: RoomKind;
     member?: boolean;
     memberUserIds?: string[];
     hasMessageHistory?: boolean;
+    dmArchived?: boolean;
   } = {}
 ): RealtimeProjectionRoom {
   return new RealtimeProjectionRoom({
@@ -43,6 +45,7 @@ function projectedRoom(
       room: new Room({ id, name: id, kind }),
       viewerState: new RoomViewerState({
         isMember: member,
+        isDmArchived: dmArchived,
         permissions: [
           new PermissionGrant({ permission: 'room.join', granted: true }),
           new PermissionGrant({ permission: 'room.manage', granted: id === 'managed' })
@@ -124,6 +127,25 @@ describe('NavigationStore', () => {
 
     projection.rooms.delete('older');
     expect(navigation.rooms.map((room) => room.id)).toEqual(['newer']);
+  });
+
+  it('preserves archived DMs for direct navigation while exposing viewer state', () => {
+    const projection = new ServerProjectionStore();
+    projection.rooms.set(
+      'archived-dm',
+      projectedRoom('archived-dm', {
+        kind: RoomKind.DM,
+        hasMessageHistory: true,
+        dmArchived: true
+      })
+    );
+    const { navigation } = navigationFor(projection);
+
+    expect(navigation.rooms[0]).toMatchObject({
+      id: 'archived-dm',
+      viewerDMArchived: true
+    });
+    expect(isNavigationVisibleRoom(navigation.rooms[0]!)).toBe(true);
   });
 
   it('treats a missing Important count as zero after the last Important occurrence is read', () => {

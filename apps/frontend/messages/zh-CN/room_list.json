@@ -20,6 +20,8 @@
     "room_settings": "聊天室设置",
     "group_settings": "{group} 的设置",
     "server_actions": "{server} 的操作",
+    "archive_direct_message": "归档对话",
+    "unarchive_direct_message": "取消归档对话",
     "room_actions": "#{room} 的操作"
   }
 }

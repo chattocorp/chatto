@@ -20,6 +20,8 @@
     "room_settings": "Ruumi seaded",
     "group_settings": "Seaded: {group}",
     "server_actions": "Toimingud: {server}",
+    "archive_direct_message": "Arhiveeri vestlus",
+    "unarchive_direct_message": "Taasta vestlus arhiivist",
     "room_actions": "Toimingud: #{room}"
   }
 }

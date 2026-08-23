@@ -24,6 +24,7 @@ export type RoomsListItem = {
   viewerIsMember: boolean;
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
+  viewerDMArchived: boolean;
   viewerNotificationCount: number;
   viewerImportantNotificationCount: number;
   hasMessageHistory?: boolean | null;
@@ -111,6 +112,7 @@ export class NavigationStore {
           viewerIsMember: room.isMember,
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
+          viewerDMArchived: room.isDMArchived,
           viewerNotificationCount,
           viewerImportantNotificationCount,
           hasMessageHistory: room.kind === RoomKind.DM ? (entry.hasMessageHistory ?? null) : null,

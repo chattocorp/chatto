@@ -13,6 +13,7 @@ function room(overrides: Partial<RoomsListItem> = {}): RoomsListItem {
     viewerIsMember: true,
     viewerCanJoinRoom: true,
     viewerCanManageRoom: false,
+    viewerDMArchived: false,
     viewerNotificationCount: 0,
     viewerImportantNotificationCount: 0,
     members: [],

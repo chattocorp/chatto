@@ -195,6 +195,9 @@ func (c *ChattoCore) verifyNATSRecovery(ctx context.Context) error {
 	if err := c.readStateModel.Resync(ctx); err != nil {
 		return fmt.Errorf("read state recovery: %w", err)
 	}
+	if err := c.dmArchiveModel.Resync(ctx); err != nil {
+		return fmt.Errorf("DM archive recovery: %w", err)
+	}
 	if err := c.notificationOccurrences.Resync(ctx); err != nil {
 		return fmt.Errorf("notification occurrence recovery: %w", err)
 	}

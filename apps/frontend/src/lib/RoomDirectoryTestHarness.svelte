@@ -28,6 +28,10 @@ a fixture navigation view so component tests do not need a realtime transport.
   const stubMemberDirectoryAPI = {
     listRoomMembers: async () => ({ members: [], totalCount: 0, hasMore: false })
   };
+  const stubDirectoryAPI = {
+    archiveDM: async () => null,
+    unarchiveDM: async () => null
+  };
 
   const navigation = {
     get rooms() {
@@ -41,6 +45,7 @@ a fixture navigation view so component tests do not need a realtime transport.
             type: RoomKind.CHANNEL,
             viewerIsMember: listed?.viewerIsMember ?? false,
             viewerCanManageRoom: listed?.viewerCanManageRoom ?? false,
+            viewerDMArchived: false,
             viewerNotificationCount: 0,
             viewerImportantNotificationCount: 0,
             hasMessageHistory: null,
@@ -59,7 +64,9 @@ a fixture navigation view so component tests do not need a realtime transport.
   const directory = new RoomDirectoryStore(
     navigation,
     stubMemberDirectoryAPI,
-    stubRoomAPI
+    stubRoomAPI,
+    stubDirectoryAPI,
+    () => {}
   );
 </script>
 

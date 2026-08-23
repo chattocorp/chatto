@@ -185,6 +185,9 @@ func (c *ChattoCore) DeleteUser(ctx context.Context, actorID, userID string) err
 	if err := c.deleteUserSettings(ctx, userID); err != nil {
 		c.logger.Warn("Failed to delete user settings during deletion", "user_id", userID, "error", err)
 	}
+	if err := c.dmArchiveModel.DeleteUserMarkers(ctx, userID); err != nil {
+		c.logger.Warn("Failed to delete DM archive markers during deletion", "user_id", userID, "error", err)
+	}
 
 	// Clean per-kind user artifacts AFTER the user projection marks the
 	// account deleted, so ServerMemberDeletedEvent refetches already see

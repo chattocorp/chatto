@@ -32,6 +32,7 @@ export type DirectoryRoomSummary = {
   slowModeNextPostAt: string | null;
   isMember: boolean;
   hasUnread: boolean;
+  isDMArchived: boolean;
   canJoinRoom: boolean;
   canManageRoom: boolean;
 };
@@ -134,6 +135,24 @@ export function createRoomDirectoryAPI(config: RoomDirectoryAPIConfig) {
       }
     },
 
+    async archiveDM(roomId: string): Promise<DirectoryRoomDetails | null> {
+      try {
+        const response = await directory.archiveDM({ roomId }, { headers: headers() });
+        return mapDirectoryRoomDetails(response.room);
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
+    async unarchiveDM(roomId: string): Promise<DirectoryRoomDetails | null> {
+      try {
+        const response = await directory.unarchiveDM({ roomId }, { headers: headers() });
+        return mapDirectoryRoomDetails(response.room);
+      } catch (err) {
+        return handleAuthError(config, err);
+      }
+    },
+
     async listRoomGroups(): Promise<DirectoryRoomGroup[]> {
       try {
         const response = await directory.listRoomGroups({}, { headers: headers() });
@@ -203,6 +222,7 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
+    isDMArchived: entry.viewerState?.isDmArchived ?? false,
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };

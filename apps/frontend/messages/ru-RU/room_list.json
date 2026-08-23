@@ -20,6 +20,8 @@
     "room_settings": "Настройки комнаты",
     "group_settings": "Настройки для {group}",
     "server_actions": "Действия для {server}",
+    "archive_direct_message": "Архивировать беседу",
+    "unarchive_direct_message": "Вернуть беседу из архива",
     "room_actions": "Действия для #{room}"
   }
 }

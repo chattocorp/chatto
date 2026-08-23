@@ -20,6 +20,8 @@
     "room_settings": "Impostazioni della stanza",
     "group_settings": "Impostazioni per {group}",
     "server_actions": "Azioni per {server}",
+    "archive_direct_message": "Archivia conversazione",
+    "unarchive_direct_message": "Rimuovi conversazione dall'archivio",
     "room_actions": "Azioni per #{room}"
   }
 }

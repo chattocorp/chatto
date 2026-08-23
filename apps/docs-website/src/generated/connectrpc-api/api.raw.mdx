@@ -3174,6 +3174,77 @@ Visible room batch response for direct room hydration.
 | `rooms` | repeated [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved rooms in first-seen request order. |
 
 
+<a id="chatto-api-v1-RoomDirectoryService-ArchiveDM"></a>
+
+### ArchiveDM
+
+Archives a non-empty DM conversation for the current user. The room stays
+accessible and discoverable through direct directory reads. A later root
+message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+participant.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/ArchiveDM
+```
+
+<a id="chatto-api-v1-ArchiveDMRequest"></a>
+
+#### Input: ArchiveDMRequest
+
+Request to archive one direct-message conversation for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Direct-message room to archive. |
+
+
+<a id="chatto-api-v1-ArchiveDMResponse"></a>
+
+#### Result: ArchiveDMResponse
+
+Updated direct-message room after archiving it for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved room and current viewer state. |
+
+
+<a id="chatto-api-v1-RoomDirectoryService-UnarchiveDM"></a>
+
+### UnarchiveDM
+
+Explicitly restores an archived DM conversation for the current user.
+The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+and PERMISSION_DENIED when the caller is not a participant.
+
+```http
+POST /api/connect/chatto.api.v1.RoomDirectoryService/UnarchiveDM
+```
+
+<a id="chatto-api-v1-UnarchiveDMRequest"></a>
+
+#### Input: UnarchiveDMRequest
+
+Request to restore one archived direct-message conversation for the current
+user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Direct-message room to restore. |
+
+
+<a id="chatto-api-v1-UnarchiveDMResponse"></a>
+
+#### Result: UnarchiveDMResponse
+
+Updated direct-message room after restoring it for the current user.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room` | [`RoomWithViewerState`](#chatto-api-v1-RoomWithViewerState) | Resolved room and current viewer state. |
+
+
 <a id="chatto-api-v1-ServerService"></a>
 
 ## ServerService
@@ -4837,6 +4908,7 @@ Viewer-specific state and permission decisions for one room.
 | `has_unread` | `bool` | True when the room has unread root messages for the current user. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
+| `is_dm_archived` | `bool` | True when the current user has archived this DM conversation and no newer root message has arrived. Always false for channel rooms. Archiving affects navigation presentation only; membership, access, unread state, and notification policy are unchanged. |
 
 
 

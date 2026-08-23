@@ -54,6 +54,12 @@ socket.
 | `chatto.api.v1` | `AssetService`, `AssetUploadService`, `BotService`, `MessageSearchService`, `MessageService`, `MyAccountService`, `NotificationService`, `PushNotificationService`, `RoleService`, `RoomDirectoryService`, `RoomService`, `ServerService`, `ThreadService`, `UserService`, `ViewerService`, `VoiceCallService` | Authenticated user |
 | `chatto.admin.v1` | `AdminDiagnosticsService`, `AdminEventLogService`, `AdminInviteLinkService`, `AdminOAuthClientService`, `AdminPermissionService`, `AdminRoleService`, `AdminRoomLayoutService`, `AdminServerService`, `AdminUserService` | Authenticated user; methods enforce administrative permissions |
 
+`RoomDirectoryService` owns both finite room/viewer-state reads and the
+viewer-specific `ArchiveDM` / `UnarchiveDM` presentation mutations. Those
+methods require DM membership and never change room membership, unread state,
+or notification policy. `ArchiveDM` rejects empty DMs; both responses return
+the authoritative current room viewer state.
+
 `AdminInviteLinkService` requires `user.invite`. Its resource includes the
 full, deterministically reconstructed invite link so authorised operators can
 copy it again; raw bearer tokens are not stored in `EVT`. Opening

@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-08-22
+**Updated:** 2026-08-23
 
 ## Context
 
@@ -59,6 +59,11 @@ Current occupants include:
 
 - Room read cursors: `read.room.{userId}.{roomId}`.
 - Thread read cursors: `read.thread.{userId}.{roomId}.{threadRootEventId}`.
+- Viewer-specific DM archive boundaries: `archive.dm.{userId}.{roomId}` stores
+  the stable event ID of the latest root message when the viewer archives the
+  conversation. The DM is effectively archived only while that value still
+  equals the room projection's latest root event ID, so a later root message
+  restores it without a message-path side effect or another durable write.
 - Bounded notification read-boundary and visibility-boundary records used to
   coordinate read reconciliation and persistent privacy boundaries between
   `EVT` and the separate `NOTIFICATIONS` event stream. Notification derivation
@@ -98,6 +103,15 @@ that snapshot is applied. KV remains authoritative, writes retain revision OCC,
 and write paths wait for the watcher to observe their successful revision when
 they require local read-your-writes.
 
+`DMArchiveIndex` applies that same process-wide filtered-watcher pattern to
+`archive.dm.*`. Core startup waits for its initial snapshot; archive and
+unarchive mutations use KV revision OCC and wait for the successful revision
+to reach the index. Its bounded change generations also fence compact realtime
+snapshots, allowing reconciliation to replace only viewer-state rows whose
+archive marker changed during assembly. The room projection remains the
+authority for whether the marker is current, so new root messages require no
+archive KV mutation.
+
 `NotificationBoundaryIndex` applies the same process-wide filtered-watcher
 pattern to notification read and visibility boundaries. Core startup waits for
 its initial snapshot. Writes retain KV revision OCC and wait for the successful
@@ -135,6 +149,10 @@ from exact unread notification occurrences instead of preserving
   process-wide filtered watcher per replica.
 - Notification read and visibility reconciliation gets the same bounded,
   process-wide watcher and startup/read-your-writes guarantees.
+- DM archive presentation state gets a bounded process-wide watcher with the
+  same guarantees. Its marker is deliberately not a room event: it is private
+  latest-value viewer state, and its effective value also depends on the
+  projected latest root message.
 - The old `SERVER_RUNTIME` bucket is historical pre-0.1 storage, not a place
   for new state.
 - Runtime values in `RUNTIME_STATE` are not replayable from `EVT`; backup and

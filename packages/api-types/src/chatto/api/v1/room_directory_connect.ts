@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse } from "./room_directory_pb.js";
+import { ArchiveDMRequest, ArchiveDMResponse, BatchGetRoomGroupsRequest, BatchGetRoomGroupsResponse, BatchGetRoomsRequest, BatchGetRoomsResponse, GetRoomGroupRequest, GetRoomGroupResponse, GetRoomRequest, GetRoomResponse, ListRoomGroupsRequest, ListRoomGroupsResponse, ListRoomsRequest, ListRoomsResponse, UnarchiveDMRequest, UnarchiveDMResponse } from "./room_directory_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -93,6 +93,34 @@ export const RoomDirectoryService = {
       name: "BatchGetRooms",
       I: BatchGetRoomsRequest,
       O: BatchGetRoomsResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Archives a non-empty DM conversation for the current user. The room stays
+     * accessible and discoverable through direct directory reads. A later root
+     * message automatically makes it unarchived. Returns INVALID_ARGUMENT for a
+     * channel room or an empty DM and PERMISSION_DENIED when the caller is not a
+     * participant.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.ArchiveDM
+     */
+    archiveDM: {
+      name: "ArchiveDM",
+      I: ArchiveDMRequest,
+      O: ArchiveDMResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Explicitly restores an archived DM conversation for the current user.
+     * The operation is idempotent. Returns INVALID_ARGUMENT for a channel room
+     * and PERMISSION_DENIED when the caller is not a participant.
+     *
+     * @generated from rpc chatto.api.v1.RoomDirectoryService.UnarchiveDM
+     */
+    unarchiveDM: {
+      name: "UnarchiveDM",
+      I: UnarchiveDMRequest,
+      O: UnarchiveDMResponse,
       kind: MethodKind.Unary,
     },
   }

@@ -59,7 +59,8 @@ const { mocks } = vi.hoisted(() => ({
         handleCallEndedEvent: vi.fn()
       },
       serverInfo: {
-        livekitUrl: null
+        livekitUrl: null,
+        supportsFeature: vi.fn().mockReturnValue(true)
       },
       navigation: {
         rooms: [],
@@ -68,7 +69,9 @@ const { mocks } = vi.hoisted(() => ({
         currentUserId: 'me'
       },
       roomDirectory: {
-        joinRoom: vi.fn()
+        joinRoom: vi.fn(),
+        setDMArchived: vi.fn(),
+        dmArchivePendingIds: new Set<string>()
       },
       pendingHighlights: {
         set: vi.fn()
@@ -180,6 +183,7 @@ function setRooms() {
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerCanManageRoom: true,
+      viewerDMArchived: false,
       viewerNotificationCount: 0,
       viewerImportantNotificationCount: 0,
       members: []
@@ -192,6 +196,7 @@ function setRooms() {
       viewerIsMember: false,
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
+      viewerDMArchived: false,
       viewerNotificationCount: 0,
       viewerImportantNotificationCount: 0,
       members: []
@@ -204,6 +209,7 @@ function setRooms() {
       viewerIsMember: false,
       viewerCanJoinRoom: false,
       viewerCanManageRoom: false,
+      viewerDMArchived: false,
       viewerNotificationCount: 0,
       viewerImportantNotificationCount: 0,
       members: []
@@ -216,6 +222,7 @@ function setRooms() {
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
+      viewerDMArchived: false,
       viewerNotificationCount: 0,
       viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('teal', 'teal', 'Teal')]
@@ -228,6 +235,7 @@ function setRooms() {
       viewerIsMember: true,
       viewerCanJoinRoom: true,
       viewerCanManageRoom: false,
+      viewerDMArchived: false,
       viewerNotificationCount: 0,
       viewerImportantNotificationCount: 0,
       members: [user('me', 'me', 'Me'), user('river', 'river', 'River')]
@@ -281,6 +289,9 @@ beforeEach(() => {
   });
   mocks.store.notifications.getCleanPath.mockReturnValue('/chat/-/room');
   mocks.store.roomDirectory.joinRoom.mockResolvedValue({ ok: true });
+  mocks.store.roomDirectory.setDMArchived.mockResolvedValue({ ok: true, isArchived: true });
+  mocks.store.roomDirectory.dmArchivePendingIds.clear();
+  mocks.store.serverInfo.supportsFeature.mockReturnValue(true);
   mocks.markNavigationRoomAsRead.mockResolvedValue(true);
 });
 
@@ -290,6 +301,18 @@ describe('RoomList', () => {
       (room: { id: string }) => room.id === 'dm-with-participants'
     ) as unknown as { hasMessageHistory?: boolean };
     empty.hasMessageHistory = false;
+
+    const { container } = render(RoomList);
+
+    expect(container.querySelector('[href="/chat/-/dm-with-participants"]')).toBeNull();
+    await expect.element(q(container, '[href="/chat/-/dm-phone-only"]')).toBeInTheDocument();
+  });
+
+  it('hides archived DMs from the sidebar without removing other conversations', async () => {
+    const archived = mocks.store.navigation.rooms.find(
+      (room: { id: string }) => room.id === 'dm-with-participants'
+    ) as unknown as { viewerDMArchived: boolean };
+    archived.viewerDMArchived = true;
 
     const { container } = render(RoomList);
 
@@ -590,6 +613,36 @@ describe('RoomList', () => {
       (button) => button.textContent?.trim() === 'Leave room'
     );
     expect(leave).toBeUndefined();
+  });
+
+  it('offers an archive action for direct-message rooms on compatible servers', async () => {
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="toggle-dm-archive"]')).not.toBeNull()
+    );
+
+    const archive = q(document.body, '[data-testid="toggle-dm-archive"]') as HTMLButtonElement;
+    await expect.element(archive).toHaveTextContent('Archive conversation');
+    archive.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.store.roomDirectory.setDMArchived).toHaveBeenCalledWith(
+        'dm-with-participants',
+        true
+      )
+    );
+  });
+
+  it('does not expose DM archive actions to servers without the capability', async () => {
+    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
+
+    expect(document.querySelector('[data-testid="toggle-dm-archive"]')).toBeNull();
   });
 
   it('opens the existing leave-room confirmation flow from room actions', async () => {

@@ -20,6 +20,8 @@
     "room_settings": "Definições da sala",
     "group_settings": "Definições de {group}",
     "server_actions": "Ações para {server}",
+    "archive_direct_message": "Arquivar conversa",
+    "unarchive_direct_message": "Desarquivar conversa",
     "room_actions": "Ações para #{room}"
   }
 }

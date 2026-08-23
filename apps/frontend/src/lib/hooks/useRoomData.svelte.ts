@@ -24,6 +24,8 @@ export type RoomData = {
   canManageRoom: boolean;
   canBanRoomMembers: boolean;
   slowModeNextPostAt: string | null;
+  hasMessageHistory: boolean | null;
+  isDMArchived: boolean;
 };
 
 export type DMData = {
@@ -52,8 +54,8 @@ export function useRoomData(getProps: () => { roomId: string }) {
   const roomData = $derived.by<RoomData | null | undefined>(() => {
     const currentStore = store;
     if (!currentStore.realtimeSync.hasUsableProjection) return undefined;
-    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId)?.room;
-    const room = mapDirectoryRoomDetails(projectedRoom);
+    const projectedRoom = currentStore.projection.rooms.get(getProps().roomId);
+    const room = mapDirectoryRoomDetails(projectedRoom?.room);
     // A stale projection can render known rooms immediately, but absence is
     // not authoritative until the activation catch-up reaches caught_up.
     if (!room) return currentStore.realtimeSync.phase === 'ready' ? null : undefined;
@@ -77,7 +79,9 @@ export function useRoomData(getProps: () => { roomId: string }) {
       canEchoMessage: room.canEchoMessage,
       canManageRoom: room.canManageRoom,
       canBanRoomMembers: room.canBanRoomMembers,
-      slowModeNextPostAt: room.slowModeNextPostAt
+      slowModeNextPostAt: room.slowModeNextPostAt,
+      hasMessageHistory: projectedRoom.hasMessageHistory ?? null,
+      isDMArchived: room.isDMArchived
     };
   });
 

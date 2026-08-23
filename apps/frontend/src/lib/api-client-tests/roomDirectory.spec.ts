@@ -28,6 +28,8 @@ const mocks = vi.hoisted(() => ({
   listRoomGroups: vi.fn(),
   getRoomGroup: vi.fn(),
   batchGetRoomGroups: vi.fn(),
+  archiveDM: vi.fn(),
+  unarchiveDM: vi.fn(),
   handleAuthenticationRequired: vi.fn()
 }));
 
@@ -53,6 +55,8 @@ describe('createRoomDirectoryAPI', () => {
     mocks.listRoomGroups.mockReset();
     mocks.getRoomGroup.mockReset();
     mocks.batchGetRoomGroups.mockReset();
+    mocks.archiveDM.mockReset();
+    mocks.unarchiveDM.mockReset();
     mocks.handleAuthenticationRequired.mockReset();
 
     configureApiClientHooks({ onAuthenticationRequired: mocks.handleAuthenticationRequired });
@@ -63,7 +67,9 @@ describe('createRoomDirectoryAPI', () => {
       batchGetRooms: mocks.batchGetRooms,
       listRoomGroups: mocks.listRoomGroups,
       getRoomGroup: mocks.getRoomGroup,
-      batchGetRoomGroups: mocks.batchGetRoomGroups
+      batchGetRoomGroups: mocks.batchGetRoomGroups,
+      archiveDM: mocks.archiveDM,
+      unarchiveDM: mocks.unarchiveDM
     });
   });
 
@@ -96,6 +102,7 @@ describe('createRoomDirectoryAPI', () => {
           viewerState: roomViewerState({
             isMember: true,
             hasUnread: false,
+            isDmArchived: true,
             [Permission.JoinRoom]: true
           })
         },
@@ -132,6 +139,7 @@ describe('createRoomDirectoryAPI', () => {
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: true,
+        isDMArchived: false,
         canJoinRoom: false,
         canManageRoom: false
       },
@@ -147,6 +155,7 @@ describe('createRoomDirectoryAPI', () => {
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: false,
+        isDMArchived: true,
         canJoinRoom: true,
         canManageRoom: false
       }
@@ -203,6 +212,7 @@ describe('createRoomDirectoryAPI', () => {
       slowModeNextPostAt: null,
       isMember: true,
       hasUnread: true,
+      isDMArchived: false,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,
@@ -226,6 +236,55 @@ describe('createRoomDirectoryAPI', () => {
 
     await expect(api.getRoom('hidden-room')).resolves.toBeNull();
     expect(mocks.handleAuthenticationRequired).not.toHaveBeenCalled();
+  });
+
+  it('archives and unarchives DMs through viewer-specific directory commands', async () => {
+    const archivedRoom = {
+      room: {
+        id: 'dm-1',
+        name: '',
+        kind: RoomKind.DM,
+        archived: false,
+        universal: false
+      },
+      viewerState: roomViewerState({
+        isMember: true,
+        hasUnread: false,
+        isDmArchived: true
+      })
+    };
+    mocks.archiveDM.mockResolvedValue({ room: archivedRoom });
+    mocks.unarchiveDM.mockResolvedValue({
+      room: {
+        ...archivedRoom,
+        viewerState: roomViewerState({
+          isMember: true,
+          hasUnread: false,
+          isDmArchived: false
+        })
+      }
+    });
+    const api = createRoomDirectoryAPI({
+      baseUrl: 'https://remote.example.com/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(api.archiveDM('dm-1')).resolves.toMatchObject({
+      id: 'dm-1',
+      isDMArchived: true
+    });
+    await expect(api.unarchiveDM('dm-1')).resolves.toMatchObject({
+      id: 'dm-1',
+      isDMArchived: false
+    });
+    expect(mocks.archiveDM).toHaveBeenCalledWith(
+      { roomId: 'dm-1' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
+    expect(mocks.unarchiveDM).toHaveBeenCalledWith(
+      { roomId: 'dm-1' },
+      { headers: { Authorization: 'Bearer token' } }
+    );
   });
 
   it('preserves permission denied on singular room reads', async () => {
@@ -466,12 +525,17 @@ describe('createRoomDirectoryAPI', () => {
 });
 
 function roomViewerState(
-  input: Record<string, boolean> & { isMember: boolean; hasUnread: boolean }
+  input: Record<string, boolean> & {
+    isMember: boolean;
+    hasUnread: boolean;
+    isDmArchived?: boolean;
+  }
 ) {
-  const { isMember, hasUnread, ...permissions } = input;
+  const { isMember, hasUnread, isDmArchived = false, ...permissions } = input;
   return {
     isMember,
     hasUnread,
+    isDmArchived,
     permissions: Object.entries(permissions).map(([permission, granted]) => ({
       permission,
       granted

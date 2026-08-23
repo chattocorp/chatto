@@ -1,13 +1,14 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomKind } from '$lib/api-client/roomDirectory';
+import {
+  RoomKind,
+  type DirectoryRoomDetails,
+  type RoomDirectoryAPI
+} from '$lib/api-client/roomDirectory';
 import { describe, expect, it, vi } from 'vitest';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
 import type { RoomsListItem } from './rooms.svelte';
-import {
-  RoomDirectoryStore,
-  type RoomDirectoryNavigation
-} from './roomDirectory.svelte';
+import { RoomDirectoryStore, type RoomDirectoryNavigation } from './roomDirectory.svelte';
 
 function room(id: string, member = false): RoomsListItem {
   return {
@@ -19,6 +20,7 @@ function room(id: string, member = false): RoomsListItem {
     viewerIsMember: member,
     viewerCanJoinRoom: true,
     viewerCanManageRoom: false,
+    viewerDMArchived: false,
     viewerNotificationCount: 0,
     viewerImportantNotificationCount: 0,
     members: []
@@ -69,11 +71,48 @@ function commands(
   };
 }
 
+function dmDetails(id: string, isDMArchived: boolean): DirectoryRoomDetails {
+  return {
+    id,
+    name: '',
+    description: null,
+    kind: RoomKind.DM,
+    archived: false,
+    isUniversal: false,
+    slowModeSeconds: 0,
+    slowModeNextPostAt: null,
+    isMember: true,
+    hasUnread: false,
+    isDMArchived,
+    canJoinRoom: false,
+    canManageRoom: false,
+    canPostMessage: true,
+    canPostInThread: false,
+    canAttach: true,
+    canReact: true,
+    canEchoMessage: false,
+    canManageOthersMessage: false,
+    canBanRoomMembers: false
+  };
+}
+
+function archiveCommands(
+  overrides: Partial<Pick<RoomDirectoryAPI, 'archiveDM' | 'unarchiveDM'>> = {}
+): Pick<RoomDirectoryAPI, 'archiveDM' | 'unarchiveDM'> {
+  return {
+    archiveDM: vi.fn(async (roomId) => dmDetails(roomId, true)),
+    unarchiveDM: vi.fn(async (roomId) => dmDetails(roomId, false)),
+    ...overrides
+  };
+}
+
 function makeStore(
   navigation = makeNavigation(),
-  api = commands()
+  api = commands(),
+  directoryAPI = archiveCommands(),
+  applyDMArchiveState = vi.fn()
 ): RoomDirectoryStore {
-  return new RoomDirectoryStore(navigation, memberAPI(), api);
+  return new RoomDirectoryStore(navigation, memberAPI(), api, directoryAPI, applyDMArchiveState);
 }
 
 describe('RoomDirectoryStore', () => {
@@ -222,12 +261,57 @@ describe('RoomDirectoryStore', () => {
 
   it('loads join previews as an explicit best-effort query', async () => {
     const api = memberAPI();
-    const store = new RoomDirectoryStore(makeNavigation(), api, commands());
+    const store = new RoomDirectoryStore(
+      makeNavigation(),
+      api,
+      commands(),
+      archiveCommands(),
+      vi.fn()
+    );
 
     expect(await store.loadJoinPreview('R1')).toMatchObject({
       memberCount: 7,
       sampleMembers: [{ id: 'U1', displayName: 'Ada' }]
     });
     expect(api.listRoomMembers).toHaveBeenCalledWith('R1', '', 5, 0);
+  });
+
+  it('applies server-confirmed DM archive state and clears pending state', async () => {
+    const api = archiveCommands();
+    const apply = vi.fn();
+    const store = makeStore(makeNavigation(), commands(), api, apply);
+
+    await expect(store.setDMArchived('DM1', true)).resolves.toEqual({
+      ok: true,
+      isArchived: true
+    });
+    expect(api.archiveDM).toHaveBeenCalledWith('DM1');
+    expect(apply).toHaveBeenCalledWith('DM1', true);
+    expect(store.dmArchivePendingIds.size).toBe(0);
+
+    await expect(store.setDMArchived('DM1', false)).resolves.toEqual({
+      ok: true,
+      isArchived: false
+    });
+    expect(api.unarchiveDM).toHaveBeenCalledWith('DM1');
+    expect(apply).toHaveBeenLastCalledWith('DM1', false);
+  });
+
+  it('reports DM archive failures without changing projected state', async () => {
+    const failure = new Error('archive failed');
+    const apply = vi.fn();
+    const store = makeStore(
+      makeNavigation(),
+      commands(),
+      archiveCommands({ archiveDM: vi.fn().mockRejectedValue(failure) }),
+      apply
+    );
+
+    await expect(store.setDMArchived('DM1', true)).resolves.toEqual({
+      ok: false,
+      error: failure
+    });
+    expect(apply).not.toHaveBeenCalled();
+    expect(store.dmArchivePendingIds.size).toBe(0);
   });
 });

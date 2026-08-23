@@ -33,6 +33,9 @@ type RealtimeProjectionSnapshot struct {
 	// RoomMarkerFence fences room read-marker changes concurrent with
 	// compacted snapshot assembly. It is internal transport metadata.
 	RoomMarkerFence uint64
+	// DMArchiveFence fences viewer archive changes concurrent with compacted
+	// snapshot assembly. It is internal transport metadata.
+	DMArchiveFence uint64
 }
 
 // RealtimeProjectionServerState is authenticated server state carried by the
@@ -65,9 +68,9 @@ type RealtimeProjectionNotifications struct {
 	Occurrences *apiv1.ListNotificationOccurrencesResponse
 }
 
-// RealtimeProjectionRoomViewerState is one latest-value room read/permission
-// row reconciled after incremental replay. Compacted snapshots carry the same
-// state in their exhaustive room upserts.
+// RealtimeProjectionRoomViewerState is one latest-value room
+// read/archive/permission row reconciled after incremental replay. Compacted
+// snapshots carry the same state in their exhaustive room upserts.
 type RealtimeProjectionRoomViewerState struct {
 	RoomID      string
 	ViewerState *apiv1.RoomViewerState
@@ -110,9 +113,10 @@ func (a *API) BuildRealtimeProjectionPresences(ctx context.Context) (map[string]
 	}
 }
 
-// BuildRealtimeProjectionRoomViewerStates returns current per-room read and
-// permission state. Read markers live outside EVT, so durable replay alone
-// cannot reconstruct changes made by another client during a disconnect.
+// BuildRealtimeProjectionRoomViewerStates returns current per-room read,
+// archive, and permission state. Runtime markers live outside EVT, so durable
+// replay alone cannot reconstruct changes made by another client during a
+// disconnect.
 func (a *API) BuildRealtimeProjectionRoomViewerStates(ctx context.Context, userID string) ([]*RealtimeProjectionRoomViewerState, error) {
 	rooms, err := a.core.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{
 		IncludeChannels: true,
@@ -190,6 +194,10 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 	if err != nil {
 		return nil, fmt.Errorf("capture realtime room-marker fence: %w", err)
 	}
+	dmArchiveFence, err := a.core.DMArchive().Fence(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("capture realtime DM-archive fence: %w", err)
+	}
 	rooms, err := a.core.RoomDirectoryReads().ListRooms(ctx, userID, core.RoomDirectoryListOptions{
 		IncludeChannels: true,
 		IncludeDMs:      true,
@@ -258,6 +266,7 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 		Notifications:   notifications,
 		ActiveCalls:     activeCalls,
 		RoomMarkerFence: roomMarkerFence,
+		DMArchiveFence:  dmArchiveFence,
 	}, nil
 }
 

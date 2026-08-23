@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"slices"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/connectapi"
@@ -12,6 +13,11 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	realtimev1 "hmans.de/chatto/internal/pb/chatto/realtime/v1"
 )
+
+type realtimeProjectionRuntimeFences struct {
+	roomRead  uint64
+	dmArchive uint64
+}
 
 func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userID string, timelineRoomIDs []string) ([]*realtimev1.RealtimeServerFrame, error) {
 	frames := make([]*realtimev1.RealtimeServerFrame, 0)
@@ -25,13 +31,13 @@ func (s *HTTPServer) realtimeProjectionSnapshotFrames(ctx context.Context, userI
 // writeRealtimeProjectionSnapshot emits the compacted prefix incrementally so
 // the transport does not retain a second frame graph for every decrypted room
 // timeline while a reset is in flight.
-func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID string, timelineRoomIDs []string, writeFrame func(*realtimev1.RealtimeServerFrame) error) (uint64, error) {
+func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID string, timelineRoomIDs []string, writeFrame func(*realtimev1.RealtimeServerFrame) error) (realtimeProjectionRuntimeFences, error) {
 	if s.connectAPI == nil {
-		return 0, errors.New("Connect API is unavailable")
+		return realtimeProjectionRuntimeFences{}, errors.New("Connect API is unavailable")
 	}
 	snapshot, err := s.connectAPI.BuildRealtimeProjectionSnapshot(ctx, userID, timelineRoomIDs)
 	if err != nil {
-		return 0, err
+		return realtimeProjectionRuntimeFences{}, err
 	}
 
 	var writeErr error
@@ -77,7 +83,10 @@ func (s *HTTPServer) writeRealtimeProjectionSnapshot(ctx context.Context, userID
 			RoomTimelineReplace: &realtimev1.RealtimeProjectionRoomTimelineReplace{RoomId: timeline.RoomID, Page: timeline.Page, EventCursors: timeline.EventCursors},
 		}})
 	}
-	return snapshot.RoomMarkerFence, writeErr
+	return realtimeProjectionRuntimeFences{
+		roomRead:  snapshot.RoomMarkerFence,
+		dmArchive: snapshot.DMArchiveFence,
+	}, writeErr
 }
 
 func realtimeProjectionServerFrame(event *realtimev1.RealtimeProjectionEvent) *realtimev1.RealtimeServerFrame {
@@ -117,22 +126,38 @@ func (s *HTTPServer) realtimeProjectionRoomTimelineFrame(ctx context.Context, vi
 // Room viewer state is needed after incremental replay. A compacted reset
 // supplies it in snapshot room upserts and repairs only markers that changed
 // while that snapshot was assembled.
-func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, roomMarkerFence *uint64) (*realtimev1.RealtimeServerFrame, error) {
+func (s *HTTPServer) realtimeProjectionReconciliationFrame(ctx context.Context, userID string, fences *realtimeProjectionRuntimeFences) (*realtimev1.RealtimeServerFrame, error) {
 	viewer, err := s.connectAPI.BuildRealtimeProjectionViewer(ctx, userID)
 	if err != nil {
 		return nil, fmt.Errorf("assemble viewer reconciliation: %w", err)
 	}
 	var roomStates []*connectapi.RealtimeProjectionRoomViewerState
-	if roomMarkerFence == nil {
+	if fences == nil {
 		roomStates, err = s.connectAPI.BuildRealtimeProjectionRoomViewerStates(ctx, userID)
 		if err != nil {
 			return nil, fmt.Errorf("assemble room viewer-state reconciliation: %w", err)
 		}
 	} else {
-		roomIDs, changedErr := s.core.ReadState().RoomMarkerIDsChangedAfter(ctx, userID, *roomMarkerFence)
+		readRoomIDs, changedErr := s.core.ReadState().RoomMarkerIDsChangedAfter(ctx, userID, fences.roomRead)
 		if changedErr != nil {
 			return nil, fmt.Errorf("identify concurrent room viewer-state changes: %w", changedErr)
 		}
+		archiveRoomIDs, changedErr := s.core.DMArchive().RoomIDsChangedAfter(ctx, userID, fences.dmArchive)
+		if changedErr != nil {
+			return nil, fmt.Errorf("identify concurrent DM archive changes: %w", changedErr)
+		}
+		changedRoomIDs := make(map[string]struct{}, len(readRoomIDs)+len(archiveRoomIDs))
+		for _, roomID := range readRoomIDs {
+			changedRoomIDs[roomID] = struct{}{}
+		}
+		for _, roomID := range archiveRoomIDs {
+			changedRoomIDs[roomID] = struct{}{}
+		}
+		roomIDs := make([]string, 0, len(changedRoomIDs))
+		for roomID := range changedRoomIDs {
+			roomIDs = append(roomIDs, roomID)
+		}
+		slices.Sort(roomIDs)
 		roomStates = make([]*connectapi.RealtimeProjectionRoomViewerState, 0, len(roomIDs))
 		for _, roomID := range roomIDs {
 			viewerState, stateErr := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, userID, roomID)
@@ -321,6 +346,17 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{
 				NotificationOccurrencesReplace: realtimeProjectionNotificationOccurrences(notifications),
+			}})
+		case *corev1.LiveEvent_DmArchiveChanged:
+			roomID := payload.DmArchiveChanged.GetRoomId()
+			viewerState, err := s.connectAPI.BuildRealtimeProjectionRoomViewerState(ctx, viewerID, roomID)
+			if err != nil {
+				return nil, false, err
+			}
+			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomViewerStateReplace{
+				RoomViewerStateReplace: &realtimev1.RealtimeProjectionRoomViewerStateReplace{
+					RoomId: roomID, ViewerState: viewerState,
+				},
 			}})
 		case *corev1.LiveEvent_ThreadFollowChanged:
 			thread := payload.ThreadFollowChanged

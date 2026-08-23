@@ -20,6 +20,8 @@
     "room_settings": "Rumsinställningar",
     "group_settings": "Inställningar för {group}",
     "server_actions": "Åtgärder för {server}",
+    "archive_direct_message": "Arkivera konversation",
+    "unarchive_direct_message": "Ta bort konversation från arkivet",
     "room_actions": "Åtgärder för #{room}"
   }
 }

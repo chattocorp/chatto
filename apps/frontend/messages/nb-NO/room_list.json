@@ -20,6 +20,8 @@
     "room_settings": "Rominnstillinger",
     "group_settings": "Innstillinger for {group}",
     "server_actions": "Handlinger for {server}",
+    "archive_direct_message": "Arkiver samtale",
+    "unarchive_direct_message": "Fjern samtale fra arkivet",
     "room_actions": "Handlinger for #{room}"
   }
 }

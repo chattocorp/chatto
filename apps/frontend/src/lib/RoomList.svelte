@@ -62,6 +62,7 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
 
   const navigation = $derived(stores.navigation);
   const roomUnreadStore = $derived(stores.roomUnread);
+  const supportsDMArchive = $derived(stores.serverInfo.supportsFeature('dmArchive'));
 
   let activeRoomId = $derived(page.params.roomId);
   let roomContextMenu = $state<(ContextMenuTriggerDetails & { room: RoomsListItem }) | null>(null);
@@ -142,6 +143,16 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     console.error('Error joining room:', result.error);
   }
 
+  async function handleDMArchive(room: RoomsListItem, isArchived: boolean): Promise<void> {
+    roomContextMenu = null;
+    const result = await stores.roomDirectory.setDMArchived(room.id, isArchived);
+    if (!serverScope.isCurrent()) return;
+    if (!result.ok) {
+      toast.error(m('common.error.generic'));
+      console.error('Error updating DM archive state:', result.error);
+    }
+  }
+
   // --- Derived layout helpers ---
 
   // Channels and DMs are stored together. Operator-managed room groups only
@@ -149,7 +160,9 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
   // same collapsible navigation-section presentation below.
   let channels = $derived(navigation.rooms.filter((r) => r.type === RoomKind.CHANNEL));
   let dmRooms = $derived(
-    navigation.rooms.filter((r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r))
+    navigation.rooms.filter(
+      (r) => r.type === RoomKind.DM && isNavigationVisibleRoom(r) && !r.viewerDMArchived
+    )
   );
 
   let roomMap = $derived(new Map(navigation.rooms.map((r) => [r.id, r])));
@@ -561,6 +574,25 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       onConfigure={() => handleConfigureRoom(contextRoom)}
       onLeave={() => handleLeaveRoom(contextRoom)}
     />
+    {#if supportsDMArchive && contextRoom.type === RoomKind.DM}
+      <div class="menu-section">
+        <nav class="sidebar-nav">
+          <button
+            type="button"
+            class="sidebar-item"
+            onclick={() => void handleDMArchive(contextRoom, !contextRoom.viewerDMArchived)}
+            disabled={stores.roomDirectory.dmArchivePendingIds.has(contextRoom.id)}
+            role="menuitem"
+            data-testid="toggle-dm-archive"
+          >
+            <span class="iconify sidebar-icon icon-[uil--archive]" aria-hidden="true"></span>
+            {contextRoom.viewerDMArchived
+              ? m('room_list.unarchive_direct_message')
+              : m('room_list.archive_direct_message')}
+          </button>
+        </nav>
+      </div>
+    {/if}
     <div class="menu-section">
       <nav class="sidebar-nav">
         <button

@@ -20,6 +20,8 @@
     "room_settings": "聊天室設定",
     "group_settings": "{group} 的設定",
     "server_actions": "{server} 的操作",
+    "archive_direct_message": "封存對話",
+    "unarchive_direct_message": "取消封存對話",
     "room_actions": "#{room} 的操作"
   }
 }

@@ -2,6 +2,7 @@ import { SvelteMap, SvelteSet } from 'svelte/reactivity';
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import type { RoomDirectoryAPI } from '$lib/api-client/roomDirectory';
 import type { UserAvatarUserView } from '$lib/render/users';
 import {
   avatarUserFromDirectoryMember,
@@ -26,6 +27,7 @@ export type DirectoryRoomJoinPreview = {
 export type JoinResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type LeaveResult = { ok: true; room?: DirectoryRoom } | { ok: false; error: Error };
 export type JoinGroupResult = { ok: true; joinedRoomIds: string[] } | { ok: false; error: Error };
+export type DMArchiveResult = { ok: true; isArchived: boolean } | { ok: false; error: Error };
 
 export type RoomDirectoryNavigation = {
   rooms: RoomsListItem[];
@@ -47,6 +49,7 @@ export class RoomDirectoryStore {
   justJoinedIds = new SvelteSet<string>();
   justLeftIds = new SvelteSet<string>();
   joiningGroupIds = new SvelteSet<string>();
+  dmArchivePendingIds = new SvelteSet<string>();
 
   #generation = 0;
   #commandToken = 0;
@@ -58,7 +61,9 @@ export class RoomDirectoryStore {
   constructor(
     private readonly navigation: RoomDirectoryNavigation,
     private readonly memberDirectoryAPI: Pick<MemberDirectoryAPI, 'listRoomMembers'>,
-    private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>
+    private readonly roomAPI: Pick<RoomCommandAPI, 'joinRoom' | 'leaveRoom' | 'joinGroup'>,
+    private readonly directoryAPI: Pick<RoomDirectoryAPI, 'archiveDM' | 'unarchiveDM'>,
+    private readonly applyDMArchiveState: (roomId: string, isArchived: boolean) => void
   ) {}
 
   get allRooms(): DirectoryRoom[] {
@@ -181,6 +186,26 @@ export class RoomDirectoryStore {
     }
   }
 
+  async setDMArchived(roomId: string, isArchived: boolean): Promise<DMArchiveResult> {
+    if (this.dmArchivePendingIds.has(roomId)) {
+      return { ok: false, error: new Error('DM archive update is already in progress') };
+    }
+    this.dmArchivePendingIds.add(roomId);
+    try {
+      const room = isArchived
+        ? await this.directoryAPI.archiveDM(roomId)
+        : await this.directoryAPI.unarchiveDM(roomId);
+      if (!room)
+        return { ok: false, error: new Error('DM archive response did not include a room') };
+      this.applyDMArchiveState(roomId, room.isDMArchived);
+      return { ok: true, isArchived: room.isDMArchived };
+    } catch (error) {
+      return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };
+    } finally {
+      this.dmArchivePendingIds.delete(roomId);
+    }
+  }
+
   /** Clear only the local overlay confirmed by this projected membership. */
   acknowledgeMembership(roomId: string, isMember: boolean | undefined): void {
     this.#membershipRevisions.set(roomId, this.membershipRevision(roomId) + 1);
@@ -207,6 +232,7 @@ export class RoomDirectoryStore {
     this.justJoinedIds.clear();
     this.justLeftIds.clear();
     this.joiningGroupIds.clear();
+    this.dmArchivePendingIds.clear();
   }
 
   private membershipRevision(roomId: string): number {

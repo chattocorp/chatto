@@ -115,6 +115,10 @@ func initializeCoreServices(
 		core:  core,
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
+	core.dmArchiveModel = &DMArchiveModel{
+		core:  core,
+		index: NewDMArchiveIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.DMArchiveIndex")),
+	}
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationBoundaryIndex"),

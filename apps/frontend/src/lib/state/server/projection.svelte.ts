@@ -3,7 +3,11 @@ import { RoomTimelineIncludes, RoomTimelinePage } from '@chatto/api-types/api/v1
 import { DirectoryMember } from '@chatto/api-types/api/v1/member_directory_pb';
 import { ThreadViewerState } from '@chatto/api-types/api/v1/message_types_pb';
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { RoomWithViewerState, type RoomGroup } from '@chatto/api-types/api/v1/room_directory_pb';
+import {
+  RoomViewerState,
+  RoomWithViewerState,
+  type RoomGroup
+} from '@chatto/api-types/api/v1/room_directory_pb';
 import type { ServerPublicProfile } from '@chatto/api-types/api/v1/server_pb';
 import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import type { ActiveCall } from '@chatto/api-types/api/v1/voice_calls_pb';
@@ -254,6 +258,25 @@ export class ServerProjectionStore {
     this.timelines.clear();
     this.timelineEventCursors.clear();
     this.revokedRoomIds.clear();
+  }
+
+  /** Apply viewer archive state returned by a successful directory command. */
+  setDMArchived(roomId: string, isArchived: boolean): void {
+    const current = this.rooms.get(roomId);
+    if (!current) return;
+    const viewerState = current.room?.viewerState?.clone() ?? new RoomViewerState();
+    viewerState.isDmArchived = isArchived;
+    this.rooms.set(
+      roomId,
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: current.room?.room,
+          viewerState
+        }),
+        memberUserIds: [...current.memberUserIds],
+        hasMessageHistory: current.hasMessageHistory
+      })
+    );
   }
 
   /**

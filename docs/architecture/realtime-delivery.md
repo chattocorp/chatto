@@ -128,8 +128,11 @@ The projection's room set is exhaustive rather than navigation-policy-filtered:
 it includes joined DMs that do not yet contain a message. Each DM summary says
 whether it has root-message history; the bundled client retains empty DMs for
 routing and authorization but omits them from the sidebar and quick switcher.
-The first `room_activity` operation promotes the room into navigation, while an
-absent history field from an older server preserves the previous visible
+It also retains viewer-archived DMs for direct routes and the quick switcher
+while omitting them only from the sidebar. The first `room_activity` operation
+promotes an empty DM into navigation. A later root message makes an archive
+marker stale; its viewer-state replacement restores the sidebar row. An absent
+history or archive field from an older server preserves the compatible visible
 fallback. This lets a `StartDM` response navigate immediately without exposing
 an unsolicited empty conversation to another participant.
 
@@ -268,19 +271,20 @@ followed-thread entries authoritatively clear follow/unread state on retained
 thread roots.
 
 For incremental replay, reconciliation also replaces every visible room's
-latest read and permission state because an EVT gap cannot reconstruct
-RUNTIME_STATE read markers. A compacted reset instead owns those rows in its
+latest read, DM archive, and permission state because an EVT gap cannot
+reconstruct `RUNTIME_STATE` markers. A compacted reset instead owns those rows in its
 incremental `room_upsert` snapshot frames, so its reconciliation neither
 rebuilds nor repeats the complete room viewer-state collection. The bounded
 snapshot phase owns server and directory resources, room summaries, membership,
-permissions, room read state, room groups, active calls, and retained timelines.
+permissions, room read/archive state, room groups, active calls, and retained timelines.
 It also seeds viewer data and notifications. Reconciliation authoritatively
 refreshes viewer data, followed-thread/read state, notifications and counts, and
-presence after either replay-plan branch. A reset captures the read-state
-index's bounded room-change fence before snapshot assembly and reconciles only
-room markers changed after that fence. This delta repairs concurrent or lost
-best-effort room-read invalidations with work proportional to concurrent
-changes; catch-up retries if the bounded change history is exceeded.
+presence after either replay-plan branch. A reset captures both the read-state
+and DM-archive indexes' bounded room-change fences before snapshot assembly and
+reconciles only viewer-state rows changed after either fence. This delta repairs
+concurrent or lost best-effort marker invalidations with work proportional to
+concurrent changes; catch-up retries if either bounded change history is
+exceeded.
 
 Room Slow Mode configuration is embedded in every projected room. A
 `RoomSlowModeChangedEvent` produces an incremental `room_upsert`, immediately
@@ -311,6 +315,8 @@ state, so catch-up retries rather than converging to a lossy replacement.
 Room/thread marker hydration reads the process-wide `ReadStateModel` index,
 which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
 realtime subscriptions do not create their own marker watchers.
+DM archive hydration and reset fencing similarly use the process-wide
+`DMArchiveIndex` rather than per-subscription KV reads or watchers.
 
 Notification invalidations carry no transition state. A creation hint may name
 one opaque alert candidate. Before assembling a finite replacement, the
@@ -411,7 +417,10 @@ list for existing viewers.
 Message facts carry lightweight replacements of the affected room summary and
 viewer state alongside timeline mutations. Root messages also carry a
 content-free `room_activity` operation, allowing unretained DMs to reorder
-without exposing or materialising their message. Notification counts converge
+without exposing or materialising their message. Because effective DM archive
+state compares its marker to the current latest root event ID, that same
+viewer-state replacement automatically restores an archived conversation after
+a new root message. Notification counts converge
 through notification signals and the finite resume replacement. Message
 delivery does not reassemble or retransmit complete channel membership. Echo
 tombstone upserts explicitly distinguish
@@ -423,6 +432,12 @@ notification occurrence state, and both sidebar indicators in step, so a later
 mutation cannot restore stale unread or mention state. Root-message activity
 operations advance the affected room even when its timeline is not retained;
 later viewer-state replacements therefore cannot undo DM sorting.
+
+Archive and unarchive commands emit
+`live.sync.user.{userId}.dm_archive`; the transient invalidation carries only
+the room ID and maps to an authoritative `RoomViewerStateReplace`. It does not
+represent a persisted transition. Compact-reset archive fences repair a lost or
+concurrent best-effort signal.
 
 A durable projection hydration or mapping failure closes the session
 without advancing its cursor. Reconnect retries that EVT sequence or selects a

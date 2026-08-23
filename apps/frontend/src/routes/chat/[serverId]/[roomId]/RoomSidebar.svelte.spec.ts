@@ -286,7 +286,9 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
     canEchoMessage: false,
     canManageRoom: false,
     canBanRoomMembers: false,
-    slowModeNextPostAt: null
+    slowModeNextPostAt: null,
+    hasMessageHistory: true,
+    isDMArchived: false
   };
 }
 

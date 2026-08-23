@@ -20,6 +20,8 @@
     "room_settings": "Raumeinstellungen",
     "group_settings": "Einstellungen für {group}",
     "server_actions": "Aktionen für {server}",
+    "archive_direct_message": "Unterhaltung archivieren",
+    "unarchive_direct_message": "Unterhaltung aus dem Archiv holen",
     "room_actions": "Aktionen für #{room}"
   }
 }

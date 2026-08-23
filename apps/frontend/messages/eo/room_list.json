@@ -20,6 +20,8 @@
     "room_settings": "Agordoj de ĉambro",
     "group_settings": "Agordoj por {group}",
     "server_actions": "Agoj por {server}",
+    "archive_direct_message": "Arkivi konversacion",
+    "unarchive_direct_message": "Malarkivi konversacion",
     "room_actions": "Agoj por #{room}"
   }
 }

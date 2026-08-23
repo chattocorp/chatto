@@ -116,14 +116,45 @@ func (s *roomDirectoryService) BatchGetRooms(ctx context.Context, req *connect.R
 	return connect.NewResponse(&apiv1.BatchGetRoomsResponse{Rooms: apiRooms}), nil
 }
 
+func (s *roomDirectoryService) ArchiveDM(ctx context.Context, req *connect.Request[apiv1.ArchiveDMRequest]) (*connect.Response[apiv1.ArchiveDMResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.DMArchive().Archive(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
+		return nil, connectError(err)
+	}
+	room, err := s.api.core.RoomDirectoryReads().GetRoom(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.ArchiveDMResponse{Room: apiRoomWithViewerState(room)}), nil
+}
+
+func (s *roomDirectoryService) UnarchiveDM(ctx context.Context, req *connect.Request[apiv1.UnarchiveDMRequest]) (*connect.Response[apiv1.UnarchiveDMResponse], error) {
+	caller, err := requireCaller(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if err := s.api.core.DMArchive().Unarchive(ctx, caller.UserID, req.Msg.GetRoomId()); err != nil {
+		return nil, connectError(err)
+	}
+	room, err := s.api.core.RoomDirectoryReads().GetRoom(ctx, caller.UserID, req.Msg.GetRoomId())
+	if err != nil {
+		return nil, connectError(err)
+	}
+	return connect.NewResponse(&apiv1.UnarchiveDMResponse{Room: apiRoomWithViewerState(room)}), nil
+}
+
 func apiRoomWithViewerState(room *core.DirectoryRoom) *apiv1.RoomWithViewerState {
 	if room == nil {
 		return nil
 	}
 	state := room.ViewerState
 	viewerState := &apiv1.RoomViewerState{
-		IsMember:  state.IsMember,
-		HasUnread: state.HasUnread,
+		IsMember:     state.IsMember,
+		HasUnread:    state.HasUnread,
+		IsDmArchived: state.IsDMArchived,
 		Permissions: permissionGrants(
 			permissionGrant(core.PermRoomList, state.CanListRoom),
 			permissionGrant(core.PermRoomJoin, state.CanJoinRoom),

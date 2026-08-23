@@ -68,6 +68,28 @@ function timelineEvent(id: string, at: string): RoomTimelineEvent {
 }
 
 describe('ServerProjectionStore', () => {
+  it('applies server-confirmed DM archive state without replacing room metadata', () => {
+    const store = new ServerProjectionStore();
+    store.rooms.set(
+      'DM1',
+      new RealtimeProjectionRoom({
+        room: new RoomWithViewerState({
+          room: new Room({ id: 'DM1', name: 'kept' }),
+          viewerState: new RoomViewerState({ isMember: true })
+        }),
+        memberUserIds: ['U1', 'U2'],
+        hasMessageHistory: true
+      })
+    );
+
+    store.setDMArchived('DM1', true);
+
+    expect(store.rooms.get('DM1')?.room?.viewerState?.isDmArchived).toBe(true);
+    expect(store.rooms.get('DM1')?.room?.room?.name).toBe('kept');
+    expect(store.rooms.get('DM1')?.memberUserIds).toEqual(['U1', 'U2']);
+    expect(store.rooms.get('DM1')?.hasMessageHistory).toBe(true);
+  });
+
   it('reconciles followed-thread state and clears entries absent from the replacement', () => {
     const store = new ServerProjectionStore();
     const root = new RoomTimelineEvent({

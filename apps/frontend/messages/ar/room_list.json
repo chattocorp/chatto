@@ -20,6 +20,8 @@
     "room_settings": "إعدادات الغرفة",
     "group_settings": "إعدادات {group}",
     "server_actions": "إجراءات {server}",
+    "archive_direct_message": "أرشفة المحادثة",
+    "unarchive_direct_message": "إلغاء أرشفة المحادثة",
     "room_actions": "إجراءات #{room}"
   }
 }

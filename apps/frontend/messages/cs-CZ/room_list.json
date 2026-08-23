@@ -20,6 +20,8 @@
     "room_settings": "Nastavení místnosti",
     "group_settings": "Nastavení pro {group}",
     "server_actions": "Akce pro {server}",
+    "archive_direct_message": "Archivovat konverzaci",
+    "unarchive_direct_message": "Zrušit archivaci konverzace",
     "room_actions": "Akce pro #{room}"
   }
 }

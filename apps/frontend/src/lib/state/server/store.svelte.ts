@@ -34,7 +34,7 @@ import { MessagesStore, RoomFilesStore, RoomPinsStore } from '$lib/state/room';
 import { clearRoomPinsSeenMarker } from '$lib/state/room/pins.svelte';
 import type { RoomMember } from '$lib/state/room';
 import type { RealtimeProjectionEvent } from '@chatto/api-types/realtime/v1/realtime_pb';
-import { mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
+import { createRoomDirectoryAPI, mapDirectoryRoom, RoomKind } from '$lib/api-client/roomDirectory';
 import { mapDirectoryMember } from '$lib/api-client/memberDirectory';
 import { viewerResponseToState } from '$lib/api-client/viewer';
 import { notifyUserSummaries } from '$lib/api-client/hooks';
@@ -173,6 +173,7 @@ export class ServerStateStore {
     this.notifications = new NotificationStore(notificationAPI);
     this.roomUnread = new RoomUnreadStore(() => this.projection);
     const roomCommandAPI = serverConnection.getAPI(createRoomCommandAPI);
+    const roomDirectoryAPI = serverConnection.getAPI(createRoomDirectoryAPI);
     this.pendingHighlights = new PendingHighlightStore();
     this.voiceCall = new VoiceCallState(voiceCallAPI);
     this.activeCallRooms = new ActiveCallRoomsState(this.voiceCall);
@@ -180,7 +181,9 @@ export class ServerStateStore {
     this.roomDirectory = new RoomDirectoryStore(
       this.navigation,
       memberDirectoryAPI,
-      roomCommandAPI
+      roomCommandAPI,
+      roomDirectoryAPI,
+      (roomId, isArchived) => this.projection.setDMArchived(roomId, isArchived)
     );
     this.adminRoomLayout = new AdminRoomLayoutStore(adminRoomLayoutAPI, roomCommandAPI);
     this.messageSearch = new MessageSearchStore(messageSearchAPI);
