@@ -264,6 +264,10 @@ export default defineConfig(async ({ command }) => {
           target: backendTarget,
           changeOrigin: true
         },
+        '/oauth/token': {
+          target: backendTarget,
+          changeOrigin: true
+        },
         '/api': {
           target: backendTarget,
           ws: true,
