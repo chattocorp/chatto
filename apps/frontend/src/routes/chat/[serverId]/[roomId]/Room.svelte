@@ -362,9 +362,9 @@
   let showLeaveRoom = $derived(!!room.roomData && !room.isDM && !room.roomData.room.isUniversal);
   const dmArchivePending = $derived(stores.roomDirectory.dmArchivePendingIds.has(roomId));
 
-  async function toggleDMArchive(): Promise<void> {
-    if (!room.roomData || !room.isDM) return;
-    const result = await stores.roomDirectory.setDMArchived(roomId, !room.roomData.isDMArchived);
+  async function unarchiveDM(): Promise<void> {
+    if (!room.roomData || !room.isDM || !room.roomData.isDMArchived) return;
+    const result = await stores.roomDirectory.setDMArchived(roomId, false);
     if (!serverScope.isCurrent()) return;
     if (!result.ok) {
       toast.error(m('common.error.generic'));
@@ -661,15 +661,13 @@
           loading={!room.roomData}
         >
           {#snippet actions()}
-            {#if room.isDM && room.roomData && room.roomData.hasMessageHistory !== false && supportsDMArchive}
+            {#if room.isDM && room.roomData?.isDMArchived && supportsDMArchive}
               <HeaderIconButton
                 icon="icon-[uil--archive]"
-                label={room.roomData.isDMArchived
-                  ? m('room_list.unarchive_direct_message')
-                  : m('room_list.archive_direct_message')}
-                tone={room.roomData.isDMArchived ? 'active' : 'default'}
+                label={m('room_list.unarchive_direct_message')}
+                tone="active"
                 disabled={dmArchivePending}
-                onclick={() => void toggleDMArchive()}
+                onclick={() => void unarchiveDM()}
               />
             {/if}
             <RoomSidebarToggle

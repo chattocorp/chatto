@@ -618,6 +618,21 @@ describe('RoomList', () => {
   it('offers an archive action for direct-message rooms on compatible servers', async () => {
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    const rowArchive = q(row, '[data-testid="archive-dm-row"]') as HTMLButtonElement;
+
+    await expect.element(rowArchive).toHaveAttribute('aria-label', 'Archive conversation');
+    expect(rowArchive.classList).toContain('opacity-0');
+    expect(rowArchive.classList).toContain('group-hover/badges:opacity-100');
+    rowArchive.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.store.roomDirectory.setDMArchived).toHaveBeenCalledWith(
+        'dm-with-participants',
+        true
+      )
+    );
+
+    mocks.store.roomDirectory.setDMArchived.mockClear();
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() =>
       expect(document.querySelector('[data-testid="toggle-dm-archive"]')).not.toBeNull()
@@ -635,10 +650,28 @@ describe('RoomList', () => {
     );
   });
 
-  it('does not expose DM archive actions to servers without the capability', async () => {
-    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
+  it('replaces a DM notification badge with the archive action on row hover', () => {
+    setRoomNotificationCount('dm-with-participants', 3);
     const { container } = render(RoomList);
     const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    const archive = q(row, '[data-testid="archive-dm-row"]') as HTMLButtonElement;
+    const badge = q(row, '[data-testid="dm-notification-badge"]') as HTMLElement;
+    const notificationControl = badge.parentElement as HTMLButtonElement;
+
+    expect(archive.parentElement).toBe(notificationControl.parentElement);
+    expect(archive.classList).toContain('absolute');
+    expect(archive.classList).toContain('group-hover/badges:opacity-100');
+    expect(notificationControl.classList).toContain('group-hover/badges:opacity-0');
+    expect(notificationControl.classList).toContain('group-hover/badges:pointer-events-none');
+  });
+
+  it('does not expose DM archive actions to servers without the capability', async () => {
+    mocks.store.serverInfo.supportsFeature.mockReturnValue(false);
+    setRoomNotificationCount('dm-with-participants', 1);
+    const { container } = render(RoomList);
+    const row = q(container, '[href="/chat/-/dm-with-participants"]') as HTMLAnchorElement;
+    expect(row.querySelector('[data-testid="archive-dm-row"]')).toBeNull();
+    expect(row.querySelector('[data-testid="dm-notification-badge"]')).not.toBeNull();
     row.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
     await vi.waitFor(() => expect(document.body.textContent).toContain('Mark as read'));
 

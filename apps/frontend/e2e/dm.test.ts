@@ -152,8 +152,15 @@ test.describe('Direct Messages (room-shaped)', () => {
       const conversation = dmPageA.getConversation(userB.displayName);
       await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      await conversation.click({ button: 'right' });
-      await page.getByRole('menuitem', { name: 'Archive conversation' }).click();
+      const archiveAction = conversation.getByRole('button', { name: 'Archive conversation' });
+      const notificationControl = conversation.getByTestId('dm-notification-badge').locator('..');
+      await expect(archiveAction).toHaveCSS('opacity', '0');
+      await expect(notificationControl).toHaveCSS('opacity', '1');
+
+      await conversation.hover();
+      await expect(archiveAction).toHaveCSS('opacity', '1');
+      await expect(notificationControl).toHaveCSS('opacity', '0');
+      await archiveAction.click();
       await expect(conversation).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
       // Archiving is a sidebar preference, not access revocation. The quick
@@ -173,8 +180,10 @@ test.describe('Direct Messages (room-shaped)', () => {
       await roomB.sendMessage(`restore ${Date.now()}`);
       await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
 
-      // The open-room control supports an explicit archive/unarchive cycle.
-      await page.getByRole('button', { name: 'Archive conversation' }).click();
+      // The row action archives visible DMs; the open-room control is retained
+      // only as an explicit recovery action for archived conversations.
+      await conversation.hover();
+      await conversation.getByRole('button', { name: 'Archive conversation' }).click();
       await expect(conversation).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
       await page.getByRole('button', { name: 'Unarchive conversation' }).click();
       await expect(conversation).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

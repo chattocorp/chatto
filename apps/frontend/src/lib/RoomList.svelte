@@ -153,6 +153,12 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
     }
   }
 
+  function handleDMRowArchive(event: MouseEvent, room: RoomsListItem): void {
+    event.preventDefault();
+    event.stopPropagation();
+    void handleDMArchive(room, true);
+  }
+
   // --- Derived layout helpers ---
 
   // Channels and DMs are stored together. Operator-managed room groups only
@@ -456,7 +462,48 @@ rooms are organized into collapsible sections. Otherwise, rooms display alphabet
       {@render activeCallIcon()}
     {/if}
 
-    {#if (isDM || isJoined) && room.viewerNotificationCount > 0}
+    {#if isDM && supportsDMArchive}
+      <span class="relative flex h-6 min-w-6 shrink-0 items-center justify-center">
+        <button
+          type="button"
+          onclick={(event) => handleDMRowArchive(event, room)}
+          class="mini-icon-action peer pointer-events-none absolute inset-0 z-10 items-center justify-center opacity-0 transition-opacity group-hover/badges:pointer-events-auto group-hover/badges:opacity-100 focus-visible:pointer-events-auto focus-visible:opacity-100"
+          aria-label={m('room_list.archive_direct_message')}
+          title={m('room_list.archive_direct_message')}
+          disabled={stores.roomDirectory.dmArchivePendingIds.has(room.id)}
+          data-testid="archive-dm-row"
+        >
+          <span class="iconify icon-[uil--archive] text-base" aria-hidden="true"></span>
+        </button>
+
+        {#if room.viewerNotificationCount > 0}
+          <button
+            type="button"
+            onclick={(e) => handleNotificationBadgeClick(e, room.id, true)}
+            class="flex h-6 min-w-6 cursor-pointer items-center justify-center notification-dot transition-opacity group-hover/badges:pointer-events-none group-hover/badges:opacity-0 peer-focus-visible:pointer-events-none peer-focus-visible:opacity-0"
+            aria-label={m('room_list.go_to_dm_notifications', {
+              count: room.viewerNotificationCount
+            })}
+          >
+            <NotificationBadge
+              count={room.viewerNotificationCount}
+              color={room.viewerImportantNotificationCount > 0 ? 'warning' : 'ambient'}
+              testid="dm-notification-badge"
+            />
+          </button>
+          <span class="sr-only">
+            {m('room_list.new_direct_messages', { count: room.viewerNotificationCount })}
+          </span>
+        {:else if showUnread}
+          <UnreadDot
+            color="neutral"
+            class="transition-opacity group-hover/badges:opacity-0 peer-focus-visible:opacity-0"
+            testid="dm-unread-dot"
+          />
+          <span class="sr-only">{m('room_list.unread_messages')}</span>
+        {/if}
+      </span>
+    {:else if (isDM || isJoined) && room.viewerNotificationCount > 0}
       <button
         type="button"
         onclick={(e) => handleNotificationBadgeClick(e, room.id, isDM)}
