@@ -42,8 +42,6 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
-  const origin = serverRegistry.originServer;
-  const legacyBearerToken = origin?.token ?? null;
   const baseUrl = serverConnectionManager.originConnectBaseUrl;
 
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -52,6 +50,10 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
         serverRegistry.authenticateOriginCookie(cachedUser);
       } catch (cookieError) {
+        // A background renewal can replace a migration-era origin bearer while
+        // this probe retries. Read the current value instead of retaining the
+        // token that existed when the load started.
+        const legacyBearerToken = serverRegistry.originServer?.token ?? null;
         if (!isAuthenticationRequiredError(cookieError) || !legacyBearerToken) {
           throw cookieError;
         }

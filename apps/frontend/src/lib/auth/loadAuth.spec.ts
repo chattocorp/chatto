@@ -117,6 +117,24 @@ describe('loadCurrentUser', () => {
     expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
   });
 
+  it('adopts a renewed legacy bearer while retrying the cookie probe', async () => {
+    originState.token = 'old-origin-token';
+    getCurrentUserViaConnectMock
+      .mockImplementationOnce(async () => {
+        originState.token = 'renewed-origin-token';
+        throw new Error('network');
+      })
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockResolvedValueOnce(user);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenNthCalledWith(
+      3,
+      expect.objectContaining({ bearerToken: 'renewed-origin-token' })
+    );
+  });
+
   it('keeps the cached user when a later refresh errors', async () => {
     const { loadCurrentUser } = await loadModule();
     getCurrentUserViaConnectMock
