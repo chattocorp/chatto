@@ -196,7 +196,7 @@ func (h *timelineHydrator) event(ctx context.Context, event *core.RoomEvent) (*a
 		apiEvent.Event = &apiv1.RoomTimelineEvent_RoomThreadingModeChanged{
 			RoomThreadingModeChanged: &apiv1.RoomTimelineThreadingModeChangedEvent{
 				RoomId:        change.GetRoomId(),
-				ThreadingMode: apiRoomThreadingModeValue(change.GetThreadingMode()),
+				ThreadingMode: apiRoomThreadingModeChangeValue(change.GetThreadingMode()),
 			},
 		}
 	case *corev1.Event_UserJoinedRoom:

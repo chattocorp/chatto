@@ -85,6 +85,19 @@ describe('SystemEvent', () => {
     expect(container.textContent).toContain('Alice changed Threading Mode to Encouraged');
   });
 
+  it('renders an unknown Threading Mode as Disabled', () => {
+    const event = systemEvent(TimelineEventKind.RoomArchived, 'Alice');
+    event.event = {
+      kind: TimelineEventKind.RoomThreadingModeChanged,
+      roomId: 'room-1',
+      threadingMode: 99 as RoomThreadingMode
+    };
+
+    const { container } = render(SystemEvent, { props: { event } });
+
+    expect(container.textContent).toContain('Alice changed Threading Mode to Disabled');
+  });
+
   it('renders an actionable call-start event while its call is active', async () => {
     const onOpenCall = vi.fn();
     const { container } = render(SystemEvent, {

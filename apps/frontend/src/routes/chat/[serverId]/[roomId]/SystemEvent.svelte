@@ -53,7 +53,7 @@
       case RoomThreadingMode.DISABLED:
         return m('admin.rooms_admin.threading_mode_disabled');
       default:
-        return m('admin.rooms_admin.threading_mode_enabled');
+        return m('admin.rooms_admin.threading_mode_disabled');
     }
   }
 

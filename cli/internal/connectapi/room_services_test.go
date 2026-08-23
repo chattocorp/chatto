@@ -21,6 +21,17 @@ import (
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
+func TestAPIRoomThreadingModeChangeValueFailsClosed(t *testing.T) {
+	for _, mode := range []corev1.RoomThreadingMode{
+		corev1.RoomThreadingMode_ROOM_THREADING_MODE_UNSPECIFIED,
+		corev1.RoomThreadingMode(99),
+	} {
+		if got := apiRoomThreadingModeChangeValue(mode); got != apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+			t.Fatalf("apiRoomThreadingModeChangeValue(%v) = %v, want DISABLED", mode, got)
+		}
+	}
+}
+
 func TestRoomServiceLifecycleCommands(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	ctx := withCaller(env.ctx, env.viewer)

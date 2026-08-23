@@ -411,6 +411,13 @@ func apiRoomThreadingModeValue(mode corev1.RoomThreadingMode) apiv1.RoomThreadin
 	}
 }
 
+func apiRoomThreadingModeChangeValue(mode corev1.RoomThreadingMode) apiv1.RoomThreadingMode {
+	if !core.IsValidRoomThreadingMode(mode) {
+		return apiv1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED
+	}
+	return apiRoomThreadingModeValue(mode)
+}
+
 func apiRoomSummary(room *corev1.Room) *apiv1.RoomSummary {
 	if room == nil {
 		return nil

@@ -15,8 +15,7 @@
     error,
     description,
     required = false,
-    disabled = false,
-    onchange
+    disabled = false
   }: {
     label: string;
     id: string;
@@ -27,7 +26,6 @@
     description?: string;
     required?: boolean;
     disabled?: boolean;
-    onchange?: (event: Event) => void;
   } = $props();
 </script>
 
@@ -40,7 +38,6 @@
     class="input"
     aria-invalid={error ? 'true' : undefined}
     aria-describedby={error ? `${id}-error` : description ? `${id}-description` : undefined}
-    {onchange}
   >
     {#if placeholder}
       <option value="" disabled selected={!value}>{placeholder}</option>
