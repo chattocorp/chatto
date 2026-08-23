@@ -7,6 +7,7 @@ import {
 import { describe, expect, it, vi } from 'vitest';
 import type { MemberDirectoryAPI } from '$lib/api-client/memberDirectory';
 import type { RoomCommandAPI } from '$lib/api-client/rooms';
+import { RoomThreadingMode } from '$lib/roomThreading';
 import type { RoomsListItem } from './rooms.svelte';
 import { RoomDirectoryStore, type RoomDirectoryNavigation } from './roomDirectory.svelte';
 
@@ -81,6 +82,7 @@ function dmDetails(id: string, isDMArchived: boolean): DirectoryRoomDetails {
     isUniversal: false,
     slowModeSeconds: 0,
     slowModeNextPostAt: null,
+    threadingMode: RoomThreadingMode.ENABLED,
     isMember: true,
     hasUnread: false,
     isDMArchived,

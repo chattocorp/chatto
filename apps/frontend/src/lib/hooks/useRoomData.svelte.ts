@@ -80,7 +80,7 @@ export function useRoomData(getProps: () => { roomId: string }) {
       canManageRoom: room.canManageRoom,
       canBanRoomMembers: room.canBanRoomMembers,
       slowModeNextPostAt: room.slowModeNextPostAt,
-      hasMessageHistory: projectedRoom.hasMessageHistory ?? null,
+      hasMessageHistory: projectedRoom?.hasMessageHistory ?? null,
       isDMArchived: room.isDMArchived
     };
   });

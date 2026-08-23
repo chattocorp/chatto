@@ -661,7 +661,7 @@
           loading={!room.roomData}
         >
           {#snippet actions()}
-            {#if room.isDM && room.roomData?.hasMessageHistory !== false && supportsDMArchive}
+            {#if room.isDM && room.roomData && room.roomData.hasMessageHistory !== false && supportsDMArchive}
               <HeaderIconButton
                 icon="icon-[uil--archive]"
                 label={room.roomData.isDMArchived
