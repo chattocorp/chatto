@@ -77,8 +77,9 @@ Administrators can leave a recorded client at the default policy, label it
 trusted, or block it. Trust is an administrative annotation and never bypasses
 user consent. Blocking rejects new authorization attempts, authorization-code
 issuance, code exchange, and access-token use; changing a client to blocked also
-scans and revokes its existing OAuth access tokens. Policy changes are durable
-EVT facts, and each replica enforces them from a cold-replayed projection.
+scans and revokes its renewable OAuth sessions, which invalidates every access
+generation. Policy changes are durable EVT facts, and each replica enforces
+them from a cold-replayed projection.
 
 CIMD can also publish `jwks` or `jwks_uri`, but this decision does not add
 client-authentication proofs, service credentials, scopes, token exchange, or

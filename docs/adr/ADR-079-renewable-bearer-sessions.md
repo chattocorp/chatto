@@ -32,7 +32,9 @@ renewal protocol.
 Human bearer authentication uses a **renewable session** consisting of:
 
 - a short-lived opaque access token for ConnectRPC, HTTP, and realtime traffic;
-- a rotating opaque refresh credential used only at `/oauth/token`; and
+- a rotating opaque refresh credential normally used at `/oauth/token` and
+  also presented by the bundled client at `/auth/logout` for stable-session
+  revocation; and
 - one stable latest-value renewable-session record in `RUNTIME_STATE`.
 
 This applies to first-party bearer sessions issued by password, registration,

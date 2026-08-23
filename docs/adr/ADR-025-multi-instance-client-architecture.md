@@ -7,8 +7,9 @@
 Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md),
 which replaces the origin allow-list client-registration requirement, and
 [ADR-074](ADR-074-keep-server-catalogue-device-local.md), which makes the
-server catalogue device-local. The multi-server client architecture remains
-current.
+server catalogue device-local. [ADR-079](ADR-079-renewable-bearer-sessions.md)
+replaces the sliding bearer-token lifetime. The multi-server client
+architecture remains current.
 
 ## Context
 
@@ -64,9 +65,13 @@ The `[serverId]/+layout.svelte` resolves the segment and provides the server ID 
 
 Each server state store has permission and viewer-capability state loaded from ConnectRPC viewer/server-state APIs. This lets the UI show only actions the viewer can perform on the selected server.
 
-### Sliding Window Token Expiry
+### Renewable Bearer Lifetime
 
-Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthToken` re-puts the entry to reset the TTL. Tokens expire after the configured duration of *inactivity*, not from creation time. Active users are never logged out.
+Human bearer sessions use short fixed-lifetime access tokens and rotating
+refresh credentials. The frontend serializes rotation, refreshes before access
+expiry, and stops at the renewable session's fixed absolute maximum. Cookie
+fallback sessions retain their separate sliding lifetime. ADR-079 owns the
+detailed rotation, recovery, revocation, and expiry contract.
 
 ## Consequences
 
@@ -75,11 +80,12 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 - Users can connect to multiple Chatto servers from one client
 - The SPA can be served statically (CDN) without a Chatto backend
 - No special-casing for "home" vs "remote" — all servers use the same code paths
-- Token sliding window means active users never get surprise logouts
+- Short access lifetimes bound an access token stolen without its refresh
+  credential, while background rotation avoids frequent interactive login
 
 ### Negative
 
-- Registered-server bearer tokens in `localStorage` are vulnerable to XSS (cookie auth is not)
+- Registered-server bearer credentials in `localStorage` are vulnerable to XSS (cookie auth is not)
 - This makes XSS prevention part of the auth boundary. The shipped frontend sets
   a report-only CSP with Trusted Types reporting so deployments can surface
   dangerous script and DOM-sink patterns before policy enforcement is viable for
@@ -93,5 +99,8 @@ Bearer tokens use NATS KV TTL (default 90 days). Each successful `ValidateAuthTo
 
 ### Trade-offs
 
-- During the transition, cookie and token auth still create two disconnect flows: token failures remove the registered credential, while origin cookie fallback can still require server-side logout + hard reload for compatibility paths.
+- Bearer refresh failure preserves the route and marks only that server as
+  requiring explicit authentication, while origin cookie fallback can still
+  require server-side logout plus a hard reload. The two presentations retain
+  distinct disconnect flows.
 - SvelteMap for the store map enables reactive `$derived` reads but requires careful separation of imperative writes (`addServer`) from pure reads (`getStore`)

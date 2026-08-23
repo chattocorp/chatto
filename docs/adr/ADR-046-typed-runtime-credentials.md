@@ -103,8 +103,10 @@ bearer credential.
 
 The 0.5 cutoff has a deliberate compatibility cost: browsers that still carry
 the retired cookie-session shape are signed out once. In return, every active
-browser session now follows the same typed validation, sliding TTL, and
-revocation rules, and user-wide cleanup scans only `session.*` records.
+browser session now follows typed validation and explicit revocation rules.
+Cookie records retain sliding TTL, while bearer access records use fixed expiry
+and a stable `renewable_session.*` authority. User-wide cleanup covers both
+`session.*` records and renewable-session authorities.
 
 The multi-server frontend continues to carry bearer tokens in browser storage for
 remote servers, so XSS prevention remains part of the client auth boundary. This
