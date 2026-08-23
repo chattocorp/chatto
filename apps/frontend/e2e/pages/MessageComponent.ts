@@ -221,6 +221,14 @@ export class MessageComponent {
       .click({ timeout: TIMEOUTS.REALTIME_EVENT });
   }
 
+  /** Open an echo's original thread without starting a reply to the echoed message. */
+  async openEchoThread(): Promise<void> {
+    await this.openContextMenu();
+    await this.contextMenu
+      .getByRole('menuitem', { name: 'Open thread', exact: true })
+      .click({ timeout: TIMEOUTS.REALTIME_EVENT });
+  }
+
   /**
    * Start a reply to an echoed thread message.
    * Echo rows label this action "Reply in thread" and keep "Open thread" as navigation only.

@@ -383,7 +383,7 @@ test.describe('My Threads', () => {
     await roomPage.closeThread();
 
     const unreadRoot = `Unread thread ${Date.now()}`;
-    const unreadMsg = await roomPage.sendMessage(unreadRoot);
+    const unreadMsg = await roomPage.sendNewRootAfterThread(unreadRoot);
     await unreadMsg.openThread();
     await roomPage.expectThreadPaneVisible();
     await roomPage.postThreadReply(`Reply ${Date.now()}`);
@@ -526,7 +526,7 @@ test.describe('My Threads', () => {
 
     // Create second thread (more recent activity)
     const root2 = `Second thread ${Date.now()}`;
-    const msg2 = await roomPage.sendMessage(root2);
+    const msg2 = await roomPage.sendNewRootAfterThread(root2);
     await msg2.openThread();
     await roomPage.expectThreadPaneVisible();
     await roomPage.postThreadReply(`Reply to second ${Date.now()}`);

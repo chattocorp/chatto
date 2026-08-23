@@ -54,6 +54,11 @@ export class RoomPage {
     return this.page.getByRole('button', { name: 'Send message' });
   }
 
+  /** The destination prompt shown after a recent authored message gained a thread. */
+  get recentThreadConfirmationDialog(): Locator {
+    return this.page.getByRole('dialog', { name: 'Continue your previous thread?' });
+  }
+
   /** Video attachment preview in the composer (shown when a video file is staged) */
   get videoAttachmentPreview(): Locator {
     return this.page.getByTestId('video-attachment-preview');
@@ -182,6 +187,29 @@ export class RoomPage {
     await this.messageInput.fill(text);
     await this.dismissAutocompleteIfOpen(this.messageInput);
     await this.messageInput.press('Control+Enter');
+    const message = this.getMessage(text);
+    await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await this.waitForInputEditable();
+    return message;
+  }
+
+  /**
+   * Send a new root message when the composer asks whether a recent thread
+   * should receive it instead. This asserts that the safeguard was shown.
+   */
+  async sendNewRootAfterThread(text: string): Promise<MessageComponent> {
+    await this.waitForInputEditable();
+    await this.messageInput.fill(text);
+    await this.dismissAutocompleteIfOpen(this.messageInput);
+    await this.messageInput.press('Control+Enter');
+
+    await expect(this.recentThreadConfirmationDialog).toBeVisible({
+      timeout: TIMEOUTS.UI_FAST
+    });
+    await this.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Post as new message' })
+      .click();
+
     const message = this.getMessage(text);
     await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await this.waitForInputEditable();

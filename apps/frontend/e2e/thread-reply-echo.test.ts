@@ -344,7 +344,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     await test.step('Select echo text and open the thread as navigation only', async () => {
       const echoMessage = roomPage.getMessage(echoedReply);
       await selectTextInside(echoMessage.locator, selectedText);
-      await echoMessage.openThread();
+      await echoMessage.openEchoThread();
 
       await roomPage.expectThreadPaneVisible();
       await expect(page.getByTestId('thread-reply-input').locator('blockquote')).toHaveCount(0);
@@ -406,7 +406,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
         await waitForRoomReady(page2, 'general');
 
         await roomPage2.expectMessageVisible(echoedReply);
-        await roomPage2.getMessage(echoedReply).openThread();
+        await roomPage2.getMessage(echoedReply).openEchoThread();
         await roomPage2.expectThreadPaneVisible();
       }
     );

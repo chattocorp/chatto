@@ -1039,7 +1039,7 @@ test.describe('Thread reply unread behavior', () => {
         // Now User A posts a new ROOT message — this SHOULD cause unread
         await roomPage.closeThread();
         const newRootMessage = `New root message ${Date.now()}`;
-        await roomPage.sendMessage(newRootMessage);
+        await roomPage.sendNewRootAfterThread(newRootMessage);
 
         // Wait for server to register unread state
         await waitForRoomUnreadViaConnect(page2, generalRoomId, true);

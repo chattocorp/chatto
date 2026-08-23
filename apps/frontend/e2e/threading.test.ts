@@ -110,6 +110,36 @@ test.describe('Message Threading', () => {
     await roomPage.expectThreadPaneFollowing();
   });
 
+  test('recent threaded root offers to receive the next message', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+
+    const rootMessage = `Recent thread ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await page.getByRole('button', { name: 'Post as thread' }).click();
+    await roomPage.sendMessage(rootMessage);
+
+    const followup = `Recent follow-up ${Date.now()}`;
+    await roomPage.messageInput.fill(followup);
+    await roomPage.messageInput.press('Control+Enter');
+
+    await expect(roomPage.recentThreadConfirmationDialog).toBeVisible();
+    await expect(roomPage.messageInput).toHaveText(followup);
+    await roomPage.recentThreadConfirmationDialog
+      .getByRole('button', { name: 'Continue in thread' })
+      .click();
+
+    await expect(roomPage.recentThreadConfirmationDialog).toBeHidden();
+    await roomPage.expectThreadPaneVisible();
+    await roomPage.expectTextInThreadPane(rootMessage);
+    await roomPage.expectTextInThreadPane(followup);
+  });
+
   test('thread reply from another user appears in real-time', async ({
     page,
     chatPage,
