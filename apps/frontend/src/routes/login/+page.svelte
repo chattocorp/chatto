@@ -1,6 +1,7 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
+  import { directBearerSession } from '$lib/auth/bearerSession';
   import { startRemoteReauthentication } from '$lib/auth/reauth';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -131,7 +132,9 @@
         return;
       }
 
-      const resumedReturnNavigation = await completeOriginAuthentication(result.user ?? null);
+      const resumedReturnNavigation = await completeOriginAuthentication(
+        directBearerSession(result)
+      );
       if (!resumedReturnNavigation) {
         await navigateAfterAuthentication(data.redirectUrl);
       }

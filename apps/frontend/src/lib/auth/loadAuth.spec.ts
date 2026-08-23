@@ -6,6 +6,7 @@ const {
   clearOriginAuthenticationMock,
   handleAuthenticationRequiredMock,
   clearAuthenticationRequiredMock,
+  authenticateOriginBearerMock,
   authenticateOriginCookieMock,
   originState
 } = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const {
   clearOriginAuthenticationMock: vi.fn(),
   handleAuthenticationRequiredMock: vi.fn(),
   clearAuthenticationRequiredMock: vi.fn(),
+  authenticateOriginBearerMock: vi.fn(),
   authenticateOriginCookieMock: vi.fn(),
   originState: { token: null as string | null }
 }));
@@ -40,6 +42,7 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
     get originServer() {
       return { id: 'origin', token: originState.token };
     },
+    authenticateOriginBearer: authenticateOriginBearerMock,
     authenticateOriginCookie: authenticateOriginCookieMock,
     clearOriginAuthentication: clearOriginAuthenticationMock,
     handleAuthenticationRequired: handleAuthenticationRequiredMock,
@@ -55,6 +58,14 @@ const user = {
   presenceStatus: 'ONLINE',
   hasVerifiedEmail: true,
   settings: { timezone: 'UTC', timeFormat: '24h' }
+};
+
+const pendingCredentials = {
+  token: 'new-origin-token',
+  refreshToken: 'new-origin-refresh-token',
+  expiresIn: 900,
+  refreshTokenExpiresIn: 7776000,
+  oauthClientId: null
 };
 
 async function loadModule() {
@@ -96,6 +107,56 @@ describe('loadCurrentUser', () => {
       expect.objectContaining({ bearerToken: null })
     );
     expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+  });
+
+  it('discards a pending direct bearer after cookie authentication succeeds', async () => {
+    getCurrentUserViaConnectMock.mockResolvedValueOnce(user);
+    const { loadCurrentUser, stagePendingOriginAuthentication } = await loadModule();
+    stagePendingOriginAuthentication(pendingCredentials, 1000);
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledOnce();
+    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+    expect(authenticateOriginBearerMock).not.toHaveBeenCalled();
+  });
+
+  it('persists a pending direct bearer only after the cookie probe is unauthenticated', async () => {
+    originState.token = 'older-origin-token';
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockResolvedValueOnce(user);
+    const { loadCurrentUser, stagePendingOriginAuthentication } = await loadModule();
+    stagePendingOriginAuthentication(pendingCredentials, 1000);
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenNthCalledWith(1, {
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+    expect(getCurrentUserViaConnectMock).toHaveBeenNthCalledWith(2, {
+      baseUrl: '/api/connect',
+      bearerToken: pendingCredentials.token
+    });
+    expect(authenticateOriginBearerMock).toHaveBeenCalledWith(pendingCredentials, user, 1000);
+    expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
+  });
+
+  it('clears a rejected pending direct bearer before a later cookie probe', async () => {
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockRejectedValueOnce({ message: 'authentication required' });
+    const { loadCurrentUser, stagePendingOriginAuthentication } = await loadModule();
+    stagePendingOriginAuthentication(pendingCredentials, 1000);
+
+    expect(await loadCurrentUser()).toBeNull();
+
+    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
+    expect(await loadCurrentUser()).toBeNull();
+    expect(getCurrentUserViaConnectMock).toHaveBeenLastCalledWith({
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+    expect(authenticateOriginBearerMock).not.toHaveBeenCalled();
   });
 
   it('uses a legacy origin bearer only when cookie authentication is absent', async () => {

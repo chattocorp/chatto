@@ -62,12 +62,14 @@ refresh rotation and fresh-auth update. Their KV revision remains the OCC
 boundary. Immutable bearer access-token verifier records still use a direct
 per-message TTL because Chatto never updates them.
 
-The bundled frontend uses the HttpOnly cookie for its origin server. During
-migration, it tries the cookie before a stored origin bearer credential. It
-removes that bearer credential only after cookie authentication succeeds. A
-remote server still uses its renewable bearer session. The frontend warns the
-user seven days before a renewable bearer session reaches its fixed maximum,
-but it never starts OAuth without a user action.
+The bundled frontend uses the HttpOnly cookie for its origin server. It holds
+the bearer returned by direct authentication in memory while it makes a
+cookie-only viewer request. Successful cookie authentication discards that
+bearer and removes any older stored origin bearer. If the cookie request is
+unauthenticated, the client verifies and persists the returned bearer as an
+origin fallback. A remote server still uses its renewable bearer session. The
+frontend warns the user seven days before a renewable bearer session reaches
+its fixed maximum, but it never starts OAuth without a user action.
 
 ## Consequences
 

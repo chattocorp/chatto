@@ -32,7 +32,7 @@ Discovery is also the right place for custom clients to learn public server iden
 
 | Client shape | Credential |
 | ------------ | ---------- |
-| Same-origin browser app | HttpOnly cookie session. The bundled client does not persist a duplicate origin bearer session. |
+| Same-origin browser app | HttpOnly cookie session. The bundled client persists the direct-login bearer only when its cookie probe cannot authenticate, then removes that fallback after a later successful cookie probe. |
 | Cross-origin Chatto frontend | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
 | Bot integration | Bot API key created in Server Admin → Bots. |
 | User-authorized client | OAuth authorization code with PKCE, then a renewable opaque bearer session. |

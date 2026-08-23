@@ -11,6 +11,7 @@ import { browser } from '$app/environment';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
 import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
+import type { NewBearerSession } from './bearerSession';
 import { isAuthenticationRequiredError } from './errors';
 import { saveReturnUrl } from './returnNavigation';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
@@ -20,6 +21,24 @@ export type { CurrentUser };
 // Module-level cache for the current user. Root load re-checks the server on
 // navigation, but keeps this value as a fallback when the check itself fails.
 let cachedUser: CurrentUser | null = null;
+
+type PendingOriginAuthentication = {
+  credentials: NewBearerSession;
+  receivedAt: number;
+};
+
+// A direct authentication response can include a bearer session alongside the
+// browser cookie. Keep it out of storage until a cookie-only viewer request
+// proves whether this browser origin can actually use the cookie.
+let pendingOriginAuthentication: PendingOriginAuthentication | null = null;
+
+/** Stage a direct-login bearer as a one-shot fallback for the cookie probe. */
+export function stagePendingOriginAuthentication(
+  credentials: NewBearerSession | null,
+  receivedAt = Date.now()
+): void {
+  pendingOriginAuthentication = credentials ? { credentials, receivedAt } : null;
+}
 
 /**
  * Load the current user from the ConnectRPC API.
@@ -38,6 +57,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
 
   if (isExplicitSignOutRedirectInProgress()) {
     cachedUser = null;
+    pendingOriginAuthentication = null;
     serverRegistry.clearOriginAuthentication();
     return null;
   }
@@ -49,18 +69,40 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       try {
         cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
         serverRegistry.authenticateOriginCookie(cachedUser);
+        pendingOriginAuthentication = null;
       } catch (cookieError) {
-        // A background renewal can replace a migration-era origin bearer while
-        // this probe retries. Read the current value instead of retaining the
-        // token that existed when the load started.
-        const legacyBearerToken = serverRegistry.originServer?.token ?? null;
-        if (!isAuthenticationRequiredError(cookieError) || !legacyBearerToken) {
+        // Prefer the just-issued direct bearer while it is pending. Otherwise,
+        // a background renewal can replace a stored origin fallback while this
+        // probe retries, so read the current value on every attempt.
+        const pending = pendingOriginAuthentication;
+        const fallbackBearerToken =
+          pending?.credentials.token ?? serverRegistry.originServer?.token ?? null;
+        if (!isAuthenticationRequiredError(cookieError) || !fallbackBearerToken) {
           throw cookieError;
         }
-        cachedUser = await getCurrentUserViaConnect({
-          baseUrl,
-          bearerToken: legacyBearerToken
-        });
+        try {
+          cachedUser = await getCurrentUserViaConnect({
+            baseUrl,
+            bearerToken: fallbackBearerToken
+          });
+        } catch (bearerError) {
+          if (
+            pending &&
+            pendingOriginAuthentication === pending &&
+            isAuthenticationRequiredError(bearerError)
+          ) {
+            pendingOriginAuthentication = null;
+          }
+          throw bearerError;
+        }
+        if (pending && pendingOriginAuthentication === pending) {
+          serverRegistry.authenticateOriginBearer(
+            pending.credentials,
+            cachedUser,
+            pending.receivedAt
+          );
+          pendingOriginAuthentication = null;
+        }
       }
       const originId = serverRegistry.originServer?.id;
       if (originId) {
@@ -71,6 +113,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       if (isAuthenticationRequiredError(err)) {
         if (isExplicitSignOutRedirectInProgress()) {
           cachedUser = null;
+          pendingOriginAuthentication = null;
           serverRegistry.clearOriginAuthentication();
           return null;
         }
@@ -98,10 +141,11 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
 }
 
 /**
- * Clear the cached user. Call this when the user logs out.
+ * Clear cached and not-yet-adopted authentication state.
  */
 export function clearCachedUser(): void {
   cachedUser = null;
+  pendingOriginAuthentication = null;
 }
 
 /**

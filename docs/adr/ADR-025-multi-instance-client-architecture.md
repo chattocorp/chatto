@@ -27,9 +27,11 @@ The frontend is server-agnostic by default. It doesn't assume it is served by a 
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
 3. **Cookie-first origin auth**: The client uses the HttpOnly cookie for the
    server that serves the SPA. Remote servers use persisted renewable bearer
-   sessions. During migration, the client uses a persisted origin bearer only
-   when the cookie is absent. It removes that bearer after a successful cookie
-   viewer request.
+   sessions. A direct authentication response's bearer remains memory-only
+   while the client probes the cookie. The client discards it when the cookie
+   viewer request succeeds, or verifies and persists it as an origin fallback
+   when that request is unauthenticated. A later successful cookie request
+   removes the fallback.
 
 Bearer tokens are only handed to API clients that need to authenticate
 ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media

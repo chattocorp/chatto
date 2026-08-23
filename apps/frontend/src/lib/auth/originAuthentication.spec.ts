@@ -1,17 +1,17 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const {
-  authenticateOriginCookieMock,
   clearCachedUserMock,
   hasPendingReturnNavigationMock,
   invalidateAllMock,
-  resumeReturnNavigationMock
+  resumeReturnNavigationMock,
+  stagePendingOriginAuthenticationMock
 } = vi.hoisted(() => ({
-  authenticateOriginCookieMock: vi.fn(),
   clearCachedUserMock: vi.fn(),
   hasPendingReturnNavigationMock: vi.fn(),
   invalidateAllMock: vi.fn(),
-  resumeReturnNavigationMock: vi.fn()
+  resumeReturnNavigationMock: vi.fn(),
+  stagePendingOriginAuthenticationMock: vi.fn()
 }));
 
 vi.mock('$app/navigation', () => ({
@@ -20,12 +20,13 @@ vi.mock('$app/navigation', () => ({
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
-    authenticateOriginCookie: authenticateOriginCookieMock
+    originServer: { id: 'origin' }
   }
 }));
 
 vi.mock('./loadAuth', () => ({
-  clearCachedUser: clearCachedUserMock
+  clearCachedUser: clearCachedUserMock,
+  stagePendingOriginAuthentication: stagePendingOriginAuthenticationMock
 }));
 
 vi.mock('./returnNavigation', () => ({
@@ -33,9 +34,12 @@ vi.mock('./returnNavigation', () => ({
   resumeReturnNavigation: resumeReturnNavigationMock
 }));
 
-const user = {
-  id: 'user-1',
-  login: 'alice'
+const credentials = {
+  token: 'origin-token',
+  refreshToken: 'origin-refresh-token',
+  expiresIn: 900,
+  refreshTokenExpiresIn: 7776000,
+  oauthClientId: null
 };
 
 async function loadModule() {
@@ -57,23 +61,39 @@ describe('completeOriginAuthentication', () => {
     vi.unstubAllGlobals();
   });
 
-  it('installs only origin authentication and refreshes route data', async () => {
+  it('stages the direct bearer without installing it before route invalidation', async () => {
     hasPendingReturnNavigationMock.mockReturnValue(false);
     const { completeOriginAuthentication } = await loadModule();
 
-    await expect(completeOriginAuthentication(user)).resolves.toBe(false);
+    await expect(completeOriginAuthentication(credentials)).resolves.toBe(false);
 
-    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
     expect(clearCachedUserMock).toHaveBeenCalledOnce();
+    expect(stagePendingOriginAuthenticationMock).toHaveBeenCalledWith(credentials);
     expect(invalidateAllMock).toHaveBeenCalledOnce();
+    expect(clearCachedUserMock.mock.invocationCallOrder[0]).toBeLessThan(
+      stagePendingOriginAuthenticationMock.mock.invocationCallOrder[0]
+    );
+    expect(stagePendingOriginAuthenticationMock.mock.invocationCallOrder[0]).toBeLessThan(
+      invalidateAllMock.mock.invocationCallOrder[0]
+    );
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
+  });
+
+  it('can complete a cookie-only response without a bearer fallback', async () => {
+    hasPendingReturnNavigationMock.mockReturnValue(false);
+    const { completeOriginAuthentication } = await loadModule();
+
+    await expect(completeOriginAuthentication(null)).resolves.toBe(false);
+
+    expect(stagePendingOriginAuthenticationMock).toHaveBeenCalledWith(null);
+    expect(invalidateAllMock).toHaveBeenCalledOnce();
   });
 
   it('resumes a return path captured before route invalidation', async () => {
     hasPendingReturnNavigationMock.mockReturnValue(true);
     const { completeOriginAuthentication } = await loadModule();
 
-    await expect(completeOriginAuthentication(user)).resolves.toBe(true);
+    await expect(completeOriginAuthentication(credentials)).resolves.toBe(true);
 
     expect(invalidateAllMock).toHaveBeenCalledOnce();
     expect(resumeReturnNavigationMock).toHaveBeenCalledOnce();
@@ -86,7 +106,7 @@ describe('completeOriginAuthentication', () => {
     });
     const { completeOriginAuthentication } = await loadModule();
 
-    await expect(completeOriginAuthentication(user)).resolves.toBe(true);
+    await expect(completeOriginAuthentication(credentials)).resolves.toBe(true);
 
     expect(resumeReturnNavigationMock).not.toHaveBeenCalled();
   });

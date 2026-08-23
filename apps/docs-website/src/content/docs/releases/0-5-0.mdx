@@ -87,8 +87,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Human clients use short-lived access tokens and rotating refresh credentials with a fixed
     maximum session lifetime. The bundled frontend renews in the background and reconnects
     realtime in place without reopening OAuth or losing the current route. It warns before the
-    fixed maximum requires a deliberate reconnect. The bundled same-origin client now keeps its
-    safer HttpOnly cookie instead of persisting a duplicate origin bearer session.
+    fixed maximum requires a deliberate reconnect. The bundled same-origin client prefers its
+    safer HttpOnly cookie and persists the direct-login bearer only when a cookie probe cannot
+    authenticate, removing that fallback after a later successful cookie request.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Faster, leaner restarts">

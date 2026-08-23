@@ -1,33 +1,35 @@
 import { invalidateAll } from '$app/navigation';
-import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavigation';
+import type { NewBearerSession } from './bearerSession';
 
 /**
- * Install a newly authenticated origin session and refresh route data.
+ * Stage a newly authenticated origin session and refresh route data.
+ *
+ * Route loading probes the HttpOnly cookie first. It discards the staged
+ * bearer when that succeeds, or verifies and persists it as a fallback when
+ * cookie authentication is unavailable for this browser origin.
  *
  * Returns whether route invalidation or a stored authentication return path
  * already took ownership of navigation. Remote-server authentication is
  * deliberately untouched.
  */
 export async function completeOriginAuthentication(
-  user: AuthenticatedUserSummary | null
+  credentials: NewBearerSession | null
 ): Promise<boolean> {
   const shouldResumeReturnNavigation = hasPendingReturnNavigation();
   const routeBeforeInvalidation =
     typeof window === 'undefined'
       ? null
       : window.location.pathname + window.location.search + window.location.hash;
-  const [{ serverRegistry }, { clearCachedUser }] = await Promise.all([
-    import('$lib/state/server/registry.svelte'),
-    import('./loadAuth')
-  ]);
+  const [{ serverRegistry }, { clearCachedUser, stagePendingOriginAuthentication }] =
+    await Promise.all([import('$lib/state/server/registry.svelte'), import('./loadAuth')]);
 
-  const originServerId = serverRegistry.originServer?.id;
-  serverRegistry.authenticateOriginCookie(user);
-  if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);
   clearCachedUser();
+  stagePendingOriginAuthentication(credentials);
   await invalidateAll();
+  const originServerId = serverRegistry.originServer?.id;
+  if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);
 
   if (shouldResumeReturnNavigation) {
     await resumeReturnNavigation();
