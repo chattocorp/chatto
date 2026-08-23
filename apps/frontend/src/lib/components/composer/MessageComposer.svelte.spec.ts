@@ -3134,6 +3134,31 @@ describe('MessageComposer', () => {
       expect(onMessageSent).toHaveBeenCalledOnce();
     });
 
+    it('keeps the draft and attachments untouched when the destination choice is cancelled', async () => {
+      const { container, getByRole } = renderMessageComposer({
+        roomId: 'room_456',
+        getRecentThreadRootCandidate: () => ({ threadRootEventId: 'previous-root' })
+      });
+      const editor = await findEditor(container);
+      const file = selectFirstAttachment(q(container, 'input[type="file"]') as HTMLInputElement);
+
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      await typeInEditor(editor, 'keep this destination undecided');
+      await userEvent.click(q(container, 'button[aria-label="Send message"]') as HTMLButtonElement);
+
+      const dialog = getByRole('dialog', { name: 'Continue your previous thread?' });
+      await expect.element(dialog).toBeInTheDocument();
+      expect(mutationMock).not.toHaveBeenCalled();
+
+      await userEvent.click(getByRole('button', { name: 'Cancel' }));
+
+      await expect.element(dialog).not.toBeInTheDocument();
+      await expect.element(editor).toHaveTextContent('keep this destination undecided');
+      await expect.poll(() => q(container, 'img')).toBeTruthy();
+      expect(mutationMock).not.toHaveBeenCalled();
+      expect(file.name).toBe('paste.png');
+    });
+
     it('keeps Required thread creation visible, locked on, and reactive to policy changes', async () => {
       const rendered = renderMessageComposer({
         roomId: 'room_456',
