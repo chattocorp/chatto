@@ -47,9 +47,10 @@ describe('Account settings page', () => {
   });
 
   it('shows the current user ID in account information', async () => {
-    const { getByText } = render(AccountPage);
+    const { container, getByText } = render(AccountPage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
     await expect.element(getByText('User ID')).toBeVisible();
     await expect.element(getByText('U123abcetc.')).toBeVisible();
   });

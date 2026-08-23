@@ -1,8 +1,9 @@
 <script lang="ts">
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
   import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
-  import { ChoiceRow, FormSection, PageTitle, PaneHeader } from '$lib/ui';
+  import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
 
   const activeLocale = $derived(getLocale());
   const languageOptions = $derived(
@@ -24,10 +25,10 @@
   subtitle={m('settings.preferences.language.description')}
 />
 
-<div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <FormSection title={m('settings.preferences.language.title')} maxWidth="max-w-md">
+<PaneContent>
+  <Panel title={m('settings.preferences.language.title')} icon="iconify icon-[uil--language]">
     <div
-      class="flex flex-col gap-2"
+      class="flex max-w-md flex-col gap-2"
       role="radiogroup"
       aria-label={m('settings.preferences.language.title')}
     >
@@ -39,5 +40,5 @@
         />
       {/each}
     </div>
-  </FormSection>
-</div>
+  </Panel>
+</PaneContent>

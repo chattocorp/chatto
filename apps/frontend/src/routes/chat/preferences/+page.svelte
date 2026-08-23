@@ -1,7 +1,8 @@
 <script lang="ts">
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
   import { userPreferences, type DisplayTheme } from '$lib/state/userPreferences.svelte';
-  import { ChoiceRow, FormSection, PageTitle, PaneHeader } from '$lib/ui';
+  import { ChoiceRow, PageTitle, PaneContent, PaneHeader } from '$lib/ui';
 
   const themeOptions = $derived([
     {
@@ -32,22 +33,24 @@
   subtitle={m('settings.app_preferences.subtitle')}
 />
 
-<div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <FormSection title={m('settings.preferences.theme.title')} maxWidth="max-w-md">
-    <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.theme.title')}
-    >
-      {#each themeOptions as option (option.value)}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={userPreferences.displayTheme === option.value}
-          onclick={() => (userPreferences.displayTheme = option.value)}
-        />
-      {/each}
+<PaneContent>
+  <Panel title={m('settings.preferences.theme.title')} icon="iconify icon-[uil--palette]">
+    <div class="max-w-md">
+      <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
+      <div
+        class="flex flex-col gap-2"
+        role="radiogroup"
+        aria-label={m('settings.preferences.theme.title')}
+      >
+        {#each themeOptions as option (option.value)}
+          <ChoiceRow
+            label={option.label}
+            description={option.description}
+            selected={userPreferences.displayTheme === option.value}
+            onclick={() => (userPreferences.displayTheme = option.value)}
+          />
+        {/each}
+      </div>
     </div>
-  </FormSection>
-</div>
+  </Panel>
+</PaneContent>

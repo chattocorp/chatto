@@ -1,6 +1,7 @@
 <script lang="ts">
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { AccountAPI } from '$lib/api-client/account';
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
   import { Dialog, Hint } from '$lib/ui';
   import { Button, Form, TextInput } from '$lib/ui/form';
@@ -133,43 +134,45 @@
   }
 </script>
 
-<Form onsubmit={handleSubmit} maxWidth="max-w-md" bordered {error}>
-  <TextInput
-    label={m('settings.profile.display_name.label')}
-    bind:value={displayName}
-    placeholder={m('settings.profile.display_name.placeholder')}
-    disabled={isSaving}
-    oninput={clearMessages}
-  />
+<Panel title={m('settings.profile.title')} icon="iconify icon-[uil--user]">
+  <Form onsubmit={handleSubmit} maxWidth="max-w-md" {error}>
+    <TextInput
+      label={m('settings.profile.display_name.label')}
+      bind:value={displayName}
+      placeholder={m('settings.profile.display_name.placeholder')}
+      disabled={isSaving}
+      oninput={clearMessages}
+    />
 
-  <TextInput
-    label={m('settings.profile.username.label')}
-    bind:value={login}
-    placeholder={m('settings.profile.username.placeholder')}
-    disabled={isSaving || !canChangeLogin}
-    testid="settings-username"
-    oninput={clearMessages}
-  />
+    <TextInput
+      label={m('settings.profile.username.label')}
+      bind:value={login}
+      placeholder={m('settings.profile.username.placeholder')}
+      disabled={isSaving || !canChangeLogin}
+      testid="settings-username"
+      oninput={clearMessages}
+    />
 
-  {#if !canChangeLogin}
-    <p class="text-sm text-muted">
-      {m('settings.profile.username.cooldown_notice', {
-        remaining: formatCooldownRemaining(cooldownRemaining)
-      })}
-    </p>
-  {/if}
+    {#if !canChangeLogin}
+      <p class="text-sm text-muted">
+        {m('settings.profile.username.cooldown_notice', {
+          remaining: formatCooldownRemaining(cooldownRemaining)
+        })}
+      </p>
+    {/if}
 
-  {#if successMessage}
-    <Hint tone="success">{successMessage}</Hint>
-  {/if}
+    {#if successMessage}
+      <Hint tone="success">{successMessage}</Hint>
+    {/if}
 
-  {#snippet footer()}
-    <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
-      <span class="iconify icon-[uil--check]"></span>
-      {m('settings.profile.save_button')}
-    </Button>
-  {/snippet}
-</Form>
+    {#snippet footer()}
+      <Button type="submit" disabled={!isModified || isSaving} loading={isSaving}>
+        <span class="iconify icon-[uil--check]"></span>
+        {m('settings.profile.save_button')}
+      </Button>
+    {/snippet}
+  </Form>
+</Panel>
 
 <Dialog
   bind:visible={showLoginConfirm}
