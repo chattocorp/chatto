@@ -76,7 +76,7 @@
       data-testid="server-reauth-required"
       aria-hidden="true"
     >
-      <span class="iconify text-xs icon-[uil--signin] rtl:-scale-x-100"></span>
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
     </span>
   {:else if compatibilityWarning}
     <span

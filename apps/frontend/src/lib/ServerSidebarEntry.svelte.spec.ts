@@ -550,9 +550,11 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
     await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
-    await expect
-      .element(q(container, '[data-testid="server-reauth-required"]'))
-      .toBeInTheDocument();
+    const reauthMarker = q(container, '[data-testid="server-reauth-required"]');
+    await expect.element(reauthMarker).toBeInTheDocument();
+    expect(
+      reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')
+    ).not.toBeNull();
     await expect
       .element(q(container, '[data-testid="server-compatibility-warning"]'))
       .not.toBeInTheDocument();
