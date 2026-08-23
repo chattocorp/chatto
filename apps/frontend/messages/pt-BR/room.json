@@ -137,6 +137,14 @@
       },
       "show_less": "mostrar menos"
     },
+    "typing": {
+      "one": "{name} está digitando…",
+      "two": "{first} e {second} estão digitando…",
+      "many_count": {
+        "other": "{names} e {count} outros estão digitando…",
+        "one": "{names} e {count} outro estão digitando…"
+      }
+    },
     "attachment": {
       "delete_title": "Excluir anexo",
       "delete_prompt": "Tem certeza de que deseja excluir este anexo? Isto não pode ser desfeito.",

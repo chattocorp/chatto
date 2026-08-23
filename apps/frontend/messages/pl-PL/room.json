@@ -143,6 +143,15 @@
       },
       "show_less": "pokazuj mniej"
     },
+    "typing": {
+      "one": "{name} pisze…",
+      "two": "{first} i {second} piszą…",
+      "many_count": {
+        "other": "{names} i {count} osób pisze…",
+        "one": "{names} i {count} osoba piszą…",
+        "few": "{names} i {count} osoby piszą…"
+      }
+    },
     "attachment": {
       "delete_title": "Usuń załącznik",
       "delete_prompt": "Czy na pewno chcesz usunąć ten załącznik? Tego nie można cofnąć.",

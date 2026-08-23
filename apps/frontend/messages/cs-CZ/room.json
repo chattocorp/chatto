@@ -137,6 +137,14 @@
       },
       "show_less": "ukázat méně"
     },
+    "typing": {
+      "one": "{name} píše…",
+      "two": "{first} a {second} píšou…",
+      "many_count": {
+        "other": "{names} a {count} dalších píše…",
+        "one": "{names} a {count} další píšou…"
+      }
+    },
     "attachment": {
       "delete_title": "Smazat přílohu",
       "delete_prompt": "Opravdu chcete smazat tuto přílohu? Toto nelze vrátit zpět.",

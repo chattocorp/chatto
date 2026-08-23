@@ -137,6 +137,14 @@
       },
       "show_less": "weniger anzeigen"
     },
+    "typing": {
+      "one": "{name} schreibt…",
+      "two": "{first} und {second} schreiben…",
+      "many_count": {
+        "other": "{names} und {count} weitere Personen schreiben…",
+        "one": "{names} und {count} weitere Person schreiben…"
+      }
+    },
     "attachment": {
       "delete_title": "Anhang löschen",
       "delete_prompt": "Möchtest du diesen Anhang wirklich löschen? Dies kann nicht rückgängig gemacht werden.",

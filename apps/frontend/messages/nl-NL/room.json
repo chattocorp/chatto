@@ -137,6 +137,14 @@
       },
       "show_less": "laten minder zien"
     },
+    "typing": {
+      "one": "{name} is aan het typen…",
+      "two": "{first} en {second} zijn aan het typen…",
+      "many_count": {
+        "other": "{names} en {count} anderen zijn aan het typen…",
+        "one": "{names} en {count} ander zijn aan het typen…"
+      }
+    },
     "attachment": {
       "delete_title": "Bijlage verwijderen",
       "delete_prompt": "Weet u zeker dat u deze bijlage wilt verwijderen? Dit kan niet ongedaan worden gemaakt.",

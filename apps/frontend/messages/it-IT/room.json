@@ -137,6 +137,14 @@
       },
       "show_less": "mostrare di meno"
     },
+    "typing": {
+      "one": "{name} sta scrivendo…",
+      "two": "{first} e {second} stanno scrivendo…",
+      "many_count": {
+        "other": "{names} e {count} altri stanno scrivendo…",
+        "one": "{names} e {count} altro stanno scrivendo…"
+      }
+    },
     "attachment": {
       "delete_title": "Elimina allegato",
       "delete_prompt": "Sei sicuro di voler eliminare questo allegato? Questa operazione non può essere annullata.",
