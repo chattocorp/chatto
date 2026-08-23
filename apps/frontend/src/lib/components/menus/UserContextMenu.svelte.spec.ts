@@ -1,8 +1,9 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
-import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 
 import { q } from '$lib/test-utils';
+import { getToasts, toast } from '$lib/ui/toast';
 import UserContextMenu from './UserContextMenu.svelte';
 
 vi.mock('$lib/state/userProfiles.svelte', () => ({
@@ -28,6 +29,15 @@ const user = {
 };
 
 let originalShowPopover: typeof HTMLElement.prototype.showPopover;
+const writeClipboardText = vi.fn();
+
+function buttonWithText(container: HTMLElement, text: string): HTMLButtonElement | null {
+  return (
+    Array.from(container.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === text
+    ) ?? null
+  );
+}
 
 function renderMenu(props: Record<string, unknown> = {}) {
   return render(UserContextMenu, {
@@ -49,6 +59,16 @@ beforeAll(() => {
 
 afterAll(() => {
   HTMLElement.prototype.showPopover = originalShowPopover;
+});
+
+beforeEach(() => {
+  toast.clear();
+  writeClipboardText.mockReset();
+  writeClipboardText.mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', {
+    value: { writeText: writeClipboardText },
+    configurable: true
+  });
 });
 
 describe('UserContextMenu', () => {
@@ -86,7 +106,41 @@ describe('UserContextMenu', () => {
     hidden.unmount();
 
     const visible = renderMenu({ canSendMessage: true });
-    await expect.element(q(visible.container, 'button')).toHaveTextContent('Send Message');
+    await expect.element(buttonWithText(visible.container, 'Send Message')).toBeInTheDocument();
+  });
+
+  it('separates the profile and actions with sibling menu surfaces', () => {
+    const { container } = renderMenu({ canSendMessage: true, canBanFromRoom: true });
+    const dialog = q(container, '[role="dialog"]')!;
+    const sections = dialog.querySelectorAll('.menu-section');
+
+    expect(sections).toHaveLength(3);
+    expect(sections[0]?.textContent).toContain('Alice Example');
+    expect(sections[1]?.textContent).toContain('Send Message');
+    expect(sections[1]?.textContent).toContain('Ban from room');
+    expect(sections[2]?.textContent).toContain('Copy User ID');
+    expect(sections[0]?.parentElement).toBe(sections[1]?.parentElement);
+    expect(sections[1]?.parentElement).toBe(sections[2]?.parentElement);
+    expect(dialog.querySelector('[class~="border-t"], [role="separator"]')).toBeNull();
+  });
+
+  it('shows Copy User ID last and copies the exact user ID', async () => {
+    const onClose = vi.fn();
+    const { container } = renderMenu({ onClose });
+    const copyUserId = q(container, '[data-testid="copy-user-id"]') as HTMLButtonElement;
+    const dialogButtons = q(container, '[role="dialog"]')?.querySelectorAll('button');
+
+    await expect.element(copyUserId).toHaveTextContent('Copy User ID');
+    expect(dialogButtons?.item((dialogButtons?.length ?? 0) - 1)).toBe(copyUserId);
+
+    copyUserId.click();
+
+    await vi.waitFor(() => expect(writeClipboardText).toHaveBeenCalledWith('user-1'));
+    expect(onClose).toHaveBeenCalledOnce();
+    expect(writeClipboardText.mock.invocationCallOrder[0]).toBeLessThan(
+      onClose.mock.invocationCallOrder[0]!
+    );
+    expect(getToasts().map((item) => item.message)).toContain('Copied to clipboard');
   });
 
   it('calls send and close callbacks when sending a message', () => {
@@ -94,7 +148,7 @@ describe('UserContextMenu', () => {
     const onClose = vi.fn();
     const { container } = renderMenu({ canSendMessage: true, onSendMessage, onClose });
 
-    (q(container, 'button') as HTMLButtonElement).click();
+    buttonWithText(container, 'Send Message')?.click();
 
     expect(onSendMessage).toHaveBeenCalledOnce();
     expect(onClose).toHaveBeenCalledOnce();

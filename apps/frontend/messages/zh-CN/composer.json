@@ -3,8 +3,6 @@
     "attach_file": "添加文件",
     "send": "发送消息",
     "send_label": "发送",
-    "send_enter": "发送消息（Enter）",
-    "send_ctrl_enter": "发送消息（Ctrl/Cmd+Enter）",
     "also_send_to_channel": "同时发送到频道",
     "post_as_thread": "作为讨论串发布",
     "thread_label": "话题串",
@@ -44,7 +42,9 @@
       "bullet_list": "项目符号列表",
       "ordered_list": "编号列表",
       "blockquote": "引用",
-      "code_block": "代码块"
+      "code_block": "代码块",
+      "outdent": "减少缩进",
+      "indent": "增加缩进"
     },
     "timestamp": {
       "title": "插入时间戳",

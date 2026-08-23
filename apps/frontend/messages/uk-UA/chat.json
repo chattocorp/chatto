@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Профіль користувача",
-      "send_message": "Надіслати повідомлення"
+      "send_message": "Надіслати повідомлення",
+      "copy_user_id": "Копіювати ID користувача"
     },
     "server_gutter": {
       "add_server": "Додати сервер",

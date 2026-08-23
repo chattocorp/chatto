@@ -3,8 +3,6 @@
     "attach_file": "צרף קובץ",
     "send": "שלח הודעה",
     "send_label": "שלח",
-    "send_enter": "שלח הודעה (Enter)",
-    "send_ctrl_enter": "שלח הודעה (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "שלח גם לערוץ",
     "post_as_thread": "פרסום בשרשור",
     "thread_label": "שרשור",
@@ -44,7 +42,9 @@
       "bullet_list": "רשימת תבליטים",
       "ordered_list": "רשימה ממוספרת",
       "blockquote": "ציטוט",
-      "code_block": "בלוק קוד"
+      "code_block": "בלוק קוד",
+      "outdent": "הקטנת הזחה",
+      "indent": "הגדלת הזחה"
     },
     "timestamp": {
       "title": "הכנס חותמת זמן",

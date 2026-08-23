@@ -3,8 +3,6 @@
     "attach_file": "Bestand bijvoegen",
     "send": "Bericht verzenden",
     "send_label": "Verzenden",
-    "send_enter": "Bericht verzenden (Enter)",
-    "send_ctrl_enter": "Bericht verzenden (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Stuur ook naar kanaal",
     "post_as_thread": "Als thread plaatsen",
     "thread_label": "Discussie",
@@ -44,7 +42,9 @@
       "bullet_list": "Opsomming",
       "ordered_list": "Genummerde lijst",
       "blockquote": "Citaat",
-      "code_block": "Codeblok"
+      "code_block": "Codeblok",
+      "outdent": "Minder inspringen",
+      "indent": "Meer inspringen"
     },
     "timestamp": {
       "title": "Tijdstempel invoegen",

@@ -3,8 +3,6 @@
     "attach_file": "Připojit soubor",
     "send": "Odeslat zprávu",
     "send_label": "Odeslat",
-    "send_enter": "Odeslat zprávu (Enter)",
-    "send_ctrl_enter": "Odeslat zprávu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Také odeslat na kanál",
     "post_as_thread": "Publikovat jako vlákno",
     "thread_label": "Vlákno",
@@ -44,7 +42,9 @@
       "bullet_list": "Seznam odrážek",
       "ordered_list": "Číslovaný seznam",
       "blockquote": "Citace",
-      "code_block": "Blok kódu"
+      "code_block": "Blok kódu",
+      "outdent": "Zmenšit odsazení",
+      "indent": "Zvětšit odsazení"
     },
     "timestamp": {
       "title": "Vložte časové razítko",

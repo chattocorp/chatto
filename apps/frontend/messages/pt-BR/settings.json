@@ -4,7 +4,7 @@
       "title": "Configurações",
       "back_to_server": "Voltar ao servidor",
       "profile": "Perfil",
-      "display": "Exibição",
+      "display": "Preferências",
       "notifications": "Notificações",
       "account": "Conta",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Salvar alterações"
     },
     "preferences": {
-      "title": "Exibição",
-      "subtitle": "Escolha como Chatto aparece",
+      "title": "Preferências",
+      "subtitle": "Escolha a aparência e o comportamento do Chatto",
+      "browser_scope": "Esta escolha vale para todos os servidores do Chatto neste navegador.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Escuro",
           "description": "Use a interface escura neste navegador"
+        }
+      },
+      "editor": {
+        "title": "Editor de mensagens",
+        "visual": {
+          "label": "Visual",
+          "description": "Formate mensagens sem ver a sintaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edite o código Markdown com realce de sintaxe"
+        }
+      },
+      "send_mode": {
+        "title": "Enviar mensagens com",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter envia; Cmd/Ctrl+Enter executa a ação normal de Enter do editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter envia; Enter executa a ação normal do editor"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "por exemplo, 14h30"
         }
       },
-      "save_button": "Salvar configurações de exibição",
-      "saved": "Configurações de exibição salvas",
-      "save_failed": "Falha ao salvar as configurações de exibição"
+      "save_button": "Salvar configurações de horário",
+      "saved": "Configurações de horário salvas",
+      "save_failed": "Não foi possível salvar as configurações de horário"
     },
     "notifications": {
       "title": "Notificações",

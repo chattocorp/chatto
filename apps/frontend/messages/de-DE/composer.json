@@ -3,8 +3,6 @@
     "attach_file": "Datei anhängen",
     "send": "Nachricht senden",
     "send_label": "Senden",
-    "send_enter": "Nachricht senden (Enter)",
-    "send_ctrl_enter": "Nachricht senden (Strg/Cmd+Enter)",
     "also_send_to_channel": "Auch an Kanal senden",
     "post_as_thread": "Als Thread posten",
     "thread_label": "Thread",
@@ -44,7 +42,9 @@
       "bullet_list": "Aufzählung",
       "ordered_list": "Nummerierte Liste",
       "blockquote": "Zitat",
-      "code_block": "Codeblock"
+      "code_block": "Codeblock",
+      "outdent": "Ausrücken",
+      "indent": "Einrücken"
     },
     "timestamp": {
       "title": "Zeitstempel einfügen",

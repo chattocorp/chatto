@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Uživatelský profil",
-      "send_message": "Odeslat zprávu"
+      "send_message": "Odeslat zprávu",
+      "copy_user_id": "Zkopírovat ID uživatele"
     },
     "server_gutter": {
       "add_server": "Přidat server",

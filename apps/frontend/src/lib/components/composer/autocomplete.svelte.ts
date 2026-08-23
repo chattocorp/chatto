@@ -1,7 +1,7 @@
 import type { RoomMember } from '$lib/state/room';
 import { fuzzyMatch } from '$lib/fuzzyMatch';
 import { searchEmojis } from '$lib/emoji';
-import type { TipTapEditorApi } from './editorTypes';
+import type { ComposerEditorApi } from './editorTypes';
 
 export type MentionRole = {
   name: string;
@@ -35,7 +35,7 @@ export class AutocompleteState {
   mentionRef = $state<{ handleKeyDown: (e: KeyboardEvent) => boolean } | null>(null);
 
   constructor(
-    private readonly getEditorApi: () => TipTapEditorApi | null,
+    private readonly getEditorApi: () => ComposerEditorApi | null,
     private readonly getMembers: () => RoomMember[],
     private readonly getRoles: () => MentionRole[] = () => []
   ) {}

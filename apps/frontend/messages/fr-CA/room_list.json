@@ -15,6 +15,8 @@
     "mark_as_read": "Marquer comme lu",
     "remove_server": "Retirer le serveur",
     "leave_room": "Quitter le salon",
+    "copy_room_id": "Copier l’identifiant du salon",
+    "copy_server_hostname": "Copier le nom d’hôte du serveur",
     "room_settings": "Paramètres du salon",
     "group_settings": "Paramètres de {group}",
     "server_actions": "Actions pour {server}",

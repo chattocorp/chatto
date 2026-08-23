@@ -15,6 +15,8 @@
     "mark_as_read": "Markeren als gelezen",
     "remove_server": "Server verwijderen",
     "leave_room": "Ruimte verlaten",
+    "copy_room_id": "Ruimte-ID kopiëren",
+    "copy_server_hostname": "Serverhostnaam kopiëren",
     "room_settings": "Ruimte-instellingen",
     "group_settings": "Instellingen voor {group}",
     "server_actions": "Acties voor {server}",

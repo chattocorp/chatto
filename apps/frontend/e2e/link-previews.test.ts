@@ -68,7 +68,7 @@ test.describe('Link previews', () => {
     await expect(composerPreview).toBeVisible({ timeout: TIMEOUTS.COMPLEX_OPERATION });
 
     // Now send — the preview data is included in the mutation
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     const postedMessage = page.locator('[role="article"]', { hasText: messageText });
     await expect(postedMessage).toBeVisible();
 
@@ -120,7 +120,7 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     const postedMessage = page.locator('[role="article"]', { hasText: messageText });
     await expect(postedMessage).toBeVisible();
 
@@ -167,7 +167,7 @@ test.describe('Link previews', () => {
     });
 
     // Send the message (preview data included in mutation)
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     const postedMessage = page.locator('[role="article"]', { hasText: messageText });
     await expect(postedMessage).toBeVisible();
 

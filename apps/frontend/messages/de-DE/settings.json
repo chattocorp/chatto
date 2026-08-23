@@ -4,7 +4,7 @@
       "title": "Einstellungen",
       "back_to_server": "Zurück zum Server",
       "profile": "Profil",
-      "display": "Darstellung",
+      "display": "Einstellungen",
       "notifications": "Benachrichtigungen",
       "account": "Konto",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Änderungen speichern"
     },
     "preferences": {
-      "title": "Darstellung",
-      "subtitle": "Lege fest, wie Chatto angezeigt wird",
+      "title": "Einstellungen",
+      "subtitle": "Lege fest, wie Chatto aussieht und sich verhält",
+      "browser_scope": "Diese Auswahl gilt für alle Chatto-Server in diesem Browser.",
       "theme": {
         "title": "Design",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Dunkel",
           "description": "Die dunkle Oberfläche in diesem Browser verwenden"
+        }
+      },
+      "editor": {
+        "title": "Nachrichteneditor",
+        "visual": {
+          "label": "Visuell",
+          "description": "Nachrichten formatieren, ohne Markdown-Syntax zu sehen"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Markdown-Quelltext mit Syntaxhervorhebung bearbeiten"
+        }
+      },
+      "send_mode": {
+        "title": "Nachrichten senden mit",
+        "enter": {
+          "label": "Return",
+          "description": "Return sendet; Cmd/Strg+Return führt die normale Return-Aktion des Editors aus"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Strg+Return",
+          "description": "Cmd/Strg+Return sendet; Return führt die normale Aktion des Editors aus"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "z. B. 14:30"
         }
       },
-      "save_button": "Darstellung speichern",
-      "saved": "Darstellungseinstellungen gespeichert",
-      "save_failed": "Darstellungseinstellungen konnten nicht gespeichert werden"
+      "save_button": "Zeiteinstellungen speichern",
+      "saved": "Zeiteinstellungen gespeichert",
+      "save_failed": "Zeiteinstellungen konnten nicht gespeichert werden"
     },
     "notifications": {
       "title": "Benachrichtigungen",

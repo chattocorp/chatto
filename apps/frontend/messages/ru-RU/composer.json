@@ -3,8 +3,6 @@
     "attach_file": "Прикрепить файл",
     "send": "Отправить сообщение",
     "send_label": "Отправить",
-    "send_enter": "Отправить сообщение (Ввод)",
-    "send_ctrl_enter": "Отправить сообщение (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Также отправь на канал",
     "post_as_thread": "Опубликовать как тему",
     "thread_label": "Тема",
@@ -44,7 +42,9 @@
       "bullet_list": "Маркированный список",
       "ordered_list": "Нумерованный список",
       "blockquote": "Цитата",
-      "code_block": "Кодовый блок"
+      "code_block": "Кодовый блок",
+      "outdent": "Уменьшить отступ",
+      "indent": "Увеличить отступ"
     },
     "timestamp": {
       "title": "Вставить временную метку",

@@ -3,8 +3,6 @@
     "attach_file": "Anexar ficheiro",
     "send": "Enviar mensagem",
     "send_label": "Enviar",
-    "send_enter": "Enviar mensagem (Enter)",
-    "send_ctrl_enter": "Enviar mensagem (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Enviar também para o canal",
     "post_as_thread": "Publicar como tópico",
     "thread_label": "Tópico",
@@ -44,7 +42,9 @@
       "bullet_list": "Lista com marcas",
       "ordered_list": "Lista numerada",
       "blockquote": "Citação",
-      "code_block": "Bloco de código"
+      "code_block": "Bloco de código",
+      "outdent": "Diminuir avanço",
+      "indent": "Aumentar avanço"
     },
     "timestamp": {
       "title": "Inserir carimbo de data/hora",

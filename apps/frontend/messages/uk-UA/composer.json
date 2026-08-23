@@ -3,8 +3,6 @@
     "attach_file": "Прикріпити файл",
     "send": "Надіслати повідомлення",
     "send_label": "Надіслати",
-    "send_enter": "Надіслати повідомлення (Enter)",
-    "send_ctrl_enter": "Надіслати повідомлення (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Також надіслати на канал",
     "post_as_thread": "Опублікувати як гілку",
     "thread_label": "Тема",
@@ -44,7 +42,9 @@
       "bullet_list": "Маркований список",
       "ordered_list": "Нумерований список",
       "blockquote": "Цитата",
-      "code_block": "Блок коду"
+      "code_block": "Блок коду",
+      "outdent": "Зменшити відступ",
+      "indent": "Збільшити відступ"
     },
     "timestamp": {
       "title": "Вставити часову позначку",

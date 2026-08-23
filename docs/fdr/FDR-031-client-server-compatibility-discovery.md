@@ -1,7 +1,7 @@
 # FDR-031: Client–Server Compatibility Discovery
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-02
+**Last reviewed:** 2026-08-21
 
 ## Overview
 
@@ -15,6 +15,9 @@ Chatto's pre-1.0 API remains experimental.
 
 - A registered server's context menu shows the software version reported by
   that server's latest discovery response.
+- A registered server's context menu or touch sheet shows its configured host
+  and provides a final action that copies that exact host, including a
+  non-default port, to the clipboard.
 - A warning marker appears when the server predates the oldest version
   supported by the current client. The 0.5 client classifies pre-0.5 servers as
   unsupported because they do not provide the required server-projection

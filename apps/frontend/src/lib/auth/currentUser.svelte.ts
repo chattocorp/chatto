@@ -76,7 +76,7 @@ export class CurrentUserState {
     if (this.#isLoggingOut) return;
 
     if (!this.#cookieAuth) {
-      console.log('Remote server auth failure — marking reauthentication required');
+      console.warn('Remote server auth failure — marking reauthentication required');
       this.#onAuthenticationRequired?.();
       this.loading = false;
       return;

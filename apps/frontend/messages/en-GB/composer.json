@@ -3,8 +3,6 @@
     "attach_file": "Attach file",
     "send": "Send message",
     "send_label": "Send",
-    "send_enter": "Send message (Enter)",
-    "send_ctrl_enter": "Send message (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Also send to channel",
     "post_as_thread": "Post as thread",
     "thread_label": "Thread",
@@ -44,7 +42,9 @@
       "bullet_list": "Bullet list",
       "ordered_list": "Numbered list",
       "blockquote": "Quote",
-      "code_block": "Code block"
+      "code_block": "Code block",
+      "outdent": "Outdent",
+      "indent": "Indent"
     },
     "timestamp": {
       "title": "Insert timestamp",

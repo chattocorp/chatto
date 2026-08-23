@@ -4,7 +4,7 @@
       "title": "Seaded",
       "back_to_server": "Tagasi serverisse",
       "profile": "Profiil",
-      "display": "Ekraan",
+      "display": "Eelistused",
       "notifications": "Märguanded",
       "account": "konto",
       "bots": "Botid"
@@ -105,8 +105,9 @@
       "save_button": "Salvesta muudatused"
     },
     "preferences": {
-      "title": "Ekraan",
-      "subtitle": "Valige, kuidas Chatto kuvatakse",
+      "title": "Eelistused",
+      "subtitle": "Vali Chatto välimus ja käitumine",
+      "browser_scope": "See valik kehtib selles brauseris kõigile Chatto serveritele.",
       "theme": {
         "title": "Teema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Tume",
           "description": "Kasutage selles brauseris tumedat liidest"
+        }
+      },
+      "editor": {
+        "title": "Sõnumiredaktor",
+        "visual": {
+          "label": "Visuaalne",
+          "description": "Vorminda sõnumeid ilma Markdowni süntaksit nägemata"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Muuda Markdowni lähtekoodi süntaksi esiletõstuga"
+        }
+      },
+      "send_mode": {
+        "title": "Sõnumite saatmine klahviga",
+        "enter": {
+          "label": "Return",
+          "description": "Return saadab; Cmd/Ctrl+Return teeb redaktori tavapärase Return-toimingu"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return saadab; Return teeb redaktori tavapärase toimingu"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "nt 14:30"
         }
       },
-      "save_button": "Salvestage kuva sätted",
-      "saved": "Kuva seaded salvestatud",
-      "save_failed": "Kuvaseadete salvestamine ebaõnnestus"
+      "save_button": "Salvesta ajaseaded",
+      "saved": "Ajaseaded salvestatud",
+      "save_failed": "Ajaseadete salvestamine ebaõnnestus"
     },
     "notifications": {
       "title": "Märguanded",

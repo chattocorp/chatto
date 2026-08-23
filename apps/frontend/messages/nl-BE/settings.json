@@ -4,7 +4,7 @@
       "title": "Instellingen",
       "back_to_server": "Terug naar server",
       "profile": "Profiel",
-      "display": "Weergave",
+      "display": "Voorkeuren",
       "notifications": "Meldingen",
       "account": "Account",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Wijzigingen opslaan"
     },
     "preferences": {
-      "title": "Weergave",
-      "subtitle": "Kies hoe Chatto wordt weergegeven",
+      "title": "Voorkeuren",
+      "subtitle": "Kies hoe Chatto eruitziet en werkt",
+      "browser_scope": "Deze keuze geldt voor alle Chatto-servers in deze browser.",
       "theme": {
         "title": "Thema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Donker",
           "description": "Gebruik de donkere interface in deze browser"
+        }
+      },
+      "editor": {
+        "title": "Berichteneditor",
+        "visual": {
+          "label": "Visueel",
+          "description": "Maak berichten op zonder Markdown-syntaxis te zien"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Bewerk Markdown-broncode met syntaxismarkering"
+        }
+      },
+      "send_mode": {
+        "title": "Berichten verzenden met",
+        "enter": {
+          "label": "Return",
+          "description": "Return verzendt; Cmd/Ctrl+Return voert de normale Return-actie van de editor uit"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return verzendt; Return voert de normale actie van de editor uit"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "bijvoorbeeld 14:30"
         }
       },
-      "save_button": "Weergave-instellingen opslaan",
-      "saved": "Weergave-instellingen opgeslagen",
-      "save_failed": "Kan weergave-instellingen niet opslaan"
+      "save_button": "Tijdinstellingen opslaan",
+      "saved": "Tijdinstellingen opgeslagen",
+      "save_failed": "Tijdinstellingen konden niet worden opgeslagen"
     },
     "notifications": {
       "title": "Meldingen",

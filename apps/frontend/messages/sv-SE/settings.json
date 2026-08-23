@@ -4,7 +4,7 @@
       "title": "Inställningar",
       "back_to_server": "Tillbaka till servern",
       "profile": "Profil",
-      "display": "Skärm",
+      "display": "Inställningar",
       "notifications": "Aviseringar",
       "account": "Konto",
       "bots": "Bots"
@@ -105,8 +105,9 @@
       "save_button": "Spara ändringar"
     },
     "preferences": {
-      "title": "Skärm",
-      "subtitle": "Välj hur Chatto ska visas",
+      "title": "Inställningar",
+      "subtitle": "Välj hur Chatto ser ut och fungerar",
+      "browser_scope": "Det här valet gäller för alla Chatto-servrar i den här webbläsaren.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Mörkt",
           "description": "Använd det mörka gränssnittet i den här webbläsaren"
+        }
+      },
+      "editor": {
+        "title": "Meddelanderedigerare",
+        "visual": {
+          "label": "Visuell",
+          "description": "Formatera meddelanden utan att se Markdown-syntax"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Redigera Markdown-källkod med syntaxmarkering"
+        }
+      },
+      "send_mode": {
+        "title": "Skicka meddelanden med",
+        "enter": {
+          "label": "Retur",
+          "description": "Retur skickar; Cmd/Ctrl+Retur utför redigerarens vanliga Retur-åtgärd"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Retur",
+          "description": "Cmd/Ctrl+Retur skickar; Retur utför redigerarens vanliga åtgärd"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "t.ex. 14:30"
         }
       },
-      "save_button": "Spara skärminställningar",
-      "saved": "Skärminställningar sparade",
-      "save_failed": "Det gick inte att spara skärminställningar"
+      "save_button": "Spara tidsinställningar",
+      "saved": "Tidsinställningarna har sparats",
+      "save_failed": "Det gick inte att spara tidsinställningarna"
     },
     "notifications": {
       "title": "Aviseringar",

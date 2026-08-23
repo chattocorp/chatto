@@ -12,15 +12,21 @@ import type { ServerInfoState } from '$lib/state/server/state.svelte';
 import type { createMessageAPI, UpdateMessageInput } from '$lib/api-client/messages';
 import type { createLinkPreviewAPI } from '$lib/api-client/linkPreviews';
 import { hasVisibleContent } from '$lib/validation';
-import { prefersTouchActions } from '$lib/utils/inputCapabilities';
 import { shouldAutoFocus } from '$lib/utils/shouldAutoFocus';
+import { prefersTouchActions } from '$lib/utils/inputCapabilities';
+import type { ComposerSendMode } from '$lib/state/userPreferences.svelte';
 import { useDebounce } from '$lib/hooks/useDebounce.svelte';
 import { toast } from '$lib/ui/toast';
 import { m } from '$lib/i18n/messages';
 import { AttachmentsState } from './attachments.svelte';
 import { AutocompleteState, type MentionRole } from './autocomplete.svelte';
 import { DraftState, draftKey } from './draft.svelte';
-import type { ComposerFormattingState, TipTapEditorApi } from './editorTypes';
+import {
+  emptyComposerIndentState,
+  type ComposerEditorApi,
+  type ComposerFormattingState,
+  type ComposerIndentState
+} from './editorTypes';
 import { LinkPreviewState } from './linkPreviews.svelte';
 import { ComposerSubmissionState, type PreparedPost } from './submission.svelte';
 
@@ -72,6 +78,7 @@ type MessageComposerDependencies = {
   getSlowModeBlocked: () => boolean;
   getCanCreateThread: () => boolean;
   getAutoFocus: () => boolean;
+  getComposerSendMode: () => ComposerSendMode;
   getPlaceholder: () => string | undefined;
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
@@ -107,14 +114,12 @@ export function bodyForSend(text: string): string {
  */
 export class MessageComposerState {
   message = $state('');
-  editorApi = $state<TipTapEditorApi | null>(null);
+  editorApi = $state.raw<ComposerEditorApi | null>(null);
   fileInputElement = $state<HTMLInputElement>();
   formattingState = $state<ComposerFormattingState>({ ...emptyFormattingState });
+  indentState = $state<ComposerIndentState>({ ...emptyComposerIndentState });
   alsoSendToChannel = $state(false);
   createThread = $state(false);
-  editorNextEnterWillSend = $state(false);
-  manualRichMode = $state(false);
-  editorHasRichStructure = $state(false);
   mentionSearchMembers = $state.raw<RoomMember[]>([]);
 
   readonly draft = new DraftState();
@@ -225,14 +230,6 @@ export class MessageComposerState {
     );
   }
 
-  get isRichComposer(): boolean {
-    return this.manualRichMode || this.editorHasRichStructure;
-  }
-
-  get nextEnterWillSend(): boolean {
-    return this.canSubmit && this.isRichComposer && this.editorNextEnterWillSend;
-  }
-
   observeResize = (node: HTMLDivElement) => {
     const scrollState = this.#dependencies.context.scrollState;
     if (!scrollState) return;
@@ -314,10 +311,7 @@ export class MessageComposerState {
     if (this.autocomplete.mention?.query && this.autocomplete.mentionRef?.handleKeyDown(event)) {
       return true;
     }
-    if (event.key === 'Enter' && !event.ctrlKey && !event.metaKey && prefersTouchActions()) {
-      return false;
-    }
-    if (event.key === 'Enter' && !event.shiftKey && this.#handleEnter(event)) return true;
+    if (event.key === 'Enter' && this.#handleEnter(event)) return true;
     if (event.key === 'Tab' && this.autocomplete.handleTabCompletion(event)) return true;
     if (event.key !== 'Tab') this.autocomplete.resetTabCompletion();
     if (event.key === 'Escape' && this.#handleEscape()) return true;
@@ -328,15 +322,18 @@ export class MessageComposerState {
   handleEditorUpdate(text: string): void {
     const changed = text !== this.message;
     this.message = text;
-    if (!text) this.manualRichMode = false;
     if (changed) this.#dependencies.getCallbacks().onTyping?.();
     this.autocomplete.update();
   }
 
-  handleEditorReady(api: TipTapEditorApi): void {
+  handleEditorReady(api: ComposerEditorApi): void {
     this.editorApi = api;
     if (this.message) api.setContent(this.message);
     if (this.#focusRequested) this.focus();
+  }
+
+  handleEditorDestroyed(api: ComposerEditorApi): void {
+    if (this.editorApi === api) this.editorApi = null;
   }
 
   #synchronizeMentionSearch(): void {
@@ -366,7 +363,6 @@ export class MessageComposerState {
         this.autocomplete.reset();
         this.draft.clearText();
         this.message = originalBody;
-        this.manualRichMode = false;
         this.alsoSendToChannel = this.editState.channelEchoEventId !== null;
         api?.setContent(originalBody);
         tick().then(() => api?.focus('end'));
@@ -394,7 +390,6 @@ export class MessageComposerState {
       }
       const draftMessage = this.draft.switchKey(this.draftKey);
       this.message = draftMessage;
-      this.manualRichMode = false;
       this.editorApi?.setContent(draftMessage);
       this.attachments.restore(untrack(() => this.draft.takeFiles()));
       return () => this.draft.stashFiles(untrack(() => this.attachments.filesWithUrls));
@@ -459,7 +454,6 @@ export class MessageComposerState {
   #resetEditor(): void {
     this.autocomplete.reset();
     this.message = '';
-    this.manualRichMode = false;
     this.alsoSendToChannel = false;
     this.createThread = false;
     this.editorApi?.setContent('');
@@ -526,31 +520,23 @@ export class MessageComposerState {
   }
 
   #handleEnter(event: KeyboardEvent): boolean {
-    if (event.metaKey || event.ctrlKey) {
-      if (this.isRichComposer) {
-        void this.submit();
-      } else {
-        if (hasVisibleContent(this.message)) this.editorApi?.insertBlockBreak();
-        this.manualRichMode = true;
-      }
+    if (event.isComposing) return false;
+    if (event.shiftKey || event.altKey) return false;
+
+    const usesModifier = event.metaKey || event.ctrlKey;
+    if (this.#dependencies.getComposerSendMode() === 'modifier-enter') {
+      if (!usesModifier) return false;
+      if (this.canSubmit) void this.submit();
       return true;
     }
-    if (
-      !this.isEditing &&
-      this.#dependencies.getSlowModeBlocked() &&
-      (!this.isRichComposer || this.editorNextEnterWillSend)
-    ) {
+
+    if (usesModifier) {
+      this.editorApi?.performEnter();
       return true;
     }
-    if (!this.isRichComposer && this.canSubmit) {
-      void this.submit();
-      return true;
-    }
-    if (this.isRichComposer && this.nextEnterWillSend) {
-      void this.submit();
-      return true;
-    }
-    return false;
+    if (prefersTouchActions()) return false;
+    if (this.canSubmit) void this.submit();
+    return true;
   }
 
   #handleEscape(): boolean {

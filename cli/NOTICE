@@ -60,6 +60,8 @@ Frontend and Documentation Components:
 - Astro and Starlight (https://astro.build/) - MIT License
 - Buf Protobuf runtime and ES code generation for TypeScript
   (https://github.com/bufbuild/protobuf-es) - Apache License 2.0
+- CodeMirror and Lezer (https://codemirror.net/, https://lezer.codemirror.net/) -
+  MIT License
 - ConnectRPC for Web and Connect-ES code generation
   (https://connectrpc.com/) - Apache License 2.0
 - ESLint packages (https://eslint.org/) - MIT License and Apache License 2.0

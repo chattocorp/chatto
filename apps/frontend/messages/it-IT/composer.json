@@ -3,8 +3,6 @@
     "attach_file": "Allega file",
     "send": "Invia messaggio",
     "send_label": "Invia",
-    "send_enter": "Invia messaggio (Invio)",
-    "send_ctrl_enter": "Invia messaggio (Ctrl/Cmd+Invio)",
     "also_send_to_channel": "Invia anche al canale",
     "post_as_thread": "Pubblica come thread",
     "thread_label": "Filo",
@@ -44,7 +42,9 @@
       "bullet_list": "Elenco puntato",
       "ordered_list": "Elenco numerato",
       "blockquote": "Citazione",
-      "code_block": "Blocco di codice"
+      "code_block": "Blocco di codice",
+      "outdent": "Riduci rientro",
+      "indent": "Aumenta rientro"
     },
     "timestamp": {
       "title": "Inserisci il timestamp",

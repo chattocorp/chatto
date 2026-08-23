@@ -35,43 +35,46 @@ presentation-only.
   } = $props();
 </script>
 
-<div class="menu-section">
-  <nav class="sidebar-nav">
-    {#if kind === 'room' && !isRoomMember}
-      <button
-        type="button"
-        class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
-        onclick={onJoin}
-        disabled={!canJoin}
-        role="menuitem"
-      >
-        <span class="iconify sidebar-icon icon-[uil--sign-in-alt]" aria-hidden="true"></span>
-        {m('room.join.action')}
-      </button>
-    {:else if showMarkRead}
-      <button
-        type="button"
-        class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
-        onclick={onMarkRead}
-        disabled={!canMarkRead}
-        role="menuitem"
-      >
-        <span class="iconify sidebar-icon icon-[uil--check-circle]" aria-hidden="true"></span>
-        {m('room_list.mark_as_read')}
-      </button>
-    {/if}
-
-    {#if canConfigure && onConfigure}
-      <button type="button" class="sidebar-item" onclick={onConfigure} role="menuitem">
-        <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
-        {m('room_list.room_settings')}
-      </button>
-    {/if}
-
-    {#if isRoomMember && canLeave}
-      {#if showMarkRead || (canConfigure && onConfigure)}
-        <div role="separator" class="mx-2 my-1 border-t border-text/10"></div>
+{#if (kind === 'room' && !isRoomMember) || showMarkRead || (canConfigure && onConfigure)}
+  <div class="menu-section">
+    <nav class="sidebar-nav">
+      {#if kind === 'room' && !isRoomMember}
+        <button
+          type="button"
+          class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
+          onclick={onJoin}
+          disabled={!canJoin}
+          role="menuitem"
+        >
+          <span class="iconify sidebar-icon icon-[uil--sign-in-alt]" aria-hidden="true"></span>
+          {m('room.join.action')}
+        </button>
+      {:else if showMarkRead}
+        <button
+          type="button"
+          class="sidebar-item disabled:cursor-not-allowed disabled:opacity-50"
+          onclick={onMarkRead}
+          disabled={!canMarkRead}
+          role="menuitem"
+        >
+          <span class="iconify sidebar-icon icon-[uil--check-circle]" aria-hidden="true"></span>
+          {m('room_list.mark_as_read')}
+        </button>
       {/if}
+
+      {#if canConfigure && onConfigure}
+        <button type="button" class="sidebar-item" onclick={onConfigure} role="menuitem">
+          <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
+          {m('room_list.room_settings')}
+        </button>
+      {/if}
+    </nav>
+  </div>
+{/if}
+
+{#if isRoomMember && canLeave}
+  <div class="menu-section">
+    <nav class="sidebar-nav">
       <button
         type="button"
         class="sidebar-item text-danger hover:text-danger"
@@ -87,6 +90,6 @@ presentation-only.
         ></span>
         {kind === 'server' ? m('room_list.remove_server') : m('room_list.leave_room')}
       </button>
-    {/if}
-  </nav>
-</div>
+    </nav>
+  </div>
+{/if}

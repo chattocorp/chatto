@@ -1,6 +1,6 @@
 import type { Editor, JSONContent } from '@tiptap/core';
 import { Fragment, type Mark, type Node as ProseMirrorNode, type Schema } from '@tiptap/pm/model';
-import type { QuoteInsertionContent, SelectedQuoteBlock } from '$lib/state/room';
+import type { SelectedQuoteBlock } from '$lib/state/room';
 
 const markdownLinkPasteRegex = /\[([^\]\n]+)\]\((https?:\/\/[^\s)]+)\)/g;
 
@@ -438,33 +438,6 @@ export function hasDefaultEmptyDocument(e: Editor): boolean {
   return isDefaultEmptyDocument(e.state.doc);
 }
 
-export function isSelectionInTrailingEmptyParagraph(e: Editor): boolean {
-  const { doc, selection } = e.state;
-  if (!selection.empty || doc.childCount <= 1) return false;
-
-  const selectionFrom = selection.$from;
-  if (selectionFrom.depth !== 1 || selectionFrom.parent.type.name !== 'paragraph') return false;
-  if (selectionFrom.parent.content.size !== 0 || selectionFrom.parentOffset !== 0) return false;
-  if (selectionFrom.after(1) !== doc.content.size) return false;
-
-  const previousNode = doc.child(doc.childCount - 2);
-  return previousNode.type.name !== 'paragraph' || previousNode.content.size > 0;
-}
-
-export function hasRichStructure(e: Editor): boolean {
-  let found = false;
-  e.state.doc.descendants((node) => {
-    if (
-      ['heading', 'bulletList', 'orderedList', 'blockquote', 'codeBlock'].includes(node.type.name)
-    ) {
-      found = true;
-      return false;
-    }
-    return true;
-  });
-  return found;
-}
-
 function quoteParagraphsForText(text: string): JSONContent[] {
   return text
     .replace(/\r\n?/g, '\n')
@@ -473,21 +446,6 @@ function quoteParagraphsForText(text: string): JSONContent[] {
       type: 'paragraph',
       content: line ? [{ type: 'text', text: line }] : undefined
     }));
-}
-
-export function normalizeQuoteInsertionContent(text: QuoteInsertionContent): SelectedQuoteBlock[] {
-  if (typeof text !== 'string') {
-    return text
-      .map((block) => ({
-        quoteDepth: Math.max(0, Math.floor(block.quoteDepth)),
-        text: block.text.replace(/\r\n?/g, '\n').trim()
-      }))
-      .filter((block) => block.text.length > 0);
-  }
-
-  const normalized = text.replace(/\r\n?/g, '\n').trim();
-  if (!normalized) return [];
-  return normalized.split('\n').map((line) => ({ quoteDepth: 0, text: line }));
 }
 
 export function buildQuoteContent(blocks: SelectedQuoteBlock[]): JSONContent[] {

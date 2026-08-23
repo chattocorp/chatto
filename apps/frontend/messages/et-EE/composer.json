@@ -3,8 +3,6 @@
     "attach_file": "Manusta fail",
     "send": "Saada sõnum",
     "send_label": "Saada",
-    "send_enter": "Saada sõnum (sisesta)",
-    "send_ctrl_enter": "Saada sõnum (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Saada ka kanalile",
     "post_as_thread": "Postita lõimena",
     "thread_label": "Niit",
@@ -44,7 +42,9 @@
       "bullet_list": "Täppide loend",
       "ordered_list": "Nummerdatud loend",
       "blockquote": "Tsiteeri",
-      "code_block": "Koodiplokk"
+      "code_block": "Koodiplokk",
+      "outdent": "Vähenda taanet",
+      "indent": "Suurenda taanet"
     },
     "timestamp": {
       "title": "Sisestage ajatempel",

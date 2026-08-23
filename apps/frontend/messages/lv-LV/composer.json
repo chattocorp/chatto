@@ -3,8 +3,6 @@
     "attach_file": "Pievienojiet failu",
     "send": "Nosūtīt ziņu",
     "send_label": "Sūtīt",
-    "send_enter": "Sūtīt ziņojumu (ievadiet)",
-    "send_ctrl_enter": "Sūtīt ziņojumu (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Sūtīt arī uz kanālu",
     "post_as_thread": "Publicēt kā pavedienu",
     "thread_label": "Pavediens",
@@ -44,7 +42,9 @@
       "bullet_list": "Aizzīmju saraksts",
       "ordered_list": "Numurēts saraksts",
       "blockquote": "Citāts",
-      "code_block": "Koda bloks"
+      "code_block": "Koda bloks",
+      "outdent": "Samazināt atkāpi",
+      "indent": "Palielināt atkāpi"
     },
     "timestamp": {
       "title": "Ievietojiet laikspiedolu",

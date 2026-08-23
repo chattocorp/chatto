@@ -3,8 +3,6 @@
     "attach_file": "قم بإرفاق الملف",
     "send": "أرسل الرسالة",
     "send_label": "إرسال",
-    "send_enter": "أرسل رسالة (أدخل)",
-    "send_ctrl_enter": "إرسال رسالة (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "أرسل أيضًا إلى القناة",
     "post_as_thread": "نشر كموضوع",
     "thread_label": "الموضوع",
@@ -44,7 +42,9 @@
       "bullet_list": "قائمة نقطية",
       "ordered_list": "قائمة مرقمة",
       "blockquote": "اقتباس",
-      "code_block": "كتلة التعليمات البرمجية"
+      "code_block": "كتلة التعليمات البرمجية",
+      "outdent": "تقليل المسافة البادئة",
+      "indent": "زيادة المسافة البادئة"
     },
     "timestamp": {
       "title": "أدخل الطابع الزمني",

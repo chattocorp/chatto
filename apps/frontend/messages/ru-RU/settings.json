@@ -4,7 +4,7 @@
       "title": "Настройки",
       "back_to_server": "Вернуться на сервер",
       "profile": "Профиль",
-      "display": "Дисплей",
+      "display": "Настройки",
       "notifications": "Уведомления",
       "account": "Аккаунт",
       "bots": "Боты"
@@ -105,8 +105,9 @@
       "save_button": "Сохранить изменения"
     },
     "preferences": {
-      "title": "Дисплей",
-      "subtitle": "Выберите, как будет выглядеть Chatto",
+      "title": "Настройки",
+      "subtitle": "Выберите внешний вид и поведение Chatto",
+      "browser_scope": "Этот выбор применяется ко всем серверам Chatto в этом браузере.",
       "theme": {
         "title": "Тема",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Темный",
           "description": "Используйте темный интерфейс в этом браузере"
+        }
+      },
+      "editor": {
+        "title": "Редактор сообщений",
+        "visual": {
+          "label": "Визуальный",
+          "description": "Форматируйте сообщения, не видя синтаксис Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Редактируйте исходный текст Markdown с подсветкой синтаксиса"
+        }
+      },
+      "send_mode": {
+        "title": "Отправлять сообщения с помощью",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter отправляет; Cmd/Ctrl+Enter выполняет обычное действие Enter в редакторе"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter отправляет; Enter выполняет обычное действие редактора"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "например, 14:30"
         }
       },
-      "save_button": "Сохранить настройки дисплея",
-      "saved": "Настройки дисплея сохранены.",
-      "save_failed": "Не удалось сохранить настройки дисплея."
+      "save_button": "Сохранить настройки времени",
+      "saved": "Настройки времени сохранены",
+      "save_failed": "Не удалось сохранить настройки времени"
     },
     "notifications": {
       "title": "Уведомления",

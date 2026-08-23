@@ -3,8 +3,6 @@
     "attach_file": "Legg ved fil",
     "send": "Send melding",
     "send_label": "Send",
-    "send_enter": "Send melding (Enter)",
-    "send_ctrl_enter": "Send melding (Ctrl/Cmd+Enter)",
     "also_send_to_channel": "Send også til kanalen",
     "post_as_thread": "Publiser som tråd",
     "thread_label": "Tråd",
@@ -44,7 +42,9 @@
       "bullet_list": "Punktliste",
       "ordered_list": "Nummerert liste",
       "blockquote": "Sitat",
-      "code_block": "Kodeblokk"
+      "code_block": "Kodeblokk",
+      "outdent": "Reduser innrykk",
+      "indent": "Øk innrykk"
     },
     "timestamp": {
       "title": "Sett inn tidsstempel",

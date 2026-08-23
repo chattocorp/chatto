@@ -1,5 +1,6 @@
 import { test as base } from '@playwright/test';
 import { startServer, stopServer, type ServerInfo, type StartServerOptions } from './fixtures/server';
+import { composerTestStorageState } from './fixtures/testUser';
 import {
   AccountPage,
   AdminPage,
@@ -44,6 +45,14 @@ export const test = base.extend<{
   // Override baseURL to use the test's server
   baseURL: async ({ server }, use) => {
     await use(server.baseURL);
+  },
+
+  // Most E2E scenarios test behavior unrelated to composer preferences. Pin
+  // their historical baseline; dedicated preference tests remove these fields
+  // to exercise the application's real defaults.
+  storageState: async ({ baseURL }, use) => {
+    if (!baseURL) throw new Error('Expected an E2E server base URL');
+    await use(composerTestStorageState(baseURL));
   },
 
   // Expose server URL for tests that need to create new contexts

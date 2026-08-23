@@ -4,7 +4,7 @@
       "title": "Ayarlar",
       "back_to_server": "Sunucuya Geri Dön",
       "profile": "Profil",
-      "display": "Ekran",
+      "display": "Tercihler",
       "notifications": "Bildirimler",
       "account": "Hesap",
       "bots": "Botlar"
@@ -105,8 +105,9 @@
       "save_button": "Değişiklikleri Kaydet"
     },
     "preferences": {
-      "title": "Ekran",
-      "subtitle": "Chatto'nin nasıl görüneceğini seçin",
+      "title": "Tercihler",
+      "subtitle": "Chatto görünümünü ve davranışını seçin",
+      "browser_scope": "Bu seçim, bu tarayıcıdaki tüm Chatto sunucuları için geçerlidir.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Karanlık",
           "description": "Bu tarayıcıdaki karanlık arayüzü kullanın"
+        }
+      },
+      "editor": {
+        "title": "Mesaj düzenleyici",
+        "visual": {
+          "label": "Görsel",
+          "description": "Markdown sözdizimini görmeden mesajları biçimlendirin"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Markdown kaynağını sözdizimi vurgulamayla düzenleyin"
+        }
+      },
+      "send_mode": {
+        "title": "Mesajları şu tuşla gönder",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter gönderir; Cmd/Ctrl+Enter düzenleyicinin normal Enter işlemini gerçekleştirir"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter gönderir; Enter düzenleyicinin normal işlemini gerçekleştirir"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "örneğin 14:30"
         }
       },
-      "save_button": "Ekran Ayarlarını Kaydet",
-      "saved": "Ekran ayarları kaydedildi",
-      "save_failed": "Görüntü ayarları kaydedilemedi"
+      "save_button": "Saat ayarlarını kaydet",
+      "saved": "Saat ayarları kaydedildi",
+      "save_failed": "Saat ayarları kaydedilemedi"
     },
     "notifications": {
       "title": "Bildirimler",

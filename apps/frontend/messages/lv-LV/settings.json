@@ -4,7 +4,7 @@
       "title": "Iestatījumi",
       "back_to_server": "Atpakaļ uz serveri",
       "profile": "Profils",
-      "display": "Displejs",
+      "display": "Preferences",
       "notifications": "Paziņojumi",
       "account": "Konts",
       "bots": "Boti"
@@ -105,8 +105,9 @@
       "save_button": "Saglabāt izmaiņas"
     },
     "preferences": {
-      "title": "Displejs",
-      "subtitle": "Izvēlieties, kā parādās Chatto",
+      "title": "Preferences",
+      "subtitle": "Izvēlieties Chatto izskatu un darbību",
+      "browser_scope": "Šī izvēle attiecas uz visiem Chatto serveriem šajā pārlūkā.",
       "theme": {
         "title": "Tēma",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Tumšs",
           "description": "Izmantojiet tumšo interfeisu šajā pārlūkprogrammā"
+        }
+      },
+      "editor": {
+        "title": "Ziņojumu redaktors",
+        "visual": {
+          "label": "Vizuāls",
+          "description": "Formatējiet ziņojumus, neredzot Markdown sintaksi"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Rediģējiet Markdown avotu ar sintakses izcelšanu"
+        }
+      },
+      "send_mode": {
+        "title": "Sūtīt ziņojumus ar",
+        "enter": {
+          "label": "Return",
+          "description": "Return nosūta; Cmd/Ctrl+Return izpilda redaktora parasto Return darbību"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return nosūta; Return izpilda redaktora parasto darbību"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "piemēram, 14:30"
         }
       },
-      "save_button": "Saglabājiet displeja iestatījumus",
-      "saved": "Displeja iestatījumi saglabāti",
-      "save_failed": "Neizdevās saglabāt displeja iestatījumus"
+      "save_button": "Saglabāt laika iestatījumus",
+      "saved": "Laika iestatījumi saglabāti",
+      "save_failed": "Neizdevās saglabāt laika iestatījumus"
     },
     "notifications": {
       "title": "Paziņojumi",

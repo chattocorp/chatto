@@ -3,8 +3,6 @@
     "attach_file": "Joindre un fichier",
     "send": "Envoyer un message",
     "send_label": "Envoyer",
-    "send_enter": "Envoyer un message (Entrée)",
-    "send_ctrl_enter": "Envoyer un message (Ctrl/Cmd+Entrée)",
     "also_send_to_channel": "Envoyer également au canal",
     "post_as_thread": "Publier comme fil de discussion",
     "thread_label": "Sujet",
@@ -44,7 +42,9 @@
       "bullet_list": "Liste à puces",
       "ordered_list": "Liste numérotée",
       "blockquote": "Citation",
-      "code_block": "Bloc de code"
+      "code_block": "Bloc de code",
+      "outdent": "Diminuer le retrait",
+      "indent": "Augmenter le retrait"
     },
     "timestamp": {
       "title": "Insérer un horodatage",

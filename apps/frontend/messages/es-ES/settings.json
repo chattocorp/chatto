@@ -4,7 +4,7 @@
       "title": "Configuración",
       "back_to_server": "Volver al servidor",
       "profile": "Perfil",
-      "display": "Pantalla",
+      "display": "Preferencias",
       "notifications": "Notificaciones",
       "account": "Cuenta",
       "bots": "bots"
@@ -105,8 +105,9 @@
       "save_button": "Guardar cambios"
     },
     "preferences": {
-      "title": "Mostrar",
-      "subtitle": "Elige cómo aparece Chatto",
+      "title": "Preferencias",
+      "subtitle": "Elige el aspecto y el comportamiento de Chatto",
+      "browser_scope": "Esta opción se aplica a todos los servidores de Chatto en este navegador.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Oscuro",
           "description": "Usa la interfaz oscura en este navegador"
+        }
+      },
+      "editor": {
+        "title": "Editor de mensajes",
+        "visual": {
+          "label": "Visual",
+          "description": "Da formato a los mensajes sin ver la sintaxis de Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Edita el código Markdown con resaltado de sintaxis"
+        }
+      },
+      "send_mode": {
+        "title": "Enviar mensajes con",
+        "enter": {
+          "label": "Return",
+          "description": "Return envía; Cmd/Ctrl+Return realiza la acción normal de Return en el editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return envía; Return realiza la acción normal del editor"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "por ejemplo, 14:30"
         }
       },
-      "save_button": "Guardar configuración de pantalla",
-      "saved": "Configuración de pantalla guardada",
-      "save_failed": "No se pudo guardar la configuración de pantalla"
+      "save_button": "Guardar ajustes de hora",
+      "saved": "Ajustes de hora guardados",
+      "save_failed": "No se pudieron guardar los ajustes de hora"
     },
     "notifications": {
       "title": "Notificaciones",

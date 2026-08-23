@@ -15,6 +15,8 @@
     "mark_as_read": "סמן כנקראו",
     "remove_server": "הסר שרת",
     "leave_room": "עזוב את החדר",
+    "copy_room_id": "העתקת מזהה החדר",
+    "copy_server_hostname": "העתקת שם המארח של השרת",
     "room_settings": "הגדרות החדר",
     "group_settings": "הגדרות עבור {group}",
     "server_actions": "פעולות עבור {server}",
