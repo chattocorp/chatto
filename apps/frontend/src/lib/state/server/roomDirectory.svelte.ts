@@ -190,6 +190,8 @@ export class RoomDirectoryStore {
     if (this.dmArchivePendingIds.has(roomId)) {
       return { ok: false, error: new Error('DM archive update is already in progress') };
     }
+    const generation = this.#generation;
+    const roomRevision = this.membershipRevision(roomId);
     this.dmArchivePendingIds.add(roomId);
     try {
       const room = isArchived
@@ -197,7 +199,15 @@ export class RoomDirectoryStore {
         : await this.directoryAPI.unarchiveDM(roomId);
       if (!room)
         return { ok: false, error: new Error('DM archive response did not include a room') };
-      this.applyDMArchiveState(roomId, room.isDMArchived);
+      // A newer room projection may already contain an automatic unarchive
+      // caused by a root message. Never let an older command response replace
+      // that authoritative realtime state.
+      if (
+        generation === this.#generation &&
+        roomRevision === this.membershipRevision(roomId)
+      ) {
+        this.applyDMArchiveState(roomId, room.isDMArchived);
+      }
       return { ok: true, isArchived: room.isDMArchived };
     } catch (error) {
       return { ok: false, error: error instanceof Error ? error : new Error(String(error)) };

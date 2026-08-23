@@ -299,6 +299,32 @@ describe('RoomDirectoryStore', () => {
     expect(apply).toHaveBeenLastCalledWith('DM1', false);
   });
 
+  it('does not let a stale DM archive response replace newer projected room state', async () => {
+    let resolveArchive!: (room: DirectoryRoomDetails) => void;
+    const apply = vi.fn();
+    const store = makeStore(
+      makeNavigation(),
+      commands(),
+      archiveCommands({
+        archiveDM: vi.fn(
+          () =>
+            new Promise<DirectoryRoomDetails>((resolve) => {
+              resolveArchive = resolve;
+            })
+        )
+      }),
+      apply
+    );
+
+    const archiving = store.setDMArchived('DM1', true);
+    store.acknowledgeMembership('DM1', true);
+    resolveArchive(dmDetails('DM1', true));
+
+    await expect(archiving).resolves.toEqual({ ok: true, isArchived: true });
+    expect(apply).not.toHaveBeenCalled();
+    expect(store.dmArchivePendingIds.size).toBe(0);
+  });
+
   it('reports DM archive failures without changing projected state', async () => {
     const failure = new Error('archive failed');
     const apply = vi.fn();
