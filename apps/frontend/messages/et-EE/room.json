@@ -138,11 +138,11 @@
       "show_less": "näita vähem"
     },
     "typing": {
-      "one": "{name} kirjutab…",
-      "two": "{first} ja {second} kirjutavad…",
+      "one": "{name} kirjutab",
+      "two": "{first} ja {second} kirjutavad",
       "many_count": {
-        "other": "{names} ja {count} kirjutavad…",
-        "one": "{names} ja {count} kirjutavad…"
+        "other": "{names} ja {count} kirjutavad",
+        "one": "{names} ja {count} kirjutavad"
       }
     },
     "attachment": {

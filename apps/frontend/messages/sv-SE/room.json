@@ -138,11 +138,11 @@
       "show_less": "visa mindre"
     },
     "typing": {
-      "one": "{name} skriver…",
-      "two": "{first} och {second} skriver…",
+      "one": "{name} skriver",
+      "two": "{first} och {second} skriver",
       "many_count": {
-        "other": "{names} och {count} till skriver…",
-        "one": "{names} och {count} till skriver…"
+        "other": "{names} och {count} till skriver",
+        "one": "{names} och {count} till skriver"
       }
     },
     "attachment": {

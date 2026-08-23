@@ -138,11 +138,11 @@
       "show_less": "montri malpli"
     },
     "typing": {
-      "one": "{name} skribas…",
-      "two": "{first} kaj {second} skribas…",
+      "one": "{name} skribas",
+      "two": "{first} kaj {second} skribas",
       "many_count": {
-        "one": "{names} kaj {count} alia skribas…",
-        "other": "{names} kaj {count} aliaj skribas…"
+        "one": "{names} kaj {count} alia skribas",
+        "other": "{names} kaj {count} aliaj skribas"
       }
     },
     "attachment": {

@@ -138,11 +138,11 @@
       "show_less": "收起"
     },
     "typing": {
-      "one": "{name} 正在输入…",
-      "two": "{first} 和 {second} 正在输入…",
+      "one": "{name} 正在输入",
+      "two": "{first} 和 {second} 正在输入",
       "many_count": {
-        "other": "{names} 等其他 {count} 人正在输入…",
-        "one": "{names} 等其他 {count} 人正在输入…"
+        "other": "{names} 等其他 {count} 人正在输入",
+        "one": "{names} 等其他 {count} 人正在输入"
       }
     },
     "attachment": {

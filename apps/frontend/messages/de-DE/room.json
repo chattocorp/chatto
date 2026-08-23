@@ -138,11 +138,11 @@
       "show_less": "weniger anzeigen"
     },
     "typing": {
-      "one": "{name} schreibt…",
-      "two": "{first} und {second} schreiben…",
+      "one": "{name} schreibt",
+      "two": "{first} und {second} schreiben",
       "many_count": {
-        "other": "{names} und {count} weitere Personen schreiben…",
-        "one": "{names} und {count} weitere Person schreiben…"
+        "other": "{names} und {count} weitere Personen schreiben",
+        "one": "{names} und {count} weitere Person schreiben"
       }
     },
     "attachment": {

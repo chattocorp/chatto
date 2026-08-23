@@ -138,11 +138,11 @@
       "show_less": "一部を表示"
     },
     "typing": {
-      "one": "{name} が入力しています…",
-      "two": "{first} と {second} が入力しています…",
+      "one": "{name} が入力しています",
+      "two": "{first} と {second} が入力しています",
       "many_count": {
-        "other": "{names} と他 {count} 人が入力しています…",
-        "one": "{names} と他 {count} 人が入力しています…"
+        "other": "{names} と他 {count} 人が入力しています",
+        "one": "{names} と他 {count} 人が入力しています"
       }
     },
     "attachment": {

@@ -154,11 +154,11 @@
       "show_less": "عرض أقل"
     },
     "typing": {
-      "one": "{name} يكتب…",
-      "two": "{first} و{second} يكتبان…",
+      "one": "{name} يكتب",
+      "two": "{first} و{second} يكتبان",
       "many_count": {
-        "other": "{names} و{count} آخرون يكتبون…",
-        "one": "{names} و{count} آخر يكتبون…"
+        "other": "{names} و{count} آخرون يكتبون",
+        "one": "{names} و{count} آخر يكتبون"
       }
     },
     "attachment": {

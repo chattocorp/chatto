@@ -138,12 +138,12 @@
       "show_less": "показывать меньше"
     },
     "typing": {
-      "one": "{name} печатает…",
-      "two": "{first} и {second} печатают…",
+      "one": "{name} печатает",
+      "two": "{first} и {second} печатают",
       "many_count": {
-        "other": "{names} и ещё {count} человек печатают…",
-        "one": "{names} и ещё {count} человек печатают…",
-        "few": "{names} и ещё {count} человека печатают…"
+        "other": "{names} и ещё {count} человек печатают",
+        "one": "{names} и ещё {count} человек печатают",
+        "few": "{names} и ещё {count} человека печатают"
       }
     },
     "attachment": {

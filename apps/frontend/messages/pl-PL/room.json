@@ -144,12 +144,12 @@
       "show_less": "pokazuj mniej"
     },
     "typing": {
-      "one": "{name} pisze…",
-      "two": "{first} i {second} piszą…",
+      "one": "{name} pisze",
+      "two": "{first} i {second} piszą",
       "many_count": {
-        "other": "{names} i {count} osób pisze…",
-        "one": "{names} i {count} osoba piszą…",
-        "few": "{names} i {count} osoby piszą…"
+        "other": "{names} i {count} osób pisze",
+        "one": "{names} i {count} osoba piszą",
+        "few": "{names} i {count} osoby piszą"
       }
     },
     "attachment": {

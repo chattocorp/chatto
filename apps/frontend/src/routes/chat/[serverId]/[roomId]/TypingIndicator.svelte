@@ -85,12 +85,11 @@ message list layout, and it announces changes politely to screen readers via a
     {/each}
     {#if label}
       <span class="typing-label ms-0.5 max-w-48 truncate text-xs text-muted">{label}</span>
-    {:else}
-      <span class="typing-dots inline-flex items-center gap-0.5" aria-hidden="true">
-        <span class="typing-dot"></span>
-        <span class="typing-dot [animation-delay:200ms]"></span>
-        <span class="typing-dot [animation-delay:400ms]"></span>
-      </span>
     {/if}
+    <span class="typing-dots inline-flex items-center gap-0.5" aria-hidden="true">
+      <span class="typing-dot"></span>
+      <span class="typing-dot [animation-delay:200ms]"></span>
+      <span class="typing-dot [animation-delay:400ms]"></span>
+    </span>
   </div>
 {/if}

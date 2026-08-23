@@ -138,11 +138,11 @@
       "show_less": "daha az göster"
     },
     "typing": {
-      "one": "{name} yazıyor…",
-      "two": "{first} ve {second} yazıyor…",
+      "one": "{name} yazıyor",
+      "two": "{first} ve {second} yazıyor",
       "many_count": {
-        "other": "{names} ve {count} kişi daha yazıyor…",
-        "one": "{names} ve {count} kişi daha yazıyor…"
+        "other": "{names} ve {count} kişi daha yazıyor",
+        "one": "{names} ve {count} kişi daha yazıyor"
       }
     },
     "attachment": {

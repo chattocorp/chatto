@@ -138,11 +138,11 @@
       "show_less": "rādīt mazāk"
     },
     "typing": {
-      "one": "{name} raksta…",
-      "two": "{first} un {second} raksta…",
+      "one": "{name} raksta",
+      "two": "{first} un {second} raksta",
       "many_count": {
-        "other": "{names} un vēl {count} raksta…",
-        "one": "{names} un vēl {count} raksta…"
+        "other": "{names} un vēl {count} raksta",
+        "one": "{names} un vēl {count} raksta"
       }
     },
     "attachment": {

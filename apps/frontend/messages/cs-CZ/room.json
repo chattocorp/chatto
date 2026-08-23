@@ -138,11 +138,11 @@
       "show_less": "ukázat méně"
     },
     "typing": {
-      "one": "{name} píše…",
-      "two": "{first} a {second} píšou…",
+      "one": "{name} píše",
+      "two": "{first} a {second} píšou",
       "many_count": {
-        "other": "{names} a {count} dalších píše…",
-        "one": "{names} a {count} další píšou…"
+        "other": "{names} a {count} dalších píše",
+        "one": "{names} a {count} další píšou"
       }
     },
     "attachment": {
