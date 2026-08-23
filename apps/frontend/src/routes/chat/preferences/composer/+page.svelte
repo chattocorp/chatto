@@ -9,14 +9,14 @@
 
   const editorOptions = $derived([
     {
-      value: 'visual',
-      label: m('settings.preferences.editor.visual.label'),
-      description: m('settings.preferences.editor.visual.description')
-    },
-    {
       value: 'markdown',
       label: m('settings.preferences.editor.markdown.label'),
       description: m('settings.preferences.editor.markdown.description')
+    },
+    {
+      value: 'visual',
+      label: m('settings.preferences.editor.visual.label'),
+      description: m('settings.preferences.editor.visual.description')
     }
   ] satisfies Array<{ value: ComposerEditorKind; label: string; description: string }>);
 

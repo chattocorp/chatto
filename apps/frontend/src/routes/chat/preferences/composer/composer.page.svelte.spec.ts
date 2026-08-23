@@ -18,8 +18,16 @@ describe('App Preferences composer page', () => {
   });
 
   it('persists the composer choices immediately for this app', async () => {
-    const { getByRole } = render(ComposerPage);
+    const { container, getByRole } = render(ComposerPage);
     await settle();
+
+    const editorChoices = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('[aria-label="Message editor"] [role="radio"]')
+    );
+    expect(editorChoices.map((choice) => choice.textContent?.trim())).toEqual([
+      expect.stringContaining('Markdown'),
+      expect.stringContaining('Visual')
+    ]);
 
     await getByRole('radio', { name: /^Markdown/ }).click();
     await getByRole('radio', { name: /^Return/ }).click();
