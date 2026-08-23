@@ -30,7 +30,7 @@ async function gotoAndWaitForHydration(page: Page, url: string): Promise<void> {
 }
 
 /**
- * Clear stored credentials and reload the protected route.
+ * Clear all stored credentials and reload the protected route.
  *
  * Session expiry is observed on the next app load or protected request. There
  * is intentionally no passive visibilitychange validation hook anymore: that
@@ -67,9 +67,31 @@ async function clearCredentialsAndReloadProtectedRoute(page: Page): Promise<void
             return server;
           }
 
+          if (typeof serverRecord.id === 'string') {
+            localStorage.setItem(
+              `chatto:i:${serverRecord.id}:authentication`,
+              JSON.stringify({
+                version: 1,
+                token: null,
+                refreshToken: null,
+                accessTokenExpiresAt: null,
+                refreshTokenExpiresAt: null,
+                oauthClientId: null,
+                refreshRequestId: null,
+                reauthRequiredAt: null
+              })
+            );
+          }
+
           return {
             ...serverRecord,
             token: null,
+            refreshToken: null,
+            accessTokenExpiresAt: null,
+            refreshTokenExpiresAt: null,
+            oauthClientId: null,
+            refreshRequestId: null,
+            reauthRequiredAt: null,
             userId: null,
             userLogin: null,
             userDisplayName: null,
