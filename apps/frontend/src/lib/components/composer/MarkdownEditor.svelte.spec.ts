@@ -20,6 +20,36 @@ async function renderEditor(props: Record<string, unknown> = {}) {
   return rendered;
 }
 
+function dispatchEditorKey(target: Element, key: string, options: KeyboardEventInit = {}) {
+  target.dispatchEvent(
+    new KeyboardEvent('keydown', { key, bubbles: true, cancelable: true, ...options })
+  );
+}
+
+function selectCurrentLine(target: Element) {
+  dispatchEditorKey(target, 'Home', { shiftKey: true });
+}
+
+function pressPrimaryModifierKey(target: Element, key: string) {
+  dispatchEditorKey(
+    target,
+    key,
+    navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true }
+  );
+}
+
+function pasteText(target: Element, text: string) {
+  const dataTransfer = new DataTransfer();
+  dataTransfer.setData('text/plain', text);
+  target.dispatchEvent(
+    new ClipboardEvent('paste', {
+      bubbles: true,
+      cancelable: true,
+      clipboardData: dataTransfer
+    })
+  );
+}
+
 describe('MarkdownEditor', () => {
   it('synchronizes its accessible name, placeholder, and disabled state', async () => {
     const rendered = await renderEditor();
@@ -65,6 +95,68 @@ describe('MarkdownEditor', () => {
     api.toggleFormatting('bulletList');
     expect(api.getText()).toBe('- first');
     expect(formatting.at(-1)?.bulletList).toBe(true);
+  });
+
+  it('toggles bold and italic with the platform modifier shortcuts', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' }).element();
+
+    api.setContent('bold');
+    api.focus();
+    selectCurrentLine(textbox);
+    pressPrimaryModifierKey(textbox, 'b');
+    await vi.waitFor(() => expect(api.getText()).toBe('**bold**'));
+
+    api.setContent('italic');
+    api.focus();
+    selectCurrentLine(textbox);
+    pressPrimaryModifierKey(textbox, 'i');
+    await vi.waitFor(() => expect(api.getText()).toBe('*italic*'));
+  });
+
+  it('wraps selected text in inline-code markers when backtick is pressed', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    await renderEditor({ onReady: (api: ComposerEditorApi) => readyApis.push(api) });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' }).element();
+
+    api.setContent('moo');
+    api.focus();
+    selectCurrentLine(textbox);
+    dispatchEditorKey(textbox, '`');
+
+    await vi.waitFor(() => expect(api.getText()).toBe('`moo`'));
+
+    api.setContent('moo');
+    api.focus();
+    await userEvent.keyboard('`');
+    await vi.waitFor(() => expect(api.getText()).toBe('moo`'));
+  });
+
+  it('turns selected text into a Markdown link when a URL is pasted over it', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const onPaste = vi.fn(() => false);
+    await renderEditor({
+      onReady: (api: ComposerEditorApi) => readyApis.push(api),
+      onPaste
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const textbox = page.getByRole('textbox', { name: 'Write Markdown' }).element();
+
+    api.setContent('Chatto docs');
+    api.focus();
+    selectCurrentLine(textbox);
+    pasteText(textbox, 'https://chatto.dev/docs');
+
+    await vi.waitFor(() =>
+      expect(api.getText()).toBe('[Chatto docs](https://chatto.dev/docs)')
+    );
+    expect(onPaste).toHaveBeenCalledOnce();
   });
 
   it('performs Markdown list continuation through its normal Enter API', async () => {
