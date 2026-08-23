@@ -1,8 +1,8 @@
 /**
- * Client Preferences store.
+ * App Preferences store.
  *
  * Stores user preferences in localStorage for persistence across sessions.
- * These are client-side preferences that don't need server sync.
+ * These are app-local preferences that don't need server sync.
  */
 
 import {
@@ -19,7 +19,7 @@ export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
 type EffectiveTheme = 'light' | 'dark';
 
-interface ClientPreferences {
+interface AppPreferences {
   displayTheme: DisplayTheme;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
@@ -30,16 +30,16 @@ export interface LegacyNotificationSoundPreferences {
   notificationSoundFilters: NotificationSoundFilters;
 }
 
-interface StoredPreferences extends ClientPreferences, LegacyNotificationSoundPreferences {}
+interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPreferences {}
 
-const defaultClientPreferences: ClientPreferences = {
+const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
   composerSendMode: 'enter'
 };
 
 const defaultStoredPreferences: StoredPreferences = {
-  ...defaultClientPreferences,
+  ...defaultAppPreferences,
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };
@@ -123,18 +123,18 @@ function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFil
   };
 }
 
-function loadClientPreferences(): ClientPreferences {
+function loadAppPreferences(): AppPreferences {
   const stored = slot.get();
   const displayTheme =
-    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultClientPreferences.displayTheme;
+    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
     displayTheme,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
-      : defaultClientPreferences.composerEditor,
+      : defaultAppPreferences.composerEditor,
     composerSendMode: isComposerSendMode(stored.composerSendMode)
       ? stored.composerSendMode
-      : defaultClientPreferences.composerSendMode
+      : defaultAppPreferences.composerSendMode
   };
 }
 
@@ -152,8 +152,8 @@ export function getLegacyNotificationSoundPreferences(): LegacyNotificationSound
 }
 
 export class UserPreferencesState {
-  #preferences = $state<ClientPreferences>(loadClientPreferences());
-  // Keep the legacy fields intact whenever Client Preferences are saved so a
+  #preferences = $state<AppPreferences>(loadAppPreferences());
+  // Keep the legacy fields intact whenever App Preferences are saved so a
   // server first opened later can still migrate the user's previous sound.
   readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
 
@@ -162,7 +162,7 @@ export class UserPreferencesState {
   }
 
   set displayTheme(value: DisplayTheme) {
-    const displayTheme = isDisplayTheme(value) ? value : defaultClientPreferences.displayTheme;
+    const displayTheme = isDisplayTheme(value) ? value : defaultAppPreferences.displayTheme;
     this.#preferences.displayTheme = displayTheme;
     this.#persist();
     applyDisplayTheme(displayTheme);
@@ -179,7 +179,7 @@ export class UserPreferencesState {
   set composerEditor(value: ComposerEditorKind) {
     this.#preferences.composerEditor = isComposerEditorKind(value)
       ? value
-      : defaultClientPreferences.composerEditor;
+      : defaultAppPreferences.composerEditor;
     this.#persist();
   }
 
@@ -190,7 +190,7 @@ export class UserPreferencesState {
   set composerSendMode(value: ComposerSendMode) {
     this.#preferences.composerSendMode = isComposerSendMode(value)
       ? value
-      : defaultClientPreferences.composerSendMode;
+      : defaultAppPreferences.composerSendMode;
     this.#persist();
   }
 

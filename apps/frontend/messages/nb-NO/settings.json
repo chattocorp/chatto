@@ -8,12 +8,14 @@
       "notifications": "Varsler",
       "account": "Konto",
       "bots": "Botter",
-      "server_preferences": "Serverpreferanser",
-      "server_settings": "Serverinnstillinger"
+      "user_preferences": "Brukerinnstillinger",
+      "server_configuration": "Serverkonfigurasjon"
     },
-    "client_preferences": {
-      "title": "Klientpreferanser",
-      "subtitle": "Valg for denne klienten som gjelder for alle registrerte servere"
+    "app_preferences": {
+      "title": "Appinnstillinger",
+      "subtitle": "Valg for denne appen som gjelder for alle registrerte servere",
+      "appearance": { "title": "Utseende" },
+      "composer": { "title": "Meldingsskriving" }
     },
     "profile": {
       "title": "Profil",

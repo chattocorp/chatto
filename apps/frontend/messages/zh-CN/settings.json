@@ -8,12 +8,14 @@
       "notifications": "通知",
       "account": "账号",
       "bots": "机器人",
-      "server_preferences": "服务器偏好设置",
-      "server_settings": "服务器设置"
+      "user_preferences": "用户偏好设置",
+      "server_configuration": "服务器配置"
     },
-    "client_preferences": {
-      "title": "客户端偏好设置",
-      "subtitle": "此客户端中适用于所有已注册服务器的选项"
+    "app_preferences": {
+      "title": "应用偏好设置",
+      "subtitle": "此应用中适用于所有已注册服务器的选项",
+      "appearance": { "title": "外观" },
+      "composer": { "title": "消息编辑" }
     },
     "profile": {
       "title": "个人资料",

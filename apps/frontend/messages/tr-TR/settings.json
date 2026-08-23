@@ -8,12 +8,14 @@
       "notifications": "Bildirimler",
       "account": "Hesap",
       "bots": "Botlar",
-      "server_preferences": "Sunucu tercihleri",
-      "server_settings": "Sunucu ayarları"
+      "user_preferences": "Kullanıcı tercihleri",
+      "server_configuration": "Sunucu yapılandırması"
     },
-    "client_preferences": {
-      "title": "İstemci tercihleri",
-      "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu istemciye ait seçimler"
+    "app_preferences": {
+      "title": "Uygulama tercihleri",
+      "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu uygulamaya ait seçimler",
+      "appearance": { "title": "Görünüm" },
+      "composer": { "title": "Mesaj yazma" }
     },
     "profile": {
       "title": "Profil",

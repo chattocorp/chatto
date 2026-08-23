@@ -44,7 +44,7 @@
   const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
   const isServerSettingsMode = $derived(isSettingsMode || isManageMode);
 
-  const serverPreferenceNavItems = $derived([
+  const userPreferenceNavItems = $derived([
     {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
@@ -175,11 +175,11 @@
   );
   const settingsNavGroups = $derived([
     {
-      label: m('settings.nav.server_preferences'),
-      items: serverPreferenceNavItems
+      label: m('settings.nav.user_preferences'),
+      items: userPreferenceNavItems
     },
     {
-      label: m('settings.nav.server_settings'),
+      label: m('settings.nav.server_configuration'),
       items: managementNavItems
     }
   ]);

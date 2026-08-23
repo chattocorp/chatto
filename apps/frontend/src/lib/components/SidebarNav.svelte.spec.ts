@@ -25,14 +25,14 @@ describe('SidebarNav', () => {
         backHref: '/chat/test',
         groups: [
           {
-            label: 'Server Preferences',
+            label: 'User Preferences',
             items: [
               { href: '/settings', label: 'Profile', icon: 'icon-profile' },
               { href: '/settings/preferences', label: 'Time & region', icon: 'icon-time' }
             ]
           },
           {
-            label: 'Server Settings',
+            label: 'Server Configuration',
             items: [{ href: '/manage/general', label: 'General', icon: 'icon-general' }]
           }
         ]
@@ -40,7 +40,7 @@ describe('SidebarNav', () => {
     });
 
     expect(container.querySelectorAll('details')).toHaveLength(2);
-    await expect.element(getByText('Server Preferences')).toBeVisible();
+    await expect.element(getByText('User Preferences')).toBeVisible();
     await expect
       .element(container.querySelector<HTMLElement>('a[href="/settings/preferences"]'))
       .toHaveAttribute('aria-current', 'page');

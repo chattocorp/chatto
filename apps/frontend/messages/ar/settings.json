@@ -8,12 +8,14 @@
       "notifications": "الإشعارات",
       "account": "الحساب",
       "bots": "الروبوتات",
-      "server_preferences": "تفضيلات الخادم",
-      "server_settings": "إعدادات الخادم"
+      "user_preferences": "تفضيلات المستخدم",
+      "server_configuration": "تكوين الخادم"
     },
-    "client_preferences": {
-      "title": "تفضيلات العميل",
-      "subtitle": "خيارات هذا العميل التي تنطبق على جميع خوادمك المسجلة"
+    "app_preferences": {
+      "title": "تفضيلات التطبيق",
+      "subtitle": "خيارات هذا التطبيق التي تنطبق على جميع خوادمك المسجلة",
+      "appearance": { "title": "المظهر" },
+      "composer": { "title": "محرر الرسائل" }
     },
     "profile": {
       "title": "الملف الشخصي",

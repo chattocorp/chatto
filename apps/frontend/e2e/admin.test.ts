@@ -173,7 +173,7 @@ test.describe('Admin Access Control', () => {
     // Should see access denied message
     await adminPage.expectAccessDenied();
     // The unified Settings shell remains available because every member can
-    // manage Server Preferences even when this specific route is denied.
+    // manage User Preferences even when this specific route is denied.
     await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
     await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
     await expect(page.getByText('You do not have permission to access this page.')).toBeVisible();

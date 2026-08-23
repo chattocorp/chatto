@@ -63,7 +63,7 @@ describe('UserPreferencesState', () => {
     expect(new UserPreferencesState().displayTheme).toBe('dark');
   });
 
-  it('normalizes invalid independently stored client choices', () => {
+  it('normalizes invalid independently stored app choices', () => {
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({

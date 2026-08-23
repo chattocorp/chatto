@@ -8,12 +8,14 @@
       "notifications": "Notificações",
       "account": "Conta",
       "bots": "Bots",
-      "server_preferences": "Preferências do servidor",
-      "server_settings": "Configurações do servidor"
+      "user_preferences": "Preferências do usuário",
+      "server_configuration": "Configuração do servidor"
     },
-    "client_preferences": {
-      "title": "Preferências do cliente",
-      "subtitle": "Opções deste cliente que se aplicam a todos os seus servidores registrados"
+    "app_preferences": {
+      "title": "Preferências do aplicativo",
+      "subtitle": "Opções deste aplicativo que se aplicam a todos os seus servidores registrados",
+      "appearance": { "title": "Aparência" },
+      "composer": { "title": "Composição" }
     },
     "profile": {
       "title": "Perfil",

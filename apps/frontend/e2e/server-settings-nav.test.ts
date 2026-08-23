@@ -89,7 +89,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Every member sees Settings; permissions filter its Server Settings group.
+      // Every member sees Settings; permissions filter its Server Configuration group.
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
@@ -135,7 +135,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Settings also contains the member's Server Preferences.
+      // Settings also contains the member's User Preferences.
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
@@ -151,7 +151,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       // Grant user.delete-any to everyone role. Like the other tests in
       // this block, this picks a single admin-tier permission that is part
       // of the HasAnyAdminPermission set and verifies that holding just
-      // that one perm is enough to surface its matching Server Settings item.
+      // that one perm is enough to surface its matching Server Configuration item.
       await grantPermission(page, 'everyone', 'user.delete-any');
 
       // Create and login as non-admin user
@@ -162,7 +162,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Settings also contains the member's Server Preferences.
+      // Settings also contains the member's User Preferences.
       await serverAdminPage.expectSettingsLinkVisible();
     });
 
@@ -184,7 +184,7 @@ test.describe('Server Admin Navigation Permissions', () => {
       await page.goto(routes.space());
       await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-      // Settings also contains the member's Server Preferences.
+      // Settings also contains the member's User Preferences.
       await serverAdminPage.expectSettingsLinkVisible();
     });
   });

@@ -8,12 +8,14 @@
       "notifications": "התראות",
       "account": "חשבון",
       "bots": "בוטים",
-      "server_preferences": "העדפות שרת",
-      "server_settings": "הגדרות שרת"
+      "user_preferences": "העדפות משתמש",
+      "server_configuration": "תצורת שרת"
     },
-    "client_preferences": {
-      "title": "העדפות לקוח",
-      "subtitle": "בחירות בלקוח הזה שחלות על כל השרתים הרשומים שלך"
+    "app_preferences": {
+      "title": "העדפות האפליקציה",
+      "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
+      "appearance": { "title": "מראה" },
+      "composer": { "title": "כתיבת הודעות" }
     },
     "profile": {
       "title": "פרופיל",

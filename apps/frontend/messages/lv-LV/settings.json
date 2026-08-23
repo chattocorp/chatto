@@ -8,12 +8,14 @@
       "notifications": "Paziņojumi",
       "account": "Konts",
       "bots": "Boti",
-      "server_preferences": "Servera preferences",
-      "server_settings": "Servera iestatījumi"
+      "user_preferences": "Lietotāja preferences",
+      "server_configuration": "Servera konfigurācija"
     },
-    "client_preferences": {
-      "title": "Klienta preferences",
-      "subtitle": "Šī klienta izvēles, kas attiecas uz visiem jūsu reģistrētajiem serveriem"
+    "app_preferences": {
+      "title": "Lietotnes preferences",
+      "subtitle": "Šīs lietotnes izvēles, kas attiecas uz visiem jūsu reģistrētajiem serveriem",
+      "appearance": { "title": "Izskats" },
+      "composer": { "title": "Ziņojumu rakstīšana" }
     },
     "profile": {
       "title": "Profils",

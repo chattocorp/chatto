@@ -8,12 +8,14 @@
       "notifications": "Sciigoj",
       "account": "Konto",
       "bots": "Botoj",
-      "server_preferences": "Servilaj preferoj",
-      "server_settings": "Servilaj agordoj"
+      "user_preferences": "Uzantaj preferoj",
+      "server_configuration": "Servila agordo"
     },
-    "client_preferences": {
-      "title": "Klientaj preferoj",
-      "subtitle": "Elektoj de ĉi tiu kliento, kiuj validas por ĉiuj viaj registritaj serviloj"
+    "app_preferences": {
+      "title": "Aplikaj preferoj",
+      "subtitle": "Elektoj de ĉi tiu aplikaĵo, kiuj validas por ĉiuj viaj registritaj serviloj",
+      "appearance": { "title": "Aspekto" },
+      "composer": { "title": "Mesaĝverkilo" }
     },
     "profile": {
       "title": "Profilo",

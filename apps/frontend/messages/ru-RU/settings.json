@@ -8,12 +8,14 @@
       "notifications": "Уведомления",
       "account": "Аккаунт",
       "bots": "Боты",
-      "server_preferences": "Предпочтения сервера",
-      "server_settings": "Настройки сервера"
+      "user_preferences": "Пользовательские настройки",
+      "server_configuration": "Конфигурация сервера"
     },
-    "client_preferences": {
-      "title": "Настройки клиента",
-      "subtitle": "Параметры этого клиента для всех зарегистрированных серверов"
+    "app_preferences": {
+      "title": "Настройки приложения",
+      "subtitle": "Параметры этого приложения для всех зарегистрированных серверов",
+      "appearance": { "title": "Внешний вид" },
+      "composer": { "title": "Написание сообщений" }
     },
     "profile": {
       "title": "Профиль",

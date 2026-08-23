@@ -24,9 +24,7 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  let notificationPreferences = $state.raw(
-    getServerNotificationPreferences(serverScope.serverId)
-  );
+  let notificationPreferences = $state.raw(getServerNotificationPreferences(serverScope.serverId));
 
   // SvelteKit can retain this page while only the server route parameter
   // changes. Resolve the matching state in an effect so populating the

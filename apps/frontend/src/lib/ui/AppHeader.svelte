@@ -91,10 +91,10 @@
     {/if}
 
     <a
-      href={resolve('/chat/client-preferences')}
+      href={resolve('/chat/preferences')}
       class="app-header-icon"
-      aria-label={m('settings.client_preferences.title')}
-      title={m('settings.client_preferences.title')}
+      aria-label={m('settings.app_preferences.title')}
+      title={m('settings.app_preferences.title')}
     >
       <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
     </a>

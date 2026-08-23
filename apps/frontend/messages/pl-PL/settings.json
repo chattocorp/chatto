@@ -8,12 +8,14 @@
       "notifications": "Powiadomienia",
       "account": "Konto",
       "bots": "Boty",
-      "server_preferences": "Preferencje serwera",
-      "server_settings": "Ustawienia serwera"
+      "user_preferences": "Preferencje użytkownika",
+      "server_configuration": "Konfiguracja serwera"
     },
-    "client_preferences": {
-      "title": "Preferencje klienta",
-      "subtitle": "Opcje tego klienta dotyczące wszystkich zarejestrowanych serwerów"
+    "app_preferences": {
+      "title": "Preferencje aplikacji",
+      "subtitle": "Opcje tej aplikacji dotyczące wszystkich zarejestrowanych serwerów",
+      "appearance": { "title": "Wygląd" },
+      "composer": { "title": "Tworzenie wiadomości" }
     },
     "profile": {
       "title": "Profil",

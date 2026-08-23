@@ -8,12 +8,14 @@
       "notifications": "Oznámení",
       "account": "účet",
       "bots": "Boti",
-      "server_preferences": "Předvolby serveru",
-      "server_settings": "Nastavení serveru"
+      "user_preferences": "Uživatelské předvolby",
+      "server_configuration": "Konfigurace serveru"
     },
-    "client_preferences": {
-      "title": "Předvolby klienta",
-      "subtitle": "Volby tohoto klienta, které platí pro všechny vaše registrované servery"
+    "app_preferences": {
+      "title": "Předvolby aplikace",
+      "subtitle": "Volby této aplikace, které platí pro všechny vaše registrované servery",
+      "appearance": { "title": "Vzhled" },
+      "composer": { "title": "Editor zpráv" }
     },
     "profile": {
       "title": "Profil",

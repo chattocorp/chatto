@@ -8,12 +8,14 @@
       "notifications": "Märguanded",
       "account": "konto",
       "bots": "Botid",
-      "server_preferences": "Serveri eelistused",
-      "server_settings": "Serveri seaded"
+      "user_preferences": "Kasutaja eelistused",
+      "server_configuration": "Serveri konfiguratsioon"
     },
-    "client_preferences": {
-      "title": "Kliendi eelistused",
-      "subtitle": "Selle kliendi valikud, mis kehtivad kõigis sinu registreeritud serverites"
+    "app_preferences": {
+      "title": "Rakenduse eelistused",
+      "subtitle": "Selle rakenduse valikud, mis kehtivad kõigis sinu registreeritud serverites",
+      "appearance": { "title": "Välimus" },
+      "composer": { "title": "Sõnumi koostamine" }
     },
     "profile": {
       "title": "Profiil",

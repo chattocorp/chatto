@@ -8,12 +8,14 @@
       "notifications": "Сповіщення",
       "account": "Обліковий запис",
       "bots": "Боти",
-      "server_preferences": "Параметри сервера",
-      "server_settings": "Налаштування сервера"
+      "user_preferences": "Налаштування користувача",
+      "server_configuration": "Конфігурація сервера"
     },
-    "client_preferences": {
-      "title": "Параметри клієнта",
-      "subtitle": "Параметри цього клієнта для всіх зареєстрованих серверів"
+    "app_preferences": {
+      "title": "Налаштування застосунку",
+      "subtitle": "Параметри цього застосунку для всіх зареєстрованих серверів",
+      "appearance": { "title": "Вигляд" },
+      "composer": { "title": "Створення повідомлень" }
     },
     "profile": {
       "title": "Профіль",

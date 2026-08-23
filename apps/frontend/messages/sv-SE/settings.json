@@ -8,12 +8,14 @@
       "notifications": "Aviseringar",
       "account": "Konto",
       "bots": "Bots",
-      "server_preferences": "Serverpreferenser",
-      "server_settings": "Serverinställningar"
+      "user_preferences": "Användarinställningar",
+      "server_configuration": "Serverkonfiguration"
     },
-    "client_preferences": {
-      "title": "Klientpreferenser",
-      "subtitle": "Val för den här klienten som gäller för alla dina registrerade servrar"
+    "app_preferences": {
+      "title": "Appinställningar",
+      "subtitle": "Val för den här appen som gäller för alla dina registrerade servrar",
+      "appearance": { "title": "Utseende" },
+      "composer": { "title": "Skriva meddelanden" }
     },
     "profile": {
       "title": "Profil",

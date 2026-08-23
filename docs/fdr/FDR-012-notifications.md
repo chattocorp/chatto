@@ -41,7 +41,7 @@ targets, unread counts, read state, or deletion semantics.
   extending user-visible retention.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
-- Notification delivery policy and client-rendered sound choices are Server
+- Notification delivery policy and client-rendered sound choices are User
   Preferences. Delivery policy syncs through the server; sound and sound-filter
   choices are stored by the client under a per-server key so notifications from
   different registered servers can sound different.
@@ -206,7 +206,7 @@ the bundled client but scoped to one registered server. A live notification
 uses the choice for the server that produced it. On upgrade, the former global
 sound choice seeds each server's slot the first time that slot is used.
 
-**Why:** All notification behavior is a Server Preference even when part of its
+**Why:** All notification behavior is a User Preference even when part of its
 execution happens in the client. Per-server storage preserves that scope
 without pretending a client-rendered audio filter is server state, and the
 migration keeps an existing user's chosen sound instead of silently resetting

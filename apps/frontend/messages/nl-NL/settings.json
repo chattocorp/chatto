@@ -8,12 +8,14 @@
       "notifications": "Meldingen",
       "account": "Account",
       "bots": "Bots",
-      "server_preferences": "Servervoorkeuren",
-      "server_settings": "Serverinstellingen"
+      "user_preferences": "Gebruikersvoorkeuren",
+      "server_configuration": "Serverconfiguratie"
     },
-    "client_preferences": {
-      "title": "Clientvoorkeuren",
-      "subtitle": "Keuzes van deze client die gelden voor al je geregistreerde servers"
+    "app_preferences": {
+      "title": "Appvoorkeuren",
+      "subtitle": "Keuzes van deze app die gelden voor al je geregistreerde servers",
+      "appearance": { "title": "Weergave" },
+      "composer": { "title": "Berichten opstellen" }
     },
     "profile": {
       "title": "Profiel",

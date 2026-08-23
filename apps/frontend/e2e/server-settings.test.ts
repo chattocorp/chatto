@@ -168,7 +168,7 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('Settings link leads each member to their first permitted Server Settings section', async ({
+  test('Settings link leads each member to their first permitted Server Configuration section', async ({
     serverAdminPage
   }) => {
     const { page } = serverAdminPage;
