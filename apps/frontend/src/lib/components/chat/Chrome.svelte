@@ -18,6 +18,7 @@
   import SidebarNav from '$lib/components/SidebarNav.svelte';
   import MyThreadsNavItem from './MyThreadsNavItem.svelte';
   import { MessageSearchState } from '$lib/state/server/messageSearch.svelte';
+  import { serverStorageKey } from '$lib/storage/serverStorage';
   import { getAdminNavItems } from './adminNav';
   import { m } from '$lib/i18n/messages';
 
@@ -176,11 +177,16 @@
   const settingsNavGroups = $derived([
     {
       label: m('settings.nav.user_preferences'),
-      items: userPreferenceNavItems
+      items: userPreferenceNavItems,
+      persistKey: serverStorageKey(serverScope.serverId, 'collapsible:settings:user-preferences')
     },
     {
       label: m('settings.nav.server_configuration'),
-      items: managementNavItems
+      items: managementNavItems,
+      persistKey: serverStorageKey(
+        serverScope.serverId,
+        'collapsible:settings:server-configuration'
+      )
     }
   ]);
   const settingsHref = $derived(

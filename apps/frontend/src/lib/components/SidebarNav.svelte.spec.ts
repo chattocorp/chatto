@@ -15,6 +15,7 @@ vi.mock('$app/state', () => ({
 describe('SidebarNav', () => {
   beforeEach(() => {
     mocks.pathname = '/settings/preferences';
+    localStorage.clear();
   });
 
   it('renders collapsible navigation groups and marks the active item', async () => {
@@ -26,6 +27,7 @@ describe('SidebarNav', () => {
         groups: [
           {
             label: 'User Preferences',
+            persistKey: 'test:sidebar-nav:user-preferences',
             items: [
               { href: '/settings', label: 'Profile', icon: 'icon-profile' },
               { href: '/settings/preferences', label: 'Time & region', icon: 'icon-time' }
@@ -33,19 +35,22 @@ describe('SidebarNav', () => {
           },
           {
             label: 'Server Configuration',
+            persistKey: 'test:sidebar-nav:server-configuration',
             items: [{ href: '/manage/general', label: 'General', icon: 'icon-general' }]
           }
         ]
       }
     });
 
-    expect(container.querySelectorAll('details')).toHaveLength(2);
+    expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
     await expect.element(getByText('User Preferences')).toBeVisible();
     await expect
       .element(container.querySelector<HTMLElement>('a[href="/settings/preferences"]'))
       .toHaveAttribute('aria-current', 'page');
 
-    (container.querySelector('summary') as HTMLElement).click();
-    expect((container.querySelector('details') as HTMLDetailsElement).open).toBe(false);
+    const toggle = container.querySelector<HTMLButtonElement>('button[aria-expanded]');
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'true');
+    toggle?.click();
+    await expect.element(toggle).toHaveAttribute('aria-expanded', 'false');
   });
 });
