@@ -225,7 +225,7 @@ test.describe('Message Threading', () => {
       };
 
       await setThreadingMode('Encouraged');
-      await expect(page.getByText(/changed Threading Mode to Encouraged/)).toBeVisible({
+      await expect(page.getByText(/changed threading mode to Encouraged/)).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await expect(threadToggle).toHaveAttribute('aria-pressed', 'true');
@@ -234,14 +234,14 @@ test.describe('Message Threading', () => {
       await expect(threadToggle).toHaveAttribute('aria-pressed', 'false');
 
       await setThreadingMode('Required');
-      await expect(page.getByText(/changed Threading Mode to Required/)).toBeVisible({
+      await expect(page.getByText(/changed threading mode to Required/)).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await expect(threadToggle).toHaveAttribute('aria-pressed', 'true');
       await expect(threadToggle).toBeDisabled();
 
       await setThreadingMode('Disabled');
-      await expect(page.getByText(/changed Threading Mode to Disabled/)).toBeVisible({
+      await expect(page.getByText(/changed threading mode to Disabled/)).toBeVisible({
         timeout: TIMEOUTS.REALTIME_EVENT
       });
       await expect(threadToggle).toHaveCount(0);
