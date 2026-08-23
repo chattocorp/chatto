@@ -29,6 +29,13 @@ export class ChatPage {
       .filter({ has: this.page.getByText(roomName, { exact: true }) });
   }
 
+  /** Return the visual sidebar row that owns presentation and trailing status for a room. */
+  getRoomRow(roomName: string): Locator {
+    return this.roomList
+      .getByTestId('room-navigation-item')
+      .filter({ has: this.page.getByText(roomName, { exact: true }) });
+  }
+
   /**
    * Navigate to the chat page.
    * Note: users may be redirected to the server root, their last room, or

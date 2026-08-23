@@ -764,7 +764,7 @@ test.describe('Room Layout', () => {
       ]);
 
       // User B opens the server and joins only the public room (plus default announcements + general)
-      await withServerUser(browser!, serverURL, async ({ page: page2 }) => {
+      await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
         await joinRoomViaAPI(page2, publicId);
 
         await navigateToSpace(page2);
@@ -776,9 +776,7 @@ test.describe('Room Layout', () => {
         expect(roomNames).toContain('general');
         expect(roomNames).toContain('public');
         expect(roomNames).toContain('private');
-        const privateRoomRow = page2
-          .getByTestId('room-navigation-item')
-          .filter({ has: page2.getByRole('link', { name: '+ private' }) });
+        const privateRoomRow = chatPage2.getRoomRow('private');
         await expect(privateRoomRow).toHaveClass(/opacity-60/);
       });
     });
