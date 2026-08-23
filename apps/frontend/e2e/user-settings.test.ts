@@ -1,8 +1,5 @@
 import { test, expect } from './setup';
-import {
-  createAndLoginTestUser,
-  reloadWithProductComposerDefaults
-} from './fixtures/testUser';
+import { createAndLoginTestUser, reloadWithProductComposerDefaults } from './fixtures/testUser';
 import {
   connectRemoteInstance,
   createUserOnRemote,
@@ -105,16 +102,35 @@ test.describe('User Settings - Preferences', () => {
     );
   });
 
-  test('uses the same composer preferences on a connected server', async ({
+  test('uses the same client preferences on a connected server without a server mutation', async ({
     page,
     chatPage
   }, testInfo) => {
     const remoteServer = await startSecondServer(testInfo);
     try {
+      const legacySettingsRequests: string[] = [];
+      page.on('request', (request) => {
+        if (request.url().includes('/chatto.api.v1.MyAccountService/UpdateSettings')) {
+          legacySettingsRequests.push(request.url());
+        }
+      });
+
       await createAndLoginTestUser(page);
       await page.goto(routes.settingsPreferences);
       await page.getByRole('radio', { name: /^Markdown/ }).click();
       await page.getByRole('radio', { name: /^Return/ }).click();
+      await page.getByTestId('timezone-input').fill('Europe/Berlin');
+      await page.getByRole('radio', { name: '24-hour' }).click();
+      await page.getByRole('button', { name: 'Save Time Settings' }).click();
+      await expect(page.getByText('Time settings saved')).toBeVisible({
+        timeout: TIMEOUTS.UI_STANDARD
+      });
+      await expect
+        .poll(() =>
+          page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
+        )
+        .toMatchObject({ timezone: 'Europe/Berlin', timeFormat: '24h' });
+      expect(legacySettingsRequests).toEqual([]);
       await chatPage.goto();
 
       const baseURL = remoteServer.baseURL.replace('localhost', '127.0.0.1');
@@ -135,6 +151,12 @@ test.describe('User Settings - Preferences', () => {
         'aria-checked',
         'true'
       );
+      await expect(page.getByTestId('timezone-input')).toHaveValue('Europe/Berlin');
+      await expect(page.getByRole('radio', { name: '24-hour' })).toHaveAttribute(
+        'aria-checked',
+        'true'
+      );
+      expect(legacySettingsRequests).toEqual([]);
     } finally {
       await stopSecondServer(remoteServer, testInfo);
     }
@@ -212,6 +234,11 @@ test.describe('User Settings - Preferences', () => {
     await expect(page.getByText('Time settings saved')).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
+    await expect
+      .poll(() =>
+        page.evaluate(() => JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}'))
+      )
+      .toMatchObject({ timezone: 'Europe/Berlin' });
 
     // Reload and verify persistence
     await page.reload();

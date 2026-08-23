@@ -29,9 +29,7 @@
   import { queryClient } from '$lib/query/client';
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
 
   const activeServerId = $derived(serverScope.serverId);

@@ -105,7 +105,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
     store: {
-      currentUser: { user: { settings: null } }
+      currentUser: { user: { legacyServerTimePreferences: null } }
     },
     connection: {
       queryScope: 'event-log-test',

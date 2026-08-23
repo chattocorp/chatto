@@ -65,7 +65,7 @@ const originUser: CurrentUser = {
   hasPassword: true,
   viewerCanDeleteAccount: true,
   lastLoginChange: null,
-  settings: null
+  legacyServerTimePreferences: null
 };
 
 function store(serverId: string, overrides: Partial<StoreMock> = {}): StoreMock {

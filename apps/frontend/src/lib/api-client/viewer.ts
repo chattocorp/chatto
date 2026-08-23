@@ -1,7 +1,11 @@
 import { PresenceStatus } from '@chatto/api-types/api/v1/presence_pb';
+import {
+  migrateLegacyServerTimePreferences,
+  type LegacyServerTimePreferences
+} from '$lib/state/legacyServerTimePreferences';
 import { authHeaders, createChattoClient } from './connect.js';
 import { ViewerService } from '@chatto/api-types/api/v1/viewer_connect';
-import { TimeFormat, type GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
+import type { GetViewerResponse } from '@chatto/api-types/api/v1/viewer_pb';
 import { presenceStatusOrOffline } from './enumDefaults.js';
 import { timeFormatOrAuto } from './timeFormat.js';
 
@@ -27,10 +31,7 @@ export type CurrentUser = {
   hasPassword: boolean;
   viewerCanDeleteAccount: boolean;
   lastLoginChange?: string | null;
-  settings?: {
-    timezone?: string | null;
-    timeFormat: TimeFormat;
-  } | null;
+  legacyServerTimePreferences?: LegacyServerTimePreferences | null;
 };
 
 export type ViewerCapabilities = {
@@ -111,7 +112,7 @@ export function viewerResponseToState(response: GetViewerResponse): ViewerState 
       hasPassword: response.user.hasPassword ?? false,
       viewerCanDeleteAccount: response.user.viewerCanDeleteAccount ?? false,
       lastLoginChange: response.user.lastLoginChange?.toDate().toISOString() ?? null,
-      settings: response.user.settings
+      legacyServerTimePreferences: response.user.settings
         ? {
             timezone: response.user.settings.timezone ?? null,
             timeFormat: timeFormatOrAuto(response.user.settings.timeFormat)
@@ -147,5 +148,7 @@ function mapCapabilityGrants(
 }
 
 export async function getCurrentUserViaConnect(config: ViewerAPIConfig): Promise<CurrentUser> {
-  return (await getViewerStateViaConnect(config)).user;
+  const user = (await getViewerStateViaConnect(config)).user;
+  migrateLegacyServerTimePreferences(user.legacyServerTimePreferences);
+  return user;
 }

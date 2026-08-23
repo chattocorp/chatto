@@ -41,7 +41,7 @@
   createComposerContext();
   createMentionRoles(() => serverStore.mentionRoles.roles);
 
-  const userSettings = $derived(timeFormatSettingsFor(serverStore.currentUser.user?.settings));
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

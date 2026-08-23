@@ -6,8 +6,11 @@ import "chatto/api/v1/permissions.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/timestamp.proto";
 
-// User preference for rendering times in clients.
+// Legacy per-server preference for rendering times. The bundled client now
+// stores its time format locally and uses this enum only for migration.
 enum TimeFormat {
+  option deprecated = true;
+
   // No explicit preference was stored.
   TIME_FORMAT_UNSPECIFIED = 0;
   // Let the client choose based on locale and browser settings.
@@ -18,8 +21,10 @@ enum TimeFormat {
   TIME_FORMAT_24_HOUR = 3;
 }
 
-// Server-level display settings for the authenticated user.
+// Legacy per-server display settings retained for older clients and migration.
 message UserSettings {
+  option deprecated = true;
+
   // Optional IANA timezone override. Absent means the client should use the
   // browser's local timezone.
   optional string timezone = 1;
@@ -34,8 +39,8 @@ message ViewerUser {
 
   // Whether the account has at least one verified email address.
   bool has_verified_email = 7;
-  // Current user's display settings.
-  UserSettings settings = 8;
+  // Legacy per-server display settings retained for compatibility.
+  UserSettings settings = 8 [deprecated = true];
   // Whether the authenticated user may delete this account.
   bool viewer_can_delete_account = 9;
   // Last time a login credential changed, when known.
@@ -84,7 +89,7 @@ message GetViewerResponse {
   ServerViewerState viewer_state = 6;
 }
 
-// Provides authenticated user profile, preferences, and capability state.
+// Provides authenticated user profile and capability state.
 service ViewerService {
   // Returns the current authenticated viewer. This RPC requires a logged-in
   // user; unauthenticated callers receive an UNAUTHENTICATED error.

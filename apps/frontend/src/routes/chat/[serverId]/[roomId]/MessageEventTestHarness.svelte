@@ -45,7 +45,7 @@
     serverInfo: { messageEditWindowSeconds: 31_536_000 },
     activeCallRooms: { getParticipantCallPresence: () => null },
     currentUser: {
-      user: { id: 'viewer', login: 'viewer', settings: undefined }
+      user: { id: 'viewer', login: 'viewer', legacyServerTimePreferences: undefined }
     },
     permissions: { canStartDMs: false },
     pinsForRoom: () => ({

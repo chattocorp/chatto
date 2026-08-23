@@ -1,11 +1,6 @@
 import { authHeaders, createChattoClient } from './connect.js';
 import { MyAccountService } from '@chatto/api-types/api/v1/account_connect';
 import type { User as APIUser } from '@chatto/api-types/api/v1/users_pb';
-import {
-  TimeFormat,
-  type UserSettings as APIUserSettings
-} from '@chatto/api-types/api/v1/viewer_pb';
-import { timeFormatOrAuto } from './timeFormat.js';
 
 export type AccountAPIConfig = {
   baseUrl: string;
@@ -20,19 +15,9 @@ export type AccountUser = {
   avatarUrl?: string | null;
 };
 
-export type AccountUserSettings = {
-  timezone?: string | null;
-  timeFormat: TimeFormat;
-};
-
 export type UpdateProfileInput = {
   displayName?: string;
   login?: string;
-};
-
-export type UpdateSettingsInput = {
-  timezone?: string | null;
-  timeFormat?: TimeFormat;
 };
 
 export type UpdatePasswordInput = {
@@ -78,18 +63,6 @@ export function createAccountAPI(config: AccountAPIConfig) {
       );
     },
 
-    async updateSettings(input: UpdateSettingsInput): Promise<AccountUserSettings> {
-      const response = await client.updateSettings(
-        {
-          timezone: input.timezone === null ? '' : input.timezone,
-          timeFormat:
-            input.timeFormat === undefined ? undefined : timeFormatOrAuto(input.timeFormat)
-        },
-        { headers: headers() }
-      );
-      return userSettings(response.settings);
-    },
-
     async requestAccountDeletion(): Promise<string> {
       return (await client.requestAccountDeletion({}, { headers: headers() })).confirmationToken;
     },
@@ -118,12 +91,5 @@ function accountUser(user: APIUser | undefined): AccountUser {
     login: user.login,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl ?? null
-  };
-}
-
-function userSettings(settings: APIUserSettings | undefined): AccountUserSettings {
-  return {
-    timezone: settings?.timezone ?? null,
-    timeFormat: timeFormatOrAuto(settings?.timeFormat)
   };
 }

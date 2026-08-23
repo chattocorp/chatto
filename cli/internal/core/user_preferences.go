@@ -11,15 +11,10 @@ import (
 )
 
 // ============================================================================
-// User Settings Operations
+// Legacy User Settings Compatibility Operations
 // ============================================================================
 
-// userPreferencesKey returns the KV key for a user's server-level preferences.
-func userPreferencesKey(userID string) string {
-	return fmt.Sprintf("user_preferences.%s", userID)
-}
-
-// UserSettingsInput represents a partial update to user settings.
+// UserSettingsInput represents a partial update to deprecated per-server time settings.
 // Pointer fields: nil = don't change, non-nil = set to this value.
 type UserSettingsInput struct {
 	// Timezone is an IANA timezone name. nil = no change, pointer to "" = clear override.
@@ -28,7 +23,7 @@ type UserSettingsInput struct {
 	TimeFormat *corev1.TimeFormat
 }
 
-// GetUserSettings retrieves a user's settings from the config projection.
+// GetUserSettings retrieves deprecated per-server settings from the config projection.
 // Returns nil, nil if no settings have been saved yet (the user hasn't configured any).
 // Authorization: Caller must verify access before calling this helper.
 func (c *ChattoCore) GetUserSettings(_ context.Context, userID string) (*corev1.ServerUserPreferences, error) {
@@ -60,7 +55,7 @@ func (cm *ConfigModel) userSettings(userID string) (*corev1.ServerUserPreference
 	return prefs, true
 }
 
-// UpdateUserSettings merges the provided fields into the user's existing settings.
+// UpdateUserSettings preserves the legacy public API for older clients.
 // Nil fields in the input are ignored (not cleared).
 // To clear the timezone override, pass a pointer to an empty string.
 // Authorization: Caller must verify access before calling this helper.
@@ -124,8 +119,7 @@ func (c *ChattoCore) UpdateUserSettings(ctx context.Context, userID string, inpu
 	return settings, nil
 }
 
-// publishServerUserPreferencesUpdatedEvent publishes a live event when preferences change.
-// User-scoped: only delivered to the user who changed their preferences.
+// publishServerUserPreferencesUpdatedEvent publishes the legacy user-scoped live event.
 func (c *ChattoCore) publishServerUserPreferencesUpdatedEvent(ctx context.Context, userID string, settings *corev1.ServerUserPreferences) {
 	tz := ""
 	if settings.Timezone != nil {

@@ -67,7 +67,7 @@ describe('CurrentUserState', () => {
       hasVerifiedEmail: true,
       viewerCanDeleteAccount: false,
       hasPassword: true,
-      settings: null
+      legacyServerTimePreferences: null
     };
 
     await state.handleAuthFailure({ revokeServerSession: true });

@@ -7,7 +7,6 @@ Room-scoped file list for the room sidebar.
   import type { RoomFileItem, RoomFilesStore } from '$lib/state/room';
   import { assetUrlForServer } from '$lib/assets/assetUrls';
   import { useExpiringAssetUrlRefresh } from '$lib/attachments/useExpiringAssetUrlRefresh.svelte';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { fileDateGroup, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
@@ -39,9 +38,8 @@ Room-scoped file list for the room sidebar.
     onOpenFile?: (messageEventId: string, threadRootEventId: string | null) => void;
   } = $props();
 
-  const serverScope = useServerScope();
   const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+    timeFormatSettingsFor()
   );
   const activeLocale = $derived(getLocale());
 

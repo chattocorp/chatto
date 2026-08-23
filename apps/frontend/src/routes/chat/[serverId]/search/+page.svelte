@@ -39,7 +39,7 @@ in the active server store so browser Back can restore the current search.
   const serverStore = $derived(serverScope.store);
   const store = $derived(serverStore.messageSearch);
   const timeFormatSettings = $derived(
-    timeFormatSettingsFor(serverStore.currentUser.user?.settings)
+    timeFormatSettingsFor()
   );
   const activeLocale = $derived(getLocale());
   const orderOptions = $derived([

@@ -53,7 +53,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
     },
     get store() {
       return {
-        currentUser: { user: { id: 'viewer', settings: null } },
+        currentUser: { user: { id: 'viewer', legacyServerTimePreferences: null } },
         permissions: {
           canAdminViewUsers: true,
           canAdminManageAccounts: true

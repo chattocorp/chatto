@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { createAccountAPI } from '$lib/api-client/account';
 
 const mocks = vi.hoisted(() => ({
@@ -9,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   uploadAvatar: vi.fn(),
   deleteAvatar: vi.fn(),
   updatePassword: vi.fn(),
-  updateSettings: vi.fn(),
   requestAccountDeletion: vi.fn(),
   deleteMyAccount: vi.fn()
 }));
@@ -34,7 +32,6 @@ describe('createAccountAPI', () => {
     mocks.uploadAvatar.mockReset();
     mocks.deleteAvatar.mockReset();
     mocks.updatePassword.mockReset();
-    mocks.updateSettings.mockReset();
     mocks.requestAccountDeletion.mockReset();
     mocks.deleteMyAccount.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
@@ -43,7 +40,6 @@ describe('createAccountAPI', () => {
       uploadAvatar: mocks.uploadAvatar,
       deleteAvatar: mocks.deleteAvatar,
       updatePassword: mocks.updatePassword,
-      updateSettings: mocks.updateSettings,
       requestAccountDeletion: mocks.requestAccountDeletion,
       deleteMyAccount: mocks.deleteMyAccount
     });
@@ -126,38 +122,6 @@ describe('createAccountAPI', () => {
     );
   });
 
-  it('updates settings and maps time format enums', async () => {
-    mocks.updateSettings.mockResolvedValue({
-      settings: {
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-      }
-    });
-
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
-
-    await expect(
-      api.updateSettings({
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-      })
-    ).resolves.toEqual({
-      timezone: 'Europe/Berlin',
-      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-    });
-
-    expect(mocks.updateSettings).toHaveBeenCalledWith(
-      {
-        timezone: 'Europe/Berlin',
-        timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
-      },
-      { headers: undefined }
-    );
-  });
-
   it('sets a password with bearer auth', async () => {
     mocks.updatePassword.mockResolvedValue({});
 
@@ -173,32 +137,6 @@ describe('createAccountAPI', () => {
     expect(mocks.updatePassword).toHaveBeenCalledWith(
       { password: 'newpassword456', currentPassword: 'oldpassword123' },
       { headers: { Authorization: 'Bearer token' } }
-    );
-  });
-
-  it('sends empty timezone when clearing settings', async () => {
-    mocks.updateSettings.mockResolvedValue({
-      settings: {
-        timeFormat: TimeFormat.TIME_FORMAT_AUTO
-      }
-    });
-
-    const api = createAccountAPI({
-      baseUrl: '/api/connect',
-      bearerToken: null
-    });
-
-    await expect(api.updateSettings({ timezone: null })).resolves.toEqual({
-      timezone: null,
-      timeFormat: TimeFormat.TIME_FORMAT_AUTO
-    });
-
-    expect(mocks.updateSettings).toHaveBeenCalledWith(
-      {
-        timezone: '',
-        timeFormat: undefined
-      },
-      { headers: undefined }
     );
   });
 

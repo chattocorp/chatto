@@ -9,7 +9,12 @@ import { getCurrentUserViaConnect, getViewerStateViaConnect } from '$lib/api-cli
 const mocks = vi.hoisted(() => ({
   createClient: vi.fn(),
   createConnectTransport: vi.fn(),
-  getViewer: vi.fn()
+  getViewer: vi.fn(),
+  migrateLegacyServerTimePreferences: vi.fn()
+}));
+
+vi.mock('$lib/state/legacyServerTimePreferences', () => ({
+  migrateLegacyServerTimePreferences: mocks.migrateLegacyServerTimePreferences
 }));
 
 vi.mock('@connectrpc/connect', async (importOriginal) => {
@@ -29,6 +34,7 @@ describe('getCurrentUserViaConnect', () => {
     mocks.createClient.mockReset();
     mocks.createConnectTransport.mockReset();
     mocks.getViewer.mockReset();
+    mocks.migrateLegacyServerTimePreferences.mockReset();
     mocks.createConnectTransport.mockReturnValue({ kind: 'transport' });
     mocks.createClient.mockReturnValue({ getViewer: mocks.getViewer });
   });
@@ -87,10 +93,14 @@ describe('getCurrentUserViaConnect', () => {
       hasPassword: true,
       viewerCanDeleteAccount: true,
       lastLoginChange: '2026-05-20T09:30:00.000Z',
-      settings: {
+      legacyServerTimePreferences: {
         timezone: 'Europe/Berlin',
         timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
       }
+    });
+    expect(mocks.migrateLegacyServerTimePreferences).toHaveBeenCalledWith({
+      timezone: 'Europe/Berlin',
+      timeFormat: TimeFormat.TIME_FORMAT_24_HOUR
     });
   });
 
@@ -115,7 +125,7 @@ describe('getCurrentUserViaConnect', () => {
 
     expect(mocks.getViewer).toHaveBeenCalledWith({}, { headers: undefined });
     expect(user.presenceStatus).toBe(PresenceStatus.OFFLINE);
-    expect(user.settings?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
+    expect(user.legacyServerTimePreferences?.timeFormat).toBe(TimeFormat.TIME_FORMAT_AUTO);
     expect(user.customStatus).toBeNull();
     expect(user.hasPassword).toBe(false);
     expect(user.viewerCanDeleteAccount).toBe(false);

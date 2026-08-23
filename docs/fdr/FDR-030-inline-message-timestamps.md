@@ -1,12 +1,12 @@
 # FDR-030: Inline Message Timestamps
 
 **Status:** Active
-**Last reviewed:** 2026-07-12
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
 Users can insert an absolute timestamp into a message so every reader sees the
-same instant formatted for their own locale, timezone, and 12/24-hour
+same instant formatted for their own client-wide locale, timezone, and 12/24-hour
 preference. This is for lightweight coordination in chat, not for scheduling
 events or reminders.
 
@@ -17,7 +17,7 @@ events or reminders.
 - Inserting a timestamp writes a stable text token into the message body:
   `<t:UNIX_SECONDS:F>`.
 - Rendered messages replace valid timestamp tokens with localized date-time
-  text using the viewer's display preferences.
+  text using the client's display preferences across all registered servers.
 - Rendered timestamps include a small clock icon and are clickable. Clicking
   opens a compact details popover showing local time and a live-updating
   relative time.

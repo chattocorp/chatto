@@ -351,10 +351,11 @@ export class UpdatePasswordResponse extends Message<UpdatePasswordResponse> {
 }
 
 /**
- * Request to update the authenticated user's display preferences. Omitted
- * fields are left unchanged. An empty timezone clears the explicit timezone.
+ * Legacy request to update per-server display preferences. Retained for older
+ * clients; the bundled client stores time preferences locally.
  *
  * @generated from message chatto.api.v1.UpdateSettingsRequest
+ * @deprecated
  */
 export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
   /**
@@ -401,9 +402,10 @@ export class UpdateSettingsRequest extends Message<UpdateSettingsRequest> {
 }
 
 /**
- * Result of updating display preferences.
+ * Legacy result of updating per-server display preferences.
  *
  * @generated from message chatto.api.v1.UpdateSettingsResponse
+ * @deprecated
  */
 export class UpdateSettingsResponse extends Message<UpdateSettingsResponse> {
   /**

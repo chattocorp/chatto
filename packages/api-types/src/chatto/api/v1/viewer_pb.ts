@@ -9,9 +9,11 @@ import { User } from "./users_pb.js";
 import { CapabilityGrant, PermissionGrant } from "./permissions_pb.js";
 
 /**
- * User preference for rendering times in clients.
+ * Legacy per-server preference for rendering times. The bundled client now
+ * stores its time format locally and uses this enum only for migration.
  *
  * @generated from enum chatto.api.v1.TimeFormat
+ * @deprecated
  */
 export enum TimeFormat {
   /**
@@ -51,9 +53,10 @@ proto3.util.setEnumType(TimeFormat, "chatto.api.v1.TimeFormat", [
 ]);
 
 /**
- * Server-level display settings for the authenticated user.
+ * Legacy per-server display settings retained for older clients and migration.
  *
  * @generated from message chatto.api.v1.UserSettings
+ * @deprecated
  */
 export class UserSettings extends Message<UserSettings> {
   /**
@@ -114,9 +117,10 @@ export class ViewerUser extends Message<ViewerUser> {
   hasVerifiedEmail = false;
 
   /**
-   * Current user's display settings.
+   * Legacy per-server display settings retained for compatibility.
    *
-   * @generated from field: chatto.api.v1.UserSettings settings = 8;
+   * @generated from field: chatto.api.v1.UserSettings settings = 8 [deprecated = true];
+   * @deprecated
    */
   settings?: UserSettings;
 

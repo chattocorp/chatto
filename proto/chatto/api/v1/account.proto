@@ -74,17 +74,21 @@ message UpdatePasswordResponse {
   User user = 1;
 }
 
-// Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. An empty timezone clears the explicit timezone.
+// Legacy request to update per-server display preferences. Retained for older
+// clients; the bundled client stores time preferences locally.
 message UpdateSettingsRequest {
+  option deprecated = true;
+
   // IANA timezone override. Empty clears the override.
   optional string timezone = 1;
   // Preferred time format.
   optional TimeFormat time_format = 2;
 }
 
-// Result of updating display preferences.
+// Legacy result of updating per-server display preferences.
 message UpdateSettingsResponse {
+  option deprecated = true;
+
   // Stored settings after merging the request.
   UserSettings settings = 1;
 }
@@ -111,7 +115,7 @@ message DeleteMyAccountResponse {
   bool deleted = 1;
 }
 
-// Self-service account, profile, avatar, display preference, presence,
+// Self-service account, profile, avatar, presence,
 // custom-status, external identity, and account lifecycle commands for the
 // authenticated user.
 service MyAccountService {
@@ -125,8 +129,10 @@ service MyAccountService {
   }
   // Updates or adds the authenticated user's password.
   rpc UpdatePassword(UpdatePasswordRequest) returns (UpdatePasswordResponse);
-  // Updates the authenticated user's display preferences.
-  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse);
+  // Updates deprecated per-server display preferences for older clients.
+  rpc UpdateSettings(UpdateSettingsRequest) returns (UpdateSettingsResponse) {
+    option deprecated = true;
+  }
   // Lists configured external identity providers and identities linked to the
   // authenticated account.
   rpc ListExternalIdentities(ListExternalIdentitiesRequest) returns (ListExternalIdentitiesResponse);

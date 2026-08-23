@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
@@ -23,7 +23,7 @@ targets, unread counts, read state, or deletion semantics.
   orange. Read rows are visually muted while remaining fully interactive. The
   list does not use a separate unread dot on each row.
 - The list is divided into Today, Yesterday, This Week, and month sections
-  using the preferred time zone of the account on each server.
+  using the client's preferred time zone across all servers.
 - Rows use concise, full localized sentences without message previews.
   Reaction rows show the emoji that were given.
 - Opening a row navigates to the selected occurrence's exact room, thread, and

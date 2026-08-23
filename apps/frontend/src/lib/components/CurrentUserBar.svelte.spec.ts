@@ -55,7 +55,7 @@ const {
         expiresAt?: string | null;
       } | null;
       hasVerifiedEmail: boolean;
-      settings: null;
+      legacyServerTimePreferences: null;
     } | null
   },
   voiceCallState: {
@@ -156,7 +156,7 @@ describe('CurrentUserBar', () => {
       presenceStatus: PresenceStatus.OFFLINE,
       customStatus: null,
       hasVerifiedEmail: true,
-      settings: null
+      legacyServerTimePreferences: null
     };
     presencePreference.mode = 'auto';
     presencePreference.effectiveStatus = PresenceStatus.ONLINE;

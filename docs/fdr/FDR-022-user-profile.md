@@ -1,11 +1,11 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
-A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
+A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Client-wide display preferences, including timezone, time format, and theme, live outside the profile and apply across every registered server. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
 
 ## Behavior
 
@@ -16,7 +16,7 @@ A human user's profile carries the public identity they present to the rest of t
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **Settings** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
+- **Time display preferences** — the client stores a timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). They apply across every server registered in that client. If not set, the frontend uses the browser timezone and locale time-format default.
 - **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
@@ -48,11 +48,11 @@ A human user's profile carries the public identity they present to the rest of t
 **Why:** Avatars render at small sizes everywhere — 256px is the largest the UI ever shows. Storing originals is waste. Lossless WebP is small and supports transparency. See FDR-008's notes on the WebP/JPEG split for transparency vs photographic content.
 **Tradeoff:** A user uploading a high-resolution avatar can't ever get the original back. The 256×256 cap can't be inferred from the user's perspective unless documented.
 
-### 5. Server-side settings, not browser-local
+### 5. Time display preferences are client-wide
 
-**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side. Display theme is browser-local.
-**Why:** A user signing in from a new browser shouldn't have to re-pick their preferences. Local storage works fine for one device; for multi-device users it's actively worse than server-side.
-**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. Theme can differ per browser, which is appropriate for device-specific light/dark preferences but means it does not sync across devices.
+**Decision:** Timezone and time format are stored by the client and apply across every server registered in that client, like display theme and language.
+**Why:** Time rendering is presentation owned by a multi-server client. Switching servers must not change the whole interface's clock or date grouping, and a device may legitimately need different presentation from another device.
+**Tradeoff:** The preferences do not automatically sync across devices. A user must set them again in each browser or installed client.
 
 ### 6. Browser timezone fallback when unset
 
@@ -84,14 +84,20 @@ A human user's profile carries the public identity they present to the rest of t
 **Why:** This keeps the durable EVT model simple and preserves the "any emoji plus any text" API while allowing built-in statuses to be localized for each viewer.
 **Tradeoff:** Older clients that do not know the reserved tokens may display the raw token. This is acceptable during early development and avoids a protobuf shape change solely for UI presets.
 
+### 11. Legacy server preferences remain readable during migration
+
+**Decision:** The bundled client imports the first non-default legacy per-server timezone or time-format value into client-wide storage once, then treats the local value as authoritative. The old `UserSettings` field and `UpdateSettings` RPC remain operational but deprecated for older clients.
+**Why:** A new client can work with an old server because it no longer depends on a settings mutation, while an old client can continue working with a new server. Keeping persisted preference facts decodable also preserves replay and backup compatibility.
+**Tradeoff:** The server temporarily retains code and event vocabulary that the current bundled client no longer uses. If a user had different values on different servers, migration can preserve only the first non-default value it encounters.
+
 ## Permissions
 
-- Human self-edit (display name, avatar, custom status, settings, own login subject to cooldown) — no explicit permission; just authentication.
+- Human self-edit (display name, avatar, custom status, own login subject to cooldown) — no explicit permission; just authentication.
 - Cross-human-user edit — `user.manage-accounts`.
 - Clear another user's login cooldown — same gate.
 - Bot login and display-name edit — bot ownership or `bot.manage`; bot avatar, custom-status, and personal-settings edits are not supported.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-065 (runtime JSON client internationalization)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-021 (dual asset storage), ADR-043 (client-shell internationalization), ADR-065 (runtime JSON client internationalization)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-008 (File Attachments & Video Processing), FDR-011 (User Presence), FDR-018 (Account Lifecycle), FDR-038 (Bot Accounts)

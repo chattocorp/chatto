@@ -18,7 +18,7 @@ Shared message and enum definitions are documented in [Shared Types And Enums](/
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence,
+Self-service account, profile, avatar, presence,
 custom-status, external identity, and account lifecycle commands for the
 authenticated user.
 
@@ -153,7 +153,7 @@ Result of updating or adding the authenticated account password.
 
 ### UpdateSettings
 
-Updates the authenticated user's display preferences.
+Updates deprecated per-server display preferences for older clients.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
@@ -163,8 +163,8 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 
 #### Input: UpdateSettingsRequest
 
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
+Legacy request to update per-server display preferences. Retained for older
+clients; the bundled client stores time preferences locally.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -176,7 +176,7 @@ fields are left unchanged. An empty timezone clears the explicit timezone.
 
 #### Result: UpdateSettingsResponse
 
-Result of updating display preferences.
+Legacy result of updating per-server display preferences.
 
 | Field | Type | Description |
 | --- | --- | --- |

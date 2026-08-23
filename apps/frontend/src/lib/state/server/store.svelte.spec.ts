@@ -130,7 +130,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
           hasVerifiedEmail: true,
           viewerCanDeleteAccount: true,
           lastLoginChange: null,
-          settings: null
+          legacyServerTimePreferences: null
         },
         canViewAdmin: false,
         canStartDMs: true,
@@ -155,7 +155,7 @@ const { soundMocks, apiMocks, cacheMocks } = vi.hoisted(() => ({
         hasVerifiedEmail: true,
         viewerCanDeleteAccount: true,
         lastLoginChange: null,
-        settings: null
+        legacyServerTimePreferences: null
       })
     ),
     listRoomAttachments: vi.fn<
@@ -511,7 +511,7 @@ beforeEach(() => {
       hasVerifiedEmail: true,
       viewerCanDeleteAccount: true,
       lastLoginChange: null,
-      settings: null
+      legacyServerTimePreferences: null
     },
     canViewAdmin: false,
     canStartDMs: true,
@@ -534,7 +534,7 @@ beforeEach(() => {
     hasVerifiedEmail: true,
     viewerCanDeleteAccount: true,
     lastLoginChange: null,
-    settings: null
+    legacyServerTimePreferences: null
   });
   setRealtimeSocketFactoryForTests(() => ({
     binaryType: 'arraybuffer',

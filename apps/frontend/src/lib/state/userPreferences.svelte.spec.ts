@@ -81,6 +81,32 @@ describe('UserPreferencesState', () => {
       expect(state.composerSendMode).toBe('enter');
     });
 
+    it('uses browser-default time preferences when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.timezone).toBeNull();
+      expect(state.timeFormat).toBe('auto');
+    });
+
+    it('hydrates valid client-wide time preferences', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ timezone: 'Europe/Berlin', timeFormat: '24h' })
+      );
+      const state = new UserPreferencesState();
+      expect(state.timezone).toBe('Europe/Berlin');
+      expect(state.timeFormat).toBe('24h');
+    });
+
+    it('falls back from invalid time preferences independently', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ timezone: 'Mars/Olympus_Mons', timeFormat: 'decimal' })
+      );
+      const state = new UserPreferencesState();
+      expect(state.timezone).toBeNull();
+      expect(state.timeFormat).toBe('auto');
+    });
+
     it('hydrates a valid composer preference', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'markdown' }));
       const state = new UserPreferencesState();
@@ -285,6 +311,69 @@ describe('UserPreferencesState', () => {
       expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
         composerSendMode: 'modifier-enter'
       });
+    });
+
+    it('updates and persists client-wide time preferences atomically', () => {
+      const state = new UserPreferencesState();
+
+      state.setTimePreferences({ timezone: 'America/New_York', timeFormat: '12h' });
+
+      expect(state.timezone).toBe('America/New_York');
+      expect(state.timeFormat).toBe('12h');
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        timezone: 'America/New_York',
+        timeFormat: '12h',
+        legacyServerTimePreferencesMigrated: true
+      });
+    });
+
+    it('imports only the first non-default legacy server preference', () => {
+      const state = new UserPreferencesState();
+
+      expect(
+        state.migrateLegacyServerTimePreferences({
+          timezone: 'Europe/Berlin',
+          timeFormat: '24h'
+        })
+      ).toBe(true);
+      expect(
+        state.migrateLegacyServerTimePreferences({
+          timezone: 'America/New_York',
+          timeFormat: '12h'
+        })
+      ).toBe(false);
+      expect(state.timezone).toBe('Europe/Berlin');
+      expect(state.timeFormat).toBe('24h');
+    });
+
+    it('skips a default legacy server before importing a non-default server', () => {
+      const state = new UserPreferencesState();
+
+      expect(state.migrateLegacyServerTimePreferences({ timezone: null, timeFormat: 'auto' })).toBe(
+        false
+      );
+      expect(
+        state.migrateLegacyServerTimePreferences({
+          timezone: 'America/New_York',
+          timeFormat: '12h'
+        })
+      ).toBe(true);
+      expect(state.timezone).toBe('America/New_York');
+      expect(state.timeFormat).toBe('12h');
+    });
+
+    it('keeps an intentional local choice over a later legacy server value', () => {
+      const state = new UserPreferencesState();
+      state.setTimePreferences({ timezone: 'Asia/Tokyo', timeFormat: 'auto' });
+
+      expect(
+        state.migrateLegacyServerTimePreferences({
+          timezone: 'Europe/Berlin',
+          timeFormat: '24h'
+        })
+      ).toBe(false);
+      expect(state.timezone).toBe('Asia/Tokyo');
+      expect(state.timeFormat).toBe('auto');
     });
 
     it('updates and persists individual notification sound filters', () => {

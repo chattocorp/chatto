@@ -83,7 +83,7 @@ vi.mock('$app/navigation', () => ({
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: { user: { settings: null } } },
+    store: { currentUser: { user: { legacyServerTimePreferences: null } } },
     connection: {
       queryScope: 'members-test',
       getAPI: (factory: (config: never) => unknown) => factory({} as never)

@@ -401,6 +401,7 @@ func (*ServerBannerClearedEvent) Descriptor() ([]byte, []int) {
 	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{8}
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 type UserTimezoneChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -453,6 +454,7 @@ func (x *UserTimezoneChangedEvent) GetTimezone() string {
 	return ""
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 type UserTimezoneClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -497,6 +499,7 @@ func (x *UserTimezoneClearedEvent) GetUserId() string {
 	return ""
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 type UserTimeFormatChangedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
@@ -549,6 +552,7 @@ func (x *UserTimeFormatChangedEvent) GetTimeFormat() TimeFormat {
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 type UserTimeFormatClearedEvent struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	UserId        string                 `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`

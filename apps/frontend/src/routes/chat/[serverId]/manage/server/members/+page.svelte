@@ -21,9 +21,7 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   const PAGE_SIZE = 20;
 

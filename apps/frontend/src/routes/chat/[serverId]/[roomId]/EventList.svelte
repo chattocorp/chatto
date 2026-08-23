@@ -147,7 +147,7 @@
   const stores = $derived(serverScope.store);
   const currentUser = $derived(stores.currentUser);
   const serverInfo = $derived(stores.serverInfo);
-  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   const firstVisibleDate = $derived(
     viewport.firstVisibleAt

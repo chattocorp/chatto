@@ -68,7 +68,7 @@ class MockIntersectionObserver implements IntersectionObserver {
 vi.mock('$lib/state/server/scope.svelte', () => ({
   useServerScope: () => ({
     serverId: 'origin',
-    store: { currentUser: { user: { settings: null } } },
+    store: { currentUser: { user: { legacyServerTimePreferences: null } } },
     connection: {
       queryScope: 'moderation-test',
       getAPI: () => ({

@@ -7,30 +7,6 @@ import (
 )
 
 // ============================================================================
-// Key Helper Tests
-// ============================================================================
-
-func TestUserPreferencesKey(t *testing.T) {
-	tests := []struct {
-		userID   string
-		expected string
-	}{
-		{"user123", "user_preferences.user123"},
-		{"abc", "user_preferences.abc"},
-		{"a1b2c3d4e5f6g7", "user_preferences.a1b2c3d4e5f6g7"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.userID, func(t *testing.T) {
-			result := userPreferencesKey(tt.userID)
-			if result != tt.expected {
-				t.Errorf("userPreferencesKey(%q) = %q, want %q", tt.userID, result, tt.expected)
-			}
-		})
-	}
-}
-
-// ============================================================================
 // Integration Tests
 // ============================================================================
 

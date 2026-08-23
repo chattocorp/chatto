@@ -52,7 +52,7 @@ const user = {
   avatarUrl: null,
   presenceStatus: 'ONLINE',
   hasVerifiedEmail: true,
-  settings: { timezone: 'UTC', timeFormat: '24h' }
+  legacyServerTimePreferences: null
 };
 
 async function loadModule() {

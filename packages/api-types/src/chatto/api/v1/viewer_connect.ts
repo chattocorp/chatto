@@ -7,7 +7,7 @@ import { GetViewerRequest, GetViewerResponse } from "./viewer_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 
 /**
- * Provides authenticated user profile, preferences, and capability state.
+ * Provides authenticated user profile and capability state.
  *
  * @generated from service chatto.api.v1.ViewerService
  */

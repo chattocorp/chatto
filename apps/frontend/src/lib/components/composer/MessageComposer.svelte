@@ -100,7 +100,7 @@
     return () => window.clearTimeout(timeout);
   });
 
-  const userSettings = $derived(timeFormatSettingsFor(stores.currentUser.user?.settings));
+  const userSettings = $derived(timeFormatSettingsFor());
   const composerContext = getComposerContext();
   const composer = new MessageComposerState({
     getRoomId: () => roomId,

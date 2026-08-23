@@ -194,7 +194,7 @@
         ).map((group): ServerGroup => ({
           serverId: instance.id,
           serverHostname: hostname,
-          timeFormatSettings: timeFormatSettingsFor(stores.currentUser.user?.settings),
+          timeFormatSettings: timeFormatSettingsFor(),
           group
         }));
       })

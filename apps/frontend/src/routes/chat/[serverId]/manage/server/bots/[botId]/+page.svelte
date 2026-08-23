@@ -123,9 +123,7 @@
     normalizedEditLogin ? validate(botLoginSchema, normalizedEditLogin) : undefined
   );
   const visibleEditError = $derived(editError?.targetKey === targetKey ? editError.message : null);
-  const timeSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const timeSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
 
   function botAPI() {

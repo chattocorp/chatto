@@ -4,7 +4,6 @@
   import UserAvatar from '$lib/components/UserAvatar.svelte';
   import { m } from '$lib/i18n/messages';
   import { getLocale } from '$lib/i18n/runtime';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
   import { getLiveLogin } from '$lib/state/userProfiles.svelte';
   import { Pill } from '$lib/ui';
   import { formatDate, formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
@@ -19,10 +18,7 @@
 
   let { member, roles, canViewMemberEmails }: Props = $props();
 
-  const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   const lastLoginChange = $derived(
     member.lastLoginChange ? new Date(member.lastLoginChange) : null

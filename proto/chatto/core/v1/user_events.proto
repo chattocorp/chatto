@@ -2,8 +2,8 @@ syntax = "proto3";
 
 package chatto.core.v1;
 
-import "chatto/core/v1/user_preferences.proto";
 import "chatto/core/v1/models.proto";
+import "chatto/core/v1/user_preferences.proto";
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
@@ -47,8 +47,8 @@ message UserProfileUpdatedEvent {
 // USER PREFERENCE EVENTS (user-scoped)
 // ============================================================================
 
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
+// ServerUserPreferencesUpdatedEvent is a legacy user-scoped live event retained
+// for older clients that still update per-server display preferences.
 message ServerUserPreferencesUpdatedEvent {
   // IANA timezone name (empty = cleared/browser default).
   string timezone = 1;

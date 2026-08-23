@@ -4,7 +4,8 @@ package chatto.core.v1;
 
 option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 
-// TimeFormat controls how times are displayed to the user.
+// TimeFormat is the legacy per-server time display preference retained for
+// public API compatibility and historical event replay.
 enum TimeFormat {
   // Not set - use browser/locale default.
   TIME_FORMAT_UNSPECIFIED = 0;
@@ -27,10 +28,8 @@ enum NotificationLevel {
   NOTIFICATION_LEVEL_ALL_MESSAGES = 3;
 }
 
-// ServerUserPreferences stores per-user display preferences at the server level.
-// Stored in INSTANCE KV bucket with key "user_preferences.{userId}" (legacy
-// names retained per ADR-029).
-// All fields are optional - absence means "use browser/locale default".
+// ServerUserPreferences materializes the legacy per-server display preferences
+// retained for older clients and historical event replay.
 message ServerUserPreferences {
   // IANA timezone name (e.g., "America/New_York", "Europe/Berlin").
   // If absent or empty, the frontend uses the browser's local timezone.

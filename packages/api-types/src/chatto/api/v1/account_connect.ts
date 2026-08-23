@@ -10,7 +10,7 @@ import { UpdatePresenceRequest, UpdatePresenceResponse } from "./presence_pb.js"
 import { DeleteCustomStatusRequest, DeleteCustomStatusResponse, UpdateCustomStatusRequest, UpdateCustomStatusResponse } from "./user_status_pb.js";
 
 /**
- * Self-service account, profile, avatar, display preference, presence,
+ * Self-service account, profile, avatar, presence,
  * custom-status, external identity, and account lifecycle commands for the
  * authenticated user.
  *
@@ -65,9 +65,10 @@ export const MyAccountService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Updates the authenticated user's display preferences.
+     * Updates deprecated per-server display preferences for older clients.
      *
      * @generated from rpc chatto.api.v1.MyAccountService.UpdateSettings
+     * @deprecated
      */
     updateSettings: {
       name: "UpdateSettings",

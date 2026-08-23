@@ -51,20 +51,24 @@ message ServerBannerSetEvent {
 
 message ServerBannerClearedEvent {}
 
+// Legacy per-server preference fact retained for compatibility and replay.
 message UserTimezoneChangedEvent {
   string user_id = 1;
   string timezone = 2;
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 message UserTimezoneClearedEvent {
   string user_id = 1;
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 message UserTimeFormatChangedEvent {
   string user_id = 1;
   TimeFormat time_format = 2;
 }
 
+// Legacy per-server preference fact retained for compatibility and replay.
 message UserTimeFormatClearedEvent {
   string user_id = 1;
 }

@@ -25,9 +25,7 @@
   const activeLocale = $derived(getLocale());
   const serverScope = useServerScope();
   const PAGE_SIZE = 20;
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor());
 
   let scrollContainer = $state<HTMLDivElement>();
   let unbanDialogBan = $state<RoomBanSummary | null>(null);

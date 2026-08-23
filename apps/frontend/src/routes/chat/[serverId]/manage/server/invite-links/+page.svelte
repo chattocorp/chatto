@@ -16,9 +16,7 @@
 
   const PAGE_SIZE = 20;
   const serverScope = useServerScope();
-  const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
-  );
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();
   let maxUses = $state('1');

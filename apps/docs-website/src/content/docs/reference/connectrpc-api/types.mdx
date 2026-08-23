@@ -188,7 +188,7 @@ Non-permission server state for the authenticated user.
 
 ### UserSettings
 
-Server-level display settings for the authenticated user.
+Legacy per-server display settings retained for older clients and migration.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -215,7 +215,7 @@ Current authenticated user's public profile plus self-only settings.
 | Field | Type | Description |
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | **Deprecated.** Legacy per-server display settings retained for compatibility. |
 | `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
@@ -1623,7 +1623,8 @@ the server's live presence record expire.
 
 ### TimeFormat
 
-User preference for rendering times in clients.
+Legacy per-server preference for rendering times. The bundled client now
+stores its time format locally and uses this enum only for migration.
 
 | Name | Number | Description |
 | --- | --- | --- |

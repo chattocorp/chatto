@@ -37,7 +37,7 @@ so switching rooms cannot leak a query or plaintext results into another room.
 
   const serverScope = useServerScope();
   const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+    timeFormatSettingsFor()
   );
   const activeLocale = $derived(getLocale());
   const search = useDebouncedMessageSearch({

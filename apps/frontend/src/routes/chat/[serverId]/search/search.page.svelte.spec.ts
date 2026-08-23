@@ -89,7 +89,7 @@ function serverStore(
     loadMore: mocks.loadMore
   });
   return {
-    currentUser: { user: { settings: null } },
+    currentUser: { user: { legacyServerTimePreferences: null } },
     messageSearch
   };
 }

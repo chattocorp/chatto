@@ -9,9 +9,13 @@
  * so formatters are reused across calls with the same settings.
  */
 
-import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { getBrowserLocale, getFormattingLocale, getLocale } from '$lib/i18n/runtime';
 import { m } from '$lib/i18n/messages';
+import {
+  userPreferences,
+  type TimeFormatPreference,
+  type TimePreferences
+} from '$lib/state/userPreferences.svelte';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
@@ -20,25 +24,23 @@ export type TimeFormatSettings = {
   effectiveHour12: boolean | undefined;
 };
 
-export type ViewerTimeSettings = {
-  timezone?: string | null;
-  timeFormat: TimeFormat;
-};
-
-export function hour12ForTimeFormat(timeFormat: TimeFormat): boolean | undefined {
-  if (timeFormat === TimeFormat.TIME_FORMAT_12_HOUR) return true;
-  if (timeFormat === TimeFormat.TIME_FORMAT_24_HOUR) return false;
+export function hour12ForTimeFormat(timeFormat: TimeFormatPreference): boolean | undefined {
+  if (timeFormat === '12h') return true;
+  if (timeFormat === '24h') return false;
   return undefined;
 }
 
-/** Convert the canonical per-server viewer settings into display formatting options. */
+/** Convert client-wide preferences into reactive display formatting options. */
 export function timeFormatSettingsFor(
-  settings: ViewerTimeSettings | null | undefined
+  preferences: TimePreferences = userPreferences
 ): TimeFormatSettings {
   return {
-    effectiveTimezone: settings?.timezone || undefined,
-    effectiveHour12:
-      settings?.timeFormat === undefined ? undefined : hour12ForTimeFormat(settings.timeFormat)
+    get effectiveTimezone() {
+      return preferences.timezone || undefined;
+    },
+    get effectiveHour12() {
+      return hour12ForTimeFormat(preferences.timeFormat);
+    }
   };
 }
 

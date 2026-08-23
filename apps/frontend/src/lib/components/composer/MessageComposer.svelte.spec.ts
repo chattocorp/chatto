@@ -85,7 +85,10 @@ const roomStateMock = vi.hoisted(() => ({
 // Mock instance state
 let mentionRolesStore = new MentionRolesStore({ listRoles: listRolesConnectMock });
 const mockInstanceStores = {
-  currentUser: { user: { id: 'test-user', login: 'testuser', settings: null }, loading: false },
+  currentUser: {
+    user: { id: 'test-user', login: 'testuser', legacyServerTimePreferences: null },
+    loading: false
+  },
   serverInfo: {
     videoProcessingEnabled: false,
     maxUploadSize: 25 * 1024 * 1024,

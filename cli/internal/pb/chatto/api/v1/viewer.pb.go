@@ -22,7 +22,10 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// User preference for rendering times in clients.
+// Legacy per-server preference for rendering times. The bundled client now
+// stores its time format locally and uses this enum only for migration.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 type TimeFormat int32
 
 const (
@@ -79,7 +82,9 @@ func (TimeFormat) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_api_v1_viewer_proto_rawDescGZIP(), []int{0}
 }
 
-// Server-level display settings for the authenticated user.
+// Legacy per-server display settings retained for older clients and migration.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 type UserSettings struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Optional IANA timezone override. Absent means the client should use the
@@ -140,7 +145,9 @@ type ViewerUser struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the account has at least one verified email address.
 	HasVerifiedEmail bool `protobuf:"varint,7,opt,name=has_verified_email,json=hasVerifiedEmail,proto3" json:"has_verified_email,omitempty"`
-	// Current user's display settings.
+	// Legacy per-server display settings retained for compatibility.
+	//
+	// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 	Settings *UserSettings `protobuf:"bytes,8,opt,name=settings,proto3" json:"settings,omitempty"`
 	// Whether the authenticated user may delete this account.
 	ViewerCanDeleteAccount bool `protobuf:"varint,9,opt,name=viewer_can_delete_account,json=viewerCanDeleteAccount,proto3" json:"viewer_can_delete_account,omitempty"`
@@ -191,6 +198,7 @@ func (x *ViewerUser) GetHasVerifiedEmail() bool {
 	return false
 }
 
+// Deprecated: Marked as deprecated in chatto/api/v1/viewer.proto.
 func (x *ViewerUser) GetSettings() *UserSettings {
 	if x != nil {
 		return x.Settings
@@ -487,16 +495,16 @@ var File_chatto_api_v1_viewer_proto protoreflect.FileDescriptor
 
 const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\n" +
-	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"x\n" +
+	"\x1achatto/api/v1/viewer.proto\x12\rchatto.api.v1\x1a\x1fchatto/api/v1/permissions.proto\x1a\x19chatto/api/v1/users.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"|\n" +
 	"\fUserSettings\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12:\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatR\n" +
-	"timeFormatB\v\n" +
-	"\t_timezone\"\x93\x03\n" +
+	"timeFormat:\x02\x18\x01B\v\n" +
+	"\t_timezone\"\x97\x03\n" +
 	"\n" +
 	"ViewerUser\x12,\n" +
-	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x127\n" +
-	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\x129\n" +
+	"\x12has_verified_email\x18\a \x01(\bR\x10hasVerifiedEmail\x12;\n" +
+	"\bsettings\x18\b \x01(\v2\x1b.chatto.api.v1.UserSettingsB\x02\x18\x01R\bsettings\x129\n" +
 	"\x19viewer_can_delete_account\x18\t \x01(\bR\x16viewerCanDeleteAccount\x12F\n" +
 	"\x11last_login_change\x18\n" +
 	" \x01(\v2\x1a.google.protobuf.TimestampR\x0flastLoginChange\x12-\n" +
@@ -515,13 +523,13 @@ const file_chatto_api_v1_viewer_proto_rawDesc = "" +
 	"\x04user\x18\x01 \x01(\v2\x19.chatto.api.v1.ViewerUserR\x04user\x12E\n" +
 	"\fcapabilities\x18\x02 \x01(\v2!.chatto.api.v1.ViewerCapabilitiesR\fcapabilities\x12U\n" +
 	"\x12viewer_permissions\x18\x05 \x01(\v2&.chatto.api.v1.ServerViewerPermissionsR\x11viewerPermissions\x12C\n" +
-	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerStateJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x1eserver_notification_preferenceR\x1droom_notification_preferences*q\n" +
+	"\fviewer_state\x18\x06 \x01(\v2 .chatto.api.v1.ServerViewerStateR\vviewerStateJ\x04\b\x03\x10\x04J\x04\b\x04\x10\x05R\x1eserver_notification_preferenceR\x1droom_notification_preferences*u\n" +
 	"\n" +
 	"TimeFormat\x12\x1b\n" +
 	"\x17TIME_FORMAT_UNSPECIFIED\x10\x00\x12\x14\n" +
 	"\x10TIME_FORMAT_AUTO\x10\x01\x12\x17\n" +
 	"\x13TIME_FORMAT_12_HOUR\x10\x02\x12\x17\n" +
-	"\x13TIME_FORMAT_24_HOUR\x10\x032_\n" +
+	"\x13TIME_FORMAT_24_HOUR\x10\x03\x1a\x02\x18\x012_\n" +
 	"\rViewerService\x12N\n" +
 	"\tGetViewer\x12\x1f.chatto.api.v1.GetViewerRequest\x1a .chatto.api.v1.GetViewerResponseB\xa7\x01\n" +
 	"\x11com.chatto.api.v1B\vViewerProtoP\x01Z/hmans.de/chatto/internal/pb/chatto/api/v1;apiv1\xa2\x02\x03CAX\xaa\x02\rChatto.Api.V1\xca\x02\rChatto\\Api\\V1\xe2\x02\x19Chatto\\Api\\V1\\GPBMetadata\xea\x02\x0fChatto::Api::V1b\x06proto3"

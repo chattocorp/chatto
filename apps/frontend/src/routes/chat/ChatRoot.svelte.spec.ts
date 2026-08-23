@@ -200,7 +200,7 @@ const originUser: CurrentUser = {
   hasPassword: true,
   viewerCanDeleteAccount: true,
   lastLoginChange: null,
-  settings: null
+  legacyServerTimePreferences: null
 };
 
 const children = createRawSnippet(() => ({

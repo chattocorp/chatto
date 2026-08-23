@@ -75,7 +75,7 @@
   const composerContext = getComposerContext();
   const replyState = composerContext.replyState;
   const jumpState = composerContext.jumpState;
-  const userSettings = $derived(timeFormatSettingsFor(currentUser.user?.settings));
+  const userSettings = $derived(timeFormatSettingsFor());
   const activeLocale = $derived(getLocale());
   const prefersTouch = prefersTouchActions();
   const canUseHoverActions = supportsHoverActions();

@@ -405,8 +405,10 @@ func (x *UpdatePasswordResponse) GetUser() *User {
 	return nil
 }
 
-// Request to update the authenticated user's display preferences. Omitted
-// fields are left unchanged. An empty timezone clears the explicit timezone.
+// Legacy request to update per-server display preferences. Retained for older
+// clients; the bundled client stores time preferences locally.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/account.proto.
 type UpdateSettingsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone override. Empty clears the override.
@@ -461,7 +463,9 @@ func (x *UpdateSettingsRequest) GetTimeFormat() TimeFormat {
 	return TimeFormat_TIME_FORMAT_UNSPECIFIED
 }
 
-// Result of updating display preferences.
+// Legacy result of updating per-server display preferences.
+//
+// Deprecated: Marked as deprecated in chatto/api/v1/account.proto.
 type UpdateSettingsResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Stored settings after merging the request.
@@ -707,29 +711,29 @@ const file_chatto_api_v1_account_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\b\x18\x80\x01R\bpassword\x123\n" +
 	"\x10current_password\x18\x02 \x01(\tB\b\xbaH\x05r\x03\x18\x80\x01R\x0fcurrentPassword\"A\n" +
 	"\x16UpdatePasswordResponse\x12'\n" +
-	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x96\x01\n" +
+	"\x04user\x18\x01 \x01(\v2\x13.chatto.api.v1.UserR\x04user\"\x9a\x01\n" +
 	"\x15UpdateSettingsRequest\x12\x1f\n" +
 	"\btimezone\x18\x01 \x01(\tH\x00R\btimezone\x88\x01\x01\x12?\n" +
 	"\vtime_format\x18\x02 \x01(\x0e2\x19.chatto.api.v1.TimeFormatH\x01R\n" +
-	"timeFormat\x88\x01\x01B\v\n" +
+	"timeFormat\x88\x01\x01:\x02\x18\x01B\v\n" +
 	"\t_timezoneB\x0e\n" +
-	"\f_time_format\"Q\n" +
+	"\f_time_format\"U\n" +
 	"\x16UpdateSettingsResponse\x127\n" +
-	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings\"\x1f\n" +
+	"\bsettings\x18\x01 \x01(\v2\x1b.chatto.api.v1.UserSettingsR\bsettings:\x02\x18\x01\"\x1f\n" +
 	"\x1dRequestAccountDeletionRequest\"O\n" +
 	"\x1eRequestAccountDeletionResponse\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"G\n" +
 	"\x16DeleteMyAccountRequest\x12-\n" +
 	"\x12confirmation_token\x18\x01 \x01(\tR\x11confirmationToken\"3\n" +
 	"\x17DeleteMyAccountResponse\x12\x18\n" +
-	"\adeleted\x18\x01 \x01(\bR\adeleted2\xf1\n" +
+	"\adeleted\x18\x01 \x01(\bR\adeleted2\xf6\n" +
 	"\n" +
 	"\x10MyAccountService\x12Z\n" +
 	"\rUpdateProfile\x12#.chatto.api.v1.UpdateProfileRequest\x1a$.chatto.api.v1.UpdateProfileResponse\x12W\n" +
 	"\fUploadAvatar\x12\".chatto.api.v1.UploadAvatarRequest\x1a#.chatto.api.v1.UploadAvatarResponse\x12\\\n" +
 	"\fDeleteAvatar\x12\".chatto.api.v1.DeleteAvatarRequest\x1a#.chatto.api.v1.DeleteAvatarResponse\"\x03\x90\x02\x02\x12]\n" +
-	"\x0eUpdatePassword\x12$.chatto.api.v1.UpdatePasswordRequest\x1a%.chatto.api.v1.UpdatePasswordResponse\x12]\n" +
-	"\x0eUpdateSettings\x12$.chatto.api.v1.UpdateSettingsRequest\x1a%.chatto.api.v1.UpdateSettingsResponse\x12u\n" +
+	"\x0eUpdatePassword\x12$.chatto.api.v1.UpdatePasswordRequest\x1a%.chatto.api.v1.UpdatePasswordResponse\x12b\n" +
+	"\x0eUpdateSettings\x12$.chatto.api.v1.UpdateSettingsRequest\x1a%.chatto.api.v1.UpdateSettingsResponse\"\x03\x88\x02\x01\x12u\n" +
 	"\x16ListExternalIdentities\x12,.chatto.api.v1.ListExternalIdentitiesRequest\x1a-.chatto.api.v1.ListExternalIdentitiesResponse\x12~\n" +
 	"\x19StartExternalIdentityLink\x12/.chatto.api.v1.StartExternalIdentityLinkRequest\x1a0.chatto.api.v1.StartExternalIdentityLinkResponse\x12\x81\x01\n" +
 	"\x1aDisconnectExternalIdentity\x120.chatto.api.v1.DisconnectExternalIdentityRequest\x1a1.chatto.api.v1.DisconnectExternalIdentityResponse\x12]\n" +

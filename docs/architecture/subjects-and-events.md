@@ -181,7 +181,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.>`                                    | All asset aggregate facts                                                       |
 | `evt.asset.{assetId}.{eventType}`                | One asset aggregate fact                                                        |
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
-| `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
+| `evt.config.>`                                   | Dynamic server configuration, notification policy, and legacy time preferences  |
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
 | `notifications.signalled`                       | Rich immutable per-recipient notification signal and initial delivery state     |
 | `notifications.read`                            | Idempotent transition of one occurrence to Read                                 |
@@ -265,10 +265,10 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.config.{subject}.server_logo_cleared`                   | `ServerLogoClearedEvent`                            |
 | `evt.config.{subject}.server_banner_set`                     | `ServerBannerSetEvent`                              |
 | `evt.config.{subject}.server_banner_cleared`                 | `ServerBannerClearedEvent`                          |
-| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent`                          |
-| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent`                          |
-| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent`                        |
-| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent`                        |
+| `evt.config.{subject}.user_timezone_changed`                 | `UserTimezoneChangedEvent` (deprecated per-server preference compatibility and replay) |
+| `evt.config.{subject}.user_timezone_cleared`                 | `UserTimezoneClearedEvent` (deprecated per-server preference compatibility and replay) |
+| `evt.config.{subject}.user_time_format_changed`              | `UserTimeFormatChangedEvent` (deprecated per-server preference compatibility and replay) |
+| `evt.config.{subject}.user_time_format_cleared`              | `UserTimeFormatClearedEvent` (deprecated per-server preference compatibility and replay) |
 
 | `evt.config.{subject}.user_server_notification_level_set`    | `UserServerNotificationLevelSetEvent` (historical decode only; ignored by current projections) |
 | `evt.config.{subject}.user_server_notification_level_cleared` | `UserServerNotificationLevelClearedEvent` (historical decode only; ignored by current projections) |
@@ -301,7 +301,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
 | `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |
 | `evt.user.{userId}.external_identity_unlinked`              | `UserExternalIdentityUnlinkedEvent`                 |
-| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
+| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent` (historical replay compatibility) |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |
@@ -375,7 +375,7 @@ Patterns: `live.sync.>` for transient `LiveEvent` pubsub and `live.evt.>` for ra
 | `live.sync.config.room_groups_updated`                   | Admin reordered the room sidebar / room-group layout |
 | `live.sync.user.{userId}.notification_v2`                | Notification occurrence created, triaged, removed, or alert-eligibility changed; triggers an authoritative occurrence/count replacement |
 | `live.sync.user.{userId}.thread_follow_changed`          | Viewer's thread follow/unfollow toggled |
-| `live.sync.user.{userId}.settings_updated`               | User preferences changed     |
+| `live.sync.user.{userId}.settings_updated`               | Deprecated per-server time preferences changed for older clients |
 | `live.sync.user.{userId}.room_read`                      | Room marked as read          |
 | `live.sync.user.{userId}.session_terminated`             | Active session revoked (logout-other-devices, account deletion) |
 | `live.sync.member.deleted`                                | Server-level membership invalidation after account deletion |

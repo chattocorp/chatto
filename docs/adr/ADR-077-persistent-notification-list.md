@@ -94,7 +94,7 @@ strongest attention level among its unread members.
 
 The bundled client presents unread and read rows in one chronological view,
 groups them into Today, Yesterday, This Week, and month sections using the
-account's preferred time zone, and renders concise full-sentence descriptions
+client's preferred time zone across all servers, and renders concise full-sentence descriptions
 without message previews. Read content is visually muted while its actions keep
 their normal contrast. Reaction rows show the reaction emoji and consolidate
 activity for the same target. The list does not show a redundant `1` counter.

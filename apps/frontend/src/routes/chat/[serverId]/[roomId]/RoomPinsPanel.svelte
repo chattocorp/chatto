@@ -33,7 +33,7 @@ message presentation. Each message row itself opens the original message.
   const userSummaries = getUserSummaryCache(serverScope.serverId);
   const members = $derived(getRoomMembers());
   const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+    timeFormatSettingsFor()
   );
   const activeLocale = $derived(getLocale());
 

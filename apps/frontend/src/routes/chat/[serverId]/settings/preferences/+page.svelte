@@ -2,50 +2,28 @@
   import { m } from '$lib/i18n/messages';
   import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
   import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
-  import { useServerScope } from '$lib/state/server/scope.svelte';
-  import { createAccountAPI } from '$lib/api-client/account';
-  import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
   import {
     userPreferences,
     type ComposerEditorKind,
     type ComposerSendMode,
-    type DisplayTheme
+    type DisplayTheme,
+    type TimeFormatPreference
   } from '$lib/state/userPreferences.svelte';
   import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
-  import { Button, Combobox, FormError } from '$lib/ui/form';
+  import { Button, Combobox } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime, hour12ForTimeFormat } from '$lib/utils/formatTime';
 
-  const serverScope = useServerScope();
-  const currentUser = $derived(serverScope.store.currentUser);
-  const savedSettings = $derived(currentUser.user?.settings);
   const activeLocale = $derived(getLocale());
-
-  function accountAPI() {
-    return serverScope.connection.getAPI(createAccountAPI);
-  }
 
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
 
-  // These are edit buffers rather than mirrors. Initialize them once the
-  // scoped viewer has resolved, then preserve any edits made on this mount.
-  let settingsInitialized = $state(false);
-  let timezoneSearch = $state('');
-  let selectedTimezone = $state('');
-  let selectedTimeFormat = $state<TimeFormat>(TimeFormat.TIME_FORMAT_AUTO);
-  let isSaving = $state(false);
-  let error = $state('');
-
-  $effect(() => {
-    if (settingsInitialized || currentUser.loading) return;
-
-    const timezone = savedSettings?.timezone ?? '';
-    timezoneSearch = timezone;
-    selectedTimezone = timezone;
-    selectedTimeFormat = savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO;
-    settingsInitialized = true;
-  });
+  // These writable derived values are edit buffers. Saving commits all time
+  // preferences together to the client-wide preference store.
+  let timezoneSearch = $derived(userPreferences.timezone ?? '');
+  let selectedTimezone = $derived(userPreferences.timezone ?? '');
+  let selectedTimeFormat = $derived<TimeFormatPreference>(userPreferences.timeFormat);
 
   // Filter timezone list based on search input
   let filteredTimezones = $derived(
@@ -59,9 +37,8 @@
 
   // Track if the form has been modified
   const isModified = $derived(
-    settingsInitialized &&
-      ((selectedTimezone || null) !== (savedSettings?.timezone ?? null) ||
-        selectedTimeFormat !== (savedSettings?.timeFormat ?? TimeFormat.TIME_FORMAT_AUTO))
+    (selectedTimezone || null) !== userPreferences.timezone ||
+      selectedTimeFormat !== userPreferences.timeFormat
   );
 
   // Timezone validation
@@ -93,36 +70,15 @@
     void setLocale(locale);
   }
 
-  async function handleSave() {
+  function handleSave() {
     // Validate timezone if set
-    if (timezoneSearch && !allTimezones.includes(timezoneSearch)) {
-      error = m('settings.preferences.timezone.invalid');
-      return;
-    }
+    if (timezoneSearch && !allTimezones.includes(timezoneSearch)) return;
 
-    isSaving = true;
-    error = '';
-
-    try {
-      const settings = await accountAPI().updateSettings({
-        timezone: selectedTimezone || null,
-        timeFormat: selectedTimeFormat
-      });
-      if (!serverScope.isCurrent()) return;
-      if (currentUser.user) {
-        currentUser.user = {
-          ...currentUser.user,
-          settings
-        };
-      }
-
-      toast.success(m('settings.preferences.saved'));
-    } catch (err) {
-      if (!serverScope.isCurrent()) return;
-      error = err instanceof Error ? err.message : m('settings.preferences.save_failed');
-    } finally {
-      if (serverScope.isCurrent()) isSaving = false;
-    }
+    userPreferences.setTimePreferences({
+      timezone: selectedTimezone || null,
+      timeFormat: selectedTimeFormat
+    });
+    toast.success(m('settings.preferences.saved'));
   }
 
   const themeOptions = $derived([
@@ -182,22 +138,22 @@
 
   const timeFormatOptions = $derived([
     {
-      value: TimeFormat.TIME_FORMAT_AUTO,
+      value: 'auto',
       label: m('settings.preferences.time_format.browser_default.label'),
       description: m('settings.preferences.time_format.browser_default.description')
     },
     {
-      value: TimeFormat.TIME_FORMAT_12_HOUR,
+      value: '12h',
       label: m('settings.preferences.time_format.12h.label'),
       description: m('settings.preferences.time_format.12h.description')
     },
     {
-      value: TimeFormat.TIME_FORMAT_24_HOUR,
+      value: '24h',
       label: m('settings.preferences.time_format.24h.label'),
       description: m('settings.preferences.time_format.24h.description')
     }
   ] satisfies Array<{
-    value: TimeFormat;
+    value: TimeFormatPreference;
     label: string;
     description: string;
   }>);
@@ -300,7 +256,6 @@
       placeholder={m('settings.preferences.timezone.browser_default')}
       clearLabel={m('settings.preferences.timezone.clear')}
       allowFreeform={false}
-      disabled={!settingsInitialized}
       bind:value={selectedTimezone}
       bind:text={timezoneSearch}
       ontextchange={handleTimezoneTextChange}
@@ -326,7 +281,6 @@
           label={option.label}
           description={option.description}
           selected={isSelected}
-          disabled={!settingsInitialized}
           onclick={() => (selectedTimeFormat = option.value)}
         />
       {/each}
@@ -334,18 +288,8 @@
   </FormSection>
 
   <!-- Save -->
-  {#if error}
-    <div class="max-w-md">
-      <FormError {error} />
-    </div>
-  {/if}
-
   <div class="flex max-w-md gap-2">
-    <Button
-      onclick={handleSave}
-      disabled={!isModified || isSaving || !!timezoneError}
-      loading={isSaving}
-    >
+    <Button onclick={handleSave} disabled={!isModified || !!timezoneError}>
       {m('settings.preferences.save_button')}
     </Button>
   </div>

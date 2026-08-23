@@ -84,7 +84,9 @@ type MyAccountServiceClient interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
-	// Updates the authenticated user's display preferences.
+	// Updates deprecated per-server display preferences for older clients.
+	//
+	// Deprecated: do not use.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
 	// authenticated account.
@@ -243,6 +245,8 @@ func (c *myAccountServiceClient) UpdatePassword(ctx context.Context, req *connec
 }
 
 // UpdateSettings calls chatto.api.v1.MyAccountService.UpdateSettings.
+//
+// Deprecated: do not use.
 func (c *myAccountServiceClient) UpdateSettings(ctx context.Context, req *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error) {
 	return c.updateSettings.CallUnary(ctx, req)
 }
@@ -297,7 +301,9 @@ type MyAccountServiceHandler interface {
 	DeleteAvatar(context.Context, *connect.Request[v1.DeleteAvatarRequest]) (*connect.Response[v1.DeleteAvatarResponse], error)
 	// Updates or adds the authenticated user's password.
 	UpdatePassword(context.Context, *connect.Request[v1.UpdatePasswordRequest]) (*connect.Response[v1.UpdatePasswordResponse], error)
-	// Updates the authenticated user's display preferences.
+	// Updates deprecated per-server display preferences for older clients.
+	//
+	// Deprecated: do not use.
 	UpdateSettings(context.Context, *connect.Request[v1.UpdateSettingsRequest]) (*connect.Response[v1.UpdateSettingsResponse], error)
 	// Lists configured external identity providers and identities linked to the
 	// authenticated account.

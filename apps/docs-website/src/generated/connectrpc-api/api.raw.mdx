@@ -18,7 +18,7 @@ Use this reference when building clients against Chatto's public ConnectRPC API.
 
 ## ViewerService
 
-Provides authenticated user profile, preferences, and capability state.
+Provides authenticated user profile and capability state.
 
 <a id="chatto-api-v1-ViewerService-GetViewer"></a>
 
@@ -56,7 +56,7 @@ Authenticated viewer snapshot needed by application shells.
 
 ## MyAccountService
 
-Self-service account, profile, avatar, display preference, presence,
+Self-service account, profile, avatar, presence,
 custom-status, external identity, and account lifecycle commands for the
 authenticated user.
 
@@ -191,7 +191,7 @@ Result of updating or adding the authenticated account password.
 
 ### UpdateSettings
 
-Updates the authenticated user's display preferences.
+Updates deprecated per-server display preferences for older clients.
 
 ```http
 POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
@@ -201,8 +201,8 @@ POST /api/connect/chatto.api.v1.MyAccountService/UpdateSettings
 
 #### Input: UpdateSettingsRequest
 
-Request to update the authenticated user's display preferences. Omitted
-fields are left unchanged. An empty timezone clears the explicit timezone.
+Legacy request to update per-server display preferences. Retained for older
+clients; the bundled client stores time preferences locally.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -214,7 +214,7 @@ fields are left unchanged. An empty timezone clears the explicit timezone.
 
 #### Result: UpdateSettingsResponse
 
-Result of updating display preferences.
+Legacy result of updating per-server display preferences.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3937,7 +3937,7 @@ Non-permission server state for the authenticated user.
 
 ### UserSettings
 
-Server-level display settings for the authenticated user.
+Legacy per-server display settings retained for older clients and migration.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -3968,7 +3968,7 @@ Current authenticated user's public profile plus self-only settings.
 | Field | Type | Description |
 | --- | --- | --- |
 | `has_verified_email` | `bool` | Whether the account has at least one verified email address. |
-| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | Current user's display settings. |
+| `settings` | [`UserSettings`](#chatto-api-v1-UserSettings) | **Deprecated.** Legacy per-server display settings retained for compatibility. |
 | `viewer_can_delete_account` | `bool` | Whether the authenticated user may delete this account. |
 | `last_login_change` | `google.protobuf.Timestamp` | Last time a login credential changed, when known. |
 | `profile` | [`User`](#chatto-api-v1-User) | Public user fields for the authenticated user. |
@@ -4995,7 +4995,8 @@ the server's live presence record expire.
 
 ### TimeFormat
 
-User preference for rendering times in clients.
+Legacy per-server preference for rendering times. The bundled client now
+stores its time format locally and uses this enum only for migration.
 
 | Name | Number | Description |
 | --- | --- | --- |

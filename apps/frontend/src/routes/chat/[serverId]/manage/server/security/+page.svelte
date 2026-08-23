@@ -32,7 +32,7 @@
 
   const serverScope = useServerScope();
   const userSettings = $derived(
-    timeFormatSettingsFor(serverScope.store.currentUser.user?.settings)
+    timeFormatSettingsFor()
   );
   const activeLocale = $derived(getLocale());
   let scrollContainer = $state<HTMLDivElement>();

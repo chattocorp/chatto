@@ -17,22 +17,31 @@ import { Codecs, globalSlot } from '$lib/storage/slot';
 export type DisplayTheme = 'system' | 'light' | 'dark';
 export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
+export type TimeFormatPreference = 'auto' | '12h' | '24h';
+export type TimePreferences = {
+  timezone: string | null;
+  timeFormat: TimeFormatPreference;
+};
 type EffectiveTheme = 'light' | 'dark';
 
-interface Preferences {
+interface Preferences extends TimePreferences {
   displayTheme: DisplayTheme;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
   notificationSound: NotificationSoundId;
   notificationSoundFilters: NotificationSoundFilters;
+  legacyServerTimePreferencesMigrated: boolean;
 }
 
 const defaultPreferences: Preferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
   composerSendMode: 'enter',
+  timezone: null,
+  timeFormat: 'auto',
   notificationSound: defaultSoundId,
-  notificationSoundFilters: defaultNotificationSoundFilters
+  notificationSoundFilters: defaultNotificationSoundFilters,
+  legacyServerTimePreferencesMigrated: false
 };
 
 const slot = globalSlot('preferences', defaultPreferences, Codecs.json<Preferences>());
@@ -57,6 +66,21 @@ function isComposerEditorKind(value: unknown): value is ComposerEditorKind {
 
 function isComposerSendMode(value: unknown): value is ComposerSendMode {
   return value === 'enter' || value === 'modifier-enter';
+}
+
+function isTimeFormatPreference(value: unknown): value is TimeFormatPreference {
+  return value === 'auto' || value === '12h' || value === '24h';
+}
+
+function normalizeTimezone(value: unknown): string | null {
+  if (typeof value !== 'string' || value.trim() === '') return null;
+  const timezone = value.trim();
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: timezone }).format(new Date());
+    return timezone;
+  } catch {
+    return null;
+  }
 }
 
 function getLegacyDisplayTheme(): DisplayTheme | null {
@@ -129,8 +153,13 @@ function loadPreferences(): Preferences {
     composerSendMode: isComposerSendMode(stored.composerSendMode)
       ? stored.composerSendMode
       : defaultPreferences.composerSendMode,
+    timezone: normalizeTimezone(stored.timezone),
+    timeFormat: isTimeFormatPreference(stored.timeFormat)
+      ? stored.timeFormat
+      : defaultPreferences.timeFormat,
     notificationSound: isValidSound ? stored.notificationSound : defaultSoundId,
-    notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters)
+    notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters),
+    legacyServerTimePreferencesMigrated: stored.legacyServerTimePreferencesMigrated === true
   };
 }
 
@@ -172,6 +201,44 @@ export class UserPreferencesState {
       ? value
       : defaultPreferences.composerSendMode;
     slot.set(this.#prefs);
+  }
+
+  get timezone(): string | null {
+    return this.#prefs.timezone;
+  }
+
+  get timeFormat(): TimeFormatPreference {
+    return this.#prefs.timeFormat;
+  }
+
+  /** Replace the client-wide time display preferences and make them authoritative. */
+  setTimePreferences(value: TimePreferences): void {
+    this.#prefs.timezone = normalizeTimezone(value.timezone);
+    this.#prefs.timeFormat = isTimeFormatPreference(value.timeFormat)
+      ? value.timeFormat
+      : defaultPreferences.timeFormat;
+    this.#prefs.legacyServerTimePreferencesMigrated = true;
+    slot.set(this.#prefs);
+  }
+
+  /**
+   * Import one non-default value from the retired per-server model. The first
+   * non-default legacy value wins; an intentional local choice always wins over
+   * later server loads.
+   */
+  migrateLegacyServerTimePreferences(value: TimePreferences): boolean {
+    if (this.#prefs.legacyServerTimePreferencesMigrated) return false;
+    const timezone = normalizeTimezone(value.timezone);
+    const timeFormat = isTimeFormatPreference(value.timeFormat)
+      ? value.timeFormat
+      : defaultPreferences.timeFormat;
+    if (timezone === null && timeFormat === 'auto') return false;
+
+    this.#prefs.timezone = timezone;
+    this.#prefs.timeFormat = timeFormat;
+    this.#prefs.legacyServerTimePreferencesMigrated = true;
+    slot.set(this.#prefs);
+    return true;
   }
 
   get notificationSound(): NotificationSoundId {

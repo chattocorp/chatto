@@ -250,8 +250,8 @@ func (x *UserProfileUpdatedEvent) GetLogin() string {
 	return ""
 }
 
-// ServerUserPreferencesUpdatedEvent is published when a user updates their display preferences.
-// User-scoped private event for multi-tab/multi-device sync.
+// ServerUserPreferencesUpdatedEvent is a legacy user-scoped live event retained
+// for older clients that still update per-server display preferences.
 type ServerUserPreferencesUpdatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone name (empty = cleared/browser default).
@@ -1624,7 +1624,7 @@ var File_chatto_core_v1_user_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_user_events_proto_rawDesc = "" +
 	"\n" +
-	" chatto/core/v1/user_events.proto\x12\x0echatto.core.v1\x1a%chatto/core/v1/user_preferences.proto\x1a\x1bchatto/core/v1/models.proto\"d\n" +
+	" chatto/core/v1/user_events.proto\x12\x0echatto.core.v1\x1a\x1bchatto/core/v1/models.proto\x1a%chatto/core/v1/user_preferences.proto\"d\n" +
 	"\x10UserCreatedEvent\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\x14\n" +
 	"\x05login\x18\x02 \x01(\tR\x05login\x12!\n" +
@@ -1802,8 +1802,8 @@ func file_chatto_core_v1_user_events_proto_init() {
 	if File_chatto_core_v1_user_events_proto != nil {
 		return
 	}
-	file_chatto_core_v1_user_preferences_proto_init()
 	file_chatto_core_v1_models_proto_init()
+	file_chatto_core_v1_user_preferences_proto_init()
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

@@ -21,7 +21,8 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// TimeFormat controls how times are displayed to the user.
+// TimeFormat is the legacy per-server time display preference retained for
+// public API compatibility and historical event replay.
 type TimeFormat int32
 
 const (
@@ -132,10 +133,8 @@ func (NotificationLevel) EnumDescriptor() ([]byte, []int) {
 	return file_chatto_core_v1_user_preferences_proto_rawDescGZIP(), []int{1}
 }
 
-// ServerUserPreferences stores per-user display preferences at the server level.
-// Stored in INSTANCE KV bucket with key "user_preferences.{userId}" (legacy
-// names retained per ADR-029).
-// All fields are optional - absence means "use browser/locale default".
+// ServerUserPreferences materializes the legacy per-server display preferences
+// retained for older clients and historical event replay.
 type ServerUserPreferences struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// IANA timezone name (e.g., "America/New_York", "Europe/Berlin").

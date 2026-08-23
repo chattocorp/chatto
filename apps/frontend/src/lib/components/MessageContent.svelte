@@ -14,17 +14,14 @@
   import { parseTrustedMarkdownHtml } from '$lib/security/trustedHtml';
   import { getLocale } from '$lib/i18n/runtime';
   import { m } from '$lib/i18n/messages';
-  import { formatDateTime, type TimeFormatSettings } from '$lib/utils/formatTime';
+  import {
+    formatDateTime,
+    timeFormatSettingsFor,
+    type TimeFormatSettings
+  } from '$lib/utils/formatTime';
   import { SvelteDate } from 'svelte/reactivity';
 
-  const fallbackTimestampSettings: TimeFormatSettings = {
-    get effectiveTimezone() {
-      return undefined;
-    },
-    get effectiveHour12() {
-      return undefined;
-    }
-  };
+  const fallbackTimestampSettings = timeFormatSettingsFor();
   type ActiveTimestamp = {
     epochSeconds: number;
     date: Date;
