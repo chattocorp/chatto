@@ -1,60 +1,86 @@
 ---
 title: Standalone Binary
-description: How to deploy Chatto as a standalone binary.
+description: Deploy Chatto as one binary with embedded NATS.
 ---
 
 import {
-  Steps,
   Aside,
-  FileTree,
-  LinkCard,
   CardGrid,
+  LinkCard,
 } from "@astrojs/starlight/components";
 import ArchDiagram from "../../../../components/diagrams/BinaryDiagram.astro";
 
 <Aside type="caution">
-  While it is totally possible to host Chatto just using the binary (it will
-  even terminate TLS for you if you want!), it is heavily recommended to make
-  use of the provided Docker image through [Docker
-  Compose](/guides/deployment/docker-compose/), [Kubernetes](/guides/deployment/kubernetes/), or
-  another container runtime of your choice.
+  Use this deployment for a test environment or a small server that can accept
+  short downtime. For most production servers, use [Docker
+  Compose](/guides/deployment/docker-compose/) or a different container
+  runtime.
 </Aside>
 
-Chatto ships as a single binary with an embedded NATS server and built-in Let's Encrypt TLS. No reverse proxy, no external database — just one process serving everything. Alternatively, spin it up on any port and use your existing reverse proxy to wire things up and terminate TLS.
+The standalone binary includes embedded NATS and optional automatic TLS. It
+does not use an external database.
+
+You can use the automatic TLS function in Chatto. You can also put Chatto
+behind your reverse proxy.
 
 ## Architecture
 
 <ArchDiagram />
 
-The Chatto binary includes an embedded NATS server with JetStream for storage. It expects a `chatto.toml` configuration file (you can generate one using `chatto init`), and stores all data in a `./data/` directory.
+By default, `chatto run` starts an embedded NATS server with JetStream. Chatto
+reads `chatto.toml` from the current working directory. It stores embedded NATS
+data in `./data/` by default.
+
+<Aside type="caution">
+  Do not start more than one Chatto server process with one embedded data
+  directory. Use external NATS for a deployment with multiple processes.
+</Aside>
 
 ## Prerequisites
 
-- A server with Chatto installed. Use `brew install chattocorp/tap/chatto` on macOS or Linux with Homebrew, or download the Linux, macOS, or FreeBSD archive from [GitHub Releases](https://github.com/chattocorp/chatto/releases).
-- A domain pointing to your server (e.g., `chat.example.com`)
-- Firewall allowing inbound TCP 80 and 443
+Prepare these items:
 
-## Setup
+- A Linux, macOS, or FreeBSD host with Chatto installed.
+- A domain that points to the host, such as `chat.example.com`.
+- Persistent storage for the Chatto data directory.
+- Inbound TCP ports 80 and 443 when Chatto terminates TLS.
 
-Please refer to the [Quick Start](/getting-started/quick-start/) guide for details on initializing your `chatto.toml` configuration file.
+Install Chatto with Homebrew on macOS or Linux:
 
-For production use, please review the file and **at least**:
+```bash
+brew install chattocorp/tap/chatto
+```
 
-- configure SMTP credentials
-- set `webserver.url` to your public URL
-- review `webserver.tls` if you want Chatto to terminate TLS
+You can also download an archive from [GitHub
+Releases](https://github.com/chattocorp/chatto/releases).
 
-It is also strongly recommended that you:
+## Configure Chatto
 
-- review the `[core.assets.s3]` section if you want to use an external object store for uploaded files (optional, but recommended; you can enable this later if you wish)
-- choose whether to allow direct registration, and configure at least one tested SSO provider before setting `auth.direct_login = false`
-- review the `[push]` section if you want to support native push notifications
-- review the `[video]` section if you want to support video uploads
-- review the `[livekit]` section if you want to support voice and video calls (requires LiveKit)
+Use the [Quick Start](/getting-started/quick-start/) guide to generate
+`chatto.toml`.
 
-## Running as a systemd Service
+Before you use the configuration in production, do these steps:
 
-For production use on Linux, create a systemd unit to manage the process:
+- Set `webserver.url` to the public URL.
+- Add at least one verified email address to `owners.emails`.
+- Configure SMTP if Chatto must send registration or verification email.
+- Select automatic Chatto TLS or TLS in a reverse proxy.
+- Put `nats.embedded.data_dir` on persistent storage.
+- Select the permitted login methods.
+- Do a test of an external login provider before you set `auth.direct_login`
+  to `false`.
+
+Examine these optional sections for the specified features:
+
+- Use `[core.assets.s3]` for S3-compatible upload storage.
+- Use `[push]` for push notifications.
+- Use `[video]` and `[asset_processing]` for video uploads.
+- Use `[livekit]` for calls.
+
+## Run Chatto as a systemd Service
+
+On Linux, use systemd to start Chatto and restart it after a failure. Create
+this unit:
 
 ```ini
 # /etc/systemd/system/chatto.service
@@ -77,38 +103,44 @@ AmbientCapabilities=CAP_NET_BIND_SERVICE
 WantedBy=multi-user.target
 ```
 
+Make sure that the `chatto` user can read `chatto.toml` and write the data
+directory. Then, enable and start the service:
+
 ```bash
 sudo systemctl enable --now chatto
 ```
 
 <Aside type="tip">
-  Using `AmbientCapabilities=CAP_NET_BIND_SERVICE` in the unit file grants the
-  capability at runtime, so you don't need to `setcap` the binary separately.
-  This is the preferred approach when using systemd. You only need these when
-  running Chatto on a port lower than 1024.
+  `AmbientCapabilities=CAP_NET_BIND_SERVICE` lets Chatto bind to ports below
+  1024. Remove this line when Chatto listens only on ports that are 1024 or
+  higher.
 </Aside>
 
-## Adding Voice and Video Calls
+## Add Calls
 
-The standalone binary doesn't include LiveKit. To add voice and video calls, you have two options:
+The standalone binary does not include LiveKit. Select one of these methods to
+add calls:
 
-1. **Switch to Docker Compose** (recommended) — the [Docker Compose guide](/guides/deployment/docker-compose/) includes LiveKit out of the box.
-2. **Run LiveKit separately** — install and run a [LiveKit server](https://docs.livekit.io/home/self-hosting/local/) alongside Chatto, then configure the LiveKit environment variables.
+1. Use [Docker Compose](/guides/deployment/docker-compose/) with the included
+   LiveKit service.
+2. Run a separate [LiveKit
+   server](https://docs.livekit.io/home/self-hosting/local/). Then, configure
+   the LiveKit environment variables.
 
 <CardGrid>
   <LinkCard
     title="Docker Compose"
     href="/guides/deployment/docker-compose/"
-    description="Recommended production deployment with LiveKit and Caddy."
+    description="Use the recommended production deployment with LiveKit and Caddy."
   />
   <LinkCard
     title="Environment Variables"
     href="/reference/environment-variables/"
-    description="Full reference for all configuration options."
+    description="Examine the full Chatto configuration reference."
   />
   <LinkCard
     title="Backup & Restore"
     href="/guides/operations/backup-restore/"
-    description="How to back up and restore your Chatto data."
+    description="Create and restore Chatto data backups."
   />
 </CardGrid>

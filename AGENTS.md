@@ -119,6 +119,35 @@ permission to reorganize unrelated product code.
 - The nearest applicable `AGENTS.md` owns path-specific guidance. Root rules
   still apply when nested guidance is more specific.
 
+## Simplified Technical English
+
+Use [ASD-STE100 Simplified Technical English, Issue 9
+(January 2025)](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf),
+including its controlled dictionary, for all new or changed documentation in
+this repository. This scope includes the docs website.
+
+Use canonical product, API, user-interface, and configuration terms as
+technical terms. For Chatto terms, use the canonical vocabulary in
+[`docs/GLOSSARY.md`](docs/GLOSSARY.md). Do not change code, commands, literal
+names, or quotations.
+
+Treat violations in unchanged text as migration work. Apply the standard to a
+full page when you make a substantial page edit. Claim formal conformance only
+after a full review against the standard and its dictionary.
+
+### Approved Exclusions
+
+These pages can use a conversational product voice and vocabulary that
+ASD-STE100 does not approve:
+
+- `apps/docs-website/src/content/docs/index.mdx` — product home page.
+- `apps/docs-website/src/content/docs/getting-started/introduction.mdx` —
+  narrative product introduction.
+
+ASD-STE100 still applies to technical instructions and safety information on an
+excluded page. Add an exclusion only with explicit user approval. Record its
+full path and reason here.
+
 ## Prime Directives
 
 - Prefer simple, clear changes over clever abstractions.

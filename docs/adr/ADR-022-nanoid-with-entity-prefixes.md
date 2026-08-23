@@ -2,40 +2,72 @@
 
 **Date:** 2026-03-01
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-23
 
 ## Context
 
-Every entity in Chatto (users, spaces, rooms, events, assets, notifications) needs a unique identifier. The options include UUIDs (128-bit, standard but verbose), auto-incrementing integers (simple but leak ordering and count), and NanoID (compact, customizable alphabet, configurable entropy).
+Chatto gives each durable entity a unique identifier. Identifier formats have
+different costs.
 
-Additionally, when debugging production issues or reading logs, it's helpful to immediately know what *type* of entity an ID refers to without additional context.
+UUIDs are standard, but they contain 36 characters. Sequential integers are
+short, but they show creation order and approximate entity counts. NanoID can
+use a selected alphabet and length.
+
+Logs and diagnostic output can show an identifier without more context. A
+type prefix lets an operator identify the entity type immediately.
 
 ## Decision
 
-Use 14-character NanoIDs with an alphanumeric alphabet (~83.4 bits of entropy) prefixed by a single letter indicating the entity type:
+Use a 14-character NanoID body with an alphanumeric alphabet. This format gives
+approximately 83.4 bits of entropy.
 
-| Prefix | Entity |
-|--------|--------|
+Add one or more prefix characters that identify the entity type or token
+purpose. Chatto uses these prefixes for primary entity identifiers:
+
+| Prefix | Entity type |
+|--------|-------------|
 | `U` | User |
-| `S` | Space |
+| `S` | Legacy space |
 | `R` | Room |
+| `C` | Call |
+| `CP` | Call media publisher |
+| `G` | Room group |
+| `L` | Sidebar link |
 | `A` | Asset |
+| `I` | Invitation |
 | `E` | Event |
 | `N` | Legacy notification |
 
-Opaque tokens use two-letter prefixes: `PR` (password reset), `RG` (registration completion), and `AD` (account deletion). Email verification codes are six-digit numeric OTPs and do not use NanoID prefixes.
+Multi-character prefixes also identify opaque tokens. Current examples include
+password-reset (`PR`), registration-completion (`RG`), external-identity
+(`EC`, `EL`, `ELS`), and account-deletion (`AD`) tokens.
 
-DM room IDs are a special case: deterministic SHA-256 hex truncated to 14 characters, with no prefix (since they're computed from participant IDs, not randomly generated).
+Some credential formats add the `cht_` marker before the NanoID prefix. These
+formats include access tokens (`cht_AT`), link-preview tokens (`cht_LP`), and
+OAuth authorization codes (`cht_AC`).
 
-Notifications 2.0 is another deliberate exception. Exact occurrence IDs use a
-deterministic `ntf_` identifier derived from recipient, source event, and signal
-kind; notification lifecycle fact IDs use `nte_`. These IDs make retry and
-replay idempotent and are not NanoIDs. See ADR-076.
+Email verification codes use six numeric digits. They do not use a NanoID
+prefix.
+
+DM room identifiers are a special case. Chatto sorts the participant
+identifiers and calculates a SHA-256 hash. It uses the first 14 hexadecimal
+characters without a prefix.
+
+Notifications 2.0 uses deterministic identifiers. An occurrence identifier
+starts with `ntf_`, and a lifecycle event identifier starts with `nte_`.
+Deterministic identity makes retries and replay idempotent. See ADR-076.
 
 ## Consequences
 
-- **Self-describing IDs**: Seeing `U8kX2mP4qR7nYw` in a log immediately tells you it's a user. No need to cross-reference which table or bucket it came from.
-- **Compact**: 15 characters total (1 prefix + 14 NanoID) vs. 36 for a UUID. Matters for NATS subject paths where IDs are embedded in subjects.
-- **URL-safe**: The alphanumeric alphabet avoids characters that need URL encoding. IDs can appear in URLs, NATS subjects, and KV keys without escaping.
-- **Visual consistency with DM IDs**: The 14-character NanoID length matches the 14-character SHA-256 hex truncation used for DM room IDs, so all IDs have roughly the same visual footprint.
-- **Collision probability is acceptable**: At ~83.4 bits of entropy, the probability of collision is negligible for the expected scale (millions of entities, not billions).
+- **Visible entity type:** An operator can identify the entity type from most
+  identifiers without a second lookup.
+- **Compact format:** Most entity identifiers contain 15 characters. A UUID
+  contains 36 characters. Short identifiers keep NATS subjects short.
+- **URL-safe format:** URL encoding is not necessary for the alphanumeric
+  alphabet. Identifiers can occur in URLs, NATS subjects, and KV keys.
+- **Same length:** A DM room identifier has the same 14-character body
+  length as a NanoID.
+- **Small collision probability:** The selected entropy is sufficient at a
+  scale of millions of entities.
+- **Type disclosure:** The prefix shows the identifier type. An identifier is a
+  reference. It is not a secret.
