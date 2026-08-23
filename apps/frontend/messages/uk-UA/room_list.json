@@ -15,6 +15,8 @@
     "mark_as_read": "Позначити як прочитане",
     "remove_server": "Видалити сервер",
     "leave_room": "Залишити кімнату",
+    "copy_room_id": "Копіювати ID кімнати",
+    "copy_server_hostname": "Копіювати ім’я хоста сервера",
     "room_settings": "Налаштування кімнати",
     "group_settings": "Налаштування для {group}",
     "server_actions": "Дії для {server}",

@@ -15,6 +15,8 @@
     "mark_as_read": "Označit jako přečtené",
     "remove_server": "Odebrat server",
     "leave_room": "Opusťte místnost",
+    "copy_room_id": "Zkopírovat ID místnosti",
+    "copy_server_hostname": "Zkopírovat název hostitele serveru",
     "room_settings": "Nastavení místnosti",
     "group_settings": "Nastavení pro {group}",
     "server_actions": "Akce pro {server}",

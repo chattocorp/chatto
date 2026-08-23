@@ -47,7 +47,7 @@ async function sendGeneratedImageAttachment(
   await expect(roomPage.attachmentPreview).toBeVisible();
   await roomPage.waitForInputEditable();
   await roomPage.messageInput.fill(text);
-  await roomPage.messageInput.press('Enter');
+  await roomPage.messageInput.press('Control+Enter');
   await expect(roomPage.attachmentPreview).not.toBeVisible();
 
   const message = roomPage.getMessage(text);
@@ -800,7 +800,7 @@ test('image lightbox supports keyboard navigation with multiple images', async (
   await expect(roomPage.attachmentPreview).toHaveCount(5);
 
   // Send the message
-  await roomPage.messageInput.press('Enter');
+  await roomPage.messageInput.press('Control+Enter');
 
   // Wait for all attachment images to appear in the message
   await expect(roomPage.attachmentImage).toHaveCount(5, { timeout: TIMEOUTS.COMPLEX_OPERATION });

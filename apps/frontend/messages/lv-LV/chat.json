@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "Lietotāja profils",
-      "send_message": "Nosūtīt ziņu"
+      "send_message": "Nosūtīt ziņu",
+      "copy_user_id": "Kopēt lietotāja ID"
     },
     "server_gutter": {
       "add_server": "Pievienot serveri",

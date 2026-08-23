@@ -12,7 +12,7 @@ test.describe('drag and drop image upload', () => {
 
     const testMessage = `Drag drop test ${Date.now()}`;
     await roomPage.messageInput.fill(testMessage);
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     await expect(roomPage.attachmentPreview).not.toBeVisible();
     await roomPage.expectMessageVisible(testMessage);
@@ -34,7 +34,7 @@ test.describe('drag and drop image upload', () => {
 
     const replyText = `Thread drag drop reply ${Date.now()}`;
     await roomPage.threadReplyInput.fill(replyText);
-    await roomPage.threadReplyInput.press('Enter');
+    await roomPage.threadReplyInput.press('Control+Enter');
 
     await expect(roomPage.threadAttachmentPreview).toHaveCount(0);
     const reply = roomPage.getMessage(replyText);

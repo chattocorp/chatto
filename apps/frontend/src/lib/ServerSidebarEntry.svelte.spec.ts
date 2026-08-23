@@ -18,7 +18,9 @@ const { mocks } = vi.hoisted(() => {
       startRemoteReauthentication: vi.fn(),
       beginOriginReauthentication: vi.fn(),
       isOriginServer: vi.fn(() => false),
+      writeClipboardText: vi.fn(),
       toastError: vi.fn(),
+      toastSuccess: vi.fn(),
       appUi: {
         disableRoomCallWideFor: vi.fn()
       },
@@ -157,7 +159,7 @@ vi.mock('$lib/auth/reauth', () => ({
 }));
 
 vi.mock('$lib/ui/toast', () => ({
-  toast: { error: mocks.toastError }
+  toast: { error: mocks.toastError, success: mocks.toastSuccess }
 }));
 
 import ServerSidebarEntry from './ServerSidebarEntry.svelte';
@@ -216,7 +218,15 @@ describe('ServerSidebarEntry', () => {
     mocks.beginOriginReauthentication.mockReset();
     mocks.isOriginServer.mockReset();
     mocks.isOriginServer.mockReturnValue(false);
+    mocks.server.url = 'https://remote.example.com';
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: mocks.writeClipboardText },
+      configurable: true
+    });
+    mocks.writeClipboardText.mockReset();
+    mocks.writeClipboardText.mockResolvedValue(undefined);
     mocks.toastError.mockReset();
+    mocks.toastSuccess.mockReset();
     mocks.appUi.disableRoomCallWideFor.mockClear();
     mocks.getAuthenticatedServerState.mockResolvedValue(serverState());
     mocks.getViewerStateViaConnect.mockResolvedValue(viewerState());
@@ -277,9 +287,14 @@ describe('ServerSidebarEntry', () => {
     const markRead = Array.from(document.querySelectorAll('button')).find(
       (button) => button.textContent?.trim() === 'Mark as read'
     );
+    const remove = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Remove server'
+    );
     await expect.element(markRead ?? null).toBeInTheDocument();
     await expect.element(markRead ?? null).toBeEnabled();
-    await expect.element(q(document.body, '[role="separator"]')).toBeInTheDocument();
+    await expect.element(remove ?? null).toBeInTheDocument();
+    expect(markRead?.closest('.menu-section')).not.toBe(remove?.closest('.menu-section'));
+    expect(q(document.body, '[role="separator"]')).toBeNull();
     markRead!.click();
 
     expect(mocks.markNavigationServerAsRead).toHaveBeenCalledWith('remote');
@@ -300,6 +315,44 @@ describe('ServerSidebarEntry', () => {
     await expect
       .element(q(document.body, '[role="menu"]'))
       .toHaveAttribute('aria-label', 'Actions for Loaded Remote');
+  });
+
+  it('shows Copy Server Hostname last and copies the displayed host', async () => {
+    mocks.server.url = 'https://remote.example.com:8443/chat';
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote', currentUserId: 'user-1' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]') as HTMLAnchorElement;
+
+    icon.dispatchEvent(new MouseEvent('contextmenu', { bubbles: true, cancelable: true }));
+    await vi.waitFor(() =>
+      expect(document.querySelector('[data-testid="copy-server-hostname"]')).not.toBeNull()
+    );
+
+    const copyHostname = q(
+      document.body,
+      '[data-testid="copy-server-hostname"]'
+    ) as HTMLButtonElement;
+    await expect.element(copyHostname).toHaveTextContent('Copy Server Hostname');
+    const menuItems = copyHostname
+      .closest('[role="menu"]')
+      ?.querySelectorAll('[role="menuitem"]');
+    expect(menuItems?.item((menuItems?.length ?? 0) - 1)).toBe(copyHostname);
+
+    const remove = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === 'Remove server'
+    );
+    expect(remove?.closest('.menu-section')).not.toBe(copyHostname.closest('.menu-section'));
+
+    copyHostname.click();
+
+    await vi.waitFor(() =>
+      expect(mocks.writeClipboardText).toHaveBeenCalledWith('remote.example.com:8443')
+    );
+    expect(mocks.toastSuccess).toHaveBeenCalledWith('Copied to clipboard');
+    await vi.waitFor(() =>
+      expect(q(document.body, '[data-testid="copy-server-hostname"]')).toBeNull()
+    );
   });
 
   it('opens the remove-server confirmation for the selected server', async () => {

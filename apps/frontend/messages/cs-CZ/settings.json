@@ -4,7 +4,7 @@
       "title": "Nastavení",
       "back_to_server": "Zpět na Server",
       "profile": "Profil",
-      "display": "Displej",
+      "display": "Předvolby",
       "notifications": "Oznámení",
       "account": "účet",
       "bots": "Boti"
@@ -105,8 +105,9 @@
       "save_button": "Uložit změny"
     },
     "preferences": {
-      "title": "Displej",
-      "subtitle": "Vyberte, jak se má Chatto zobrazovat",
+      "title": "Předvolby",
+      "subtitle": "Zvolte vzhled a chování Chatto",
+      "browser_scope": "Tato volba platí pro všechny servery Chatto v tomto prohlížeči.",
       "theme": {
         "title": "téma",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Tmavý",
           "description": "V tomto prohlížeči použijte tmavé rozhraní"
+        }
+      },
+      "editor": {
+        "title": "Editor zpráv",
+        "visual": {
+          "label": "Vizuální",
+          "description": "Formátujte zprávy bez zobrazení syntaxe Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Upravujte zdroj Markdown se zvýrazněním syntaxe"
+        }
+      },
+      "send_mode": {
+        "title": "Odesílat zprávy pomocí",
+        "enter": {
+          "label": "Return",
+          "description": "Return odešle zprávu; Cmd/Ctrl+Return provede běžnou akci klávesy Return v editoru"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return odešle zprávu; Return provede běžnou akci editoru"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "např. 14:30"
         }
       },
-      "save_button": "Uložit nastavení zobrazení",
-      "saved": "Nastavení zobrazení uloženo",
-      "save_failed": "Nastavení zobrazení se nepodařilo uložit"
+      "save_button": "Uložit nastavení času",
+      "saved": "Nastavení času uloženo",
+      "save_failed": "Nastavení času se nepodařilo uložit"
     },
     "notifications": {
       "title": "Oznámení",

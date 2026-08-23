@@ -20,6 +20,7 @@
 <script lang="ts">
   let trigger: HTMLButtonElement;
   let open = $state(false);
+  let sheetOpen = $state(false);
   let anchor = $state<{ top: number; bottom: number; left: number } | null>(null);
 
   function openMenu() {
@@ -52,6 +53,43 @@
           <span class="sidebar-icon iconify icon-[uil--trash]"></span>
           Delete
         </button>
+      </div>
+    </ContextMenu>
+  {/if}
+</Story>
+
+<Story name="Touch sheet" asChild>
+  <button type="button" class="btn-action" onclick={() => (sheetOpen = true)}>Open sheet</button>
+
+  {#if sheetOpen}
+    <ContextMenu
+      presentation="sheet"
+      ariaLabel="Example touch actions"
+      onclose={() => (sheetOpen = false)}
+    >
+      <div class="menu-section">
+        <nav class="sidebar-nav">
+          <button type="button" class="sidebar-item" onclick={() => (sheetOpen = false)}>
+            <span class="iconify sidebar-icon icon-[uil--edit]" aria-hidden="true"></span>
+            Edit
+          </button>
+          <button type="button" class="sidebar-item" onclick={() => (sheetOpen = false)}>
+            <span class="iconify sidebar-icon icon-[uil--copy]" aria-hidden="true"></span>
+            Copy
+          </button>
+        </nav>
+      </div>
+      <div class="menu-section">
+        <nav class="sidebar-nav">
+          <button
+            type="button"
+            class="sidebar-item text-danger"
+            onclick={() => (sheetOpen = false)}
+          >
+            <span class="iconify sidebar-icon icon-[uil--trash]" aria-hidden="true"></span>
+            Delete
+          </button>
+        </nav>
       </div>
     </ContextMenu>
   {/if}

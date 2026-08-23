@@ -4,7 +4,7 @@
       "title": "הגדרות",
       "back_to_server": "חזרה לשרת",
       "profile": "פרופיל",
-      "display": "תצוגה",
+      "display": "העדפות",
       "notifications": "התראות",
       "account": "חשבון",
       "bots": "בוטים"
@@ -105,8 +105,9 @@
       "save_button": "שמור שינויים"
     },
     "preferences": {
-      "title": "תצוגה",
-      "subtitle": "בחר כיצד Chatto יופיע",
+      "title": "העדפות",
+      "subtitle": "בחרו כיצד Chatto ייראה ויתנהג",
+      "browser_scope": "הבחירה חלה על כל שרתי Chatto בדפדפן הזה.",
       "theme": {
         "title": "ערכת נושא",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "כהה",
           "description": "השתמש בממשק הכהה בדפדפן זה"
+        }
+      },
+      "editor": {
+        "title": "עורך הודעות",
+        "visual": {
+          "label": "חזותי",
+          "description": "עיצוב הודעות בלי לראות תחביר Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "עריכת מקור Markdown עם הדגשת תחביר"
+        }
+      },
+      "send_mode": {
+        "title": "שליחת הודעות באמצעות",
+        "enter": {
+          "label": "Return",
+          "description": "Return שולח; Cmd/Ctrl+Return מבצע את פעולת Return הרגילה של העורך"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return שולח; Return מבצע את הפעולה הרגילה של העורך"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "למשל, 14:30"
         }
       },
-      "save_button": "שמור הגדרות תצוגה",
-      "saved": "הגדרות התצוגה נשמרו",
-      "save_failed": "נכשל בשמירת הגדרות התצוגה"
+      "save_button": "שמירת הגדרות הזמן",
+      "saved": "הגדרות הזמן נשמרו",
+      "save_failed": "שמירת הגדרות הזמן נכשלה"
     },
     "notifications": {
       "title": "התראות",

@@ -4,7 +4,7 @@
       "title": "設定",
       "back_to_server": "返回伺服器",
       "profile": "個人檔案",
-      "display": "顯示",
+      "display": "偏好設定",
       "notifications": "通知",
       "account": "帳號",
       "bots": "機器人"
@@ -105,8 +105,9 @@
       "save_button": "儲存變更"
     },
     "preferences": {
-      "title": "顯示",
-      "subtitle": "選擇 Chatto 的顯示方式",
+      "title": "偏好設定",
+      "subtitle": "選擇 Chatto 的外觀與行為",
+      "browser_scope": "此選擇適用於這個瀏覽器中的所有 Chatto 伺服器。",
       "theme": {
         "title": "佈景主題",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "深色",
           "description": "在此瀏覽器使用深色介面"
+        }
+      },
+      "editor": {
+        "title": "訊息編輯器",
+        "visual": {
+          "label": "視覺化",
+          "description": "不顯示 Markdown 語法即可設定訊息格式"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "使用語法醒目提示編輯 Markdown 原始碼"
+        }
+      },
+      "send_mode": {
+        "title": "傳送訊息的按鍵",
+        "enter": {
+          "label": "Enter",
+          "description": "Enter 傳送訊息；Cmd/Ctrl+Enter 執行編輯器一般的 Enter 操作"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Enter",
+          "description": "Cmd/Ctrl+Enter 傳送訊息；Enter 執行編輯器的一般操作"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "例如 14:30"
         }
       },
-      "save_button": "儲存顯示設定",
-      "saved": "顯示設定已儲存",
-      "save_failed": "無法儲存顯示設定"
+      "save_button": "儲存時間設定",
+      "saved": "已儲存時間設定",
+      "save_failed": "無法儲存時間設定"
     },
     "notifications": {
       "title": "通知",

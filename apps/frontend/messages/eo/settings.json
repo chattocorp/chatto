@@ -4,7 +4,7 @@
       "title": "Agordoj",
       "back_to_server": "Reen al Servilo",
       "profile": "Profilo",
-      "display": "Montru",
+      "display": "Preferoj",
       "notifications": "Sciigoj",
       "account": "Konto",
       "bots": "Botoj"
@@ -105,8 +105,9 @@
       "save_button": "Konservu Ŝanĝojn"
     },
     "preferences": {
-      "title": "Montru",
-      "subtitle": "Elektu kiel Chatto aperas",
+      "title": "Preferoj",
+      "subtitle": "Elektu la aspekton kaj konduton de Chatto",
+      "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",
       "theme": {
         "title": "Temo",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Mallumo",
           "description": "Uzu la malhelan interfacon en ĉi tiu retumilo"
+        }
+      },
+      "editor": {
+        "title": "Mesaĝredaktilo",
+        "visual": {
+          "label": "Vida",
+          "description": "Aranĝu mesaĝojn sen vidi Markdown-sintakson"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Redaktu Markdown-fonton kun sintaksa reliefigo"
+        }
+      },
+      "send_mode": {
+        "title": "Sendi mesaĝojn per",
+        "enter": {
+          "label": "Return",
+          "description": "Return sendas; Cmd/Ctrl+Return plenumas la normalan Return-agon de la redaktilo"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sendas; Return plenumas la normalan agon de la redaktilo"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "ekz., 14:30"
         }
       },
-      "save_button": "Konservu ekranajn agordojn",
-      "saved": "Vidigaj agordoj konservitaj",
-      "save_failed": "Malsukcesis konservi ekranajn agordojn"
+      "save_button": "Konservi horajn agordojn",
+      "saved": "Horaj agordoj konservitaj",
+      "save_failed": "Ne eblis konservi horajn agordojn"
     },
     "notifications": {
       "title": "Sciigoj",

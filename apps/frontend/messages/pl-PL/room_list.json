@@ -15,6 +15,8 @@
     "mark_as_read": "Oznacz jako przeczytane",
     "remove_server": "Usuń serwer",
     "leave_room": "Opuść pokój",
+    "copy_room_id": "Kopiuj identyfikator pokoju",
+    "copy_server_hostname": "Kopiuj nazwę hosta serwera",
     "room_settings": "Ustawienia pokoju",
     "group_settings": "Ustawienia dla {group}",
     "server_actions": "Działania dla {server}",

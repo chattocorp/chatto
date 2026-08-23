@@ -6,6 +6,7 @@ import {
   createAndLoginTestUser,
   loginTestUser,
   openServer,
+  composerTestStorageState,
   type CreateTestUserOptions,
   type TestUser
 } from './testUser';
@@ -43,7 +44,8 @@ export async function withServerUser<T>(
   options: ServerUserOptions = {}
 ): Promise<T> {
   const { userOptions, ...contextOptions } = options;
-  const context = await browser.newContext({ ...contextOptions, baseURL: serverURL });
+  const storageState = contextOptions.storageState ?? composerTestStorageState(serverURL);
+  const context = await browser.newContext({ ...contextOptions, baseURL: serverURL, storageState });
   const page = await context.newPage();
 
   try {
@@ -68,7 +70,8 @@ export async function withLoggedInServerWindow<T>(
   run: (session: ServerUserSession) => Promise<T>,
   contextOptions: BrowserContextOptions = {}
 ): Promise<T> {
-  const context = await browser.newContext({ ...contextOptions, baseURL: serverURL });
+  const storageState = contextOptions.storageState ?? composerTestStorageState(serverURL);
+  const context = await browser.newContext({ ...contextOptions, baseURL: serverURL, storageState });
   const page = await context.newPage();
 
   try {

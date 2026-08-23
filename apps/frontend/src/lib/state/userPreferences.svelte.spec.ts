@@ -71,6 +71,51 @@ describe('UserPreferencesState', () => {
       expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
     });
 
+    it('uses Markdown editing when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('markdown');
+    });
+
+    it('uses Return-to-send when storage is empty', () => {
+      const state = new UserPreferencesState();
+      expect(state.composerSendMode).toBe('enter');
+    });
+
+    it('hydrates a valid composer preference', () => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'markdown' }));
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('markdown');
+    });
+
+    it.each(['enter', 'modifier-enter'] as const)(
+      'hydrates a valid %s send-mode preference',
+      (composerSendMode) => {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerSendMode }));
+        const state = new UserPreferencesState();
+        expect(state.composerSendMode).toBe(composerSendMode);
+      }
+    );
+
+    it('falls back from an invalid send-mode preference independently', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ composerEditor: 'visual', composerSendMode: 'spacebar' })
+      );
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('visual');
+      expect(state.composerSendMode).toBe('enter');
+    });
+
+    it('falls back from an invalid composer preference independently', () => {
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ composerEditor: 'plain-text', composerSendMode: 'modifier-enter' })
+      );
+      const state = new UserPreferencesState();
+      expect(state.composerEditor).toBe('markdown');
+      expect(state.composerSendMode).toBe('modifier-enter');
+    });
+
     it('hydrates a valid persisted sound', () => {
       localStorage.setItem(STORAGE_KEY, JSON.stringify({ notificationSound: 'silent' }));
       const state = new UserPreferencesState();
@@ -220,6 +265,26 @@ describe('UserPreferencesState', () => {
 
       const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
       expect(stored.notificationSound).toBe('pop');
+    });
+
+    it('updates and persists the composer preference', () => {
+      const state = new UserPreferencesState();
+      state.composerEditor = 'visual';
+
+      expect(state.composerEditor).toBe('visual');
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        composerEditor: 'visual'
+      });
+    });
+
+    it('updates and persists the composer send mode', () => {
+      const state = new UserPreferencesState();
+      state.composerSendMode = 'modifier-enter';
+
+      expect(state.composerSendMode).toBe('modifier-enter');
+      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+        composerSendMode: 'modifier-enter'
+      });
     });
 
     it('updates and persists individual notification sound filters', () => {

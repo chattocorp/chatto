@@ -4,7 +4,7 @@
       "title": "Impostazioni",
       "back_to_server": "Ritorno al server",
       "profile": "Profilo",
-      "display": "Visualizzazione",
+      "display": "Preferenze",
       "notifications": "Notifiche",
       "account": "Conto",
       "bots": "Bot"
@@ -105,8 +105,9 @@
       "save_button": "Salva modifiche"
     },
     "preferences": {
-      "title": "Visualizzazione",
-      "subtitle": "Scegli come appare Chatto",
+      "title": "Preferenze",
+      "subtitle": "Scegli l’aspetto e il comportamento di Chatto",
+      "browser_scope": "Questa scelta si applica a tutti i server Chatto in questo browser.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Buio",
           "description": "Utilizza l'interfaccia oscura su questo browser"
+        }
+      },
+      "editor": {
+        "title": "Editor dei messaggi",
+        "visual": {
+          "label": "Visuale",
+          "description": "Formatta i messaggi senza vedere la sintassi Markdown"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Modifica il sorgente Markdown con evidenziazione della sintassi"
+        }
+      },
+      "send_mode": {
+        "title": "Invia messaggi con",
+        "enter": {
+          "label": "Invio",
+          "description": "Invio spedisce; Cmd/Ctrl+Invio esegue la normale azione Invio dell'editor"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Invio",
+          "description": "Cmd/Ctrl+Invio spedisce; Invio esegue la normale azione dell'editor"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "ad esempio, 14:30"
         }
       },
-      "save_button": "Salva impostazioni di visualizzazione",
-      "saved": "Impostazioni di visualizzazione salvate",
-      "save_failed": "Impossibile salvare le impostazioni di visualizzazione"
+      "save_button": "Salva impostazioni orarie",
+      "saved": "Impostazioni orarie salvate",
+      "save_failed": "Impossibile salvare le impostazioni orarie"
     },
     "notifications": {
       "title": "Notifiche",

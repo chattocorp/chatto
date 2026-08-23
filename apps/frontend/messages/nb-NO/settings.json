@@ -4,7 +4,7 @@
       "title": "Innstillinger",
       "back_to_server": "Tilbake til server",
       "profile": "Profil",
-      "display": "Skjerm",
+      "display": "Innstillinger",
       "notifications": "Varsler",
       "account": "Konto",
       "bots": "Botter"
@@ -105,8 +105,9 @@
       "save_button": "Lagre endringer"
     },
     "preferences": {
-      "title": "Skjerm",
-      "subtitle": "Velg hvordan Chatto vises",
+      "title": "Innstillinger",
+      "subtitle": "Velg hvordan Chatto ser ut og oppfører seg",
+      "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",
       "theme": {
         "title": "Tema",
         "system": {
@@ -120,6 +121,28 @@
         "dark": {
           "label": "Mørkt",
           "description": "Bruk det mørke grensesnittet på denne nettleseren"
+        }
+      },
+      "editor": {
+        "title": "Meldingsredigering",
+        "visual": {
+          "label": "Visuell",
+          "description": "Formater meldinger uten å se Markdown-syntaks"
+        },
+        "markdown": {
+          "label": "Markdown",
+          "description": "Rediger Markdown-kilde med syntaksutheving"
+        }
+      },
+      "send_mode": {
+        "title": "Send meldinger med",
+        "enter": {
+          "label": "Return",
+          "description": "Return sender; Cmd/Ctrl+Return utfører redigeringsprogrammets vanlige Return-handling"
+        },
+        "modifier_enter": {
+          "label": "Cmd/Ctrl+Return",
+          "description": "Cmd/Ctrl+Return sender; Return utfører redigeringsprogrammets vanlige handling"
         }
       },
       "language": {
@@ -153,9 +176,9 @@
           "description": "f.eks. 14:30"
         }
       },
-      "save_button": "Lagre skjerminnstillinger",
-      "saved": "Skjerminnstillinger lagret",
-      "save_failed": "Kunne ikke lagre skjerminnstillinger"
+      "save_button": "Lagre tidsinnstillinger",
+      "saved": "Tidsinnstillinger lagret",
+      "save_failed": "Kunne ikke lagre tidsinnstillinger"
     },
     "notifications": {
       "title": "Varsler",

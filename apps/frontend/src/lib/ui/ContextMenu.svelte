@@ -76,11 +76,13 @@ ignored (the BottomSheet handles its own positioning).
 {#if useSheet}
   <BottomSheet bind:visible={sheetVisible} {ariaLabel} {onclose}>
     {#if role === 'menu'}
-      <div role="menu" aria-label={ariaLabel}>
+      <div class="flex flex-col gap-1" role="menu" aria-label={ariaLabel}>
         {@render children()}
       </div>
     {:else}
-      {@render children()}
+      <div class="flex flex-col gap-1">
+        {@render children()}
+      </div>
     {/if}
   </BottomSheet>
 {:else}

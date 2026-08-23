@@ -20,6 +20,7 @@
   } from '$lib/slowMode';
   import { Code, ConnectError } from '$lib/api-client/connect';
   import { SvelteDate } from 'svelte/reactivity';
+  import type { Component } from 'svelte';
   import EmojiAutocomplete from './EmojiAutocomplete.svelte';
   import MentionAutocomplete from './MentionAutocomplete.svelte';
   import ComposerLinkPreview from './ComposerLinkPreview.svelte';
@@ -27,8 +28,16 @@
   import ComposerToolbar from './ComposerToolbar.svelte';
   import ComposerModeIndicators from './ComposerModeIndicators.svelte';
   import { MessageComposerState, type MessageComposerProps } from './messageComposerState.svelte';
+  import type { ComposerEditorProps } from './editorTypes';
+  import { userPreferences, type ComposerEditorKind } from '$lib/state/userPreferences.svelte';
 
-  const tipTapEditorModule = import('./TipTapEditor.svelte');
+  const editorLoaders: Record<
+    ComposerEditorKind,
+    () => Promise<{ default: Component<ComposerEditorProps> }>
+  > = {
+    visual: () => import('./TipTapEditor.svelte'),
+    markdown: () => import('./MarkdownEditor.svelte')
+  };
   const serverScope = useServerScope();
   const stores = serverScope.store;
   const serverInfo = stores.serverInfo;
@@ -81,6 +90,7 @@
     )
   );
   const slowModeBlocked = $derived(slowModeRemainingSeconds > 0);
+  const editorModule = $derived(editorLoaders[userPreferences.composerEditor]());
 
   $effect(() => {
     const deadline = slowModeDeadline;
@@ -104,6 +114,7 @@
     getCanCreateThread: () => showCreateThread,
     getCreateThreadRequired: () => createThreadRequired,
     getAutoFocus: () => autoFocus,
+    getComposerSendMode: () => userPreferences.composerSendMode,
     getPlaceholder: () => placeholder,
     getOnReady: () => onReady,
     getCallbacks: () => ({
@@ -145,7 +156,7 @@
     if (
       event.button === 0 &&
       target instanceof Element &&
-      !target.closest('button, a, input, label, select, .tiptap')
+      !target.closest('button, a, input, label, select, [data-composer-editor]')
     ) {
       composer.editorApi?.focus();
     }
@@ -191,8 +202,7 @@
 
   <div
     data-testid="composer-input-surface"
-    data-composer-mode={composer.isRichComposer ? 'rich' : 'simple'}
-    class="@container composer-mode-surface relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
+    class="@container relative flex flex-col rounded-lg bg-surface px-2.5 py-1.5"
     class:opacity-50={composer.inputDisabled}
   >
     {#if composer.autocomplete.emoji}
@@ -216,10 +226,10 @@
     {/if}
 
     <div class="min-h-9 min-w-0 px-0.5 py-0.5" data-testid="composer-editor-row">
-      {#await tipTapEditorModule}
+      {#await editorModule}
         <div class="min-h-8 min-w-0" aria-hidden="true"></div>
-      {:then { default: TipTapEditor }}
-        <TipTapEditor
+      {:then { default: Editor }}
+        <Editor
           placeholder={composer.currentPlaceholder}
           editable={!composer.inputDisabled}
           autofocus={autoFocus && shouldAutoFocus()}
@@ -227,23 +237,22 @@
           onUpdate={(text) => composer.handleEditorUpdate(text)}
           onKeyDown={(event) => composer.handleEditorKeyDown(event)}
           onPaste={(event) => composer.handlePaste(event)}
-          onNextEnterWillSendChange={(value) => (composer.editorNextEnterWillSend = value)}
-          onRichStructureChange={(value) => (composer.editorHasRichStructure = value)}
           onFormattingStateChange={(formatting) => (composer.formattingState = { ...formatting })}
+          onIndentStateChange={(state) => (composer.indentState = { ...state })}
           onReady={(api) => composer.handleEditorReady(api)}
+          onDestroy={(api) => composer.handleEditorDestroyed(api)}
         />
       {/await}
     </div>
 
     <ComposerToolbar
       formattingState={composer.formattingState}
+      indentState={composer.indentState}
       editorApi={composer.editorApi}
       inputDisabled={composer.inputDisabled}
       {canAttach}
       isEditing={composer.isEditing}
       canSubmit={composer.canSubmit}
-      isRichComposer={composer.isRichComposer}
-      nextEnterWillSend={composer.nextEnterWillSend}
       fileInputElement={composer.fileInputElement}
       effectiveTimezone={userSettings.effectiveTimezone}
       showCreateThread={showCreateThread && !composer.isEditing && !inThread}

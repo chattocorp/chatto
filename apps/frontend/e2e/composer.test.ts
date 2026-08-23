@@ -160,8 +160,8 @@ test.describe('Composer focus', () => {
   });
 });
 
-test.describe('Composer simple/rich keyboard modes', () => {
-  test('sends simple text with Enter and hides the rich shortcut hint', async ({
+test.describe('Composer keyboard behavior', () => {
+  test('uses native Enter and Control+Enter to send without a shortcut hint', async ({
     page,
     chatPage,
     roomPage
@@ -171,41 +171,21 @@ test.describe('Composer simple/rich keyboard modes', () => {
     await chatPage.enterRoom('general');
     await waitForRoomReady(page, 'general');
 
-    const message = `Return again send ${Date.now()}`;
+    const message = `Keyboard send ${Date.now()}`;
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill(message);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).not.toBeVisible();
+    await expect(page.getByTestId('composer-toolbar')).not.toContainText(/to send/i);
 
     await roomPage.messageInput.press('Enter');
-    await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
-    await expect(roomPage.messageInput).toHaveText('');
-  });
-
-  test('activates rich mode with Control+Enter before sending', async ({
-    page,
-    chatPage,
-    roomPage
-  }) => {
-    await createAndLoginTestUser(page);
-    await chatPage.goto();
-    await chatPage.enterRoom('general');
-    await waitForRoomReady(page, 'general');
-
-    const message = `Manual rich send ${Date.now()}`;
-    await roomPage.waitForInputEditable();
-    await roomPage.messageInput.fill(message);
-
-    await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.getMessage(message).locator).not.toBeVisible();
     await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(2);
-    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
 
     await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.getMessage(message).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await expect(roomPage.messageInput).toHaveText('');
   });
 
-  test('sends from the visible trailing paragraph after exiting a list', async ({
+  test('uses native Enter for list continuation before Control+Enter sends', async ({
     page,
     chatPage,
     roomPage
@@ -217,20 +197,156 @@ test.describe('Composer simple/rich keyboard modes', () => {
 
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.fill('- first');
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
 
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).toBeVisible();
 
     await roomPage.messageInput.press('Enter');
     await expect(roomPage.messageInput.locator('ul li')).toHaveCount(1);
     await expect(roomPage.messageInput.locator(':scope > p')).toHaveCount(1);
-    await expect(page.getByText(/(?:Return|Enter) again to Send/)).toBeVisible();
 
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await expect(roomPage.getMessage('first').locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
     await expect(roomPage.messageInput).toHaveText('');
+  });
+
+  test('uses Control+Enter for structural editing when Return sends', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Return/ }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const first = `Return send first ${Date.now()}`;
+    const second = `Return send second ${Date.now()}`;
+    await roomPage.waitForInputEditable();
+    await roomPage.messageInput.fill(`- ${first}`);
+
+    await roomPage.messageInput.press('Control+Enter');
+    await expect(roomPage.messageInput.locator('ul li')).toHaveCount(2);
+    await roomPage.messageInput.pressSequentially(second);
+    await expect(roomPage.getMessage(first).locator).not.toBeVisible();
+
+    await roomPage.messageInput.press('Enter');
+    await expect(roomPage.getMessage(first).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(roomPage.getMessage(second).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+  });
+});
+
+test.describe('Markdown composer', () => {
+  test('persists the choice, sends highlighted source, and edits the original Markdown', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Markdown/ }).click();
+    await page.reload();
+    await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
+      'aria-checked',
+      'true'
+    );
+
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+    await expect(page.locator('[data-composer-editor="markdown"]')).toBeVisible();
+    await expect(page.locator('[data-composer-editor="visual"]')).toHaveCount(0);
+
+    const marker = `Markdown source ${Date.now()}`;
+    const source = `**${marker}**\n\n\`\`\`js\nconst answer = "yes";\n\`\`\``;
+    await roomPage.messageInput.fill(source);
+    await expect(roomPage.messageInput.locator('.hljs-keyword')).toHaveText('const');
+    await expect(roomPage.messageInput.locator('.hljs-string')).toHaveText('"yes"');
+    await roomPage.messageInput.press('Control+Enter');
+
+    const message = roomPage.getMessage(marker);
+    await expect(message.locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
+    await expect(message.locator.locator('strong')).toHaveText(marker);
+    await message.editViaToolbar();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText([
+      `**${marker}**`,
+      '',
+      '```js',
+      'const answer = "yes";',
+      '```'
+    ]);
+
+    const editedMarker = `${marker} edited`;
+    await roomPage.messageInput.fill(`**${editedMarker}**`);
+    await roomPage.messageInput.press('Control+Enter');
+    await expect(roomPage.getMessage(editedMarker).locator).toBeVisible({
+      timeout: TIMEOUTS.UI_FAST
+    });
+  });
+
+  test('uses CodeMirror line indentation with Tab and the toolbar', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Markdown/ }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    await roomPage.messageInput.fill('first\nsecond');
+    const indent = page.getByRole('button', { name: 'Indent', exact: true });
+    const outdent = page.getByRole('button', { name: 'Outdent', exact: true });
+    await expect(indent).toBeEnabled();
+    await expect(outdent).toBeEnabled();
+
+    await roomPage.messageInput.press('Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', '  second']);
+
+    await outdent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
+    await indent.click();
+    await roomPage.messageInput.press('Shift+Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
+    await roomPage.messageInput.press('Shift+Tab');
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
+
+    await roomPage.messageInput.press(process.platform === 'darwin' ? 'Meta+A' : 'Control+A');
+    await indent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['  first', '  second']);
+    await outdent.click();
+    await expect(roomPage.messageInput.locator('.cm-line')).toHaveText(['first', 'second']);
+  });
+});
+
+test.describe('Markdown composer on touch devices', () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 1280, height: 720 } });
+
+  test('uses Return for newlines and the visible button to send', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
+    await createAndLoginTestUser(page);
+    await page.goto(routes.settingsPreferences);
+    await page.getByRole('radio', { name: /^Markdown/ }).click();
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReady(page, 'general');
+
+    const first = `Touch first ${Date.now()}`;
+    const second = 'touch second';
+    await roomPage.messageInput.fill(first);
+    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.pressSequentially(second);
+    await expect(roomPage.getMessage(first).locator).not.toBeVisible();
+
+    await roomPage.sendButton.click();
+    await expect(roomPage.getMessage(second).locator).toBeVisible({ timeout: TIMEOUTS.UI_FAST });
   });
 });
 

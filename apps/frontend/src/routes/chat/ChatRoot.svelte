@@ -139,7 +139,7 @@
     // Handle session terminated events from server (logout from another tab/device, admin boot).
     useSessionTerminated(
       (reason) => {
-        console.log('Session terminated by server:', reason);
+        console.warn('Session terminated by server:', reason);
         if (isExplicitSignOutRedirectInProgress()) return;
         clearTerminatedOriginSession();
       },

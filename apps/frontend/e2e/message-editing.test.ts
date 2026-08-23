@@ -30,7 +30,11 @@ test.describe('Up arrow to edit last message', () => {
     await expect(roomPage.composer).toHaveText(originalMessage);
   });
 
-  test('pressing Enter commits a simple up-arrow edit', async ({ page, chatPage, roomPage }) => {
+  test('pressing Control+Enter commits a simple up-arrow edit', async ({
+    page,
+    chatPage,
+    roomPage
+  }) => {
     await createAndLoginTestUser(page);
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -45,9 +49,9 @@ test.describe('Up arrow to edit last message', () => {
 
     const editedMessage = `Simple up edit saved ${Date.now()}`;
     await roomPage.messageInput.fill(editedMessage);
-    await expect(page.getByText(/(?:Cmd|Ctrl)\+Return to Send/)).not.toBeVisible();
+    await expect(page.getByTestId('composer-toolbar')).not.toContainText(/to send/i);
 
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
     await roomPage.expectEditModeInactive();
     await roomPage.expectMessageVisible(editedMessage);
     await roomPage.expectMessageNotVisible(originalMessage);
@@ -462,15 +466,15 @@ test.describe('Message editing', () => {
     await chatPage.goto();
     await chatPage.enterRoom('general');
 
-    // Compose "line1" + blank line + "line2". Shift+Enter inserts a hard
-    // break in the composer; Enter submits the simple-mode message.
+    // Compose "line1" + blank line + "line2". Native Enter creates the
+    // structural breaks; Ctrl+Enter submits the message.
     await roomPage.waitForInputEditable();
     await roomPage.messageInput.click();
     await page.keyboard.type('line1');
-    await page.keyboard.press('Shift+Enter');
-    await page.keyboard.press('Shift+Enter');
+    await page.keyboard.press('Enter');
+    await page.keyboard.press('Enter');
     await page.keyboard.type('line2');
-    await roomPage.messageInput.press('Enter');
+    await roomPage.messageInput.press('Control+Enter');
 
     const message = roomPage.getMessage('line1');
     await expect(message.locator).toBeVisible();
@@ -500,7 +504,7 @@ test.describe('Message editing', () => {
       await page.keyboard.press(docEnd);
       await page.keyboard.type('x');
       await page.keyboard.press('Backspace');
-      await roomPage.composer.press('Enter');
+      await roomPage.composer.press('Control+Enter');
       await roomPage.expectEditModeInactive();
       return snapshot;
     };

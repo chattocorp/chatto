@@ -15,16 +15,22 @@ import {
 import { Codecs, globalSlot } from '$lib/storage/slot';
 
 export type DisplayTheme = 'system' | 'light' | 'dark';
+export type ComposerEditorKind = 'visual' | 'markdown';
+export type ComposerSendMode = 'enter' | 'modifier-enter';
 type EffectiveTheme = 'light' | 'dark';
 
 interface Preferences {
   displayTheme: DisplayTheme;
+  composerEditor: ComposerEditorKind;
+  composerSendMode: ComposerSendMode;
   notificationSound: NotificationSoundId;
   notificationSoundFilters: NotificationSoundFilters;
 }
 
 const defaultPreferences: Preferences = {
   displayTheme: 'system',
+  composerEditor: 'markdown',
+  composerSendMode: 'enter',
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };
@@ -43,6 +49,14 @@ function clampNumber(value: unknown, min: number, max: number, fallback: number)
 
 function isDisplayTheme(value: unknown): value is DisplayTheme {
   return value === 'system' || value === 'light' || value === 'dark';
+}
+
+function isComposerEditorKind(value: unknown): value is ComposerEditorKind {
+  return value === 'visual' || value === 'markdown';
+}
+
+function isComposerSendMode(value: unknown): value is ComposerSendMode {
+  return value === 'enter' || value === 'modifier-enter';
 }
 
 function getLegacyDisplayTheme(): DisplayTheme | null {
@@ -108,9 +122,13 @@ function loadPreferences(): Preferences {
   const displayTheme =
     getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultPreferences.displayTheme;
   return {
-    ...defaultPreferences,
-    ...stored,
     displayTheme,
+    composerEditor: isComposerEditorKind(stored.composerEditor)
+      ? stored.composerEditor
+      : defaultPreferences.composerEditor,
+    composerSendMode: isComposerSendMode(stored.composerSendMode)
+      ? stored.composerSendMode
+      : defaultPreferences.composerSendMode,
     notificationSound: isValidSound ? stored.notificationSound : defaultSoundId,
     notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters)
   };
@@ -132,6 +150,28 @@ export class UserPreferencesState {
 
   get effectiveDisplayTheme(): EffectiveTheme {
     return resolveDisplayTheme(this.#prefs.displayTheme);
+  }
+
+  get composerEditor(): ComposerEditorKind {
+    return this.#prefs.composerEditor;
+  }
+
+  set composerEditor(value: ComposerEditorKind) {
+    this.#prefs.composerEditor = isComposerEditorKind(value)
+      ? value
+      : defaultPreferences.composerEditor;
+    slot.set(this.#prefs);
+  }
+
+  get composerSendMode(): ComposerSendMode {
+    return this.#prefs.composerSendMode;
+  }
+
+  set composerSendMode(value: ComposerSendMode) {
+    this.#prefs.composerSendMode = isComposerSendMode(value)
+      ? value
+      : defaultPreferences.composerSendMode;
+    slot.set(this.#prefs);
   }
 
   get notificationSound(): NotificationSoundId {

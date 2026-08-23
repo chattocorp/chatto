@@ -7,7 +7,7 @@
     dateToDatetimeLocalValue,
     localDatetimeToEpochSeconds
   } from '$lib/messageTimestamps';
-  import type { TipTapEditorApi } from './editorTypes';
+  import type { ComposerEditorApi } from './editorTypes';
 
   let {
     disabled,
@@ -15,7 +15,7 @@
     effectiveTimezone
   }: {
     disabled: boolean;
-    editorApi: TipTapEditorApi | null;
+    editorApi: ComposerEditorApi | null;
     effectiveTimezone?: string;
   } = $props();
 

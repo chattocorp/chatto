@@ -39,7 +39,8 @@
     },
     "user_menu": {
       "profile": "使用者個人檔案",
-      "send_message": "傳送訊息"
+      "send_message": "傳送訊息",
+      "copy_user_id": "複製使用者 ID"
     },
     "server_gutter": {
       "add_server": "新增伺服器",

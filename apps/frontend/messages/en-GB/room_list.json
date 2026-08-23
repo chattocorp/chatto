@@ -15,6 +15,8 @@
     "mark_as_read": "Mark as read",
     "remove_server": "Remove server",
     "leave_room": "Leave room",
+    "copy_room_id": "Copy Room ID",
+    "copy_server_hostname": "Copy Server Hostname",
     "room_settings": "Room settings",
     "group_settings": "Settings for {group}",
     "server_actions": "Actions for {server}",
