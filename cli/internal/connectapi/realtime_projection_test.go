@@ -130,6 +130,16 @@ foundEmpty:
 	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
 		t.Fatalf("used DM has_message_history = %v, want true after message retraction", room.HasMessageHistory)
 	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, dm.Id, env.viewer.Id, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	room, err = env.api.BuildRealtimeProjectionRoomSummary(env.ctx, env.viewer.Id, dm.Id)
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionRoomSummary without message.read: %v", err)
+	}
+	if room.HasMessageHistory != nil {
+		t.Fatalf("unreadable DM has_message_history = %v, want absent", *room.HasMessageHistory)
+	}
 }
 
 func TestRealtimeProjectionLatestValueViewerStatesConverge(t *testing.T) {

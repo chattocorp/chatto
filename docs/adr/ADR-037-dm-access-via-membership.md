@@ -2,6 +2,10 @@
 
 **Date:** 2026-05-31
 
+> **Partially superseded by [ADR-080](ADR-080-explicit-message-read-permissions.md).**
+> DM membership remains necessary. ADR-080 adds explicit message-read
+> permissions and removes membership-only read authority.
+
 ## Context
 
 Direct messages used to carry two server-scope permissions:

@@ -3,11 +3,46 @@ package core
 import (
 	"bytes"
 	"context"
+	"errors"
 	"testing"
 
 	"google.golang.org/protobuf/types/known/timestamppb"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
+
+func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	room, user := setupRoomAttachmentTest(t, chatto, ctx)
+	attachment := uploadRoomAttachment(t, chatto, ctx, user.Id, room.Id, "private.png")
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, user.Id, "private file", []string{attachment.Id}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	reads := map[string]func() error{
+		"room list": func() error {
+			_, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: user.Id, RoomID: room.Id})
+			return err
+		},
+		"asset": func() error {
+			_, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: user.Id, RoomID: room.Id, AssetID: attachment.Id})
+			return err
+		},
+		"message attachments": func() error {
+			_, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: user.Id, RoomID: room.Id, EventID: message.Id})
+			return err
+		},
+	}
+	for name, read := range reads {
+		if err := read(); !errors.Is(err, ErrPermissionDenied) {
+			t.Errorf("%s error = %v, want ErrPermissionDenied", name, err)
+		}
+	}
+}
 
 func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	core, _ := setupTestCore(t)

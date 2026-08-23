@@ -70,7 +70,8 @@
       "remove_account_suffix": "，然后再移除服务器。"
     },
     "timeline": {
-      "beginning": "这是本次对话的开端。"
+      "beginning": "这是本次对话的开端。",
+      "read_denied": "你没有权限阅读此房间中的消息。"
     },
     "message": {
       "empty": "暂无消息",

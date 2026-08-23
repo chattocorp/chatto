@@ -233,6 +233,12 @@ func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind Room
 // Room-Scoped Permissions
 // ============================================================================
 
+// CanReadMessages checks if a user can read message content in a specific
+// room. Callers must also enforce room membership.
+func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageRead)
+}
+
 // CanPostMessage checks if a user can post new root messages in a specific room.
 // Uses room-level permission resolution (checks room overrides, then server defaults).
 func (c *ChattoCore) CanPostMessage(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {

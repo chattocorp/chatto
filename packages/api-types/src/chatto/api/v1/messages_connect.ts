@@ -48,7 +48,8 @@ export const MessageService = {
      * Edits a message body. Authors can edit their own messages within the edit
      * window. Non-authors need message.manage and cannot change channel echo
      * state. Disabled rooms reject creation of a new channel echo while allowing
-     * an existing echo to be removed.
+     * an existing echo to be removed. Room membership and message.read are also
+     * required.
      *
      * @generated from rpc chatto.api.v1.MessageService.UpdateMessage
      */
@@ -94,9 +95,10 @@ export const MessageService = {
     },
     /**
      * Reads one renderable message, including current body, attachment metadata,
-     * link preview, reactions, thread metadata, and pin state. Authentication and room
-     * membership are required. Returns NOT_FOUND when the event does not exist,
-     * is not a message, has been retracted, or belongs to a different room.
+     * link preview, reactions, thread metadata, and pin state. Authentication,
+     * room membership, and message.read are required. Returns NOT_FOUND when the
+     * event does not exist, is not a message, has been retracted, or belongs to a
+     * different room.
      *
      * @generated from rpc chatto.api.v1.MessageService.GetMessage
      */
@@ -107,10 +109,10 @@ export const MessageService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Reads many renderable messages and their current pin state in one room. Authentication and room
-     * membership are required. Missing, retracted, non-message, and wrong-room
-     * event IDs are omitted. Results preserve first-seen request order and
-     * repeated event IDs are de-duplicated.
+     * Reads many renderable messages and their current pin state in one room.
+     * Authentication, room membership, and message.read are required. Missing,
+     * retracted, non-message, and wrong-room event IDs are omitted. Results
+     * preserve first-seen request order and repeated event IDs are de-duplicated.
      *
      * @generated from rpc chatto.api.v1.MessageService.BatchGetMessages
      */
@@ -122,7 +124,7 @@ export const MessageService = {
     },
     /**
      * Adds a reaction to a message. The user must be a room member and have
-     * message.react in the target room.
+     * message.read and message.react in the target room.
      *
      * @generated from rpc chatto.api.v1.MessageService.AddReaction
      */
@@ -134,7 +136,7 @@ export const MessageService = {
     },
     /**
      * Removes a reaction from a message. The user must be a room member and have
-     * message.react in the target room.
+     * message.read and message.react in the target room.
      *
      * @generated from rpc chatto.api.v1.MessageService.RemoveReaction
      */

@@ -78,6 +78,20 @@ describe('useRoomUnread', () => {
     rendered.unmount();
   });
 
+  it('does not update read state without permission to read messages', async () => {
+    mocks.roomUnread!.setRoomUnread('room-1', true);
+
+    const rendered = render(Harness, {
+      props: { roomId: 'room-1', canReadMessages: false, onReady: () => {} }
+    });
+    flushSync();
+    await Promise.resolve();
+
+    expect(mocks.markRoomAsRead).not.toHaveBeenCalled();
+    expect(mocks.roomUnread!.roomIsUnread('room-1')).toBe(true);
+    rendered.unmount();
+  });
+
   it('preserves a newer unread message when the earlier read succeeds', async () => {
     const request = deferred<{ lastReadAt: string; previousLastReadAt: null }>();
     mocks.markRoomAsRead.mockReturnValue(request.promise);

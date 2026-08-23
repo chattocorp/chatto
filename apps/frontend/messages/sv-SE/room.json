@@ -70,7 +70,8 @@
       "remove_account_suffix": " för den här servern innan du tar bort den."
     },
     "timeline": {
-      "beginning": "Det här är början på den här konversationen."
+      "beginning": "Det här är början på den här konversationen.",
+      "read_denied": "Du har inte behörighet att läsa meddelanden i det här rummet."
     },
     "message": {
       "empty": "Inga meddelanden än",

@@ -70,7 +70,8 @@
       "remove_account_suffix": " van deze server."
     },
     "timeline": {
-      "beginning": "Dit is het begin van dit gesprek."
+      "beginning": "Dit is het begin van dit gesprek.",
+      "read_denied": "Je hebt geen toestemming om berichten in deze ruimte te lezen."
     },
     "message": {
       "empty": "Nog geen berichten",

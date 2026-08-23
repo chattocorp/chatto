@@ -57,6 +57,7 @@ const { mocks } = vi.hoisted(() => {
       livekitUrl: null as string | null,
       roomKind: 1,
       threadingMode: 3,
+      canReadMessages: true as boolean | null,
       canPostMessage: true,
       canPostInThread: true,
       getAppUiState: vi.fn(),
@@ -125,6 +126,7 @@ vi.mock('$lib/hooks', () => ({
         threadingMode: mocks.threadingMode
       },
       spaceName: 'Test Space',
+      canReadMessages: mocks.canReadMessages,
       canPostMessage: mocks.canPostMessage,
       canPostInThread: mocks.canPostInThread,
       canAttach: false,
@@ -316,6 +318,11 @@ vi.mock('$lib/ui/PaneHeader.svelte', async () => {
   return { default: EmptyMock };
 });
 
+vi.mock('$lib/ui', async () => {
+  const { default: EmptyState } = await import('$lib/ui/EmptyState.svelte');
+  return { EmptyState };
+});
+
 import Room from './Room.svelte';
 import { AppUiState } from '$lib/state/appUi.svelte';
 
@@ -408,6 +415,7 @@ beforeEach(() => {
   mocks.messageSearchSupported = false;
   mocks.roomKind = RoomKind.CHANNEL;
   mocks.threadingMode = RoomThreadingMode.ENABLED;
+  mocks.canReadMessages = true;
   mocks.canPostMessage = true;
   mocks.canPostInThread = true;
   mocks.pendingHighlightConsume.mockReset();
@@ -448,6 +456,33 @@ describe('Room interaction bundles', () => {
 
     expect(mocks.threadPaneModuleLoaded).not.toHaveBeenCalled();
     expect(mocks.roomSidebarModuleLoaded).not.toHaveBeenCalled();
+  });
+
+  it('explains when the viewer cannot read messages and keeps the composer available', async () => {
+    mocks.canReadMessages = false;
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(container)
+      .toHaveTextContent('You do not have permission to read messages in this room.');
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .not.toBeInTheDocument();
+    await expect
+      .element(q(container, '[data-testid="emit-returned-post"]'))
+      .toBeInTheDocument();
+    expect(mocks.restoreProjectedRoomWindow).not.toHaveBeenCalled();
+  });
+
+  it('renders messages when an older server does not report the read permission', async () => {
+    mocks.canReadMessages = null;
+
+    const { container } = render(Room, { props: { roomId: 'room-1' } });
+
+    await expect
+      .element(q(container, '[data-testid="room-event-ids"]'))
+      .toBeInTheDocument();
   });
 
   it('loads the thread pane when the thread route is active', async () => {

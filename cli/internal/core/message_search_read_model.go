@@ -56,9 +56,8 @@ type MessageSearchResult struct {
 	Score float64
 }
 
-// ResolveScope returns only rooms the actor is currently an effective member
-// of. Archived rooms remain eligible because membership still grants history
-// reads, while DM visibility is always membership-only.
+// ResolveScope returns only rooms where the actor is currently a member with
+// message-read authority. Archived rooms remain eligible.
 func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input MessageSearchScopeInput) (*MessageSearchScope, error) {
 	if err := requireAuthenticatedActor(input.ActorID); err != nil {
 		return nil, err
@@ -70,7 +69,14 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 			return nil, err
 		}
 		for _, room := range memberRooms {
-			if room != nil {
+			if room == nil {
+				continue
+			}
+			allowed, err := s.core.CanReadMessages(ctx, input.ActorID, KindOfRoom(room), room.GetId())
+			if err != nil {
+				return nil, err
+			}
+			if allowed {
 				rooms[room.GetId()] = room
 			}
 		}

@@ -453,6 +453,36 @@ func TestPlanRealtimeReplayResetsAfterViewerLosesRoomVisibility(t *testing.T) {
 	}
 }
 
+func TestPlanRealtimeReplayOmitsMessagesWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, room, _ := setupReactionTest(t, chatto, ctx)
+
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.Id, viewer.Id, "write-only replay message", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage without message.read: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, boundary.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if plan.Reset {
+		t.Fatalf("PlanRealtimeReplay reset = true, want filtered incremental replay")
+	}
+	for _, event := range plan.Events {
+		if event.EVTEvent().GetMessagePosted() != nil {
+			t.Fatalf("PlanRealtimeReplay delivered message without message.read: %+v", event.EVTEvent())
+		}
+	}
+}
+
 func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) {
 	for _, subject := range []string{
 		"evt.config.server.server_name_changed",

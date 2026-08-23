@@ -70,7 +70,8 @@
       "remove_account_suffix": "."
     },
     "timeline": {
-      "beginning": "To początek tej rozmowy."
+      "beginning": "To początek tej rozmowy.",
+      "read_denied": "Nie masz uprawnień do odczytywania wiadomości w tym pokoju."
     },
     "message": {
       "empty": "Nie ma jeszcze żadnych wiadomości",

@@ -51,7 +51,7 @@ replace part of their original design.
 | [ADR-034](ADR-034-single-event-stream.md) | Single Domain Event Stream with Event-Type Subject Lanes | Accepted | 2026-05-24 |
 | [ADR-035](ADR-035-per-aggregate-phased-migration.md) | Per-Aggregate Phased Migration to Event Sourcing | Accepted | 2026-05-24 |
 | [ADR-036](ADR-036-runtime-state-kv-boundary.md) | Persist Runtime State in RUNTIME_STATE | Accepted | 2026-05-27 |
-| [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Accepted | 2026-05-31 |
+| [ADR-037](ADR-037-dm-access-via-membership.md) | DM Access via Membership, Not a Read Permission | Partially superseded | 2026-05-31 |
 | [ADR-038](ADR-038-room-owned-thread-state.md) | Room-Owned Thread State | Accepted | 2026-06-05 |
 | [ADR-039](ADR-039-service-worker-virtual-asset-urls.md) | Service Worker Virtual Asset URLs with Ticketed Fallback | Superseded | 2026-06-08 |
 | [ADR-040](ADR-040-permission-only-rbac-with-owner-override.md) | Permission-Only RBAC with Owner Override | Accepted | 2026-06-15 |
@@ -94,3 +94,4 @@ replace part of their original design.
 | [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
 | [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
 | [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Accepted | 2026-08-22 |
+| [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |

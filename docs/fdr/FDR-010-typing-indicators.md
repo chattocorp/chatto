@@ -1,7 +1,7 @@
 # FDR-010: Typing Indicators
 
 **Status:** Active
-**Last reviewed:** 2026-05-19
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
@@ -9,7 +9,8 @@ When a user is composing a message, others see a small typing indicator — the 
 
 ## Behavior
 
-- Typing in the composer publishes a typing event to other room members.
+- Typing in the composer publishes a typing event to other room members who
+  have `message.read` in that room.
 - Current clients refresh typing state through ConnectRPC
   `RoomService.UpdateTypingIndicator`.
 - Receiving clients show the indicator (avatar + animated dots) for a short duration after the last typing event.
@@ -44,9 +45,14 @@ When a user is composing a message, others see a small typing indicator — the 
 
 ## Permissions
 
-Room membership is required to send and receive typing indicators. No additional permission gate.
+Room membership is required to send a typing indicator. A receiver also needs
+effective `message.read` authority in the room. Sending remains independent of
+read authority so a write-only account can compose messages without receiving
+other users' message activity.
 
 ## Related
 
-- **ADRs:** ADR-012 (two-tier real-time events)
-- **FDRs:** FDR-002 (Replies & Threads)
+- **ADRs:** ADR-012 (two-tier real-time events), ADR-080 (explicit message-read
+  permissions)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-039 (Message Access &
+  Interactions)

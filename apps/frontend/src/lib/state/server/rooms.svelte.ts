@@ -22,6 +22,7 @@ export type RoomsListItem = {
   type: RoomKind;
   isUniversal: boolean;
   viewerIsMember: boolean;
+  viewerCanReadMessages?: boolean | null;
   viewerCanJoinRoom: boolean;
   viewerCanManageRoom: boolean;
   viewerNotificationCount: number;
@@ -31,7 +32,10 @@ export type RoomsListItem = {
 };
 
 export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
-  return room.type !== RoomKind.DM || room.hasMessageHistory !== false;
+  return (
+    room.type !== RoomKind.DM ||
+    (room.viewerCanReadMessages !== false && room.hasMessageHistory !== false)
+  );
 }
 
 export type RoomsListGroup = {
@@ -109,6 +113,7 @@ export class NavigationStore {
           type: roomKindOrChannel(room.kind),
           isUniversal: room.isUniversal,
           viewerIsMember: room.isMember,
+          viewerCanReadMessages: room.canReadMessages,
           viewerCanJoinRoom: room.canJoinRoom,
           viewerCanManageRoom: room.canManageRoom,
           viewerNotificationCount,

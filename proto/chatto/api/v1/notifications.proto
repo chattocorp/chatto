@@ -305,8 +305,9 @@ message UpdateNotificationPolicyResponse {
 
 // Reads, marks read, and deletes notifications for the authenticated viewer.
 service NotificationService {
-  // Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-  // deleted, expired, or no longer visible to the authenticated viewer, and
+  // Gets one exact visible occurrence. Message-derived occurrences require
+  // current room membership and message.read. Returns NOT_FOUND when it is
+  // absent, deleted, expired, or no longer visible to the authenticated viewer, and
   // UNIMPLEMENTED when this server cannot validate its signal kind.
   rpc GetNotificationOccurrence(GetNotificationOccurrenceRequest) returns (GetNotificationOccurrenceResponse);
   // Gets an explicit bounded set of visible occurrences. Missing or
@@ -316,6 +317,8 @@ service NotificationService {
   rpc BatchGetNotificationOccurrences(BatchGetNotificationOccurrencesRequest) returns (BatchGetNotificationOccurrencesResponse);
   // Lists exact Notifications 2.0 occurrences. Clients may derive temporary
   // presentation groups without changing occurrence identity or counts.
+  // Message-derived occurrences require current room membership and
+  // message.read.
   // Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
   // signal kind this server version cannot validate and assemble.
   rpc ListNotificationOccurrences(ListNotificationOccurrencesRequest) returns (ListNotificationOccurrencesResponse);

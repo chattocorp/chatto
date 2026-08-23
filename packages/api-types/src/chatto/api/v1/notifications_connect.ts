@@ -15,8 +15,9 @@ export const NotificationService = {
   typeName: "chatto.api.v1.NotificationService",
   methods: {
     /**
-     * Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-     * deleted, expired, or no longer visible to the authenticated viewer, and
+     * Gets one exact visible occurrence. Message-derived occurrences require
+     * current room membership and message.read. Returns NOT_FOUND when it is
+     * absent, deleted, expired, or no longer visible to the authenticated viewer, and
      * UNIMPLEMENTED when this server cannot validate its signal kind.
      *
      * @generated from rpc chatto.api.v1.NotificationService.GetNotificationOccurrence
@@ -44,6 +45,8 @@ export const NotificationService = {
     /**
      * Lists exact Notifications 2.0 occurrences. Clients may derive temporary
      * presentation groups without changing occurrence identity or counts.
+     * Message-derived occurrences require current room membership and
+     * message.read.
      * Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
      * signal kind this server version cannot validate and assemble.
      *

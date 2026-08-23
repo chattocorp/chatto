@@ -1328,6 +1328,7 @@ type messageMutationAuthorization struct {
 	enforceEditWindow           bool
 	requireEchoPermissions      bool
 	channelEchoCreationTargetID string
+	requireMessageRead          bool
 }
 
 // authorizeMessageMutation resolves every mutable input to a user-facing
@@ -1354,6 +1355,15 @@ func (c *ChattoCore) authorizeMessageMutation(
 	}
 	if !member {
 		return ErrNotRoomMember
+	}
+	if policy.requireMessageRead {
+		canRead, err := c.CanReadMessages(ctx, actorID, kind, roomID)
+		if err != nil {
+			return err
+		}
+		if !canRead {
+			return ErrPermissionDenied
+		}
 	}
 
 	entry, err := c.validateMessageMutationIdentity(actorID, roomID, eventID, policy, now)
@@ -1598,6 +1608,7 @@ func (c *ChattoCore) EditMessage(ctx context.Context, actorID string, kind RoomK
 		enforceEditWindow:           true,
 		requireEchoPermissions:      options.channelEcho != nil && *options.channelEcho,
 		channelEchoCreationTargetID: channelEchoCreationTargetID,
+		requireMessageRead:          true,
 	}
 	var authorize func(context.Context) error
 	var validateCommit func() error

@@ -70,7 +70,8 @@
       "remove_account_suffix": " selle serveri jaoks enne selle eemaldamist."
     },
     "timeline": {
-      "beginning": "See on selle vestluse algus."
+      "beginning": "See on selle vestluse algus.",
+      "read_denied": "Sul pole õigust selles ruumis sõnumeid lugeda."
     },
     "message": {
       "empty": "Sõnumeid pole veel",

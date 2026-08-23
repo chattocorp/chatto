@@ -16,6 +16,7 @@ const Permission = {
   ManageRoom: 'room.manage',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
+  ReadMessages: 'message.read',
   React: 'message.react'
 } as const;
 
@@ -132,6 +133,7 @@ describe('createRoomDirectoryAPI', () => {
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: true,
+        canReadMessages: null,
         canJoinRoom: false,
         canManageRoom: false
       },
@@ -147,6 +149,7 @@ describe('createRoomDirectoryAPI', () => {
         slowModeNextPostAt: null,
         isMember: true,
         hasUnread: false,
+        canReadMessages: null,
         canJoinRoom: true,
         canManageRoom: false
       }
@@ -169,6 +172,7 @@ describe('createRoomDirectoryAPI', () => {
           hasUnread: true,
           [Permission.JoinRoom]: false,
           [Permission.PostMessage]: true,
+          [Permission.ReadMessages]: true,
           [Permission.PostInThread]: true,
           [Permission.Attach]: false,
           [Permission.React]: true,
@@ -203,6 +207,7 @@ describe('createRoomDirectoryAPI', () => {
       slowModeNextPostAt: null,
       isMember: true,
       hasUnread: true,
+      canReadMessages: true,
       canJoinRoom: false,
       canPostMessage: true,
       canPostInThread: true,

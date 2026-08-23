@@ -70,7 +70,8 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
-      "beginning": "Voici le début de cette conversation."
+      "beginning": "Voici le début de cette conversation.",
+      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon."
     },
     "message": {
       "empty": "Aucun message pour l'instant",

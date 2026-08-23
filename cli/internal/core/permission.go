@@ -67,6 +67,10 @@ const (
 
 	// ===== Message Permissions =====
 
+	// PermMessageRead allows reading message content in rooms and DMs. Room
+	// membership remains a separate, necessary access boundary.
+	PermMessageRead Permission = "message.read"
+
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
 	// decisions act as global defaults/overrides; room or group denies can narrow
 	// that default where a room should be more restrictive.
@@ -167,6 +171,7 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
+	{PermMessageRead, "Read Messages", "Read message content in rooms and DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -273,6 +278,7 @@ func DefaultEveryonePermissions() []Permission {
 		PermUserDeleteSelf,
 		PermRoomList,
 		PermRoomJoin,
+		PermMessageRead,
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageAttach,

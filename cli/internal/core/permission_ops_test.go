@@ -396,6 +396,7 @@ func TestInitServerDefaults(t *testing.T) {
 			PermUserDeleteSelf,
 			PermRoomList,
 			PermRoomJoin,
+			PermMessageRead,
 			PermMessagePost,
 			PermMessagePostInThread,
 			PermMessageAttach,

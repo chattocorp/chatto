@@ -368,9 +368,9 @@ func (t permissionScopeTarget) objectID() string {
 //     DMs (DMs have their own listing/creation/membership APIs).
 //
 // Everything else resolves through the standard deny-wins resolver. Access to
-// DM rooms is gated by participation at the API boundary (`requireRoomMember`);
-// this set only governs *what* a participant can do once inside, and *what*
-// DM rooms refuse to answer for channel-style operations.
+// DM rooms is gated by participation and, for content, `message.read` at the
+// API boundary; this set only governs *what* a participant can do once inside,
+// and *what* DM rooms refuse to answer for channel-style operations.
 var dmBoundaryDeniedPermissions = map[Permission]bool{
 	// Privacy boundary.
 	PermRoomManage:    true,

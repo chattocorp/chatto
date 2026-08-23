@@ -17,8 +17,9 @@ export const ThreadService = {
   typeName: "chatto.api.v1.ThreadService",
   methods: {
     /**
-     * Returns followed threads for the current user, including enough root-message
-     * data for clients to render the list without extra per-field fetches.
+     * Returns followed threads in rooms where the current user is a member with
+     * message.read. The result includes enough root-message data for clients to
+     * render the list without extra per-field fetches.
      *
      * @generated from rpc chatto.api.v1.ThreadService.ListFollowedThreads
      */
@@ -29,8 +30,9 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Follows a thread for the current user. Followed threads can be surfaced in
-     * clients and can participate in thread notification behavior.
+     * Follows a thread for the current user. Room membership and message.read are
+     * required. Followed threads can be surfaced in clients and can participate
+     * in thread notification behavior.
      *
      * @generated from rpc chatto.api.v1.ThreadService.FollowThread
      */
@@ -41,8 +43,9 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Stops following a thread for the current user. The response reports the
-     * resulting follow state so clients can update local UI immediately.
+     * Stops following a thread for the current user. Room membership and
+     * message.read are required. The response reports the resulting follow state
+     * so clients can update local UI immediately.
      *
      * @generated from rpc chatto.api.v1.ThreadService.UnfollowThread
      */
@@ -53,8 +56,9 @@ export const ThreadService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Returns one page of events in a message thread. Initial pages include the
-     * thread root message; cursor pages return replies in the requested direction.
+     * Returns one page of events in a message thread. Room membership and
+     * message.read are required. Initial pages include the thread root message;
+     * cursor pages return replies in the requested direction.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEvents
      */
@@ -68,7 +72,7 @@ export const ThreadService = {
      * Returns a thread timeline window centered around a specific event. Use this
      * to open a reply from a notification or search result in context. Returns
      * NOT_FOUND when the thread root or anchor event is missing or hidden and
-     * PERMISSION_DENIED when the room is inaccessible.
+     * PERMISSION_DENIED when room membership or message.read is missing.
      *
      * @generated from rpc chatto.api.v1.ThreadService.GetThreadEventsAround
      */
@@ -80,7 +84,7 @@ export const ThreadService = {
     },
     /**
      * Marks a thread timeline as read through the supplied event without changing
-     * the room-level read marker.
+     * the room-level read marker. Room membership and message.read are required.
      *
      * @generated from rpc chatto.api.v1.ThreadService.MarkThreadAsRead
      */

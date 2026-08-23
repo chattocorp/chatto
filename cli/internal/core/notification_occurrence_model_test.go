@@ -194,6 +194,17 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 	if err != nil || !stored.GetRead() {
 		t.Fatalf("stored retry occurrence = (%+v, %v), want read", stored, err)
 	}
+	visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*corev1.NotificationOccurrence{stored})
+	if err != nil || len(visible) != 1 {
+		t.Fatalf("visible occurrence before message.read denial = (%d, %v), want (1, nil)", len(visible), err)
+	}
+	if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	visible, err = chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, reader.Id, []*corev1.NotificationOccurrence{stored})
+	if err != nil || len(visible) != 0 {
+		t.Fatalf("visible occurrence after message.read denial = (%d, %v), want (0, nil)", len(visible), err)
+	}
 }
 
 func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {

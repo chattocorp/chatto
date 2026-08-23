@@ -61,6 +61,68 @@ func TestRoomTimelineReadModelRequiresMembership(t *testing.T) {
 	}
 }
 
+func TestRoomTimelineReadModelRequiresMessageReadWithoutGrantingWrite(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "timeline-read-permission", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	member, err := chatto.CreateUser(ctx, SystemActorID, "permission-reader", "Permission Reader", "password")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	if _, err := chatto.JoinRoom(ctx, member.Id, KindChannel, member.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindChannel, room.Id, member.Id, "before denial", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage before denial: %v", err)
+	}
+	if err := chatto.ThreadFollows().FollowThread(ctx, member.Id, room.Id, message.Id); err != nil {
+		t.Fatalf("FollowThread before denial: %v", err)
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	for name, read := range map[string]func() error{
+		"room timeline": func() error {
+			_, err := chatto.RoomTimelineReads().GetRoomEvents(ctx, RoomTimelineEventsInput{ActorID: member.Id, RoomID: room.Id})
+			return err
+		},
+		"message": func() error {
+			_, err := chatto.RoomTimelineReads().GetMessage(ctx, member.Id, room.Id, message.Id)
+			return err
+		},
+		"read marker": func() error {
+			_, err := chatto.ReadState().MarkRoomAsRead(ctx, member.Id, room.Id, message.Id)
+			return err
+		},
+		"follow thread": func() error {
+			return chatto.ThreadFollows().FollowThread(ctx, member.Id, room.Id, message.Id)
+		},
+		"unfollow thread": func() error {
+			return chatto.ThreadFollows().UnfollowThread(ctx, member.Id, room.Id, message.Id)
+		},
+	} {
+		if err := read(); !errors.Is(err, ErrPermissionDenied) {
+			t.Errorf("%s error = %v, want ErrPermissionDenied", name, err)
+		}
+	}
+
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.Id, member.Id, "write-only post", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage while message.read is denied: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.Id, member.Id, PermMessageRead); err != nil {
+		t.Fatalf("GrantUserRoomPermission: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, member.Id, room.Id, message.Id); err != nil {
+		t.Fatalf("GetMessage after direct room grant: %v", err)
+	}
+}
+
 func TestRoomTimelineReadModelGetsMessages(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

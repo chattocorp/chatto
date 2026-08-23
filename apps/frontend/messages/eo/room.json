@@ -70,7 +70,8 @@
       "remove_account_suffix": " de ĉi tiu servilo antaŭ ol forigi ĝin."
     },
     "timeline": {
-      "beginning": "Jen la komenco de ĉi tiu konversacio."
+      "beginning": "Jen la komenco de ĉi tiu konversacio.",
+      "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",

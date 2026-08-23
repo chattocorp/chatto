@@ -24,8 +24,9 @@ Manages thread follow state for the current user.
 
 ### ListFollowedThreads
 
-Returns followed threads for the current user, including enough root-message
-data for clients to render the list without extra per-field fetches.
+Returns followed threads in rooms where the current user is a member with
+message.read. The result includes enough root-message data for clients to
+render the list without extra per-field fetches.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
@@ -59,8 +60,9 @@ Response containing one followed-thread page.
 
 ### FollowThread
 
-Follows a thread for the current user. Followed threads can be surfaced in
-clients and can participate in thread notification behavior.
+Follows a thread for the current user. Room membership and message.read are
+required. Followed threads can be surfaced in clients and can participate
+in thread notification behavior.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/FollowThread
@@ -94,8 +96,9 @@ Result of following a thread.
 
 ### UnfollowThread
 
-Stops following a thread for the current user. The response reports the
-resulting follow state so clients can update local UI immediately.
+Stops following a thread for the current user. Room membership and
+message.read are required. The response reports the resulting follow state
+so clients can update local UI immediately.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
@@ -129,8 +132,9 @@ Result of unfollowing a thread.
 
 ### GetThreadEvents
 
-Returns one page of events in a message thread. Initial pages include the
-thread root message; cursor pages return replies in the requested direction.
+Returns one page of events in a message thread. Room membership and
+message.read are required. Initial pages include the thread root message;
+cursor pages return replies in the requested direction.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
@@ -174,7 +178,7 @@ Response containing one thread timeline page.
 Returns a thread timeline window centered around a specific event. Use this
 to open a reply from a notification or search result in context. Returns
 NOT_FOUND when the thread root or anchor event is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
+PERMISSION_DENIED when room membership or message.read is missing.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
@@ -214,7 +218,7 @@ Response containing a thread timeline window around a specific event.
 ### MarkThreadAsRead
 
 Marks a thread timeline as read through the supplied event without changing
-the room-level read marker.
+the room-level read marker. Room membership and message.read are required.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead

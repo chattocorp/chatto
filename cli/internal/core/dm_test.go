@@ -147,6 +147,7 @@ func TestDMBoundaryDeniedPermissions(t *testing.T) {
 	// asserts they aren't *unconditionally* denied.
 	notBoundaryDenied := []Permission{
 		PermRoomJoin,
+		PermMessageRead,
 		PermMessagePost,
 		PermMessageAttach,
 		PermMessageReact,

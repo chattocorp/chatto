@@ -2079,7 +2079,7 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
    */
   event: {
     /**
-     * A user is typing in a room or thread.
+     * A user is typing in a room or thread that the viewer can read.
      *
      * @generated from field: chatto.realtime.v1.RealtimeTypingEvent user_typing = 30;
      */
@@ -2139,8 +2139,9 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
 /**
  * Typing signal.
  *
- * This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
- * where to display typing state; clients normally do not hydrate it.
+ * This is an ephemeral signal. The viewer must be a room member with current
+ * `message.read` authority. `room_id` and `thread_root_event_id` identify where
+ * to display typing state; clients normally do not hydrate it.
  *
  * @generated from message chatto.realtime.v1.RealtimeTypingEvent
  */

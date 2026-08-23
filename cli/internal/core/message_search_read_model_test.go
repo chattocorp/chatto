@@ -31,17 +31,19 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chattoCore.ArchiveRoom(ctx, SystemActorID, KindChannel, archived.Id)
 	require.NoError(t, err)
+	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageRead))
 
 	scope, err := chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{ActorID: viewer.Id})
 	require.NoError(t, err)
-	require.ElementsMatch(t, []string{visible.Id, archived.Id, unicodeRoom.Id, dm.Id}, scope.RoomIDs)
+	require.ElementsMatch(t, []string{visible.Id, unicodeRoom.Id, dm.Id}, scope.RoomIDs)
 	require.NotContains(t, scope.RoomIDs, hidden.Id)
+	require.NotContains(t, scope.RoomIDs, archived.Id)
 
 	scope, err = chattoCore.MessageSearchReads().ResolveScope(ctx, MessageSearchScopeInput{
 		ActorID: viewer.Id, RoomSelectors: []string{"SEARCH-ARCHIVED"}, AuthorSelectors: []string{author.Login},
 	})
 	require.NoError(t, err)
-	require.Equal(t, []string{archived.Id}, scope.RoomIDs)
+	require.Empty(t, scope.RoomIDs)
 	require.Equal(t, []string{author.Id}, scope.AuthorIDs)
 	require.False(t, scope.NoMatches)
 

@@ -70,7 +70,8 @@
       "remove_account_suffix": " šim serverim pirms tā noņemšanas."
     },
     "timeline": {
-      "beginning": "Tas ir šīs sarunas sākums."
+      "beginning": "Tas ir šīs sarunas sākums.",
+      "read_denied": "Jums nav atļaujas lasīt ziņojumus šajā telpā."
     },
     "message": {
       "empty": "Vēl nav ziņojumu",

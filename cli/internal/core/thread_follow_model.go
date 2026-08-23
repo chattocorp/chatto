@@ -40,7 +40,7 @@ func (s *ThreadFollowModel) ListFollowedThreadViewerStates(ctx context.Context, 
 }
 
 func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return err
 	}
@@ -51,7 +51,7 @@ func (s *ThreadFollowModel) FollowThread(ctx context.Context, actorID, roomID, t
 }
 
 func (s *ThreadFollowModel) UnfollowThread(ctx context.Context, actorID, roomID, threadRootEventID string) error {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return err
 	}
