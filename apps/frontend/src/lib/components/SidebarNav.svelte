@@ -78,13 +78,17 @@
     </nav>
   {/if}
 
-  {#each normalizedGroups as group, index (group.persistKey)}
-    <RoomGroupSection
-      label={group.label}
-      items={group.items}
-      item={groupedNavItem}
-      persistKey={group.persistKey}
-      separated={index > 0 || items.length > 0}
-    />
-  {/each}
+  {#if normalizedGroups.length > 0}
+    <nav>
+      {#each normalizedGroups as group, index (group.persistKey)}
+        <RoomGroupSection
+          label={group.label}
+          items={group.items}
+          item={groupedNavItem}
+          persistKey={group.persistKey}
+          separated={index > 0 || items.length > 0}
+        />
+      {/each}
+    </nav>
+  {/if}
 </ScrollFader>

@@ -43,6 +43,7 @@ describe('SidebarNav', () => {
     });
 
     expect(container.querySelectorAll('[data-testid="room-group-section"]')).toHaveLength(2);
+    expect(container.querySelector('nav a[href="/manage/general"]')).not.toBeNull();
     await expect.element(getByText('User Preferences')).toBeVisible();
     await expect
       .element(container.querySelector<HTMLElement>('a[href="/settings/preferences"]'))
