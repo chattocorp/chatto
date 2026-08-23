@@ -134,9 +134,12 @@ realtime sockets retain the same fixed-expiry bound described above.
 
 The bundled frontend persists the access token, refresh credential, both
 expiry instants, OAuth client ID when applicable, and any in-flight refresh
-request ID in the existing device-local per-server session record.
+request ID in an independently keyed device-local per-server authentication
+record. Combined catalogue compatibility writes merge those authoritative
+fields instead of copying one tab's in-memory credential snapshot.
 
-It refreshes shortly before access expiry and also retries one unary
+It refreshes shortly before access expiry, stops scheduling once access expiry
+reaches the renewable session's absolute expiry, and also retries one unary
 ConnectRPC request after an `Unauthenticated` response when forced renewal
 succeeds. Transient network and server failures keep the credentials and
 request ID for retry. An `invalid_grant` response is permanent: the frontend

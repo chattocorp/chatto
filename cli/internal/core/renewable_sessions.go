@@ -215,7 +215,7 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
 		return BearerSessionCredentials{}, err
 	}
-	if err := c.recordBearerTokenIssued(ctx, userID, now, source); err != nil {
+	if err := c.recordBearerTokenIssued(ctx, userID, credentials.AccessTokenExpiresAt, source); err != nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(credentials.AccessToken))
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
 		return BearerSessionCredentials{}, err

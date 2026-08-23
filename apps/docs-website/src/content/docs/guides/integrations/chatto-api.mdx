@@ -42,11 +42,14 @@ Human bearer sessions return a short-lived access token, a rotating refresh
 credential, and both lifetimes. Send only the access token to ConnectRPC and
 realtime. Rotate through `/oauth/token` with `grant_type=refresh_token`, the
 issuing `client_id` when applicable, and a client-generated
-`refresh_request_id`. Persist that request ID before sending and reuse it until
-the complete response has been persisted; this lets an exact retry recover a
-lost successful response. Serialize refresh attempts. An `invalid_grant`
-response requires explicit authentication, while network failures and `5xx`
-responses may be retried with the same request ID.
+`refresh_request_id`. The request ID must contain 16–128 ASCII letters, digits,
+underscores, or hyphens (`[A-Za-z0-9_-]`). Persist it before sending and reuse
+it until the complete response has been persisted. An exact retry can recover
+only the immediately previous refresh generation, and only during the access
+token lifetime created by that rotation. A retry outside that boundary is
+stale reuse and revokes the renewable session. Serialize refresh attempts. An
+`invalid_grant` response requires explicit authentication, while network
+failures and `5xx` responses may be retried promptly with the same request ID.
 
 Bearer credentials and bot API keys are opaque. They are not JWTs. See
 [Bot Accounts](/guides/integrations/bot-accounts/) for unattended integration

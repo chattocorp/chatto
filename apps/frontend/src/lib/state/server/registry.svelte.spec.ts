@@ -7,8 +7,23 @@ import {
 	type RegisteredServer
 } from './registry.svelte';
 import { queryClient } from '$lib/query/client';
+import { serverStorageKey } from '$lib/storage/serverStorage';
 
 const STORAGE_KEY = 'chatto:instances';
+
+function authenticationStorageKey(serverId: string): string {
+	return serverStorageKey(serverId, 'authentication');
+}
+
+function updatePersistedAuthentication(
+	serverId: string,
+	patch: Record<string, string | number | null>
+): void {
+	const key = authenticationStorageKey(serverId);
+	const stored = JSON.parse(localStorage.getItem(key) ?? 'null') as Record<string, unknown> | null;
+	if (!stored) throw new Error(`No persisted authentication for ${serverId}`);
+	localStorage.setItem(key, JSON.stringify({ ...stored, ...patch }));
+}
 
 function makeServer(overrides: Partial<RegisteredServer> = {}): RegisteredServer {
 	return {
@@ -65,7 +80,7 @@ describe('generateServerId', () => {
 
 describe('ServerRegistry', () => {
 	beforeEach(() => {
-		localStorage.removeItem(STORAGE_KEY);
+		localStorage.clear();
 	});
 
 	afterEach(() => {
@@ -508,15 +523,15 @@ describe('ServerRegistry', () => {
 			);
 			serverRegistry.addServer(renewableServer());
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).rejects.toThrow('response lost');
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).rejects.toThrow(
+				'response lost'
+			);
 			const persistedAfterFailure = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')[0];
 			expect(persistedAfterFailure.refreshRequestId).toBeTruthy();
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).resolves.toBe('access-2');
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBe(
+				'access-2'
+			);
 			expect(requestBodies[1].refresh_request_id).toBe(requestBodies[0].refresh_request_id);
 		});
 
@@ -525,12 +540,12 @@ describe('ServerRegistry', () => {
 			vi.stubGlobal('fetch', fetchMock);
 			serverRegistry.addServer(renewableServer());
 			vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
-					throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
-				});
+				throw new DOMException('Storage quota exceeded', 'QuotaExceededError');
+			});
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).rejects.toThrow('Unable to persist bearer renewal state.');
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).rejects.toThrow(
+				'Unable to persist bearer renewal state.'
+			);
 			expect(
 				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
 			).toHaveLength(0);
@@ -540,19 +555,16 @@ describe('ServerRegistry', () => {
 			const fetchMock = vi.fn();
 			vi.stubGlobal('fetch', fetchMock);
 			serverRegistry.addServer(renewableServer());
-			const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-			persisted[0] = {
-				...persisted[0],
+			updatePersistedAuthentication('renewable', {
 				token: 'access-from-other-tab',
 				refreshToken: 'refresh-from-other-tab',
 				accessTokenExpiresAt: Date.now() + 15 * 60_000,
 				refreshRequestId: null
-			};
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+			});
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).resolves.toBe('access-from-other-tab');
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBe(
+				'access-from-other-tab'
+			);
 			expect(
 				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
 			).toHaveLength(0);
@@ -574,43 +586,64 @@ describe('ServerRegistry', () => {
 				})
 			);
 			serverRegistry.addServer(renewableServer());
-			const persisted = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]');
-			persisted[0] = {
-				...persisted[0],
+			updatePersistedAuthentication('renewable', {
 				refreshRequestId: 'request-from-other-tab'
-			};
-			localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
+			});
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).resolves.toBe('access-2');
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBe(
+				'access-2'
+			);
 			expect(requestBodies).toHaveLength(1);
 			expect(requestBodies[0].refresh_request_id).toBe('request-from-other-tab');
 		});
 
+		it("does not let a stale tab's metadata write restore rotated credentials", async () => {
+			const fetchMock = vi.fn();
+			vi.stubGlobal('fetch', fetchMock);
+			serverRegistry.addServer(renewableServer());
+			updatePersistedAuthentication('renewable', {
+				token: 'access-from-other-tab',
+				refreshToken: 'refresh-from-other-tab',
+				accessTokenExpiresAt: Date.now() + 15 * 60_000,
+				refreshRequestId: 'request-from-other-tab'
+			});
+
+			serverRegistry.updateRegistration('renewable', { name: 'Renamed by stale tab' });
+
+			const combined = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '[]')[0];
+			expect(combined).toMatchObject({
+				name: 'Renamed by stale tab',
+				token: 'access-from-other-tab',
+				refreshToken: 'refresh-from-other-tab',
+				refreshRequestId: 'request-from-other-tab'
+			});
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBe(
+				'access-from-other-tab'
+			);
+			expect(
+				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
+			).toHaveLength(0);
+		});
+
 		it('preserves the session and marks explicit reconnect after invalid_grant', async () => {
 			const fetchMock = vi.fn(async (input: string | URL | Request) => {
-					if (!String(input).endsWith('/oauth/token')) return new Response('', { status: 503 });
-					return new Response(JSON.stringify({ error: 'invalid_grant' }), {
-						status: 400,
-						headers: { 'Content-Type': 'application/json' }
-					});
+				if (!String(input).endsWith('/oauth/token')) return new Response('', { status: 503 });
+				return new Response(JSON.stringify({ error: 'invalid_grant' }), {
+					status: 400,
+					headers: { 'Content-Type': 'application/json' }
 				});
+			});
 			vi.stubGlobal('fetch', fetchMock);
 			serverRegistry.addServer(renewableServer());
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).resolves.toBeNull();
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBeNull();
 			expect(serverRegistry.getServer('renewable')).toMatchObject({
 				token: 'access-1',
 				refreshToken: 'refresh-1',
 				reauthRequiredAt: expect.any(Number)
 			});
 
-			await expect(
-				serverRegistry.renewServerAuthentication('renewable', true)
-			).resolves.toBeNull();
+			await expect(serverRegistry.renewServerAuthentication('renewable', true)).resolves.toBeNull();
 			expect(
 				fetchMock.mock.calls.filter(([input]) => String(input).endsWith('/oauth/token'))
 			).toHaveLength(1);
@@ -648,6 +681,37 @@ describe('ServerRegistry', () => {
 			expect(restored.sessions).toEqual([
 				['persisted', expect.objectContaining({ token: server.token, userId: server.userId })]
 			]);
+		});
+
+		it('restores per-server authentication instead of stale combined credentials', () => {
+			const server = makeServer({
+				id: 'persisted',
+				token: 'stale-access',
+				refreshToken: 'stale-refresh',
+				refreshRequestId: 'stale-request-id'
+			});
+			localStorage.setItem(STORAGE_KEY, JSON.stringify([server]));
+			localStorage.setItem(
+				authenticationStorageKey('persisted'),
+				JSON.stringify({
+					version: 1,
+					token: 'rotated-access',
+					refreshToken: 'rotated-refresh',
+					accessTokenExpiresAt: 20_000,
+					refreshTokenExpiresAt: 30_000,
+					oauthClientId: null,
+					refreshRequestId: 'rotated-request-id',
+					reauthRequiredAt: null
+				})
+			);
+
+			const restored = restorePersistedServerState();
+
+			expect(restored.sessions[0][1]).toMatchObject({
+				token: 'rotated-access',
+				refreshToken: 'rotated-refresh',
+				refreshRequestId: 'rotated-request-id'
+			});
 		});
 
 		it('clears retired account-data browser storage', () => {

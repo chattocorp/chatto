@@ -14,6 +14,8 @@ export interface ServerConnectionConfig {
   token: string | null;
   /** Access-token expiry as Unix epoch milliseconds. */
   accessTokenExpiresAt?: number | null;
+  /** Absolute renewable-session expiry as Unix epoch milliseconds. */
+  refreshTokenExpiresAt?: number | null;
   /** Registered server ID, used to clear stale credentials after auth failures */
   serverId?: string;
 }
@@ -59,6 +61,7 @@ export class ServerConnection {
   #realtimeUrl: string;
   #token: string | null;
   #accessTokenExpiresAt: number | null;
+  #refreshTokenExpiresAt: number | null;
   #renewalTimer: ReturnType<typeof setTimeout> | null = null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
@@ -202,10 +205,15 @@ export class ServerConnection {
   }
 
   /** Adopt a rotated token without replacing the connection or query scope. */
-  updateBearerSession(token: string | null, accessTokenExpiresAt: number | null): void {
+  updateBearerSession(
+    token: string | null,
+    accessTokenExpiresAt: number | null,
+    refreshTokenExpiresAt: number | null
+  ): void {
     const changed = token !== this.#token;
     this.#token = token;
     this.#accessTokenExpiresAt = accessTokenExpiresAt;
+    this.#refreshTokenExpiresAt = refreshTokenExpiresAt;
     this.#scheduleRenewal();
     if (changed && this.status === 'connected') {
       this.forceReconnect('access token rotated');
@@ -218,6 +226,12 @@ export class ServerConnection {
       this.#renewalTimer = null;
     }
     if (!this.#serverId || !this.#token || !this.#accessTokenExpiresAt) return;
+    if (
+      this.#refreshTokenExpiresAt !== null &&
+      this.#accessTokenExpiresAt >= this.#refreshTokenExpiresAt
+    ) {
+      return;
+    }
     const remaining = this.#accessTokenExpiresAt - Date.now();
     const refreshLead = Math.min(60_000, Math.max(0, remaining / 5));
     const delay = retryDelayMs ?? Math.max(0, remaining - refreshLead);
@@ -228,21 +242,21 @@ export class ServerConnection {
         const retryRemaining = this.#accessTokenExpiresAt
           ? this.#accessTokenExpiresAt - Date.now()
           : 0;
-        const retryDelay = retryRemaining > 0
-          ? Math.min(30_000, Math.max(250, retryRemaining / 2))
-          : 30_000;
+        const retryDelay =
+          retryRemaining > 0 ? Math.min(30_000, Math.max(250, retryRemaining / 2)) : 30_000;
         this.#scheduleRenewal(retryDelay);
       });
     }, delay);
   }
 
   constructor(config: ServerConnectionConfig) {
-    const { serverUrl, token, accessTokenExpiresAt, serverId } = config;
+    const { serverUrl, token, accessTokenExpiresAt, refreshTokenExpiresAt, serverId } = config;
     this.#host = hostFromServerUrl(serverUrl);
     this.#connectBaseUrl = connectBaseUrlFromServerUrl(serverUrl);
     this.#realtimeUrl = realtimeUrlFromServerUrl(serverUrl);
     this.#token = token;
     this.#accessTokenExpiresAt = accessTokenExpiresAt ?? null;
+    this.#refreshTokenExpiresAt = refreshTokenExpiresAt ?? null;
     this.#serverId = serverId;
     this.#scheduleRenewal();
 
@@ -360,6 +374,7 @@ class ServerConnectionManager {
       serverUrl: ORIGIN_SERVER_URL,
       token,
       accessTokenExpiresAt: origin?.accessTokenExpiresAt,
+      refreshTokenExpiresAt: origin?.refreshTokenExpiresAt,
       serverId
     });
     this.#originClientToken = token;
@@ -385,6 +400,7 @@ class ServerConnectionManager {
       serverUrl: server.url,
       token: server.token,
       accessTokenExpiresAt: server.accessTokenExpiresAt,
+      refreshTokenExpiresAt: server.refreshTokenExpiresAt,
       serverId
     });
 
@@ -418,14 +434,19 @@ class ServerConnectionManager {
     if (serverRegistry.isOriginServer(serverId)) {
       this.#originClient?.updateBearerSession(
         server.token,
-        server.accessTokenExpiresAt ?? null
+        server.accessTokenExpiresAt ?? null,
+        server.refreshTokenExpiresAt ?? null
       );
       this.#originClientToken = server.token;
       return;
     }
     this.#clients
       .get(serverId)
-      ?.updateBearerSession(server.token, server.accessTokenExpiresAt ?? null);
+      ?.updateBearerSession(
+        server.token,
+        server.accessTokenExpiresAt ?? null,
+        server.refreshTokenExpiresAt ?? null
+      );
   }
 }
 

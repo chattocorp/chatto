@@ -1,10 +1,21 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockHandleAuthenticationRequired, mockRenewServerAuthentication, mockServers } = vi.hoisted(() => ({
-  mockHandleAuthenticationRequired: vi.fn(),
-  mockRenewServerAuthentication: vi.fn(),
-  mockServers: new Map<string, { id: string; url: string; token: string | null }>()
-}));
+const { mockHandleAuthenticationRequired, mockRenewServerAuthentication, mockServers } = vi.hoisted(
+  () => ({
+    mockHandleAuthenticationRequired: vi.fn(),
+    mockRenewServerAuthentication: vi.fn(),
+    mockServers: new Map<
+      string,
+      {
+        id: string;
+        url: string;
+        token: string | null;
+        accessTokenExpiresAt?: number | null;
+        refreshTokenExpiresAt?: number | null;
+      }
+    >()
+  })
+);
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {
@@ -132,11 +143,13 @@ describe('ServerConnection', () => {
 
     expect(first).toBe(second);
     expect(factory).toHaveBeenCalledOnce();
-    expect(factory).toHaveBeenCalledWith(expect.objectContaining({
-      serverId: 'remote-1',
-      baseUrl: 'https://remote.example.com/api/connect',
-      bearerToken: 'my-token'
-    }));
+    expect(factory).toHaveBeenCalledWith(
+      expect.objectContaining({
+        serverId: 'remote-1',
+        baseUrl: 'https://remote.example.com/api/connect',
+        bearerToken: 'my-token'
+      })
+    );
     client.dispose();
   });
 
@@ -262,17 +275,58 @@ describe('ServerConnection', () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
     mockRenewServerAuthentication.mockResolvedValue('renewed-token');
-    const client = new ServerConnection(makeConfig({
-      token: 'my-token',
-      serverId: 'remote-1',
-      accessTokenExpiresAt: 31_000
-    }));
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: 31_000
+      })
+    );
 
     await vi.advanceTimersByTimeAsync(23_999);
     expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
     await vi.advanceTimersByTimeAsync(1);
     expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
     expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
+    client.dispose();
+  });
+
+  it('does not schedule renewal when access expiry reaches absolute session expiry', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const absoluteExpiry = 31_000;
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: absoluteExpiry,
+        refreshTokenExpiresAt: absoluteExpiry
+      })
+    );
+
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+    client.dispose();
+  });
+
+  it('cancels a pending renewal after rotation reaches absolute session expiry', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    const absoluteExpiry = 61_000;
+    const client = new ServerConnection(
+      makeConfig({
+        token: 'my-token',
+        serverId: 'remote-1',
+        accessTokenExpiresAt: 31_000,
+        refreshTokenExpiresAt: absoluteExpiry
+      })
+    );
+
+    client.updateBearerSession('rotated-token', absoluteExpiry, absoluteExpiry);
+    await vi.advanceTimersByTimeAsync(60_000);
+
+    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
     client.dispose();
   });
 });

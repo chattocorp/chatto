@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"golang.org/x/crypto/bcrypt"
@@ -308,6 +309,37 @@ func TestChattoCore_BearerTokenAuditEvents(t *testing.T) {
 		if strings.Contains(string(jsonPayload), token) {
 			t.Fatalf("bearer audit payload leaked raw token: %s", jsonPayload)
 		}
+	}
+}
+
+func TestChattoCore_BearerTokenAuditUsesClampedCredentialExpiry(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	chattoCore.config.AuthTokenTTL = 5 * time.Minute
+	chattoCore.config.AuthAccessTokenTTL = time.Hour
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "clamped-bearer-audit-user", "Clamped Bearer Audit User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	credentials, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	issuedEvents, _, err := chattoCore.EventPublisher.SubjectEvents(
+		ctx,
+		evtstream.UserAggregate(user.Id).Subject(evtstream.EventBearerTokenIssued),
+	)
+	if err != nil {
+		t.Fatalf("SubjectEvents bearer issued: %v", err)
+	}
+	if len(issuedEvents) != 1 {
+		t.Fatalf("expected 1 bearer token issued event, got %d", len(issuedEvents))
+	}
+
+	got := issuedEvents[0].GetBearerTokenIssued().GetExpiresAt().AsTime()
+	if !got.Equal(credentials.AccessTokenExpiresAt) {
+		t.Fatalf("audit expiry = %s, want clamped credential expiry %s", got, credentials.AccessTokenExpiresAt)
 	}
 }
 

@@ -41,8 +41,9 @@ atomic: when a server is added, its retained store exists immediately.
 
 The persisted `localStorage` slot intentionally remains named `instances`, and
 its combined record remains a compatibility adapter. It is split into catalogue
-and session state at runtime and combined on save. This preserves registrations
-and remote bearer tokens across upgrade and rollback.
+and session state at runtime. Authentication fields migrate into independently
+keyed per-server records; combined-record saves merge those authoritative
+fields so a stale tab cannot restore an older rotated credential generation.
 
 The catalogue and sessions are device-local under ADR-074. A server can remain
 known while signed out, and selecting it starts the normal Chatto OAuth flow.

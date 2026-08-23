@@ -250,11 +250,11 @@ func (c *ChattoCore) recordAuthCodeExchangeFailed(ctx context.Context, userID, r
 	return nil
 }
 
-func (c *ChattoCore) recordBearerTokenIssued(ctx context.Context, userID string, createdAt time.Time, source string) error {
+func (c *ChattoCore) recordBearerTokenIssued(ctx context.Context, userID string, expiresAt time.Time, source string) error {
 	event := newEvent(userID, &corev1.Event{Event: &corev1.Event_BearerTokenIssued{
 		BearerTokenIssued: &corev1.BearerTokenIssuedEvent{
 			UserId:    userID,
-			ExpiresAt: tokenExpiresAt(createdAt, c.bearerAccessTokenTTL()),
+			ExpiresAt: timestamppb.New(expiresAt),
 			Source:    auditTokenSource(source),
 			Request:   auditRequestMetadata(ctx),
 		},
