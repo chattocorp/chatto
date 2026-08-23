@@ -41,10 +41,10 @@ targets, unread counts, read state, or deletion semantics.
   extending user-visible retention.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
-- Notification delivery policy and client-rendered sound choices are User
-  Preferences. Delivery policy syncs through the server; sound and sound-filter
-  choices are stored by the client under a per-server key so notifications from
-  different registered servers can sound different.
+- Notification delivery rules and client sound choices are User Preferences.
+  The server saves delivery rules. The client saves sound and sound-filter
+  choices for each server. Notifications from different registered servers can
+  use different sounds.
 
 ## Design Decisions
 
@@ -201,20 +201,19 @@ explicitly.
 
 ### 9. Client-rendered sounds remain server-specific
 
-**Decision:** Notification sound and sound-filter choices are stored locally by
-the bundled client but scoped to one registered server. A live notification
-uses the choice for the server that produced it. On upgrade, the former global
-sound choice seeds each server's slot the first time that slot is used.
+**Decision:** The client stores notification sound and sound-filter choices for
+each registered server. For a live notification, the client uses the choices
+for the server that produced the notification. During an upgrade, the client
+copies the old global sound choice when it first creates the slot for a server.
 
-**Why:** All notification behavior is a User Preference even when part of its
-execution happens in the client. Per-server storage preserves that scope
-without pretending a client-rendered audio filter is server state, and the
-migration keeps an existing user's chosen sound instead of silently resetting
-it.
+**Why:** The client plays the sound, but all notification behavior is a User
+Preference. Storage for each server keeps this scope. It does not incorrectly
+record a client audio filter as server state. The migration keeps the user's
+existing sound choice.
 
-**Tradeoff:** Sound choices do not sync to another browser or device, and the
-client maintains a small per-server local-storage entry. The server-synced
-delivery policy remains authoritative for whether an Alert may request sound.
+**Tradeoff:** Sound choices do not sync to another browser or device. The
+client keeps a small local-storage entry for each server. The server-synced
+delivery rules continue to control whether an Alert can request sound.
 
 ## Compatibility
 

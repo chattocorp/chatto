@@ -5,7 +5,7 @@
 
 ## Overview
 
-A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced User Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. App Preferences, such as appearance, language, editor, and send-key behavior, live outside the profile and apply across registered servers in that app. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
+A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced User Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. The profile does not contain App Preferences, such as appearance, language, editor, and send-key behavior. The app applies these choices to its registered servers. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
 
 ## Behavior
 
@@ -16,8 +16,8 @@ A human user's profile carries the public identity they present to the rest of t
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default. The unified Settings sidebar exposes these personal choices alongside permission-gated Server Configuration.
-- **App Preferences** — users can choose System, Light, or Dark appearance, a language, a message editor, and send-key behavior. System appearance follows the browser or OS color-scheme preference. These choices apply across every registered server in the current app, are opened from the Application Header, and do not sync to another browser or device. The App Preferences sidebar separates Appearance, Language, and Composer pages.
+- **User Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). The server stores these choices and syncs them across devices. If a choice is not set, the frontend uses the browser timezone and locale time-format default. The unified Settings sidebar shows these personal choices with permission-gated Server Configuration.
+- **App Preferences** — users can select System, Light, or Dark appearance, a language, a message editor, and send-key behavior. System appearance follows the browser or OS color-scheme preference. The app applies these choices to every registered server. Open them from the Application Header. They do not sync to another browser or device. The App Preferences sidebar contains Appearance, Language, and Composer pages.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 - **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login and display name through `BotService`. Bot API keys cannot edit identity, and bot avatar, custom-status, and personal-settings management are not supported in this slice.
@@ -50,9 +50,9 @@ A human user's profile carries the public identity they present to the rest of t
 
 ### 5. User Preferences and App Preferences have different scopes
 
-**Decision:** Timezone and time format are User Preferences that live in the user's profile (in `User.settings`) and sync server-side. Appearance, language, editor, and send-key behavior are App Preferences stored by the app and shared across its registered servers.
-**Why:** The server may need a person's timezone for server-mediated experiences, including a future warning about the local hour of someone the user is about to message. Client presentation and input choices instead belong to the client where they take effect and should remain consistent while moving among its registered servers.
-**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. App Preferences can differ by browser or device and do not follow the user elsewhere.
+**Decision:** Timezone and time format are User Preferences in the user's profile (`User.settings`). The server syncs these choices. Appearance, language, editor, and send-key behavior are App Preferences. The app stores these choices and applies them to its registered servers.
+**Why:** The server can use a person's timezone for server features. For example, the server can warn you when it is late for a person you want to message. The app controls presentation and input choices. These choices must stay the same when you move between its registered servers.
+**Tradeoff:** Each timezone or time-format change requires a mutation. These settings change rarely, so the cost is small. App Preferences can be different in each browser or device and do not follow the user.
 
 ### 6. Browser timezone fallback when unset
 

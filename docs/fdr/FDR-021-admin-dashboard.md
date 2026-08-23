@@ -11,7 +11,7 @@ The server-management section gives owners and admins visibility into the server
 
 - Management UI lives under `/chat/[serverId]/manage/`. Server-wide pages live below `/manage/server/`; individual room and room-group settings use sibling resource routes.
 - Legacy `/chat/[serverId]/server-admin/...` deep links permanently redirect to their equivalent management routes so bookmarks and shared links continue to work.
-- Every member can open Settings from the primary server navigation. The server sidebar then becomes a unified Settings sidebar with collapsible User Preferences and Server Configuration groups plus a Back to Server affordance. Server Configuration contains only the destinations the viewer may use, and the primary Settings entry opens the first permitted server-wide destination (falling back to the member's Profile when none is available).
+- Every member can open Settings from the primary server navigation. The server sidebar then shows a unified Settings sidebar with collapsible User Preferences and Server Configuration groups. It also shows a Back to Server action. Server Configuration contains only the destinations that the viewer can use. Settings opens the first permitted server-wide destination. If there is no permitted destination, Settings opens the member's Profile.
 - Delegated managers enter a specific room or room group through its contextual settings action. Resource pages use effective scoped permissions and do not imply access to unrelated server-management pages.
 - **Users page** — paginated list of all server members with login, email, roles, verification status. Admins can edit profiles, assign roles, suspend, or delete users when they hold the relevant permission.
 - **System Info page** — owner-only page showing backing message-broker connection status, storage account limits and current usage, stream/consumer health, known durable-worker queue health, projection health (lag, entry counts, and rough memory estimates), and `AdminDiagnosticsService.GetSystemInfo` stats (user count, channel room count, DM room count).
@@ -24,9 +24,9 @@ The server-management section gives owners and admins visibility into the server
 
 ### 1. Capability-based Server Configuration navigation
 
-**Decision:** There is no separate `admin.access` permission. Settings itself is available to every member because it also owns User Preferences. Within it, the Server Configuration group is a capability index: it shows only destinations backed by a concrete capability, while child routes and API methods enforce their own narrower gates such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
-**Why:** Personal server-scoped choices need a stable home for every member, while some operators want a "read-only admin" role that can investigate without making changes and others need users-but-not-system access. One permission-filtered Settings surface supports both without inventing parallel role systems.
-**Tradeoff:** There is no standalone "can see the admin dashboard" bit. The Settings entry is always visible, so the UI must make the distinction between personal User Preferences and permission-gated Server Configuration clear.
+**Decision:** There is no separate `admin.access` permission. Settings is available to every member because it contains User Preferences. The Server Configuration group is a capability index. It shows only destinations that have a concrete capability. Child routes and API methods apply their narrower gates, such as `server.manage`, `admin.view-users`, `admin.view-audit`, `role.manage`, and owner-only diagnostics.
+**Why:** All members need a stable location for their server-scoped choices. Some operators need a read-only admin role. Other operators need access to users but not to system information. One permission-filtered Settings surface supports these roles without a parallel role system.
+**Tradeoff:** There is no separate permission to see the admin dashboard. The Settings entry is always visible. The UI must clearly separate personal User Preferences from permission-gated Server Configuration.
 
 ### 2. Operational metadata, not conversation content
 
@@ -78,7 +78,7 @@ even if its durable consumer remains retained.
 
 **Decision:** Server, room, and room-group configuration share the `/manage` namespace. Server-only operations live under `/manage/server`, while rooms and room groups are addressed as resources alongside it.
 **Why:** Room and room-group permissions can be delegated without granting server-wide administration. A resource-oriented management area gives those managers a direct destination without creating a separate top-level settings section for every manageable resource.
-**Tradeoff:** The unified Settings shell cannot assume every viewer has a common Server Configuration navigation set. It must derive navigation and access from the selected resource and the viewer's effective capabilities while keeping User Preferences available.
+**Tradeoff:** The unified Settings shell cannot assume that each viewer has the same Server Configuration navigation. It must get navigation and access from the selected resource and the viewer's effective capabilities. It must also keep User Preferences available.
 
 ## Permissions
 
