@@ -7,7 +7,15 @@
       "display": "Preferências",
       "notifications": "Notificações",
       "account": "Conta",
-      "bots": "Bots"
+      "bots": "Bots",
+      "user_preferences": "Preferências do utilizador",
+      "server_configuration": "Configuração do servidor"
+    },
+    "app_preferences": {
+      "title": "Preferências da aplicação",
+      "subtitle": "Opções desta aplicação que se aplicam a todos os seus servidores registados",
+      "appearance": { "title": "Aspeto" },
+      "composer": { "title": "Composição" }
     },
     "profile": {
       "title": "Perfil",
@@ -105,8 +113,8 @@
       "save_button": "Guardar alterações"
     },
     "preferences": {
-      "title": "Preferências",
-      "subtitle": "Escolha o aspeto e o comportamento do Chatto",
+      "title": "Hora e região",
+      "subtitle": "Escolha como este servidor apresenta datas e horas para si",
       "browser_scope": "Esta escolha aplica-se a todos os servidores Chatto neste navegador.",
       "theme": {
         "title": "Tema",

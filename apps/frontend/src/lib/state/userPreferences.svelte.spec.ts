@@ -1,6 +1,9 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { defaultNotificationSoundFilters, defaultSoundId } from '$lib/audio/notificationSounds';
-import { UserPreferencesState, resolveDisplayTheme } from './userPreferences.svelte';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import {
+  UserPreferencesState,
+  getLegacyNotificationSoundPreferences,
+  resolveDisplayTheme
+} from './userPreferences.svelte';
 
 const STORAGE_KEY = 'chatto:preferences';
 
@@ -30,308 +33,104 @@ describe('UserPreferencesState', () => {
     document.documentElement.style.colorScheme = '';
   });
 
-  describe('initial state', () => {
-    it('uses the system display theme when storage is empty', () => {
-      const state = new UserPreferencesState();
-      expect(state.displayTheme).toBe('system');
-      expect(state.effectiveDisplayTheme).toBe('light');
-    });
+  it('uses the system theme, Markdown editor, and Return-to-send by default', () => {
+    const state = new UserPreferencesState();
 
-    it('resolves the system display theme from prefers-color-scheme', () => {
-      mockSystemTheme('dark');
-      const state = new UserPreferencesState();
-      expect(resolveDisplayTheme(state.displayTheme)).toBe('dark');
-      expect(state.effectiveDisplayTheme).toBe('dark');
-    });
+    expect(state.displayTheme).toBe('system');
+    expect(state.effectiveDisplayTheme).toBe('light');
+    expect(state.composerEditor).toBe('markdown');
+    expect(state.composerSendMode).toBe('enter');
+  });
 
-    it.each(['system', 'light', 'dark'] as const)(
-      'hydrates a persisted %s display theme',
-      (displayTheme) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme }));
-        const state = new UserPreferencesState();
-        expect(state.displayTheme).toBe(displayTheme);
-      }
+  it('resolves the system display theme from prefers-color-scheme', () => {
+    mockSystemTheme('dark');
+    const state = new UserPreferencesState();
+
+    expect(resolveDisplayTheme(state.displayTheme)).toBe('dark');
+    expect(state.effectiveDisplayTheme).toBe('dark');
+  });
+
+  it.each(['system', 'light', 'dark'] as const)(
+    'hydrates a persisted %s display theme',
+    (displayTheme) => {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme }));
+      expect(new UserPreferencesState().displayTheme).toBe(displayTheme);
+    }
+  );
+
+  it('hydrates the legacy localStorage.theme value when no preference exists', () => {
+    localStorage.setItem('theme', 'dark');
+    expect(new UserPreferencesState().displayTheme).toBe('dark');
+  });
+
+  it('normalizes invalid independently stored app choices', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        displayTheme: 'sepia',
+        composerEditor: 'plain-text',
+        composerSendMode: 'spacebar'
+      })
     );
 
-    it('falls back to system when the stored display theme is invalid', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ displayTheme: 'sepia' }));
-      const state = new UserPreferencesState();
-      expect(state.displayTheme).toBe('system');
-    });
+    const state = new UserPreferencesState();
 
-    it('hydrates the legacy localStorage.theme value when no preference exists', () => {
-      localStorage.setItem('theme', 'dark');
-      const state = new UserPreferencesState();
-      expect(state.displayTheme).toBe('dark');
-    });
+    expect(state.displayTheme).toBe('system');
+    expect(state.composerEditor).toBe('markdown');
+    expect(state.composerSendMode).toBe('enter');
+  });
 
-    it('uses the default sound when storage is empty', () => {
-      const state = new UserPreferencesState();
-      expect(state.notificationSound).toBe(defaultSoundId);
-      expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-    });
+  it('updates, persists, and applies the display theme', () => {
+    const state = new UserPreferencesState();
 
-    it('uses Markdown editing when storage is empty', () => {
-      const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('markdown');
-    });
+    state.displayTheme = 'dark';
 
-    it('uses Return-to-send when storage is empty', () => {
-      const state = new UserPreferencesState();
-      expect(state.composerSendMode).toBe('enter');
-    });
-
-    it('hydrates a valid composer preference', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerEditor: 'markdown' }));
-      const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('markdown');
-    });
-
-    it.each(['enter', 'modifier-enter'] as const)(
-      'hydrates a valid %s send-mode preference',
-      (composerSendMode) => {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify({ composerSendMode }));
-        const state = new UserPreferencesState();
-        expect(state.composerSendMode).toBe(composerSendMode);
-      }
-    );
-
-    it('falls back from an invalid send-mode preference independently', () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ composerEditor: 'visual', composerSendMode: 'spacebar' })
-      );
-      const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('visual');
-      expect(state.composerSendMode).toBe('enter');
-    });
-
-    it('falls back from an invalid composer preference independently', () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({ composerEditor: 'plain-text', composerSendMode: 'modifier-enter' })
-      );
-      const state = new UserPreferencesState();
-      expect(state.composerEditor).toBe('markdown');
-      expect(state.composerSendMode).toBe('modifier-enter');
-    });
-
-    it('hydrates a valid persisted sound', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ notificationSound: 'silent' }));
-      const state = new UserPreferencesState();
-      expect(state.notificationSound).toBe('silent');
-      expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-    });
-
-    it('hydrates valid persisted notification sound filters', () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          notificationSound: 'pop',
-          notificationSoundFilters: {
-            volume: 1.5,
-            highPassHz: 500,
-            lowPassHz: 8000,
-            echo: 45,
-            reverb: 30,
-            crunch: 75
-          }
-        })
-      );
-
-      const state = new UserPreferencesState();
-      expect(state.notificationSound).toBe('pop');
-      expect(state.notificationSoundFilters).toEqual({
-        volume: 1.5,
-        highPassHz: 500,
-        lowPassHz: 8000,
-        echo: 45,
-        reverb: 30,
-        crunch: 75
-      });
-    });
-
-    it('merges partial stored notification sound filters with defaults', () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          notificationSound: 'pop',
-          notificationSoundFilters: {
-            volume: 0.35
-          }
-        })
-      );
-
-      const state = new UserPreferencesState();
-      expect(state.notificationSoundFilters).toEqual({
-        ...defaultNotificationSoundFilters,
-        volume: 0.35
-      });
-    });
-
-    it('falls back to default when stored sound id is invalid', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ notificationSound: 'no-such-sound' }));
-      const state = new UserPreferencesState();
-      expect(state.notificationSound).toBe(defaultSoundId);
-    });
-
-    it('ignores corrupt JSON', () => {
-      localStorage.setItem(STORAGE_KEY, 'not-json');
-      const state = new UserPreferencesState();
-      expect(state.notificationSound).toBe(defaultSoundId);
-    });
-
-    it('falls back to safe filter values when stored filters are invalid', () => {
-      localStorage.setItem(
-        STORAGE_KEY,
-        JSON.stringify({
-          notificationSound: 'pop',
-          notificationSoundFilters: {
-            volume: 7,
-            highPassHz: -1,
-            lowPassHz: 'loud',
-            echo: 101,
-            reverb: Number.NaN,
-            crunch: 'yes'
-          }
-        })
-      );
-
-      const state = new UserPreferencesState();
-      expect(state.notificationSoundFilters).toEqual({
-        volume: defaultNotificationSoundFilters.volume,
-        highPassHz: 20,
-        lowPassHz: defaultNotificationSoundFilters.lowPassHz,
-        echo: defaultNotificationSoundFilters.echo,
-        reverb: defaultNotificationSoundFilters.reverb,
-        crunch: defaultNotificationSoundFilters.crunch
-      });
+    expect(state.displayTheme).toBe('dark');
+    expect(document.documentElement.dataset.theme).toBe('dark');
+    expect(document.documentElement.style.backgroundColor).toBe('rgb(23, 23, 23)');
+    expect(document.documentElement.style.colorScheme).toBe('dark');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      displayTheme: 'dark'
     });
   });
 
-  describe('isMuted', () => {
-    it('is true when sound is silent', () => {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ notificationSound: 'silent' }));
-      const state = new UserPreferencesState();
-      expect(state.isMuted).toBe(true);
-    });
+  it('updates and persists composer choices', () => {
+    const state = new UserPreferencesState();
 
-    it('is false for any non-silent sound', () => {
-      const state = new UserPreferencesState();
-      state.notificationSound = 'pop';
-      expect(state.isMuted).toBe(false);
+    state.composerEditor = 'visual';
+    state.composerSendMode = 'modifier-enter';
+
+    expect(state.composerEditor).toBe('visual');
+    expect(state.composerSendMode).toBe('modifier-enter');
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      composerEditor: 'visual',
+      composerSendMode: 'modifier-enter'
     });
   });
 
-  describe('mutation', () => {
-    it.each([
-      {
-        displayTheme: 'light' as const,
-        effectiveTheme: 'light' as const,
-        background: 'rgb(243, 244, 246)'
-      },
-      {
-        displayTheme: 'dark' as const,
-        effectiveTheme: 'dark' as const,
-        background: 'rgb(23, 23, 23)'
-      },
-      {
-        displayTheme: 'system' as const,
-        effectiveTheme: 'dark' as const,
-        background: 'rgb(23, 23, 23)'
-      }
-    ])(
-      'updates, persists, and applies the $displayTheme display theme',
-      ({ displayTheme, effectiveTheme, background }) => {
-        mockSystemTheme('dark');
-        const state = new UserPreferencesState();
-
-        state.displayTheme = displayTheme;
-
-        expect(state.displayTheme).toBe(displayTheme);
-        expect(document.documentElement.dataset.theme).toBe(effectiveTheme);
-        expect(document.documentElement.style.backgroundColor).toBe(background);
-        expect(document.documentElement.style.colorScheme).toBe(effectiveTheme);
-
-        const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-        expect(stored.displayTheme).toBe(displayTheme);
-      }
+  it('keeps former global sound fields available only as a migration seed', () => {
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({
+        displayTheme: 'system',
+        composerEditor: 'markdown',
+        composerSendMode: 'enter',
+        notificationSound: 'pop',
+        notificationSoundFilters: { volume: 1.5, echo: 30 }
+      })
     );
 
-    it('updates and persists the notification sound', () => {
-      const state = new UserPreferencesState();
-      state.notificationSound = 'pop';
-      expect(state.notificationSound).toBe('pop');
+    const legacy = getLegacyNotificationSoundPreferences();
+    const state = new UserPreferencesState();
+    state.composerEditor = 'visual';
 
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-      expect(stored.notificationSound).toBe('pop');
+    expect(legacy.notificationSound).toBe('pop');
+    expect(legacy.notificationSoundFilters).toMatchObject({ volume: 1.5, echo: 30 });
+    expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
+      composerEditor: 'visual',
+      notificationSound: 'pop',
+      notificationSoundFilters: { volume: 1.5, echo: 30 }
     });
-
-    it('updates and persists the composer preference', () => {
-      const state = new UserPreferencesState();
-      state.composerEditor = 'visual';
-
-      expect(state.composerEditor).toBe('visual');
-      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-        composerEditor: 'visual'
-      });
-    });
-
-    it('updates and persists the composer send mode', () => {
-      const state = new UserPreferencesState();
-      state.composerSendMode = 'modifier-enter';
-
-      expect(state.composerSendMode).toBe('modifier-enter');
-      expect(JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}')).toMatchObject({
-        composerSendMode: 'modifier-enter'
-      });
-    });
-
-    it('updates and persists individual notification sound filters', () => {
-      const state = new UserPreferencesState();
-      state.setNotificationSoundFilter('volume', 1.75);
-      state.setNotificationSoundFilter('highPassHz', 900);
-      state.setNotificationSoundFilter('lowPassHz', 5000);
-      state.setNotificationSoundFilter('echo', 35);
-      state.setNotificationSoundFilter('reverb', 45);
-      state.setNotificationSoundFilter('crunch', 55);
-
-      expect(state.notificationSoundFilters).toEqual({
-        volume: 1.75,
-        highPassHz: 900,
-        lowPassHz: 5000,
-        echo: 35,
-        reverb: 45,
-        crunch: 55
-      });
-
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-      expect(stored.notificationSoundFilters).toEqual({
-        volume: 1.75,
-        highPassHz: 900,
-        lowPassHz: 5000,
-        echo: 35,
-        reverb: 45,
-        crunch: 55
-      });
-    });
-
-    it('resets notification sound filters to defaults', () => {
-      const state = new UserPreferencesState();
-      state.notificationSoundFilters = {
-        volume: 0.25,
-        highPassHz: 700,
-        lowPassHz: 4000,
-        echo: 35,
-        reverb: 45,
-        crunch: 55
-      };
-
-      state.resetNotificationSoundFilters();
-
-      expect(state.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-      const stored = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
-      expect(stored.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-    });
+    expect('notificationSound' in state).toBe(false);
   });
 });

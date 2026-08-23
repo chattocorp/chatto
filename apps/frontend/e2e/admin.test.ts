@@ -172,7 +172,10 @@ test.describe('Admin Access Control', () => {
 
     // Should see access denied message
     await adminPage.expectAccessDenied();
-    await adminPage.expectAdminGearNotVisible();
+    // The unified Settings shell remains available because every member can
+    // manage User Preferences even when this specific route is denied.
+    await expect(page.getByRole('heading', { name: 'Settings' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Profile', exact: true })).toBeVisible();
     await expect(page.getByText('You do not have permission to access this page.')).toBeVisible();
 
     // Should have a link to return to chat
@@ -268,13 +271,16 @@ test.describe('Admin System Page', () => {
 });
 
 test.describe('Admin Navigation', () => {
-  test('server header gear opens the first permitted admin page', async ({ page, adminPage }) => {
+  test('sidebar Settings entry opens the first permitted server settings page', async ({
+    page,
+    adminPage
+  }) => {
     await createAndLoginAdminUser(page);
 
     await page.goto(routes.space());
 
-    await adminPage.expectAdminGearVisible();
-    await adminPage.navigateToAdminViaGear();
+    await adminPage.expectSettingsLinkVisible();
+    await adminPage.navigateToSettings();
     await adminPage.expectGeneralPageVisible();
     await adminPage.expectBackToChatVisible();
     await adminPage.expectSidebarLinkActive('General');

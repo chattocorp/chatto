@@ -7,7 +7,15 @@
       "display": "設定",
       "notifications": "通知",
       "account": "アカウント",
-      "bots": "ボット"
+      "bots": "ボット",
+      "user_preferences": "ユーザー設定",
+      "server_configuration": "サーバー構成"
+    },
+    "app_preferences": {
+      "title": "アプリ設定",
+      "subtitle": "登録済みのすべてのサーバーに適用される、このアプリの設定",
+      "appearance": { "title": "外観" },
+      "composer": { "title": "メッセージ作成" }
     },
     "profile": {
       "title": "プロフィール",
@@ -105,8 +113,8 @@
       "save_button": "変更を保存"
     },
     "preferences": {
-      "title": "設定",
-      "subtitle": "Chatto の表示と動作を選択します",
+      "title": "時刻と地域",
+      "subtitle": "このサーバーでの日付と時刻の表示方法を選択します",
       "browser_scope": "この選択は、このブラウザーのすべての Chatto サーバーに適用されます。",
       "theme": {
         "title": "テーマ",

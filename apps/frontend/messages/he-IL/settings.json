@@ -7,7 +7,15 @@
       "display": "העדפות",
       "notifications": "התראות",
       "account": "חשבון",
-      "bots": "בוטים"
+      "bots": "בוטים",
+      "user_preferences": "העדפות משתמש",
+      "server_configuration": "תצורת שרת"
+    },
+    "app_preferences": {
+      "title": "העדפות האפליקציה",
+      "subtitle": "בחירות באפליקציה הזו שחלות על כל השרתים הרשומים שלך",
+      "appearance": { "title": "מראה" },
+      "composer": { "title": "כתיבת הודעות" }
     },
     "profile": {
       "title": "פרופיל",
@@ -105,8 +113,8 @@
       "save_button": "שמור שינויים"
     },
     "preferences": {
-      "title": "העדפות",
-      "subtitle": "בחרו כיצד Chatto ייראה ויתנהג",
+      "title": "זמן ואזור",
+      "subtitle": "בחרו כיצד השרת הזה יציג עבורכם תאריכים ושעות",
       "browser_scope": "הבחירה חלה על כל שרתי Chatto בדפדפן הזה.",
       "theme": {
         "title": "ערכת נושא",

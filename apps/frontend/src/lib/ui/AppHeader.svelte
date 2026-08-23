@@ -90,6 +90,15 @@
       </button>
     {/if}
 
+    <a
+      href={resolve('/chat/preferences')}
+      class="app-header-icon"
+      aria-label={m('settings.app_preferences.title')}
+      title={m('settings.app_preferences.title')}
+    >
+      <span class="iconify icon-[uil--setting] text-lg" aria-hidden="true"></span>
+    </a>
+
     <!-- Connection lost indicator: only show when an authenticated server has lost connection.
          Skip the origin server if the user isn't authenticated (no WebSocket expected). -->
     {#if originStore?.currentUser.user && serverConnectionManager.originClient.showConnectionLostIcon}

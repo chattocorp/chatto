@@ -5,6 +5,10 @@ import NotificationsPage from './+page.svelte';
 
 import { q } from '$lib/test-utils';
 import { userPreferences } from '$lib/state/userPreferences.svelte';
+import {
+  getServerNotificationPreferences,
+  resetServerNotificationPreferencesForTests
+} from '$lib/state/serverNotificationPreferences.svelte';
 import { defaultNotificationSoundFilters } from '$lib/audio/notificationSounds';
 
 const mocks = vi.hoisted(() => ({
@@ -62,7 +66,7 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
       get serverId() {
         // Keep the mock route ID reactive without introducing test-only state
         // into production code.
-        void reactivePreferences.notificationSound;
+        void reactivePreferences.composerEditor;
         return mocks.activeServerId;
       },
       store: {
@@ -124,11 +128,26 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
   return button;
 }
 
+function notificationPreferences(serverId = mocks.activeServerId) {
+  return getServerNotificationPreferences(serverId);
+}
+
+function notificationPreferencesStorageKey(serverId = mocks.activeServerId) {
+  return `chatto:i:${serverId}:notificationPreferences`;
+}
+
 describe('Notification settings page', () => {
   beforeEach(() => {
     localStorage.clear();
-    userPreferences.notificationSound = 'chime-up';
-    userPreferences.resetNotificationSoundFilters();
+    userPreferences.composerEditor = 'markdown';
+    localStorage.setItem(
+      'chatto:preferences',
+      JSON.stringify({
+        notificationSound: 'chime-up',
+        notificationSoundFilters: defaultNotificationSoundFilters
+      })
+    );
+    resetServerNotificationPreferencesForTests();
     mocks.activeServerId = 'origin';
     mocks.playNotificationSound.mockClear();
     mocks.notifications.getPolicy.mockClear();
@@ -162,8 +181,10 @@ describe('Notification settings page', () => {
     softPopButton.click();
     flushSync();
 
-    expect(userPreferences.notificationSound).toBe('pop');
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(notificationPreferences().notificationSound).toBe('pop');
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSound: 'pop'
     });
     expect(mocks.playNotificationSound).toHaveBeenCalledWith(
@@ -171,6 +192,29 @@ describe('Notification settings page', () => {
       defaultNotificationSoundFilters
     );
     await expect.element(softPopButton).toHaveClass(/choice-row-selected/);
+  });
+
+  it('switches sound storage when the mounted route changes servers', async () => {
+    const { container } = render(NotificationsPage);
+    await settle();
+
+    buttonWithText(container, 'Soft Pop').click();
+    flushSync();
+
+    mocks.activeServerId = 'remote';
+    userPreferences.composerEditor = 'visual';
+    await settle();
+    buttonWithText(container, 'Falling Chime').click();
+    flushSync();
+
+    expect(notificationPreferences('origin').notificationSound).toBe('pop');
+    expect(notificationPreferences('remote').notificationSound).toBe('chime-down');
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey('origin')) ?? '{}')
+    ).toMatchObject({ notificationSound: 'pop' });
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey('remote')) ?? '{}')
+    ).toMatchObject({ notificationSound: 'chime-down' });
   });
 
   it('selects silent mode without previewing a sound', async () => {
@@ -181,7 +225,7 @@ describe('Notification settings page', () => {
     silentButton.click();
     flushSync();
 
-    expect(userPreferences.notificationSound).toBe('silent');
+    expect(notificationPreferences().notificationSound).toBe('silent');
     expect(mocks.playNotificationSound).not.toHaveBeenCalled();
     await expect.element(silentButton).toHaveClass(/choice-row-selected/);
   });
@@ -239,7 +283,7 @@ describe('Notification settings page', () => {
     expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('origin');
 
     mocks.activeServerId = 'remote';
-    userPreferences.notificationSound = 'pop';
+    userPreferences.composerEditor = 'visual';
     await settle();
     expect(mocks.pushNotifications.isSubscribed).toHaveBeenCalledWith('remote');
 
@@ -262,10 +306,10 @@ describe('Notification settings page', () => {
     await settle();
 
     mocks.activeServerId = 'remote';
-    userPreferences.notificationSound = 'pop';
+    userPreferences.composerEditor = 'visual';
     await settle();
     mocks.activeServerId = 'origin';
-    userPreferences.notificationSound = 'ding';
+    userPreferences.composerEditor = 'markdown';
     await settle();
 
     firstOriginResult.resolve(true);
@@ -337,10 +381,10 @@ describe('Notification settings page', () => {
     await settle();
 
     mocks.activeServerId = 'remote';
-    userPreferences.notificationSound = 'pop';
+    userPreferences.composerEditor = 'visual';
     await settle();
     mocks.activeServerId = 'origin';
-    userPreferences.notificationSound = 'ding';
+    userPreferences.composerEditor = 'markdown';
     await settle();
     buttonWithText(container, 'Enable').click();
     await settle();
@@ -385,10 +429,10 @@ describe('Notification settings page', () => {
     await settle();
 
     mocks.activeServerId = 'remote';
-    userPreferences.notificationSound = 'pop';
+    userPreferences.composerEditor = 'visual';
     await settle();
     mocks.activeServerId = 'origin';
-    userPreferences.notificationSound = 'ding';
+    userPreferences.composerEditor = 'markdown';
     await settle();
     buttonWithText(container, 'Send test notification').click();
     await settle();
@@ -430,7 +474,7 @@ describe('Notification settings page', () => {
       '55'
     );
 
-    expect(userPreferences.notificationSoundFilters).toEqual({
+    expect(notificationPreferences().notificationSoundFilters).toEqual({
       volume: 1.5,
       highPassHz: 500,
       lowPassHz: 7904,
@@ -438,7 +482,9 @@ describe('Notification settings page', () => {
       reverb: 45,
       crunch: 55
     });
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSoundFilters: {
         volume: 1.5,
         highPassHz: 500,
@@ -546,8 +592,12 @@ describe('Notification settings page', () => {
     buttonWithText(container, 'Reset').click();
     flushSync();
 
-    expect(userPreferences.notificationSoundFilters).toEqual(defaultNotificationSoundFilters);
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
+    expect(notificationPreferences().notificationSoundFilters).toEqual(
+      defaultNotificationSoundFilters
+    );
+    expect(
+      JSON.parse(localStorage.getItem(notificationPreferencesStorageKey()) ?? '{}')
+    ).toMatchObject({
       notificationSoundFilters: defaultNotificationSoundFilters
     });
     expect(container.textContent).toContain('100%');

@@ -1,8 +1,8 @@
 /**
- * User preferences store.
+ * App Preferences store.
  *
  * Stores user preferences in localStorage for persistence across sessions.
- * These are client-side preferences that don't need server sync.
+ * These are app-local preferences that don't need server sync.
  */
 
 import {
@@ -19,23 +19,32 @@ export type ComposerEditorKind = 'visual' | 'markdown';
 export type ComposerSendMode = 'enter' | 'modifier-enter';
 type EffectiveTheme = 'light' | 'dark';
 
-interface Preferences {
+interface AppPreferences {
   displayTheme: DisplayTheme;
   composerEditor: ComposerEditorKind;
   composerSendMode: ComposerSendMode;
+}
+
+export interface LegacyNotificationSoundPreferences {
   notificationSound: NotificationSoundId;
   notificationSoundFilters: NotificationSoundFilters;
 }
 
-const defaultPreferences: Preferences = {
+interface StoredPreferences extends AppPreferences, LegacyNotificationSoundPreferences {}
+
+const defaultAppPreferences: AppPreferences = {
   displayTheme: 'system',
   composerEditor: 'markdown',
-  composerSendMode: 'enter',
+  composerSendMode: 'enter'
+};
+
+const defaultStoredPreferences: StoredPreferences = {
+  ...defaultAppPreferences,
   notificationSound: defaultSoundId,
   notificationSoundFilters: defaultNotificationSoundFilters
 };
 
-const slot = globalSlot('preferences', defaultPreferences, Codecs.json<Preferences>());
+const slot = globalSlot('preferences', defaultStoredPreferences, Codecs.json<StoredPreferences>());
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null;
@@ -114,100 +123,82 @@ function normalizeNotificationSoundFilters(value: unknown): NotificationSoundFil
   };
 }
 
-function loadPreferences(): Preferences {
+function loadAppPreferences(): AppPreferences {
   const stored = slot.get();
-  // Validate that the stored sound ID is still valid — silently fall back
-  // to the default if the user migrated away from a sound we no longer ship.
-  const isValidSound = notificationSounds.some((s) => s.id === stored.notificationSound);
   const displayTheme =
-    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultPreferences.displayTheme;
+    getStoredDisplayTheme() ?? getLegacyDisplayTheme() ?? defaultAppPreferences.displayTheme;
   return {
     displayTheme,
     composerEditor: isComposerEditorKind(stored.composerEditor)
       ? stored.composerEditor
-      : defaultPreferences.composerEditor,
+      : defaultAppPreferences.composerEditor,
     composerSendMode: isComposerSendMode(stored.composerSendMode)
       ? stored.composerSendMode
-      : defaultPreferences.composerSendMode,
+      : defaultAppPreferences.composerSendMode
+  };
+}
+
+/**
+ * Read the former global notification-sound fields while per-server slots are
+ * being established. New runtime code must use ServerNotificationPreferences.
+ */
+export function getLegacyNotificationSoundPreferences(): LegacyNotificationSoundPreferences {
+  const stored = slot.get();
+  const isValidSound = notificationSounds.some((sound) => sound.id === stored.notificationSound);
+  return {
     notificationSound: isValidSound ? stored.notificationSound : defaultSoundId,
     notificationSoundFilters: normalizeNotificationSoundFilters(stored.notificationSoundFilters)
   };
 }
 
 export class UserPreferencesState {
-  #prefs = $state<Preferences>(loadPreferences());
+  #preferences = $state<AppPreferences>(loadAppPreferences());
+  // Keep the legacy fields intact whenever App Preferences are saved so a
+  // server first opened later can still migrate the user's previous sound.
+  readonly #legacyNotificationSoundPreferences = getLegacyNotificationSoundPreferences();
 
   get displayTheme(): DisplayTheme {
-    return this.#prefs.displayTheme;
+    return this.#preferences.displayTheme;
   }
 
   set displayTheme(value: DisplayTheme) {
-    const displayTheme = isDisplayTheme(value) ? value : defaultPreferences.displayTheme;
-    this.#prefs.displayTheme = displayTheme;
-    slot.set(this.#prefs);
+    const displayTheme = isDisplayTheme(value) ? value : defaultAppPreferences.displayTheme;
+    this.#preferences.displayTheme = displayTheme;
+    this.#persist();
     applyDisplayTheme(displayTheme);
   }
 
   get effectiveDisplayTheme(): EffectiveTheme {
-    return resolveDisplayTheme(this.#prefs.displayTheme);
+    return resolveDisplayTheme(this.#preferences.displayTheme);
   }
 
   get composerEditor(): ComposerEditorKind {
-    return this.#prefs.composerEditor;
+    return this.#preferences.composerEditor;
   }
 
   set composerEditor(value: ComposerEditorKind) {
-    this.#prefs.composerEditor = isComposerEditorKind(value)
+    this.#preferences.composerEditor = isComposerEditorKind(value)
       ? value
-      : defaultPreferences.composerEditor;
-    slot.set(this.#prefs);
+      : defaultAppPreferences.composerEditor;
+    this.#persist();
   }
 
   get composerSendMode(): ComposerSendMode {
-    return this.#prefs.composerSendMode;
+    return this.#preferences.composerSendMode;
   }
 
   set composerSendMode(value: ComposerSendMode) {
-    this.#prefs.composerSendMode = isComposerSendMode(value)
+    this.#preferences.composerSendMode = isComposerSendMode(value)
       ? value
-      : defaultPreferences.composerSendMode;
-    slot.set(this.#prefs);
+      : defaultAppPreferences.composerSendMode;
+    this.#persist();
   }
 
-  get notificationSound(): NotificationSoundId {
-    return this.#prefs.notificationSound;
-  }
-
-  set notificationSound(value: NotificationSoundId) {
-    this.#prefs.notificationSound = value;
-    slot.set(this.#prefs);
-  }
-
-  get notificationSoundFilters(): NotificationSoundFilters {
-    return this.#prefs.notificationSoundFilters;
-  }
-
-  set notificationSoundFilters(value: NotificationSoundFilters) {
-    this.#prefs.notificationSoundFilters = normalizeNotificationSoundFilters(value);
-    slot.set(this.#prefs);
-  }
-
-  setNotificationSoundFilter(key: keyof NotificationSoundFilters, value: number) {
-    this.notificationSoundFilters = {
-      ...this.#prefs.notificationSoundFilters,
-      [key]: value
-    };
-  }
-
-  resetNotificationSoundFilters() {
-    this.notificationSoundFilters = defaultNotificationSoundFilters;
-  }
-
-  /**
-   * Check if notifications are muted (sound set to silent).
-   */
-  get isMuted(): boolean {
-    return this.#prefs.notificationSound === 'silent';
+  #persist() {
+    slot.set({
+      ...this.#preferences,
+      ...this.#legacyNotificationSoundPreferences
+    });
   }
 }
 

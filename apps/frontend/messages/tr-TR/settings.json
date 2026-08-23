@@ -7,7 +7,15 @@
       "display": "Tercihler",
       "notifications": "Bildirimler",
       "account": "Hesap",
-      "bots": "Botlar"
+      "bots": "Botlar",
+      "user_preferences": "Kullanıcı tercihleri",
+      "server_configuration": "Sunucu yapılandırması"
+    },
+    "app_preferences": {
+      "title": "Uygulama tercihleri",
+      "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu uygulamaya ait seçimler",
+      "appearance": { "title": "Görünüm" },
+      "composer": { "title": "Mesaj yazma" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,8 @@
       "save_button": "Değişiklikleri Kaydet"
     },
     "preferences": {
-      "title": "Tercihler",
-      "subtitle": "Chatto görünümünü ve davranışını seçin",
+      "title": "Saat ve bölge",
+      "subtitle": "Bu sunucunun tarihleri ve saatleri size nasıl göstereceğini seçin",
       "browser_scope": "Bu seçim, bu tarayıcıdaki tüm Chatto sunucuları için geçerlidir.",
       "theme": {
         "title": "Tema",

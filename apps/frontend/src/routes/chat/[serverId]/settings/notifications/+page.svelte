@@ -3,7 +3,7 @@
   import { ChoiceRow, PaneHeader, Hint, FormSection } from '$lib/ui';
   import { Button, RangeField } from '$lib/ui/form';
   import NotificationPolicySettings from '$lib/components/settings/NotificationPolicySettings.svelte';
-  import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import {
     notificationSounds,
     playNotificationSound,
@@ -24,33 +24,44 @@
   import { m } from '$lib/i18n/messages';
 
   const serverScope = useServerScope();
+  let notificationPreferences = $state.raw(getServerNotificationPreferences(serverScope.serverId));
+
+  // SvelteKit can retain this page while only the server route parameter
+  // changes. Resolve the matching state in an effect so populating the
+  // reactive cache never happens inside a derived or template expression.
+  $effect(() => {
+    notificationPreferences = getServerNotificationPreferences(serverScope.serverId);
+  });
 
   const activeServerId = $derived(serverScope.serverId);
   const serverInfo = $derived(serverScope.store.serverInfo);
 
   function selectSound(soundId: NotificationSoundId) {
-    userPreferences.notificationSound = soundId;
+    notificationPreferences.notificationSound = soundId;
     if (soundId !== 'silent') {
-      playNotificationSound(soundId, userPreferences.notificationSoundFilters);
+      playNotificationSound(soundId, notificationPreferences.notificationSoundFilters);
     }
   }
 
   function previewSelectedSound() {
-    if (userPreferences.notificationSound === 'silent') return;
+    if (notificationPreferences.notificationSound === 'silent') return;
     playNotificationSound(
-      userPreferences.notificationSound,
-      userPreferences.notificationSoundFilters
+      notificationPreferences.notificationSound,
+      notificationPreferences.notificationSoundFilters
     );
   }
 
   function updateSoundFilter(key: keyof NotificationSoundFilters, event: Event) {
     const value = Number((event.currentTarget as HTMLInputElement).value);
-    userPreferences.setNotificationSoundFilter(key, value);
+    notificationPreferences.setNotificationSoundFilter(key, value);
   }
 
   function updateMuffledFilter(event: Event) {
     const amount = Number((event.currentTarget as HTMLInputElement).value);
-    userPreferences.setNotificationSoundFilter('lowPassHz', lowPassHzFromMuffledAmount(amount));
+    notificationPreferences.setNotificationSoundFilter(
+      'lowPassHz',
+      lowPassHzFromMuffledAmount(amount)
+    );
   }
 
   function lowPassHzFromMuffledAmount(amount: number) {
@@ -374,7 +385,7 @@
             aria-label={soundCategoryLabel(category)}
           >
             {#each sounds as sound (sound.id)}
-              {@const isSelected = userPreferences.notificationSound === sound.id}
+              {@const isSelected = notificationPreferences.notificationSound === sound.id}
               <ChoiceRow
                 label={soundNameLabel(sound.id)}
                 selected={isSelected}
@@ -393,14 +404,14 @@
         variant="secondary"
         size="sm"
         onclick={previewSelectedSound}
-        disabled={userPreferences.notificationSound === 'silent'}
+        disabled={notificationPreferences.notificationSound === 'silent'}
       >
         {m('settings.notifications.sound.preview')}
       </Button>
       <Button
         variant="ghost"
         size="sm"
-        onclick={() => userPreferences.resetNotificationSoundFilters()}
+        onclick={() => notificationPreferences.resetNotificationSoundFilters()}
       >
         {m('settings.notifications.sound.reset')}
       </Button>
@@ -415,8 +426,8 @@
         min={0}
         max={2}
         step={0.05}
-        value={userPreferences.notificationSoundFilters.volume}
-        displayValue={formatVolume(userPreferences.notificationSoundFilters.volume)}
+        value={notificationPreferences.notificationSoundFilters.volume}
+        displayValue={formatVolume(notificationPreferences.notificationSoundFilters.volume)}
         oninput={(event) => updateSoundFilter('volume', event)}
         onchange={previewSelectedSound}
       />
@@ -429,8 +440,8 @@
         min={20}
         max={2000}
         step={10}
-        value={userPreferences.notificationSoundFilters.highPassHz}
-        displayValue={formatTinny(userPreferences.notificationSoundFilters.highPassHz)}
+        value={notificationPreferences.notificationSoundFilters.highPassHz}
+        displayValue={formatTinny(notificationPreferences.notificationSoundFilters.highPassHz)}
         oninput={(event) => updateSoundFilter('highPassHz', event)}
         onchange={previewSelectedSound}
       />
@@ -442,8 +453,10 @@
         icon="icon-[uil--volume-mute]"
         min={0}
         max={100}
-        value={muffledAmountFromLowPassHz(userPreferences.notificationSoundFilters.lowPassHz)}
-        displayValue={formatMuffled(userPreferences.notificationSoundFilters.lowPassHz)}
+        value={muffledAmountFromLowPassHz(
+          notificationPreferences.notificationSoundFilters.lowPassHz
+        )}
+        displayValue={formatMuffled(notificationPreferences.notificationSoundFilters.lowPassHz)}
         oninput={updateMuffledFilter}
         onchange={previewSelectedSound}
       />
@@ -455,8 +468,8 @@
         icon="icon-[uil--redo]"
         min={0}
         max={100}
-        value={userPreferences.notificationSoundFilters.echo}
-        displayValue={formatEffect(userPreferences.notificationSoundFilters.echo)}
+        value={notificationPreferences.notificationSoundFilters.echo}
+        displayValue={formatEffect(notificationPreferences.notificationSoundFilters.echo)}
         oninput={(event) => updateSoundFilter('echo', event)}
         onchange={previewSelectedSound}
       />
@@ -468,8 +481,8 @@
         icon="icon-[uil--cloud]"
         min={0}
         max={100}
-        value={userPreferences.notificationSoundFilters.reverb}
-        displayValue={formatEffect(userPreferences.notificationSoundFilters.reverb)}
+        value={notificationPreferences.notificationSoundFilters.reverb}
+        displayValue={formatEffect(notificationPreferences.notificationSoundFilters.reverb)}
         oninput={(event) => updateSoundFilter('reverb', event)}
         onchange={previewSelectedSound}
       />
@@ -481,8 +494,8 @@
         icon="icon-[uil--fire]"
         min={0}
         max={100}
-        value={userPreferences.notificationSoundFilters.crunch}
-        displayValue={formatEffect(userPreferences.notificationSoundFilters.crunch)}
+        value={notificationPreferences.notificationSoundFilters.crunch}
+        displayValue={formatEffect(notificationPreferences.notificationSoundFilters.crunch)}
         oninput={(event) => updateSoundFilter('crunch', event)}
         onchange={previewSelectedSound}
       />
