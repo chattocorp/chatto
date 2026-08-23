@@ -31,7 +31,10 @@ describe('TypingIndicator', () => {
       props: { typingUserIds: ['alice'], members }
     });
     expect(indicatorText(container)).toContain('Alice');
-    expect(container.querySelectorAll('img, [data-avatar], .typing-dot').length).toBeGreaterThan(0);
+    expect(
+      container.querySelectorAll('[data-testid="typing-indicator"] span[aria-hidden]:not(.typing-dots)')
+      .length
+    ).toBe(1);
   });
 
   it('names two typers', () => {
