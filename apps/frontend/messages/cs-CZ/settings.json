@@ -7,7 +7,13 @@
       "display": "Předvolby",
       "notifications": "Oznámení",
       "account": "účet",
-      "bots": "Boti"
+      "bots": "Boti",
+      "server_preferences": "Předvolby serveru",
+      "server_settings": "Nastavení serveru"
+    },
+    "client_preferences": {
+      "title": "Předvolby klienta",
+      "subtitle": "Volby tohoto klienta, které platí pro všechny vaše registrované servery"
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +111,8 @@
       "save_button": "Uložit změny"
     },
     "preferences": {
-      "title": "Předvolby",
-      "subtitle": "Zvolte vzhled a chování Chatto",
+      "title": "Čas a oblast",
+      "subtitle": "Zvolte, jak tento server zobrazuje data a časy",
       "browser_scope": "Tato volba platí pro všechny servery Chatto v tomto prohlížeči.",
       "theme": {
         "title": "téma",

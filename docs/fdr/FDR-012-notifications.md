@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
@@ -41,6 +41,10 @@ targets, unread counts, read state, or deletion semantics.
   extending user-visible retention.
 - The combined multi-server list preserves healthy results when another server
   fails and exposes the failure as partial.
+- Notification delivery policy and client-rendered sound choices are Server
+  Preferences. Delivery policy syncs through the server; sound and sound-filter
+  choices are stored by the client under a per-server key so notifications from
+  different registered servers can sound different.
 
 ## Design Decisions
 
@@ -87,17 +91,17 @@ override:
 - **Alert** — create the same occurrence and make it eligible for sound, Web
   Push, or native delivery.
 
-| Cause | Default |
-| --- | --- |
-| Direct message | Alert |
-| Direct username mention | Alert |
-| Reply to the user's message | Alert |
-| Role mention | Alert |
-| `@here` | Alert |
-| `@all` | Alert |
-| Followed thread activity | Silent |
-| Followed room activity | Off |
-| Reaction to the user's message | Silent |
+| Cause                          | Default |
+| ------------------------------ | ------- |
+| Direct message                 | Alert   |
+| Direct username mention        | Alert   |
+| Reply to the user's message    | Alert   |
+| Role mention                   | Alert   |
+| `@here`                        | Alert   |
+| `@all`                         | Alert   |
+| Followed thread activity       | Silent  |
+| Followed room activity         | Off     |
+| Reaction to the user's message | Silent  |
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, room, and app indicators use
@@ -194,6 +198,23 @@ avoids giving list triage surprising subscription side effects.
 **Tradeoff:** Automatic follow is best-effort after the source message commits;
 failure can omit later followed-activity notifications until the user follows
 explicitly.
+
+### 9. Client-rendered sounds remain server-specific
+
+**Decision:** Notification sound and sound-filter choices are stored locally by
+the bundled client but scoped to one registered server. A live notification
+uses the choice for the server that produced it. On upgrade, the former global
+sound choice seeds each server's slot the first time that slot is used.
+
+**Why:** All notification behavior is a Server Preference even when part of its
+execution happens in the client. Per-server storage preserves that scope
+without pretending a client-rendered audio filter is server state, and the
+migration keeps an existing user's chosen sound instead of silently resetting
+it.
+
+**Tradeoff:** Sound choices do not sync to another browser or device, and the
+client maintains a small per-server local-storage entry. The server-synced
+delivery policy remains authoritative for whether an Alert may request sound.
 
 ## Compatibility
 

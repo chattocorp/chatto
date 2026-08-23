@@ -26,9 +26,9 @@ export class AdminPage {
     return this.page.locator('div.flex-1.flex-col').first();
   }
 
-  /** Gear entry point in the server header. */
-  get adminGearLink(): Locator {
-    return this.page.getByRole('link', { name: 'Server administration' });
+  /** Settings entry point in the server sidebar. */
+  get settingsLink(): Locator {
+    return this.page.getByRole('link', { name: 'Settings', exact: true });
   }
 
   /** General settings link inside the dedicated admin sidebar. */
@@ -157,8 +157,8 @@ export class AdminPage {
     await this.page.waitForURL(routes.adminSystem);
   }
 
-  async navigateToAdminViaGear(): Promise<void> {
-    await this.adminGearLink.click();
+  async navigateToSettings(): Promise<void> {
+    await this.settingsLink.click();
     await this.page.waitForURL(routes.admin);
   }
 
@@ -365,12 +365,8 @@ export class AdminPage {
     await expect(this.systemLink).toBeVisible();
   }
 
-  async expectAdminGearVisible(): Promise<void> {
-    await expect(this.adminGearLink).toBeVisible();
-  }
-
-  async expectAdminGearNotVisible(): Promise<void> {
-    await expect(this.adminGearLink).not.toBeVisible();
+  async expectSettingsLinkVisible(): Promise<void> {
+    await expect(this.settingsLink).toBeVisible();
   }
 
   /**

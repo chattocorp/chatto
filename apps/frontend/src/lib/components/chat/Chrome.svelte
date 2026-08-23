@@ -36,14 +36,15 @@
     page.url.pathname === managementPrefix || page.url.pathname.startsWith(`${managementPrefix}/`)
   );
 
-  // Detect if we're in user settings mode
+  // Server preferences and permission-gated server administration share one
+  // settings shell, regardless of which route family owns the content page.
   const settingsPrefix = $derived(
     resolve('/chat/[serverId]/settings', { serverId: serverSegment })
   );
   const isSettingsMode = $derived(page.url.pathname.startsWith(settingsPrefix));
+  const isServerSettingsMode = $derived(isSettingsMode || isManageMode);
 
-  // User-settings navigation items
-  const settingsNavItems = $derived([
+  const serverPreferenceNavItems = $derived([
     {
       href: resolve('/chat/[serverId]/settings', { serverId: serverSegment }),
       label: m('settings.nav.profile'),
@@ -51,7 +52,7 @@
     },
     {
       href: resolve('/chat/[serverId]/settings/preferences', { serverId: serverSegment }),
-      label: m('settings.nav.display'),
+      label: m('settings.preferences.title'),
       icon: 'iconify icon-[uil--clock]'
     },
     {
@@ -172,20 +173,29 @@
             ]
           : []
   );
-  const adminHref = $derived(adminNavItems[0]?.href);
-
-  function isAdminNavActive(href: string, _items: unknown): boolean {
-    return page.url.pathname.startsWith(href);
-  }
+  const settingsNavGroups = $derived([
+    {
+      label: m('settings.nav.server_preferences'),
+      items: serverPreferenceNavItems
+    },
+    {
+      label: m('settings.nav.server_settings'),
+      items: managementNavItems
+    }
+  ]);
+  const settingsHref = $derived(
+    adminNavItems[0]?.href ?? resolve('/chat/[serverId]/settings', { serverId: serverSegment })
+  );
 </script>
 
 <ServerPresenceSync />
 <!-- Sidebar -->
 <ServerSidebar>
-  {#if isSettingsMode}
+  {#if isServerSettingsMode}
     <SidebarNav
       title={m('settings.nav.title')}
-      items={settingsNavItems}
+      subtitle={serverName ?? activeStore.serverInfo.name}
+      groups={settingsNavGroups}
       backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
       backLabel={m('settings.nav.back_to_server')}
     />
@@ -212,17 +222,9 @@
         </div>
       {/each}
     </ScrollFader>
-  {:else if isManageMode}
-    <SidebarNav
-      title={serverName ?? m('chat.server_nav.server_fallback')}
-      items={managementNavItems}
-      backHref={resolve('/chat/[serverId]', { serverId: serverSegment })}
-      backLabel={m('chat.server_nav.back_to_server')}
-      isActive={isAdminNavActive}
-    />
   {:else}
     <!-- Server header - fixed at top -->
-    <ServerHeader serverName={serverName ?? ''} {adminHref} />
+    <ServerHeader serverName={serverName ?? ''} />
 
     <!-- Scrollable area for room list sidebar -->
     <ScrollFader top bottom>
@@ -239,12 +241,18 @@
           {m('chat.overview.title')}
         </a>
         {#if messageSearchAvailable}
+          <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- searchHref is resolved above -->
           <a href={searchHref} class={['sidebar-item', isSearchActive ? 'bg-surface' : '']}>
             <span class="iconify sidebar-icon icon-[uil--search]" aria-hidden="true"></span>
             {m('search.action')}
           </a>
         {/if}
         <MyThreadsNavItem active={isMyThreadsActive} />
+        <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- settingsHref is resolved above -->
+        <a href={settingsHref} class="sidebar-item">
+          <span class="iconify sidebar-icon icon-[uil--setting]" aria-hidden="true"></span>
+          {m('settings.nav.title')}
+        </a>
       </nav>
 
       <hr class="border-border" />

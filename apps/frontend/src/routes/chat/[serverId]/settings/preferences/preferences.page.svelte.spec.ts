@@ -5,7 +5,6 @@ import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import { CurrentUserState, type CurrentUser } from '$lib/auth/currentUser.svelte';
 import { q } from '$lib/test-utils';
-import { userPreferences } from '$lib/state/userPreferences.svelte';
 
 const mocks = vi.hoisted(() => ({
   currentUser: null as unknown as CurrentUserState
@@ -54,10 +53,8 @@ function buttonWithText(container: Element, text: string): HTMLButtonElement {
   return button;
 }
 
-describe('Preferences settings page', () => {
+describe('Time and region settings page', () => {
   beforeEach(() => {
-    userPreferences.composerEditor = 'visual';
-    userPreferences.composerSendMode = 'modifier-enter';
     mocks.currentUser = new CurrentUserState();
   });
 
@@ -85,36 +82,5 @@ describe('Preferences settings page', () => {
       .element(buttonWithText(container, '24-hour'))
       .toHaveAttribute('aria-checked', 'true');
     await expect.element(saveButton).toBeDisabled();
-  });
-
-  it('persists the editor choice immediately for this browser', async () => {
-    const { container, getByRole } = render(PreferencesPage);
-    await settle();
-
-    expect(container.textContent).toContain('Choose how Chatto looks and behaves');
-    expect(container.textContent).toContain(
-      'This choice applies to every Chatto server in this browser.'
-    );
-    await getByRole('radio', { name: /^Markdown/ }).click();
-    await settle();
-
-    expect(userPreferences.composerEditor).toBe('markdown');
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
-      composerEditor: 'markdown'
-    });
-  });
-
-  it('persists the send-key choice immediately for this browser', async () => {
-    const { container, getByRole } = render(PreferencesPage);
-    await settle();
-
-    expect(container.textContent).toContain('Send messages with');
-    await getByRole('radio', { name: /^Return/ }).click();
-    await settle();
-
-    expect(userPreferences.composerSendMode).toBe('enter');
-    expect(JSON.parse(localStorage.getItem('chatto:preferences') ?? '{}')).toMatchObject({
-      composerSendMode: 'enter'
-    });
   });
 });

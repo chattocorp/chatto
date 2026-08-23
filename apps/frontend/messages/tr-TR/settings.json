@@ -7,7 +7,13 @@
       "display": "Tercihler",
       "notifications": "Bildirimler",
       "account": "Hesap",
-      "bots": "Botlar"
+      "bots": "Botlar",
+      "server_preferences": "Sunucu tercihleri",
+      "server_settings": "Sunucu ayarları"
+    },
+    "client_preferences": {
+      "title": "İstemci tercihleri",
+      "subtitle": "Kayıtlı tüm sunucularınızda geçerli olan bu istemciye ait seçimler"
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +111,8 @@
       "save_button": "Değişiklikleri Kaydet"
     },
     "preferences": {
-      "title": "Tercihler",
-      "subtitle": "Chatto görünümünü ve davranışını seçin",
+      "title": "Saat ve bölge",
+      "subtitle": "Bu sunucunun tarihleri ve saatleri size nasıl göstereceğini seçin",
       "browser_scope": "Bu seçim, bu tarayıcıdaki tüm Chatto sunucuları için geçerlidir.",
       "theme": {
         "title": "Tema",

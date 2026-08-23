@@ -9,8 +9,12 @@ import {
 } from '@chatto/api-types/realtime/v1/realtime_pb';
 
 const { mocks } = vi.hoisted(() => {
-  const bus = {
+  const createBus = () => ({
     projectionHandlers: new Set<ProjectionHandler>()
+  });
+  const buses = {
+    origin: createBus(),
+    remote: createBus()
   };
   const createStore = () => ({
     isAuthenticated: true,
@@ -31,12 +35,36 @@ const { mocks } = vi.hoisted(() => {
 
   return {
     mocks: {
-      bus,
+      buses,
       servers: [{ id: 'origin' }],
       stores,
       badgeRefreshHandlers: new Set<() => void>(),
       playNotificationSound: vi.fn(),
-      updateAppBadge: vi.fn(async () => {})
+      updateAppBadge: vi.fn(async () => {}),
+      soundPreferences: {
+        origin: {
+          notificationSound: 'soft',
+          notificationSoundFilters: {
+            volume: 1,
+            highPassHz: 20,
+            lowPassHz: 20000,
+            echo: 0,
+            reverb: 0,
+            crunch: 0
+          }
+        },
+        remote: {
+          notificationSound: 'pop',
+          notificationSoundFilters: {
+            volume: 0.5,
+            highPassHz: 20,
+            lowPassHz: 20000,
+            echo: 0,
+            reverb: 0,
+            crunch: 0
+          }
+        }
+      }
     }
   };
 });
@@ -52,22 +80,13 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
 
 vi.mock('$lib/state/server/eventBus.svelte', () => ({
   eventBusManager: {
-    getBus: vi.fn(() => mocks.bus)
+    getBus: vi.fn((serverId: 'origin' | 'remote') => mocks.buses[serverId])
   }
 }));
 
-vi.mock('$lib/state/userPreferences.svelte', () => ({
-  userPreferences: {
-    notificationSound: 'soft',
-    notificationSoundFilters: {
-      volume: 1,
-      highPassHz: 20,
-      lowPassHz: 20000,
-      echo: 0,
-      reverb: 0,
-      crunch: 0
-    }
-  }
+vi.mock('$lib/state/serverNotificationPreferences.svelte', () => ({
+  getServerNotificationPreferences: (serverId: 'origin' | 'remote') =>
+    mocks.soundPreferences[serverId]
 }));
 
 vi.mock('$lib/audio/notificationSounds', () => ({
@@ -82,7 +101,11 @@ vi.mock('$lib/notifications/appBadge', () => ({
   updateAppBadge: mocks.updateAppBadge
 }));
 
-function dispatch(playNotificationSound = false, eventId = 'event-id') {
+function dispatch(
+  playNotificationSound = false,
+  eventId = 'event-id',
+  serverId: 'origin' | 'remote' = 'origin'
+) {
   const event = new RealtimeProjectionEvent({
     id: eventId,
     operations: [
@@ -95,7 +118,7 @@ function dispatch(playNotificationSound = false, eventId = 'event-id') {
     ]
   });
 
-  for (const handler of mocks.bus.projectionHandlers) {
+  for (const handler of mocks.buses[serverId].projectionHandlers) {
     handler(event);
   }
 }
@@ -105,13 +128,17 @@ async function renderAndWaitForSubscription() {
   const authenticatedServerCount = mocks.servers.filter(
     ({ id }) => mocks.stores[id as keyof typeof mocks.stores].isAuthenticated
   ).length;
-  await vi.waitFor(() => expect(mocks.bus.projectionHandlers.size).toBe(authenticatedServerCount));
+  await vi.waitFor(() =>
+    expect(
+      Object.values(mocks.buses).reduce((count, bus) => count + bus.projectionHandlers.size, 0)
+    ).toBe(authenticatedServerCount)
+  );
   await vi.waitFor(() => expect(mocks.badgeRefreshHandlers.size).toBe(1));
 }
 
 describe('NotificationSync', () => {
   beforeEach(() => {
-    mocks.bus.projectionHandlers.clear();
+    for (const bus of Object.values(mocks.buses)) bus.projectionHandlers.clear();
     mocks.badgeRefreshHandlers.clear();
     vi.clearAllMocks();
 
@@ -134,6 +161,25 @@ describe('NotificationSync', () => {
     dispatch(true);
 
     expect(mocks.playNotificationSound).toHaveBeenCalledOnce();
+  });
+
+  it('uses the sound preference for the server that produced the event', async () => {
+    mocks.servers.push({ id: 'remote' });
+    await renderAndWaitForSubscription();
+
+    dispatch(true, 'origin-event', 'origin');
+    dispatch(true, 'remote-event', 'remote');
+
+    expect(mocks.playNotificationSound).toHaveBeenNthCalledWith(
+      1,
+      'soft',
+      mocks.soundPreferences.origin.notificationSoundFilters
+    );
+    expect(mocks.playNotificationSound).toHaveBeenNthCalledWith(
+      2,
+      'pop',
+      mocks.soundPreferences.remote.notificationSoundFilters
+    );
   });
 
   it('plays a repeated projection event only once', async () => {

@@ -7,7 +7,13 @@
       "display": "Preferenze",
       "notifications": "Notifiche",
       "account": "Conto",
-      "bots": "Bot"
+      "bots": "Bot",
+      "server_preferences": "Preferenze del server",
+      "server_settings": "Impostazioni del server"
+    },
+    "client_preferences": {
+      "title": "Preferenze del client",
+      "subtitle": "Scelte di questo client applicate a tutti i server registrati"
     },
     "profile": {
       "title": "Profilo",
@@ -105,8 +111,8 @@
       "save_button": "Salva modifiche"
     },
     "preferences": {
-      "title": "Preferenze",
-      "subtitle": "Scegli l’aspetto e il comportamento di Chatto",
+      "title": "Ora e area geografica",
+      "subtitle": "Scegli come questo server mostra date e orari per te",
       "browser_scope": "Questa scelta si applica a tutti i server Chatto in questo browser.",
       "theme": {
         "title": "Tema",

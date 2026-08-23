@@ -1,11 +1,11 @@
 # FDR-022: User Profile
 
 **Status:** Active
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-23
 
 ## Overview
 
-A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced personal settings (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Browser-local display preferences, such as theme, live outside the profile. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
+A human user's profile carries the public identity they present to the rest of the server (login, display name, avatar, custom status) plus server-synced Server Preferences (timezone, time format). Most of the profile is self-editable; one field — the login — is throttled to discourage identity-confusion abuse, with an admin escape hatch for legitimate needs. Client Preferences, such as theme, language, editor, and send-key behavior, live outside the profile and apply across registered servers in that client. Bot accounts expose the same public identity shape but currently support only managed login and display-name edits (FDR-038).
 
 ## Behavior
 
@@ -16,8 +16,8 @@ A human user's profile carries the public identity they present to the rest of t
 - **Custom status** — human users can set an emoji plus short text. The emoji is shown next to their name; the text is shown alongside it where space allows and as hover/accessible text in compact places.
 - **Custom status templates** — the web client offers preset statuses for lunch, holiday/vacation, and sick leave plus a custom mode. Presets store reserved text tokens in the same free-form status text field so each client can render the label in its active locale. Custom mode stores the user's literal text.
 - **Custom status expiry** — users can optionally choose an expiry date and time. After that instant, projected reads and the web client hide the status automatically. Users can also clear it manually.
-- **Settings** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default.
-- **Display theme** — users can choose System, Light, or Dark. System follows the browser or OS color-scheme preference. The choice is browser-local and applies immediately on that device.
+- **Server Preferences** — human accounts currently support timezone (IANA name, e.g., `Europe/Berlin`) and time format (browser default / 12-hour / 24-hour). Stored server-side so they sync across devices. If not set, the frontend uses the browser timezone and locale time-format default. The unified Settings sidebar exposes these personal choices alongside permission-gated Server Settings.
+- **Client Preferences** — users can choose System, Light, or Dark theme, a language, a message editor, and send-key behavior. System theme follows the browser or OS color-scheme preference. These choices apply across every registered server in the current client, are opened from the Application Header, and do not sync to another browser or device.
 - **Profile menu** — opening a user's profile popup or touch sheet shows their public identity and any available message or moderation actions. A final “Copy User ID” action copies the stable user ID to the clipboard.
 - **Admin overrides** — operators with the right permissions can update other human users' profiles, bypass the login cooldown, clear the cooldown so the user can change again before the 30 days expire, and force-delete an avatar.
 - **Bot identity management** — a bot owner or human user with `bot.manage` can update a bot's login and display name through `BotService`. Bot API keys cannot edit identity, and bot avatar, custom-status, and personal-settings management are not supported in this slice.
@@ -39,7 +39,7 @@ A human user's profile carries the public identity they present to the rest of t
 ### 3. Admin path doesn't advance the cooldown timestamp
 
 **Decision:** When an admin changes a user's login, the user's cooldown clock isn't reset. The user can still wait out their own cooldown and change to a different login.
-**Why:** The cooldown is about the *user's* identity stability, not the admin's. An admin-driven correction shouldn't reset the user's own quota.
+**Why:** The cooldown is about the _user's_ identity stability, not the admin's. An admin-driven correction shouldn't reset the user's own quota.
 **Tradeoff:** A user who keeps getting admin-renamed has a slightly confusing experience around when their next self-change is allowed. Acceptable; uncommon edge case.
 
 ### 4. Avatars are WebP-only, capped at 256×256
@@ -48,11 +48,11 @@ A human user's profile carries the public identity they present to the rest of t
 **Why:** Avatars render at small sizes everywhere — 256px is the largest the UI ever shows. Storing originals is waste. Lossless WebP is small and supports transparency. See FDR-008's notes on the WebP/JPEG split for transparency vs photographic content.
 **Tradeoff:** A user uploading a high-resolution avatar can't ever get the original back. The 256×256 cap can't be inferred from the user's perspective unless documented.
 
-### 5. Server-side settings, not browser-local
+### 5. Server Preferences and Client Preferences have different scopes
 
-**Decision:** Timezone and time format live in the user's profile (in `User.settings`), synced server-side. Display theme is browser-local.
-**Why:** A user signing in from a new browser shouldn't have to re-pick their preferences. Local storage works fine for one device; for multi-device users it's actively worse than server-side.
-**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. Theme can differ per browser, which is appropriate for device-specific light/dark preferences but means it does not sync across devices.
+**Decision:** Timezone and time format are Server Preferences that live in the user's profile (in `User.settings`) and sync server-side. Theme, language, editor, and send-key behavior are Client Preferences stored by the client and shared across its registered servers.
+**Why:** The server may need a person's timezone for server-mediated experiences, including a future warning about the local hour of someone the user is about to message. Client presentation and input choices instead belong to the client where they take effect and should remain consistent while moving among its registered servers.
+**Tradeoff:** Every timezone or time-format change requires a mutation, but settings change rarely so the cost is negligible. Client Preferences can differ by browser or device and do not follow the user elsewhere.
 
 ### 6. Browser timezone fallback when unset
 

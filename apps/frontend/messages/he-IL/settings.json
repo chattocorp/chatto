@@ -7,7 +7,13 @@
       "display": "העדפות",
       "notifications": "התראות",
       "account": "חשבון",
-      "bots": "בוטים"
+      "bots": "בוטים",
+      "server_preferences": "העדפות שרת",
+      "server_settings": "הגדרות שרת"
+    },
+    "client_preferences": {
+      "title": "העדפות לקוח",
+      "subtitle": "בחירות בלקוח הזה שחלות על כל השרתים הרשומים שלך"
     },
     "profile": {
       "title": "פרופיל",
@@ -105,8 +111,8 @@
       "save_button": "שמור שינויים"
     },
     "preferences": {
-      "title": "העדפות",
-      "subtitle": "בחרו כיצד Chatto ייראה ויתנהג",
+      "title": "זמן ואזור",
+      "subtitle": "בחרו כיצד השרת הזה יציג עבורכם תאריכים ושעות",
       "browser_scope": "הבחירה חלה על כל שרתי Chatto בדפדפן הזה.",
       "theme": {
         "title": "ערכת נושא",

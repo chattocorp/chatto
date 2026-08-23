@@ -7,7 +7,13 @@
       "display": "Preferoj",
       "notifications": "Sciigoj",
       "account": "Konto",
-      "bots": "Botoj"
+      "bots": "Botoj",
+      "server_preferences": "Servilaj preferoj",
+      "server_settings": "Servilaj agordoj"
+    },
+    "client_preferences": {
+      "title": "Klientaj preferoj",
+      "subtitle": "Elektoj de ĉi tiu kliento, kiuj validas por ĉiuj viaj registritaj serviloj"
     },
     "profile": {
       "title": "Profilo",
@@ -105,8 +111,8 @@
       "save_button": "Konservu Ŝanĝojn"
     },
     "preferences": {
-      "title": "Preferoj",
-      "subtitle": "Elektu la aspekton kaj konduton de Chatto",
+      "title": "Tempo kaj regiono",
+      "subtitle": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
       "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",
       "theme": {
         "title": "Temo",

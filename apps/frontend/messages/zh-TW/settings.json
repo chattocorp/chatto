@@ -7,7 +7,13 @@
       "display": "偏好設定",
       "notifications": "通知",
       "account": "帳號",
-      "bots": "機器人"
+      "bots": "機器人",
+      "server_preferences": "伺服器偏好設定",
+      "server_settings": "伺服器設定"
+    },
+    "client_preferences": {
+      "title": "用戶端偏好設定",
+      "subtitle": "此用戶端中適用於所有已註冊伺服器的選項"
     },
     "profile": {
       "title": "個人檔案",
@@ -105,8 +111,8 @@
       "save_button": "儲存變更"
     },
     "preferences": {
-      "title": "偏好設定",
-      "subtitle": "選擇 Chatto 的外觀與行為",
+      "title": "時間與地區",
+      "subtitle": "選擇此伺服器為你顯示日期與時間的方式",
       "browser_scope": "此選擇適用於這個瀏覽器中的所有 Chatto 伺服器。",
       "theme": {
         "title": "佈景主題",

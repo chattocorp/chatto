@@ -108,6 +108,7 @@ export const settings = `/chat/${HOME}/settings`;
 export const settingsAccount = `/chat/${HOME}/settings/account`;
 export const settingsNotifications = `/chat/${HOME}/settings/notifications`;
 export const settingsPreferences = `/chat/${HOME}/settings/preferences`;
+export const clientPreferences = '/chat/client-preferences';
 
 // --- Notifications ---
 
@@ -117,7 +118,7 @@ export const notifications = '/chat/notifications';
 
 export const patterns = {
   /** Any chat route after login redirect (home instance routes or instance-agnostic pages) */
-  chatRedirect: /\/chat\/(-|notifications)/,
+  chatRedirect: /\/chat\/(-|notifications|client-preferences)/,
   /** Any room page: /chat/-/{roomId} (channels and DMs share this shape post-#330 phase 3). */
   anyRoom: /\/chat\/-\/(?!manage$)[a-zA-Z0-9]+$/,
   /** Any thread page: /chat/-/{roomId}/{threadId} */
@@ -127,7 +128,7 @@ export const patterns = {
   /** Any bot-management page: /chat/-/manage/server/bots/{id} */
   anyAdminBot: /\/chat\/-\/manage\/server\/bots\/[a-zA-Z0-9]+$/,
   /** Any non-admin chat route (home instance or instance-agnostic) */
-  nonAdmin: /\/chat\/(?:-(?:\/(?!manage(?:\/|$))|$)|notifications)/,
+  nonAdmin: /\/chat\/(?:-(?:\/(?!manage(?:\/|$))|$)|notifications|client-preferences)/,
   /** Chat root or any room (used after redirects) */
   chatRootOrRoom: /\/chat\/-(?:\/(?!manage$)[a-zA-Z0-9]+)?$/,
   /** Chat root or any room, allowing query params */

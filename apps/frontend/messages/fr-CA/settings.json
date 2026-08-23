@@ -7,7 +7,13 @@
       "display": "Préférences",
       "notifications": "Notifications",
       "account": "Compte",
-      "bots": "Robots"
+      "bots": "Robots",
+      "server_preferences": "Préférences du serveur",
+      "server_settings": "Paramètres du serveur"
+    },
+    "client_preferences": {
+      "title": "Préférences du client",
+      "subtitle": "Choix de ce client qui s’appliquent à tous vos serveurs enregistrés"
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +111,8 @@
       "save_button": "Sauvegarder les modifications"
     },
     "preferences": {
-      "title": "Préférences",
-      "subtitle": "Choisissez l’apparence et le comportement de Chatto",
+      "title": "Heure et région",
+      "subtitle": "Choisissez comment ce serveur affiche les dates et les heures pour vous",
       "browser_scope": "Ce choix s’applique à tous les serveurs Chatto dans ce navigateur.",
       "theme": {
         "title": "Thème",

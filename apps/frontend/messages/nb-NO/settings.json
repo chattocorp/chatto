@@ -7,7 +7,13 @@
       "display": "Innstillinger",
       "notifications": "Varsler",
       "account": "Konto",
-      "bots": "Botter"
+      "bots": "Botter",
+      "server_preferences": "Serverpreferanser",
+      "server_settings": "Serverinnstillinger"
+    },
+    "client_preferences": {
+      "title": "Klientpreferanser",
+      "subtitle": "Valg for denne klienten som gjelder for alle registrerte servere"
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +111,8 @@
       "save_button": "Lagre endringer"
     },
     "preferences": {
-      "title": "Innstillinger",
-      "subtitle": "Velg hvordan Chatto ser ut og oppfører seg",
+      "title": "Tid og region",
+      "subtitle": "Velg hvordan denne serveren viser datoer og klokkeslett for deg",
       "browser_scope": "Dette valget gjelder for alle Chatto-servere i denne nettleseren.",
       "theme": {
         "title": "Tema",

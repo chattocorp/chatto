@@ -422,24 +422,18 @@ describe('CurrentUserBar', () => {
     const identityText = q(card, '[data-testid="current-user-identity-text"]')!;
     expect(identityText.querySelector('bdi:not([dir])')?.textContent).toContain('Alice');
     expect(identityText.querySelector('bdi[dir="ltr"]')?.textContent).toContain('@alice');
-    const settingsLink = q(card, 'a[href$="/settings"]')!;
     const presenceRect = presenceButton.getBoundingClientRect();
     const avatarRect = avatar.getBoundingClientRect();
     const textRect = identityText.getBoundingClientRect();
-    const settingsRect = settingsLink.getBoundingClientRect();
 
     expect(presenceRect.left).toBeGreaterThanOrEqual(cardRect.left);
     expect(avatarRect.height).toBeLessThan(cardRect.height);
     expect(avatarRect.top - cardRect.top).toBeGreaterThanOrEqual(6);
     expect(cardRect.bottom - avatarRect.bottom).toBeGreaterThanOrEqual(6);
     expect(textRect.left).toBeGreaterThan(presenceRect.right);
-    expect(settingsRect.left).toBeGreaterThan(textRect.right);
-    expect(settingsRect.right).toBeLessThanOrEqual(cardRect.right);
+    expect(textRect.right).toBeLessThanOrEqual(cardRect.right);
     expect(textRect.left - presenceRect.right).toBeLessThanOrEqual(12);
-
-    const settingsIcon = q(card, 'a[href$="/settings"] .iconify')!;
-    const settingsIconRect = settingsIcon.getBoundingClientRect();
-    expect(settingsIconRect.height).toBeLessThan(cardRect.height / 2);
+    expect(card.querySelector('a[href$="/settings"]')).toBeNull();
   });
 
   it('hides call controls when the user is not in a call', () => {

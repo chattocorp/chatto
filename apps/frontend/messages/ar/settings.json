@@ -7,7 +7,13 @@
       "display": "التفضيلات",
       "notifications": "الإشعارات",
       "account": "الحساب",
-      "bots": "الروبوتات"
+      "bots": "الروبوتات",
+      "server_preferences": "تفضيلات الخادم",
+      "server_settings": "إعدادات الخادم"
+    },
+    "client_preferences": {
+      "title": "تفضيلات العميل",
+      "subtitle": "خيارات هذا العميل التي تنطبق على جميع خوادمك المسجلة"
     },
     "profile": {
       "title": "الملف الشخصي",
@@ -105,8 +111,8 @@
       "save_button": "احفظ التغييرات"
     },
     "preferences": {
-      "title": "التفضيلات",
-      "subtitle": "اختر مظهر Chatto وطريقة عمله",
+      "title": "الوقت والمنطقة",
+      "subtitle": "اختر كيفية عرض هذا الخادم للتواريخ والأوقات لك",
       "browser_scope": "ينطبق هذا الاختيار على كل خوادم Chatto في هذا المتصفح.",
       "theme": {
         "title": "السمة",
