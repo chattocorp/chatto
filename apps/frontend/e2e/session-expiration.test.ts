@@ -133,7 +133,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a deep route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -155,7 +155,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a specific route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -183,7 +183,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Navigate to a specific route and wait for full client-side initialization
     await gotoAndWaitForHydration(page, routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Clear credentials and reload the protected route
     await clearCredentialsAndReloadProtectedRoute(page);
@@ -223,7 +223,7 @@ test.describe('Session Expiration Handling', () => {
     // Navigate to a deep route (this should refresh the cookie)
     await page.goto(routes.settings);
     await page.waitForURL(routes.settings);
-    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Get updated cookie
     const updatedCookies = await page.context().cookies();

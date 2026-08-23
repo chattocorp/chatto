@@ -204,7 +204,7 @@ test.describe('App and User Preferences', () => {
   test('can set timezone and save', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Time & region' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -232,7 +232,7 @@ test.describe('App and User Preferences', () => {
   test('can set time format to 24-hour and save', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Time & region' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -270,7 +270,7 @@ test.describe('App and User Preferences', () => {
   test('can clear timezone back to browser default', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Time & region' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
@@ -308,7 +308,7 @@ test.describe('App and User Preferences', () => {
   test('shows validation error for invalid timezone', async ({ page }) => {
     await createAndLoginTestUser(page);
     await page.goto(routes.settingsPreferences);
-    await expect(page.getByRole('heading', { name: 'Time & region' })).toBeVisible({
+    await expect(page.getByRole('heading', { name: 'Time & region', level: 1 })).toBeVisible({
       timeout: TIMEOUTS.UI_STANDARD
     });
 
