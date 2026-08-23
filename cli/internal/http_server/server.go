@@ -58,6 +58,9 @@ type HTTPServer struct {
 
 	// Optional test hook for deterministic OAuth client metadata resolution.
 	oauthClientResolveHook func(context.Context, string) (OAuthClient, bool, error)
+
+	// Optional test hook for deterministic cookie-session rotation timing.
+	cookieSessionRotationNow func() time.Time
 }
 
 const (

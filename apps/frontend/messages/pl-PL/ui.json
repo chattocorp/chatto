@@ -17,7 +17,10 @@
       "remote_message": "Ten serwer odrzucił zapisane logowanie. Podłącz go ponownie, aby wznowić aktualizacje i działania na żywo.",
       "remote_action": "Połącz się ponownie",
       "remote_failed": "Nie udało się rozpocząć ponownego łączenia",
-      "sidebar_reauth": "{server} wymaga zalogowania"
+      "sidebar_reauth": "{server} wymaga zalogowania",
+      "expiry_title": "Logowanie do {server} wkrótce wygaśnie",
+      "expiry_message": "Połącz się ponownie teraz, aby uniknąć przerwy po wygaśnięciu sesji.",
+      "expiry_action": "Połącz ponownie teraz"
     },
     "access_denied": {
       "title": "Odmowa dostępu",

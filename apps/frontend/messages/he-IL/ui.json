@@ -17,7 +17,10 @@
       "remote_message": "שרת זה דחה את הכניסה המאוחסנת. חבר אותו מחדש כדי לחדש עדכונים ופעולות בזמן אמת.",
       "remote_action": "התחבר מחדש",
       "remote_failed": "נכשלה להתחיל להתחבר מחדש",
-      "sidebar_reauth": "{server} זקוק לכניסה"
+      "sidebar_reauth": "{server} זקוק לכניסה",
+      "expiry_title": "הכניסה אל {server} תפוג בקרוב",
+      "expiry_message": "התחבר מחדש עכשיו כדי למנוע הפרעה כשתוקף ההפעלה יפוג.",
+      "expiry_action": "התחבר מחדש עכשיו"
     },
     "access_denied": {
       "title": "גישה נדחתה",

@@ -17,7 +17,10 @@
       "remote_message": "Ĉi tiu servilo malakceptis la konservitan ensaluto. Rekonektu ĝin por rekomenci vivajn ĝisdatigojn kaj agojn.",
       "remote_action": "Rekonekti",
       "remote_failed": "Malsukcesis komenci rekonekti",
-      "sidebar_reauth": "{server} bezonas ensaluti"
+      "sidebar_reauth": "{server} bezonas ensaluti",
+      "expiry_title": "La ensaluto ĉe {server} baldaŭ eksvalidiĝos",
+      "expiry_message": "Rekonektu nun por eviti interrompon kiam ĉi tiu sesio eksvalidiĝos.",
+      "expiry_action": "Rekonekti nun"
     },
     "access_denied": {
       "title": "Aliro Malpermesita",

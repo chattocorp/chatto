@@ -210,6 +210,10 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 	if _, err := c.storage.runtimeStateKV.Create(ctx, c.renewableSessionKey(sessionID), value, jetstream.KeyTTL(c.renewableSessionTTL())); err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
+	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, c.renewableSessionKey(sessionID), session.ExpiresAt); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
+		return BearerSessionCredentials{}, fmt.Errorf("store renewable session expiry: %w", err)
+	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
 	if err := c.createAccessTokenRecord(ctx, sessionID, session, now); err != nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
@@ -375,11 +379,10 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		if err != nil {
 			return BearerSessionCredentials{}, fmt.Errorf("marshal rotated renewable session: %w", err)
 		}
-		remaining := next.ExpiresAt.Sub(now)
-		if remaining <= 0 {
+		if !now.Before(next.ExpiresAt) {
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
-		if _, err := c.updateRuntimeStateTokenTTL(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), remaining); err != nil {
+		if _, err := c.storage.runtimeStateKV.Update(ctx, c.renewableSessionKey(sessionID), value, entry.Revision()); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}
@@ -476,11 +479,10 @@ func (c *ChattoCore) markRenewableSessionFresh(ctx context.Context, sessionID, m
 		if err != nil {
 			return fmt.Errorf("marshal fresh renewable session: %w", err)
 		}
-		remaining := session.ExpiresAt.Sub(now)
-		if remaining <= 0 {
+		if !now.Before(session.ExpiresAt) {
 			return ErrAuthTokenNotFound
 		}
-		if _, err := c.updateRuntimeStateTokenTTL(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), remaining); err != nil {
+		if _, err := c.storage.runtimeStateKV.Update(ctx, c.renewableSessionKey(sessionID), value, entry.Revision()); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}

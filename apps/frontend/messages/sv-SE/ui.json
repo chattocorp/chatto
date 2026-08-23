@@ -17,7 +17,10 @@
       "remote_message": "Den här servern avvisade den lagrade inloggningen. Återanslut den för att återuppta liveuppdateringar och åtgärder.",
       "remote_action": "Återanslut",
       "remote_failed": "Det gick inte att starta återanslutningen",
-      "sidebar_reauth": "{server} behöver logga in"
+      "sidebar_reauth": "{server} behöver logga in",
+      "expiry_title": "Inloggningen till {server} löper snart ut",
+      "expiry_message": "Återanslut nu för att undvika ett avbrott när sessionen löper ut.",
+      "expiry_action": "Återanslut nu"
     },
     "access_denied": {
       "title": "Åtkomst nekad",

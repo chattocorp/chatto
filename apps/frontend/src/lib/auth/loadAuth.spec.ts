@@ -5,12 +5,16 @@ const {
   getCurrentUserViaConnectMock,
   clearOriginAuthenticationMock,
   handleAuthenticationRequiredMock,
-  clearAuthenticationRequiredMock
+  clearAuthenticationRequiredMock,
+  authenticateOriginCookieMock,
+  originState
 } = vi.hoisted(() => ({
   getCurrentUserViaConnectMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
   handleAuthenticationRequiredMock: vi.fn(),
-  clearAuthenticationRequiredMock: vi.fn()
+  clearAuthenticationRequiredMock: vi.fn(),
+  authenticateOriginCookieMock: vi.fn(),
+  originState: { token: null as string | null }
 }));
 
 vi.mock('$app/environment', () => ({
@@ -27,18 +31,16 @@ vi.mock('$lib/api-client/viewer', () => ({
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
-    originClient: {
-      connectBaseUrl: '/api/connect',
-      bearerToken: null
-    }
+    originConnectBaseUrl: '/api/connect'
   }
 }));
 
 vi.mock('$lib/state/server/registry.svelte', () => ({
   serverRegistry: {
     get originServer() {
-      return { id: 'origin' };
+      return { id: 'origin', token: originState.token };
     },
+    authenticateOriginCookie: authenticateOriginCookieMock,
     clearOriginAuthentication: clearOriginAuthenticationMock,
     handleAuthenticationRequired: handleAuthenticationRequiredMock,
     clearAuthenticationRequired: clearAuthenticationRequiredMock
@@ -63,6 +65,7 @@ async function loadModule() {
 describe('loadCurrentUser', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    originState.token = null;
   });
 
   it('refreshes from the server on each call', async () => {
@@ -79,6 +82,39 @@ describe('loadCurrentUser', () => {
       baseUrl: '/api/connect',
       bearerToken: null
     });
+    expect(authenticateOriginCookieMock).toHaveBeenCalledTimes(2);
+  });
+
+  it('discards a legacy origin bearer after cookie authentication succeeds', async () => {
+    originState.token = 'legacy-origin-token';
+    getCurrentUserViaConnectMock.mockResolvedValueOnce(user);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledOnce();
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledWith(
+      expect.objectContaining({ bearerToken: null })
+    );
+    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+  });
+
+  it('uses a legacy origin bearer only when cookie authentication is absent', async () => {
+    originState.token = 'legacy-origin-token';
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockResolvedValueOnce(user);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenNthCalledWith(
+      1,
+      expect.objectContaining({ bearerToken: null })
+    );
+    expect(getCurrentUserViaConnectMock).toHaveBeenNthCalledWith(
+      2,
+      expect.objectContaining({ bearerToken: 'legacy-origin-token' })
+    );
+    expect(authenticateOriginCookieMock).not.toHaveBeenCalled();
   });
 
   it('keeps the cached user when a later refresh errors', async () => {

@@ -2,7 +2,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import { directBearerSession } from '$lib/auth/bearerSession';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
@@ -46,7 +45,10 @@
   const isCreate = $derived(pending?.kind === ExternalIdentityFlowKind.CREATE_ACCOUNT);
   const isLink = $derived(pending?.kind === ExternalIdentityFlowKind.LINK_ACCOUNT);
   const canSubmit = $derived(
-    pending && !submitting && ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) || isLink)
+    pending &&
+      !submitting &&
+      ((isCreate && login.trim() && displayName.trim() && !loginError && !displayNameError) ||
+        isLink)
   );
 
   $effect(() => {
@@ -91,15 +93,10 @@
     actionError = '';
     try {
       const result = await flowAPI.createAccount({ token: data.token, login, displayName });
-      const credentials = directBearerSession(result);
-      if (!credentials) throw new Error(m('auth.register.missing_token'));
-      const resumedReturnNavigation = await completeOriginAuthentication(
-        credentials,
-        {
-          id: result.userId,
-          login: result.login
-        }
-      );
+      const resumedReturnNavigation = await completeOriginAuthentication({
+        id: result.userId,
+        login: result.login
+      });
       if (!resumedReturnNavigation) {
         goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
       }

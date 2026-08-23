@@ -393,7 +393,7 @@ func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCred
 	if !ok {
 		return presentedRuntimeCredential{}, false, nil
 	}
-	s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
+	credential.auth.Handle, credential.cookieRecord = s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
 	return credential, true, nil
 }
 

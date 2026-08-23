@@ -356,7 +356,12 @@ class ServerConnectionManager {
   #originClientToken: string | null = null;
   #originClientServerId: string | undefined;
 
-  /** The origin instance connection (serves the SPA, prefers bearer auth when available). */
+  /** The origin ConnectRPC base URL without creating an authenticated connection. */
+  get originConnectBaseUrl(): string {
+    return connectBaseUrlFromServerUrl(ORIGIN_SERVER_URL);
+  }
+
+  /** The origin connection. Stored bearer auth exists only as a cookie-migration fallback. */
   get originClient(): ServerConnection {
     const origin = serverRegistry.originServer;
     const token = origin?.token ?? null;

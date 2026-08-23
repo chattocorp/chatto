@@ -119,6 +119,26 @@ func (s *failingSessionStore) Get(_ *http.Request, name string) (*gsessions.Sess
 	return gsessions.NewSession(s, name), s.err
 }
 
+type toggleSaveErrorSessionStore struct {
+	ginsessions.Store
+	fail bool
+}
+
+func (s *toggleSaveErrorSessionStore) Get(_ *http.Request, name string) (*gsessions.Session, error) {
+	return gsessions.NewSession(s, name), nil
+}
+
+func (s *toggleSaveErrorSessionStore) New(_ *http.Request, name string) (*gsessions.Session, error) {
+	return gsessions.NewSession(s, name), nil
+}
+
+func (s *toggleSaveErrorSessionStore) Save(r *http.Request, w http.ResponseWriter, session *gsessions.Session) error {
+	if s.fail {
+		return errors.New("session save failed")
+	}
+	return s.Store.Save(r, w, session)
+}
+
 func expiredSecureCookieValue(t *testing.T, authKey []byte, name string, values map[interface{}]interface{}) string {
 	t.Helper()
 

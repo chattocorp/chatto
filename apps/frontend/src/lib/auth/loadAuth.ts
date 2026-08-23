@@ -8,8 +8,8 @@
 import { redirect } from '@sveltejs/kit';
 import { resolve } from '$app/paths';
 import { browser } from '$app/environment';
-import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { serverConnectionManager } from '$lib/state/server/serverConnection.svelte';
 import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/viewer';
 import { isAuthenticationRequiredError } from './errors';
 import { saveReturnUrl } from './returnNavigation';
@@ -42,12 +42,24 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
     return null;
   }
 
+  const origin = serverRegistry.originServer;
+  const legacyBearerToken = origin?.token ?? null;
+  const baseUrl = serverConnectionManager.originConnectBaseUrl;
+
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
-      cachedUser = await getCurrentUserViaConnect({
-        baseUrl: serverConnectionManager.originClient.connectBaseUrl,
-        bearerToken: serverConnectionManager.originClient.bearerToken
-      });
+      try {
+        cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
+        serverRegistry.authenticateOriginCookie(cachedUser);
+      } catch (cookieError) {
+        if (!isAuthenticationRequiredError(cookieError) || !legacyBearerToken) {
+          throw cookieError;
+        }
+        cachedUser = await getCurrentUserViaConnect({
+          baseUrl,
+          bearerToken: legacyBearerToken
+        });
+      }
       const originId = serverRegistry.originServer?.id;
       if (originId) {
         serverRegistry.clearAuthenticationRequired(originId);

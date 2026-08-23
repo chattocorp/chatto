@@ -40,12 +40,16 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 		return c.Request
 	}
 
+	if credential.auth.Kind == authctx.RuntimeCredentialKindCookieSession {
+		credential.auth.Handle, credential.cookieRecord = s.rotateCookieSessionIfNeeded(
+			c,
+			credential.auth.UserID,
+			credential.auth.Handle,
+			credential.cookieRecord,
+		)
+	}
 	ctx := authctx.WithUser(c.Request.Context(), credential.user)
 	ctx = authctx.WithCredential(ctx, credential.auth)
-
-	if credential.auth.Kind == authctx.RuntimeCredentialKindCookieSession {
-		s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
-	}
 
 	return c.Request.WithContext(ctx)
 }

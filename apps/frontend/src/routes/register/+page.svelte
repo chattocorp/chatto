@@ -3,7 +3,6 @@
   import { resolve } from '$app/paths';
   import type { PublicAuthProvider } from '$lib/api-client/server';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
-  import { directBearerSession } from '$lib/auth/bearerSession';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
@@ -222,16 +221,7 @@
         return;
       }
 
-      const credentials = directBearerSession(body);
-      if (!credentials) {
-        error = m('auth.register.missing_token');
-        return;
-      }
-
-      const resumedReturnNavigation = await completeOriginAuthentication(
-        credentials,
-        body.user ?? null
-      );
+      const resumedReturnNavigation = await completeOriginAuthentication(body.user ?? null);
       if (!resumedReturnNavigation) {
         goto(resolve('/'), { replaceState: true });
       }

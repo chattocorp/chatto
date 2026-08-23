@@ -68,6 +68,11 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
 	token := credentials.AccessToken
+	accessKey := core.authTokenKey(token)
+	accessBefore, err := core.storage.runtimeStateKV.Get(ctx, accessKey)
+	if err != nil {
+		t.Fatalf("get access token before fresh auth: %v", err)
+	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
 		t.Fatalf("new token should be fresh: %v", err)
 	}
@@ -90,7 +95,7 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal stale renewable session: %v", err)
 	}
-	if _, err := core.updateRuntimeStateTokenTTL(ctx, sessionKey, staleValue, entry.Revision(), session.ExpiresAt.Sub(time.Now())); err != nil {
+	if _, err := core.storage.runtimeStateKV.Update(ctx, sessionKey, staleValue, entry.Revision()); err != nil {
 		t.Fatalf("write stale renewable session: %v", err)
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {
@@ -98,6 +103,13 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	}
 	if err := core.MarkBearerTokenFresh(ctx, token, "password", "current_password"); err != nil {
 		t.Fatalf("MarkBearerTokenFresh: %v", err)
+	}
+	accessAfter, err := core.storage.runtimeStateKV.Get(ctx, accessKey)
+	if err != nil {
+		t.Fatalf("get access token after fresh auth: %v", err)
+	}
+	if accessAfter.Revision() != accessBefore.Revision() {
+		t.Fatalf("fresh auth rewrote immutable access record: revision %d to %d", accessBefore.Revision(), accessAfter.Revision())
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); err != nil {
 		t.Fatalf("marked token should be fresh: %v", err)

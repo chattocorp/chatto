@@ -4,6 +4,8 @@
 
 **Status:** Accepted
 
+**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
+
 **Partially supersedes:** [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md) and [ADR-036](ADR-036-runtime-state-kv-boundary.md) for human bearer-credential lifetime and renewal. Their opaque-token and runtime-state decisions remain current.
 
 ## Context
@@ -41,8 +43,8 @@ This applies to first-party bearer sessions issued by password, registration,
 and explicit external-identity account-creation flows, and to delegated bearer
 sessions issued by OAuth Authorization Code with PKCE. OAuth sessions remain
 bound to their validated client ID. Bot API keys remain non-expiring durable
-bot credentials, and same-origin cookie sessions retain their existing
-rotation and sliding runtime-record behavior.
+bot credentials, and same-origin cookie sessions use the separate fixed-window
+rotation behavior in ADR-080.
 
 The default access-token lifetime is 15 minutes and is configurable with
 `auth.access_token_ttl` / `CHATTO_AUTH_ACCESS_TOKEN_TTL`. The renewable session
@@ -60,8 +62,8 @@ of a session is clamped to the remaining session lifetime.
   absolute expiry times, user auth generation, current rotation generation,
   previous refresh request ID and rotation time, and authoritative fresh-auth
   metadata.
-  Its per-key TTL is always the remaining absolute lifetime and is never
-  extended.
+  Ordinary KV updates preserve its explicit absolute expiry. A separate
+  immutable expiry marker owns physical cleanup.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Fresh-auth fields
@@ -101,8 +103,8 @@ until a valid response has been persisted. The server rotates as follows:
 1. Authenticate the HMAC refresh credential, stable session, client binding,
    absolute expiry, OAuth-client policy, and user auth generation.
 2. Increment the generation and record the request ID and rotation time by
-   updating the stable key with its exact JetStream KV revision and remaining
-   absolute TTL.
+   updating the stable key with its exact JetStream KV revision. Keep its
+   original absolute expiry.
 3. Create the deterministic access-token verifier for the committed generation.
 4. Return the deterministic credential pair.
 
@@ -147,7 +149,9 @@ succeeds. Transient network and server failures keep the credentials and
 request ID for retry. An `invalid_grant` response is permanent: the frontend
 marks only that server as requiring authentication, keeps the user's current
 route and other connected servers intact, and exposes the existing explicit
-reconnect action. It never starts OAuth automatically.
+reconnect action. The frontend shows the same action seven days before the
+absolute expiry so the user can reconnect before an interruption. It never
+starts OAuth automatically.
 
 Realtime sockets are authenticated for the lifetime of the presented access
 token. At expiry the server cancels authorized work, sends a reconnecting
@@ -233,4 +237,5 @@ sign-in and coordinated-upgrade requirement.
 - [ADR-046](ADR-046-typed-runtime-credentials.md)
 - [ADR-051](ADR-051-server-scoped-resumable-client-projection.md)
 - [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md)
+- [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md)
 - [FDR-023](../fdr/FDR-023-authentication-and-sessions.md)

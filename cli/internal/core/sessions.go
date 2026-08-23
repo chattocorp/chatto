@@ -81,6 +81,7 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 		Source:         source,
 		Request:        auditRequestMetadata(ctx),
 		CreatedAt:      now,
+		ExpiresAt:      now.Add(c.cookieSessionTTL()),
 		AuthGeneration: authGeneration,
 	}
 	if !freshAuthAt.IsZero() {
@@ -97,6 +98,10 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 	key := c.authTokenKey(sessionID)
 	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.cookieSessionTTL())); err != nil {
 		return "", nil, fmt.Errorf("failed to store cookie session: %w", err)
+	}
+	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, key, tokenData.ExpiresAt); err != nil {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return "", nil, fmt.Errorf("failed to store cookie session expiry: %w", err)
 	}
 
 	return sessionID, c.cookieSessionRecordFromAuthTokenData(tokenData), nil
@@ -129,10 +134,14 @@ func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenDat
 }
 
 func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential ValidatedRuntimeCredential) *corev1.CookieSession {
+	expiresAt := credential.ExpiresAt
+	if expiresAt.IsZero() {
+		expiresAt = credential.CreatedAt.Add(c.cookieSessionTTL())
+	}
 	record := &corev1.CookieSession{
 		UserId:         credential.UserID,
 		CreatedAt:      timestamppb.New(credential.CreatedAt),
-		ExpiresAt:      timestamppb.New(credential.CreatedAt.Add(c.cookieSessionTTL())),
+		ExpiresAt:      timestamppb.New(expiresAt),
 		Source:         credential.Source,
 		Request:        credential.Request,
 		AuthGeneration: credential.AuthGeneration,

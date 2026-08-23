@@ -1,7 +1,6 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
-  import { directBearerSession } from '$lib/auth/bearerSession';
   import { startRemoteReauthentication } from '$lib/auth/reauth';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
@@ -132,16 +131,7 @@
         return;
       }
 
-      const credentials = directBearerSession(result);
-      if (!credentials) {
-        error = m('auth.login.missing_token');
-        return;
-      }
-
-      const resumedReturnNavigation = await completeOriginAuthentication(
-        credentials,
-        result.user ?? null
-      );
+      const resumedReturnNavigation = await completeOriginAuthentication(result.user ?? null);
       if (!resumedReturnNavigation) {
         await navigateAfterAuthentication(data.redirectUrl);
       }

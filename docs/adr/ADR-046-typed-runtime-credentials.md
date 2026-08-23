@@ -2,6 +2,11 @@
 
 **Date:** 2026-06-30
 
+**Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
+for bearer renewal and
+[ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md)
+for cookie-session expiry storage and origin-client preference.
+
 ## Context
 
 Chatto historically authenticated runtime requests through two persisted
@@ -47,8 +52,8 @@ The credential types are:
   authenticate normal API and realtime requests, but they are not first-party
   sessions and cannot satisfy or acquire fresh-auth status.
 
-Fresh-auth metadata, auth generation, source, request metadata, expiry, sliding
-TTL behavior, validation, and revocation eligibility belong to the typed runtime
+Fresh-auth metadata, auth generation, source, request metadata, explicit
+expiry, validation, and revocation eligibility belong to the typed runtime
 credential record. HTTP edge code may still extract credentials differently from
 `Authorization` headers and signed browser cookies, but both presentations must
 normalize to the same validated runtime-credential result before user context,
@@ -60,11 +65,10 @@ credential. OAuth access tokens remain useful for multi-server clients, but they
 must not authorize account-security operations such as adding a password or
 linking/disconnecting sign-in methods.
 
-The multi-server frontend keeps its per-server bearer-token registry. Each
-registered server still has its own opaque bearer credential, scoped by the
-client to that server ID/base URL. Same-origin cookie auth remains an optimization
-and compatibility transport for the origin server only. The app must not rely on
-cookies for remote registered servers.
+The multi-server frontend keeps bearer credentials for remote servers. Each
+remote server has its own opaque credential, scoped by the client to that
+server ID and base URL. The origin server uses same-origin cookie auth. The app
+must not rely on cookies for remote registered servers.
 
 The migration completed at the 0.5 compatibility boundary:
 
@@ -96,16 +100,17 @@ changes, password resets, external-identity disconnects, and account deletion ca
 target one credential model instead of coordinating separate cookie-session and
 bearer-token stores.
 
-The OAuth/external-provider browser flow gets a cleaner continuation story:
-creating or resuming a first-party session can use the same runtime credential
-record whether the browser presents it via cookie or the SPA receives it as a
-bearer credential.
+The OAuth and external-provider browser flow gets a cleaner continuation
+story. Creating or resuming a first-party session uses the same typed runtime
+credential model. The origin browser presents a cookie credential, while a
+programmatic client can use the bearer presentation.
 
 The 0.5 cutoff has a deliberate compatibility cost: browsers that still carry
 the retired cookie-session shape are signed out once. In return, every active
 browser session now follows typed validation and explicit revocation rules.
-Cookie records retain sliding TTL, while bearer access records use fixed expiry
-and a stable `renewable_session.*` authority. User-wide cleanup covers both
+Cookie records use fixed explicit expiry plus handle rotation, while bearer
+access records use fixed expiry and a stable `renewable_session.*` authority.
+User-wide cleanup covers both
 `session.*` records and renewable-session authorities.
 
 The multi-server frontend continues to carry bearer tokens in browser storage for

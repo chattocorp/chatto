@@ -47,16 +47,17 @@ short-lived access tokens and rotating refresh credentials. A 0.5 server
 rejects bearer records issued before that change, so affected users sign in
 once after upgrade. Older clients can read the initial access token from a 0.5
 login or OAuth response but cannot renew it and become unauthenticated when it
-expires. A 0.5 client rejects an older server response that lacks the refresh
-credential and expiry fields. Upgrade serving replicas and bundled clients
+expires. A remote 0.5 client connection requires the refresh credential and
+expiry fields from its OAuth response. The bundled same-origin client uses its
+HttpOnly cookie and does not require or persist the duplicate bearer pair from
+direct login and registration. Upgrade serving replicas and bundled clients
 together; mixed replicas or rollback after new credentials have been issued
 can incorrectly extend fixed-expiry access records.
 
 The new fields on
 `chatto.auth.v1.CreateExternalIdentityAccountResponse` are additive at the
-protobuf wire level. They are nevertheless required by the 0.5 bundled client
-because a successful human bearer-auth response must contain the complete
-renewable pair.
+protobuf wire level. Programmatic clients can use the complete renewable pair.
+The bundled same-origin client completes this flow with its HttpOnly cookie.
 
 This breaking realtime migration does not retire the `chatto.api.v1`
 ConnectRPC namespace. It remains Chatto's resource-oriented public integrations

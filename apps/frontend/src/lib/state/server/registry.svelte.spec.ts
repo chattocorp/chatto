@@ -308,8 +308,8 @@ describe('ServerRegistry', () => {
 		});
 	});
 
-	describe('authenticateOrigin', () => {
-		it('replaces only origin authentication and retains remote server state', async () => {
+	describe('authenticateOriginCookie', () => {
+		it('discards origin bearer credentials and retains remote server state', async () => {
 			const registry = await createRegistry();
 			registry.removeAll();
 
@@ -318,6 +318,9 @@ describe('ServerRegistry', () => {
 					id: 'origin',
 					url: window.location.origin,
 					token: 'old-origin-token',
+					refreshToken: 'old-origin-refresh-token',
+					accessTokenExpiresAt: 2000,
+					refreshTokenExpiresAt: 3000,
 					userId: 'origin-user'
 				})
 			);
@@ -333,13 +336,16 @@ describe('ServerRegistry', () => {
 			);
 			const remoteStore = registry.getStore('remote');
 
-			registry.authenticateOrigin('new-origin-token', {
+			registry.authenticateOriginCookie({
 				id: 'new-origin-user',
 				login: 'new-origin-login'
 			});
 
 			expect(registry.getServer('origin')).toMatchObject({
-				token: 'new-origin-token',
+				token: null,
+				refreshToken: null,
+				accessTokenExpiresAt: null,
+				refreshTokenExpiresAt: null,
 				userId: 'new-origin-user',
 				userLogin: 'new-origin-login',
 				reauthRequiredAt: null
@@ -351,6 +357,29 @@ describe('ServerRegistry', () => {
 				reauthRequiredAt: 1234
 			});
 			expect(registry.getStore('remote')).toBe(remoteStore);
+		});
+
+		it('keeps the origin store when cookie auth is already active', async () => {
+			const registry = await createRegistry();
+			registry.removeAll();
+			registry.addServer(
+				makeServer({
+					id: 'origin',
+					url: window.location.origin,
+					userId: 'old-user',
+					userLogin: 'old-login'
+				})
+			);
+			const originStore = registry.getStore('origin');
+
+			registry.authenticateOriginCookie({ id: 'new-user', login: 'new-login' });
+
+			expect(registry.getStore('origin')).toBe(originStore);
+			expect(registry.getServer('origin')).toMatchObject({
+				token: null,
+				userId: 'new-user',
+				userLogin: 'new-login'
+			});
 		});
 	});
 

@@ -256,13 +256,10 @@ export default defineConfig(async ({ command }) => {
         interval: 300
       },
       proxy: {
-        '/oauth/client-metadata.json': {
+        '/oauth': {
           target: backendTarget,
-          changeOrigin: true
-        },
-        '/oauth/frontend-client-metadata.json': {
-          target: backendTarget,
-          changeOrigin: true
+          changeOrigin: true,
+          cookieDomainRewrite: { '*': '' }
         },
         '/api': {
           target: backendTarget,
@@ -270,9 +267,9 @@ export default defineConfig(async ({ command }) => {
           changeOrigin: true,
           secure: false,
           cookieDomainRewrite: { '*': '' },
-          // Rewrite the Origin header on WebSocket upgrades so the
-          // backend's CheckOrigin accepts the connection.
-          rewriteWsOrigin: true
+          // Preserve the public browser origin so the backend can accept
+          // same-origin cookie authentication on the WebSocket upgrade.
+          rewriteWsOrigin: false
         },
         '/auth': {
           target: backendTarget,

@@ -17,7 +17,10 @@
       "remote_message": "Šis serveris noraidīja saglabāto pierakstīšanos. Atkārtoti pievienojiet to, lai atsāktu tiešraides atjauninājumus un darbības.",
       "remote_action": "Atkārtoti izveidojiet savienojumu",
       "remote_failed": "Neizdevās atjaunot savienojumu",
-      "sidebar_reauth": "{server} nepieciešama pierakstīšanās"
+      "sidebar_reauth": "{server} nepieciešama pierakstīšanās",
+      "expiry_title": "Pierakstīšanās serverī {server} drīz beigsies",
+      "expiry_message": "Izveidojiet savienojumu no jauna, lai sesijas beigas neradītu pārtraukumu.",
+      "expiry_action": "Savienot no jauna"
     },
     "access_denied": {
       "title": "Piekļuve liegta",

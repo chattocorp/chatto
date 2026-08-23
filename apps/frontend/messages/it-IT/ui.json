@@ -17,7 +17,10 @@
       "remote_message": "Questo server ha rifiutato l'accesso memorizzato. Ricollegalo per riprendere gli aggiornamenti e le azioni in tempo reale.",
       "remote_action": "Riconnettiti",
       "remote_failed": "Impossibile avviare la riconnessione",
-      "sidebar_reauth": "{server} richiede l'accesso"
+      "sidebar_reauth": "{server} richiede l'accesso",
+      "expiry_title": "L'accesso a {server} scadrà presto",
+      "expiry_message": "Riconnettiti ora per evitare un'interruzione alla scadenza della sessione.",
+      "expiry_action": "Riconnettiti ora"
     },
     "access_denied": {
       "title": "Accesso negato",

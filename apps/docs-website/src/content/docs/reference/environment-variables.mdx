@@ -332,7 +332,7 @@ Only used when `storage_backend` is set to `s3`. See the [S3 Storage guide](/gui
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_TOKEN_TTL" toml="auth.token_ttl" default="90d">
-  Maximum lifetime of a renewable human bearer session and lifetime of each same-origin cookie credential. Bearer refresh never extends this maximum; cookie credentials keep their existing sliding rotation. Supports durations like `90d` or `2160h`.
+  Maximum lifetime of a renewable human bearer session and fixed lifetime of each same-origin cookie credential. Bearer refresh never extends this maximum. Active cookie sessions rotate their handle in the final quarter without a write on every request. Supports durations like `90d` or `2160h`.
 </EnvVar>
 
 <EnvVar name="CHATTO_AUTH_ACCESS_TOKEN_TTL" toml="auth.access_token_ttl" default="15m">

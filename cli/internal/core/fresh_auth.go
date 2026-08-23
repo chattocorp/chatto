@@ -60,7 +60,7 @@ func (c *ChattoCore) RequireFreshAuthForBearerToken(ctx context.Context, token s
 }
 
 func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, source string) error {
-	data, entry, err := c.authTokenData(ctx, token)
+	data, _, err := c.authTokenData(ctx, token)
 	if err != nil {
 		return err
 	}
@@ -68,23 +68,8 @@ func (c *ChattoCore) MarkBearerTokenFresh(ctx context.Context, token, method, so
 		return ErrFreshAuthRequired
 	}
 	now := time.Now()
-	data.FreshAuthAt = now
-	data.FreshAuthMethod = method
-	data.FreshAuthSource = source
 	if err := c.markRenewableSessionFresh(ctx, data.RenewableSessionID, method, source, now); err != nil {
 		return err
-	}
-	value, err := json.Marshal(data)
-	if err != nil {
-		return fmt.Errorf("failed to marshal auth token: %w", err)
-	}
-	remaining := data.ExpiresAt.Sub(now)
-	if remaining <= 0 {
-		return ErrAuthTokenNotFound
-	}
-	_, err = c.updateRuntimeStateTokenTTL(ctx, c.authTokenKey(token), value, entry.Revision(), remaining)
-	if err != nil {
-		return fmt.Errorf("failed to mark auth token fresh: %w", err)
 	}
 	return nil
 }
@@ -190,6 +175,15 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, meth
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ErrCookieSessionNotFound
 	}
+	expiresAt := tokenData.ExpiresAt
+	if expiresAt.IsZero() {
+		expiresAt = tokenData.CreatedAt.Add(c.cookieSessionTTL())
+	}
+	now := time.Now()
+	if !now.Before(expiresAt) {
+		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		return ErrCookieSessionNotFound
+	}
 	validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
 		UserID:         tokenData.UserID,
 		CreatedAt:      tokenData.CreatedAt,
@@ -205,14 +199,14 @@ func (c *ChattoCore) MarkCookieSessionFresh(ctx context.Context, sessionID, meth
 	if validation.ShouldPersistAuthGeneration {
 		tokenData.AuthGeneration = validation.AuthGeneration
 	}
-	tokenData.FreshAuthAt = time.Now()
+	tokenData.FreshAuthAt = now
 	tokenData.FreshAuthMethod = method
 	tokenData.FreshAuthSource = source
 	value, err := json.Marshal(tokenData)
 	if err != nil {
 		return fmt.Errorf("failed to marshal cookie session token: %w", err)
 	}
-	_, err = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
+	_, err = c.storage.runtimeStateKV.Update(ctx, key, value, entry.Revision())
 	if err != nil {
 		return fmt.Errorf("failed to mark cookie session fresh: %w", err)
 	}

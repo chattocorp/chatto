@@ -2,7 +2,9 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-08-22
+**Updated:** 2026-08-23
+
+**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
 
 ## Context
 
@@ -66,9 +68,10 @@ Current occupants include:
   ADR-076.
 - Web Push subscriptions: `push_subscription.{userId}.{endpointHash}`.
 - Runtime credential verifiers: `session.{hmac}`. Cookie-presentation records
-  keep `auth.token_ttl` sliding expiry. Human bearer access records instead use
-  fixed `auth.access_token_ttl` expiry and point to a stable
-  `renewable_session.{hmac}` authority whose TTL is the non-renewable remaining
+  carry a fixed explicit `auth.token_ttl` expiry and rotate in the final
+  quarter of that lifetime. Human bearer access records use fixed
+  `auth.access_token_ttl` expiry and point to a stable
+  `renewable_session.{hmac}` authority with a non-renewable explicit
   `auth.token_ttl` maximum. Values include credential kind
   (`first_party_session` or `oauth_access_token`), presentation (`bearer` or
   `cookie`), source, safe request metadata, fresh-auth metadata, and the user
@@ -79,6 +82,11 @@ Current occupants include:
   generation, last refresh request ID/time, and fresh-auth metadata. Rotation
   uses KV revision OCC across replicas. The raw refresh credential is never
   stored; deleting this key invalidates every access generation.
+- Immutable session expiry markers: `expiry.session.{hmac}` for mutable cookie
+  records and `expiry.renewable_session.{hmac}` for mutable renewable-session
+  authorities. Markers use per-key TTL. A process-wide watcher deletes the
+  related mutable record, and startup reconciliation repairs missing markers
+  or deletes expired records. See ADR-080.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -144,6 +152,9 @@ from exact unread notification occurrences instead of preserving
   tokens, because their keys are HMAC-derived from `[core].secret_key`.
 - Per-key TTL becomes available for tokens and similar runtime values without
   splitting each feature into its own bucket.
+- Mutable human-session records use ordinary KV operations. Their immutable
+  expiry markers use per-key TTL, and explicit record expiry remains the
+  authorization boundary.
 - Security-sensitive exceptions remain explicit. In particular, KMS KEKs in
   `ENCRYPTION_KEYS` are not folded into this bucket; only app-owned wrapped DEK
   records live in `RUNTIME_STATE`.
@@ -163,6 +174,8 @@ from exact unread notification occurrences instead of preserving
 
 - [ADR-033](ADR-033-event-sourced-state-with-projections.md) — defines the
   event-sourced content/domain boundary.
+- [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md)
+  — separates mutable human-session state from immutable cleanup deadlines.
 - [ADR-028](ADR-028-event-id-keyed-read-state.md) — defines the read-cursor
   shape that now lives in `RUNTIME_STATE`.
 - [ADR-076](ADR-076-deterministic-notification-occurrences.md) — defines the

@@ -344,6 +344,9 @@ describe('ServerConnectionManager', () => {
 
   it('originClient uses relative URL', async () => {
     const mod = await import('./serverConnection.svelte');
+    expect(mod.serverConnectionManager.originConnectBaseUrl).toBe(
+      `${window.location.origin}/api/connect`
+    );
     expect(mod.serverConnectionManager.originClient).toBeDefined();
     expect(mod.serverConnectionManager.originClient.status).toBe('connecting');
   });

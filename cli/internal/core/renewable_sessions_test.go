@@ -21,6 +21,13 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
+	sessionID, _, ok := first.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+	sessionKey := first.renewableSessionKey(sessionID)
+	assertRuntimeKVHasTTL(t, first, sessionKey)
+	assertRuntimeKVHasTTL(t, first, runtimeCredentialExpiryMarkerKey(sessionKey))
 
 	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -36,6 +43,7 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
 	}
+	assertRuntimeKVHasNoTTL(t, first, sessionKey)
 	recovered, err := second.RefreshBearerSession(ctx, initial.RefreshToken, requestID, "")
 	if err != nil {
 		t.Fatalf("same-request recovery on replica: %v", err)
@@ -76,12 +84,11 @@ func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *tes
 	if err != nil {
 		t.Fatalf("marshal committed session: %v", err)
 	}
-	if _, err := chattoCore.updateRuntimeStateTokenTTL(
+	if _, err := chattoCore.storage.runtimeStateKV.Update(
 		ctx,
 		chattoCore.renewableSessionKey(sessionID),
 		value,
 		entry.Revision(),
-		session.ExpiresAt.Sub(now),
 	); err != nil {
 		t.Fatalf("commit rotation without access record: %v", err)
 	}

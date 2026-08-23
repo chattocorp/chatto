@@ -2,7 +2,6 @@ import { invalidateAll } from '$app/navigation';
 import type { AuthenticatedUserSummary } from '$lib/state/server/registry.svelte';
 import { resumePushRegistrationAfterAuthentication } from '$lib/notifications/pushRegistrationCoordinator';
 import { hasPendingReturnNavigation, resumeReturnNavigation } from './returnNavigation';
-import type { NewBearerSession } from './bearerSession';
 
 /**
  * Install a newly authenticated origin session and refresh route data.
@@ -12,7 +11,6 @@ import type { NewBearerSession } from './bearerSession';
  * deliberately untouched.
  */
 export async function completeOriginAuthentication(
-  credentials: string | NewBearerSession,
   user: AuthenticatedUserSummary | null
 ): Promise<boolean> {
   const shouldResumeReturnNavigation = hasPendingReturnNavigation();
@@ -26,7 +24,7 @@ export async function completeOriginAuthentication(
   ]);
 
   const originServerId = serverRegistry.originServer?.id;
-  serverRegistry.authenticateOrigin(credentials, user);
+  serverRegistry.authenticateOriginCookie(user);
   if (originServerId) resumePushRegistrationAfterAuthentication(originServerId);
   clearCachedUser();
   await invalidateAll();

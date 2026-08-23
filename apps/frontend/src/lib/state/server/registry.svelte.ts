@@ -490,10 +490,8 @@ class ServerRegistry {
 		);
 	}
 
-	authenticateOrigin(
-		credentials: string | NewBearerSession,
-		user: AuthenticatedUserSummary | null = null
-	): void {
+	/** Install origin cookie authentication and discard any legacy origin bearer session. */
+	authenticateOriginCookie(user: AuthenticatedUserSummary | null = null): void {
 		if (typeof window === 'undefined') return;
 		const origin = this.originServer;
 		if (!origin) {
@@ -502,21 +500,38 @@ class ServerRegistry {
 				originUrl,
 				this.servers.map((s) => s.id)
 			);
-			this.#registerOrigin(id, originUrl, 'Chatto', null, credentials, user);
+			this.#registerOrigin(id, originUrl, 'Chatto', null, null, user);
 			this.originProbed = true;
 			return;
 		}
 
-		this.#replaceServerAuth(origin.id, {
-			...(typeof credentials === 'string'
-				? { token: credentials }
-				: persistedBearerSession(credentials)),
+		const cookieSession: ServerSession = {
+			token: null,
+			refreshToken: null,
+			accessTokenExpiresAt: null,
+			refreshTokenExpiresAt: null,
+			oauthClientId: null,
+			refreshRequestId: null,
 			userId: user?.id ?? origin.userId,
 			userLogin: user?.login ?? origin.userLogin,
 			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
 			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl,
 			reauthRequiredAt: null
-		});
+		};
+		if (
+			origin.token === null &&
+			origin.refreshToken === null &&
+			origin.accessTokenExpiresAt === null &&
+			origin.refreshTokenExpiresAt === null &&
+			origin.oauthClientId === null &&
+			origin.refreshRequestId === null
+		) {
+			this.sessions.replace(origin.id, cookieSession);
+			this.#persistAuthentication(origin.id);
+			this.#persist();
+		} else {
+			this.#replaceServerAuth(origin.id, cookieSession);
+		}
 		this.originProbed = true;
 	}
 

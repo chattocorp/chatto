@@ -17,7 +17,10 @@
       "remote_message": "Este servidor rechazó el inicio de sesión almacenado. Vuelva a conectarlo para reanudar las actualizaciones y acciones en vivo.",
       "remote_action": "Reconectar",
       "remote_failed": "No se pudo iniciar la reconexión",
-      "sidebar_reauth": "{server} necesita iniciar sesión"
+      "sidebar_reauth": "{server} necesita iniciar sesión",
+      "expiry_title": "El inicio de sesión en {server} vencerá pronto",
+      "expiry_message": "Vuelve a conectarte ahora para evitar una interrupción cuando venza esta sesión.",
+      "expiry_action": "Reconectar ahora"
     },
     "access_denied": {
       "title": "Acceso denegado",

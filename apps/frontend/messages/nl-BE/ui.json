@@ -17,7 +17,10 @@
       "remote_message": "Deze server heeft de opgeslagen aanmelding afgewezen. Sluit hem opnieuw aan om live updates en acties te hervatten.",
       "remote_action": "Opnieuw verbinding maken",
       "remote_failed": "Kan opnieuw verbinden niet starten",
-      "sidebar_reauth": "{server} moet inloggen"
+      "sidebar_reauth": "{server} moet inloggen",
+      "expiry_title": "De aanmelding bij {server} verloopt binnenkort",
+      "expiry_message": "Maak nu opnieuw verbinding om een onderbreking te voorkomen wanneer deze sessie verloopt.",
+      "expiry_action": "Nu opnieuw verbinden"
     },
     "access_denied": {
       "title": "Toegang geweigerd",

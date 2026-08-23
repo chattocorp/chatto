@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nats-io/nats.go"
 	"github.com/nats-io/nats.go/jetstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -177,6 +176,22 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
+	if presentation == AuthTokenPresentationCookie {
+		if tokenData.CreatedAt.IsZero() {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+		if tokenData.ExpiresAt.IsZero() {
+			// Typed cookie records created before explicit expiry used the same
+			// fixed lifetime from CreatedAt. Keep those sessions readable during
+			// rollout without treating physical KV retention as authorization.
+			tokenData.ExpiresAt = tokenData.CreatedAt.Add(c.cookieSessionTTL())
+		}
+		if !time.Now().Before(tokenData.ExpiresAt) {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
+		}
+	}
 	if presentation == AuthTokenPresentationBearer {
 		now := time.Now()
 		if tokenData.RenewableSessionID == "" || tokenData.ExpiresAt.IsZero() || !now.Before(tokenData.ExpiresAt) {
@@ -228,10 +243,8 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 	if validation.ShouldPersistAuthGeneration {
 		tokenData.AuthGeneration = validation.AuthGeneration
 		if value, err := json.Marshal(tokenData); err == nil {
-			_, _ = c.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), c.cookieSessionTTL())
+			_, _ = c.storage.runtimeStateKV.Update(ctx, key, value, entry.Revision())
 		}
-	} else {
-		_, _ = c.updateRuntimeStateTokenTTL(ctx, key, entry.Value(), entry.Revision(), c.cookieSessionTTL())
 	}
 
 	return validatedRuntimeCredentialFromAuthToken(handle, tokenData), nil
@@ -452,17 +465,4 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 		revoked++
 	}
 	return revoked, nil
-}
-
-func (c *ChattoCore) updateRuntimeStateTokenTTL(ctx context.Context, key string, value []byte, revision uint64, ttl time.Duration) (uint64, error) {
-	msg := nats.NewMsg("$KV.RUNTIME_STATE." + key)
-	msg.Data = value
-	ack, err := c.js.PublishMsg(ctx, msg,
-		jetstream.WithExpectLastSequencePerSubject(revision),
-		jetstream.WithMsgTTL(ttl),
-	)
-	if err != nil {
-		return 0, err
-	}
-	return ack.Sequence, nil
 }

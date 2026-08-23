@@ -25,7 +25,11 @@ The frontend is server-agnostic by default. It doesn't assume it is served by a 
 
 1. **Probe-based origin detection**: On init, call `chatto.discovery.v1.ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as a server. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
-3. **Bearer-first client auth**: The client stores opaque bearer tokens in `localStorage` for every authenticated server, including the origin when direct login or registration returns a token. Cookie auth remains as an origin-only fallback for compatibility flows that have not yet handed the SPA a bearer token.
+3. **Cookie-first origin auth**: The client uses the HttpOnly cookie for the
+   server that serves the SPA. Remote servers use persisted renewable bearer
+   sessions. During migration, the client uses a persisted origin bearer only
+   when the cookie is absent. It removes that bearer after a successful cookie
+   viewer request.
 
 Bearer tokens are only handed to API clients that need to authenticate
 ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media
@@ -69,9 +73,10 @@ Each server state store has permission and viewer-capability state loaded from C
 
 Human bearer sessions use short fixed-lifetime access tokens and rotating
 refresh credentials. The frontend serializes rotation, refreshes before access
-expiry, and stops at the renewable session's fixed absolute maximum. Cookie
-fallback sessions retain their separate sliding lifetime. ADR-079 owns the
-detailed rotation, recovery, revocation, and expiry contract.
+expiry, and stops at the renewable session's fixed absolute maximum. The
+frontend warns before that maximum. Origin cookie sessions rotate their handle
+in the final quarter of a fixed credential lifetime. ADR-079 and ADR-080 own
+the detailed rotation, recovery, revocation, and expiry contract.
 
 ## Consequences
 
@@ -85,7 +90,8 @@ detailed rotation, recovery, revocation, and expiry contract.
 
 ### Negative
 
-- Registered-server bearer credentials in `localStorage` are vulnerable to XSS (cookie auth is not)
+- Remote-server bearer credentials in `localStorage` are vulnerable to XSS
+  (origin cookie auth is not)
 - This makes XSS prevention part of the auth boundary. The shipped frontend sets
   a report-only CSP with Trusted Types reporting so deployments can surface
   dangerous script and DOM-sink patterns before policy enforcement is viable for
@@ -100,7 +106,7 @@ detailed rotation, recovery, revocation, and expiry contract.
 ### Trade-offs
 
 - Bearer refresh failure preserves the route and marks only that server as
-  requiring explicit authentication, while origin cookie fallback can still
-  require server-side logout plus a hard reload. The two presentations retain
-  distinct disconnect flows.
+  requiring explicit authentication, while an invalid origin cookie session
+  can still require server-side logout plus a hard reload. The two
+  presentations retain distinct disconnect flows.
 - SvelteMap for the store map enables reactive `$derived` reads but requires careful separation of imperative writes (`addServer`) from pure reads (`getStore`)

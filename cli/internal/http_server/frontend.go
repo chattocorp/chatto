@@ -440,14 +440,14 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
 	})
 
-	// refreshSessionIfAuthenticated validates and rotates authenticated
+	// rotateSessionIfAuthenticated validates and rotates authenticated
 	// cookie-session records for active SPA browsing. KV TTL is set only when
 	// a session is created, so near-expiry sessions are rotated instead of
 	// "touched" in place.
-	refreshSessionIfAuthenticated := func(c *gin.Context) {
+	rotateSessionIfAuthenticated := func(c *gin.Context) {
 		credential, ok, _ := s.cookiePresentedCredential(c)
 		if ok {
-			s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
+			_, _ = s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
 		}
 	}
 
@@ -459,8 +459,8 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			filePath = "200.html"
 		}
 
-		// Refresh session for all SPA routes to prevent cookie expiration
-		refreshSessionIfAuthenticated(c)
+		// Rotate near-expiry sessions on every SPA route.
+		rotateSessionIfAuthenticated(c)
 
 		// Release builds may retain only compressed representations.
 		if !frontendFileExists(clientFS, filePath) {

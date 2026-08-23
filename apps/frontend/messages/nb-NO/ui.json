@@ -17,7 +17,10 @@
       "remote_message": "Denne serveren avviste den lagrede påloggingen. Koble den til igjen for å gjenoppta liveoppdateringer og handlinger.",
       "remote_action": "Koble til på nytt",
       "remote_failed": "Kunne ikke starte på nytt",
-      "sidebar_reauth": "{server} trenger pålogging"
+      "sidebar_reauth": "{server} trenger pålogging",
+      "expiry_title": "Påloggingen til {server} utløper snart",
+      "expiry_message": "Koble til på nytt nå for å unngå avbrudd når økten utløper.",
+      "expiry_action": "Koble til på nytt nå"
     },
     "access_denied": {
       "title": "Tilgang nektet",

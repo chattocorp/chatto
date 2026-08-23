@@ -42,6 +42,7 @@ type ChattoCore struct {
 	notificationPolicy        *NotificationPolicyModel
 	roomTimelineReads         *RoomTimelineReadModel
 	readStateModel            *ReadStateModel
+	runtimeCredentialExpiry   *runtimeCredentialExpiryModel
 	notificationBoundaries    *notificationBoundaryIndex
 	notificationOccurrences   *NotificationOccurrenceModel
 	notificationMaterializer  *NotificationMaterializer
@@ -194,6 +195,7 @@ func (c *ChattoCore) Run(ctx context.Context) error {
 	})
 
 	g.Go(func() error { return c.readStateModel.Run(gctx) })
+	g.Go(func() error { return c.runtimeCredentialExpiry.Run(gctx) })
 	g.Go(func() error { return c.notificationBoundaries.run(gctx) })
 	g.Go(func() error { return c.notificationOccurrences.Run(gctx) })
 	g.Go(func() error { return c.notificationMaterializer.Run(gctx) })

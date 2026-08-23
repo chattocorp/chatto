@@ -17,7 +17,10 @@
       "remote_message": "Tento server odmítl uložené přihlášení. Znovu jej připojte a obnovte živé aktualizace a akce.",
       "remote_action": "Znovu se připojte",
       "remote_failed": "Nepodařilo se zahájit opětovné připojení",
-      "sidebar_reauth": "{server} vyžaduje přihlášení"
+      "sidebar_reauth": "{server} vyžaduje přihlášení",
+      "expiry_title": "Přihlášení k {server} brzy vyprší",
+      "expiry_message": "Připojte se znovu, aby vás konec této relace nepřerušil.",
+      "expiry_action": "Připojit znovu"
     },
     "access_denied": {
       "title": "Přístup odepřen",

@@ -2,7 +2,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
-  import { directBearerSession } from '$lib/auth/bearerSession';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
   import Divider from '$lib/ui/Divider.svelte';
@@ -73,16 +72,7 @@
         return;
       }
 
-      const credentials = directBearerSession(data);
-      if (!credentials) {
-        error = m('auth.register.missing_token');
-        return;
-      }
-
-      const resumedReturnNavigation = await completeOriginAuthentication(
-        credentials,
-        data.user ?? null
-      );
+      const resumedReturnNavigation = await completeOriginAuthentication(data.user ?? null);
       if (!resumedReturnNavigation) {
         // New users have no navigation history, so go directly to root.
         // The root page handles redirecting to last position or Browse Spaces.

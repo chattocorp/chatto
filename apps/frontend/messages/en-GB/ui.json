@@ -17,7 +17,10 @@
       "remote_message": "This server rejected the stored sign-in. Reconnect it to resume live updates and actions.",
       "remote_action": "Reconnect",
       "remote_failed": "Failed to start reconnect",
-      "sidebar_reauth": "{server} needs sign-in"
+      "sidebar_reauth": "{server} needs sign-in",
+      "expiry_title": "{server} sign-in expires soon",
+      "expiry_message": "Reconnect now to avoid an interruption when this session expires.",
+      "expiry_action": "Reconnect now"
     },
     "access_denied": {
       "title": "Access Denied",

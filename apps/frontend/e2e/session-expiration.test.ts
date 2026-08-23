@@ -200,7 +200,10 @@ test.describe('Session Expiration Handling', () => {
     await page.waitForURL(routes.settings, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 
-  test('session cookie is refreshed on page load', async ({ page, authPage }) => {
+  test('same-origin login keeps a stable cookie without persisted bearer credentials', async ({
+    page,
+    authPage
+  }) => {
     const timestamp = Date.now();
     const testLogin = `sessionrefresh${timestamp}`;
     const testPassword = 'testpassword123';
@@ -215,12 +218,8 @@ test.describe('Session Expiration Handling', () => {
     const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_session');
     expect(initialSessionCookie).toBeDefined();
 
-    // Wait >1 second so cookie timestamps can differ (precision is seconds).
-    // This is an intentional delay — we need wall-clock time to pass so the
-    // cookie's timestamp-based value changes on re-signing.
-    await page.waitForTimeout(1500);
-
-    // Navigate to a deep route (this should refresh the cookie)
+    // Ordinary navigation validates the cookie without rewriting its runtime
+    // record or signed browser value. Rotation happens only near expiry.
     await page.goto(routes.settings);
     await page.waitForURL(routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
@@ -230,17 +229,38 @@ test.describe('Session Expiration Handling', () => {
     const updatedSessionCookie = updatedCookies.find((c) => c.name === 'chatto_session');
     expect(updatedSessionCookie).toBeDefined();
 
-    // Cookie expiration should be ~90 days from now
+    // Cookie expiration should be ~90 days from login.
     const now = Date.now() / 1000;
     const ninetyDaysInSeconds = 90 * 24 * 60 * 60;
     const expectedMinExpires = now + ninetyDaysInSeconds - 60; // Allow 1 minute tolerance
 
-    // Verify cookie has reasonable expiration (90 days from now, with tolerance)
+    // Verify the cookie has a reasonable fixed expiration.
     expect(updatedSessionCookie!.expires).toBeGreaterThan(expectedMinExpires);
 
-    // Verify cookie was updated (value may have changed due to re-signing)
-    // The cookie value changes when session.Save() is called because it includes timestamp
-    expect(updatedSessionCookie!.value).toBeTruthy();
+    expect(updatedSessionCookie!.value).toBe(initialSessionCookie!.value);
+    expect(updatedSessionCookie!.expires).toBe(initialSessionCookie!.expires);
+
+    const originAuthentication = await page.evaluate(() => {
+      const registrations = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]') as Array<{
+        id?: string;
+        url?: string;
+      }>;
+      const origin = registrations.find(
+        (registration) =>
+          typeof registration.url === 'string' &&
+          new URL(registration.url).origin === window.location.origin
+      );
+      if (!origin?.id) return null;
+      return JSON.parse(
+        localStorage.getItem(`chatto:i:${origin.id}:authentication`) ?? 'null'
+      ) as Record<string, unknown> | null;
+    });
+    expect(originAuthentication).toMatchObject({
+      token: null,
+      refreshToken: null,
+      accessTokenExpiresAt: null,
+      refreshTokenExpiresAt: null
+    });
   });
 
   test('handles repeated expired-session loads without multiple redirects', async ({
@@ -290,5 +310,44 @@ test.describe('Session Expiration Handling', () => {
       const url = page.url();
       expect(url.endsWith('/') || url.includes('/chat') || url.includes('/login')).toBe(true);
     }).toPass({ timeout: TIMEOUTS.UI_STANDARD, intervals: [500, 1000] });
+  });
+});
+
+test.describe('Cookie session rotation', () => {
+  test.use({
+    serverOptions: {
+      env: {
+        CHATTO_AUTH_TOKEN_TTL: '12s'
+      }
+    }
+  });
+
+  test('rotates the signed cookie in the final quarter of its lifetime', async ({
+    page,
+    authPage
+  }) => {
+    const timestamp = Date.now();
+    const testLogin = `sessionrotate${timestamp}`;
+    const testPassword = 'testpassword123';
+
+    await authPage.createUserViaApi(testLogin, testPassword);
+    await authPage.login(testLogin, testPassword);
+    await authPage.expectLoggedIn();
+
+    const initialSessionCookie = (await page.context().cookies()).find(
+      (cookie) => cookie.name === 'chatto_session'
+    );
+    expect(initialSessionCookie).toBeDefined();
+
+    await page.waitForTimeout(9200);
+    await page.goto(`${routes.settings}?rotation=${timestamp}`);
+    await expect(page.getByRole('heading', { name: 'Profile' })).toBeVisible();
+
+    const rotatedSessionCookie = (await page.context().cookies()).find(
+      (cookie) => cookie.name === 'chatto_session'
+    );
+    expect(rotatedSessionCookie).toBeDefined();
+    expect(rotatedSessionCookie!.value).not.toBe(initialSessionCookie!.value);
+    expect(rotatedSessionCookie!.expires).toBeGreaterThan(initialSessionCookie!.expires);
   });
 });
