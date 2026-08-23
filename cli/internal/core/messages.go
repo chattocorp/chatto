@@ -24,6 +24,7 @@ type postMessageOptions struct {
 	createThread            bool
 	commitAuthorize         func(context.Context, string) error
 	messageAttemptPrepared  func(context.Context) error
+	echoAttemptPrepared     func(context.Context) error
 }
 
 type editMessageOptions struct {
@@ -86,6 +87,15 @@ func withPostMessageCommitAuthorization(authorize func(context.Context, string) 
 func withPostMessageAttemptPrepared(hook func(context.Context) error) PostMessageOption {
 	return func(options *postMessageOptions) {
 		options.messageAttemptPrepared = hook
+	}
+}
+
+// withThreadReplyEchoAttemptPrepared installs a package-private test hook
+// after echo policy validation but before the guarded append. Concurrency tests
+// use it to force a room-policy conflict at that exact boundary.
+func withThreadReplyEchoAttemptPrepared(hook func(context.Context) error) PostMessageOption {
+	return func(options *postMessageOptions) {
+		options.echoAttemptPrepared = hook
 	}
 }
 
@@ -620,6 +630,7 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	originalPost *corev1.MessagePostedEvent,
 	body *corev1.MessageBody,
 	plaintext string,
+	attemptPrepared func(context.Context) error,
 ) (string, bool, error) {
 	if originalEvent == nil || originalPost == nil || body == nil {
 		return "", false, ErrMessageNotFound
@@ -628,20 +639,30 @@ func (c *ChattoCore) appendThreadReplyEcho(
 	roomID := originalPost.GetRoomId()
 	messageSubject := agg.Subject(evtstream.EventMessagePosted)
 	bodySubject := agg.Subject(evtstream.EventMessageBody)
+	roomFilter := agg.AllEventsFilter()
 	var lastErr error
 
 	for attempt := 1; attempt <= maxThreadCreateAppendAttempts; attempt++ {
-		expectedSeq, err := c.EventPublisher.LastSubjectSeq(ctx, messageSubject)
+		roomSeq, err := c.EventPublisher.LastSubjectSeq(ctx, roomFilter)
 		if err != nil {
-			return "", false, fmt.Errorf("read echo OCC tail: %w", err)
+			return "", false, fmt.Errorf("read echo room OCC tail: %w", err)
 		}
-		if expectedSeq > 0 {
-			if err := c.roomModel.waitForTimeline(ctx, events.SubjectPosition(messageSubject, expectedSeq)); err != nil {
-				return "", false, err
+		if roomSeq > 0 {
+			if err := c.roomModel.waitForDirectoryAndTimeline(ctx, events.SubjectPosition(roomFilter, roomSeq)); err != nil {
+				return "", false, fmt.Errorf("wait for echo room policy: %w", err)
 			}
 		}
 		if echoID, ok := c.roomModel.channelEchoEventID(originalID); ok {
 			return echoID, false, nil
+		}
+		if kind == KindChannel {
+			room, err := c.GetRoom(ctx, kind, roomID)
+			if err != nil {
+				return "", false, err
+			}
+			if EffectiveRoomThreadingMode(room) == corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED {
+				return "", false, fmt.Errorf("%w: channel echoes are disabled in this room", ErrRoomThreadingPolicy)
+			}
 		}
 
 		echoID, echoBodyEvent, echoEvent, err := c.buildThreadReplyEchoEvents(ctx, actorID, originalEvent, originalPost, body, plaintext)
@@ -653,17 +674,22 @@ func (c *ChattoCore) appendThreadReplyEcho(
 			{
 				Subject:       bodySubject,
 				Event:         echoBodyEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: messageSubject,
+				ExpectedSeq:   roomSeq,
+				FilterSubject: roomFilter,
 				HasOCC:        true,
 			},
 			{
 				Subject:       messageSubject,
 				Event:         echoEvent,
-				ExpectedSeq:   expectedSeq,
-				FilterSubject: messageSubject,
+				ExpectedSeq:   roomSeq,
+				FilterSubject: roomFilter,
 				HasOCC:        true,
 			},
+		}
+		if attemptPrepared != nil {
+			if err := attemptPrepared(ctx); err != nil {
+				return "", false, err
+			}
 		}
 		seqs, err := c.EventPublisher.AppendBatch(ctx, entries)
 		if err == nil {
@@ -1271,7 +1297,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	// it back to the underlying body. The body is encrypted again for the
 	// echo event ID because v2 encryption authenticates the event context.
 	if inThread != "" && alsoSendToChannel {
-		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), messageBody, body)
+		echoID, created, err := c.appendThreadReplyEcho(ctx, user_id, kind, agg, event, event.GetMessagePosted(), messageBody, body, options.echoAttemptPrepared)
 		if err != nil {
 			c.logger.Warn("Failed to publish thread reply echo", "error", err, "thread_reply_event_id", event.Id)
 		} else if created {

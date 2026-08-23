@@ -193,6 +193,44 @@ func TestEncouragedAndDisabledThreadingPolicy(t *testing.T) {
 	require.NotEmpty(t, events, "disabling threads must not hide historical threads")
 }
 
+func TestThreadReplyEchoRevalidatesThreadingModeAfterOCCConflict(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chatto.CreateUser(ctx, SystemActorID, "echo-policy-race-user", "Echo Policy Race User", "password123")
+	require.NoError(t, err)
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "echo-policy-race-room", "")
+	require.NoError(t, err)
+	_, err = chatto.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id)
+	require.NoError(t, err)
+
+	root, err := chatto.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: user.Id, RoomID: room.Id, Body: "thread root", CreateThread: true,
+	})
+	require.NoError(t, err)
+
+	echoAttempts := 0
+	reply, err := chatto.PostMessage(
+		ctx, KindChannel, room.Id, user.Id, "reply racing the room policy", nil, root.Event.Id, "", nil, true,
+		withThreadReplyEchoAttemptPrepared(func(attemptCtx context.Context) error {
+			echoAttempts++
+			if echoAttempts != 1 {
+				return nil
+			}
+			_, err := chatto.SetRoomThreadingMode(attemptCtx, SystemActorID, KindChannel, room.Id, corev1.RoomThreadingMode_ROOM_THREADING_MODE_DISABLED)
+			return err
+		}),
+	)
+	require.NoError(t, err, "the committed thread reply remains successful when its best-effort echo is rejected")
+	require.Equal(t, 1, echoAttempts, "the OCC retry must reject the disabled policy before preparing another echo")
+	require.Equal(t, root.Event.Id, reply.GetMessagePosted().GetInThread())
+
+	_, echoExists := chatto.roomModel.channelEchoEventID(reply.Id)
+	require.False(t, echoExists, "a mode change committed before the echo batch must prevent the channel echo")
+	posted, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePosted))
+	require.NoError(t, err)
+	require.Len(t, posted, 2, "only the root and committed thread reply should be published")
+}
+
 func TestThreadingModeChangeReauthorizesAfterManageRevocation(t *testing.T) {
 	chatto, _ := setupTestCore(t)
 	ctx := testContext(t)
