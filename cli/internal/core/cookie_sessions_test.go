@@ -324,15 +324,36 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateCookieSession 2: %v", err)
 	}
+	session3, _, err := core.CreateCookieSession(ctx, user.Id, "test")
+	if err != nil {
+		t.Fatalf("CreateCookieSession 3: %v", err)
+	}
 
 	if err := core.RevokeCookieSession(ctx, session1); err != nil {
 		t.Fatalf("RevokeCookieSession: %v", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session1))); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("revoked session marker lookup error = %v, want absent key", err)
 	}
 	if _, err := core.ValidateCookieCredential(ctx, session1); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("Validate revoked session err = %v, want ErrCookieSessionNotFound", err)
 	}
 	if _, err := core.ValidateCookieCredential(ctx, session2); err != nil {
 		t.Fatalf("second session should remain valid: %v", err)
+	}
+	if userID, existed, err := core.RevokePresentedRuntimeCredentialWithReason(
+		ctx,
+		session2,
+		AuthTokenPresentationCookie,
+		"logout",
+	); err != nil || !existed || userID != user.Id {
+		t.Fatalf("RevokePresentedRuntimeCredentialWithReason = %q, %t, %v", userID, existed, err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session2))); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("logged-out session marker lookup error = %v, want absent key", err)
+	}
+	if _, err := core.ValidateCookieCredential(ctx, session3); err != nil {
+		t.Fatalf("third session should remain valid: %v", err)
 	}
 
 	deleted, err := core.RevokeCookieSessionsForUser(ctx, user.Id)
@@ -342,7 +363,10 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	if deleted != 1 {
 		t.Fatalf("deleted = %d, want 1", deleted)
 	}
-	if _, err := core.ValidateCookieCredential(ctx, session2); !errors.Is(err, ErrCookieSessionNotFound) {
+	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session3))); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("user-revoked session marker lookup error = %v, want absent key", err)
+	}
+	if _, err := core.ValidateCookieCredential(ctx, session3); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("Validate user-revoked session err = %v, want ErrCookieSessionNotFound", err)
 	}
 }

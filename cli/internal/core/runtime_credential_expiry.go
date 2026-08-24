@@ -78,6 +78,24 @@ func (m *runtimeCredentialExpiryModel) deleteMarker(ctx context.Context, dataKey
 	return nil
 }
 
+// deleteRecord removes the authoritative session record before its expiry
+// marker. Marker cleanup is best-effort because a revoked session must stay
+// revoked even when physical cleanup has a transient failure.
+func (m *runtimeCredentialExpiryModel) deleteRecord(
+	ctx context.Context,
+	dataKey string,
+	opts ...jetstream.KVDeleteOpt,
+) error {
+	err := m.core.storage.runtimeStateKV.Delete(ctx, dataKey, opts...)
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		return fmt.Errorf("delete runtime credential %s: %w", dataKey, err)
+	}
+	if err := m.deleteMarker(ctx, dataKey); err != nil {
+		m.logger.Warn("Failed to remove runtime credential expiry marker", "key", dataKey, "error", err)
+	}
+	return nil
+}
+
 // renewMarker replaces a marker through ordinary KV operations. Watchers
 // reconcile the related record when they observe the delete, so a concurrent
 // repair and this create are both safe.
@@ -230,9 +248,7 @@ func (m *runtimeCredentialExpiryModel) reconcileRenewableSessions(ctx context.Co
 
 func (m *runtimeCredentialExpiryModel) reconcileEntry(ctx context.Context, entry jetstream.KeyValueEntry, expiresAt time.Time) error {
 	if !time.Now().Before(expiresAt) {
-		if err := m.core.storage.runtimeStateKV.Delete(ctx, entry.Key(), jetstream.LastRevision(entry.Revision())); err != nil &&
-			!errors.Is(err, jetstream.ErrKeyNotFound) &&
-			!errors.Is(err, jetstream.ErrKeyDeleted) &&
+		if err := m.deleteRecord(ctx, entry.Key(), jetstream.LastRevision(entry.Revision())); err != nil &&
 			!isRuntimeStateRevisionConflict(err) {
 			return fmt.Errorf("delete expired runtime credential %s: %w", entry.Key(), err)
 		}

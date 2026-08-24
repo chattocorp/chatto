@@ -224,12 +224,12 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
 	if err := c.createAccessTokenRecord(ctx, sessionID, session, now); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, sessionKey)
 		return BearerSessionCredentials{}, err
 	}
 	if err := c.recordBearerTokenIssued(ctx, userID, credentials.AccessTokenExpiresAt, source); err != nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(credentials.AccessToken))
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, sessionKey)
 		return BearerSessionCredentials{}, err
 	}
 	return credentials, nil
@@ -301,7 +301,7 @@ func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string)
 	}
 	var session RenewableSession
 	if err := json.Unmarshal(entry.Value(), &session); err != nil || session.UserID == "" || session.ExpiresAt.IsZero() {
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID))
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	return session, entry, nil
@@ -313,13 +313,13 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 		return RenewableSession{}, nil, err
 	}
 	if !now.Before(session.ExpiresAt) {
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	if session.Kind == AuthTokenKindOAuthAccessToken {
 		if err := c.RequireOAuthClientAllowed(ctx, session.ClientID); err != nil {
 			if errors.Is(err, ErrOAuthClientBlocked) {
-				_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+				_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 				return RenewableSession{}, nil, ErrRefreshTokenNotFound
 			}
 			return RenewableSession{}, nil, err
@@ -329,7 +329,7 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
 	}); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
 		}
 		return RenewableSession{}, nil, err
@@ -442,8 +442,7 @@ func (c *ChattoCore) revokeRenewableSession(ctx context.Context, sessionID, reas
 	if err := c.recordBearerTokenRevoked(ctx, session.UserID, reason); err != nil {
 		return err
 	}
-	if err := c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID)); err != nil &&
-		!errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+	if err := c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID)); err != nil {
 		return fmt.Errorf("revoke renewable session: %w", err)
 	}
 	return nil

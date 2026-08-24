@@ -14,6 +14,7 @@
   const activeRemoteNeedsReauth = $derived(
     !!activeServer && activeServer.id !== originServer?.id && activeServer.reauthRequiredAt != null
   );
+
   const noticeServer = $derived.by<RegisteredServer | null>(() => {
     if (originNeedsReauth && originServer) return originServer;
     if (activeRemoteNeedsReauth && activeServer) return activeServer;

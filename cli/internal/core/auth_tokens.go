@@ -162,23 +162,31 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		if presentation == AuthTokenPresentationCookie {
+			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
+		} else {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		}
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if tokenData.presentationOrDefault() != presentation {
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if tokenData.UserID == "" {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		if presentation == AuthTokenPresentationCookie {
+			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
+		} else {
+			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		}
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if presentation == AuthTokenPresentationCookie && tokenData.kindOrDefault() != AuthTokenKindFirstPartySession {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if presentation == AuthTokenPresentationCookie {
 		if tokenData.CreatedAt.IsZero() {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
 		if tokenData.ExpiresAt.IsZero() {
@@ -188,7 +196,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 			tokenData.ExpiresAt = tokenData.CreatedAt.Add(c.cookieSessionTTL())
 		}
 		if !time.Now().Before(tokenData.ExpiresAt) {
-			_ = c.storage.runtimeStateKV.Delete(ctx, key)
+			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
 			return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 		}
 	}
@@ -237,7 +245,7 @@ func (c *ChattoCore) ValidatePresentedRuntimeCredential(ctx context.Context, han
 		if !errors.Is(err, ErrAuthenticationRevoked) {
 			return ValidatedRuntimeCredential{}, err
 		}
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
+		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
 		return ValidatedRuntimeCredential{}, ErrAuthTokenNotFound
 	}
 	if validation.ShouldPersistAuthGeneration {
@@ -331,7 +339,13 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 
 	var tokenData AuthTokenData
 	if err := json.Unmarshal(entry.Value(), &tokenData); err != nil {
-		if deleteErr := c.storage.runtimeStateKV.Delete(ctx, key); deleteErr != nil && !errors.Is(deleteErr, jetstream.ErrKeyNotFound) {
+		var deleteErr error
+		if presentation == AuthTokenPresentationCookie {
+			deleteErr = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
+		} else {
+			deleteErr = c.storage.runtimeStateKV.Delete(ctx, key)
+		}
+		if deleteErr != nil && !errors.Is(deleteErr, jetstream.ErrKeyNotFound) {
 			return "", false, fmt.Errorf("failed to revoke malformed runtime credential after unmarshal error %v: %w", err, deleteErr)
 		}
 		return "", true, fmt.Errorf("failed to unmarshal runtime credential for revocation: %w", err)
@@ -350,7 +364,11 @@ func (c *ChattoCore) RevokePresentedRuntimeCredentialWithReason(ctx context.Cont
 		}
 	}
 
-	err = c.storage.runtimeStateKV.Delete(ctx, key)
+	if presentation == AuthTokenPresentationCookie {
+		err = c.runtimeCredentialExpiry.deleteRecord(ctx, key)
+	} else {
+		err = c.storage.runtimeStateKV.Delete(ctx, key)
+	}
 	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
 		return tokenData.UserID, false, fmt.Errorf("failed to revoke runtime credential: %w", err)
 	}
@@ -406,10 +424,7 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 		if err := c.recordBearerTokenRevoked(ctx, userID, reason); err != nil {
 			return revoked, err
 		}
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
+		if err := c.runtimeCredentialExpiry.deleteRecord(ctx, key); err != nil {
 			return revoked, fmt.Errorf("failed to revoke renewable session: %w", err)
 		}
 		revoked++
@@ -456,10 +471,7 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 				return revoked, err
 			}
 		}
-		if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-			if errors.Is(err, jetstream.ErrKeyNotFound) {
-				continue
-			}
+		if err := c.runtimeCredentialExpiry.deleteRecord(ctx, key); err != nil {
 			return revoked, fmt.Errorf("failed to revoke OAuth client token: %w", err)
 		}
 		revoked++

@@ -5,11 +5,7 @@ import AuthStatusNotice from './AuthStatusNotice.svelte';
 const { mocks } = vi.hoisted(() => ({
   mocks: {
     activeServerId: 'origin',
-    servers: [] as Array<{
-      id: string;
-      name: string;
-      reauthRequiredAt: number | null;
-    }>,
+    servers: [] as Array<{ id: string; name: string; reauthRequiredAt: number | null }>,
     beginOriginReauthentication: vi.fn(),
     startRemoteReauthentication: vi.fn(() => Promise.resolve()),
     toastError: vi.fn()

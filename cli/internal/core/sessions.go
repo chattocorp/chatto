@@ -159,7 +159,7 @@ func (c *ChattoCore) RevokeCookieSession(ctx context.Context, sessionID string) 
 	if sessionID == "" {
 		return nil
 	}
-	if err := c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(sessionID)); err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) {
+	if err := c.runtimeCredentialExpiry.deleteRecord(ctx, c.authTokenKey(sessionID)); err != nil {
 		return fmt.Errorf("failed to revoke cookie session token: %w", err)
 	}
 	return nil
@@ -201,10 +201,7 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 				tokenData.presentationOrDefault() != AuthTokenPresentationCookie {
 				continue
 			}
-			if err := c.storage.runtimeStateKV.Delete(ctx, key); err != nil {
-				if errors.Is(err, jetstream.ErrKeyNotFound) {
-					continue
-				}
+			if err := c.runtimeCredentialExpiry.deleteRecord(ctx, key); err != nil {
 				return deleted, fmt.Errorf("failed to revoke cookie session token: %w", err)
 			}
 			deleted++

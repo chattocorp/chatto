@@ -54,6 +54,12 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if got, err := second.ValidateAuthToken(ctx, recovered.AccessToken); err != nil || got != user.Id {
 		t.Fatalf("ValidateAuthToken recovered = %q, %v", got, err)
 	}
+	if err := first.RevokeRefreshTokenWithReason(ctx, recovered.RefreshToken, "test"); err != nil {
+		t.Fatalf("RevokeRefreshTokenWithReason: %v", err)
+	}
+	if _, err := first.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(sessionKey)); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("revoked renewable session marker lookup error = %v, want absent key", err)
+	}
 }
 
 func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) {
@@ -352,10 +358,10 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *test
 	}
 }
 
-func TestChattoCore_RefreshBearerSessionHonorsAbsoluteExpiry(t *testing.T) {
+func TestChattoCore_RefreshBearerSessionRejectsExpiredWindow(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
-	user, err := chattoCore.CreateUser(ctx, SystemActorID, "absolute-expiry-user", "Absolute Expiry User", "password123")
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "expired-window-user", "Expired Window User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
@@ -367,12 +373,12 @@ func TestChattoCore_RefreshBearerSessionHonorsAbsoluteExpiry(t *testing.T) {
 	_, err = chattoCore.refreshBearerSessionAt(
 		ctx,
 		initial.RefreshToken,
-		"after-absolute-expiry",
+		"after-window-expiry",
 		"",
 		initial.SessionExpiresAt.Add(time.Second),
 	)
 	if !errors.Is(err, ErrRefreshTokenNotFound) {
-		t.Fatalf("refresh after absolute expiry error = %v, want ErrRefreshTokenNotFound", err)
+		t.Fatalf("refresh after window expiry error = %v, want ErrRefreshTokenNotFound", err)
 	}
 }
 
