@@ -20,6 +20,7 @@ describe('App Preferences appearance page', () => {
     const { container } = render(AppearancePage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
     expect(container.textContent).toContain('Appearance');
     expect(container.textContent).toContain(
       'Choices for this app that apply across all your registered servers'

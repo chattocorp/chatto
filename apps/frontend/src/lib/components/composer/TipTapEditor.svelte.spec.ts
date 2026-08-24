@@ -1,9 +1,20 @@
-import { page } from 'vitest/browser';
+import { page, userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { describe, expect, it, vi } from 'vitest';
 import '../../../app.css';
 import TipTapEditor from './TipTapEditor.svelte';
 import type { ComposerEditorApi } from './editorTypes';
+
+function selectEditorContents(editor: Element) {
+  editor.dispatchEvent(
+    new KeyboardEvent('keydown', {
+      key: 'a',
+      bubbles: true,
+      cancelable: true,
+      ...(navigator.platform.startsWith('Mac') ? { metaKey: true } : { ctrlKey: true })
+    })
+  );
+}
 
 describe('TipTapEditor accessibility', () => {
   it('keeps its accessible name synchronized with the placeholder', async () => {
@@ -18,6 +29,34 @@ describe('TipTapEditor accessibility', () => {
 });
 
 describe('TipTapEditor wrapping', () => {
+  it('formats selected text as inline code when backtick is pressed', async () => {
+    const readyApis: ComposerEditorApi[] = [];
+    const { container } = render(TipTapEditor, {
+      props: {
+        placeholder: 'Write a message',
+        onReady: (api: ComposerEditorApi) => readyApis.push(api)
+      }
+    });
+    await vi.waitFor(() => expect(readyApis).toHaveLength(1));
+    const api = readyApis[0]!;
+    const editor = page.getByRole('textbox', { name: 'Write a message' }).element();
+
+    api.setContent('moo');
+    api.focus();
+    selectEditorContents(editor);
+    editor.dispatchEvent(
+      new KeyboardEvent('keydown', { key: '`', bubbles: true, cancelable: true })
+    );
+
+    await vi.waitFor(() => expect(container.querySelector('code')?.textContent).toBe('moo'));
+
+    api.setContent('moo');
+    api.focus();
+    await userEvent.keyboard('`');
+    await vi.waitFor(() => expect(editor.textContent).toBe('moo`'));
+    expect(container.querySelector('code')).toBeNull();
+  });
+
   it('performs the normal structural Enter action through its API', async () => {
     const readyApis: ComposerEditorApi[] = [];
     const onKeyDown = vi.fn(() => true);

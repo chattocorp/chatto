@@ -3,8 +3,9 @@
   import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
+  import { Panel } from '$lib/components/admin';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
+  import { ChoiceRow, FormSection, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime, hour12ForTimeFormat } from '$lib/utils/formatTime';
@@ -142,69 +143,70 @@
   showMobileNav
 />
 
-<div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <!-- Timezone -->
-  <FormSection title={m('settings.preferences.timezone.title')} maxWidth="max-w-md">
-    <Combobox
-      id="timezone"
-      testid="timezone-input"
-      label={m('settings.preferences.timezone.title')}
-      labelHidden
-      description={m('settings.preferences.timezone.description')}
-      error={timezoneError}
-      items={displayedTimezones}
-      getValue={(timezone) => timezone}
-      getLabel={(timezone) => timezone}
-      placeholder={m('settings.preferences.timezone.browser_default')}
-      clearLabel={m('settings.preferences.timezone.clear')}
-      allowFreeform={false}
-      disabled={!settingsInitialized}
-      bind:value={selectedTimezone}
-      bind:text={timezoneSearch}
-      ontextchange={handleTimezoneTextChange}
-    />
-
-    {#if selectedTimezoneTime}
-      <p class="mt-1 text-sm text-muted">
-        {m('settings.preferences.timezone.current_time', { time: selectedTimezoneTime })}
-      </p>
-    {/if}
-  </FormSection>
-
-  <!-- Time Format -->
-  <FormSection title={m('settings.preferences.time_format.title')} maxWidth="max-w-md" bordered>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.time_format.title')}
-    >
-      {#each timeFormatOptions as option (option.value)}
-        {@const isSelected = selectedTimeFormat === option.value}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={isSelected}
+<PaneContent>
+  <Panel title={m('settings.preferences.title')} icon="iconify icon-[uil--clock-three]">
+    <div class="flex max-w-md flex-col gap-6">
+      <FormSection title={m('settings.preferences.timezone.title')}>
+        <Combobox
+          id="timezone"
+          testid="timezone-input"
+          label={m('settings.preferences.timezone.title')}
+          labelHidden
+          description={m('settings.preferences.timezone.description')}
+          error={timezoneError}
+          items={displayedTimezones}
+          getValue={(timezone) => timezone}
+          getLabel={(timezone) => timezone}
+          placeholder={m('settings.preferences.timezone.browser_default')}
+          clearLabel={m('settings.preferences.timezone.clear')}
+          allowFreeform={false}
           disabled={!settingsInitialized}
-          onclick={() => (selectedTimeFormat = option.value)}
+          bind:value={selectedTimezone}
+          bind:text={timezoneSearch}
+          ontextchange={handleTimezoneTextChange}
         />
-      {/each}
-    </div>
-  </FormSection>
 
-  <!-- Save -->
-  {#if error}
-    <div class="max-w-md">
-      <FormError {error} />
-    </div>
-  {/if}
+        {#if selectedTimezoneTime}
+          <p class="mt-1 text-sm text-muted">
+            {m('settings.preferences.timezone.current_time', {
+              time: selectedTimezoneTime
+            })}
+          </p>
+        {/if}
+      </FormSection>
 
-  <div class="flex max-w-md gap-2">
-    <Button
-      onclick={handleSave}
-      disabled={!isModified || isSaving || !!timezoneError}
-      loading={isSaving}
-    >
-      {m('settings.preferences.save_button')}
-    </Button>
-  </div>
-</div>
+      <FormSection title={m('settings.preferences.time_format.title')} bordered>
+        <div
+          class="flex flex-col gap-2"
+          role="radiogroup"
+          aria-label={m('settings.preferences.time_format.title')}
+        >
+          {#each timeFormatOptions as option (option.value)}
+            {@const isSelected = selectedTimeFormat === option.value}
+            <ChoiceRow
+              label={option.label}
+              description={option.description}
+              selected={isSelected}
+              disabled={!settingsInitialized}
+              onclick={() => (selectedTimeFormat = option.value)}
+            />
+          {/each}
+        </div>
+      </FormSection>
+
+      {#if error}
+        <FormError {error} />
+      {/if}
+
+      <div class="flex gap-2">
+        <Button
+          onclick={handleSave}
+          disabled={!isModified || isSaving || !!timezoneError}
+          loading={isSaving}
+        >
+          {m('settings.preferences.save_button')}
+        </Button>
+      </div>
+    </div>
+  </Panel>
+</PaneContent>

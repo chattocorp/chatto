@@ -21,6 +21,7 @@ describe('App Preferences composer page', () => {
     const { container, getByRole } = render(ComposerPage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(2);
     const editorChoices = Array.from(
       container.querySelectorAll<HTMLButtonElement>('[aria-label="Message editor"] [role="radio"]')
     );

@@ -113,6 +113,7 @@ describe('Profile settings page', () => {
     const usernameInput = q(container, '[data-testid="settings-username"]') as HTMLInputElement;
     const saveButton = q(container, 'button[type="submit"]') as HTMLButtonElement;
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(2);
     await expect.element(displayNameInput).toHaveValue('Alice');
     await expect.element(usernameInput).toHaveValue('alice');
     await expect.element(saveButton).toBeDisabled();

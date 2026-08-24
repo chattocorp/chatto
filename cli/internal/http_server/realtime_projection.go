@@ -812,11 +812,10 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		if err := appendRoom(roomID); err != nil {
 			return nil, false, err
 		}
-		if payload.RoomMemberAdded.GetUserId() == viewerID {
-			if err := appendRoomTimeline(roomID); err != nil {
-				return nil, false, err
-			}
-		}
+		// AddMember publishes this audit fact before the authoritative
+		// UserJoinedRoom membership fact. The following fact waits for the
+		// membership projection and materialises a retained timeline, so doing
+		// it here can race authorization and close the realtime socket.
 	case *corev1.Event_RoomMemberRemoved:
 		roomID := payload.RoomMemberRemoved.GetRoomId()
 		if err := appendRoom(roomID); err != nil {

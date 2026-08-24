@@ -3,8 +3,8 @@
   import type { AccountAPI } from '$lib/api-client/account';
   import DropZoneOverlay from '$lib/attachments/DropZoneOverlay.svelte';
   import { dropZone } from '$lib/attachments/dropZone.svelte';
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
-  import { FormSection } from '$lib/ui';
   import { Button } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { getAvatarInitials } from '$lib/utils/initials';
@@ -106,9 +106,9 @@
   }
 </script>
 
-<FormSection title={m('settings.profile.avatar.title')} maxWidth="max-w-md">
+<Panel title={m('settings.profile.avatar.title')} icon="iconify icon-[uil--image]">
   <div
-    class="relative flex items-start gap-6"
+    class="relative flex max-w-md items-start gap-6"
     data-testid="avatar-drop-zone"
     {@attach avatarDropZone}
   >
@@ -171,4 +171,4 @@
       </div>
     </div>
   </div>
-</FormSection>
+</Panel>

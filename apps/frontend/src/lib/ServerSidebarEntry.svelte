@@ -220,6 +220,7 @@
   contextMenuTrigger={serverContextMenuTrigger}
   title={iconTitle}
   dimmed={iconDimmed}
+  reauthRequired={needsReauth}
   {compatibilityWarning}
 />
 

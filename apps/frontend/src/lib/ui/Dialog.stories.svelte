@@ -131,7 +131,7 @@
         <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
           Post as new message
         </Button>
-        <Button onclick={() => (dialogWithFooterVisible = false)}>
+        <Button defaultAction onclick={() => (dialogWithFooterVisible = false)}>
           <span class="iconify icon-[uil--comment-alt-lines]"></span>
           Continue in thread
         </Button>

@@ -19,6 +19,7 @@
     contextMenuTrigger,
     title,
     dimmed = false,
+    reauthRequired = false,
     compatibilityWarning = false
   }: {
     /** Display data for the icon (server name + optional logo). */
@@ -42,6 +43,8 @@
     title?: string;
     /** Render as unavailable/degraded while keeping the icon in the gutter. */
     dimmed?: boolean;
+    /** Show that this server needs the user to sign in again. */
+    reauthRequired?: boolean;
     /** Show a non-interactive compatibility warning marker. */
     compatibilityWarning?: boolean;
   } = $props();
@@ -67,7 +70,15 @@
     {/if}
   </a>
 
-  {#if compatibilityWarning}
+  {#if reauthRequired}
+    <span
+      class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
+      data-testid="server-reauth-required"
+      aria-hidden="true"
+    >
+      <span class="iconify text-xs icon-[uil--exclamation-circle]"></span>
+    </span>
+  {:else if compatibilityWarning}
     <span
       class="pointer-events-none absolute -top-1 -left-1 z-10 flex h-5 w-5 items-center justify-center rounded-full bg-warning text-on-warning shadow-sm"
       data-testid="server-compatibility-warning"

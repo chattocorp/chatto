@@ -9,6 +9,7 @@
     loading = false,
     disabled = false,
     fullWidth = false,
+    defaultAction = false,
     loadingText,
     href,
     form,
@@ -24,6 +25,8 @@
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
+    /** Marks this as its containing dialog's action for the Enter key. */
+    defaultAction?: boolean;
     loadingText?: string;
     /** When provided, renders as an <a> link instead of a <button> */
     href?: string;
@@ -87,6 +90,7 @@
     aria-disabled={disabled || loading || undefined}
     aria-label={label}
     {title}
+    data-dialog-default={defaultAction || undefined}
     tabindex={disabled || loading ? -1 : undefined}
     class={[
       variantClasses[variant],
@@ -106,6 +110,7 @@
     aria-busy={loading || undefined}
     aria-label={label}
     {title}
+    data-dialog-default={defaultAction || undefined}
     class={[variantClasses[variant], sizeClasses[size], fullWidth ? 'w-full' : '']}
   >
     {@render content()}

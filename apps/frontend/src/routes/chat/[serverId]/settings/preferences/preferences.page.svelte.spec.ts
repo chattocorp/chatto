@@ -64,6 +64,7 @@ describe('Time and region settings page', () => {
 
     const timezoneInput = q(container, '[data-testid="timezone-input"]') as HTMLInputElement;
     const saveButton = buttonWithText(container, 'Save');
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
     await expect.element(timezoneInput).toHaveValue('');
     await expect.element(timezoneInput).toBeDisabled();
     await expect.element(buttonWithText(container, '24-hour')).toBeDisabled();

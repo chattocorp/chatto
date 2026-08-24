@@ -177,6 +177,7 @@ describe('Notification settings page', () => {
     const { container } = render(NotificationsPage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(3);
     const softPopButton = buttonWithText(container, 'Soft Pop');
     softPopButton.click();
     flushSync();

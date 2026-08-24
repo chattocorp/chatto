@@ -2,8 +2,8 @@
   import { Code, ConnectError } from '@connectrpc/connect';
   import type { AccountAPI } from '$lib/api-client/account';
   import type { CurrentUserState } from '$lib/auth/currentUser.svelte';
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
-  import { FormSection } from '$lib/ui';
   import { Button, FormError, TextInput, validate, z } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast/toastState.svelte';
 
@@ -91,8 +91,8 @@
   }
 </script>
 
-<FormSection title={m('settings.account.password.title')} maxWidth="max-w-md">
-  <form class="flex flex-col gap-4" onsubmit={handleUpdatePassword}>
+<Panel title={m('settings.account.password.title')} icon="iconify icon-[uil--key-skeleton]">
+  <form class="flex max-w-md flex-col gap-4" onsubmit={handleUpdatePassword}>
     <p class="text-sm text-muted">
       {hasPassword
         ? m('settings.account.password.change_description')
@@ -146,4 +146,4 @@
       </Button>
     </div>
   </form>
-</FormSection>
+</Panel>

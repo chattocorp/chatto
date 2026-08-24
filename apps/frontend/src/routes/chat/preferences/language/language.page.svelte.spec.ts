@@ -21,9 +21,10 @@ describe('App Preferences language page', () => {
   });
 
   it('changes and persists the app language', async () => {
-    const { getByRole } = render(LanguagePage);
+    const { container, getByRole } = render(LanguagePage);
     await settle();
 
+    expect(container.querySelectorAll('.panel-shell')).toHaveLength(1);
     await getByRole('radio', { name: 'German (Germany)' }).click();
     await vi.waitFor(() => {
       expect(document.documentElement.lang).toBe('de-DE');
