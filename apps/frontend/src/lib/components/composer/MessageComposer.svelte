@@ -62,6 +62,7 @@
     onReady,
     onTyping,
     onMessageSent,
+    onThreadCreated,
     onThreadMessageSent,
     onCancelReply,
     onEscape,
@@ -131,6 +132,7 @@
         if (event) optimisticPost = { roomId, createdAt: Date.parse(event.createdAt) };
         onMessageSent?.(event);
       },
+      onThreadCreated,
       onThreadMessageSent,
       onCancelReply,
       onEscape
@@ -316,7 +318,7 @@
         <Button variant="secondary" onclick={() => composer.postAsNewRoot()}>
           {m('composer.post_as_new_message')}
         </Button>
-        <Button variant="action" onclick={() => composer.postInRecentThread()}>
+        <Button defaultAction variant="action" onclick={() => composer.postInRecentThread()}>
           <span class="iconify icon-[uil--comment-alt-lines]"></span>
           {m('composer.continue_in_thread')}
         </Button>

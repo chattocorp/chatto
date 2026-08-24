@@ -44,6 +44,10 @@
     lg: 'w-200 max-w-[90vw]'
   };
 
+  function getDefaultAction(node: ParentNode): HTMLButtonElement | null {
+    return node.querySelector<HTMLButtonElement>('button[data-dialog-default]:not([disabled])');
+  }
+
   function syncDialogVisibility(node: HTMLDialogElement) {
     dialogEl = node;
     if (visible) {
@@ -53,10 +57,10 @@
       // showModal() naturally focuses the first focusable element, which
       // for our layout is the Close (X) button in the header — not what
       // users expect. Move focus to the first form field, falling back
-      // to the form's submit button (so confirm-style dialogs get Enter
-      // wired to confirm, not close). Skipped on touch devices to avoid
-      // popping the on-screen keyboard. A field that already received
-      // focus via the native `autofocus` attribute is left alone.
+      // to the form's submit button or explicitly marked default action (so
+      // Enter confirms instead of closing). Skipped on touch devices to avoid
+      // popping the on-screen keyboard. A field that already received focus
+      // via the native `autofocus` attribute is left alone.
       if (shouldAutoFocus()) {
         queueMicrotask(() => {
           const fieldSelector =
@@ -67,7 +71,8 @@
           if (alreadyOnField) return;
           const target =
             node.querySelector<HTMLElement>(fieldSelector) ??
-            node.querySelector<HTMLElement>('button[type="submit"]:not([disabled])');
+            node.querySelector<HTMLElement>('button[type="submit"]:not([disabled])') ??
+            getDefaultAction(node);
           target?.focus();
         });
       }
@@ -91,11 +96,41 @@
       dialogEl?.close();
     }, 100);
   }
+
+  function handleKeydown(event: KeyboardEvent) {
+    if (
+      event.key !== 'Enter' ||
+      event.defaultPrevented ||
+      event.isComposing ||
+      event.repeat
+    ) {
+      return;
+    }
+
+    if (!dialogEl) return;
+    const defaultAction = getDefaultAction(dialogEl);
+    if (!defaultAction) return;
+
+    const target = event.target;
+    // Forms own Enter through native submission. Textareas use Enter for a
+    // new line, so neither should invoke a dialog-level default action.
+    if (
+      target instanceof HTMLTextAreaElement ||
+      (target instanceof Element &&
+        target.closest('form, button, a, select, [role="button"], [contenteditable="true"]'))
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    defaultAction.click();
+  }
 </script>
 
 <dialog
   {@attach syncDialogVisibility}
   onclose={handleNativeClose}
+  onkeydown={handleKeydown}
   oncancel={(e) => {
     // Always run our animated close path; never let the browser close the
     // dialog instantly without the fade-out.

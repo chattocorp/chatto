@@ -437,7 +437,7 @@
       </Button>
     </div>
     <div class="flex justify-end">
-      <Button onclick={closeAPIKey}>{m('common.got_it')}</Button>
+      <Button defaultAction onclick={closeAPIKey}>{m('common.got_it')}</Button>
     </div>
   </div>
 </Dialog>

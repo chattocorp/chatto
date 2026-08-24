@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import Dialog from './Dialog.svelte';
@@ -168,6 +168,60 @@ describe('Dialog', () => {
 
       const closeButton = q(container, 'button[aria-label="Close"]');
       await expect.element(closeButton).toBeInTheDocument();
+    });
+  });
+
+  describe('default action', () => {
+    it('clicks the marked default action when Enter is pressed outside a form', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet('<button data-dialog-default>Confirm</button>')
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, 'dialog')?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+      expect(defaultAction).toHaveBeenCalledOnce();
+    });
+
+    it('leaves Enter in a textarea alone', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet(
+            '<div><textarea data-testid="message"></textarea><button data-dialog-default>Confirm</button></div>'
+          )
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, '[data-testid="message"]')?.dispatchEvent(
+        new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' })
+      );
+
+      expect(defaultAction).not.toHaveBeenCalled();
+    });
+
+    it('does not click a disabled marked action', () => {
+      const { container } = render(Dialog, {
+        props: {
+          visible: true,
+          children: testSnippet('<button data-dialog-default disabled>Confirm</button>')
+        }
+      });
+
+      const defaultAction = vi.fn();
+      q(container, '[data-dialog-default]')?.addEventListener('click', defaultAction);
+
+      q(container, 'dialog')?.dispatchEvent(new KeyboardEvent('keydown', { bubbles: true, key: 'Enter' }));
+
+      expect(defaultAction).not.toHaveBeenCalled();
     });
   });
 

@@ -185,7 +185,7 @@
   <p class="mb-4 text-muted">{m('settings.profile.username.confirm_cooldown')}</p>
 
   <div class="flex items-center gap-3">
-    <Button onclick={confirmLoginChange}>
+    <Button defaultAction onclick={confirmLoginChange}>
       <span class="iconify icon-[uil--check]"></span>
       {m('settings.profile.username.confirm_button')}
     </Button>
