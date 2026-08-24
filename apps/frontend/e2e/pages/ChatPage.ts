@@ -134,14 +134,11 @@ export class ChatPage {
     return this.page.getByLabel('Room Name');
   }
 
-  /** The room description input field in the admin room creation modal */
-  get roomDescriptionInput(): Locator {
-    return this.page.getByLabel('Description (optional)');
-  }
-
-  /** The submit button in the room creation form */
+  /** The submit button in the room creation dialog footer. */
   get roomFormSubmitButton(): Locator {
-    return this.page.locator('form').getByRole('button', { name: 'Create Room' });
+    return this.page
+      .getByRole('dialog', { name: 'Create Room' })
+      .getByRole('button', { name: 'Create and configure' });
   }
 
   /** The room header (visible after navigating to a room) */

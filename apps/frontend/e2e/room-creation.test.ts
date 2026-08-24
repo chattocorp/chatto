@@ -16,10 +16,13 @@ test('creates and renames a flexible Unicode room name', async ({
   await chatPage.roomNameInput.fill(roomName);
   await chatPage.roomFormSubmitButton.click();
   await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
-  await serverAdminRoomsPage.expectRoomVisible(roomName, TIMEOUTS.REALTIME_EVENT);
+  await expect(serverAdminRoomsPage.roomSettingsNameInput).toHaveValue(roomName, {
+    timeout: TIMEOUTS.REALTIME_EVENT
+  });
 
   const renamedRoom = 'Team chat 💬 / updates!';
-  await serverAdminRoomsPage.editRoom(roomName, renamedRoom);
+  await serverAdminRoomsPage.updateCurrentRoom(renamedRoom);
+  await serverAdminRoomsPage.returnToOverview();
   await serverAdminRoomsPage.expectRoomVisible(renamedRoom, TIMEOUTS.REALTIME_EVENT);
 });
 
@@ -67,27 +70,25 @@ test('create room with name exceeding max length shows error', async ({ page, ch
   await chatPage.expectRoomSubmitDisabled();
 });
 
-test('create room with description exceeding max length shows error', async ({
+test('room settings reject a description exceeding the maximum length', async ({
   page,
-  chatPage
+  chatPage,
+  serverAdminRoomsPage
 }) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
 
-  // Open the room creation modal
   await chatPage.openCreateRoomModal();
-
-  // Fill in valid room name
   await chatPage.roomNameInput.fill('valid-room-name');
-
-  // Fill in description that exceeds 500 characters
-  const longDescription = 'a'.repeat(501);
-  await chatPage.roomDescriptionInput.fill(longDescription);
-
-  // Submit
   await chatPage.roomFormSubmitButton.click();
+  await expect(serverAdminRoomsPage.roomSettingsNameInput).toHaveValue('valid-room-name', {
+    timeout: TIMEOUTS.REALTIME_EVENT
+  });
 
-  // Should show error message from backend
+  const longDescription = 'a'.repeat(501);
+  await serverAdminRoomsPage.roomSettingsDescriptionInput.fill(longDescription);
+  await page.getByRole('button', { name: 'Save Changes' }).click();
+
   await chatPage.expectValidationError('room description must be 500 characters or less');
 });
 
@@ -150,7 +151,11 @@ test('can cancel leaving a room', async ({ page, chatPage }) => {
   await chatPage.expectRoomHeaderVisible(roomName);
 });
 
-test('create room form resets after creating a room', async ({ page, chatPage }) => {
+test('create room form resets after creating a room', async ({
+  page,
+  chatPage,
+  serverAdminRoomsPage
+}) => {
   await createAndLoginTestUser(page);
   await chatPage.goto();
 
@@ -159,11 +164,15 @@ test('create room form resets after creating a room', async ({ page, chatPage })
   await chatPage.roomNameInput.fill('first-room');
   await chatPage.roomFormSubmitButton.click();
 
-  // Wait for the dialog to close (room created successfully)
+  // Creation closes the dialog and opens the new room's settings.
   await expect(page.getByRole('dialog')).not.toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+  await expect(serverAdminRoomsPage.roomSettingsNameInput).toHaveValue('first-room', {
+    timeout: TIMEOUTS.REALTIME_EVENT
+  });
 
-  // Open the modal again — the name field should be empty
-  await chatPage.openCreateRoomModal();
+  // Return to the overview and open a fresh dialog.
+  await serverAdminRoomsPage.returnToOverview();
+  await serverAdminRoomsPage.newRoomButton('Lobby').click();
   await expect(chatPage.roomNameInput).toHaveValue('');
 });
 
