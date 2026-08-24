@@ -54,6 +54,11 @@ workspace-hostname-specific state beneath
 reuse of Pitchfork-era state whose immutable HTTPS issuer used a different
 proxy port.
 
+Vite proxies Chatto authentication, OAuth, API, and realtime routes to the
+backend without changing the browser-facing `Host` header. The browser
+`Origin` and the backend request target therefore remain equal for same-origin
+cookie authentication when a developer uses Vite's direct loopback URL.
+
 Portless requires Node.js 24 or newer. Each Portless-backed mise task declares
 Node.js 24 and `npm:portless@0.15.5` as task-specific tools, keeping Portless
 out of the Node.js 22 pnpm workspace used by the rest of the repository.

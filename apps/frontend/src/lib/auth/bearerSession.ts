@@ -10,13 +10,6 @@ export type NewBearerSession = {
   oauthClientId: string | null;
 };
 
-type AuthenticationResponseShape = {
-  token?: unknown;
-  refreshToken?: unknown;
-  expiresIn?: unknown;
-  refreshTokenExpiresIn?: unknown;
-};
-
 type OAuthTokenResponseShape = {
   access_token?: unknown;
   refresh_token?: unknown;
@@ -26,30 +19,6 @@ type OAuthTokenResponseShape = {
 
 function validLifetime(value: unknown): value is number {
   return typeof value === 'number' && Number.isFinite(value) && value > 0;
-}
-
-/** Parse the camelCase response used by direct login and registration. */
-export function directBearerSession(
-  value: AuthenticationResponseShape,
-  oauthClientId: string | null = null
-): NewBearerSession | null {
-  if (
-    typeof value.token !== 'string' ||
-    value.token.length === 0 ||
-    typeof value.refreshToken !== 'string' ||
-    value.refreshToken.length === 0 ||
-    !validLifetime(value.expiresIn) ||
-    !validLifetime(value.refreshTokenExpiresIn)
-  ) {
-    return null;
-  }
-  return {
-    token: value.token,
-    refreshToken: value.refreshToken,
-    expiresIn: value.expiresIn,
-    refreshTokenExpiresIn: value.refreshTokenExpiresIn,
-    oauthClientId
-  };
 }
 
 /** Parse the standard snake_case OAuth token response. */

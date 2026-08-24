@@ -1,19 +1,9 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import { describe, expect, it } from 'vitest';
-import { directBearerSession, oauthBearerSession, persistedBearerSession } from './bearerSession';
+import { oauthBearerSession, persistedBearerSession } from './bearerSession';
 
 describe('bearer session responses', () => {
-  it('requires the complete direct-login credential pair and lifetimes', () => {
-    expect(directBearerSession({ token: 'access-only' })).toBeNull();
-    expect(directBearerSession({
-      token: 'access',
-      refreshToken: 'refresh',
-      expiresIn: 900,
-      refreshTokenExpiresIn: 86_400
-    })).toMatchObject({ token: 'access', refreshToken: 'refresh', oauthClientId: null });
-  });
-
   it('converts a complete OAuth response to absolute persisted expiries', () => {
     const credentials = oauthBearerSession({
       access_token: 'access',

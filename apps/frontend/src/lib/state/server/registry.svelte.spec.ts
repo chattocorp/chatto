@@ -383,49 +383,6 @@ describe('ServerRegistry', () => {
 		});
 	});
 
-	describe('authenticateOriginBearer', () => {
-		it('persists a proven fallback with the response-time expiry', async () => {
-			const registry = await createRegistry();
-			registry.removeAll();
-			registry.addServer(
-				makeServer({
-					id: 'origin',
-					url: window.location.origin,
-					userId: 'old-user'
-				})
-			);
-			registry.addServer(
-				makeServer({
-					id: 'remote',
-					url: 'https://remote.example.com',
-					token: 'remote-token'
-				})
-			);
-			const remoteStore = registry.getStore('remote');
-			const credentials = {
-				token: 'fallback-token',
-				refreshToken: 'fallback-refresh-token',
-				expiresIn: 900,
-				refreshTokenExpiresIn: 7776000,
-				oauthClientId: null
-			};
-
-			registry.authenticateOriginBearer(credentials, { id: 'new-user', login: 'new-login' }, 1000);
-
-			expect(registry.getServer('origin')).toMatchObject({
-				token: 'fallback-token',
-				refreshToken: 'fallback-refresh-token',
-				accessTokenExpiresAt: 901000,
-				refreshTokenExpiresAt: 7776001000,
-				userId: 'new-user',
-				userLogin: 'new-login',
-				reauthRequiredAt: null
-			});
-			expect(registry.getServer('remote')?.token).toBe('remote-token');
-			expect(registry.getStore('remote')).toBe(remoteStore);
-		});
-	});
-
 	describe('updateServer', () => {
 		it('updates fields on an existing instance', async () => {
 			const registry = await createRegistry();

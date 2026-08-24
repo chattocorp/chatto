@@ -87,9 +87,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Human clients use short-lived access tokens and rotating refresh credentials. The bundled
     frontend renews the session window in the background and reconnects realtime in place
     without reopening OAuth, showing a manual warning, or losing the current route. The bundled
-    same-origin client prefers its safer HttpOnly cookie and persists the direct-login bearer
-    only when a cookie probe cannot authenticate, removing that fallback after a later
-    successful cookie request.
+    same-origin client uses only its safer HttpOnly cookie. Separately hosted browser clients
+    use Chatto OAuth for renewable bearer sessions.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Faster, leaner restarts">

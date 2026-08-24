@@ -48,14 +48,12 @@ rejects bearer records issued before that change, so affected users sign in
 once after upgrade. Older clients can read the initial access token from a 0.5
 login or OAuth response but cannot renew it and become unauthenticated when it
 expires. A remote 0.5 client connection requires the refresh credential and
-expiry fields from its OAuth response. The bundled same-origin client first
-tries its HttpOnly cookie. It keeps the bearer pair from direct login and
-registration in memory during that probe, discards it when cookie
-authentication succeeds, and persists it only when the cookie probe is
-unauthenticated. A later successful cookie probe removes the fallback. Upgrade
-serving replicas and bundled clients together; mixed replicas or rollback after
-new credentials have been issued can incorrectly extend fixed-expiry access
-records.
+expiry fields from its OAuth response. The bundled same-origin client uses only
+its HttpOnly cookie and ignores bearer credentials in direct-login and
+registration responses. A separately hosted browser client must use Chatto
+OAuth. Upgrade serving replicas and bundled clients together; mixed replicas
+or rollback after new credentials have been issued can incorrectly extend
+fixed-expiry access records.
 
 The new fields on
 `chatto.auth.v1.CreateExternalIdentityAccountResponse` are additive at the

@@ -258,13 +258,15 @@ export default defineConfig(async ({ command }) => {
       proxy: {
         '/oauth': {
           target: backendTarget,
-          changeOrigin: true,
+          // Cookie authentication compares the browser Origin with the
+          // request target. Preserve Vite's public Host so both values match.
+          changeOrigin: false,
           cookieDomainRewrite: { '*': '' }
         },
         '/api': {
           target: backendTarget,
           ws: true,
-          changeOrigin: true,
+          changeOrigin: false,
           secure: false,
           cookieDomainRewrite: { '*': '' },
           // Preserve the public browser origin so the backend can accept
@@ -273,7 +275,7 @@ export default defineConfig(async ({ command }) => {
         },
         '/auth': {
           target: backendTarget,
-          changeOrigin: true,
+          changeOrigin: false,
           cookieDomainRewrite: { '*': '' }
         },
         '/assets': {

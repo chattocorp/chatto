@@ -25,13 +25,10 @@ The frontend is server-agnostic by default. It doesn't assume it is served by a 
 
 1. **Probe-based origin detection**: On init, call `chatto.discovery.v1.ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as a server. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
-3. **Cookie-first origin auth**: The client uses the HttpOnly cookie for the
-   server that serves the SPA. Remote servers use persisted renewable bearer
-   sessions. A direct authentication response's bearer remains memory-only
-   while the client probes the cookie. The client discards it when the cookie
-   viewer request succeeds, or verifies and persists it as an origin fallback
-   when that request is unauthenticated. A later successful cookie request
-   removes the fallback.
+3. **Cookie-only origin auth**: The client uses the HttpOnly cookie for the
+   server that serves the SPA. It does not store or present bearer credentials
+   returned by direct authentication for that server. Remote servers use
+   persisted renewable bearer sessions obtained through Chatto OAuth.
 
 Bearer tokens are only handed to API clients that need to authenticate
 ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media

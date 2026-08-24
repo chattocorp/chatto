@@ -338,7 +338,6 @@ export class ServerConnection {
 class ServerConnectionManager {
   #clients = new Map<string, ServerConnection>();
   #originClient: ServerConnection | null = null;
-  #originClientToken: string | null = null;
   #originClientServerId: string | undefined;
 
   /** The origin ConnectRPC base URL without creating an authenticated connection. */
@@ -346,27 +345,21 @@ class ServerConnectionManager {
     return connectBaseUrlFromServerUrl(ORIGIN_SERVER_URL);
   }
 
-  /** The origin connection. Stored bearer auth exists only as a cookie-migration fallback. */
+  /** The origin connection always uses the browser's same-origin cookie. */
   get originClient(): ServerConnection {
     const origin = serverRegistry.originServer;
-    const token = origin?.token ?? null;
     const serverId = origin?.id;
-    if (
-      this.#originClient &&
-      this.#originClientToken === token &&
-      this.#originClientServerId === serverId
-    ) {
+    if (this.#originClient && this.#originClientServerId === serverId) {
       return this.#originClient;
     }
 
     this.#originClient?.dispose();
     this.#originClient = new ServerConnection({
       serverUrl: ORIGIN_SERVER_URL,
-      token,
-      accessTokenExpiresAt: origin?.accessTokenExpiresAt,
+      token: null,
+      accessTokenExpiresAt: null,
       serverId
     });
-    this.#originClientToken = token;
     this.#originClientServerId = serverId;
     return this.#originClient;
   }
@@ -402,7 +395,6 @@ class ServerConnectionManager {
       if (!this.#originClient) return false;
       this.#originClient.dispose();
       this.#originClient = null;
-      this.#originClientToken = null;
       this.#originClientServerId = undefined;
       return true;
     }
@@ -420,8 +412,7 @@ class ServerConnectionManager {
     const server = serverRegistry.getServer(serverId);
     if (!server) return;
     if (serverRegistry.isOriginServer(serverId)) {
-      this.#originClient?.updateBearerSession(server.token, server.accessTokenExpiresAt ?? null);
-      this.#originClientToken = server.token;
+      this.#originClient?.updateBearerSession(null, null);
       return;
     }
     this.#clients

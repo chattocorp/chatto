@@ -465,8 +465,7 @@ class ServerRegistry {
 		name: string,
 		iconUrl: string | null,
 		credentials: string | NewBearerSession | null = null,
-		user: AuthenticatedUserSummary | null = null,
-		credentialsReceivedAt = Date.now()
+		user: AuthenticatedUserSummary | null = null
 	): void {
 		this.addServer(
 			{
@@ -480,7 +479,7 @@ class ServerRegistry {
 				...(typeof credentials === 'string'
 					? { token: credentials }
 					: credentials
-						? persistedBearerSession(credentials, credentialsReceivedAt)
+						? persistedBearerSession(credentials)
 						: { token: null }),
 				userId: user?.id ?? null,
 				userLogin: user?.login ?? null,
@@ -489,36 +488,6 @@ class ServerRegistry {
 				reauthRequiredAt: null
 			}
 		);
-	}
-
-	/** Persist an origin bearer only after the cookie-only viewer probe failed. */
-	authenticateOriginBearer(
-		credentials: NewBearerSession,
-		user: AuthenticatedUserSummary | null = null,
-		credentialsReceivedAt = Date.now()
-	): void {
-		if (typeof window === 'undefined') return;
-		const origin = this.originServer;
-		if (!origin) {
-			const originUrl = window.location.origin;
-			const id = generateServerId(
-				originUrl,
-				this.servers.map((s) => s.id)
-			);
-			this.#registerOrigin(id, originUrl, 'Chatto', null, credentials, user, credentialsReceivedAt);
-			this.originProbed = true;
-			return;
-		}
-
-		this.#replaceServerAuth(origin.id, {
-			...persistedBearerSession(credentials, credentialsReceivedAt),
-			userId: user?.id ?? origin.userId,
-			userLogin: user?.login ?? origin.userLogin,
-			userDisplayName: user?.displayName ?? user?.login ?? origin.userDisplayName,
-			userAvatarUrl: user?.avatarUrl ?? origin.userAvatarUrl,
-			reauthRequiredAt: null
-		});
-		this.originProbed = true;
 	}
 
 	/** Install origin cookie authentication and discard any legacy origin bearer session. */

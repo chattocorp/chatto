@@ -2,7 +2,6 @@
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
   import { Code, ConnectError } from '@connectrpc/connect';
-  import { directBearerSession } from '$lib/auth/bearerSession';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import {
@@ -93,10 +92,8 @@
     submitting = true;
     actionError = '';
     try {
-      const result = await flowAPI.createAccount({ token: data.token, login, displayName });
-      const resumedReturnNavigation = await completeOriginAuthentication(
-        directBearerSession(result)
-      );
+      await flowAPI.createAccount({ token: data.token, login, displayName });
+      const resumedReturnNavigation = await completeOriginAuthentication();
       if (!resumedReturnNavigation) {
         goto(resolve((pending.redirectPath || '/') as '/'), { replaceState: true });
       }

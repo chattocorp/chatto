@@ -365,7 +365,7 @@ describe('ServerConnectionManager', () => {
     expect(client).toBe(mod.serverConnectionManager.originClient);
   });
 
-  it('originClient uses the registered origin token when present', async () => {
+  it('originClient ignores stored bearer credentials', async () => {
     const mod = await import('./serverConnection.svelte');
     mockServers.set('my-home', {
       id: 'my-home',
@@ -374,7 +374,7 @@ describe('ServerConnectionManager', () => {
     });
 
     mod.serverConnectionManager.destroyClient('my-home');
-    expect(mod.serverConnectionManager.originClient.bearerToken).toBe('origin-token');
+    expect(mod.serverConnectionManager.originClient.bearerToken).toBeNull();
   });
 
   it('getClient throws for unknown instance IDs', async () => {
