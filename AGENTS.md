@@ -185,6 +185,10 @@ full path and reason here.
 
 Tools are managed by `mise`; prefer tasks when available.
 
+Use Chrome DevTools MCP only to inspect and verify Chatto or Authling browser
+behavior. Do not use it for general web research or public documentation
+research. Use the available web or document research tools for those tasks.
+
 ```sh
 mise test
 mise test-cli
