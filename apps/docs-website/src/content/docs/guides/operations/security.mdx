@@ -26,18 +26,19 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 Chatto issues **opaque credentials**, not JWTs. Same-origin cookie-session
 handles use typed `RUNTIME_STATE` `session.{hmac}` records with explicit fixed
 expiry. The browser handle rotates in the final quarter of its lifetime, while
-ordinary validation remains read-only. A separate immutable TTL marker drives
+ordinary validation remains read-only. A separate fixed TTL marker drives
 physical cleanup without making that cleanup the authorization boundary.
 
 Human bearer authentication uses renewable sessions. Each login returns a
 short-lived access token (15 minutes by default), a rotating refresh
-credential, and a fixed maximum session lifetime (90 days by default). The
+credential, and a renewable session window (90 days by default). The
 access verifier is a fixed-expiry `session.{hmac}` record; the stable
 `renewable_session.{hmac}` record holds the current rotation generation and is
 the revocation authority for every access generation. Ordinary KV revision
-checks serialize its updates, while a separate immutable TTL marker drives
-physical cleanup. Successful access-token validation never extends either
-expiry. Raw access and refresh credentials are not stored.
+checks serialize its updates. A refresh in the final quarter advances the
+session window and recreates its TTL marker through the public KV API. Access
+token validation does not extend either expiry. Raw access and refresh
+credentials are not stored.
 
 Refresh rotation uses JetStream KV revision checks across replicas. An exact
 retry with the same client-persisted request ID can recover a lost response;

@@ -7,7 +7,7 @@ export interface ServerSession {
   refreshToken?: string | null;
   /** Access credential expiry as Unix epoch milliseconds. */
   accessTokenExpiresAt?: number | null;
-  /** Absolute renewable-session expiry as Unix epoch milliseconds. */
+  /** Expiry of the current renewable-session window as Unix epoch milliseconds. */
   refreshTokenExpiresAt?: number | null;
   /** Public OAuth client identifier, or null for direct origin login. */
   oauthClientId?: string | null;

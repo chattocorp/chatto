@@ -23,12 +23,13 @@ enables credentialed cross-origin requests. A foreign origin cannot use an
 ambient Chatto session cookie; it must present the bearer token issued through
 the OAuth flow.
 
-The bundled frontend refreshes before access expiry, coordinates tabs on the
-same browser profile, and reconnects realtime with its existing opaque resume
-cursor. A transient refresh failure is retried without discarding the session.
-If the server rejects the refresh credential permanently, the current route
-and other connected servers remain intact and the affected server shows an
-explicit reconnect action; Chatto never opens OAuth automatically.
+The bundled frontend refreshes before access expiry, advances the session
+window automatically, coordinates tabs on the same browser profile, and
+reconnects realtime with its existing opaque resume cursor. A transient
+refresh failure is retried without discarding the session. If the server
+rejects the refresh credential permanently, the current route and other
+connected servers remain intact and the affected server shows an explicit
+reconnect action; Chatto never opens OAuth automatically.
 
 <Aside type="note" title="Chatto Desktop and native apps">
   Chatto Desktop uses the built-in `chatto://desktop` client identity and exact

@@ -11,10 +11,9 @@
 ## Context
 
 Chatto's human bearer credentials originally used a sliding `RUNTIME_STATE`
-TTL. Every successful API request renewed the same opaque credential, so an
-active credential had no maximum lifetime. A copied bearer token could
-therefore remain useful indefinitely if either its legitimate owner or an
-attacker kept using it.
+TTL. Every successful API request renewed the same opaque credential. A copied
+bearer token could therefore remain useful indefinitely if either its
+legitimate owner or an attacker kept using it.
 
 Giving that token a fixed expiry without a replacement path would turn normal
 session maintenance into an interactive authentication event. In particular,
@@ -48,9 +47,11 @@ rotation behavior in ADR-080.
 
 The default access-token lifetime is 15 minutes and is configurable with
 `auth.access_token_ttl` / `CHATTO_AUTH_ACCESS_TOKEN_TTL`. The renewable session
-has a non-renewable maximum lifetime of 90 days, configured by the existing
-`auth.token_ttl` / `CHATTO_AUTH_TOKEN_TTL`. An access token issued near the end
-of a session is clamped to the remaining session lifetime.
+has a 90-day renewal window, configured by the existing `auth.token_ttl` /
+`CHATTO_AUTH_TOKEN_TTL`. A successful refresh in the final quarter advances
+the window to the configured lifetime from that refresh. An inactive session
+expires after one complete window. An access token issued near the end of a
+window is clamped to its remaining lifetime.
 
 ### Runtime-state representation
 
@@ -59,11 +60,10 @@ of a session is clamped to the remaining session lifetime.
 - `renewable_session.{hmac}` is the stable authority for one renewable
   session. Its JSON value contains the user, optional OAuth client ID,
   credential kind and source, safe audit request metadata, creation and
-  absolute expiry times, user auth generation, current rotation generation,
+  current window expiry, user auth generation, current rotation generation,
   previous refresh request ID and rotation time, and authoritative fresh-auth
-  metadata.
-  Ordinary KV updates preserve its explicit absolute expiry. A separate
-  immutable expiry marker owns physical cleanup.
+  metadata. Ordinary KV updates preserve or advance its explicit expiry. A
+  separate expiry marker owns physical cleanup.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Fresh-auth fields
@@ -101,12 +101,14 @@ The client must persist the request ID before sending the request and keep it
 until a valid response has been persisted. The server rotates as follows:
 
 1. Authenticate the HMAC refresh credential, stable session, client binding,
-   absolute expiry, OAuth-client policy, and user auth generation.
+   current window expiry, OAuth-client policy, and user auth generation.
 2. Increment the generation and record the request ID and rotation time by
-   updating the stable key with its exact JetStream KV revision. Keep its
-   original absolute expiry.
-3. Create the deterministic access-token verifier for the committed generation.
-4. Return the deterministic credential pair.
+   updating the stable key with its exact JetStream KV revision. If the current
+   window is in its final quarter, advance its expiry.
+3. When the window advances, delete and recreate its expiry marker through the
+   public JetStream KV API.
+4. Create the deterministic access-token verifier for the committed generation.
+5. Return the deterministic credential pair.
 
 The KV revision is the cross-replica serialization boundary. A conflicting
 replica reloads the stable record and evaluates the newly committed state; no
@@ -142,16 +144,15 @@ request ID in an independently keyed device-local per-server authentication
 record. Combined catalogue compatibility writes merge those authoritative
 fields instead of copying one tab's in-memory credential snapshot.
 
-It refreshes shortly before access expiry, stops scheduling once access expiry
-reaches the renewable session's absolute expiry, and also retries one unary
-ConnectRPC request after an `Unauthenticated` response when forced renewal
-succeeds. Transient network and server failures keep the credentials and
-request ID for retry. An `invalid_grant` response is permanent: the frontend
-marks only that server as requiring authentication, keeps the user's current
-route and other connected servers intact, and exposes the existing explicit
-reconnect action. The frontend shows the same action seven days before the
-absolute expiry so the user can reconnect before an interruption. It never
-starts OAuth automatically.
+It refreshes shortly before access expiry, including when access expiry reaches
+the end of the current session window. A successful refresh in the final
+quarter advances that window without user action. The client also retries one
+unary ConnectRPC request after an `Unauthenticated` response when forced
+renewal succeeds. Transient network and server failures keep the credentials
+and request ID for retry. An `invalid_grant` response is permanent: the
+frontend marks only that server as requiring authentication, keeps the user's
+current route and other connected servers intact, and exposes the existing
+explicit reconnect action. It never starts OAuth automatically.
 
 Realtime sockets are authenticated for the lifetime of the presented access
 token. At expiry the server cancels authorized work, sends a reconnecting
@@ -193,6 +194,8 @@ sign-in and coordinated-upgrade requirement.
   the attacker also obtains the rotating refresh credential.
 - Active users renew without navigation, OAuth popups, or losing their current
   server route and realtime projection.
+- Inactive sessions expire after one complete renewal window. Normal
+  background refresh keeps an active session signed in.
 - Refresh reuse turns suspicious concurrency into whole-session revocation for
   subsequent requests and reconnects. Benign lost responses remain recoverable
   only through the exact persisted request ID; an established realtime socket
@@ -204,9 +207,11 @@ sign-in and coordinated-upgrade requirement.
   remain absent from storage, backups, logs, and audit events.
 - The frontend stores a longer-lived refresh credential in device-local
   browser storage. XSS on that client origin can therefore steal the complete
-  renewable session, not only one short-lived access token. Avoiding that risk
-  would require a different trusted-client or cookie boundary that cannot
-  serve Chatto's cross-origin multi-server frontend.
+  renewable session, not only one short-lived access token. An attacker that
+  keeps exclusive control of the rotating refresh credential can also keep the
+  session active. Avoiding that risk would require a different trusted-client
+  or cookie boundary that cannot serve Chatto's cross-origin multi-server
+  frontend.
 - Cookie sessions and bot API keys keep their distinct lifecycle models; the
   refresh grant is not a universal credential protocol.
 - Pre-renewal bearer sessions are deliberately not migrated, simplifying the

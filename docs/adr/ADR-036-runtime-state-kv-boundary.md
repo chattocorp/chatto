@@ -71,20 +71,21 @@ Current occupants include:
   carry a fixed explicit `auth.token_ttl` expiry and rotate in the final
   quarter of that lifetime. Human bearer access records use fixed
   `auth.access_token_ttl` expiry and point to a stable
-  `renewable_session.{hmac}` authority with a non-renewable explicit
-  `auth.token_ttl` maximum. Values include credential kind
+  `renewable_session.{hmac}` authority with an explicit `auth.token_ttl`
+  renewal window. Values include credential kind
   (`first_party_session` or `oauth_access_token`), presentation (`bearer` or
   `cookie`), source, safe request metadata, fresh-auth metadata, and the user
   auth generation they were issued against. User-wide cleanup scans these
   records and deletes entries whose stored user ID matches.
 - Renewable human bearer-session authorities: `renewable_session.{hmac}` with
-  user/client binding, absolute expiry, auth generation, current refresh
+  user/client binding, current window expiry, auth generation, current refresh
   generation, last refresh request ID/time, and fresh-auth metadata. Rotation
-  uses KV revision OCC across replicas. The raw refresh credential is never
-  stored; deleting this key invalidates every access generation.
-- Immutable session expiry markers: `expiry.session.{hmac}` for mutable cookie
-  records and `expiry.renewable_session.{hmac}` for mutable renewable-session
-  authorities. Markers use per-key TTL. A process-wide watcher deletes the
+  uses KV revision OCC across replicas and advances the window in its final
+  quarter. The raw refresh credential is never stored; deleting this key
+  invalidates every access generation.
+- Session expiry markers: `expiry.session.{hmac}` for mutable cookie records
+  and `expiry.renewable_session.{hmac}` for mutable renewable-session
+  authorities. Markers use per-key TTL. A process-wide watcher reconciles the
   related mutable record, and startup reconciliation repairs missing markers
   or deletes expired records. See ADR-080.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute

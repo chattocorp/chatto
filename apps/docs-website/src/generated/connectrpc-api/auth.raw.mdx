@@ -91,7 +91,7 @@ Result of creating an account from a pending provider identity.
 | `token` | `string` | Short-lived bearer access token for the new session. |
 | `refresh_token` | `string` | Rotating refresh credential for renewing the bearer session. |
 | `expires_in` | `int64` | Lifetime of the access token in seconds. |
-| `refresh_token_expires_in` | `int64` | Remaining absolute lifetime of the renewable session in seconds. |
+| `refresh_token_expires_in` | `int64` | Remaining lifetime of the current renewable-session window in seconds. A successful refresh can advance this window for an active session. |
 
 
 <a id="chatto-auth-v1-ExternalIdentityAuthService-ConfirmExternalIdentityLink"></a>

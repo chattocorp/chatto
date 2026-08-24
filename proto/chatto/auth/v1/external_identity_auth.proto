@@ -76,7 +76,8 @@ message CreateExternalIdentityAccountResponse {
   string refresh_token = 4;
   // Lifetime of the access token in seconds.
   int64 expires_in = 5;
-  // Remaining absolute lifetime of the renewable session in seconds.
+  // Remaining lifetime of the current renewable-session window in seconds.
+  // A successful refresh can advance this window for an active session.
   int64 refresh_token_expires_in = 6;
 }
 

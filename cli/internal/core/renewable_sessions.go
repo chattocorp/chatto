@@ -45,7 +45,8 @@ type BearerSessionCredentials struct {
 	AccessToken          string
 	RefreshToken         string
 	AccessTokenExpiresAt time.Time
-	SessionExpiresAt     time.Time
+	// SessionExpiresAt is the end of the current renewable-session window.
+	SessionExpiresAt time.Time
 }
 
 // RenewableSession is the latest-value authority stored in RUNTIME_STATE for
@@ -77,6 +78,12 @@ func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
 
 func (c *ChattoCore) renewableSessionTTL() time.Duration {
 	return c.authTokenTTL()
+}
+
+func (c *ChattoCore) renewableSessionWindowNeedsRenewal(session RenewableSession, now time.Time) bool {
+	ttl := c.renewableSessionTTL()
+	remaining := session.ExpiresAt.Sub(now)
+	return ttl > 0 && remaining > 0 && remaining <= ttl/4
 }
 
 func (c *ChattoCore) renewableSessionKey(sessionID string) string {
@@ -207,12 +214,13 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 	if err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("marshal renewable session: %w", err)
 	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, c.renewableSessionKey(sessionID), value, jetstream.KeyTTL(c.renewableSessionTTL())); err != nil {
-		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
-	}
-	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, c.renewableSessionKey(sessionID), session.ExpiresAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, c.renewableSessionKey(sessionID))
+	sessionKey := c.renewableSessionKey(sessionID)
+	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, sessionKey, session.ExpiresAt); err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session expiry: %w", err)
+	}
+	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(c.renewableSessionTTL())); err != nil {
+		_ = c.runtimeCredentialExpiry.deleteMarker(ctx, sessionKey)
+		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
 	if err := c.createAccessTokenRecord(ctx, sessionID, session, now); err != nil {
@@ -360,6 +368,9 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 				!session.LastRotatedAt.IsZero() &&
 				now.Sub(session.LastRotatedAt) >= 0 &&
 				now.Sub(session.LastRotatedAt) < c.bearerAccessTokenTTL() {
+				if err := c.runtimeCredentialExpiry.renewMarker(ctx, c.renewableSessionKey(sessionID), session.ExpiresAt); err != nil {
+					return BearerSessionCredentials{}, fmt.Errorf("renew renewable session expiry: %w", err)
+				}
 				if err := c.createAccessTokenRecord(ctx, sessionID, session, session.LastRotatedAt); err != nil {
 					return BearerSessionCredentials{}, err
 				}
@@ -375,6 +386,10 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		next.CurrentGeneration++
 		next.LastRefreshRequestID = requestID
 		next.LastRotatedAt = now
+		renewedWindow := c.renewableSessionWindowNeedsRenewal(next, now)
+		if renewedWindow {
+			next.ExpiresAt = now.Add(c.renewableSessionTTL())
+		}
 		value, err := json.Marshal(next)
 		if err != nil {
 			return BearerSessionCredentials{}, fmt.Errorf("marshal rotated renewable session: %w", err)
@@ -387,6 +402,11 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 				continue
 			}
 			return BearerSessionCredentials{}, fmt.Errorf("rotate renewable session: %w", err)
+		}
+		if renewedWindow {
+			if err := c.runtimeCredentialExpiry.renewMarker(ctx, c.renewableSessionKey(sessionID), next.ExpiresAt); err != nil {
+				return BearerSessionCredentials{}, fmt.Errorf("renew renewable session expiry: %w", err)
+			}
 		}
 		// Commit the rotation before publishing its access credential. If the
 		// process fails between these operations, retrying the same persisted

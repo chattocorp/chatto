@@ -1244,6 +1244,43 @@ func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
 	}
 }
 
+func TestOAuthToken_RefreshGrantRenewsActiveSessionWindow(t *testing.T) {
+	s := setupOAuthServerWithTokenTTL(t, 2*time.Second)
+	ctx := context.Background()
+	user, err := s.core.CreateUser(ctx, core.SystemActorID, "refresh-window-user", "Refresh Window User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := s.core.CreateBearerSessionWithSource(ctx, user.GetId(), "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+
+	time.Sleep(1600 * time.Millisecond)
+	body, err := json.Marshal(map[string]string{
+		"grant_type":         "refresh_token",
+		"refresh_token":      initial.RefreshToken,
+		"refresh_request_id": "automatic-window-renewal",
+	})
+	if err != nil {
+		t.Fatalf("marshal request: %v", err)
+	}
+	req := httptest.NewRequest("POST", "/oauth/token", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	response := httptest.NewRecorder()
+	s.router.ServeHTTP(response, req)
+	if response.Code != http.StatusOK {
+		t.Fatalf("refresh status = %d, body = %s", response.Code, response.Body.String())
+	}
+	var result map[string]any
+	if err := json.Unmarshal(response.Body.Bytes(), &result); err != nil {
+		t.Fatalf("decode response: %v", err)
+	}
+	if got, _ := result["refresh_token_expires_in"].(float64); got < 2 {
+		t.Fatalf("renewed session lifetime = %v, want at least 2 seconds", got)
+	}
+}
+
 func TestOAuthToken_CORS(t *testing.T) {
 	s := setupOAuthServer(t)
 

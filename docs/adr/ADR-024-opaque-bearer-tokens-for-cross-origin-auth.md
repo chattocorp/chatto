@@ -45,7 +45,8 @@ generation.
 **Token lifecycle:** ADR-079 is authoritative. Human bearer authentication now
 uses 15-minute access tokens backed by fixed-expiry `session.{hmac}` records
 and a rotating refresh credential backed by a stable
-`renewable_session.{hmac}` authority with a non-renewable maximum lifetime.
+`renewable_session.{hmac}` authority with an automatically advancing session
+window.
 Deleting that authority revokes every access generation. Existing user auth
 generation and OAuth-client policy checks remain in force. Issuance and
 explicit revocation append safe audit facts to `EVT`; raw access and refresh

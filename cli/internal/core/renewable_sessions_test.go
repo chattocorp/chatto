@@ -56,6 +56,112 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	}
 }
 
+func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	chattoCore.config.AuthTokenTTL = 4 * time.Hour
+	chattoCore.config.AuthAccessTokenTTL = time.Hour
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "renew-window-user", "Renew Window User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+
+	now := time.Now()
+	session, entry, err := chattoCore.loadRenewableSession(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("loadRenewableSession: %v", err)
+	}
+	session.ExpiresAt = now.Add(30 * time.Minute)
+	value, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("marshal near-expiry session: %v", err)
+	}
+	if _, err := chattoCore.storage.runtimeStateKV.Update(ctx, entry.Key(), value, entry.Revision()); err != nil {
+		t.Fatalf("store near-expiry session: %v", err)
+	}
+	if err := chattoCore.runtimeCredentialExpiry.renewMarker(ctx, entry.Key(), session.ExpiresAt); err != nil {
+		t.Fatalf("store near-expiry marker: %v", err)
+	}
+
+	rotated, err := chattoCore.refreshBearerSessionAt(
+		ctx,
+		initial.RefreshToken,
+		"automatic-window-renewal",
+		"",
+		now,
+	)
+	if err != nil {
+		t.Fatalf("refreshBearerSessionAt: %v", err)
+	}
+	wantExpiry := now.Add(chattoCore.renewableSessionTTL())
+	if !rotated.SessionExpiresAt.Equal(wantExpiry) {
+		t.Fatalf("renewed session expiry = %v, want %v", rotated.SessionExpiresAt, wantExpiry)
+	}
+	stored, _, err := chattoCore.loadRenewableSession(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("load renewed session: %v", err)
+	}
+	if !stored.ExpiresAt.Equal(wantExpiry) {
+		t.Fatalf("stored renewed expiry = %v, want %v", stored.ExpiresAt, wantExpiry)
+	}
+	marker, err := chattoCore.storage.runtimeStateKV.Get(
+		ctx,
+		runtimeCredentialExpiryMarkerKey(chattoCore.renewableSessionKey(sessionID)),
+	)
+	if err != nil {
+		t.Fatalf("get renewed marker: %v", err)
+	}
+	if got := string(marker.Value()); got != wantExpiry.UTC().Format(time.RFC3339Nano) {
+		t.Fatalf("renewed marker expiry = %q, want %q", got, wantExpiry.UTC().Format(time.RFC3339Nano))
+	}
+	assertRuntimeKVHasTTL(t, chattoCore, marker.Key())
+
+	recovered, err := chattoCore.refreshBearerSessionAt(
+		ctx,
+		initial.RefreshToken,
+		"automatic-window-renewal",
+		"",
+		now.Add(time.Minute),
+	)
+	if err != nil {
+		t.Fatalf("recover renewed session response: %v", err)
+	}
+	if recovered.AccessToken != rotated.AccessToken ||
+		recovered.RefreshToken != rotated.RefreshToken ||
+		!recovered.SessionExpiresAt.Equal(rotated.SessionExpiresAt) {
+		t.Fatalf("recovered credentials differ from renewed rotation")
+	}
+}
+
+func TestChattoCore_RefreshBearerSessionKeepsCurrentWindowBeforeRenewalQuarter(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "keep-window-user", "Keep Window User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "ordinary-window-refresh", "")
+	if err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	if !rotated.SessionExpiresAt.Equal(initial.SessionExpiresAt) {
+		t.Fatalf("ordinary refresh changed session expiry from %v to %v", initial.SessionExpiresAt, rotated.SessionExpiresAt)
+	}
+}
+
 func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

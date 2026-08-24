@@ -17,10 +17,7 @@
       "remote_message": "Este servidor rejeitou o login armazenado. Volte a ligá-lo para retomar atualizações e ações ao vivo.",
       "remote_action": "Reconectar",
       "remote_failed": "Falha ao iniciar a religação",
-      "sidebar_reauth": "{server} necessita de login",
-      "expiry_title": "O início de sessão em {server} expira em breve",
-      "expiry_message": "Volte a ligar agora para evitar uma interrupção quando esta sessão expirar.",
-      "expiry_action": "Voltar a ligar agora"
+      "sidebar_reauth": "{server} necessita de login"
     },
     "access_denied": {
       "title": "Acesso negado",

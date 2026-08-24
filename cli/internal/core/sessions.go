@@ -96,12 +96,12 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 	}
 
 	key := c.authTokenKey(sessionID)
-	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.cookieSessionTTL())); err != nil {
-		return "", nil, fmt.Errorf("failed to store cookie session: %w", err)
-	}
 	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, key, tokenData.ExpiresAt); err != nil {
-		_ = c.storage.runtimeStateKV.Delete(ctx, key)
 		return "", nil, fmt.Errorf("failed to store cookie session expiry: %w", err)
+	}
+	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.cookieSessionTTL())); err != nil {
+		_ = c.runtimeCredentialExpiry.deleteMarker(ctx, key)
+		return "", nil, fmt.Errorf("failed to store cookie session: %w", err)
 	}
 
 	return sessionID, c.cookieSessionRecordFromAuthTokenData(tokenData), nil

@@ -17,10 +17,7 @@
       "remote_message": "See server lükkas salvestatud sisselogimise tagasi. Reaalajas värskenduste ja toimingute jätkamiseks ühendage see uuesti.",
       "remote_action": "Ühendage uuesti",
       "remote_failed": "Ühenduse taastamine ebaõnnestus",
-      "sidebar_reauth": "{server} vajab sisselogimist",
-      "expiry_title": "Sisselogimine serverisse {server} aegub varsti",
-      "expiry_message": "Ühendage kohe uuesti, et seansi aegumine ei põhjustaks katkestust.",
-      "expiry_action": "Ühenda kohe uuesti"
+      "sidebar_reauth": "{server} vajab sisselogimist"
     },
     "access_denied": {
       "title": "Juurdepääs keelatud",

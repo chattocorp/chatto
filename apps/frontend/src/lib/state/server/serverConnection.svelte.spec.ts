@@ -291,42 +291,44 @@ describe('ServerConnection', () => {
     client.dispose();
   });
 
-  it('does not schedule renewal when access expiry reaches absolute session expiry', async () => {
+  it('renews before the current session window ends', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
-    const absoluteExpiry = 31_000;
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const currentWindowExpiry = 31_000;
     const client = new ServerConnection(
       makeConfig({
         token: 'my-token',
         serverId: 'remote-1',
-        accessTokenExpiresAt: absoluteExpiry,
-        refreshTokenExpiresAt: absoluteExpiry
+        accessTokenExpiresAt: currentWindowExpiry
       })
     );
 
-    await vi.advanceTimersByTimeAsync(60_000);
+    await vi.advanceTimersByTimeAsync(24_000);
 
-    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     client.dispose();
   });
 
-  it('cancels a pending renewal after rotation reaches absolute session expiry', async () => {
+  it('reschedules renewal when rotation reaches the current session window expiry', async () => {
     vi.useFakeTimers();
     vi.setSystemTime(1_000);
-    const absoluteExpiry = 61_000;
+    mockRenewServerAuthentication.mockResolvedValue('renewed-token');
+    const currentWindowExpiry = 61_000;
     const client = new ServerConnection(
       makeConfig({
         token: 'my-token',
         serverId: 'remote-1',
-        accessTokenExpiresAt: 31_000,
-        refreshTokenExpiresAt: absoluteExpiry
+        accessTokenExpiresAt: 31_000
       })
     );
 
-    client.updateBearerSession('rotated-token', absoluteExpiry, absoluteExpiry);
-    await vi.advanceTimersByTimeAsync(60_000);
+    client.updateBearerSession('rotated-token', currentWindowExpiry);
+    await vi.advanceTimersByTimeAsync(48_000);
 
-    expect(mockRenewServerAuthentication).not.toHaveBeenCalled();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledOnce();
+    expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     client.dispose();
   });
 });

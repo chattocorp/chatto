@@ -17,10 +17,7 @@
       "remote_message": "Ce serveur a rejeté la connexion stockée. Rebranchez-le pour reprendre les mises à jour et les actions en direct.",
       "remote_action": "Reconnecter",
       "remote_failed": "Échec du démarrage de la reconnexion",
-      "sidebar_reauth": "{server} nécessite une connexion",
-      "expiry_title": "La connexion à {server} expirera bientôt",
-      "expiry_message": "Reconnectez-vous maintenant pour éviter une interruption à l’expiration de cette session.",
-      "expiry_action": "Reconnecter maintenant"
+      "sidebar_reauth": "{server} nécessite une connexion"
     },
     "access_denied": {
       "title": "Accès refusé",

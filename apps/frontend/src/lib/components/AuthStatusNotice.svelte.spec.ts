@@ -9,8 +9,6 @@ const { mocks } = vi.hoisted(() => ({
       id: string;
       name: string;
       reauthRequiredAt: number | null;
-      refreshToken?: string | null;
-      refreshTokenExpiresAt?: number | null;
     }>,
     beginOriginReauthentication: vi.fn(),
     startRemoteReauthentication: vi.fn(() => Promise.resolve()),
@@ -84,46 +82,5 @@ describe('AuthStatusNotice', () => {
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(remote);
     });
-  });
-
-  it('warns before the active renewable session expires', async () => {
-    mocks.activeServerId = 'remote';
-    const remote = {
-      id: 'remote',
-      name: 'Remote',
-      reauthRequiredAt: null,
-      refreshToken: 'refresh-token',
-      refreshTokenExpiresAt: Date.now() + 6 * 24 * 60 * 60 * 1000
-    };
-    mocks.servers = [{ id: 'origin', name: 'Home', reauthRequiredAt: null }, remote];
-
-    const { container } = render(AuthStatusNotice);
-
-    expect(container.textContent).toContain('Remote sign-in expires soon');
-    const button = container.querySelector<HTMLButtonElement>('button');
-    expect(button?.textContent).toContain('Reconnect now');
-
-    button?.click();
-    await vi.waitFor(() => {
-      expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(remote);
-    });
-  });
-
-  it('does not warn before the seven-day renewal window', () => {
-    mocks.activeServerId = 'remote';
-    mocks.servers = [
-      { id: 'origin', name: 'Home', reauthRequiredAt: null },
-      {
-        id: 'remote',
-        name: 'Remote',
-        reauthRequiredAt: null,
-        refreshToken: 'refresh-token',
-        refreshTokenExpiresAt: Date.now() + 8 * 24 * 60 * 60 * 1000
-      }
-    ];
-
-    const { container } = render(AuthStatusNotice);
-
-    expect(container.textContent.trim()).toBe('');
   });
 });

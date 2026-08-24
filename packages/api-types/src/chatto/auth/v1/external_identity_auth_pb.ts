@@ -329,7 +329,8 @@ export class CreateExternalIdentityAccountResponse extends Message<CreateExterna
   expiresIn = protoInt64.zero;
 
   /**
-   * Remaining absolute lifetime of the renewable session in seconds.
+   * Remaining lifetime of the current renewable-session window in seconds.
+   * A successful refresh can advance this window for an active session.
    *
    * @generated from field: int64 refresh_token_expires_in = 6;
    */

@@ -16,13 +16,15 @@ const (
 	runtimeCredentialExpiryPrefix        = "expiry."
 	cookieSessionExpiryMarkerFilter      = "expiry.session.*"
 	renewableSessionExpiryMarkerFilter   = "expiry.renewable_session.*"
+	runtimeCredentialExpiryCleanupDelay  = time.Second
 	runtimeCredentialExpiryRetryInterval = time.Second
 )
 
 // runtimeCredentialExpiryModel keeps physical KV cleanup separate from the
-// security expiry stored in each mutable session record. Expiry markers are
-// immutable: Chatto creates each marker once with KeyTTL and never tries to
-// mutate or renew a JetStream message TTL.
+// security expiry stored in each mutable session record. Chatto creates each
+// marker with KeyTTL through the public KV API. Cookie markers remain fixed;
+// renewable-session markers are deleted and recreated when their session
+// window advances.
 type runtimeCredentialExpiryModel struct {
 	core   *ChattoCore
 	logger *log.Logger
@@ -57,16 +59,38 @@ func (m *runtimeCredentialExpiryModel) ensureMarker(ctx context.Context, dataKey
 		ctx,
 		runtimeCredentialExpiryMarkerKey(dataKey),
 		value,
-		jetstream.KeyTTL(remaining),
+		// Cleanup is deliberately later than security expiry. JetStream can
+		// publish a TTL deletion a fraction before the process clock reaches
+		// the stored deadline; the delay prevents physical cleanup from ending
+		// an otherwise valid request early.
+		jetstream.KeyTTL(remaining+runtimeCredentialExpiryCleanupDelay),
 	); err != nil && !errors.Is(err, jetstream.ErrKeyExists) {
 		return fmt.Errorf("create runtime credential expiry marker: %w", err)
 	}
 	return nil
 }
 
-// Run watches immutable marker expiry and reconciles records that were created
-// by an older binary or expired while every Chatto process was stopped. The
-// explicit record expiry remains authoritative if cleanup is delayed.
+func (m *runtimeCredentialExpiryModel) deleteMarker(ctx context.Context, dataKey string) error {
+	err := m.core.storage.runtimeStateKV.Delete(ctx, runtimeCredentialExpiryMarkerKey(dataKey))
+	if err != nil && !errors.Is(err, jetstream.ErrKeyNotFound) && !errors.Is(err, jetstream.ErrKeyDeleted) {
+		return fmt.Errorf("delete runtime credential expiry marker: %w", err)
+	}
+	return nil
+}
+
+// renewMarker replaces a marker through ordinary KV operations. Watchers
+// reconcile the related record when they observe the delete, so a concurrent
+// repair and this create are both safe.
+func (m *runtimeCredentialExpiryModel) renewMarker(ctx context.Context, dataKey string, expiresAt time.Time) error {
+	if err := m.deleteMarker(ctx, dataKey); err != nil {
+		return err
+	}
+	return m.ensureMarker(ctx, dataKey, expiresAt)
+}
+
+// Run watches marker expiry and reconciles records that expired while every
+// Chatto process was stopped. The explicit record expiry remains authoritative
+// if cleanup is delayed.
 func (m *runtimeCredentialExpiryModel) Run(ctx context.Context) error {
 	for {
 		if err := m.watch(ctx); err != nil {
@@ -130,12 +154,43 @@ func (m *runtimeCredentialExpiryModel) watch(ctx context.Context) error {
 			if !ok {
 				continue
 			}
-			if err := m.core.storage.runtimeStateKV.Delete(ctx, dataKey); err != nil &&
-				!errors.Is(err, jetstream.ErrKeyNotFound) &&
-				!errors.Is(err, jetstream.ErrKeyDeleted) {
-				m.logger.Warn("Failed to remove expired runtime credential", "key", dataKey, "error", err)
+			if err := m.reconcileDataKey(ctx, dataKey); err != nil {
+				m.logger.Warn("Failed to reconcile runtime credential expiry", "key", dataKey, "error", err)
 			}
 		}
+	}
+}
+
+func (m *runtimeCredentialExpiryModel) reconcileDataKey(ctx context.Context, dataKey string) error {
+	entry, err := m.core.storage.runtimeStateKV.Get(ctx, dataKey)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return nil
+		}
+		return fmt.Errorf("get runtime credential %s: %w", dataKey, err)
+	}
+
+	switch {
+	case strings.HasPrefix(dataKey, authTokenKeyPrefix):
+		var token AuthTokenData
+		if err := json.Unmarshal(entry.Value(), &token); err != nil ||
+			token.presentationOrDefault() != AuthTokenPresentationCookie ||
+			token.CreatedAt.IsZero() {
+			return nil
+		}
+		expiresAt := token.ExpiresAt
+		if expiresAt.IsZero() {
+			expiresAt = token.CreatedAt.Add(m.core.cookieSessionTTL())
+		}
+		return m.reconcileEntry(ctx, entry, expiresAt)
+	case strings.HasPrefix(dataKey, renewableSessionKeyPrefix):
+		var session RenewableSession
+		if err := json.Unmarshal(entry.Value(), &session); err != nil || session.ExpiresAt.IsZero() {
+			return nil
+		}
+		return m.reconcileEntry(ctx, entry, session.ExpiresAt)
+	default:
+		return nil
 	}
 }
 

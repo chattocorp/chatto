@@ -17,10 +17,7 @@
       "remote_message": "此伺服器拒絕已儲存的登入資訊。請重新連線，以恢復即時更新及操作。",
       "remote_action": "重新連線",
       "remote_failed": "無法開始重新連線",
-      "sidebar_reauth": "{server} 需要登入",
-      "expiry_title": "登入 {server} 的工作階段即將到期",
-      "expiry_message": "請立即重新連線，以免工作階段到期時服務中斷。",
-      "expiry_action": "立即重新連線"
+      "sidebar_reauth": "{server} 需要登入"
     },
     "access_denied": {
       "title": "拒絕存取",

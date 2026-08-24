@@ -17,10 +17,7 @@
       "remote_message": "Dieser Server hat die gespeicherte Anmeldung abgelehnt. Verbinde ihn erneut, um Live-Aktualisierungen und Aktionen fortzusetzen.",
       "remote_action": "Neu verbinden",
       "remote_failed": "Neuverbinden konnte nicht gestartet werden",
-      "sidebar_reauth": "{server} benötigt eine Anmeldung",
-      "expiry_title": "Die Anmeldung bei {server} läuft bald ab",
-      "expiry_message": "Verbinde dich jetzt neu, damit die Sitzung nicht unterbrochen wird.",
-      "expiry_action": "Jetzt neu verbinden"
+      "sidebar_reauth": "{server} benötigt eine Anmeldung"
     },
     "access_denied": {
       "title": "Zugriff verweigert",

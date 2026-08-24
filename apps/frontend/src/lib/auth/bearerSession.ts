@@ -5,6 +5,7 @@ export type NewBearerSession = {
   token: string;
   refreshToken: string;
   expiresIn: number;
+  /** Remaining lifetime of the current renewable-session window. */
   refreshTokenExpiresIn: number;
   oauthClientId: string | null;
 };

@@ -365,7 +365,8 @@ type CreateExternalIdentityAccountResponse struct {
 	RefreshToken string `protobuf:"bytes,4,opt,name=refresh_token,json=refreshToken,proto3" json:"refresh_token,omitempty"`
 	// Lifetime of the access token in seconds.
 	ExpiresIn int64 `protobuf:"varint,5,opt,name=expires_in,json=expiresIn,proto3" json:"expires_in,omitempty"`
-	// Remaining absolute lifetime of the renewable session in seconds.
+	// Remaining lifetime of the current renewable-session window in seconds.
+	// A successful refresh can advance this window for an active session.
 	RefreshTokenExpiresIn int64 `protobuf:"varint,6,opt,name=refresh_token_expires_in,json=refreshTokenExpiresIn,proto3" json:"refresh_token_expires_in,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache

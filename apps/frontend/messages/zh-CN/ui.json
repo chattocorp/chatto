@@ -17,10 +17,7 @@
       "remote_message": "此服务器拒绝了已保存的登录信息。请重新连接，以恢复实时更新和操作。",
       "remote_action": "重新连接",
       "remote_failed": "无法开始重新连接",
-      "sidebar_reauth": "{server} 需要登录",
-      "expiry_title": "登录 {server} 的会话即将过期",
-      "expiry_message": "请立即重新连接，以免会话过期时服务中断。",
-      "expiry_action": "立即重新连接"
+      "sidebar_reauth": "{server} 需要登录"
     },
     "access_denied": {
       "title": "访问被拒绝",

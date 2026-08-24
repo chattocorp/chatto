@@ -84,12 +84,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Bearer sessions renew without another login">
-    Human clients use short-lived access tokens and rotating refresh credentials with a fixed
-    maximum session lifetime. The bundled frontend renews in the background and reconnects
-    realtime in place without reopening OAuth or losing the current route. It warns before the
-    fixed maximum requires a deliberate reconnect. The bundled same-origin client prefers its
-    safer HttpOnly cookie and persists the direct-login bearer only when a cookie probe cannot
-    authenticate, removing that fallback after a later successful cookie request.
+    Human clients use short-lived access tokens and rotating refresh credentials. The bundled
+    frontend renews the session window in the background and reconnects realtime in place
+    without reopening OAuth, showing a manual warning, or losing the current route. The bundled
+    same-origin client prefers its safer HttpOnly cookie and persists the direct-login bearer
+    only when a cookie probe cannot authenticate, removing that fallback after a later
+    successful cookie request.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Faster, leaner restarts">

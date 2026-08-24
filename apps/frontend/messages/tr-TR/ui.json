@@ -17,10 +17,7 @@
       "remote_message": "Bu sunucu, depolanan oturum açma işlemini reddetti. Canlı güncellemeleri ve eylemleri sürdürmek için yeniden bağlayın.",
       "remote_action": "Yeniden bağlan",
       "remote_failed": "Yeniden bağlanma başlatılamadı",
-      "sidebar_reauth": "{server} oturum açılması gerekiyor",
-      "expiry_title": "{server} oturumunun süresi yakında dolacak",
-      "expiry_message": "Oturum sona erdiğinde kesinti yaşamamak için şimdi yeniden bağlanın.",
-      "expiry_action": "Şimdi yeniden bağlan"
+      "sidebar_reauth": "{server} oturum açılması gerekiyor"
     },
     "access_denied": {
       "title": "Erişim Reddedildi",

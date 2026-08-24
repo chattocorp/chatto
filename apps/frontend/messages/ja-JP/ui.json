@@ -17,10 +17,7 @@
       "remote_message": "このサーバーは保存されたサインインを拒否しました。再接続してライブアップデートとアクションを再開します。",
       "remote_action": "再接続します",
       "remote_failed": "再接続の開始に失敗しました",
-      "sidebar_reauth": "{server} にはサインインが必要です",
-      "expiry_title": "{server} へのサインインはまもなく期限切れになります",
-      "expiry_message": "セッションの期限切れによる中断を避けるため、今すぐ再接続してください。",
-      "expiry_action": "今すぐ再接続"
+      "sidebar_reauth": "{server} にはサインインが必要です"
     },
     "access_denied": {
       "title": "アクセスが拒否されました",

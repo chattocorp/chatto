@@ -237,6 +237,32 @@ func TestRuntimeCredentialExpiryMarkerRemovesMutableCookieSession(t *testing.T) 
 	}
 }
 
+func TestRuntimeCredentialExpiryMarkerRenewalKeepsLiveRecord(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "marker-renewal-user", "Marker Renewal User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, record, err := core.CreateCookieSession(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+	key := core.authTokenKey(sessionID)
+	if err := core.runtimeCredentialExpiry.renewMarker(ctx, key, record.GetExpiresAt().AsTime()); err != nil {
+		t.Fatalf("renewMarker: %v", err)
+	}
+
+	deadline := time.Now().Add(500 * time.Millisecond)
+	for time.Now().Before(deadline) {
+		if _, err := core.ValidateCookieCredential(ctx, sessionID); err != nil {
+			t.Fatalf("renewed marker removed live record: %v", err)
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	assertRuntimeKVHasTTL(t, core, runtimeCredentialExpiryMarkerKey(key))
+}
+
 func TestChattoCore_CreateCookieSessionRejectsEmptyUser(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
