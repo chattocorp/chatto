@@ -45,7 +45,6 @@ func TestChattoCore_CreateAndValidateCookieSession(t *testing.T) {
 
 	key := core.authTokenKey(sessionID)
 	assertRuntimeKVHasTTL(t, core, key)
-	assertRuntimeKVHasTTL(t, core, runtimeCredentialExpiryMarkerKey(key))
 	assertRawRuntimeTokenKeyAbsent(t, core, authTokenKeyPrefix+sessionID)
 
 	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
@@ -153,69 +152,30 @@ func TestChattoCore_CookieSessionExplicitExpiryIsAuthoritative(t *testing.T) {
 	}
 }
 
-func TestRuntimeCredentialExpiryReconcileRepairsAndRemovesRecords(t *testing.T) {
-	core, _ := newTestCore(t)
-	ctx := testContext(t)
-	now := time.Now()
-
-	futureKey := core.authTokenKey("future-cookie")
-	future, err := json.Marshal(AuthTokenData{
-		UserID:       "future-user",
-		Kind:         AuthTokenKindFirstPartySession,
-		Presentation: AuthTokenPresentationCookie,
-		CreatedAt:    now,
-		ExpiresAt:    now.Add(time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("marshal future cookie session: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Create(ctx, futureKey, future); err != nil {
-		t.Fatalf("create future cookie session: %v", err)
-	}
-
-	expiredKey := core.renewableSessionKey("expired-renewable")
-	expired, err := json.Marshal(RenewableSession{
-		UserID:    "expired-user",
-		Kind:      AuthTokenKindFirstPartySession,
-		CreatedAt: now.Add(-2 * time.Hour),
-		ExpiresAt: now.Add(-time.Hour),
-	})
-	if err != nil {
-		t.Fatalf("marshal expired renewable session: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Create(ctx, expiredKey, expired); err != nil {
-		t.Fatalf("create expired renewable session: %v", err)
-	}
-
-	if err := core.runtimeCredentialExpiry.reconcile(ctx); err != nil {
-		t.Fatalf("reconcile: %v", err)
-	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, futureKey); err != nil {
-		t.Fatalf("future cookie session removed: %v", err)
-	}
-	assertRuntimeKVHasTTL(t, core, runtimeCredentialExpiryMarkerKey(futureKey))
-	if _, err := core.storage.runtimeStateKV.Get(ctx, expiredKey); !errors.Is(err, jetstream.ErrKeyNotFound) {
-		t.Fatalf("expired renewable session lookup error = %v, want ErrKeyNotFound", err)
-	}
-}
-
-func TestRuntimeCredentialExpiryMarkerRemovesMutableCookieSession(t *testing.T) {
+func TestMutableCookieSessionRetainsPhysicalTTL(t *testing.T) {
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 2 * time.Second
 	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "cookie-marker-user", "Cookie Marker User", "password123")
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-ttl-user", "Cookie TTL User", "password123")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	sessionID, _, err := core.CreateCookieSession(ctx, user.Id, "password_login")
+	sessionID, created, err := core.CreateCookieSession(ctx, user.Id, "password_login")
 	if err != nil {
 		t.Fatalf("CreateCookieSession: %v", err)
 	}
 	if err := core.MarkCookieSessionFresh(ctx, sessionID, "password", "current_password"); err != nil {
 		t.Fatalf("MarkCookieSessionFresh: %v", err)
 	}
+	updated, err := core.ValidateCookieCredential(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+	if !updated.GetExpiresAt().AsTime().Equal(created.GetExpiresAt().AsTime()) {
+		t.Fatalf("fresh-auth update changed expiry from %v to %v", created.GetExpiresAt(), updated.GetExpiresAt())
+	}
 	key := core.authTokenKey(sessionID)
-	assertRuntimeKVHasNoTTL(t, core, key)
+	assertRuntimeKVHasTTL(t, core, key)
 
 	deadline := time.NewTimer(5 * time.Second)
 	defer deadline.Stop()
@@ -224,7 +184,7 @@ func TestRuntimeCredentialExpiryMarkerRemovesMutableCookieSession(t *testing.T) 
 	for {
 		select {
 		case <-deadline.C:
-			t.Fatal("expiry marker did not remove mutable cookie session")
+			t.Fatal("mutable cookie session did not expire")
 		case <-ticker.C:
 			_, err := core.storage.runtimeStateKV.Get(context.Background(), key)
 			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
@@ -235,32 +195,6 @@ func TestRuntimeCredentialExpiryMarkerRemovesMutableCookieSession(t *testing.T) 
 			}
 		}
 	}
-}
-
-func TestRuntimeCredentialExpiryMarkerRenewalKeepsLiveRecord(t *testing.T) {
-	core, _ := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := core.CreateUser(ctx, SystemActorID, "marker-renewal-user", "Marker Renewal User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	sessionID, record, err := core.CreateCookieSession(ctx, user.Id, "password_login")
-	if err != nil {
-		t.Fatalf("CreateCookieSession: %v", err)
-	}
-	key := core.authTokenKey(sessionID)
-	if err := core.runtimeCredentialExpiry.renewMarker(ctx, key, record.GetExpiresAt().AsTime()); err != nil {
-		t.Fatalf("renewMarker: %v", err)
-	}
-
-	deadline := time.Now().Add(500 * time.Millisecond)
-	for time.Now().Before(deadline) {
-		if _, err := core.ValidateCookieCredential(ctx, sessionID); err != nil {
-			t.Fatalf("renewed marker removed live record: %v", err)
-		}
-		time.Sleep(20 * time.Millisecond)
-	}
-	assertRuntimeKVHasTTL(t, core, runtimeCredentialExpiryMarkerKey(key))
 }
 
 func TestChattoCore_CreateCookieSessionRejectsEmptyUser(t *testing.T) {
@@ -332,9 +266,6 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	if err := core.RevokeCookieSession(ctx, session1); err != nil {
 		t.Fatalf("RevokeCookieSession: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session1))); !isRuntimeStateKeyAbsent(err) {
-		t.Fatalf("revoked session marker lookup error = %v, want absent key", err)
-	}
 	if _, err := core.ValidateCookieCredential(ctx, session1); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("Validate revoked session err = %v, want ErrCookieSessionNotFound", err)
 	}
@@ -349,9 +280,6 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	); err != nil || !existed || userID != user.Id {
 		t.Fatalf("RevokePresentedRuntimeCredentialWithReason = %q, %t, %v", userID, existed, err)
 	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session2))); !isRuntimeStateKeyAbsent(err) {
-		t.Fatalf("logged-out session marker lookup error = %v, want absent key", err)
-	}
 	if _, err := core.ValidateCookieCredential(ctx, session3); err != nil {
 		t.Fatalf("third session should remain valid: %v", err)
 	}
@@ -362,9 +290,6 @@ func TestChattoCore_CookieSessionRevocation(t *testing.T) {
 	}
 	if deleted != 1 {
 		t.Fatalf("deleted = %d, want 1", deleted)
-	}
-	if _, err := core.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(core.authTokenKey(session3))); !isRuntimeStateKeyAbsent(err) {
-		t.Fatalf("user-revoked session marker lookup error = %v, want absent key", err)
 	}
 	if _, err := core.ValidateCookieCredential(ctx, session3); !errors.Is(err, ErrCookieSessionNotFound) {
 		t.Fatalf("Validate user-revoked session err = %v, want ErrCookieSessionNotFound", err)

@@ -8,7 +8,7 @@ Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md), and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
-[ADR-080](../adr/ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md).
+[ADR-080](../adr/ADR-080-explicit-expiry-for-mutable-runtime-credentials.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)
@@ -20,7 +20,7 @@ inventories.
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
 | Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded event log for 90-day notification signals, reads, removals, and alert outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
-| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, mutable cookie and renewable-session authorities with expiry markers, workflow credentials, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
+| KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, mutable cookie and renewable-session authorities with explicit expiry and per-message TTL, workflow credentials, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
 | Object store | `SERVER_ASSETS`     | File    | Yes    | Default/legacy NATS-backed persisted asset binaries                         |

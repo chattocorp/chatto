@@ -4,7 +4,7 @@
 
 **Updated:** 2026-08-23
 
-**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
+**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
 
 ## Context
 
@@ -83,11 +83,10 @@ Current occupants include:
   uses KV revision OCC across replicas and advances the window in its final
   quarter. The raw refresh credential is never stored; deleting this key
   invalidates every access generation.
-- Session expiry markers: `expiry.session.{hmac}` for mutable cookie records
-  and `expiry.renewable_session.{hmac}` for mutable renewable-session
-  authorities. Markers use per-key TTL. A process-wide watcher reconciles the
-  related mutable record, and startup reconciliation repairs missing markers
-  or deletes expired records. See ADR-080.
+- Mutable human sessions: `session.{hmac}` cookie records and
+  `renewable_session.{hmac}` bearer authorities store explicit expiry. Each
+  changed revision uses revision-checked JetStream publish with a per-message
+  TTL equal to its remaining explicit lifetime. See ADR-080.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -153,9 +152,8 @@ from exact unread notification occurrences instead of preserving
   tokens, because their keys are HMAC-derived from `[core].secret_key`.
 - Per-key TTL becomes available for tokens and similar runtime values without
   splitting each feature into its own bucket.
-- Mutable human-session records use ordinary KV operations. Their immutable
-  expiry markers use per-key TTL, and explicit record expiry remains the
-  authorization boundary.
+- Mutable human-session revisions use per-message TTL. Explicit record expiry
+  remains the authorization boundary.
 - Security-sensitive exceptions remain explicit. In particular, KMS KEKs in
   `ENCRYPTION_KEYS` are not folded into this bucket; only app-owned wrapped DEK
   records live in `RUNTIME_STATE`.
@@ -175,7 +173,7 @@ from exact unread notification occurrences instead of preserving
 
 - [ADR-033](ADR-033-event-sourced-state-with-projections.md) — defines the
   event-sourced content/domain boundary.
-- [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md)
+- [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
   — separates mutable human-session state from immutable cleanup deadlines.
 - [ADR-028](ADR-028-event-id-keyed-read-state.md) — defines the read-cursor
   shape that now lives in `RUNTIME_STATE`.

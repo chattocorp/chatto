@@ -91,27 +91,6 @@ func assertRuntimeKVHasTTL(t *testing.T, core *ChattoCore, key string) {
 	}
 }
 
-func assertRuntimeKVHasNoTTL(t *testing.T, core *ChattoCore, key string) {
-	t.Helper()
-	ctx := testContext(t)
-
-	entry, err := core.storage.runtimeStateKV.Get(ctx, key)
-	if err != nil {
-		t.Fatalf("get runtime state key %s: %v", key, err)
-	}
-	stream, err := core.js.Stream(ctx, "KV_RUNTIME_STATE")
-	if err != nil {
-		t.Fatalf("get RUNTIME_STATE stream: %v", err)
-	}
-	msg, err := stream.GetMsg(ctx, entry.Revision())
-	if err != nil {
-		t.Fatalf("get raw runtime state message for %s: %v", key, err)
-	}
-	if msg.Header.Get("Nats-TTL") != "" {
-		t.Fatalf("expected %s to use ordinary KV storage, got headers: %v", key, msg.Header)
-	}
-}
-
 func assertRawRuntimeTokenKeyAbsent(t *testing.T, core *ChattoCore, rawKey string) {
 	t.Helper()
 	ctx := testContext(t)

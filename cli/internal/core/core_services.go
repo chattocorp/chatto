@@ -115,10 +115,6 @@ func initializeCoreServices(
 		core:  core,
 		index: NewReadStateIndex(infra.storage.runtimeStateKV, logger.WithPrefix("core.ReadStateIndex")),
 	}
-	core.runtimeCredentialExpiry = newRuntimeCredentialExpiryModel(
-		core,
-		logger.WithPrefix("core.RuntimeCredentialExpiry"),
-	)
 	core.notificationBoundaries = newNotificationBoundaryIndex(
 		infra.storage.runtimeStateKV,
 		logger.WithPrefix("core.NotificationBoundaryIndex"),

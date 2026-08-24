@@ -100,7 +100,7 @@ func (m *NotificationOccurrenceModel) recordNotificationReadBoundary(ctx context
 			}
 			return next, nil
 		}
-		if revision, err := m.core.updateRuntimeStateTokenTTL(ctx, key, encodeNotificationReadBoundary(next), current.Revision(), notificationTTL); err == nil {
+		if revision, err := m.core.updateRuntimeStateWithTTL(ctx, key, encodeNotificationReadBoundary(next), current.Revision(), notificationTTL); err == nil {
 			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 				return notificationReadBoundary{}, err
 			}

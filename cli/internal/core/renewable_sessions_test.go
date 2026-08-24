@@ -27,7 +27,6 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	}
 	sessionKey := first.renewableSessionKey(sessionID)
 	assertRuntimeKVHasTTL(t, first, sessionKey)
-	assertRuntimeKVHasTTL(t, first, runtimeCredentialExpiryMarkerKey(sessionKey))
 
 	second, err := NewChattoCore(ctx, nc, config.CoreConfig{
 		SecretKey: "test-core-secret",
@@ -43,7 +42,7 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
 	}
-	assertRuntimeKVHasNoTTL(t, first, sessionKey)
+	assertRuntimeKVHasTTL(t, first, sessionKey)
 	recovered, err := second.RefreshBearerSession(ctx, initial.RefreshToken, requestID, "")
 	if err != nil {
 		t.Fatalf("same-request recovery on replica: %v", err)
@@ -57,8 +56,8 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	if err := first.RevokeRefreshTokenWithReason(ctx, recovered.RefreshToken, "test"); err != nil {
 		t.Fatalf("RevokeRefreshTokenWithReason: %v", err)
 	}
-	if _, err := first.storage.runtimeStateKV.Get(ctx, runtimeCredentialExpiryMarkerKey(sessionKey)); !isRuntimeStateKeyAbsent(err) {
-		t.Fatalf("revoked renewable session marker lookup error = %v, want absent key", err)
+	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("revoked renewable session lookup error = %v, want absent key", err)
 	}
 }
 
@@ -90,11 +89,8 @@ func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) 
 	if err != nil {
 		t.Fatalf("marshal near-expiry session: %v", err)
 	}
-	if _, err := chattoCore.storage.runtimeStateKV.Update(ctx, entry.Key(), value, entry.Revision()); err != nil {
+	if _, err := chattoCore.updateRuntimeStateUntil(ctx, entry.Key(), value, entry.Revision(), session.ExpiresAt, now); err != nil {
 		t.Fatalf("store near-expiry session: %v", err)
-	}
-	if err := chattoCore.runtimeCredentialExpiry.renewMarker(ctx, entry.Key(), session.ExpiresAt); err != nil {
-		t.Fatalf("store near-expiry marker: %v", err)
 	}
 
 	rotated, err := chattoCore.refreshBearerSessionAt(
@@ -118,17 +114,7 @@ func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) 
 	if !stored.ExpiresAt.Equal(wantExpiry) {
 		t.Fatalf("stored renewed expiry = %v, want %v", stored.ExpiresAt, wantExpiry)
 	}
-	marker, err := chattoCore.storage.runtimeStateKV.Get(
-		ctx,
-		runtimeCredentialExpiryMarkerKey(chattoCore.renewableSessionKey(sessionID)),
-	)
-	if err != nil {
-		t.Fatalf("get renewed marker: %v", err)
-	}
-	if got := string(marker.Value()); got != wantExpiry.UTC().Format(time.RFC3339Nano) {
-		t.Fatalf("renewed marker expiry = %q, want %q", got, wantExpiry.UTC().Format(time.RFC3339Nano))
-	}
-	assertRuntimeKVHasTTL(t, chattoCore, marker.Key())
+	assertRuntimeKVHasTTL(t, chattoCore, chattoCore.renewableSessionKey(sessionID))
 
 	recovered, err := chattoCore.refreshBearerSessionAt(
 		ctx,
@@ -196,11 +182,13 @@ func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *tes
 	if err != nil {
 		t.Fatalf("marshal committed session: %v", err)
 	}
-	if _, err := chattoCore.storage.runtimeStateKV.Update(
+	if _, err := chattoCore.updateRuntimeStateUntil(
 		ctx,
 		chattoCore.renewableSessionKey(sessionID),
 		value,
 		entry.Revision(),
+		session.ExpiresAt,
+		now,
 	); err != nil {
 		t.Fatalf("commit rotation without access record: %v", err)
 	}

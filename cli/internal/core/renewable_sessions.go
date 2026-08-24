@@ -215,21 +215,17 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 		return BearerSessionCredentials{}, fmt.Errorf("marshal renewable session: %w", err)
 	}
 	sessionKey := c.renewableSessionKey(sessionID)
-	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, sessionKey, session.ExpiresAt); err != nil {
-		return BearerSessionCredentials{}, fmt.Errorf("store renewable session expiry: %w", err)
-	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(c.renewableSessionTTL())); err != nil {
-		_ = c.runtimeCredentialExpiry.deleteMarker(ctx, sessionKey)
+	if _, err := c.storage.runtimeStateKV.Create(ctx, sessionKey, value, jetstream.KeyTTL(session.ExpiresAt.Sub(now))); err != nil {
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
 	if err := c.createAccessTokenRecord(ctx, sessionID, session, now); err != nil {
-		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, sessionKey)
+		_ = c.deleteRuntimeStateKey(ctx, sessionKey)
 		return BearerSessionCredentials{}, err
 	}
 	if err := c.recordBearerTokenIssued(ctx, userID, credentials.AccessTokenExpiresAt, source); err != nil {
 		_ = c.storage.runtimeStateKV.Delete(ctx, c.authTokenKey(credentials.AccessToken))
-		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, sessionKey)
+		_ = c.deleteRuntimeStateKey(ctx, sessionKey)
 		return BearerSessionCredentials{}, err
 	}
 	return credentials, nil
@@ -301,7 +297,7 @@ func (c *ChattoCore) loadRenewableSession(ctx context.Context, sessionID string)
 	}
 	var session RenewableSession
 	if err := json.Unmarshal(entry.Value(), &session); err != nil || session.UserID == "" || session.ExpiresAt.IsZero() {
-		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID))
+		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID))
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	return session, entry, nil
@@ -313,13 +309,13 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 		return RenewableSession{}, nil, err
 	}
 	if !now.Before(session.ExpiresAt) {
-		_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+		_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 		return RenewableSession{}, nil, ErrRefreshTokenNotFound
 	}
 	if session.Kind == AuthTokenKindOAuthAccessToken {
 		if err := c.RequireOAuthClientAllowed(ctx, session.ClientID); err != nil {
 			if errors.Is(err, ErrOAuthClientBlocked) {
-				_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+				_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 				return RenewableSession{}, nil, ErrRefreshTokenNotFound
 			}
 			return RenewableSession{}, nil, err
@@ -329,7 +325,7 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 		UserID: session.UserID, CreatedAt: session.CreatedAt, AuthGeneration: session.AuthGeneration,
 	}); err != nil {
 		if errors.Is(err, ErrAuthenticationRevoked) {
-			_ = c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
+			_ = c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID), jetstream.LastRevision(entry.Revision()))
 			return RenewableSession{}, nil, ErrRefreshTokenNotFound
 		}
 		return RenewableSession{}, nil, err
@@ -368,9 +364,6 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 				!session.LastRotatedAt.IsZero() &&
 				now.Sub(session.LastRotatedAt) >= 0 &&
 				now.Sub(session.LastRotatedAt) < c.bearerAccessTokenTTL() {
-				if err := c.runtimeCredentialExpiry.renewMarker(ctx, c.renewableSessionKey(sessionID), session.ExpiresAt); err != nil {
-					return BearerSessionCredentials{}, fmt.Errorf("renew renewable session expiry: %w", err)
-				}
 				if err := c.createAccessTokenRecord(ctx, sessionID, session, session.LastRotatedAt); err != nil {
 					return BearerSessionCredentials{}, err
 				}
@@ -397,16 +390,11 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		if !now.Before(next.ExpiresAt) {
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}
-		if _, err := c.storage.runtimeStateKV.Update(ctx, c.renewableSessionKey(sessionID), value, entry.Revision()); err != nil {
+		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), next.ExpiresAt, now); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}
 			return BearerSessionCredentials{}, fmt.Errorf("rotate renewable session: %w", err)
-		}
-		if renewedWindow {
-			if err := c.runtimeCredentialExpiry.renewMarker(ctx, c.renewableSessionKey(sessionID), next.ExpiresAt); err != nil {
-				return BearerSessionCredentials{}, fmt.Errorf("renew renewable session expiry: %w", err)
-			}
 		}
 		// Commit the rotation before publishing its access credential. If the
 		// process fails between these operations, retrying the same persisted
@@ -442,7 +430,7 @@ func (c *ChattoCore) revokeRenewableSession(ctx context.Context, sessionID, reas
 	if err := c.recordBearerTokenRevoked(ctx, session.UserID, reason); err != nil {
 		return err
 	}
-	if err := c.runtimeCredentialExpiry.deleteRecord(ctx, c.renewableSessionKey(sessionID)); err != nil {
+	if err := c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID)); err != nil {
 		return fmt.Errorf("revoke renewable session: %w", err)
 	}
 	return nil
@@ -501,7 +489,7 @@ func (c *ChattoCore) markRenewableSessionFresh(ctx context.Context, sessionID, m
 		if !now.Before(session.ExpiresAt) {
 			return ErrAuthTokenNotFound
 		}
-		if _, err := c.storage.runtimeStateKV.Update(ctx, c.renewableSessionKey(sessionID), value, entry.Revision()); err != nil {
+		if _, err := c.updateRuntimeStateUntil(ctx, c.renewableSessionKey(sessionID), value, entry.Revision(), session.ExpiresAt, now); err != nil {
 			if isRuntimeStateRevisionConflict(err) {
 				continue
 			}

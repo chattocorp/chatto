@@ -4,7 +4,7 @@
 
 **Status:** Accepted
 
-**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
+**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
 
 **Partially supersedes:** [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md) and [ADR-036](ADR-036-runtime-state-kv-boundary.md) for human bearer-credential lifetime and renewal. Their opaque-token and runtime-state decisions remain current.
 
@@ -62,8 +62,8 @@ window is clamped to its remaining lifetime.
   credential kind and source, safe audit request metadata, creation and
   current window expiry, user auth generation, current rotation generation,
   previous refresh request ID and rotation time, and authoritative fresh-auth
-  metadata. Ordinary KV updates preserve or advance its explicit expiry. A
-  separate expiry marker owns physical cleanup.
+  metadata. Each revision preserves or advances its explicit expiry and sets
+  its per-message TTL to the remaining lifetime.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
   generation, and the established typed-credential metadata. Fresh-auth fields
@@ -104,11 +104,10 @@ until a valid response has been persisted. The server rotates as follows:
    current window expiry, OAuth-client policy, and user auth generation.
 2. Increment the generation and record the request ID and rotation time by
    updating the stable key with its exact JetStream KV revision. If the current
-   window is in its final quarter, advance its expiry.
-3. When the window advances, delete and recreate its expiry marker through the
-   public JetStream KV API.
-4. Create the deterministic access-token verifier for the committed generation.
-5. Return the deterministic credential pair.
+   window is in its final quarter, advance its expiry. Publish the revision
+   with a per-message TTL equal to the remaining explicit lifetime.
+3. Create the deterministic access-token verifier for the committed generation.
+4. Return the deterministic credential pair.
 
 The KV revision is the cross-replica serialization boundary. A conflicting
 replica reloads the stable record and evaluates the newly committed state; no
@@ -242,5 +241,5 @@ sign-in and coordinated-upgrade requirement.
 - [ADR-046](ADR-046-typed-runtime-credentials.md)
 - [ADR-051](ADR-051-server-scoped-resumable-client-projection.md)
 - [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md)
-- [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md)
+- [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
 - [FDR-023](../fdr/FDR-023-authentication-and-sessions.md)

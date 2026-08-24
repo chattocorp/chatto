@@ -95,7 +95,7 @@ func TestChattoCore_BearerTokenFreshAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("marshal stale renewable session: %v", err)
 	}
-	if _, err := core.storage.runtimeStateKV.Update(ctx, sessionKey, staleValue, entry.Revision()); err != nil {
+	if _, err := core.updateRuntimeStateUntil(ctx, sessionKey, staleValue, entry.Revision(), session.ExpiresAt, time.Now()); err != nil {
 		t.Fatalf("write stale renewable session: %v", err)
 	}
 	if err := core.RequireFreshAuthForBearerToken(ctx, token); !errors.Is(err, ErrFreshAuthRequired) {

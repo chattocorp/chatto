@@ -460,7 +460,7 @@ func (m *AssetUploadModel) updateUpload(ctx context.Context, session *AssetUploa
 	if ttl <= 0 {
 		ttl = time.Second
 	}
-	if _, err := m.core.updateRuntimeStateTokenTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
+	if _, err := m.core.updateRuntimeStateWithTTL(ctx, assetUploadKey(session.UploadID), value, revision, ttl); err != nil {
 		return fmt.Errorf("update upload session: %w", err)
 	}
 	return nil

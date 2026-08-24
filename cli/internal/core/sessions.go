@@ -96,11 +96,7 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 	}
 
 	key := c.authTokenKey(sessionID)
-	if err := c.runtimeCredentialExpiry.ensureMarker(ctx, key, tokenData.ExpiresAt); err != nil {
-		return "", nil, fmt.Errorf("failed to store cookie session expiry: %w", err)
-	}
-	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(c.cookieSessionTTL())); err != nil {
-		_ = c.runtimeCredentialExpiry.deleteMarker(ctx, key)
+	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(tokenData.ExpiresAt.Sub(now))); err != nil {
 		return "", nil, fmt.Errorf("failed to store cookie session: %w", err)
 	}
 
@@ -134,14 +130,10 @@ func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenDat
 }
 
 func (c *ChattoCore) cookieSessionRecordFromValidatedCredential(credential ValidatedRuntimeCredential) *corev1.CookieSession {
-	expiresAt := credential.ExpiresAt
-	if expiresAt.IsZero() {
-		expiresAt = credential.CreatedAt.Add(c.cookieSessionTTL())
-	}
 	record := &corev1.CookieSession{
 		UserId:         credential.UserID,
 		CreatedAt:      timestamppb.New(credential.CreatedAt),
-		ExpiresAt:      timestamppb.New(expiresAt),
+		ExpiresAt:      timestamppb.New(credential.ExpiresAt),
 		Source:         credential.Source,
 		Request:        credential.Request,
 		AuthGeneration: credential.AuthGeneration,
@@ -159,7 +151,7 @@ func (c *ChattoCore) RevokeCookieSession(ctx context.Context, sessionID string) 
 	if sessionID == "" {
 		return nil
 	}
-	if err := c.runtimeCredentialExpiry.deleteRecord(ctx, c.authTokenKey(sessionID)); err != nil {
+	if err := c.deleteRuntimeStateKey(ctx, c.authTokenKey(sessionID)); err != nil {
 		return fmt.Errorf("failed to revoke cookie session token: %w", err)
 	}
 	return nil
@@ -201,7 +193,7 @@ func (c *ChattoCore) RevokeCookieSessionsForUser(ctx context.Context, userID str
 				tokenData.presentationOrDefault() != AuthTokenPresentationCookie {
 				continue
 			}
-			if err := c.runtimeCredentialExpiry.deleteRecord(ctx, key); err != nil {
+			if err := c.deleteRuntimeStateKey(ctx, key); err != nil {
 				return deleted, fmt.Errorf("failed to revoke cookie session token: %w", err)
 			}
 			deleted++

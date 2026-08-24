@@ -26,8 +26,8 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 Chatto issues **opaque credentials**, not JWTs. Same-origin cookie-session
 handles use typed `RUNTIME_STATE` `session.{hmac}` records with explicit fixed
 expiry. The browser handle rotates in the final quarter of its lifetime, while
-ordinary validation remains read-only. A separate fixed TTL marker drives
-physical cleanup without making that cleanup the authorization boundary.
+ordinary validation remains read-only. Each changed record revision keeps a
+per-message TTL equal to its remaining explicit lifetime.
 
 Human bearer authentication uses renewable sessions. Each login returns a
 short-lived access token (15 minutes by default), a rotating refresh
@@ -36,9 +36,9 @@ access verifier is a fixed-expiry `session.{hmac}` record; the stable
 `renewable_session.{hmac}` record holds the current rotation generation and is
 the revocation authority for every access generation. Ordinary KV revision
 checks serialize its updates. A refresh in the final quarter advances the
-session window and recreates its TTL marker through the public KV API. Access
-token validation does not extend either expiry. Raw access and refresh
-credentials are not stored.
+session window and sets the changed record's per-message TTL to its new
+remaining lifetime. Access token validation does not extend either expiry. Raw
+access and refresh credentials are not stored.
 
 Refresh rotation uses JetStream KV revision checks across replicas. An exact
 retry with the same client-persisted request ID can recover a lost response;
@@ -245,7 +245,7 @@ For HSTS, CSP, and other policy headers, add them at your reverse proxy.
 | Per-user KEK records | `ENCRYPTION_KEYS` (NATS KV) | No (export separately, or use `--include-keys`) |
 | Per-call LiveKit E2EE keys | `ENCRYPTION_KEYS` (NATS KV, short-lived) | No (active calls are not recoverable without them) |
 | Wrapped app DEK records | `RUNTIME_STATE` (`dek.*` protobuf records) | Yes (unusable without KEKs) |
-| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}` and `renewable_session.{hmac}`, HMAC-keyed, with explicit expiry and TTL markers) | Yes (not raw access tokens, refresh credentials, or cookie handles) |
+| Runtime credential verifiers | `RUNTIME_STATE` (`session.{hmac}` and `renewable_session.{hmac}`, HMAC-keyed, with explicit expiry and per-message TTL) | Yes (not raw access tokens, refresh credentials, or cookie handles) |
 | Account-flow and OAuth-code verifiers | `RUNTIME_STATE` (HMAC-keyed, with TTL) | Yes (not raw codes or links) |
 | Core secret key | `chatto.toml` / `CHATTO_CORE_SECRET_KEY` | n/a |
 | Cookie signing secret | `chatto.toml` / `CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET` | n/a |

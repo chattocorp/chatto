@@ -51,7 +51,7 @@ func (m *NotificationMaterializer) recordVisibilityBoundary(ctx context.Context,
 		if binary.BigEndian.Uint64(entry.Value()) >= sequence {
 			return m.core.notificationBoundaries.waitForRevision(ctx, key, entry.Revision())
 		}
-		if revision, err := m.core.updateRuntimeStateTokenTTL(ctx, key, value, entry.Revision(), notificationTTL); err == nil {
+		if revision, err := m.core.updateRuntimeStateWithTTL(ctx, key, value, entry.Revision(), notificationTTL); err == nil {
 			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 				return err
 			}

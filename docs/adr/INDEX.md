@@ -94,4 +94,4 @@ replace part of their original design.
 | [ADR-077](ADR-077-persistent-notification-list.md) | Present Notifications as One Persistent Occurrence List | Accepted | 2026-08-10 |
 | [ADR-078](ADR-078-portless-native-development-stack.md) | Route the Native Development Stack with Portless | Accepted | 2026-08-21 |
 | [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Accepted | 2026-08-22 |
-| [ADR-080](ADR-080-explicit-expiry-markers-for-mutable-runtime-credentials.md) | Explicit Expiry Markers for Mutable Runtime Credentials | Accepted | 2026-08-23 |
+| [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
