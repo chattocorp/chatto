@@ -15,6 +15,7 @@
     type ExternalIdentityProviderInfo,
     type LinkedExternalIdentityInfo
   } from '$lib/api-client/externalIdentities';
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
   import { registerServerQueryCacheRemovalListener } from '$lib/query/cacheRegistry';
   import { queryClient } from '$lib/query/client';
@@ -22,7 +23,7 @@
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import type { ServerConnection } from '$lib/state/server/serverConnection.svelte';
-  import { ConfirmDialog, Dialog, FormSection, Hint } from '$lib/ui';
+  import { ConfirmDialog, Dialog, Hint } from '$lib/ui';
   import { Button, FormError, TextInput } from '$lib/ui/form';
 
   let {
@@ -363,8 +364,8 @@
   }
 </script>
 
-<FormSection title={m('settings.account.sso.title')} maxWidth="max-w-md">
-  <div class="flex flex-col gap-4">
+<Panel title={m('settings.account.sso.title')} icon="iconify icon-[uil--link]">
+  <div class="flex max-w-md flex-col gap-4">
     {#if loading}
       <p class="text-sm text-muted">{m('settings.account.sso.loading')}</p>
     {:else}
@@ -448,7 +449,7 @@
       {/if}
     {/if}
   </div>
-</FormSection>
+</Panel>
 
 {#if disconnectTarget}
   <ConfirmDialog

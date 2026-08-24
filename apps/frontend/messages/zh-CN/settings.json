@@ -7,7 +7,15 @@
       "display": "偏好设置",
       "notifications": "通知",
       "account": "账号",
-      "bots": "机器人"
+      "bots": "机器人",
+      "user_preferences": "用户偏好设置",
+      "server_configuration": "服务器配置"
+    },
+    "app_preferences": {
+      "title": "应用偏好设置",
+      "subtitle": "此应用中适用于所有已注册服务器的选项",
+      "appearance": { "title": "外观" },
+      "composer": { "title": "消息编辑" }
     },
     "profile": {
       "title": "个人资料",
@@ -105,8 +113,8 @@
       "save_button": "保存更改"
     },
     "preferences": {
-      "title": "偏好设置",
-      "subtitle": "选择 Chatto 的外观和行为",
+      "title": "时间和地区",
+      "subtitle": "选择此服务器为你显示日期和时间的方式",
       "browser_scope": "此选择适用于本浏览器中的所有 Chatto 服务器。",
       "theme": {
         "title": "主题",

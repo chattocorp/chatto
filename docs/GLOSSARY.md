@@ -14,9 +14,15 @@ Names for visible surfaces and component groupings. When a name here disagrees w
 
 **Application Header** — Global bar across the top of the client. Client-wide navigation, notifications, and meta controls live on the left; the active server's message of the day occupies the centre; version and session controls live on the right. Implemented in `apps/frontend/src/lib/ui/AppHeader.svelte`.
 
+**App Preferences** — User choices that the current app applies to every registered server. They include appearance, language, message editor, and send-key behavior. Open App Preferences from the Application Header. The sidebar contains Appearance, Language, and Composer pages. App Preferences do not sync to another browser or device. See [FDR-022](fdr/FDR-022-user-profile.md) and [FDR-032](fdr/FDR-032-message-formatting.md).
+
+**User Preferences** — A user's choices for one server. They include time and region settings and notification behavior. The server can sync a preference, or the app can store it with a key for each server. The term identifies the user and server scope, not the storage method. The unified Settings sidebar contains the User Preferences group. See [FDR-012](fdr/FDR-012-notifications.md) and [FDR-022](fdr/FDR-022-user-profile.md).
+
+**Server Configuration** — Permission-gated settings that change a server or its managed resources. Server Configuration is different from one user's User Preferences. The unified Settings sidebar contains both groups. See [FDR-020](fdr/FDR-020-server-branding-and-configuration.md) and [FDR-021](fdr/FDR-021-admin-dashboard.md).
+
 **Server Gutter** — Narrow leftmost column listing the user's servers, with the add-server button at the bottom. Metaphor borrowed from the gutter in a text editor: a thin marginal strip. Implemented in `apps/frontend/src/lib/ServerGutter.svelte`.
 
-**Server Sidebar** — The wider sidebar to the right of the Server Gutter, scoped to a single server. Owns the per-server pane's chrome (positioning, mobile slide, resize, current-user bar pinned to bottom). The actual contents are passed in by `Chrome.svelte` — typically the server banner + header + room list, or the settings/admin nav while those modes are active. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
+**Server Sidebar** — The wider sidebar to the right of the Server Gutter. It controls the position, mobile slide, size, and current-user footer of a server pane. App Preferences uses the same shell without the server footer. The sidebar contains the server banner and room list, the unified Settings navigation, or the App Preferences navigation. Implemented in `apps/frontend/src/lib/components/ServerSidebar.svelte`.
 
 **Room View** — The main central area showing the current room: message list plus the composer at the bottom. Not "the chat area" — *Room View* is the canonical name.
 

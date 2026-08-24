@@ -84,7 +84,9 @@ test.describe('Landing Page', () => {
         expect(viewer.user?.profile?.id).toBeTruthy();
 
         await freshPage.goto(routes.settings);
-        await expect(freshPage.getByRole('heading', { name: 'Profile' })).toBeVisible();
+        await expect(
+          freshPage.getByRole('heading', { name: 'Profile', level: 1 })
+        ).toBeVisible();
         await expect(freshPage).not.toHaveURL(routes.login);
       },
       { baseURL: serverURL }

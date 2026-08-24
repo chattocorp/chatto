@@ -2,6 +2,7 @@
   import type { AccountAPI } from '$lib/api-client/account';
   import { csrfFetch } from '$lib/auth/csrf';
   import { notifyLogout } from '$lib/auth/sessionChannel';
+  import { Panel } from '$lib/components/admin';
   import { m } from '$lib/i18n/messages';
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { Dialog, Hint } from '$lib/ui';
@@ -67,15 +68,16 @@
 </script>
 
 {#if canDeleteAccount}
-  <div class="max-w-md border-t border-border pt-6">
-    <h3 class="mb-2 text-sm font-semibold text-danger">{m('settings.account.danger_title')}</h3>
-    <p class="mb-4 text-sm text-muted">
-      {m('settings.account.danger_description')}
-    </p>
-    <Button variant="danger" onclick={openDeleteModal}>
-      {m('settings.account.delete_button')}
-    </Button>
-  </div>
+  <Panel title={m('settings.account.danger_title')} icon="iconify icon-[uil--exclamation-triangle]">
+    <div class="max-w-md">
+      <p class="mb-4 text-sm text-muted">
+        {m('settings.account.danger_description')}
+      </p>
+      <Button variant="danger" onclick={openDeleteModal}>
+        {m('settings.account.delete_button')}
+      </Button>
+    </div>
+  </Panel>
 {/if}
 
 <Dialog

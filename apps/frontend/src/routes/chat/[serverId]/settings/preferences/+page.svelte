@@ -1,17 +1,11 @@
 <script lang="ts">
   import { m } from '$lib/i18n/messages';
-  import { localeDisplayName, selectableLocales } from '$lib/i18n/locales';
-  import { getLocale, setLocale, type Locale } from '$lib/i18n/runtime';
+  import { getLocale } from '$lib/i18n/runtime';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import { createAccountAPI } from '$lib/api-client/account';
+  import { Panel } from '$lib/components/admin';
   import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
-  import {
-    userPreferences,
-    type ComposerEditorKind,
-    type ComposerSendMode,
-    type DisplayTheme
-  } from '$lib/state/userPreferences.svelte';
-  import { ChoiceRow, PaneHeader, FormSection } from '$lib/ui';
+  import { ChoiceRow, FormSection, PaneContent, PaneHeader } from '$lib/ui';
   import { Button, Combobox, FormError } from '$lib/ui/form';
   import { toast } from '$lib/ui/toast';
   import { formatMessageTime, hour12ForTimeFormat } from '$lib/utils/formatTime';
@@ -88,11 +82,6 @@
     if (!text || allTimezones.includes(text)) selectedTimezone = text;
   }
 
-  function handleLocaleSelect(locale: Locale) {
-    if (locale === activeLocale) return;
-    void setLocale(locale);
-  }
-
   async function handleSave() {
     // Validate timezone if set
     if (timezoneSearch && !allTimezones.includes(timezoneSearch)) {
@@ -125,61 +114,6 @@
     }
   }
 
-  const themeOptions = $derived([
-    {
-      value: 'system',
-      label: m('settings.preferences.theme.system.label'),
-      description: m('settings.preferences.theme.system.description')
-    },
-    {
-      value: 'light',
-      label: m('settings.preferences.theme.light.label'),
-      description: m('settings.preferences.theme.light.description')
-    },
-    {
-      value: 'dark',
-      label: m('settings.preferences.theme.dark.label'),
-      description: m('settings.preferences.theme.dark.description')
-    }
-  ] satisfies Array<{
-    value: DisplayTheme;
-    label: string;
-    description: string;
-  }>);
-
-  const languageOptions = $derived(
-    selectableLocales.map((locale) => ({
-      value: locale,
-      label: localeDisplayName(locale, activeLocale)
-    }))
-  );
-
-  const editorOptions = $derived([
-    {
-      value: 'visual',
-      label: m('settings.preferences.editor.visual.label'),
-      description: m('settings.preferences.editor.visual.description')
-    },
-    {
-      value: 'markdown',
-      label: m('settings.preferences.editor.markdown.label'),
-      description: m('settings.preferences.editor.markdown.description')
-    }
-  ] satisfies Array<{ value: ComposerEditorKind; label: string; description: string }>);
-
-  const sendModeOptions = $derived([
-    {
-      value: 'enter',
-      label: m('settings.preferences.send_mode.enter.label'),
-      description: m('settings.preferences.send_mode.enter.description')
-    },
-    {
-      value: 'modifier-enter',
-      label: m('settings.preferences.send_mode.modifier_enter.label'),
-      description: m('settings.preferences.send_mode.modifier_enter.description')
-    }
-  ] satisfies Array<{ value: ComposerSendMode; label: string; description: string }>);
-
   const timeFormatOptions = $derived([
     {
       value: TimeFormat.TIME_FORMAT_AUTO,
@@ -209,144 +143,70 @@
   showMobileNav
 />
 
-<div class="flex flex-col gap-6 overflow-y-auto p-6">
-  <!-- Theme -->
-  <FormSection title={m('settings.preferences.theme.title')} maxWidth="max-w-md">
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.theme.title')}
-    >
-      {#each themeOptions as option (option.value)}
-        {@const isSelected = userPreferences.displayTheme === option.value}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={isSelected}
-          onclick={() => (userPreferences.displayTheme = option.value)}
-        />
-      {/each}
-    </div>
-  </FormSection>
-
-  <FormSection title={m('settings.preferences.editor.title')} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.editor.title')}
-    >
-      {#each editorOptions as option (option.value)}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={userPreferences.composerEditor === option.value}
-          onclick={() => (userPreferences.composerEditor = option.value)}
-        />
-      {/each}
-    </div>
-  </FormSection>
-
-  <FormSection title={m('settings.preferences.send_mode.title')} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m('settings.preferences.browser_scope')}</p>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.send_mode.title')}
-    >
-      {#each sendModeOptions as option (option.value)}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={userPreferences.composerSendMode === option.value}
-          onclick={() => (userPreferences.composerSendMode = option.value)}
-        />
-      {/each}
-    </div>
-  </FormSection>
-
-  <!-- Language -->
-  <FormSection title={m('settings.preferences.language.title')} maxWidth="max-w-md" bordered>
-    <p class="mb-3 text-sm text-muted">{m('settings.preferences.language.description')}</p>
-
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.language.title')}
-    >
-      {#each languageOptions as option (option.value)}
-        {@const isSelected = activeLocale === option.value}
-        <ChoiceRow
-          label={option.label}
-          selected={isSelected}
-          onclick={() => handleLocaleSelect(option.value)}
-        />
-      {/each}
-    </div>
-  </FormSection>
-
-  <!-- Timezone -->
-  <FormSection title={m('settings.preferences.timezone.title')} maxWidth="max-w-md" bordered>
-    <Combobox
-      id="timezone"
-      testid="timezone-input"
-      label={m('settings.preferences.timezone.title')}
-      labelHidden
-      description={m('settings.preferences.timezone.description')}
-      error={timezoneError}
-      items={displayedTimezones}
-      getValue={(timezone) => timezone}
-      getLabel={(timezone) => timezone}
-      placeholder={m('settings.preferences.timezone.browser_default')}
-      clearLabel={m('settings.preferences.timezone.clear')}
-      allowFreeform={false}
-      disabled={!settingsInitialized}
-      bind:value={selectedTimezone}
-      bind:text={timezoneSearch}
-      ontextchange={handleTimezoneTextChange}
-    />
-
-    {#if selectedTimezoneTime}
-      <p class="mt-1 text-sm text-muted">
-        {m('settings.preferences.timezone.current_time', { time: selectedTimezoneTime })}
-      </p>
-    {/if}
-  </FormSection>
-
-  <!-- Time Format -->
-  <FormSection title={m('settings.preferences.time_format.title')} maxWidth="max-w-md" bordered>
-    <div
-      class="flex flex-col gap-2"
-      role="radiogroup"
-      aria-label={m('settings.preferences.time_format.title')}
-    >
-      {#each timeFormatOptions as option (option.value)}
-        {@const isSelected = selectedTimeFormat === option.value}
-        <ChoiceRow
-          label={option.label}
-          description={option.description}
-          selected={isSelected}
+<PaneContent>
+  <Panel title={m('settings.preferences.title')} icon="iconify icon-[uil--clock-three]">
+    <div class="flex max-w-md flex-col gap-6">
+      <FormSection title={m('settings.preferences.timezone.title')}>
+        <Combobox
+          id="timezone"
+          testid="timezone-input"
+          label={m('settings.preferences.timezone.title')}
+          labelHidden
+          description={m('settings.preferences.timezone.description')}
+          error={timezoneError}
+          items={displayedTimezones}
+          getValue={(timezone) => timezone}
+          getLabel={(timezone) => timezone}
+          placeholder={m('settings.preferences.timezone.browser_default')}
+          clearLabel={m('settings.preferences.timezone.clear')}
+          allowFreeform={false}
           disabled={!settingsInitialized}
-          onclick={() => (selectedTimeFormat = option.value)}
+          bind:value={selectedTimezone}
+          bind:text={timezoneSearch}
+          ontextchange={handleTimezoneTextChange}
         />
-      {/each}
-    </div>
-  </FormSection>
 
-  <!-- Save -->
-  {#if error}
-    <div class="max-w-md">
-      <FormError {error} />
-    </div>
-  {/if}
+        {#if selectedTimezoneTime}
+          <p class="mt-1 text-sm text-muted">
+            {m('settings.preferences.timezone.current_time', {
+              time: selectedTimezoneTime
+            })}
+          </p>
+        {/if}
+      </FormSection>
 
-  <div class="flex max-w-md gap-2">
-    <Button
-      onclick={handleSave}
-      disabled={!isModified || isSaving || !!timezoneError}
-      loading={isSaving}
-    >
-      {m('settings.preferences.save_button')}
-    </Button>
-  </div>
-</div>
+      <FormSection title={m('settings.preferences.time_format.title')} bordered>
+        <div
+          class="flex flex-col gap-2"
+          role="radiogroup"
+          aria-label={m('settings.preferences.time_format.title')}
+        >
+          {#each timeFormatOptions as option (option.value)}
+            {@const isSelected = selectedTimeFormat === option.value}
+            <ChoiceRow
+              label={option.label}
+              description={option.description}
+              selected={isSelected}
+              disabled={!settingsInitialized}
+              onclick={() => (selectedTimeFormat = option.value)}
+            />
+          {/each}
+        </div>
+      </FormSection>
+
+      {#if error}
+        <FormError {error} />
+      {/if}
+
+      <div class="flex gap-2">
+        <Button
+          onclick={handleSave}
+          disabled={!isModified || isSaving || !!timezoneError}
+          loading={isSaving}
+        >
+          {m('settings.preferences.save_button')}
+        </Button>
+      </div>
+    </div>
+  </Panel>
+</PaneContent>

@@ -1,11 +1,11 @@
 <!--
 @component
 
-The **Server Sidebar** — wider sidebar after the Server Gutter,
-scoped to a single server. Owns the per-server pane's chrome: positioning,
-mobile slide-in/-out, resize handle, and the current-user bar pinned to the
-bottom. The actual contents (server banner + room list, settings nav, admin
-nav, …) are passed in via the `children` snippet by `Chrome.svelte`.
+The **Server Sidebar** — wider sidebar after the Server Gutter. Owns the
+secondary pane's chrome: positioning, mobile slide-in/-out, resize handle, and
+the optional current-user bar pinned to the bottom. Server pages provide the
+footer; app-wide preferences reuse the same shell without it. The actual
+contents are passed through the `children` snippet.
 
 See the "UI" section of `docs/GLOSSARY.md`.
 -->
@@ -25,7 +25,8 @@ See the "UI" section of `docs/GLOSSARY.md`.
   let {
     children,
     width,
-    mobileWidth = 'max-md:w-64'
+    mobileWidth = 'max-md:w-64',
+    showCurrentUserBar = true
   }: {
     children: Snippet;
     /** Optional Tailwind class to lock the desktop width (e.g. "md:w-56"). When
@@ -33,6 +34,9 @@ See the "UI" section of `docs/GLOSSARY.md`.
      *  a drag handle. */
     width?: string;
     mobileWidth?: string;
+    /** Whether to render the active server's user card in the footer. App-wide
+     *  sidebars have no server scope and omit it. */
+    showCurrentUserBar?: boolean;
   } = $props();
 
   // On mobile the panel slides as a single unit with the Server Gutter — both
@@ -73,7 +77,9 @@ See the "UI" section of `docs/GLOSSARY.md`.
     : undefined}
 >
   {@render children()}
-  <CurrentUserBar />
+  {#if showCurrentUserBar}
+    <CurrentUserBar />
+  {/if}
   {#if resizable && !sidebarNav.isMobile}
     <ResizeHandle
       width={serverSidebarWidth.value}

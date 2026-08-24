@@ -14,7 +14,7 @@ Include this component once in the application root so signed-out pages also cle
 <script lang="ts">
   import { serverRegistry } from '$lib/state/server/registry.svelte';
   import { eventBusManager } from '$lib/state/server/eventBus.svelte';
-  import { userPreferences } from '$lib/state/userPreferences.svelte';
+  import { getServerNotificationPreferences } from '$lib/state/serverNotificationPreferences.svelte';
   import { playNotificationSound } from '$lib/audio/notificationSounds';
   import {
     listenForAppBadgeRefresh,
@@ -40,6 +40,7 @@ Include this component once in the application root so signed-out pages also cle
       const bus = eventBusManager.getBus(instance.id);
       if (!bus) continue;
       const soundedEventIds: string[] = [];
+      const notificationPreferences = getServerNotificationPreferences(instance.id);
 
       const handler: ProjectionHandler = (event) => {
         for (const operation of event.operations) {
@@ -54,8 +55,8 @@ Include this component once in the application root so signed-out pages also cle
               soundedEventIds.shift();
             }
             playNotificationSound(
-              userPreferences.notificationSound,
-              userPreferences.notificationSoundFilters
+              notificationPreferences.notificationSound,
+              notificationPreferences.notificationSoundFilters
             );
           }
         }
@@ -98,7 +99,6 @@ Include this component once in the application root so signed-out pages also cle
   $effect(() => {
     return listenForAppBadgeRefresh(syncAppBadge);
   });
-
 </script>
 
 {#each serverRegistry.servers as instance (instance.id)}

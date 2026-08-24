@@ -7,7 +7,15 @@
       "display": "Inställningar",
       "notifications": "Aviseringar",
       "account": "Konto",
-      "bots": "Bots"
+      "bots": "Bots",
+      "user_preferences": "Användarinställningar",
+      "server_configuration": "Serverkonfiguration"
+    },
+    "app_preferences": {
+      "title": "Appinställningar",
+      "subtitle": "Val för den här appen som gäller för alla dina registrerade servrar",
+      "appearance": { "title": "Utseende" },
+      "composer": { "title": "Skriva meddelanden" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,8 @@
       "save_button": "Spara ändringar"
     },
     "preferences": {
-      "title": "Inställningar",
-      "subtitle": "Välj hur Chatto ser ut och fungerar",
+      "title": "Tid och region",
+      "subtitle": "Välj hur den här servern visar datum och tider för dig",
       "browser_scope": "Det här valet gäller för alla Chatto-servrar i den här webbläsaren.",
       "theme": {
         "title": "Tema",

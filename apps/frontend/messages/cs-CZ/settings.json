@@ -7,7 +7,15 @@
       "display": "Předvolby",
       "notifications": "Oznámení",
       "account": "účet",
-      "bots": "Boti"
+      "bots": "Boti",
+      "user_preferences": "Uživatelské předvolby",
+      "server_configuration": "Konfigurace serveru"
+    },
+    "app_preferences": {
+      "title": "Předvolby aplikace",
+      "subtitle": "Volby této aplikace, které platí pro všechny vaše registrované servery",
+      "appearance": { "title": "Vzhled" },
+      "composer": { "title": "Editor zpráv" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,8 @@
       "save_button": "Uložit změny"
     },
     "preferences": {
-      "title": "Předvolby",
-      "subtitle": "Zvolte vzhled a chování Chatto",
+      "title": "Čas a oblast",
+      "subtitle": "Zvolte, jak tento server zobrazuje data a časy",
       "browser_scope": "Tato volba platí pro všechny servery Chatto v tomto prohlížeči.",
       "theme": {
         "title": "téma",

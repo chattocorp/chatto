@@ -18,8 +18,8 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 - Editing a message preserves the plain-text Markdown body contract; the bundled composer does not provide a spreadsheet-like table editor.
 - The bundled client offers a syntax-highlighted Markdown source editor by default and an optional visual editor. Both edit the same Markdown body and provide the same formatting and composer features.
 - Fenced code labelled with a supported language receives programming-language syntax highlighting while composing and after posting. Unlabelled and unsupported languages remain plain code.
-- Editor choice is a browser-local preference shared across every Chatto server in that browser. It is not synchronized to other browsers or devices.
-- Sending keys are a browser-local preference shared across every Chatto server in that browser. Return sends by default; people can instead choose the platform modifier plus Return to send.
+- The app applies the editor choice to every registered Chatto server. It does not sync this App Preference to other browsers or devices.
+- The app applies the sending keys to every registered Chatto server. Return sends by default. People can select the platform modifier plus Return instead.
 - The key not assigned to sending performs the selected editor's normal Return action. In the visual editor that includes paragraph splitting, list continuation, leaving an empty list item, and new lines inside code blocks; Shift+Return remains a hard line break.
 - Both editors provide toolbar actions to indent and outdent. In the visual editor they change list nesting. In the Markdown source editor they apply CodeMirror's normal line indentation to the current line or selection, as do Tab and Shift+Tab; autocomplete consumes Tab first when a suggestion is active.
 - Touch-primary devices always use Return for editing and the visible Send button, even when Return-to-send is selected.
@@ -44,11 +44,11 @@ Message bodies are stored and exchanged as plain text while bundled clients rend
 **Why:** Tables are useful for compact comparisons and status data, but message authors should not be able to use them to force the conversation column wider or create arbitrary page layouts.
 **Tradeoff:** Large tables require horizontal scrolling on narrow screens and are less convenient to author in the bundled visual editor than ordinary prose.
 
-### 4. Composer presentation is a client preference
+### 4. Composer presentation is an App Preference
 
-**Decision:** The bundled client offers visual and Markdown source editors over the same message body and stores the editor and send-key choices in its browser-wide preferences. Markdown and Return-to-send are the defaults when their respective preferences are absent or invalid. The key not assigned to sending retains the editor's context-sensitive Return behavior. Indent and outdent follow each editor's native model: structural list nesting in the visual editor and source-line indentation in the Markdown editor.
+**Decision:** The bundled client supplies visual and Markdown source editors for the same message body. App Preferences stores the editor and send-key choices on the Composer page. Markdown and Return-to-send are the defaults when a preference is absent or invalid. The key that does not send keeps the editor's normal Return behavior. Each editor uses its own indent model. The visual editor changes list structure. The Markdown editor changes source-line indentation.
 **Why:** People can choose direct source control or a syntax-free editing experience without changing the server contract, message history, or what other clients receive. They can also preserve their preferred chat shortcut and familiar keyboard editing behavior in paragraphs, lists, or code blocks.
-**Tradeoff:** Preferences do not follow a person to another browser or device, each editor must maintain equivalent composer integrations and formatting controls, the indent controls have editor-specific semantics, and the alternate Return shortcut changes meaning with the selected send mode.
+**Tradeoff:** App Preferences do not follow a person to another browser or device. Each editor must have the same composer integrations and formatting controls. The indent controls operate differently in each editor. The alternate Return shortcut changes meaning with the selected send mode.
 
 ## Related
 

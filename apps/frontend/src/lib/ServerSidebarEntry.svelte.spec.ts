@@ -35,7 +35,7 @@ const { mocks } = vi.hoisted(() => {
         userLogin: 'alice',
         userDisplayName: 'Alice',
         userAvatarUrl: null,
-        reauthRequiredAt: null,
+        reauthRequiredAt: null as number | null,
         addedAt: 0
       },
       store: {
@@ -219,6 +219,7 @@ describe('ServerSidebarEntry', () => {
     mocks.isOriginServer.mockReset();
     mocks.isOriginServer.mockReturnValue(false);
     mocks.server.url = 'https://remote.example.com';
+    mocks.server.reauthRequiredAt = null;
     Object.defineProperty(navigator, 'clipboard', {
       value: { writeText: mocks.writeClipboardText },
       configurable: true
@@ -523,12 +524,40 @@ describe('ServerSidebarEntry', () => {
 
     await expect.element(icon).toHaveClass('opacity-40');
     await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect
+      .element(q(container, '[data-testid="server-reauth-required"]'))
+      .not.toBeInTheDocument();
     icon.click();
 
     await vi.waitFor(() => {
       expect(mocks.startRemoteReauthentication).toHaveBeenCalledWith(mocks.server);
       expect(mocks.goto).not.toHaveBeenCalled();
     });
+  });
+
+  it('marks a server that requires reauthentication and prioritises it over compatibility', async () => {
+    mocks.server.reauthRequiredAt = 123;
+    mocks.store.isAuthenticated = false;
+    mocks.store.serverInfo.compatibility = {
+      status: 'unsupported',
+      reason: 'server-too-old'
+    };
+
+    const { container } = render(ServerSidebarEntry, {
+      props: { serverId: 'remote' }
+    });
+    const icon = q(container, '[data-testid="server-icon"]');
+
+    await expect.element(icon).toHaveAttribute('title', 'Loaded Remote needs sign-in');
+    await expect.element(icon).toHaveAttribute('aria-label', 'Loaded Remote needs sign-in');
+    const reauthMarker = q(container, '[data-testid="server-reauth-required"]');
+    await expect.element(reauthMarker).toBeInTheDocument();
+    expect(
+      reauthMarker?.querySelector('[class~="icon-[uil--exclamation-circle]"]')
+    ).not.toBeNull();
+    await expect
+      .element(q(container, '[data-testid="server-compatibility-warning"]'))
+      .not.toBeInTheDocument();
   });
 
   it('uses the origin sign-in flow for an unauthenticated origin server', async () => {
