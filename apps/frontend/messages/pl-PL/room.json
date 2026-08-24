@@ -13,7 +13,7 @@
       "missing_group": "Wybierz grupę pokoi przed utworzeniem pokoju.",
       "failed": "Nie udało się utworzyć pokoju",
       "creating": "Tworzenie...",
-      "submit": "Utwórz pokój"
+      "submit_and_configure": "Utwórz i skonfiguruj pokój"
     },
     "join": {
       "title": "Dołącz do pokoju",

@@ -13,7 +13,7 @@
       "missing_group": "Valige enne ruumi loomist ruumirühm.",
       "failed": "Ruumi loomine ebaõnnestus",
       "creating": "Loomine...",
-      "submit": "Loo tuba"
+      "submit_and_configure": "Loo ja seadista tuba"
     },
     "join": {
       "title": "Liituge ruumiga",

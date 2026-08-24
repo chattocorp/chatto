@@ -13,7 +13,7 @@
       "missing_group": "Velg en romgruppe før du oppretter et rom.",
       "failed": "Kunne ikke opprette rom",
       "creating": "Oppretter ...",
-      "submit": "Opprett rom"
+      "submit_and_configure": "Opprett og konfigurer rommet"
     },
     "join": {
       "title": "Bli med i rommet",

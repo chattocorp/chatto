@@ -13,7 +13,7 @@
       "missing_group": "ルームを作成する前にルーム グループを選択してください。",
       "failed": "ルームの作成に失敗しました",
       "creating": "作成中...",
-      "submit": "ルームの作成"
+      "submit_and_configure": "ルームを作成して設定"
     },
     "join": {
       "title": "ルームに参加",

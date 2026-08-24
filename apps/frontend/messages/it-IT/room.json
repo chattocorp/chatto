@@ -13,7 +13,7 @@
       "missing_group": "Scegli un gruppo di stanze prima di creare una stanza.",
       "failed": "Impossibile creare la stanza",
       "creating": "Creazione...",
-      "submit": "Crea stanza"
+      "submit_and_configure": "Crea e configura"
     },
     "join": {
       "title": "Unisciti alla stanza",

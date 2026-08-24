@@ -13,7 +13,7 @@
       "missing_group": "建立聊天室前，請先選擇聊天室群組。",
       "failed": "無法建立聊天室",
       "creating": "正在建立...",
-      "submit": "建立聊天室"
+      "submit_and_configure": "建立並設定聊天室"
     },
     "join": {
       "title": "加入聊天室",

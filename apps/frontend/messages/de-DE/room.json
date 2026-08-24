@@ -13,7 +13,7 @@
       "missing_group": "Wähle eine Raumgruppe aus, bevor du einen Raum erstellst.",
       "failed": "Raum konnte nicht erstellt werden",
       "creating": "Wird erstellt...",
-      "submit": "Raum erstellen"
+      "submit_and_configure": "Erstellen und einrichten"
     },
     "join": {
       "title": "Raum beitreten",

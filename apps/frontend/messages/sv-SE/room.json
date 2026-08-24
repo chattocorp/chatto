@@ -13,7 +13,7 @@
       "missing_group": "Välj en rumsgrupp innan du skapar ett rum.",
       "failed": "Det gick inte att skapa rum",
       "creating": "Skapar...",
-      "submit": "Skapa rum"
+      "submit_and_configure": "Skapa och konfigurera rummet"
     },
     "join": {
       "title": "Gå med i rummet",

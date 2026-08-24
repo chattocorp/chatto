@@ -57,6 +57,28 @@ beforeEach(() => {
 });
 
 describe('CreateRoom', () => {
+  it('uses the standard modal form actions', async () => {
+    const onclose = vi.fn();
+    const { container, getByRole } = render(CreateRoom, {
+      groupId: 'group-1',
+      onclose,
+      onroomcreated: mocks.onroomcreated
+    });
+
+    await expect.element(getByRole('dialog', { name: 'Create Room' })).toBeInTheDocument();
+    await expect.element(getByRole('button', { name: 'Cancel' })).toBeInTheDocument();
+    const form = q(container, 'form') as HTMLFormElement;
+    const submit = q(container, 'button[type="submit"]');
+    expect(submit).toHaveTextContent('Create and configure');
+    expect(submit).toHaveAttribute('form', form.id);
+    expect(container.querySelector('#room-description')).toBeNull();
+    expect(container.querySelector('#room-universal')).toBeNull();
+    expect(container.querySelector('[role="radiogroup"]')).toBeNull();
+
+    await getByRole('button', { name: 'Cancel' }).click();
+    await vi.waitFor(() => expect(onclose).toHaveBeenCalled());
+  });
+
   it('creates a normal room through ConnectRPC and joins it', async () => {
     const { container } = render(CreateRoom, {
       groupId: 'group-1',
@@ -78,27 +100,6 @@ describe('CreateRoom', () => {
     expect(mocks.joinRoom).toHaveBeenCalledWith('room-1');
   });
 
-  it('passes the universal flag to ConnectRPC', async () => {
-    const { container } = render(CreateRoom, {
-      groupId: 'group-1',
-      onroomcreated: mocks.onroomcreated
-    });
-
-    (q(container, '#room-universal') as HTMLInputElement).click();
-    await fillNameAndSubmit(container);
-
-    await vi.waitFor(() => {
-      expect(mocks.onroomcreated).toHaveBeenCalledWith('room-1');
-    });
-    expect(mocks.createRoom).toHaveBeenCalledWith({
-      name: 'general',
-      description: null,
-      groupId: 'group-1',
-      universal: true,
-      threadingMode: RoomThreadingMode.ENABLED
-    });
-  });
-
   it('accepts spaces, punctuation, emoji, and normalizes Unicode before creation', async () => {
     const { container } = render(CreateRoom, {
       groupId: 'group-1',
@@ -115,31 +116,6 @@ describe('CreateRoom', () => {
         universal: false,
         threadingMode: RoomThreadingMode.ENABLED
       });
-    });
-  });
-
-  it('passes the selected threading mode to ConnectRPC', async () => {
-    const { container } = render(CreateRoom, {
-      groupId: 'group-1',
-      onroomcreated: mocks.onroomcreated
-    });
-
-    const choices = Array.from(container.querySelectorAll<HTMLButtonElement>('[role="radio"]'));
-    expect(choices).toHaveLength(4);
-    expect(choices.map((choice) => choice.textContent?.trim())).toEqual([
-      expect.stringContaining('Required'),
-      expect.stringContaining('Encouraged'),
-      expect.stringContaining('Enabled'),
-      expect.stringContaining('Disabled')
-    ]);
-    expect(choices[2]).toHaveAttribute('aria-checked', 'true');
-    choices[0].click();
-    await fillNameAndSubmit(container);
-
-    await vi.waitFor(() => {
-      expect(mocks.createRoom).toHaveBeenCalledWith(
-        expect.objectContaining({ threadingMode: RoomThreadingMode.REQUIRED })
-      );
     });
   });
 

@@ -13,7 +13,7 @@
       "missing_group": "Choose a room group before creating a room.",
       "failed": "Failed to create room",
       "creating": "Creating...",
-      "submit": "Create Room"
+      "submit_and_configure": "Create and configure"
     },
     "join": {
       "title": "Join Room",

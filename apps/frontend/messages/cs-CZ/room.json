@@ -13,7 +13,7 @@
       "missing_group": "Před vytvořením místnosti vyberte skupinu místností.",
       "failed": "Místnost se nepodařilo vytvořit",
       "creating": "Vytváření...",
-      "submit": "Vytvořit místnost"
+      "submit_and_configure": "Vytvořit a nastavit místnost"
     },
     "join": {
       "title": "Připojte se k místnosti",

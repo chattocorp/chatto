@@ -78,6 +78,7 @@ describe('Dialog', () => {
       });
 
       await expect.element(q(container, 'dialog')).toHaveClass('w-100');
+      await expect.element(q(container, 'dialog')).toHaveClass('max-w-[calc(100vw-2rem)]');
     });
 
     it('applies large size class when size is lg', async () => {
@@ -138,13 +139,14 @@ describe('Dialog', () => {
   });
 
   describe('overflow handling', () => {
-    it('surface frame has vertical overflow auto', async () => {
+    it('keeps dialog chrome fixed while the content area scrolls', async () => {
       const { container } = renderDialog({
         visible: true,
         children: testSnippet('<span>Content</span>')
       });
 
-      await expect.element(q(container, FRAME)).toHaveClass('overflow-y-auto');
+      await expect.element(q(container, FRAME)).toHaveClass('overflow-hidden');
+      await expect.element(q(container, `${FRAME} > div.text-text`)).toHaveClass('overflow-y-auto');
     });
   });
 
@@ -168,6 +170,7 @@ describe('Dialog', () => {
 
       const closeButton = q(container, 'button[aria-label="Close"]');
       await expect.element(closeButton).toBeInTheDocument();
+      await expect.element(closeButton).toHaveClass('icon-action');
     });
   });
 

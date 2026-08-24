@@ -13,7 +13,7 @@
       "missing_group": "Pirms telpas izveides izvēlieties telpu grupu.",
       "failed": "Neizdevās izveidot telpu",
       "creating": "Notiek izveide...",
-      "submit": "Izveidot istabu"
+      "submit_and_configure": "Izveidot un konfigurēt istabu"
     },
     "join": {
       "title": "Pievienojieties telpai",

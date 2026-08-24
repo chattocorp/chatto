@@ -13,7 +13,7 @@
       "missing_group": "Kies een kamergroep voordat u een kamer aanmaakt.",
       "failed": "Kan ruimte niet maken",
       "creating": "Aanmaken...",
-      "submit": "Ruimte maken"
+      "submit_and_configure": "Ruimte maken en instellen"
     },
     "join": {
       "title": "Sluit je aan bij een ruimte",

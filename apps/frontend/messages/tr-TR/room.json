@@ -13,7 +13,7 @@
       "missing_group": "Oda oluşturmadan önce bir oda grubu seçin.",
       "failed": "Oda oluşturulamadı",
       "creating": "Oluşturuluyor...",
-      "submit": "Oda Oluştur"
+      "submit_and_configure": "Odayı oluştur ve yapılandır"
     },
     "join": {
       "title": "Odaya Katıl",

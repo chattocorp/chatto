@@ -13,7 +13,7 @@
       "missing_group": "Choisissez un groupe de pièces avant de créer une pièce.",
       "failed": "Échec de la création du salon",
       "creating": "Création...",
-      "submit": "Créer une salle"
+      "submit_and_configure": "Créer et configurer"
     },
     "join": {
       "title": "Rejoindre la salle",

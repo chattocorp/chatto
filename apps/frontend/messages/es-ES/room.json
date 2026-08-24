@@ -13,7 +13,7 @@
       "missing_group": "Elige un grupo de sala antes de crear una sala.",
       "failed": "No se pudo crear la sala",
       "creating": "Creando...",
-      "submit": "Crear Sala"
+      "submit_and_configure": "Crear y configurar"
     },
     "join": {
       "title": "Unirse a la sala",

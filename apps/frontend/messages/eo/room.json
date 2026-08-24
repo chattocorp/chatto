@@ -13,7 +13,7 @@
       "missing_group": "Elektu ĉambrogrupon antaŭ krei ĉambron.",
       "failed": "Malsukcesis krei ĉambron",
       "creating": "Kreante...",
-      "submit": "Krei Ĉambron"
+      "submit_and_configure": "Krei kaj agordi ĉambron"
     },
     "join": {
       "title": "Aliĝu al Ĉambro",

@@ -11,6 +11,7 @@
     fullWidth = false,
     loadingText,
     href,
+    form,
     onclick,
     label,
     title,
@@ -18,13 +19,7 @@
   }: {
     type?: 'button' | 'submit' | 'reset';
     variant?:
-      | 'action'
-      | 'neutral'
-      | 'secondary'
-      | 'ghost'
-      | 'warning'
-      | 'danger'
-      | 'danger-secondary';
+      'action' | 'neutral' | 'secondary' | 'ghost' | 'warning' | 'danger' | 'danger-secondary';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     disabled?: boolean;
@@ -32,6 +27,8 @@
     loadingText?: string;
     /** When provided, renders as an <a> link instead of a <button> */
     href?: string;
+    /** ID of the form this button submits when rendered outside that form. */
+    form?: string;
     onclick?: (e: MouseEvent) => void;
     /** Accessible name for icon-only buttons. */
     label?: string;
@@ -103,6 +100,7 @@
 {:else}
   <button
     {type}
+    {form}
     onclick={handleClick}
     disabled={disabled || loading}
     aria-busy={loading || undefined}
