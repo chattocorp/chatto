@@ -525,7 +525,7 @@
       })}
     </Hint>
     <div class="flex justify-end">
-      <Button variant="secondary" onclick={closeDisconnectBlockedModal}>
+      <Button defaultAction variant="secondary" onclick={closeDisconnectBlockedModal}>
         {m('ui.close')}
       </Button>
     </div>

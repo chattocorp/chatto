@@ -126,7 +126,7 @@
         <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
           Cancel
         </Button>
-        <Button onclick={() => (dialogWithFooterVisible = false)}>Confirm</Button>
+        <Button defaultAction onclick={() => (dialogWithFooterVisible = false)}>Confirm</Button>
       </div>
     {/snippet}
   </Dialog>

@@ -351,7 +351,7 @@ store owns only optimistic join/leave state.
   </p>
 
   <div class="flex items-center gap-3">
-    <Button variant="danger" onclick={confirmLeaveRoom}>{m('room.leave.action')}</Button>
+    <Button defaultAction variant="danger" onclick={confirmLeaveRoom}>{m('room.leave.action')}</Button>
     <Button variant="ghost" onclick={() => (leaveConfirmVisible = false)}>
       {m('common.cancel')}
     </Button>

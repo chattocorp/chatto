@@ -115,6 +115,7 @@
         {m('common.cancel')}
       </Button>
       <Button
+        defaultAction
         variant="danger"
         onclick={handleDeleteAccount}
         disabled={!canDelete || isDeleting}
