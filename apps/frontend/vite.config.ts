@@ -261,10 +261,6 @@ export default defineConfig(async ({ command }) => {
           changeOrigin: true,
           cookieDomainRewrite: { '*': '' }
         },
-        '/oauth/token': {
-          target: backendTarget,
-          changeOrigin: true
-        },
         '/api': {
           target: backendTarget,
           ws: true,
