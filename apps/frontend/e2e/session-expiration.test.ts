@@ -339,6 +339,8 @@ test.describe('Cookie session rotation', () => {
     );
     expect(initialSessionCookie).toBeDefined();
 
+    // This intentional wall-clock wait moves the 12-second session into its
+    // final quarter. Rotation depends on the server clock, not a browser timer.
     await page.waitForTimeout(9200);
     await page.goto(`${routes.settings}?rotation=${timestamp}`);
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();

@@ -112,7 +112,7 @@ requires a user to extend a session manually.
 
 ## Related
 
-- [ADR-017](ADR-017-cookie-sessions-for-websocket-auth.md)
+- [ADR-017](ADR-017-cookie-session-auth-for-websocket.md)
 - [ADR-025](ADR-025-multi-instance-client-architecture.md)
 - [ADR-036](ADR-036-runtime-state-kv-boundary.md)
 - [ADR-046](ADR-046-typed-runtime-credentials.md)
