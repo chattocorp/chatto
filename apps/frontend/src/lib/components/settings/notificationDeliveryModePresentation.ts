@@ -28,7 +28,7 @@ export function notificationDeliveryModePresentation(
   }
   if (mode === NotificationDeliveryMode.PUSH_NOTIFICATION) {
     return {
-      icon: 'icon-[ph--device-mobile-fill]',
+      icon: 'icon-[ph--phone-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     };

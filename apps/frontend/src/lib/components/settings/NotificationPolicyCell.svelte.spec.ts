@@ -117,7 +117,7 @@ describe('NotificationPolicyCell', () => {
       props: { ...baseProps, override: null, onChange: vi.fn() }
     });
 
-    expect(container.querySelector('[class~="icon-[ph--device-mobile-fill]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
     expect(container.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
     expect(container.querySelector('[class~="bg-warning"]')).not.toBeNull();
     expect(container.querySelector('[data-notification-source="default"]')).not.toBeNull();

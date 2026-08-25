@@ -32,7 +32,7 @@ describe('notification delivery mode presentation', () => {
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.PUSH_NOTIFICATION)
     ).toEqual({
-      icon: 'icon-[ph--device-mobile-fill]',
+      icon: 'icon-[ph--phone-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     });
