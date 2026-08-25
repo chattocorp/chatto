@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Připnutá zpráva",
         "thread": "Závit",
+        "edited": "Zpráva upravena",
+        "echoed_to_channel": "Také odesláno do kanálu",
         "reply_count_one": "1 odpověď",
         "reply_count_many": "{count} odpovědí",
         "follow_thread": "Sledujte vlákno",

@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Alpinglita mesaĝo",
         "thread": "Fadeno",
+        "edited": "Redaktita mesaĝo",
+        "echoed_to_channel": "Ankaŭ sendita al la kanalo",
         "reply_count_one": "1 respondo",
         "reply_count_many": "{count} respondas",
         "follow_thread": "Sekvu fadenon",

@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "已釘選訊息",
         "thread": "討論串",
+        "edited": "已編輯的訊息",
+        "echoed_to_channel": "也已傳送至頻道",
         "reply_count_one": "1 則回覆",
         "reply_count_many": "{count} 則回覆",
         "follow_thread": "追蹤討論串",

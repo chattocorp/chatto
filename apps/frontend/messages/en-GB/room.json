@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Pinned message",
         "thread": "Thread",
+        "edited": "Edited message",
+        "echoed_to_channel": "Also sent to channel",
         "reply_count_one": "1 reply",
         "reply_count_many": "{count} replies",
         "follow_thread": "Follow thread",

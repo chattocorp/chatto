@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Fäst meddelande",
         "thread": "Tråd",
+        "edited": "Redigerat meddelande",
+        "echoed_to_channel": "Även skickat till kanalen",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarar",
         "follow_thread": "Följ tråden",

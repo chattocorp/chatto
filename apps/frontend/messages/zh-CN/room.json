@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "已置顶消息",
         "thread": "话题串",
+        "edited": "已编辑的消息",
+        "echoed_to_channel": "也已发送到频道",
         "reply_count_one": "1 条回复",
         "reply_count_many": "{count} 条回复",
         "follow_thread": "关注话题串",

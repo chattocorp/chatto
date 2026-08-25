@@ -153,6 +153,33 @@ afterEach(() => {
 });
 
 describe('MessageEvent action model integration', () => {
+  it('shows an echoed-to-channel marker only for an echoed reply in the thread pane', async () => {
+    const reply = messageEvent({
+      id: 'thread-reply',
+      threadRootEventId: 'thread-root',
+      channelEchoEventId: 'echo-wrapper'
+    });
+    const rendered = render(MessageEventTestHarness, {
+      props: { event: reply, permalinkThreadRootEventId: 'thread-root' }
+    });
+
+    await expect.element(q(rendered.container, '.echoed-to-channel-marker')).toBeInTheDocument();
+
+    await rendered.rerender({
+      event: messageEvent({ id: 'thread-reply', threadRootEventId: 'thread-root' }),
+      permalinkThreadRootEventId: 'thread-root'
+    });
+    await expect.element(q(rendered.container, '.echoed-to-channel-marker')).not.toBeInTheDocument();
+
+    const echo = messageEvent({
+      id: 'echo-wrapper',
+      echoOfEventId: 'thread-reply',
+      echoFromThreadRootEventId: 'thread-root'
+    });
+    await rendered.rerender({ event: echo, permalinkThreadRootEventId: null });
+    await expect.element(q(rendered.container, '.echoed-to-channel-marker')).not.toBeInTheDocument();
+  });
+
   it('orders and constrains reply actions for each threading mode', async () => {
     const onOpenThread = vi.fn();
     const event = messageEvent({ threadExists: true });

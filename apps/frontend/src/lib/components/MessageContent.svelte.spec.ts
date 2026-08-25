@@ -402,7 +402,7 @@ describe('MessageContent component', () => {
     expect(container.textContent).toContain('fsdfsd fsdffdsf');
   });
 
-  it('renders bold content followed immediately by text in edited messages', async () => {
+  it('appends an edited marker after inline message text', async () => {
     const { container } = render(MessageContent, {
       props: {
         body: 'fsdfsd **fsdf**fdsf',
@@ -412,7 +412,38 @@ describe('MessageContent component', () => {
 
     await expect.poll(() => q(container, 'strong')).toBeTruthy();
     expect(q(container, 'strong')?.textContent).toBe('fsdf');
-    expect(container.textContent).toContain('fsdfsd fsdffdsf (edited)');
+    const marker = q(container, '.edited-marker')!;
+    expect(marker.getAttribute('role')).toBe('img');
+    expect(marker.getAttribute('aria-label')).toBe('Edited message');
+    expect(marker.getAttribute('title')).toBe('Edited message');
+    expect(marker.querySelector('[class~="icon-[uil--pen]"]')).toBeTruthy();
+    expect(marker.classList).toContain('align-[-0.09em]');
+  });
+
+  it('appends an echoed-to-channel marker after inline message text', async () => {
+    const { container } = render(MessageContent, {
+      props: { body: 'Visible in the room', echoedToChannel: true }
+    });
+
+    await expect.poll(() => q(container, '.echoed-to-channel-marker')).toBeTruthy();
+    const marker = q(container, '.echoed-to-channel-marker')!;
+    expect(marker.getAttribute('role')).toBe('img');
+    expect(marker.getAttribute('aria-label')).toBe('Also sent to channel');
+    expect(marker.getAttribute('title')).toBe('Also sent to channel');
+    expect(marker.querySelector('[class~="icon-[uil--megaphone]"]')).toBeTruthy();
+    expect(marker.classList).toContain('align-[-0.09em]');
+    expect(marker.parentElement?.tagName).toBe('P');
+  });
+
+  it('places an echoed-to-channel marker in a trailing paragraph after block content', async () => {
+    const { container } = render(MessageContent, {
+      props: { body: '```\ncode\n```', echoedToChannel: true }
+    });
+
+    await expect.poll(() => q(container, '.echoed-to-channel-marker')).toBeTruthy();
+    const marker = q(container, '.echoed-to-channel-marker')!;
+    expect(marker.parentElement?.tagName).toBe('P');
+    expect(marker.parentElement?.previousElementSibling?.tagName).toBe('PRE');
   });
 
   it('renders message timestamp tokens as localized time elements', async () => {

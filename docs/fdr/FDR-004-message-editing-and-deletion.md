@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -12,6 +12,7 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
+- Edited messages show a pen icon after their text. The icon is not a control.
 - Deletions remove the message body and all attachments and initially replace the rendered message with a "[Message deleted]" placeholder.
 - Attachment bytes are deleted only when the durable asset owner is the exact message being changed; a duplicate reference left by an older vulnerable server is removed without damaging the owning message.
 - A deleted-message placeholder disappears after one hour when the message has no current attachments or link preview, reactions, or replies in its thread.

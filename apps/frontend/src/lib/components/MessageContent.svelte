@@ -36,6 +36,7 @@
     members = [],
     roleHandles = [],
     edited = false,
+    echoedToChannel = false,
     viewerLogin,
     timestampSettings = fallbackTimestampSettings,
     timestampLocale,
@@ -45,6 +46,7 @@
     members?: RoomMember[];
     roleHandles?: string[];
     edited?: boolean;
+    echoedToChannel?: boolean;
     viewerLogin?: string;
     timestampSettings?: TimeFormatSettings;
     timestampLocale?: string;
@@ -77,23 +79,57 @@
     };
   });
 
-  function injectEditedMarker(html: string): string {
+  function injectMessageStateMarkers(
+    html: string,
+    { edited, echoedToChannel }: { edited: boolean; echoedToChannel: boolean }
+  ): string {
     const doc = parseTrustedMarkdownHtml(`<div>${html}</div>`);
     const root = doc.body.firstElementChild;
     if (!root) return html;
-    const badge = doc.createElement('span');
-    badge.className = 'edited-marker text-xs whitespace-nowrap text-muted/70';
-    badge.textContent = '(edited)';
+    const markers: HTMLElement[] = [];
+    if (edited) {
+      const badge = doc.createElement('span');
+      badge.className =
+        'edited-marker inline-block align-[-0.09em] leading-none whitespace-nowrap text-muted/70';
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', m('room.message.meta.edited'));
+      badge.setAttribute('title', m('room.message.meta.edited'));
+      const icon = doc.createElement('span');
+      icon.className = 'iconify icon-[uil--pen] text-[0.875em]';
+      icon.setAttribute('aria-hidden', 'true');
+      badge.appendChild(icon);
+      markers.push(badge);
+    }
+    if (echoedToChannel) {
+      const badge = doc.createElement('span');
+      badge.className =
+        'echoed-to-channel-marker inline-block align-[-0.09em] leading-none whitespace-nowrap text-muted/70';
+      badge.setAttribute('role', 'img');
+      badge.setAttribute('aria-label', m('room.message.meta.echoed_to_channel'));
+      badge.setAttribute('title', m('room.message.meta.echoed_to_channel'));
+      const icon = doc.createElement('span');
+      icon.className = 'iconify icon-[uil--megaphone] text-[0.875em]';
+      icon.setAttribute('aria-hidden', 'true');
+      badge.appendChild(icon);
+      markers.push(badge);
+    }
+    if (markers.length === 0) return html;
+
     // Only inline the marker into a trailing <p> so it flows with the last word.
     // For block-level last children (<pre>, <ul>, <blockquote>) fall back to a
     // separate trailing line so the marker doesn't get clipped or look misplaced.
     const last = root.lastElementChild;
     if (last && last.tagName === 'P') {
-      last.appendChild(doc.createTextNode(' '));
-      last.appendChild(badge);
+      for (const marker of markers) {
+        last.appendChild(doc.createTextNode(' '));
+        last.appendChild(marker);
+      }
     } else {
       const trailer = doc.createElement('p');
-      trailer.appendChild(badge);
+      for (const [index, marker] of markers.entries()) {
+        if (index > 0) trailer.appendChild(doc.createTextNode(' '));
+        trailer.appendChild(marker);
+      }
       root.appendChild(trailer);
     }
     return root.innerHTML;
@@ -105,6 +141,7 @@
     members: RoomMember[],
     roleHandles: string[],
     edited: boolean,
+    echoedToChannel: boolean,
     viewerLogin: string | undefined,
     timestampSettings: TimeFormatSettings,
     timestampLocale: string | undefined
@@ -116,7 +153,9 @@
       timestampSettings,
       timestampLocale ?? getLocale()
     );
-    return edited ? injectEditedMarker(withTimestamps) : withTimestamps;
+    return edited || echoedToChannel
+      ? injectMessageStateMarkers(withTimestamps, { edited, echoedToChannel })
+      : withTimestamps;
   }
 
   // Handle clicks on links (open in system browser) and mentions (trigger callback).
@@ -170,7 +209,16 @@
 </script>
 
 <div class="prose max-w-none min-w-0" dir="auto" role="presentation" onclick={handleContentClick}>
-  {#await render(body, members, roleHandles, edited, viewerLogin, timestampSettings, timestampLocale)}
+  {#await render(
+    body,
+    members,
+    roleHandles,
+    edited,
+    echoedToChannel,
+    viewerLogin,
+    timestampSettings,
+    timestampLocale
+  )}
     {body}
   {:then html}
     <MarkdownHtml {html} />

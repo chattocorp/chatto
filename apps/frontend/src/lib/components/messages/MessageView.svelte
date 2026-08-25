@@ -24,6 +24,7 @@ identity, body rendering, and row geometry consistent.
     body = null,
     deleted = false,
     edited = false,
+    echoedToChannel = false,
     viewerLogin,
     compact = false,
     avatarOffset = false,
@@ -61,6 +62,7 @@ identity, body rendering, and row geometry consistent.
     body?: string | null;
     deleted?: boolean;
     edited?: boolean;
+    echoedToChannel?: boolean;
     viewerLogin?: string;
     compact?: boolean;
     avatarOffset?: boolean;
@@ -203,6 +205,7 @@ identity, body rendering, and row geometry consistent.
             {members}
             {roleHandles}
             {edited}
+            {echoedToChannel}
             {viewerLogin}
             {timestampSettings}
             {timestampLocale}

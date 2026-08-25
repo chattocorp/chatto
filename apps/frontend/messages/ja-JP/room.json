@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "ピン留めされたメッセージ",
         "thread": "スレッド",
+        "edited": "編集済みメッセージ",
+        "echoed_to_channel": "チャンネルにも送信済み",
         "reply_count_one": "1 件の返信",
         "reply_count_many": "{count} が返信します",
         "follow_thread": "スレッドをフォローする",

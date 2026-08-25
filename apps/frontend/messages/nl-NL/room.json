@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Vastgezet bericht",
         "thread": "Discussie",
+        "edited": "Bewerkt bericht",
+        "echoed_to_channel": "Ook naar kanaal verzonden",
         "reply_count_one": "1 antwoord",
         "reply_count_many": "{count} antwoordt",
         "follow_thread": "Volg draad",

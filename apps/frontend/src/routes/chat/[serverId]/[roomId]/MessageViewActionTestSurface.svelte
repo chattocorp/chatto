@@ -4,6 +4,7 @@
   let {
     eventId,
     body,
+    echoedToChannel = false,
     oncontextmenu,
     onmousedown,
     onmouseup,
@@ -18,6 +19,7 @@
   }: {
     eventId: string;
     body?: string | null;
+    echoedToChannel?: boolean;
     oncontextmenu?: (event: MouseEvent) => void;
     onmousedown?: (event: MouseEvent) => void;
     onmouseup?: (event: MouseEvent) => void;
@@ -47,6 +49,9 @@
   {ontouchcancel}
 >
   <span data-testid="message-body" bind:this={bodyElement}>{body}</span>
+  {#if echoedToChannel}
+    <span class="echoed-to-channel-marker" role="img" aria-label="Also sent to channel"></span>
+  {/if}
   {@render afterBody?.()}
   {@render actions?.()}
 </div>

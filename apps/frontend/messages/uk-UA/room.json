@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Закріплене повідомлення",
         "thread": "Тема",
+        "edited": "Повідомлення відредаговано",
+        "echoed_to_channel": "Також надіслано до каналу",
         "reply_count_one": "1 відповідь",
         "reply_count_many": "Відповіді {count}",
         "follow_thread": "Слідкуйте за темою",

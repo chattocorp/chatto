@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Закреплённое сообщение",
         "thread": "Тема",
+        "edited": "Сообщение отредактировано",
+        "echoed_to_channel": "Также отправлено в канал",
         "reply_count_one": "1 ответ",
         "reply_count_many": "{count} отвечает",
         "follow_thread": "Следовать за темой",

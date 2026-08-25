@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Sabitlenmiş mesaj",
         "thread": "Konu",
+        "edited": "Düzenlenmiş ileti",
+        "echoed_to_channel": "Kanala da gönderildi",
         "reply_count_one": "1 yanıt",
         "reply_count_many": "{count} yanıtlar",
         "follow_thread": "Konuyu takip et",

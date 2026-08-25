@@ -100,6 +100,8 @@
       "meta": {
         "pinned": "Messaggio fissato",
         "thread": "Filo",
+        "edited": "Messaggio modificato",
+        "echoed_to_channel": "Inviato anche al canale",
         "reply_count_one": "1 risposta",
         "reply_count_many": "{count} risponde",
         "follow_thread": "Segui il filo",
