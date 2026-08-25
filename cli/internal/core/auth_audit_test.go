@@ -532,7 +532,7 @@ func TestChattoCore_AuditAppendFailureCleansNewAuthRuntimeTokens(t *testing.T) {
 	}
 }
 
-func TestChattoCore_BearerRevocationAuditFailureKeepsToken(t *testing.T) {
+func TestChattoCore_BearerRevocationAuditFailureStillRevokesToken(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, err := core.CreateUser(ctx, SystemActorID, "revocation-audit-failure-user", "Revocation Audit Failure User", "password123")
@@ -545,16 +545,12 @@ func TestChattoCore_BearerRevocationAuditFailureKeepsToken(t *testing.T) {
 	}
 
 	core.EventPublisher = nil
-	if err := core.RevokeAuthTokenWithReason(ctx, token, "test_revoke"); err == nil {
-		t.Fatalf("expected revocation audit append failure")
+	if err := core.RevokeAuthTokenWithReason(ctx, token, "test_revoke"); err != nil {
+		t.Fatalf("RevokeAuthTokenWithReason: %v", err)
 	}
 
-	userID, err := core.ValidateAuthToken(ctx, token)
-	if err != nil {
-		t.Fatalf("expected token to remain valid after failed revocation audit: %v", err)
-	}
-	if userID != user.Id {
-		t.Fatalf("ValidateAuthToken userID = %q, want %q", userID, user.Id)
+	if _, err := core.ValidateAuthToken(ctx, token); !errors.Is(err, ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken error = %v, want ErrAuthTokenNotFound", err)
 	}
 }
 
