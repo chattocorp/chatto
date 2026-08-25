@@ -80,8 +80,9 @@ func (c *ChattoCore) GetRoomLastEvent(ctx context.Context, kind RoomKind, roomID
 	return ev.GetId(), createdAt, true, nil
 }
 
-// GetRoomLastReadableEvent returns the most recent root message that userID can
-// currently read. Interaction-scoped readers skip unrelated roots.
+// GetRoomLastReadableEvent returns the most recent room-visible message that
+// userID can currently read. Channel echoes use the interaction relationship
+// of their canonical thread root.
 func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind, userID, roomID string) (eventID string, ts time.Time, exists bool, err error) {
 	broad, err := c.CanReadMessages(ctx, userID, kind, roomID)
 	if err != nil {
@@ -96,13 +97,14 @@ func (c *ChattoCore) GetRoomLastReadableEvent(ctx context.Context, kind RoomKind
 	}
 	visible := func(event *corev1.Event) bool {
 		message := event.GetMessagePosted()
-		if message == nil || message.GetInThread() != "" || message.GetEchoOfEventId() != "" {
+		if message == nil || message.GetInThread() != "" {
 			return false
 		}
 		if broad || kind == KindDM {
 			return true
 		}
-		return interactions && c.roomModel.hasThreadInteraction(userID, roomID, event.GetId())
+		rootID, ok := c.roomModel.threadRootForMessage(roomID, event.GetId())
+		return ok && interactions && c.roomModel.hasThreadInteraction(userID, roomID, rootID)
 	}
 	entry, ok := c.roomModel.lastVisibleRoomEntry(roomID, visible)
 	if !ok || entry == nil || entry.Event == nil {
