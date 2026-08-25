@@ -123,6 +123,25 @@ them merely because the page header already names the overall feature: the
 page title answers “where am I?”, while panel titles answer “what is in this
 section?”.
 
+### Settings And Preferences
+
+Server Configuration, server-scoped User Preferences, and App Preferences use
+the same page structure. Their different data scopes affect navigation and
+state ownership, not the visual treatment of their forms.
+
+- Put settings content in `PaneContent`; do not reproduce its scrolling,
+  padding, or width classes on a route-local wrapper.
+- Frame every page-level form or independently meaningful control group with a
+  titled, padded `Panel`. Keep its validation, status, and actions inside the
+  same panel.
+- Let the panel span the content column. Apply `max-w-*` to the fields or form
+  inside it when a shorter line length improves usability, not to the panel
+  shell itself.
+- Use `FormSection` only to subdivide a single panel whose controls submit or
+  operate as one group. It is not a substitute for the page-level panel frame.
+- Stack independent settings panels with the standard `gap-6`, and never nest
+  one `Panel` inside another.
+
 ## Semantic Color Language
 
 Use semantic tokens instead of Tailwind palette colors for application chrome.

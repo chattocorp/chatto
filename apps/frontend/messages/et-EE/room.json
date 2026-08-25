@@ -13,7 +13,7 @@
       "missing_group": "Valige enne ruumi loomist ruumirühm.",
       "failed": "Ruumi loomine ebaõnnestus",
       "creating": "Loomine...",
-      "submit": "Loo tuba"
+      "submit_and_configure": "Loo ja seadista tuba"
     },
     "join": {
       "title": "Liituge ruumiga",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "Kinnitatud sõnum",
         "thread": "Niit",
+        "edited": "Muudetud sõnum",
+        "echoed_to_channel": "Saadetud ka kanalisse",
         "reply_count_one": "1 vastus",
         "reply_count_many": "{count} vastust",
         "follow_thread": "Jälgi lõime",

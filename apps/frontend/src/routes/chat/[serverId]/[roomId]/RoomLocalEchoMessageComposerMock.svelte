@@ -6,12 +6,14 @@
     inReplyTo,
     showCreateThread = false,
     createThreadRequired = false,
-    onMessageSent
+    onMessageSent,
+    onThreadCreated
   }: {
     inReplyTo?: string;
     showCreateThread?: boolean;
     createThreadRequired?: boolean;
     onMessageSent?: (event: TimelineEventView | null) => void;
+    onThreadCreated?: (threadRootEventId: string) => void;
   } = $props();
 
   const composerContext = getComposerContext();
@@ -71,7 +73,13 @@
   emit returned post
 </button>
 
-<button data-testid="emit-created-thread" onclick={() => onMessageSent?.(returnedPost)}>
+<button
+  data-testid="emit-created-thread"
+  onclick={() => {
+    onMessageSent?.(returnedPost);
+    onThreadCreated?.(returnedPost.id);
+  }}
+>
   emit created thread
 </button>
 

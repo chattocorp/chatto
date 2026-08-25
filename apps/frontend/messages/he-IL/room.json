@@ -13,7 +13,7 @@
       "missing_group": "בחר קבוצת חדרים לפני יצירת חדר.",
       "failed": "נכשל ביצירת החדר",
       "creating": "יוצר...",
-      "submit": "צור חדר"
+      "submit_and_configure": "צור והגדר את החדר"
     },
     "join": {
       "title": "הצטרפות לחדר",
@@ -102,6 +102,8 @@
       "meta": {
         "pinned": "הודעה מוצמדת",
         "thread": "שרשור",
+        "edited": "הודעה נערכה",
+        "echoed_to_channel": "נשלח גם לערוץ",
         "reply_count_one": "תשובה אחת",
         "reply_count_many": "{count} תשובות",
         "follow_thread": "עקוב אחר השרשור",

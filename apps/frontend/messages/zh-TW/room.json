@@ -13,7 +13,7 @@
       "missing_group": "建立聊天室前，請先選擇聊天室群組。",
       "failed": "無法建立聊天室",
       "creating": "正在建立...",
-      "submit": "建立聊天室"
+      "submit_and_configure": "建立並設定聊天室"
     },
     "join": {
       "title": "加入聊天室",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "已釘選訊息",
         "thread": "討論串",
+        "edited": "已編輯的訊息",
+        "echoed_to_channel": "也已傳送至頻道",
         "reply_count_one": "1 則回覆",
         "reply_count_many": "{count} 則回覆",
         "follow_thread": "追蹤討論串",

@@ -38,7 +38,7 @@
       <Button variant="secondary" onclick={handleClose} disabled={deleting}
         >{m('common.cancel')}</Button
       >
-      <Button variant="danger" onclick={onConfirm} disabled={deleting}>
+      <Button defaultAction variant="danger" onclick={onConfirm} disabled={deleting}>
         {deleting ? m('rbac.delete_role.deleting') : m('rbac.delete_role.action')}
       </Button>
     </div>

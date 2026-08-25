@@ -7,7 +7,15 @@
       "display": "Eelistused",
       "notifications": "Märguanded",
       "account": "konto",
-      "bots": "Botid"
+      "bots": "Botid",
+      "user_preferences": "Kasutaja eelistused",
+      "server_configuration": "Serveri konfiguratsioon"
+    },
+    "app_preferences": {
+      "title": "Rakenduse eelistused",
+      "subtitle": "Selle rakenduse valikud, mis kehtivad kõigis sinu registreeritud serverites",
+      "appearance": { "title": "Välimus" },
+      "composer": { "title": "Sõnumi koostamine" }
     },
     "profile": {
       "title": "Profiil",
@@ -105,8 +113,8 @@
       "save_button": "Salvesta muudatused"
     },
     "preferences": {
-      "title": "Eelistused",
-      "subtitle": "Vali Chatto välimus ja käitumine",
+      "title": "Aeg ja piirkond",
+      "subtitle": "Vali, kuidas see server sulle kuupäevi ja kellaaegu kuvab",
       "browser_scope": "See valik kehtib selles brauseris kõigile Chatto serveritele.",
       "theme": {
         "title": "Teema",

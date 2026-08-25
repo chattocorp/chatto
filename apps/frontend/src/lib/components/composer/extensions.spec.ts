@@ -10,6 +10,7 @@ describe('createComposerExtensions', () => {
       'link',
       'markdown',
       'codeBlock',
+      'selectedTextInlineCodeShortcut',
       'markdownLinkInputRule',
       'completedMarkdownCodeFence',
       'markdownListMarkerAfterHardBreak',

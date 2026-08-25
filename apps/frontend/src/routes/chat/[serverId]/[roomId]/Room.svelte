@@ -745,6 +745,7 @@
               void roomMessageStore.refreshCurrentWindow(null);
             }
           }}
+          onThreadCreated={(threadRootEventId) => openThread(threadRootEventId)}
           onThreadMessageSent={(threadRootEventId, event) => {
             typingIndicator?.resetDebounce();
             openThread(threadRootEventId, { highlightEventId: event?.id });

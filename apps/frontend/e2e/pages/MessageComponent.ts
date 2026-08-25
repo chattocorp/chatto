@@ -420,18 +420,14 @@ export class MessageComponent {
     });
   }
 
-  /**
-   * Assert that the message shows (edited) indicator.
-   */
+  /** Assert that the message shows the edit marker. */
   async expectEdited(): Promise<void> {
-    await expect(this.locator.getByText('(edited)')).toBeVisible();
+    await expect(this.locator.locator('.edited-marker')).toBeVisible();
   }
 
-  /**
-   * Assert that the message does NOT show (edited) indicator.
-   */
+  /** Assert that the message does not show the edit marker. */
   async expectNotEdited(): Promise<void> {
-    await expect(this.locator.getByText('(edited)')).not.toBeVisible();
+    await expect(this.locator.locator('.edited-marker')).not.toBeVisible();
   }
 
   /**

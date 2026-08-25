@@ -7,7 +7,15 @@
       "display": "Voorkeuren",
       "notifications": "Meldingen",
       "account": "Account",
-      "bots": "Bots"
+      "bots": "Bots",
+      "user_preferences": "Gebruikersvoorkeuren",
+      "server_configuration": "Serverconfiguratie"
+    },
+    "app_preferences": {
+      "title": "Appvoorkeuren",
+      "subtitle": "Keuzes van deze app die gelden voor al je geregistreerde servers",
+      "appearance": { "title": "Weergave" },
+      "composer": { "title": "Berichten opstellen" }
     },
     "profile": {
       "title": "Profiel",
@@ -105,8 +113,8 @@
       "save_button": "Wijzigingen opslaan"
     },
     "preferences": {
-      "title": "Voorkeuren",
-      "subtitle": "Kies hoe Chatto eruitziet en werkt",
+      "title": "Tijd en regio",
+      "subtitle": "Kies hoe deze server datums en tijden voor je weergeeft",
       "browser_scope": "Deze keuze geldt voor alle Chatto-servers in deze browser.",
       "theme": {
         "title": "Thema",

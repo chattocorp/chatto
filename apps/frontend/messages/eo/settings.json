@@ -7,7 +7,15 @@
       "display": "Preferoj",
       "notifications": "Sciigoj",
       "account": "Konto",
-      "bots": "Botoj"
+      "bots": "Botoj",
+      "user_preferences": "Uzantaj preferoj",
+      "server_configuration": "Servila agordo"
+    },
+    "app_preferences": {
+      "title": "Aplikaj preferoj",
+      "subtitle": "Elektoj de ĉi tiu aplikaĵo, kiuj validas por ĉiuj viaj registritaj serviloj",
+      "appearance": { "title": "Aspekto" },
+      "composer": { "title": "Mesaĝverkilo" }
     },
     "profile": {
       "title": "Profilo",
@@ -105,8 +113,8 @@
       "save_button": "Konservu Ŝanĝojn"
     },
     "preferences": {
-      "title": "Preferoj",
-      "subtitle": "Elektu la aspekton kaj konduton de Chatto",
+      "title": "Tempo kaj regiono",
+      "subtitle": "Elektu kiel ĉi tiu servilo montras datojn kaj horojn al vi",
       "browser_scope": "Ĉi tiu elekto validas por ĉiuj Chatto-serviloj en ĉi tiu retumilo.",
       "theme": {
         "title": "Temo",

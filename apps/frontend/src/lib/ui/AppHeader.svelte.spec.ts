@@ -62,6 +62,7 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(container.querySelector('a[href="/chat/notifications"]')).toBeNull();
+    expect(container.querySelector('a[href="/chat/preferences"]')).not.toBeNull();
   });
 
   it('shows notifications when a server is registered', () => {
@@ -71,6 +72,7 @@ describe('AppHeader', () => {
     const { container } = render(AppHeader);
 
     expect(container.querySelector('a[href="/chat/notifications"]')).not.toBeNull();
+    expect(container.querySelector('a[href="/chat/preferences"]')).not.toBeNull();
   });
 
   it('opens the About Chatto dialog from the frontend version', () => {

@@ -1,5 +1,6 @@
 <script lang="ts">
-  import { FormSection, Hint } from '$lib/ui';
+  import { Panel } from '$lib/components/admin';
+  import { Hint } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
@@ -116,45 +117,50 @@
   </label>
 {/snippet}
 
-<FormSection title={m('settings.notifications.policy.title')} maxWidth="max-w-2xl" bordered>
-  <p class="mb-3 text-sm text-muted">{m('settings.notifications.policy.description')}</p>
-  <select
-    class="mb-3 input w-full text-sm"
-    aria-label={m('settings.notifications.policy.title')}
-    value={selectedRoomId}
-    disabled={savingField !== null}
-    onchange={(event) => {
-      selectedRoomId = event.currentTarget.value;
-    }}
-  >
-    <option value="">{serverScope.store.serverInfo.name}</option>
-    {#each policyRooms as room (room.id)}
-      <option value={room.id}>#{room.name}</option>
-    {/each}
-  </select>
-  {#if error}<Hint tone="danger">{error}</Hint>{/if}
-  {#if loading}
-    <p class="py-3 text-sm text-muted">{m('common.loading')}</p>
-  {:else if policy}
-    <div class="flex flex-col divide-y divide-border rounded-lg border border-border">
-      {@render policyRow(
-        'directMessages',
-        m('settings.notifications.policy.reason.direct_message')
-      )}
-      {@render policyRow(
-        'directMentions',
-        m('settings.notifications.policy.reason.direct_mention')
-      )}
-      {@render policyRow('replies', m('settings.notifications.policy.reason.reply'))}
-      {@render policyRow('roleMentions', m('settings.notifications.policy.reason.role_mention'))}
-      {@render policyRow('hereMentions', m('settings.notifications.policy.reason.here'))}
-      {@render policyRow('allMentions', m('settings.notifications.policy.reason.all'))}
-      {@render policyRow(
-        'followedThreads',
-        m('settings.notifications.policy.reason.followed_thread')
-      )}
-      {@render policyRow('followedRooms', m('settings.notifications.policy.reason.followed_room'))}
-      {@render policyRow('reactions', m('settings.notifications.policy.reason.reaction'))}
-    </div>
-  {/if}
-</FormSection>
+<Panel title={m('settings.notifications.policy.title')} icon="iconify icon-[uil--sliders-v-alt]">
+  <div class="max-w-2xl">
+    <p class="mb-3 text-sm text-muted">{m('settings.notifications.policy.description')}</p>
+    <select
+      class="mb-3 input w-full text-sm"
+      aria-label={m('settings.notifications.policy.title')}
+      value={selectedRoomId}
+      disabled={savingField !== null}
+      onchange={(event) => {
+        selectedRoomId = event.currentTarget.value;
+      }}
+    >
+      <option value="">{serverScope.store.serverInfo.name}</option>
+      {#each policyRooms as room (room.id)}
+        <option value={room.id}>#{room.name}</option>
+      {/each}
+    </select>
+    {#if error}<Hint tone="danger">{error}</Hint>{/if}
+    {#if loading}
+      <p class="py-3 text-sm text-muted">{m('common.loading')}</p>
+    {:else if policy}
+      <div class="flex flex-col divide-y divide-border rounded-lg border border-border">
+        {@render policyRow(
+          'directMessages',
+          m('settings.notifications.policy.reason.direct_message')
+        )}
+        {@render policyRow(
+          'directMentions',
+          m('settings.notifications.policy.reason.direct_mention')
+        )}
+        {@render policyRow('replies', m('settings.notifications.policy.reason.reply'))}
+        {@render policyRow('roleMentions', m('settings.notifications.policy.reason.role_mention'))}
+        {@render policyRow('hereMentions', m('settings.notifications.policy.reason.here'))}
+        {@render policyRow('allMentions', m('settings.notifications.policy.reason.all'))}
+        {@render policyRow(
+          'followedThreads',
+          m('settings.notifications.policy.reason.followed_thread')
+        )}
+        {@render policyRow(
+          'followedRooms',
+          m('settings.notifications.policy.reason.followed_room')
+        )}
+        {@render policyRow('reactions', m('settings.notifications.policy.reason.reaction'))}
+      </div>
+    {/if}
+  </div>
+</Panel>

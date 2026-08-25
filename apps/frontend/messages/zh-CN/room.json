@@ -13,7 +13,7 @@
       "missing_group": "创建聊天室前，请选择一个聊天室分组。",
       "failed": "创建聊天室失败",
       "creating": "正在创建...",
-      "submit": "创建聊天室"
+      "submit_and_configure": "创建并配置聊天室"
     },
     "join": {
       "title": "加入聊天室",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "已置顶消息",
         "thread": "话题串",
+        "edited": "已编辑的消息",
+        "echoed_to_channel": "也已发送到频道",
         "reply_count_one": "1 条回复",
         "reply_count_many": "{count} 条回复",
         "follow_thread": "关注话题串",

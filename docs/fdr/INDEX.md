@@ -12,7 +12,7 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 |---|---------|--------|---------------|
 | [FDR-001](FDR-001-roles-and-permissions.md) | Roles & Permissions (RBAC) | Active | 2026-08-25 |
 | [FDR-002](FDR-002-replies-and-threads.md) | Replies & Threads | Active | 2026-08-25 |
-| [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-08-22 |
+| [FDR-003](FDR-003-thread-reply-echo.md) | Thread Reply Echo | Active | 2026-08-25 |
 | [FDR-004](FDR-004-message-editing-and-deletion.md) | Message Editing & Deletion | Active | 2026-08-25 |
 | [FDR-005](FDR-005-reactions.md) | Reactions | Active | 2026-08-25 |
 | [FDR-006](FDR-006-mentions.md) | @Mentions | Active | 2026-08-23 |
@@ -30,8 +30,8 @@ See [`.agents/skills/fdr/SKILL.md`](../../.agents/skills/fdr/SKILL.md) for the F
 | [FDR-018](FDR-018-account-lifecycle.md) | Account Lifecycle | Active | 2026-08-21 |
 | [FDR-019](FDR-019-room-lifecycle.md) | Room Lifecycle | Active | 2026-08-22 |
 | [FDR-020](FDR-020-server-branding-and-configuration.md) | Server Branding & Configuration | Active | 2026-07-14 |
-| [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-11 |
-| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-08-22 |
+| [FDR-021](FDR-021-admin-dashboard.md) | Admin Dashboard & System Monitoring | Active | 2026-08-23 |
+| [FDR-022](FDR-022-user-profile.md) | User Profile | Active | 2026-08-23 |
 | [FDR-023](FDR-023-authentication-and-sessions.md) | Authentication & Sessions | Active | 2026-08-23 |
 | [FDR-024](FDR-024-permission-inspection-tool.md) | Permission Inspection Tool | Active | 2026-06-15 |
 | [FDR-025](FDR-025-user-search-and-member-directory.md) | User Search & Member Directory | Active | 2026-08-21 |

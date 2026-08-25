@@ -245,6 +245,9 @@
     isRootMessage && ((messageEvent?.threadExists ?? false) || (messageEvent?.replyCount ?? 0) > 0)
   );
   const isInThreadPane = $derived(!!permalinkThreadRootEventId);
+  const isEchoedToChannel = $derived(
+    isInThreadPane && !isEcho && !!messageEvent?.channelEchoEventId
+  );
   const replyInRoomActionLabel = $derived(
     isEcho ? m('room.message.actions.reply_thread') : m('room.message.actions.reply')
   );
@@ -565,6 +568,7 @@
     body={msg.body}
     deleted={isDeleted}
     edited={isEdited}
+    echoedToChannel={isEchoedToChannel}
     viewerLogin={currentUser.user?.login}
     {compact}
     avatarOffset={!!replyPreview}

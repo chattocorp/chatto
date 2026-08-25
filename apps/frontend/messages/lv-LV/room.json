@@ -13,7 +13,7 @@
       "missing_group": "Pirms telpas izveides izvēlieties telpu grupu.",
       "failed": "Neizdevās izveidot telpu",
       "creating": "Notiek izveide...",
-      "submit": "Izveidot istabu"
+      "submit_and_configure": "Izveidot un konfigurēt istabu"
     },
     "join": {
       "title": "Pievienojieties telpai",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "Piesprausta ziņa",
         "thread": "Pavediens",
+        "edited": "Rediģēts ziņojums",
+        "echoed_to_channel": "Nosūtīts arī uz kanālu",
         "reply_count_one": "1 atbilde",
         "reply_count_many": "{count} atbildes",
         "follow_thread": "Sekojiet pavedienam",

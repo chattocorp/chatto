@@ -30,6 +30,16 @@ export class ServerAdminRoomsPage {
     return this.page.getByRole('dialog');
   }
 
+  /** The room name input on a room's General settings page. */
+  get roomSettingsNameInput(): Locator {
+    return this.page.locator('#room-settings-name');
+  }
+
+  /** The room description input on a room's General settings page. */
+  get roomSettingsDescriptionInput(): Locator {
+    return this.page.locator('#room-settings-description');
+  }
+
   // --- Room Row Helpers ---
 
   /**
@@ -64,6 +74,11 @@ export class ServerAdminRoomsPage {
 
   /** Navigate directly to the rooms admin page. */
   async goto(spaceId: string): Promise<void> {
+    await this.returnToOverview();
+  }
+
+  /** Return to the rooms overview from a room or group settings page. */
+  async returnToOverview(): Promise<void> {
     await this.page.goto(routes.serverAdminRooms);
     await expect(this.pageHeading).toBeVisible();
   }
@@ -100,8 +115,21 @@ export class ServerAdminRoomsPage {
   async clickEdit(roomName: string): Promise<void> {
     const row = this.roomRow(roomName);
     await row.getByTitle('Edit room').click();
-    await expect(this.page.locator('#room-settings-name')).toBeVisible();
+    await expect(this.roomSettingsNameInput).toBeVisible();
     await expect(this.dialog).not.toBeVisible();
+  }
+
+  /** Update the room whose General settings page is currently open. */
+  async updateCurrentRoom(newName: string, description?: string): Promise<void> {
+    await this.roomSettingsNameInput.clear();
+    await this.roomSettingsNameInput.fill(newName);
+
+    if (description !== undefined) {
+      await this.roomSettingsDescriptionInput.fill(description);
+    }
+
+    await this.page.getByRole('button', { name: 'Save Changes' }).click();
+    await expect(this.page.getByText('Room updated')).toBeVisible();
   }
 
   /**
@@ -110,20 +138,8 @@ export class ServerAdminRoomsPage {
    */
   async editRoom(currentName: string, newName: string, description?: string): Promise<void> {
     await this.clickEdit(currentName);
-
-    const nameInput = this.page.locator('#room-settings-name');
-    await nameInput.clear();
-    await nameInput.fill(newName);
-
-    if (description !== undefined) {
-      const descInput = this.page.locator('#room-settings-description');
-      await descInput.fill(description);
-    }
-
-    await this.page.getByRole('button', { name: 'Save Changes' }).click();
-    await expect(this.page.getByText('Room updated')).toBeVisible();
-    await this.page.goto(routes.serverAdminRooms);
-    await expect(this.pageHeading).toBeVisible();
+    await this.updateCurrentRoom(newName, description);
+    await this.returnToOverview();
   }
 
   // --- Group Actions ---
@@ -167,12 +183,15 @@ export class ServerAdminRoomsPage {
 
   // --- Room Creation ---
 
-  /** Create a new room in the named group via the New Room modal. */
+  /** Create a room, verify its settings handoff, then return to the rooms overview. */
   async createRoom(groupName: string, name: string): Promise<void> {
     await this.newRoomButton(groupName).click();
     await expect(this.dialog).toBeVisible();
     await this.dialog.getByLabel('Room Name').fill(name);
-    await this.dialog.getByRole('button', { name: 'Create Room' }).click();
+    await this.dialog.getByRole('button', { name: 'Create and configure' }).click();
+    await expect(this.dialog).not.toBeVisible();
+    await expect(this.roomSettingsNameInput).toHaveValue(name);
+    await this.returnToOverview();
   }
 
   // --- Dialog Actions ---

@@ -1,7 +1,7 @@
 # FDR-003: Thread Reply Echo
 
 **Status:** Active
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -12,6 +12,7 @@ When posting a reply inside a thread, the user can optionally "also send to chan
 - The thread pane composer shows an "Also send to channel" checkbox when the user has the right permission.
 - Ticking the checkbox and sending the reply produces two visible artifacts: the reply inside the thread pane, and a copy of the same message in the room timeline.
 - The checkbox resets to unchecked after each successful send.
+- A thread reply with an echo shows a megaphone icon after its text. The icon is not a control. It updates when the echo is added or removed.
 - The echo in the room timeline shows a "Thread" indicator below the body; clicking it opens the thread.
 - If the original reply was attributed to a specific message, the echo shows the same reply-attribution byline. Clicking the byline on the echo opens the thread and highlights the referenced message inside it.
 - Editing or deleting the original reply automatically affects the echo too — edit/delete events target the original reply, and read models apply the change to the linked echo.

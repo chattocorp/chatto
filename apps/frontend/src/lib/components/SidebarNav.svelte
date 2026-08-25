@@ -1,15 +1,19 @@
 <script lang="ts">
   /* eslint-disable svelte/no-navigation-without-resolve -- generic component with dynamic routes */
   import { page } from '$app/state';
-  import PaneHeader from '$lib/ui/PaneHeader.svelte';
+  import { PaneHeader, ScrollFader } from '$lib/ui';
   import { m } from '$lib/i18n/messages';
+  import RoomGroupSection from '$lib/components/chat/RoomGroupSection.svelte';
 
-  type NavItem = { href: string; label: string; icon: string };
+  export type NavItem = { href: string; label: string; icon: string };
+  export type NavGroup = { label: string; items: NavItem[]; persistKey: string };
+  type GroupNavItem = NavItem & { id: string };
 
   let {
     title,
     subtitle,
-    items,
+    items = [],
+    groups = [],
     backHref,
     backLabel = m('ui.sidebar_nav.back_to_chat'),
     isActive = defaultIsActive,
@@ -17,12 +21,21 @@
   }: {
     title: string;
     subtitle?: string;
-    items: NavItem[];
-    backHref: string;
+    items?: NavItem[];
+    groups?: NavGroup[];
+    backHref?: string;
     backLabel?: string;
     isActive?: (href: string, items: NavItem[]) => boolean;
     showMobileNav?: boolean;
   } = $props();
+
+  const allItems = $derived([...items, ...groups.flatMap((group) => group.items)]);
+  const normalizedGroups = $derived(
+    groups.map((group) => ({
+      ...group,
+      items: group.items.map((item) => ({ ...item, id: item.href }))
+    }))
+  );
 
   function defaultIsActive(href: string, items: NavItem[]): boolean {
     // First item gets exact match, others get prefix match
@@ -34,19 +47,48 @@
   }
 </script>
 
+{#snippet groupedNavItem(item: GroupNavItem)}
+  {@const active = isActive(item.href, allItems)}
+  <a
+    href={item.href}
+    aria-current={active ? 'page' : undefined}
+    class={['sidebar-item', active ? 'bg-surface' : '']}
+  >
+    <span class="sidebar-icon {item.icon}"></span>
+    {item.label}
+  </a>
+{/snippet}
+
 <PaneHeader {title} {subtitle} {backHref} {backLabel} {showMobileNav} />
 
-<nav class="sidebar-nav flex-1 p-2">
-  {#each items as item (item.href)}
-    {@const active = isActive(item.href, items)}
-    <!-- eslint-disable-next-line svelte/no-navigation-without-resolve -- generic component with dynamic routes -->
-    <a
-      href={item.href}
-      aria-current={active ? 'page' : undefined}
-      class={['sidebar-item', active ? 'bg-surface' : '']}
-    >
-      <span class="sidebar-icon {item.icon}"></span>
-      {item.label}
-    </a>
-  {/each}
-</nav>
+<ScrollFader top bottom>
+  {#if items.length > 0}
+    <nav class="sidebar-nav p-2">
+      {#each items as item (item.href)}
+        {@const active = isActive(item.href, allItems)}
+        <a
+          href={item.href}
+          aria-current={active ? 'page' : undefined}
+          class={['sidebar-item', active ? 'bg-surface' : '']}
+        >
+          <span class="sidebar-icon {item.icon}"></span>
+          {item.label}
+        </a>
+      {/each}
+    </nav>
+  {/if}
+
+  {#if normalizedGroups.length > 0}
+    <nav>
+      {#each normalizedGroups as group, index (group.persistKey)}
+        <RoomGroupSection
+          label={group.label}
+          items={group.items}
+          item={groupedNavItem}
+          persistKey={group.persistKey}
+          separated={index > 0 || items.length > 0}
+        />
+      {/each}
+    </nav>
+  {/if}
+</ScrollFader>

@@ -226,6 +226,10 @@ generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
 - Management routes live under `/chat/[serverId]/manage/`: server-scoped pages
   under `manage/server/`, rooms under `manage/rooms/`, and room groups under
   `manage/room-groups/`.
+- Server Configuration, server-scoped User Preferences, and App Preferences
+  share the standard pane-page composition. Put their content in `PaneContent`
+  and frame each page-level form or control group with a titled, padded `Panel`;
+  use `FormSection` only to subdivide one panel, never instead of its frame.
 - SvelteKit reuses resource pages when only a route parameter changes. Fence
   async loads and saves by both resource ID and load generation so late
   responses cannot update the next resource's form state.

@@ -168,7 +168,7 @@ test.describe('Server Admin Page', () => {
     await serverAdminPage.expectSaveDisabled();
   });
 
-  test('Server Admin link leads each member to their first permitted section', async ({
+  test('Settings link leads each member to their first permitted Server Configuration section', async ({
     serverAdminPage
   }) => {
     const { page } = serverAdminPage;
@@ -179,7 +179,7 @@ test.describe('Server Admin Page', () => {
 
     // Navigate to server - admin should see admin link in sidebar
     await gotoServer(page);
-    await serverAdminPage.expectAdminLinkVisible();
+    await serverAdminPage.expectSettingsLinkVisible();
 
     // Create second user (non-admin)
     const nonAdmin = await createSecondTestUser(page);
@@ -195,8 +195,8 @@ test.describe('Server Admin Page', () => {
     // Wait for the page to load (server name should be visible)
     await expect(page.getByRole('heading', { name: server.name })).toBeVisible();
 
-    await serverAdminPage.expectAdminLinkVisible();
-    await serverAdminPage.adminLink.click();
+    await serverAdminPage.expectSettingsLinkVisible();
+    await serverAdminPage.settingsLink.click();
     await page.waitForURL(routes.serverAdminBots);
     await serverAdminPage.expectBotsNavVisible();
     await serverAdminPage.expectGeneralNavNotVisible();

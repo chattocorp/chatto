@@ -13,7 +13,7 @@
       "missing_group": "اختر مجموعة غرف قبل إنشاء غرفة.",
       "failed": "فشل في إنشاء غرفة",
       "creating": "إنشاء...",
-      "submit": "إنشاء غرفة"
+      "submit_and_configure": "إنشاء الغرفة وإعدادها"
     },
     "join": {
       "title": "انضم إلى الغرفة",
@@ -105,6 +105,8 @@
       "meta": {
         "pinned": "رسالة مثبّتة",
         "thread": "الموضوع",
+        "edited": "تم تعديل الرسالة",
+        "echoed_to_channel": "أُرسل أيضًا إلى القناة",
         "reply_count_one": "رد واحد",
         "reply_count_many": "{count} ردود",
         "follow_thread": "اتبع الموضوع",

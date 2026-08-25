@@ -36,6 +36,17 @@ export const ComposerCodeBlockLowlight = CodeBlockLowlight.extend({
 
 export const ComposerLink = Link.extend({ inclusive: false });
 
+const SelectedTextInlineCodeShortcut = Extension.create({
+  name: 'selectedTextInlineCodeShortcut',
+
+  addKeyboardShortcuts() {
+    return {
+      '`': () =>
+        this.editor.state.selection.empty ? false : this.editor.commands.toggleCode()
+    };
+  }
+});
+
 function paragraphTextWithLineBreaks(node: ProseMirrorNode) {
   return node.textBetween(0, node.content.size, '\n', '\n');
 }
@@ -344,6 +355,7 @@ export function createComposerExtensions(placeholder: string) {
       }
     }),
     ComposerCodeBlockLowlight.configure({ lowlight }),
+    SelectedTextInlineCodeShortcut.configure(),
     MarkdownLinkInputRule.configure(),
     CompletedMarkdownCodeFence.configure(),
     MarkdownListMarkerAfterHardBreak.configure(),

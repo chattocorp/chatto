@@ -216,7 +216,7 @@ test.describe('Composer keyboard behavior', () => {
     roomPage
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.appPreferencesComposer);
     await page.getByRole('radio', { name: /^Return/ }).click();
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -245,7 +245,7 @@ test.describe('Markdown composer', () => {
     roomPage
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.appPreferencesComposer);
     await page.getByRole('radio', { name: /^Markdown/ }).click();
     await page.reload();
     await expect(page.getByRole('radio', { name: /^Markdown/ })).toHaveAttribute(
@@ -292,7 +292,7 @@ test.describe('Markdown composer', () => {
     roomPage
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.appPreferencesComposer);
     await page.getByRole('radio', { name: /^Markdown/ }).click();
     await chatPage.goto();
     await chatPage.enterRoom('general');
@@ -332,7 +332,7 @@ test.describe('Markdown composer on touch devices', () => {
     roomPage
   }) => {
     await createAndLoginTestUser(page);
-    await page.goto(routes.settingsPreferences);
+    await page.goto(routes.appPreferencesComposer);
     await page.getByRole('radio', { name: /^Markdown/ }).click();
     await chatPage.goto();
     await chatPage.enterRoom('general');

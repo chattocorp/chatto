@@ -36,6 +36,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
   import { codeFenceHighlighting } from './codeFenceHighlighting';
   import type {
     ComposerEditorApi,
+    ComposerFormattingCommand,
     ComposerEditorProps,
     ComposerFormattingState,
     ComposerIndentState
@@ -63,6 +64,25 @@ the same API as the visual editor while keeping the stored Markdown visible.
   const escapeWithTabFocus = (editorView: EditorView): boolean => {
     simplifySelection(editorView);
     return temporarilySetTabFocusMode(editorView);
+  };
+
+  const toggleSourceFormatting = (
+    editorView: EditorView,
+    command: ComposerFormattingCommand
+  ): boolean => {
+    const main = editorView.state.selection.main;
+    const result = applySourceFormatting(
+      editorView.state.doc.toString(),
+      { anchor: main.anchor, head: main.head },
+      command
+    );
+    editorView.dispatch({
+      changes: { from: 0, to: editorView.state.doc.length, insert: result.text },
+      selection: EditorSelection.single(result.anchor, result.head),
+      scrollIntoView: true
+    });
+    editorView.focus();
+    return true;
   };
 
   const markdownHighlightStyle = HighlightStyle.define([
@@ -192,6 +212,15 @@ the same API as the visual editor while keeping the stored Markdown visible.
           history(),
           drawSelection(),
           keymap.of([
+            { key: 'Mod-b', run: (view) => toggleSourceFormatting(view, 'bold') },
+            { key: 'Mod-i', run: (view) => toggleSourceFormatting(view, 'italic') },
+            {
+              key: '`',
+              run: (view) =>
+                view.state.selection.main.empty
+                  ? false
+                  : toggleSourceFormatting(view, 'inlineCode')
+            },
             { key: 'Escape', run: escapeWithTabFocus },
             indentWithTab,
             ...historyKeymap,
@@ -201,7 +230,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
             base: commonmarkLanguage,
             extensions: [Table, Autolink],
             completeHTMLTags: false,
-            pasteURLAsLink: false
+            pasteURLAsLink: true
           }),
           syntaxHighlighting(markdownHighlightStyle),
           codeFenceHighlighting,
@@ -284,18 +313,7 @@ the same API as the visual editor while keeping the stored Markdown visible.
       },
       toggleFormatting: (command) => {
         if (destroyed) return;
-        const main = editorView.state.selection.main;
-        const result = applySourceFormatting(
-          editorView.state.doc.toString(),
-          { anchor: main.anchor, head: main.head },
-          command
-        );
-        editorView.dispatch({
-          changes: { from: 0, to: editorView.state.doc.length, insert: result.text },
-          selection: EditorSelection.single(result.anchor, result.head),
-          scrollIntoView: true
-        });
-        editorView.focus();
+        toggleSourceFormatting(editorView, command);
       },
       adjustIndent: (direction) => {
         if (destroyed) return false;

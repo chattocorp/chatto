@@ -80,7 +80,7 @@
   <Button onclick={() => (smallDialogVisible = true)}>Open Small Dialog</Button>
 
   <Dialog bind:visible={smallDialogVisible} title="Small Dialog" size="sm">
-    <p>This is a small dialog (w-100 max-w-[60vw]).</p>
+    <p>This is a small dialog with a 400-pixel target width and standard viewport gutters.</p>
     <p class="mt-2">Perfect for simple confirmations or short messages.</p>
   </Dialog>
 </Story>
@@ -99,7 +99,7 @@
   <Button onclick={() => (largeDialogVisible = true)}>Open Large Dialog</Button>
 
   <Dialog bind:visible={largeDialogVisible} title="Large Dialog" size="lg">
-    <p>This is a large dialog (w-200 max-w-[90vw]).</p>
+    <p>This is a large dialog with an 800-pixel target width and standard viewport gutters.</p>
     <p class="mt-2">Useful for more complex forms or detailed content.</p>
   </Dialog>
 </Story>
@@ -118,15 +118,23 @@
 >
   <Button onclick={() => (dialogWithFooterVisible = true)}>Open Dialog With Footer</Button>
 
-  <Dialog bind:visible={dialogWithFooterVisible} title="Confirm Action">
-    <p>Are you sure you want to perform this action?</p>
+  <Dialog bind:visible={dialogWithFooterVisible} title="Continue your previous thread?" size="md">
+    <p class="text-muted">
+      Your previous message already has a thread. Where should this message go?
+    </p>
 
     {#snippet footer()}
-      <div class="flex flex-wrap justify-end gap-2">
+      <div class="flex justify-end gap-2">
         <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
           Cancel
         </Button>
-        <Button onclick={() => (dialogWithFooterVisible = false)}>Confirm</Button>
+        <Button variant="secondary" onclick={() => (dialogWithFooterVisible = false)}>
+          Post as new message
+        </Button>
+        <Button defaultAction onclick={() => (dialogWithFooterVisible = false)}>
+          <span class="iconify icon-[uil--comment-alt-lines]"></span>
+          Continue in thread
+        </Button>
       </div>
     {/snippet}
   </Dialog>

@@ -67,6 +67,8 @@ export type MessageComposerProps = {
   onReady?: (api: MessageComposerApi) => void;
   onTyping?: () => void;
   onMessageSent?: (event: TimelineEventView | null) => void;
+  /** Called after a room-level post successfully creates a thread. */
+  onThreadCreated?: (threadRootEventId: string) => void;
   onCancelReply?: () => void;
   onEscape?: () => void;
   showAlsoSendToChannel?: boolean;
@@ -98,7 +100,12 @@ type MessageComposerDependencies = {
   getOnReady: () => MessageComposerProps['onReady'];
   getCallbacks: () => Pick<
     MessageComposerProps,
-    'onTyping' | 'onMessageSent' | 'onThreadMessageSent' | 'onCancelReply' | 'onEscape'
+    | 'onTyping'
+    | 'onMessageSent'
+    | 'onThreadCreated'
+    | 'onThreadMessageSent'
+    | 'onCancelReply'
+    | 'onEscape'
   >;
   onPostError?: (error: unknown) => boolean;
   context: ComposerContext;
@@ -543,6 +550,9 @@ export class MessageComposerState {
         callbacks.onThreadMessageSent(post.threadRootEventId, event);
       } else {
         callbacks.onMessageSent?.(event);
+        if (post.createThread && event) {
+          callbacks.onThreadCreated?.(event.id);
+        }
       }
       this.#dependencies.context.scrollState?.requestScrollToBottom();
       callbacks.onCancelReply?.();

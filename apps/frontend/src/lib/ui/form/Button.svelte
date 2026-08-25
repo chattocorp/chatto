@@ -9,8 +9,10 @@
     loading = false,
     disabled = false,
     fullWidth = false,
+    defaultAction = false,
     loadingText,
     href,
+    form,
     onclick,
     label,
     title,
@@ -18,20 +20,18 @@
   }: {
     type?: 'button' | 'submit' | 'reset';
     variant?:
-      | 'action'
-      | 'neutral'
-      | 'secondary'
-      | 'ghost'
-      | 'warning'
-      | 'danger'
-      | 'danger-secondary';
+      'action' | 'neutral' | 'secondary' | 'ghost' | 'warning' | 'danger' | 'danger-secondary';
     size?: 'sm' | 'md' | 'lg';
     loading?: boolean;
     disabled?: boolean;
     fullWidth?: boolean;
+    /** Marks this as its containing dialog's action for the Enter key. */
+    defaultAction?: boolean;
     loadingText?: string;
     /** When provided, renders as an <a> link instead of a <button> */
     href?: string;
+    /** ID of the form this button submits when rendered outside that form. */
+    form?: string;
     onclick?: (e: MouseEvent) => void;
     /** Accessible name for icon-only buttons. */
     label?: string;
@@ -90,6 +90,7 @@
     aria-disabled={disabled || loading || undefined}
     aria-label={label}
     {title}
+    data-dialog-default={defaultAction || undefined}
     tabindex={disabled || loading ? -1 : undefined}
     class={[
       variantClasses[variant],
@@ -103,11 +104,13 @@
 {:else}
   <button
     {type}
+    {form}
     onclick={handleClick}
     disabled={disabled || loading}
     aria-busy={loading || undefined}
     aria-label={label}
     {title}
+    data-dialog-default={defaultAction || undefined}
     class={[variantClasses[variant], sizeClasses[size], fullWidth ? 'w-full' : '']}
   >
     {@render content()}

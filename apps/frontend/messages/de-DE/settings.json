@@ -7,7 +7,15 @@
       "display": "Einstellungen",
       "notifications": "Benachrichtigungen",
       "account": "Konto",
-      "bots": "Bots"
+      "bots": "Bots",
+      "user_preferences": "Benutzereinstellungen",
+      "server_configuration": "Serverkonfiguration"
+    },
+    "app_preferences": {
+      "title": "App-Einstellungen",
+      "subtitle": "Einstellungen dieser App, die für alle deine registrierten Server gelten",
+      "appearance": { "title": "Erscheinungsbild" },
+      "composer": { "title": "Nachrichten verfassen" }
     },
     "profile": {
       "title": "Profil",
@@ -105,8 +113,8 @@
       "save_button": "Änderungen speichern"
     },
     "preferences": {
-      "title": "Einstellungen",
-      "subtitle": "Lege fest, wie Chatto aussieht und sich verhält",
+      "title": "Zeit & Region",
+      "subtitle": "Lege fest, wie dieser Server Datum und Uhrzeit für dich anzeigt",
       "browser_scope": "Diese Auswahl gilt für alle Chatto-Server in diesem Browser.",
       "theme": {
         "title": "Design",

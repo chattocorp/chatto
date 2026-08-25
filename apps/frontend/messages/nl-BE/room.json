@@ -13,7 +13,7 @@
       "missing_group": "Kies een kamergroep voordat u een kamer aanmaakt.",
       "failed": "Kan ruimte niet maken",
       "creating": "Aanmaken...",
-      "submit": "Ruimte maken"
+      "submit_and_configure": "Ruimte maken en instellen"
     },
     "join": {
       "title": "Sluit je aan bij een ruimte",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "Vastgezet bericht",
         "thread": "Discussie",
+        "edited": "Bewerkt bericht",
+        "echoed_to_channel": "Ook naar kanaal verzonden",
         "reply_count_one": "1 antwoord",
         "reply_count_many": "{count} antwoordt",
         "follow_thread": "Volg draad",

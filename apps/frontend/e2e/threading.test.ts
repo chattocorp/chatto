@@ -397,7 +397,7 @@ test.describe('Message Threading', () => {
         await roomPage.threadReplyInput.fill(editedReply);
         await roomPage.threadReplyInput.press('Control+Enter');
 
-        // User B should see the new content and the (edited) marker.
+        // User B should see the new content and the edit marker.
         await expect(roomPage2.threadPane.getByText(editedReply)).toBeVisible({
           timeout: TIMEOUTS.REALTIME_EVENT
         });

@@ -13,7 +13,7 @@
       "missing_group": "Elektu ĉambrogrupon antaŭ krei ĉambron.",
       "failed": "Malsukcesis krei ĉambron",
       "creating": "Kreante...",
-      "submit": "Krei Ĉambron"
+      "submit_and_configure": "Krei kaj agordi ĉambron"
     },
     "join": {
       "title": "Aliĝu al Ĉambro",
@@ -101,6 +101,8 @@
       "meta": {
         "pinned": "Alpinglita mesaĝo",
         "thread": "Fadeno",
+        "edited": "Redaktita mesaĝo",
+        "echoed_to_channel": "Ankaŭ sendita al la kanalo",
         "reply_count_one": "1 respondo",
         "reply_count_many": "{count} respondas",
         "follow_thread": "Sekvu fadenon",
