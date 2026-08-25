@@ -30,7 +30,9 @@
   ]}
 >
   {#if title}
-    <div class="flex items-center justify-between gap-4 panel-header px-6 py-3">
+    <div
+      class="flex flex-col items-stretch gap-3 panel-header px-6 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-4"
+    >
       <div class="min-w-0">
         <h2 class="flex items-center gap-2 text-base font-semibold text-text-top">
           {#if icon}

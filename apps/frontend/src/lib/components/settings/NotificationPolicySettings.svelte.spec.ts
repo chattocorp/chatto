@@ -17,6 +17,7 @@ const { mocks } = vi.hoisted(() => ({
       errorKind: null as 'load' | 'save' | null,
       load: vi.fn(),
       update: vi.fn(),
+      resetServerDefaults: vi.fn(),
       policy: vi.fn(),
       isPending: vi.fn(() => false)
     }
@@ -80,6 +81,7 @@ describe('NotificationPolicySettings', () => {
     mocks.matrix.errorKind = null;
     mocks.matrix.load.mockResolvedValue(undefined);
     mocks.matrix.update.mockResolvedValue(undefined);
+    mocks.matrix.resetServerDefaults.mockResolvedValue(undefined);
     mocks.matrix.isPending.mockReturnValue(false);
     mocks.matrix.policy.mockImplementation((scope: NotificationPolicyScope) => policy(scope));
   });
@@ -98,7 +100,7 @@ describe('NotificationPolicySettings', () => {
     expect(container.textContent).not.toContain('Room invitations');
   });
 
-  it('retains a matched room group and cycles an inherited cell to Off', async () => {
+  it('retains a matched room group and cycles a server default to Off', async () => {
     const { container } = render(NotificationPolicySettings);
     const input = container.querySelector(
       '[data-testid="notification-scope-filter"] input, input[data-testid="notification-scope-filter"]'
@@ -124,9 +126,29 @@ describe('NotificationPolicySettings', () => {
       'directMessages',
       NotificationDeliveryMode.OFF
     );
-    expect(button.ariaLabel).toContain('Override: Inherit');
-    expect(button.ariaLabel).toContain('Effective: Push notification');
+    expect(button.ariaLabel).toContain('Default: Push notification');
     expect(button.ariaLabel).toContain('Activate to set Off');
+    expect(button.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
+  });
+
+  it('resets configured server cells to product defaults', async () => {
+    mocks.matrix.policy.mockImplementation((scope: NotificationPolicyScope) => {
+      const result = policy(scope);
+      if (scope.kind === 'server') {
+        result.overrides.directMessages = NotificationDeliveryMode.OFF;
+        result.effective.directMessages = NotificationDeliveryMode.OFF;
+      }
+      return result;
+    });
+    const { container } = render(NotificationPolicySettings);
+
+    const reset = [...container.querySelectorAll('button')].find((button) =>
+      button.textContent?.includes('Reset to defaults')
+    ) as HTMLButtonElement;
+    expect(reset).toBeDefined();
+    expect(reset.disabled).toBe(false);
+    reset.click();
+    expect(mocks.matrix.resetServerDefaults).toHaveBeenCalledOnce();
   });
 
   it('explains the three delivery modes in the legend', () => {

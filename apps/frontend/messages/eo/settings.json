@@ -286,6 +286,8 @@
         "no_filter_matches": "Neniu sciiga amplekso kongruas kun ĉi tiu filtrilo.",
         "legend": "Reĝimoj de livero de sciigoj",
         "cell_aria": "{cause}, {scope}. Superrego: {override}. Efektiva: {effective}. Aktivigu por agordi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Defaŭlto: {current}. Aktivigu por agordi {next}.",
+        "reset_defaults": "Restarigi defaŭltojn",
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",

@@ -286,6 +286,8 @@
         "no_filter_matches": "没有通知范围符合此筛选条件。",
         "legend": "通知送达模式",
         "cell_aria": "{cause}，{scope}。覆盖：{override}。当前生效：{effective}。激活以设置为{next}。",
+        "server_default_cell_aria": "{cause}，{scope}。默认：{current}。激活以设置为{next}。",
+        "reset_defaults": "恢复默认设置",
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",

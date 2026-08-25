@@ -286,6 +286,8 @@
         "no_filter_matches": "Inga aviseringsomfattningar matchar filtret.",
         "legend": "Leveranslägen för aviseringar",
         "cell_aria": "{cause}, {scope}. Åsidosättning: {override}. Gäller: {effective}. Aktivera för att ange {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktivera för att ange {next}.",
+        "reset_defaults": "Återställ standardvärden",
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",

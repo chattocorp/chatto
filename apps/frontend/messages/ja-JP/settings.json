@@ -286,6 +286,8 @@
         "no_filter_matches": "この条件に一致する通知範囲はありません。",
         "legend": "通知の配信モード",
         "cell_aria": "{cause}、{scope}。上書き：{override}。適用値：{effective}。{next}に設定するには有効にします。",
+        "server_default_cell_aria": "{cause}、{scope}。デフォルト：{current}。{next}に設定するには有効にします。",
+        "reset_defaults": "デフォルトに戻す",
         "delivery_mode": {
           "inherit": "継承",
           "off": "オフ",

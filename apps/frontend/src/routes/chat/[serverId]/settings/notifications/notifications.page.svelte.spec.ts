@@ -23,6 +23,7 @@ const mocks = vi.hoisted(() => ({
       errorKind: null as 'load' | 'save' | null,
       load: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue(undefined),
+      resetServerDefaults: vi.fn().mockResolvedValue(undefined),
       policy: vi.fn(() => undefined),
       isPending: vi.fn(() => false)
     }
@@ -133,8 +134,8 @@ function commitRangeValue(input: HTMLInputElement, value: string) {
 }
 
 function buttonWithText(container: Element, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
-    candidate.textContent?.includes(text)
+  const button = Array.from(container.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent?.trim() === text
   );
   if (!button) {
     throw new Error(`Button with text "${text}" not found`);

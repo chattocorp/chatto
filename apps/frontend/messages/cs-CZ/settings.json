@@ -286,6 +286,8 @@
         "no_filter_matches": "Tomuto filtru neodpovídají žádné rozsahy oznámení.",
         "legend": "Režimy doručení oznámení",
         "cell_aria": "{cause}, {scope}. Přepsání: {override}. Výsledné: {effective}. Aktivací nastavíte {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Výchozí: {current}. Aktivací nastavíte {next}.",
+        "reset_defaults": "Obnovit výchozí hodnoty",
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",

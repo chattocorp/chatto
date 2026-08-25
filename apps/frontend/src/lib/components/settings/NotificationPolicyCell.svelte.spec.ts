@@ -23,7 +23,7 @@ describe('NotificationPolicyCell', () => {
     setReactiveLocale('en-GB');
   });
 
-  it('cycles Inherit → Off → Notification → Push notification → Inherit', async () => {
+  it('cycles server defaults through Off → Notification → Push notification without Inherit', async () => {
     const onChange = vi.fn();
     const rendered = render(NotificationPolicyCell, {
       props: { ...baseProps, override: null, onChange }
@@ -53,6 +53,44 @@ describe('NotificationPolicyCell', () => {
       override: NotificationDeliveryMode.PUSH_NOTIFICATION,
       onChange
     });
+    clickAndExpect(NotificationDeliveryMode.OFF);
+  });
+
+  it('cycles nested scopes through Inherit → Off → Notification → Push notification → Inherit', async () => {
+    const onChange = vi.fn();
+    const nestedProps = {
+      ...baseProps,
+      scope: { kind: 'roomGroup' as const, id: 'group-1' },
+      scopeLabel: 'Lobby'
+    };
+    const rendered = render(NotificationPolicyCell, {
+      props: { ...nestedProps, override: null, onChange }
+    });
+
+    const clickAndExpect = (expected: NotificationDeliveryMode | null) => {
+      rendered.container.querySelector('button')!.click();
+      flushSync();
+      expect(onChange).toHaveBeenLastCalledWith(expected);
+    };
+
+    clickAndExpect(NotificationDeliveryMode.OFF);
+    await rendered.rerender({
+      ...nestedProps,
+      override: NotificationDeliveryMode.OFF,
+      onChange
+    });
+    clickAndExpect(NotificationDeliveryMode.IN_APP_NOTIFICATION);
+    await rendered.rerender({
+      ...nestedProps,
+      override: NotificationDeliveryMode.IN_APP_NOTIFICATION,
+      onChange
+    });
+    clickAndExpect(NotificationDeliveryMode.PUSH_NOTIFICATION);
+    await rendered.rerender({
+      ...nestedProps,
+      override: NotificationDeliveryMode.PUSH_NOTIFICATION,
+      onChange
+    });
     clickAndExpect(null);
   });
 
@@ -65,8 +103,8 @@ describe('NotificationPolicyCell', () => {
 
     expect(button.ariaLabel).toContain('Direct messages');
     expect(button.ariaLabel).toContain('Test Server');
-    expect(button.ariaLabel).toContain('Override: Inherit');
-    expect(button.ariaLabel).toContain('Effective: Push notification');
+    expect(button.ariaLabel).toContain('Default: Push notification');
+    expect(button.ariaLabel).not.toContain('Inherit');
     expect(button.ariaLabel).toContain('Activate to set Off');
 
     button.focus();
@@ -74,13 +112,29 @@ describe('NotificationPolicyCell', () => {
     expect(onChange).toHaveBeenCalledWith(NotificationDeliveryMode.OFF);
   });
 
-  it('uses notification delivery icons and marks inherited values', () => {
+  it('renders a server default at full intensity without an inheritance marker', () => {
     const { container } = render(NotificationPolicyCell, {
       props: { ...baseProps, override: null, onChange: vi.fn() }
     });
 
     expect(container.querySelector('[class~="icon-[uil--mobile-android]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
+    expect(container.querySelector('[class~="bg-warning"]')).not.toBeNull();
+    expect(container.querySelector('[data-notification-source="default"]')).not.toBeNull();
+  });
+
+  it('marks an inherited nested value', () => {
+    const { container } = render(NotificationPolicyCell, {
+      props: {
+        ...baseProps,
+        scope: { kind: 'room' as const, id: 'room-1' },
+        override: null,
+        onChange: vi.fn()
+      }
+    });
+
     expect(container.querySelector('[class~="icon-[uil--link]"]')).not.toBeNull();
+    expect(container.querySelector('[data-notification-source="inherited"]')).not.toBeNull();
   });
 
   it('keeps keyboard focus while a save is pending', async () => {

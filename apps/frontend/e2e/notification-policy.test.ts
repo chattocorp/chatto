@@ -32,6 +32,12 @@ test.describe('Notification policy', () => {
     await expect(
       page.locator('td[data-notification-scope="server"] [data-notification-field]')
     ).toHaveCount(9);
+    await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
+    await expect(
+      page.locator(
+        'td[data-notification-scope="server"][data-notification-field="directMessages"] [class~="icon-[uil--link]"]'
+      )
+    ).toHaveCount(0);
     const inheritedDirectMessages = page.locator(
       'td[data-notification-scope^="roomGroup:"][data-notification-field="directMessages"] button'
     );
@@ -45,6 +51,13 @@ test.describe('Notification policy', () => {
 
     await page.reload();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
+
+    await page.getByRole('button', { name: 'Reset to defaults' }).click();
+    await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
+    await expect(inheritedDirectMessages).toHaveAttribute(
+      'aria-label',
+      /Effective: Push notification/
+    );
   });
 
   test('resolves server, group, and room overrides and shows member rooms only', async ({

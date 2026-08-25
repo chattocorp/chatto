@@ -286,6 +286,8 @@
         "no_filter_matches": "Nessun ambito di notifica corrisponde a questo filtro.",
         "legend": "Modalità di consegna delle notifiche",
         "cell_aria": "{cause}, {scope}. Sostituzione: {override}. Effettivo: {effective}. Attiva per impostare {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Predefinito: {current}. Attiva per impostare {next}.",
+        "reset_defaults": "Ripristina valori predefiniti",
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",

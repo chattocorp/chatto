@@ -2,8 +2,9 @@
 @component
 
 Notification-specific adapter for the shared matrix cell shell. It owns the
-four-state override cycle. Inherited cells render the effective mode with a
-link marker so their source is not encoded by intensity alone.
+scope-specific override cycle. Server defaults render as concrete values.
+Inherited room-group and room cells render the effective mode with a link
+marker so their source is not encoded by intensity alone.
 -->
 <script lang="ts">
   import { MatrixCellButton, type MatrixCellTone } from '$lib/components/matrix';
@@ -36,30 +37,44 @@ link marker so their source is not encoded by intensity alone.
     onChange: (next: NotificationDeliveryMode | null) => void;
   } = $props();
 
+  const canInherit = $derived(scope.kind !== 'server');
   const visual = $derived(override ?? effective);
-  const next = $derived(nextMode(override));
-  const explicit = $derived(override !== null);
+  const next = $derived(nextMode(override, effective, canInherit));
+  const explicitVisual = $derived(!canInherit || override !== null);
+  const usesDefault = $derived(!canInherit && override === null);
   const icon = $derived(modeIcon(visual));
   const tone = $derived(modeTone(visual));
   const ariaLabel = $derived(
-    m('settings.notifications.policy.cell_aria', {
-      cause: causeLabel,
-      scope: scopeLabel,
-      override: override === null ? modeLabel(null) : modeLabel(override),
-      effective: modeLabel(effective),
-      next: modeLabel(next)
-    })
+    usesDefault
+      ? m('settings.notifications.policy.server_default_cell_aria', {
+          cause: causeLabel,
+          scope: scopeLabel,
+          current: modeLabel(effective),
+          next: modeLabel(next)
+        })
+      : m('settings.notifications.policy.cell_aria', {
+          cause: causeLabel,
+          scope: scopeLabel,
+          override: override === null ? modeLabel(null) : modeLabel(override),
+          effective: modeLabel(effective),
+          next: modeLabel(next)
+        })
   );
 
-  function nextMode(current: NotificationDeliveryMode | null): NotificationDeliveryMode | null {
-    if (current === null) return NotificationDeliveryMode.OFF;
-    if (current === NotificationDeliveryMode.OFF) {
+  function nextMode(
+    current: NotificationDeliveryMode | null,
+    currentEffective: NotificationDeliveryMode,
+    inheritanceAvailable: boolean
+  ): NotificationDeliveryMode | null {
+    if (current === null && inheritanceAvailable) return NotificationDeliveryMode.OFF;
+    const displayed = current ?? currentEffective;
+    if (displayed === NotificationDeliveryMode.OFF) {
       return NotificationDeliveryMode.IN_APP_NOTIFICATION;
     }
-    if (current === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
+    if (displayed === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
       return NotificationDeliveryMode.PUSH_NOTIFICATION;
     }
-    return null;
+    return inheritanceAvailable ? null : NotificationDeliveryMode.OFF;
   }
 
   function modeLabel(mode: NotificationDeliveryMode | null): string {
@@ -87,15 +102,19 @@ link marker so their source is not encoded by intensity alone.
   }
 </script>
 
-<span data-notification-field={field} data-notification-scope={scope.kind}>
+<span
+  data-notification-field={field}
+  data-notification-scope={scope.kind}
+  data-notification-source={usesDefault ? 'default' : override === null ? 'inherited' : 'override'}
+>
   <MatrixCellButton
     {tone}
-    {explicit}
+    explicit={explicitVisual}
     {icon}
     {loading}
     {disabled}
-    inheritedMarker={!explicit}
-    pressed={explicit}
+    inheritedMarker={canInherit && override === null}
+    pressed={override !== null}
     {ariaLabel}
     title={ariaLabel}
     onActivate={() => onChange(next)}

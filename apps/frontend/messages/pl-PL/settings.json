@@ -286,6 +286,8 @@
         "no_filter_matches": "Żaden zakres powiadomień nie pasuje do tego filtra.",
         "legend": "Tryby dostarczania powiadomień",
         "cell_aria": "{cause}, {scope}. Nadpisanie: {override}. Obowiązuje: {effective}. Aktywuj, aby ustawić {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Domyślne: {current}. Aktywuj, aby ustawić {next}.",
+        "reset_defaults": "Przywróć ustawienia domyślne",
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",

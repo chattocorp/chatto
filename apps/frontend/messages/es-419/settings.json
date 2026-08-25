@@ -286,6 +286,8 @@
         "no_filter_matches": "Ningún ámbito de notificación coincide con este filtro.",
         "legend": "Modos de entrega de notificaciones",
         "cell_aria": "{cause}, {scope}. Anulación: {override}. Efectivo: {effective}. Activa para establecer {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Predeterminado: {current}. Activa para establecer {next}.",
+        "reset_defaults": "Restablecer valores predeterminados",
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",

@@ -286,6 +286,8 @@
         "no_filter_matches": "Немає областей сповіщень, що відповідають цьому фільтру.",
         "legend": "Режими доставки сповіщень",
         "cell_aria": "{cause}, {scope}. Перевизначення: {override}. Діє: {effective}. Активуйте, щоб установити {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. За замовчуванням: {current}. Активуйте, щоб установити {next}.",
+        "reset_defaults": "Скинути до типових значень",
         "delivery_mode": {
           "inherit": "Успадкувати",
           "off": "Вимкнено",

@@ -141,6 +141,40 @@ describe('NotificationPolicyMatrixState', () => {
     );
   });
 
+  it('clears every server override in one request and tracks all cells as pending', async () => {
+    const server = { kind: 'server' } as const;
+    const save = deferred<ScopedNotificationPolicy>();
+    const update = vi.fn().mockReturnValue(save.promise);
+    const state = new NotificationPolicyMatrixState(
+      api({
+        batchGetNotificationPolicies: vi.fn().mockResolvedValue([]),
+        updateScopedNotificationPolicy: update
+      })
+    );
+
+    const reset = state.resetServerDefaults();
+    expect(state.isPending(server, 'directMessages')).toBe(true);
+    expect(state.isPending(server, 'reactions')).toBe(true);
+    expect(update).toHaveBeenCalledWith(server, {
+      directMessages: null,
+      directMentions: null,
+      replies: null,
+      roleMentions: null,
+      hereMentions: null,
+      allMentions: null,
+      followedThreads: null,
+      followedRooms: null,
+      reactions: null
+    });
+
+    save.resolve(policy(server));
+    await reset;
+    expect(state.pendingKeys.size).toBe(0);
+    expect(state.policy(server)?.effective.directMessages).toBe(
+      NotificationDeliveryMode.PUSH_NOTIFICATION
+    );
+  });
+
   it('retains previous policy data on a failed save and clears on reset', async () => {
     const server = { kind: 'server' } as const;
     const state = new NotificationPolicyMatrixState(

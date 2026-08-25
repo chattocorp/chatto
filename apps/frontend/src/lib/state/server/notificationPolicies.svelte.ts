@@ -12,6 +12,18 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
+const serverDefaultsPatch = {
+  directMessages: null,
+  directMentions: null,
+  replies: null,
+  roleMentions: null,
+  hereMentions: null,
+  allMentions: null,
+  followedThreads: null,
+  followedRooms: null,
+  reactions: null
+} satisfies NotificationPolicyPatch;
+
 /**
  * Server-scoped lifecycle owner for the notification policy matrix.
  * Policies remain authoritative server responses; cells only enter pending
@@ -79,13 +91,27 @@ export class NotificationPolicyMatrixState {
     field: NotificationPolicyField,
     value: NotificationPolicyPatch[NotificationPolicyField]
   ): Promise<void> {
-    const key = this.cellKey(scope, field);
-    if (this.pendingKeys.has(key)) return;
-    const pendingToken = Symbol(key);
+    await this.#updatePatch(scope, { [field]: value });
+  }
+
+  /** Clear every server override so the product defaults become current. */
+  async resetServerDefaults(): Promise<void> {
+    await this.#updatePatch({ kind: 'server' }, serverDefaultsPatch);
+  }
+
+  async #updatePatch(
+    scope: NotificationPolicyScope,
+    patch: NotificationPolicyPatch
+  ): Promise<void> {
+    const fields = Object.keys(patch) as NotificationPolicyField[];
+    const keys = fields.map((field) => this.cellKey(scope, field));
+    if (keys.length === 0 || keys.some((key) => this.pendingKeys.has(key))) return;
+    const pendingToken = Symbol(notificationPolicyScopeKey(scope));
     const resetGeneration = this.#resetGeneration;
-    const patch: NotificationPolicyPatch = { [field]: value };
-    this.#pendingTokens.set(key, pendingToken);
-    this.pendingKeys.add(key);
+    for (const key of keys) {
+      this.#pendingTokens.set(key, pendingToken);
+      this.pendingKeys.add(key);
+    }
     this.error = null;
     this.errorKind = null;
     try {
@@ -101,9 +127,11 @@ export class NotificationPolicyMatrixState {
       this.error = errorMessage(error);
       this.errorKind = 'save';
     } finally {
-      if (this.#pendingTokens.get(key) === pendingToken) {
-        this.#pendingTokens.delete(key);
-        this.pendingKeys.delete(key);
+      for (const key of keys) {
+        if (this.#pendingTokens.get(key) === pendingToken) {
+          this.#pendingTokens.delete(key);
+          this.pendingKeys.delete(key);
+        }
       }
     }
   }

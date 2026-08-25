@@ -286,6 +286,8 @@
         "no_filter_matches": "لا توجد نطاقات إشعارات تطابق عامل التصفية.",
         "legend": "أوضاع تسليم الإشعارات",
         "cell_aria": "{cause}، {scope}. التجاوز: {override}. الفعلي: {effective}. فعّل لضبط {next}.",
+        "server_default_cell_aria": "{cause}، {scope}. الإعداد الافتراضي: {current}. فعّل لضبط {next}.",
+        "reset_defaults": "إعادة الضبط إلى الإعدادات الافتراضية",
         "delivery_mode": {
           "inherit": "توريث",
           "off": "إيقاف",

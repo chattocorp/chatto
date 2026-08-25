@@ -82,10 +82,11 @@ replay cannot recreate a deleted item.
 
 ### 3. Delivery policy is separate from attention level
 
-**Decision:** Each configurable notification signal class resolves independently
-through this order: room override, current room-group override, server
-override, and product default. Direct-message rooms do not use the room-group
-level.
+**Decision:** Each configurable notification signal class resolves independently.
+A room uses its override, its current room-group override, and the user's server
+preference in that order. A direct-message room skips the room-group level. If
+the user has no server preference, the concrete product default supplies the
+server value.
 
 - **Off** — create no occurrence for this cause.
 - **Notification** — create an in-app notification without push delivery. The
@@ -122,7 +123,12 @@ current product exposes only delivery-mode preferences.
 The notification settings page shows the nine signal classes as matrix rows.
 It shows the server, visible room groups, current-member channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
-by its room columns. A cell cycles through Inherit, Off, Notification, Push
+by its room columns. A server cell always shows a concrete value. When no user
+preference exists, it shows the product default at full intensity without an
+inheritance marker. Server cells cycle through Off, Notification, and Push
+notification. Reset to defaults clears all server preferences.
+
+Room-group and room cells cycle through Inherit, Off, Notification, Push
 notification, and back to Inherit. Off uses a grey crossed bell. Both
 notification modes use notification orange, with a bell for Notification and a
 phone for Push notification. An inherited cell shows the effective mode with a
