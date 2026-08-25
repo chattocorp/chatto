@@ -119,11 +119,13 @@ describe('NotificationPolicyCell', () => {
 
     expect(container.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
     expect(container.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
-    expect(container.querySelector('[class~="bg-warning"]')).not.toBeNull();
+    expect(container.querySelector('[class~="text-warning"]')).not.toBeNull();
+    expect(container.querySelector('[class~="bg-warning"]')).toBeNull();
+    expect(container.querySelector('[class~="opacity-40"]')).toBeNull();
     expect(container.querySelector('[data-notification-source="default"]')).not.toBeNull();
   });
 
-  it('marks an inherited nested value', () => {
+  it('fades an inherited nested value without changing its icon', () => {
     const { container } = render(NotificationPolicyCell, {
       props: {
         ...baseProps,
@@ -133,7 +135,9 @@ describe('NotificationPolicyCell', () => {
       }
     });
 
-    expect(container.querySelector('[class~="icon-[uil--link]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="opacity-40"]')).not.toBeNull();
+    expect(container.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
     expect(container.querySelector('[data-notification-source="inherited"]')).not.toBeNull();
   });
 

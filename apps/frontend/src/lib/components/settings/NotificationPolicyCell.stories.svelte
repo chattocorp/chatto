@@ -82,7 +82,7 @@
     docs: {
       description: {
         story:
-          'An unconfigured server cell displays its product default at full intensity. Nested cells can inherit an effective server or room-group value and use the link marker.'
+          'An unconfigured server cell displays its product default at full intensity. Nested cells show an inherited server or room-group value with the same icon at reduced intensity.'
       }
     }
   }}

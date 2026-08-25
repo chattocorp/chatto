@@ -118,6 +118,77 @@
 </Story>
 
 <Story
+  name="Bare icons"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'The icon presentation keeps the 40-pixel hit area but removes the badge surface. Explicit values use full intensity and inherited values use the same icon at reduced intensity.'
+      }
+    }
+  }}
+>
+  <div
+    class="inline-grid grid-cols-[auto_repeat(3,2.5rem)] items-center gap-2 rounded-lg bg-background p-4 text-sm"
+  >
+    <span></span>
+    <span class="text-center text-muted">Neutral</span>
+    <span class="text-center text-muted">Warning</span>
+    <span class="text-center text-muted">Action</span>
+
+    <span class="pe-3 text-muted">Explicit</span>
+    <MatrixCellButton
+      variant="icon"
+      tone="neutral"
+      explicit
+      icon="icon-[ph--bell-slash-fill]"
+      ariaLabel="Explicit neutral icon"
+      onActivate={() => undefined}
+    />
+    <MatrixCellButton
+      variant="icon"
+      tone="warning"
+      explicit
+      icon="icon-[ph--bell-fill]"
+      ariaLabel="Explicit warning icon"
+      onActivate={() => undefined}
+    />
+    <MatrixCellButton
+      variant="icon"
+      tone="action"
+      explicit
+      icon="icon-[ph--phone-fill]"
+      ariaLabel="Explicit action icon"
+      onActivate={() => undefined}
+    />
+
+    <span class="pe-3 text-muted">Inherited</span>
+    <MatrixCellButton
+      variant="icon"
+      tone="neutral"
+      icon="icon-[ph--bell-slash-fill]"
+      ariaLabel="Inherited neutral icon"
+      onActivate={() => undefined}
+    />
+    <MatrixCellButton
+      variant="icon"
+      tone="warning"
+      icon="icon-[ph--bell-fill]"
+      ariaLabel="Inherited warning icon"
+      onActivate={() => undefined}
+    />
+    <MatrixCellButton
+      variant="icon"
+      tone="action"
+      icon="icon-[ph--phone-fill]"
+      ariaLabel="Inherited action icon"
+      onActivate={() => undefined}
+    />
+  </div>
+</Story>
+
+<Story
   name="Status and constraints"
   asChild
   parameters={{

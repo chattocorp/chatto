@@ -3,8 +3,8 @@
 
 Notification-specific adapter for the shared matrix cell shell. It owns the
 scope-specific override cycle. Server defaults render as concrete values.
-Inherited room-group and room cells render the effective mode with a link
-marker so their source is not encoded by intensity alone.
+Inherited room-group and room cells render the effective mode at reduced
+intensity.
 -->
 <script lang="ts">
   import { MatrixCellButton } from '$lib/components/matrix';
@@ -92,10 +92,10 @@ marker so their source is not encoded by intensity alone.
   <MatrixCellButton
     tone={presentation.tone}
     explicit={explicitVisual}
+    variant="icon"
     icon={presentation.icon}
     {loading}
     {disabled}
-    inheritedMarker={canInherit && override === null}
     pressed={override !== null}
     {ariaLabel}
     title={ariaLabel}

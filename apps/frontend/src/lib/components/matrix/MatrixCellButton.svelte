@@ -2,14 +2,17 @@
 @component
 
 Presentational 40-pixel matrix cell control. The consumer owns the domain
-state machine and supplies the semantic tone, icon, and activation callback.
+state machine and supplies the semantic tone, icon, presentation, and
+activation callback.
 -->
 <script lang="ts">
   export type MatrixCellTone = 'neutral' | 'action' | 'success' | 'warning' | 'danger';
+  export type MatrixCellVariant = 'badge' | 'icon';
 
   let {
     tone = 'neutral',
     explicit = false,
+    variant = 'badge',
     icon,
     loading = false,
     disabled = false,
@@ -24,6 +27,7 @@ state machine and supplies the semantic tone, icon, and activation callback.
   }: {
     tone?: MatrixCellTone;
     explicit?: boolean;
+    variant?: MatrixCellVariant;
     icon: string;
     loading?: boolean;
     disabled?: boolean;
@@ -51,6 +55,13 @@ state machine and supplies the semantic tone, icon, and activation callback.
     warning: 'bg-warning/20 text-warning',
     danger: 'bg-danger/15 text-danger/85'
   };
+  const iconClasses: Record<MatrixCellTone, string> = {
+    neutral: 'text-text',
+    action: 'text-action',
+    success: 'text-success',
+    warning: 'text-warning',
+    danger: 'text-danger'
+  };
   const interactive = $derived(applicable && !disabled && !locked && !loading);
   const hoverClass = $derived.by(() => {
     if (!interactive) return '';
@@ -71,9 +82,12 @@ state machine and supplies the semantic tone, icon, and activation callback.
       danger: 'hover:bg-danger/90'
     }[tone];
   });
-  const surfaceClasses = $derived(
-    `${explicit ? explicitClasses[tone] : inheritedClasses[tone]} ${hoverClass}`
-  );
+  const surfaceClasses = $derived.by(() => {
+    if (variant === 'icon') {
+      return `${loading ? 'text-action' : iconClasses[tone]} ${explicit ? '' : 'opacity-40'}`;
+    }
+    return `${explicit ? explicitClasses[tone] : inheritedClasses[tone]} ${hoverClass}`;
+  });
 </script>
 
 {#if !applicable}
@@ -91,7 +105,7 @@ state machine and supplies the semantic tone, icon, and activation callback.
     class={[
       'relative inline-flex h-10 w-10 items-center justify-center rounded-md transition-[scale]',
       interactive ? 'cursor-pointer active:scale-[0.96]' : 'cursor-not-allowed',
-      loading ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
+      loading && variant === 'badge' ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
       disabled && !locked ? 'opacity-60' : ''
     ]}
     disabled={disabled || locked}
@@ -106,14 +120,24 @@ state machine and supplies the semantic tone, icon, and activation callback.
   >
     <span
       class={[
-        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color]',
+        'inline-flex h-5 w-5 items-center justify-center transition-[background-color,color,opacity]',
+        variant === 'badge' ? 'rounded-md' : '',
         surfaceClasses
       ]}
     >
       {#if loading}
-        <span class="iconify icon-[uil--spinner] h-4 w-4 animate-spin" aria-hidden="true"></span>
+        <span
+          class={[
+            'iconify icon-[uil--spinner] animate-spin',
+            variant === 'icon' ? 'h-5 w-5' : 'h-4 w-4'
+          ]}
+          aria-hidden="true"
+        ></span>
       {:else}
-        <span class={['iconify h-3 w-3', icon]} aria-hidden="true"></span>
+        <span
+          class={['iconify', variant === 'icon' ? 'h-5 w-5' : 'h-3 w-3', icon]}
+          aria-hidden="true"
+        ></span>
       {/if}
     </span>
     {#if locked && !loading}

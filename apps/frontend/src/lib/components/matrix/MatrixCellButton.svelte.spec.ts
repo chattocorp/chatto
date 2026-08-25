@@ -35,6 +35,27 @@ describe('MatrixCellButton', () => {
     expect(container.querySelector('[class~="icon-[uil--link]"]')).not.toBeNull();
   });
 
+  it('renders a bare full-size icon and fades inherited values', async () => {
+    const rendered = render(MatrixCellButton, {
+      props: { ...baseProps, tone: 'warning', explicit: true, variant: 'icon' }
+    });
+
+    const icon = rendered.container.querySelector('[class~="icon-[uil--check]"]')!;
+    const iconShell = icon.parentElement!;
+    expect(icon.className).toContain('h-5');
+    expect(iconShell.className).toContain('text-warning');
+    expect(iconShell.className).not.toContain('bg-warning');
+    expect(iconShell.className).not.toContain('rounded-md');
+
+    await rendered.rerender({
+      ...baseProps,
+      tone: 'warning',
+      explicit: false,
+      variant: 'icon'
+    });
+    expect(iconShell.className).toContain('opacity-40');
+  });
+
   it('keeps the native button focusable but suppresses activation while loading', () => {
     const onActivate = vi.fn();
     const { container } = render(MatrixCellButton, {
