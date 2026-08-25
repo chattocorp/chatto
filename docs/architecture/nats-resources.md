@@ -18,7 +18,7 @@ inventories.
 | Type         | Name                | Storage | Backup | Description                                                                 |
 | ------------ | ------------------- | ------- | ------ | --------------------------------------------------------------------------- |
 | Stream       | `EVT`               | File    | Yes    | Event-sourcing log for durable `corev1.Event` facts on `evt.>`              |
-| Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded event log for 90-day notification signals, reads, removals, and alert outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
+| Stream       | `NOTIFICATIONS`     | File    | Yes    | Replicated bounded event log for 90-day notification signals, reads, removals, and push outcomes; per-message TTL adds a 24-hour physical-cleanup grace |
 | KV bucket    | `RUNTIME_STATE`     | File    | Yes    | Persisted latest-value runtime state, fixed-expiry bearer access verifiers, renewable-session authorities, cookie/workflow credentials, notification read/visibility boundaries, wrapped app DEKs, and encrypted snapshot pointers |
 | KV bucket    | `MEMORY_CACHE`      | Memory  | No     | Volatile presence, worker leases and cooldowns, reconciliation counters, and worker health heartbeats; recreated automatically after a full NATS restart |
 | KV bucket    | `ENCRYPTION_KEYS`   | File    | No     | KMS key-encryption keys and per-call LiveKit E2EE keys; excluded from backups |
@@ -45,7 +45,7 @@ from `EVT`: replaying those facts is safe because asset-processing workers
 acknowledge projected terminal outcomes, key-shredding and cleanup workers
 repeat idempotent deletion, push cleanup is fenced against late registration,
 and user-key workers additionally acknowledge an existing physical-completion
-fact. Alert delivery instead consumes the bounded
+fact. Push delivery instead consumes the bounded
 notification lifecycle log directly; projected terminal state is its
 idempotency fence.
 
@@ -55,7 +55,7 @@ scale-to-zero; normal backups include both durable streams and their consumer
 state. Backups snapshot `EVT` before `RUNTIME_STATE`, then `NOTIFICATIONS`.
 The materializer's durable EVT consumer position and deterministic output make
 an in-flight cross-stream handoff recoverable at either backup boundary.
-Restored alert deliveries still obey
+Restored push deliveries still obey
 their immutable source-time deadline, so restoring an old backup cannot renew
 interruptive work. Chatto currently has no retired durable
 effect consumers. A future removal or incompatible contract change follows

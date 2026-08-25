@@ -6,7 +6,7 @@ and installed-app badge updates.
 
 **Responsibilities:**
 - Listens for live notification transitions attached to authoritative projection replacements
-- Plays the user's selected sound for non-silent creations
+- Plays the user's selected sound for eligible in-app notification creations
 - Reconciles the installed-app badge from authoritative unread occurrence counts
 
 Include this component once in the application root so signed-out pages also clear stale badges.

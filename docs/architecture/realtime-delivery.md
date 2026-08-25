@@ -312,16 +312,16 @@ Room/thread marker hydration reads the process-wide `ReadStateModel` index,
 which is initialized and maintained by one filtered `RUNTIME_STATE` watcher;
 realtime subscriptions do not create their own marker watchers.
 
-Notification invalidations carry no transition state. A creation hint may name
-one opaque alert candidate. Before assembling a finite replacement, the
+Notification invalidations carry no transition state. A creation hint can name
+one opaque sound candidate. Before it assembles a finite replacement, the
 serving replica waits for its `NOTIFICATIONS` projection to become current and
 revalidates that candidate. It sends only the authoritative replacement and a
-positive `play_notification_sound` instruction when the occurrence is still
-unread, inside its alert deadline, allowed by current policy and DND state,
-currently visible, and present in that same finite replacement. A newer read,
-removal, policy/access change, or lifecycle mutation therefore prevents sound
-while the replacement remains authoritative. The client deduplicates this
-one-shot effect by the stable enclosing projection-event ID.
+positive `play_notification_sound` instruction when the occurrence is unread,
+allowed by current policy and DND state, currently visible, and present in that
+same replacement. Notification and Push notification modes permit local sound;
+only Push notification creates durable push-delivery work. A newer read,
+removal, policy/access change, or lifecycle mutation prevents sound. The client
+deduplicates this one-shot effect by the stable enclosing projection-event ID.
 
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap

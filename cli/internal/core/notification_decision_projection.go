@@ -252,7 +252,8 @@ func applyNotificationDecisionState(
 		return nil
 	}
 	switch payload := event.GetEvent().(type) {
-	case *corev1.Event_UserNotificationPolicyChanged:
+	case *corev1.Event_UserNotificationPolicyChanged,
+		*corev1.Event_UserRoomGroupNotificationPolicyChanged:
 		if err := config.Apply(event, seq); err != nil {
 			return err
 		}
@@ -561,6 +562,9 @@ func notificationPolicyEntryCount(config *ConfigProjection) int64 {
 	defer config.RUnlock()
 	for _, user := range config.users {
 		entries += notificationDeliveryModeFieldCount(user.serverModes)
+		for _, group := range user.roomGroupModesByGroup {
+			entries += notificationDeliveryModeFieldCount(group)
+		}
 		for _, room := range user.roomModesByRoom {
 			entries += notificationDeliveryModeFieldCount(room)
 		}
@@ -668,6 +672,11 @@ func (s *notificationDecisionSnapshot) effectiveNotificationMode(userID, roomID 
 	if user := s.config.users[userID]; user != nil {
 		if mode := notificationModeForSignal(user.roomModesByRoom[roomID], signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode
+		}
+		if groupID := s.groups.Groups.GroupForRoom(roomID); groupID != "" {
+			if mode := notificationModeForSignal(user.roomGroupModesByGroup[groupID], signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
+				return mode
+			}
 		}
 		if mode := notificationModeForSignal(user.serverModes, signal); mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
 			return mode

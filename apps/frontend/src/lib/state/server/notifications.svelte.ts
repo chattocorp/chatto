@@ -10,6 +10,7 @@ import {
   type NotificationPolicyPatch,
   NotificationSignalKind
 } from '$lib/api-client/notifications';
+import { NotificationPolicyMatrixState } from './notificationPolicies.svelte';
 
 /**
  * Normalized view of a notification's target (where it points to in the app).
@@ -89,9 +90,11 @@ export class NotificationStore {
   loading = $state(false);
   hasLoaded = $state(false);
   error = $state<string | null>(null);
+  readonly notificationPolicies: NotificationPolicyMatrixState;
 
   constructor(api: NotificationAPI) {
     this.#api = api;
+    this.notificationPolicies = new NotificationPolicyMatrixState(api);
   }
 
   get count() {
@@ -154,6 +157,7 @@ export class NotificationStore {
 
   /** Invalidate projection-owned state while a compacted reset hydrates. */
   resetProjectionState(): void {
+    this.notificationPolicies.reset();
     this.#fetchGeneration++;
     this.#authoritativeGeneration++;
     this.#pendingDeletionById.clear();

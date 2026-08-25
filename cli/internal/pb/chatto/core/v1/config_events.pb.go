@@ -868,6 +868,69 @@ func (x *UserNotificationPolicyChangedEvent) GetRoomId() string {
 	return ""
 }
 
+// Replaces the complete room-group-scoped notification policy overrides.
+// This is a separate event from UserNotificationPolicyChangedEvent so an
+// older binary cannot interpret a room-group policy as server scope.
+type UserRoomGroupNotificationPolicyChangedEvent struct {
+	state         protoimpl.MessageState     `protogen:"open.v1"`
+	UserId        string                     `protobuf:"bytes,1,opt,name=user_id,json=userId,proto3" json:"user_id,omitempty"`
+	RoomGroupId   string                     `protobuf:"bytes,2,opt,name=room_group_id,json=roomGroupId,proto3" json:"room_group_id,omitempty"`
+	Overrides     *NotificationDeliveryModes `protobuf:"bytes,3,opt,name=overrides,proto3" json:"overrides,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) Reset() {
+	*x = UserRoomGroupNotificationPolicyChangedEvent{}
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*UserRoomGroupNotificationPolicyChangedEvent) ProtoMessage() {}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_config_events_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use UserRoomGroupNotificationPolicyChangedEvent.ProtoReflect.Descriptor instead.
+func (*UserRoomGroupNotificationPolicyChangedEvent) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_config_events_proto_rawDescGZIP(), []int{18}
+}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) GetUserId() string {
+	if x != nil {
+		return x.UserId
+	}
+	return ""
+}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) GetRoomGroupId() string {
+	if x != nil {
+		return x.RoomGroupId
+	}
+	return ""
+}
+
+func (x *UserRoomGroupNotificationPolicyChangedEvent) GetOverrides() *NotificationDeliveryModes {
+	if x != nil {
+		return x.Overrides
+	}
+	return nil
+}
+
 var File_chatto_core_v1_config_events_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_config_events_proto_rawDesc = "" +
@@ -917,7 +980,11 @@ const file_chatto_core_v1_config_events_proto_rawDesc = "" +
 	"\toverrides\x18\x02 \x01(\v2).chatto.core.v1.NotificationDeliveryModesR\toverrides\x12\x1c\n" +
 	"\aroom_id\x18\x03 \x01(\tH\x00R\x06roomId\x88\x01\x01B\n" +
 	"\n" +
-	"\b_room_idB\xb4\x01\n" +
+	"\b_room_id\"\xb3\x01\n" +
+	"+UserRoomGroupNotificationPolicyChangedEvent\x12\x17\n" +
+	"\auser_id\x18\x01 \x01(\tR\x06userId\x12\"\n" +
+	"\rroom_group_id\x18\x02 \x01(\tR\vroomGroupId\x12G\n" +
+	"\toverrides\x18\x03 \x01(\v2).chatto.core.v1.NotificationDeliveryModesR\toverridesB\xb4\x01\n" +
 	"\x12com.chatto.core.v1B\x11ConfigEventsProtoP\x01Z1hmans.de/chatto/internal/pb/chatto/core/v1;corev1\xa2\x02\x03CCX\xaa\x02\x0eChatto.Core.V1\xca\x02\x0eChatto\\Core\\V1\xe2\x02\x1aChatto\\Core\\V1\\GPBMetadata\xea\x02\x10Chatto::Core::V1b\x06proto3"
 
 var (
@@ -932,43 +999,45 @@ func file_chatto_core_v1_config_events_proto_rawDescGZIP() []byte {
 	return file_chatto_core_v1_config_events_proto_rawDescData
 }
 
-var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 18)
+var file_chatto_core_v1_config_events_proto_msgTypes = make([]protoimpl.MessageInfo, 19)
 var file_chatto_core_v1_config_events_proto_goTypes = []any{
-	(*ServerNameChangedEvent)(nil),                  // 0: chatto.core.v1.ServerNameChangedEvent
-	(*ServerDescriptionChangedEvent)(nil),           // 1: chatto.core.v1.ServerDescriptionChangedEvent
-	(*ServerWelcomeMessageChangedEvent)(nil),        // 2: chatto.core.v1.ServerWelcomeMessageChangedEvent
-	(*ServerMotdChangedEvent)(nil),                  // 3: chatto.core.v1.ServerMotdChangedEvent
-	(*ServerBlockedUsernamesChangedEvent)(nil),      // 4: chatto.core.v1.ServerBlockedUsernamesChangedEvent
-	(*ServerLogoSetEvent)(nil),                      // 5: chatto.core.v1.ServerLogoSetEvent
-	(*ServerLogoClearedEvent)(nil),                  // 6: chatto.core.v1.ServerLogoClearedEvent
-	(*ServerBannerSetEvent)(nil),                    // 7: chatto.core.v1.ServerBannerSetEvent
-	(*ServerBannerClearedEvent)(nil),                // 8: chatto.core.v1.ServerBannerClearedEvent
-	(*UserTimezoneChangedEvent)(nil),                // 9: chatto.core.v1.UserTimezoneChangedEvent
-	(*UserTimezoneClearedEvent)(nil),                // 10: chatto.core.v1.UserTimezoneClearedEvent
-	(*UserTimeFormatChangedEvent)(nil),              // 11: chatto.core.v1.UserTimeFormatChangedEvent
-	(*UserTimeFormatClearedEvent)(nil),              // 12: chatto.core.v1.UserTimeFormatClearedEvent
-	(*UserServerNotificationLevelSetEvent)(nil),     // 13: chatto.core.v1.UserServerNotificationLevelSetEvent
-	(*UserServerNotificationLevelClearedEvent)(nil), // 14: chatto.core.v1.UserServerNotificationLevelClearedEvent
-	(*UserRoomNotificationLevelSetEvent)(nil),       // 15: chatto.core.v1.UserRoomNotificationLevelSetEvent
-	(*UserRoomNotificationLevelClearedEvent)(nil),   // 16: chatto.core.v1.UserRoomNotificationLevelClearedEvent
-	(*UserNotificationPolicyChangedEvent)(nil),      // 17: chatto.core.v1.UserNotificationPolicyChangedEvent
-	(*AssetRecord)(nil),                             // 18: chatto.core.v1.AssetRecord
-	(TimeFormat)(0),                                 // 19: chatto.core.v1.TimeFormat
-	(NotificationLevel)(0),                          // 20: chatto.core.v1.NotificationLevel
-	(*NotificationDeliveryModes)(nil),               // 21: chatto.core.v1.NotificationDeliveryModes
+	(*ServerNameChangedEvent)(nil),                      // 0: chatto.core.v1.ServerNameChangedEvent
+	(*ServerDescriptionChangedEvent)(nil),               // 1: chatto.core.v1.ServerDescriptionChangedEvent
+	(*ServerWelcomeMessageChangedEvent)(nil),            // 2: chatto.core.v1.ServerWelcomeMessageChangedEvent
+	(*ServerMotdChangedEvent)(nil),                      // 3: chatto.core.v1.ServerMotdChangedEvent
+	(*ServerBlockedUsernamesChangedEvent)(nil),          // 4: chatto.core.v1.ServerBlockedUsernamesChangedEvent
+	(*ServerLogoSetEvent)(nil),                          // 5: chatto.core.v1.ServerLogoSetEvent
+	(*ServerLogoClearedEvent)(nil),                      // 6: chatto.core.v1.ServerLogoClearedEvent
+	(*ServerBannerSetEvent)(nil),                        // 7: chatto.core.v1.ServerBannerSetEvent
+	(*ServerBannerClearedEvent)(nil),                    // 8: chatto.core.v1.ServerBannerClearedEvent
+	(*UserTimezoneChangedEvent)(nil),                    // 9: chatto.core.v1.UserTimezoneChangedEvent
+	(*UserTimezoneClearedEvent)(nil),                    // 10: chatto.core.v1.UserTimezoneClearedEvent
+	(*UserTimeFormatChangedEvent)(nil),                  // 11: chatto.core.v1.UserTimeFormatChangedEvent
+	(*UserTimeFormatClearedEvent)(nil),                  // 12: chatto.core.v1.UserTimeFormatClearedEvent
+	(*UserServerNotificationLevelSetEvent)(nil),         // 13: chatto.core.v1.UserServerNotificationLevelSetEvent
+	(*UserServerNotificationLevelClearedEvent)(nil),     // 14: chatto.core.v1.UserServerNotificationLevelClearedEvent
+	(*UserRoomNotificationLevelSetEvent)(nil),           // 15: chatto.core.v1.UserRoomNotificationLevelSetEvent
+	(*UserRoomNotificationLevelClearedEvent)(nil),       // 16: chatto.core.v1.UserRoomNotificationLevelClearedEvent
+	(*UserNotificationPolicyChangedEvent)(nil),          // 17: chatto.core.v1.UserNotificationPolicyChangedEvent
+	(*UserRoomGroupNotificationPolicyChangedEvent)(nil), // 18: chatto.core.v1.UserRoomGroupNotificationPolicyChangedEvent
+	(*AssetRecord)(nil),                                 // 19: chatto.core.v1.AssetRecord
+	(TimeFormat)(0),                                     // 20: chatto.core.v1.TimeFormat
+	(NotificationLevel)(0),                              // 21: chatto.core.v1.NotificationLevel
+	(*NotificationDeliveryModes)(nil),                   // 22: chatto.core.v1.NotificationDeliveryModes
 }
 var file_chatto_core_v1_config_events_proto_depIdxs = []int32{
-	18, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	18, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
-	19, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
-	20, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	20, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
-	21, // 5: chatto.core.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.v1.NotificationDeliveryModes
-	6,  // [6:6] is the sub-list for method output_type
-	6,  // [6:6] is the sub-list for method input_type
-	6,  // [6:6] is the sub-list for extension type_name
-	6,  // [6:6] is the sub-list for extension extendee
-	0,  // [0:6] is the sub-list for field type_name
+	19, // 0: chatto.core.v1.ServerLogoSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	19, // 1: chatto.core.v1.ServerBannerSetEvent.asset:type_name -> chatto.core.v1.AssetRecord
+	20, // 2: chatto.core.v1.UserTimeFormatChangedEvent.time_format:type_name -> chatto.core.v1.TimeFormat
+	21, // 3: chatto.core.v1.UserServerNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	21, // 4: chatto.core.v1.UserRoomNotificationLevelSetEvent.level:type_name -> chatto.core.v1.NotificationLevel
+	22, // 5: chatto.core.v1.UserNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.v1.NotificationDeliveryModes
+	22, // 6: chatto.core.v1.UserRoomGroupNotificationPolicyChangedEvent.overrides:type_name -> chatto.core.v1.NotificationDeliveryModes
+	7,  // [7:7] is the sub-list for method output_type
+	7,  // [7:7] is the sub-list for method input_type
+	7,  // [7:7] is the sub-list for extension type_name
+	7,  // [7:7] is the sub-list for extension extendee
+	0,  // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_config_events_proto_init() }
@@ -986,7 +1055,7 @@ func file_chatto_core_v1_config_events_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_config_events_proto_rawDesc), len(file_chatto_core_v1_config_events_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   18,
+			NumMessages:   19,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

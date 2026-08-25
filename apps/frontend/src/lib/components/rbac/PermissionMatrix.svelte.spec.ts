@@ -220,7 +220,7 @@ describe('PermissionMatrix', () => {
     const panel = container.querySelector('.panel-shell') as HTMLElement;
     const tableHeader = panel.querySelector('thead tr') as HTMLElement;
     const stickyHeader = panel.querySelector('thead th.sticky') as HTMLElement;
-    const stickyBody = panel.querySelector('tbody td.sticky') as HTMLElement;
+    const stickyBody = panel.querySelector('tbody th[scope="row"].sticky') as HTMLElement;
     const surfaceColor = getComputedStyle(panel).backgroundColor;
     const headerColor = getComputedStyle(tableHeader).backgroundColor;
     const viewport = panel.querySelector('table')?.parentElement?.parentElement as HTMLElement;
@@ -286,7 +286,9 @@ describe('PermissionMatrix', () => {
       'td[data-role="admin"][data-permission="room.create"]'
     ) as HTMLTableCellElement;
     const columnHeader = container.querySelector('th[data-role="moderator"]') as HTMLElement;
-    const rowLabel = intersection.parentElement!.querySelector('td.sticky') as HTMLElement;
+    const rowLabel = intersection.parentElement!.querySelector(
+      'th[scope="row"].sticky'
+    ) as HTMLElement;
 
     intersection.dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -437,17 +439,20 @@ describe('PermissionMatrix', () => {
 
     replacementButton.click();
     flushSync();
-    expect(replacementButton.disabled).toBe(true);
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
 
     updates[0].reject(new Error('stale permission failure'));
     await settle();
 
     expect(rendered.container.textContent).not.toContain('stale permission failure');
-    expect(replacementButton.disabled).toBe(true);
+    expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBe('true');
 
     updates[1].resolve();
     await settle();
     expect(replacementButton.disabled).toBe(false);
+    expect(replacementButton.getAttribute('aria-disabled')).toBeNull();
   });
 
   it('invokes onRoleClick when a column header is clicked', async () => {

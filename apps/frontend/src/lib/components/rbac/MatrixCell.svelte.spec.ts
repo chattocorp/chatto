@@ -107,7 +107,8 @@ describe('MatrixCell', () => {
     const { container } = renderCell({ updating: true, onCycle });
     const button = container.querySelector('button') as HTMLButtonElement;
 
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
+    expect(button.getAttribute('aria-disabled')).toBe('true');
     expect(button.getAttribute('aria-busy')).toBe('true');
     expect(button.className).toContain('ring-action/40');
     expect(

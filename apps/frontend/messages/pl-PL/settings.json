@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Zasady powiadomień",
-        "description": "Wybierz, jak mocno każdy rodzaj aktywności ma zwracać Twoją uwagę. Dziedziczenie używa ustawienia serwera.",
+        "description": "Wybierz sposób powiadamiania o każdej aktywności na poziomie serwera, grupy pokoi i pokoju. Pokoje dziedziczą ustawienie z grupy, a następnie z serwera.",
         "load_failed": "Nie udało się wczytać zasad powiadomień",
         "save_failed": "Nie udało się zapisać zasad powiadomień",
         "effective": "Obowiązuje: {mode}",
+        "filter_label": "Filtruj zakresy powiadomień",
+        "filter_placeholder": "Filtruj grupy i pokoje…",
+        "no_filter_matches": "Żaden zakres powiadomień nie pasuje do tego filtra.",
+        "legend": "Tryby dostarczania powiadomień",
+        "cell_aria": "{cause}, {scope}. Nadpisanie: {override}. Obowiązuje: {effective}. Aktywuj, aby ustawić {next}.",
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
-          "silent": "Cicho",
-          "alert": "Alert"
+          "notification": "Powiadomienie",
+          "push_notification": "Powiadomienie push"
         },
         "reason": {
           "direct_message": "Wiadomości bezpośrednie",

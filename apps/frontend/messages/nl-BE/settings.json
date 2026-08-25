@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Meldingsbeleid",
-        "description": "Kies hoeveel aandacht elk type activiteit krijgt. Overnemen gebruikt de serverstandaard.",
+        "description": "Kies hoe elke activiteit je waarschuwt op server-, kamergroep- en kamerniveau. Kamers nemen de instelling over van hun groep en daarna van de server.",
         "load_failed": "Meldingsbeleid kon niet worden geladen",
         "save_failed": "Meldingsbeleid kon niet worden opgeslagen",
         "effective": "Effectief: {mode}",
+        "filter_label": "Meldingsbereiken filteren",
+        "filter_placeholder": "Groepen en kamers filteren…",
+        "no_filter_matches": "Geen meldingsbereiken komen overeen met deze filter.",
+        "legend": "Bezorgmodi voor meldingen",
+        "cell_aria": "{cause}, {scope}. Overschrijving: {override}. Effectief: {effective}. Activeer om {next} in te stellen.",
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
-          "silent": "Stil",
-          "alert": "Melding"
+          "notification": "Melding",
+          "push_notification": "Pushmelding"
         },
         "reason": {
           "direct_message": "Directe berichten",

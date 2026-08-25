@@ -236,7 +236,8 @@ describe('subject permission loaders', () => {
     await settle();
 
     expect(cellButton(rendered.container, 'message.post')).toBe(originalTarget);
-    expect(originalTarget.disabled).toBe(true);
+    expect(originalTarget.disabled).toBe(false);
+    expect(originalTarget.getAttribute('aria-disabled')).toBe('true');
     expect(cellButton(rendered.container, 'room.manage')).toBe(originalOther);
     expect(originalOther.disabled).toBe(false);
     expect(originalOther.className).toBe(otherClassName);
@@ -244,7 +245,7 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.setUserPermission).toHaveBeenCalledOnce();
 
     resolveMutation?.({ decision: 'ALLOW' });
-    await vi.waitFor(() => expect(originalTarget.disabled).toBe(false));
+    await vi.waitFor(() => expect(originalTarget.getAttribute('aria-disabled')).toBeNull());
 
     expect(rendered.container.querySelector('table')).toBe(originalTable);
     expect(cellButton(rendered.container, 'room.manage')).toBe(originalOther);

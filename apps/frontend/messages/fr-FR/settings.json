@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Politique de notifications",
-        "description": "Choisissez le niveau d'attention accordé à chaque type d'activité. Hériter utilise la valeur par défaut du serveur.",
+        "description": "Choisissez comment chaque activité vous avertit au niveau du serveur, du groupe de salles et de la salle. Les salles héritent de leur groupe, puis du serveur.",
         "load_failed": "Impossible de charger la politique de notifications",
         "save_failed": "Impossible d'enregistrer la politique de notifications",
         "effective": "Effectif : {mode}",
+        "filter_label": "Filtrer les portées de notification",
+        "filter_placeholder": "Filtrer les groupes et les salles…",
+        "no_filter_matches": "Aucune portée de notification ne correspond à ce filtre.",
+        "legend": "Modes de distribution des notifications",
+        "cell_aria": "{cause}, {scope}. Remplacement : {override}. Effectif : {effective}. Activez pour définir {next}.",
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
-          "silent": "Silencieux",
-          "alert": "Alerte"
+          "notification": "Notification",
+          "push_notification": "Notification push"
         },
         "reason": {
           "direct_message": "Messages directs",

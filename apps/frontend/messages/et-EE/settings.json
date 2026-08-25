@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Teavituste reeglid",
-        "description": "Vali, kui tugevalt iga tegevuse liik sinu tähelepanu köidab. Pärimine kasutab serveri vaikeväärtust.",
+        "description": "Vali iga tegevuse teavitusviis serveri, ruumirühma ja ruumi tasemel. Ruumid pärivad seadistuse oma rühmalt ja seejärel serverilt.",
         "load_failed": "Teavituste reeglite laadimine ebaõnnestus",
         "save_failed": "Teavituste reeglite salvestamine ebaõnnestus",
         "effective": "Kehtiv: {mode}",
+        "filter_label": "Filtreeri teavitusalasid",
+        "filter_placeholder": "Filtreeri rühmi ja ruume…",
+        "no_filter_matches": "Sellele filtrile ei vasta ükski teavitusala.",
+        "legend": "Teavituste edastusviisid",
+        "cell_aria": "{cause}, {scope}. Erand: {override}. Kehtiv: {effective}. Aktiveeri, et määrata {next}.",
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
-          "silent": "Vaikne",
-          "alert": "Teavitus"
+          "notification": "Teavitus",
+          "push_notification": "Tõuketeavitus"
         },
         "reason": {
           "direct_message": "Otsesõnumid",

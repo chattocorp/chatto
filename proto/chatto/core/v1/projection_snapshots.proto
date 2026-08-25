@@ -211,10 +211,16 @@ message UserConfigSnapshot {
   optional TimeFormat time_format = 3;
   NotificationDeliveryModes server_notification_modes = 4;
   repeated RoomNotificationModesSnapshot room_notification_modes = 5;
+  repeated RoomGroupNotificationModesSnapshot room_group_notification_modes = 6;
 }
 
 message RoomNotificationModesSnapshot {
   string room_id = 1;
+  NotificationDeliveryModes modes = 2;
+}
+
+message RoomGroupNotificationModesSnapshot {
+  string room_group_id = 1;
   NotificationDeliveryModes modes = 2;
 }
 

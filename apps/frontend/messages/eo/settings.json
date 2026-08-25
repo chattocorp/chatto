@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Sciiga politiko",
-        "description": "Elektu kiom forte ĉiu speco de aktiveco atentigu vin. Heredi uzas la servilan aprioron.",
+        "description": "Elektu kiel ĉiu aktiveco atentigu vin je servila, ĉambrogrupa kaj ĉambra nivelo. Ĉambroj heredas de sia grupo kaj poste de la servilo.",
         "load_failed": "Ne eblis ŝargi la sciigan politikon",
         "save_failed": "Ne eblis konservi la sciigan politikon",
         "effective": "Efektiva: {mode}",
+        "filter_label": "Filtri sciigajn ampleksojn",
+        "filter_placeholder": "Filtri grupojn kaj ĉambrojn…",
+        "no_filter_matches": "Neniu sciiga amplekso kongruas kun ĉi tiu filtrilo.",
+        "legend": "Reĝimoj de livero de sciigoj",
+        "cell_aria": "{cause}, {scope}. Superrego: {override}. Efektiva: {effective}. Aktivigu por agordi {next}.",
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
-          "silent": "Silenta",
-          "alert": "Alarmo"
+          "notification": "Sciigo",
+          "push_notification": "Puŝa sciigo"
         },
         "reason": {
           "direct_message": "Rektaj mesaĝoj",

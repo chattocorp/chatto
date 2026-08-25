@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "通知政策",
-        "description": "選擇各類動態提醒你的程度。繼承將使用伺服器預設值。",
+        "description": "選擇每類動態在伺服器、房間群組和房間範圍內的提醒方式。房間會先繼承其群組設定，再繼承伺服器設定。",
         "load_failed": "無法載入通知政策",
         "save_failed": "無法儲存通知政策",
         "effective": "目前生效：{mode}",
+        "filter_label": "篩選通知範圍",
+        "filter_placeholder": "篩選房間群組和房間…",
+        "no_filter_matches": "沒有通知範圍符合此篩選條件。",
+        "legend": "通知傳送模式",
+        "cell_aria": "{cause}，{scope}。覆寫：{override}。目前生效：{effective}。啟用以設定為{next}。",
         "delivery_mode": {
           "inherit": "繼承",
           "off": "關閉",
-          "silent": "靜默",
-          "alert": "提醒"
+          "notification": "通知",
+          "push_notification": "推播通知"
         },
         "reason": {
           "direct_message": "私訊",

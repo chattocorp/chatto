@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Varslingsregler",
-        "description": "Velg hvor mye oppmerksomhet hver aktivitetstype skal få. Arv bruker serverens standard.",
+        "description": "Velg hvordan hver aktivitet varsler deg på server-, romgruppe- og romnivå. Rom arver fra gruppen sin og deretter fra serveren.",
         "load_failed": "Kunne ikke laste varslingsreglene",
         "save_failed": "Kunne ikke lagre varslingsreglene",
         "effective": "Gjeldende: {mode}",
+        "filter_label": "Filtrer varslingsområder",
+        "filter_placeholder": "Filtrer grupper og rom…",
+        "no_filter_matches": "Ingen varslingsområder samsvarer med dette filteret.",
+        "legend": "Leveringsmåter for varsler",
+        "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
-          "silent": "Stille",
-          "alert": "Varsel"
+          "notification": "Varsel",
+          "push_notification": "Push-varsel"
         },
         "reason": {
           "direct_message": "Direktemeldinger",

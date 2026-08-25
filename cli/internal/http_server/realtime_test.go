@@ -1973,6 +1973,12 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 			t.Fatal("timed out waiting for notification invalidation")
 		}
 	}
+	if createdInvalidation.GetSoundCandidateNotificationId() != occurrence.GetId() {
+		t.Fatalf("sound candidate = %q, want %q", createdInvalidation.GetSoundCandidateNotificationId(), occurrence.GetId())
+	}
+	if createdInvalidation.GetAlertCandidateNotificationId() != "" {
+		t.Fatalf("legacy push candidate = %q for an in-app-only notification", createdInvalidation.GetAlertCandidateNotificationId())
+	}
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
 		Id:      "notification-v2-created",
 		ActorId: author.Id,
@@ -1988,8 +1994,8 @@ func TestRealtimeProjectionNotificationOccurrenceChangesReplaceOccurrences(t *te
 	if counts := replacement.GetOccurrences().GetRoomUnreadCounts(); len(counts) != 1 || counts[0].GetRoomId() != room.Id || counts[0].GetUnreadCount() != 1 {
 		t.Fatalf("created room unread-occurrence counts = %+v, want one group for %s", counts, room.Id)
 	}
-	if replacement.GetPlayNotificationSound() {
-		t.Fatal("Silent followed-thread notification requested sound")
+	if !replacement.GetPlayNotificationSound() {
+		t.Fatal("in-app followed-thread notification did not request sound")
 	}
 	operations := frame.GetProjectionEvent().GetOperations()
 	if len(operations) != 1 {

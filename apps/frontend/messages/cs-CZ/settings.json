@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Pravidla oznámení",
-        "description": "Zvolte, jak silně má každý druh aktivity upoutat vaši pozornost. Zdědit použije výchozí nastavení serveru.",
+        "description": "Zvolte způsob upozornění pro každou aktivitu na úrovni serveru, skupiny místností a místnosti. Místnosti dědí ze své skupiny a potom ze serveru.",
         "load_failed": "Pravidla oznámení se nepodařilo načíst",
         "save_failed": "Pravidla oznámení se nepodařilo uložit",
         "effective": "Výsledné: {mode}",
+        "filter_label": "Filtrovat rozsahy oznámení",
+        "filter_placeholder": "Filtrovat skupiny a místnosti…",
+        "no_filter_matches": "Tomuto filtru neodpovídají žádné rozsahy oznámení.",
+        "legend": "Režimy doručení oznámení",
+        "cell_aria": "{cause}, {scope}. Přepsání: {override}. Výsledné: {effective}. Aktivací nastavíte {next}.",
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
-          "silent": "Tiché",
-          "alert": "Upozornění"
+          "notification": "Oznámení",
+          "push_notification": "Push oznámení"
         },
         "reason": {
           "direct_message": "Přímé zprávy",

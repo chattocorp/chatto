@@ -185,6 +185,7 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 	p.RLock()
 	defer p.RUnlock()
 	var values int64
+	var notificationPolicyValues, notificationPolicyPayloadBytes int64
 	if p.server.serverName != "" {
 		values++
 	}
@@ -213,6 +214,24 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		if u.timeFormat != nil {
 			values++
 		}
+		serverPolicyValues := notificationDeliveryModeFieldCount(u.serverModes)
+		values += serverPolicyValues
+		notificationPolicyValues += serverPolicyValues
+		if u.serverModes != nil {
+			notificationPolicyPayloadBytes += int64(proto.Size(u.serverModes))
+		}
+		for groupID, modes := range u.roomGroupModesByGroup {
+			policyValues := notificationDeliveryModeFieldCount(modes)
+			values += policyValues
+			notificationPolicyValues += policyValues
+			notificationPolicyPayloadBytes += projectionMapEntryOverhead + int64(len(groupID)) + int64(proto.Size(modes))
+		}
+		for roomID, modes := range u.roomModesByRoom {
+			policyValues := notificationDeliveryModeFieldCount(modes)
+			values += policyValues
+			notificationPolicyValues += policyValues
+			notificationPolicyPayloadBytes += projectionMapEntryOverhead + int64(len(roomID)) + int64(proto.Size(modes))
+		}
 	}
 	subjects := int64(len(p.users))
 	if p.server.serverName != "" ||
@@ -224,10 +243,11 @@ func (p *ConfigProjection) adminProjectionEstimate() (int64, int64, []Projection
 		p.server.banner != nil {
 		subjects++
 	}
-	bytes := values * projectionMapEntryOverhead
+	bytes := values*projectionMapEntryOverhead + notificationPolicyPayloadBytes
 	return values, bytes, []ProjectionAdminMetric{
 		{Name: "subjects", Value: subjects, Bytes: 0},
 		{Name: "values", Value: values, Bytes: bytes},
+		{Name: "notification_policy_values", Value: notificationPolicyValues, Bytes: notificationPolicyValues*projectionMapEntryOverhead + notificationPolicyPayloadBytes},
 	}
 }
 

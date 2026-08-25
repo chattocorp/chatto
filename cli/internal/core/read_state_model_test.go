@@ -157,7 +157,7 @@ func TestReadStateModel_MarkRoomAsReadPublishesLiveEventWhenOccurrencesBecomeRea
 		SourceCreated:        first.GetCreatedAt().AsTime(),
 		ActorID:              poster.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, first.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 		SourceStreamSequence: firstEntry.StreamSeq,
@@ -205,7 +205,7 @@ func TestNotificationReadBoundaryReconciliationRepairsInterruptedHandshake(t *te
 	occurrence, _, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: reader.Id, SourceEventID: posted.Id, SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
 	})
 	if err != nil {

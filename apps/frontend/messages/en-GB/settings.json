@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Notification policy",
-        "description": "Choose how strongly each kind of activity should get your attention. Inherit uses the server default.",
+        "description": "Choose how each kind of activity gets your attention at server, room-group, and room scope. Rooms inherit from their group, then the server.",
         "load_failed": "Failed to load notification policy",
         "save_failed": "Failed to save notification policy",
         "effective": "Effective: {mode}",
+        "filter_label": "Filter notification scopes",
+        "filter_placeholder": "Filter groups and rooms…",
+        "no_filter_matches": "No notification scopes match this filter.",
+        "legend": "Notification delivery modes",
+        "cell_aria": "{cause}, {scope}. Override: {override}. Effective: {effective}. Activate to set {next}.",
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
-          "silent": "Silent",
-          "alert": "Alert"
+          "notification": "Notification",
+          "push_notification": "Push notification"
         },
         "reason": {
           "direct_message": "Direct messages",

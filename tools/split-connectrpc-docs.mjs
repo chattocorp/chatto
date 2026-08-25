@@ -96,7 +96,14 @@ const categories = [
         slug: 'notifications',
         title: 'Notifications',
         description:
-          'Exact notification occurrence listing, read, deletion, and per-signal-class policy RPCs.'
+          'Exact notification occurrence listing, read, deletion, and legacy server/room policy RPCs.'
+      },
+      {
+        name: 'NotificationPolicyService',
+        slug: 'notification-policies',
+        title: 'Notification Policies',
+        description:
+          'Server, room-group, and room notification delivery policy RPCs for the authenticated viewer.'
       },
       {
         name: 'PushNotificationService',

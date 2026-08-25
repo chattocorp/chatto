@@ -59,6 +59,7 @@ func TestAPIHandlers(t *testing.T) {
 		"/" + apiv1connect.MessageServiceName + "/",
 		"/" + apiv1connect.MessageSearchServiceName + "/",
 		"/" + apiv1connect.NotificationServiceName + "/",
+		"/" + apiv1connect.NotificationPolicyServiceName + "/",
 		"/" + adminv1connect.AdminPermissionServiceName + "/",
 		"/" + apiv1connect.PushNotificationServiceName + "/",
 		"/" + adminv1connect.AdminRoleServiceName + "/",
@@ -107,6 +108,7 @@ func TestAPIHandlerAuthPolicies(t *testing.T) {
 		"/" + apiv1connect.MessageServiceName + "/":                  AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.MessageSearchServiceName + "/":            AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.NotificationServiceName + "/":             AuthPolicyAuthenticatedUser,
+		"/" + apiv1connect.NotificationPolicyServiceName + "/":       AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminPermissionServiceName + "/":        AuthPolicyAuthenticatedUser,
 		"/" + apiv1connect.PushNotificationServiceName + "/":         AuthPolicyAuthenticatedUser,
 		"/" + adminv1connect.AdminRoleServiceName + "/":              AuthPolicyAuthenticatedUser,
@@ -141,6 +143,9 @@ func TestPublicReflectionResolver(t *testing.T) {
 	}
 	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(apiv1connect.BotServiceName)); err != nil {
 		t.Fatalf("FindDescriptorByName(%s): %v", apiv1connect.BotServiceName, err)
+	}
+	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(apiv1connect.NotificationPolicyServiceName)); err != nil {
+		t.Fatalf("FindDescriptorByName(%s): %v", apiv1connect.NotificationPolicyServiceName, err)
 	}
 	if _, err := resolver.FindDescriptorByName(protoreflect.FullName(authv1connect.ExternalIdentityAuthServiceName)); err != nil {
 		t.Fatalf("FindDescriptorByName(%s): %v", authv1connect.ExternalIdentityAuthServiceName, err)
@@ -269,6 +274,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	userPath, userHandler := apiv1connect.NewUserServiceHandler(env.users, HandlerOptions()...)
 	roomPath, roomHandler := apiv1connect.NewRoomServiceHandler(env.rooms, HandlerOptions()...)
 	notificationPath, notificationHandler := apiv1connect.NewNotificationServiceHandler(env.notifications, HandlerOptions()...)
+	notificationPolicyPath, notificationPolicyHandler := apiv1connect.NewNotificationPolicyServiceHandler(env.notificationPolicies, HandlerOptions()...)
 	voicePath, voiceHandler := apiv1connect.NewVoiceCallServiceHandler(env.voice, HandlerOptions()...)
 	adminMemberPath, adminMemberHandler := adminv1connect.NewAdminUserServiceHandler(env.adminUsers, HandlerOptions()...)
 	adminServerPath, adminServerHandler := adminv1connect.NewAdminServerServiceHandler(env.serverState, HandlerOptions()...)
@@ -280,6 +286,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	mux.Handle(userPath, userHandler)
 	mux.Handle(roomPath, roomHandler)
 	mux.Handle(notificationPath, notificationHandler)
+	mux.Handle(notificationPolicyPath, notificationPolicyHandler)
 	mux.Handle(voicePath, voiceHandler)
 	mux.Handle(adminMemberPath, adminMemberHandler)
 	mux.Handle(adminServerPath, adminServerHandler)
@@ -293,6 +300,7 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	users := apiv1connect.NewUserServiceClient(ts.Client(), ts.URL)
 	rooms := apiv1connect.NewRoomServiceClient(ts.Client(), ts.URL)
 	voice := apiv1connect.NewVoiceCallServiceClient(ts.Client(), ts.URL)
+	notificationPolicies := apiv1connect.NewNotificationPolicyServiceClient(ts.Client(), ts.URL)
 	adminMembers := adminv1connect.NewAdminUserServiceClient(ts.Client(), ts.URL)
 	adminServer := adminv1connect.NewAdminServerServiceClient(ts.Client(), ts.URL)
 
@@ -412,6 +420,17 @@ func TestBatchGetResourceRequestsValidateThroughConnectHandlers(t *testing.T) {
 	}
 	if _, err := voice.BatchGetActiveCalls(context.Background(), connect.NewRequest(&apiv1.BatchGetActiveCallsRequest{RoomIds: tooManyRoomIDs})); connect.CodeOf(err) != connect.CodeInvalidArgument {
 		t.Fatalf("too-many BatchGetActiveCalls code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+
+	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("empty BatchGetNotificationPolicies code = %v, want invalid_argument", connect.CodeOf(err))
+	}
+	tooManyNotificationScopes := make([]*apiv1.NotificationPolicyScope, 101)
+	for index := range tooManyNotificationScopes {
+		tooManyNotificationScopes[index] = serverNotificationPolicyScope()
+	}
+	if _, err := notificationPolicies.BatchGetNotificationPolicies(context.Background(), connect.NewRequest(&apiv1.BatchGetNotificationPoliciesRequest{Scopes: tooManyNotificationScopes})); connect.CodeOf(err) != connect.CodeInvalidArgument {
+		t.Fatalf("too-many BatchGetNotificationPolicies code = %v, want invalid_argument", connect.CodeOf(err))
 	}
 
 	if _, err := adminMembers.BatchGetMembers(context.Background(), connect.NewRequest(&adminv1.BatchGetMembersRequest{})); connect.CodeOf(err) != connect.CodeInvalidArgument {

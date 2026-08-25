@@ -378,10 +378,10 @@ func apiNotificationDeliveryMode(mode corev1.NotificationDeliveryMode) (apiv1.No
 	switch mode {
 	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT:
-		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, nil
-	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
-		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, nil
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
+		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, nil
 	default:
 		return apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
 	}
@@ -460,10 +460,10 @@ func coreNotificationDeliveryMode(mode apiv1.NotificationDeliveryMode) (corev1.N
 	switch mode {
 	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF, nil
-	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, nil
-	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT:
-		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT, nil
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, nil
+	case apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION:
+		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION, nil
 	default:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED, core.ErrInvalidArgument
 	}

@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Benachrichtigungsrichtlinie",
-        "description": "Lege fest, wie stark jede Art von Aktivität deine Aufmerksamkeit erhalten soll. Vererben verwendet die Servervorgabe.",
+        "description": "Lege für Server, Raumgruppen und Räume fest, wie dich jede Aktivität benachrichtigt. Räume erben zuerst von ihrer Gruppe und dann vom Server.",
         "load_failed": "Benachrichtigungsrichtlinie konnte nicht geladen werden",
         "save_failed": "Benachrichtigungsrichtlinie konnte nicht gespeichert werden",
         "effective": "Wirksam: {mode}",
+        "filter_label": "Benachrichtigungsbereiche filtern",
+        "filter_placeholder": "Gruppen und Räume filtern…",
+        "no_filter_matches": "Keine Benachrichtigungsbereiche entsprechen diesem Filter.",
+        "legend": "Benachrichtigungsmodi",
+        "cell_aria": "{cause}, {scope}. Überschreibung: {override}. Wirksam: {effective}. Aktivieren, um {next} festzulegen.",
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
-          "silent": "Lautlos",
-          "alert": "Hinweis"
+          "notification": "Benachrichtigung",
+          "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
           "direct_message": "Direktnachrichten",

@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Bildirim politikası",
-        "description": "Her etkinlik türünün dikkatinizi ne ölçüde çekmesi gerektiğini seçin. Devral, sunucu varsayılanını kullanır.",
+        "description": "Her etkinliğin sunucu, oda grubu ve oda kapsamında sizi nasıl uyaracağını seçin. Odalar önce gruplarından, sonra sunucudan devralır.",
         "load_failed": "Bildirim politikası yüklenemedi",
         "save_failed": "Bildirim politikası kaydedilemedi",
         "effective": "Geçerli: {mode}",
+        "filter_label": "Bildirim kapsamlarını filtrele",
+        "filter_placeholder": "Grupları ve odaları filtrele…",
+        "no_filter_matches": "Bu filtreyle eşleşen bildirim kapsamı yok.",
+        "legend": "Bildirim teslim modları",
+        "cell_aria": "{cause}, {scope}. Geçersiz kılma: {override}. Geçerli: {effective}. {next} olarak ayarlamak için etkinleştirin.",
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
-          "silent": "Sessiz",
-          "alert": "Uyarı"
+          "notification": "Bildirim",
+          "push_notification": "Anlık bildirim"
         },
         "reason": {
           "direct_message": "Doğrudan mesajlar",

@@ -13,7 +13,7 @@ option go_package = "hmans.de/chatto/internal/pb/chatto/core/v1;corev1";
 //
 // Top-level Event oneof tags owned by this file:
 //   - 500: reserved tombstone for the abandoned server_config_changed snapshot
-//   - 501-518: durable server/user configuration events on evt.config.*
+//   - 501-519: durable server/user configuration events on evt.config.*
 //
 // Keep these tags coordinated with event.proto. Message-internal field numbers
 // are local to each message and do not consume top-level Event tag space.
@@ -100,6 +100,15 @@ message UserNotificationPolicyChangedEvent {
   string user_id = 1;
   NotificationDeliveryModes overrides = 2;
   optional string room_id = 3;
+}
+
+// Replaces the complete room-group-scoped notification policy overrides.
+// This is a separate event from UserNotificationPolicyChangedEvent so an
+// older binary cannot interpret a room-group policy as server scope.
+message UserRoomGroupNotificationPolicyChangedEvent {
+  string user_id = 1;
+  string room_group_id = 2;
+  NotificationDeliveryModes overrides = 3;
 }
 
 // Notifies clients that server configuration was updated.

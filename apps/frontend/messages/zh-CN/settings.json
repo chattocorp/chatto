@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "通知策略",
-        "description": "选择各类动态提醒你的程度。继承将使用服务器默认值。",
+        "description": "选择每类动态在服务器、房间组和房间范围内的提醒方式。房间先继承其房间组设置，再继承服务器设置。",
         "load_failed": "无法加载通知策略",
         "save_failed": "无法保存通知策略",
         "effective": "当前生效：{mode}",
+        "filter_label": "筛选通知范围",
+        "filter_placeholder": "筛选房间组和房间…",
+        "no_filter_matches": "没有通知范围符合此筛选条件。",
+        "legend": "通知送达模式",
+        "cell_aria": "{cause}，{scope}。覆盖：{override}。当前生效：{effective}。激活以设置为{next}。",
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
-          "silent": "静默",
-          "alert": "提醒"
+          "notification": "通知",
+          "push_notification": "推送通知"
         },
         "reason": {
           "direct_message": "私信",

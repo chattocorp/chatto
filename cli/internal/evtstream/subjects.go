@@ -131,24 +131,25 @@ const (
 	EventRoomGroupsReordered = "groups_reordered"
 
 	// Config aggregate (singleton)
-	EventServerNameChanged                  = "server_name_changed"
-	EventServerDescriptionChanged           = "server_description_changed"
-	EventServerWelcomeMessageChanged        = "server_welcome_message_changed"
-	EventServerMotdChanged                  = "server_motd_changed"
-	EventServerBlockedUsernamesChanged      = "server_blocked_usernames_changed"
-	EventServerLogoSet                      = "server_logo_set"
-	EventServerLogoCleared                  = "server_logo_cleared"
-	EventServerBannerSet                    = "server_banner_set"
-	EventServerBannerCleared                = "server_banner_cleared"
-	EventUserTimezoneChanged                = "user_timezone_changed"
-	EventUserTimezoneCleared                = "user_timezone_cleared"
-	EventUserTimeFormatChanged              = "user_time_format_changed"
-	EventUserTimeFormatCleared              = "user_time_format_cleared"
-	EventUserServerNotificationLevelSet     = "user_server_notification_level_set"
-	EventUserServerNotificationLevelCleared = "user_server_notification_level_cleared"
-	EventUserRoomNotificationLevelSet       = "user_room_notification_level_set"
-	EventUserRoomNotificationLevelCleared   = "user_room_notification_level_cleared"
-	EventUserNotificationPolicyChanged      = "user_notification_policy_changed"
+	EventServerNameChanged                      = "server_name_changed"
+	EventServerDescriptionChanged               = "server_description_changed"
+	EventServerWelcomeMessageChanged            = "server_welcome_message_changed"
+	EventServerMotdChanged                      = "server_motd_changed"
+	EventServerBlockedUsernamesChanged          = "server_blocked_usernames_changed"
+	EventServerLogoSet                          = "server_logo_set"
+	EventServerLogoCleared                      = "server_logo_cleared"
+	EventServerBannerSet                        = "server_banner_set"
+	EventServerBannerCleared                    = "server_banner_cleared"
+	EventUserTimezoneChanged                    = "user_timezone_changed"
+	EventUserTimezoneCleared                    = "user_timezone_cleared"
+	EventUserTimeFormatChanged                  = "user_time_format_changed"
+	EventUserTimeFormatCleared                  = "user_time_format_cleared"
+	EventUserServerNotificationLevelSet         = "user_server_notification_level_set"
+	EventUserServerNotificationLevelCleared     = "user_server_notification_level_cleared"
+	EventUserRoomNotificationLevelSet           = "user_room_notification_level_set"
+	EventUserRoomNotificationLevelCleared       = "user_room_notification_level_cleared"
+	EventUserNotificationPolicyChanged          = "user_notification_policy_changed"
+	EventUserRoomGroupNotificationPolicyChanged = "user_room_group_notification_policy_changed"
 
 	// User aggregate
 	EventUserAccountCreated           = "account_created"
@@ -358,6 +359,8 @@ func EventTypeOf(e *corev1.Event) string {
 		return EventUserRoomNotificationLevelCleared
 	case *corev1.Event_UserNotificationPolicyChanged:
 		return EventUserNotificationPolicyChanged
+	case *corev1.Event_UserRoomGroupNotificationPolicyChanged:
+		return EventUserRoomGroupNotificationPolicyChanged
 
 	case *corev1.Event_UserAccountCreated:
 		return EventUserAccountCreated

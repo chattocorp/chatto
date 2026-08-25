@@ -29,10 +29,11 @@ type serverConfigState struct {
 }
 
 type userConfigState struct {
-	timezone        *string
-	timeFormat      *corev1.TimeFormat
-	serverModes     *corev1.NotificationDeliveryModes
-	roomModesByRoom map[string]*corev1.NotificationDeliveryModes
+	timezone              *string
+	timeFormat            *corev1.TimeFormat
+	serverModes           *corev1.NotificationDeliveryModes
+	roomGroupModesByGroup map[string]*corev1.NotificationDeliveryModes
+	roomModesByRoom       map[string]*corev1.NotificationDeliveryModes
 }
 
 func NewConfigProjection() *ConfigProjection {
@@ -102,6 +103,19 @@ func (p *ConfigProjection) Apply(event *corev1.Event, _ uint64) error {
 			delete(u.roomModesByRoom, roomID)
 		} else {
 			u.roomModesByRoom[roomID] = modes
+		}
+	case *corev1.Event_UserRoomGroupNotificationPolicyChanged:
+		policy := e.UserRoomGroupNotificationPolicyChanged
+		u := p.ensureUserLocked(policy.GetUserId())
+		if u.roomGroupModesByGroup == nil {
+			u.roomGroupModesByGroup = make(map[string]*corev1.NotificationDeliveryModes)
+		}
+		modes := cloneNotificationDeliveryModes(policy.GetOverrides())
+		groupID := policy.GetRoomGroupId()
+		if notificationDeliveryModesEmpty(modes) {
+			delete(u.roomGroupModesByGroup, groupID)
+		} else {
+			u.roomGroupModesByGroup[groupID] = modes
 		}
 	case *corev1.Event_UserServerPreferencesChanged:
 		p.applyLegacyUserPreferencesLocked(e.UserServerPreferencesChanged)

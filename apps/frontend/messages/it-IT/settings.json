@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Regole di notifica",
-        "description": "Scegli quanta attenzione deve ricevere ogni tipo di attività. Eredita usa il valore predefinito del server.",
+        "description": "Scegli come ogni attività ti avvisa a livello di server, gruppo di stanze e stanza. Le stanze ereditano dal proprio gruppo e poi dal server.",
         "load_failed": "Impossibile caricare le regole di notifica",
         "save_failed": "Impossibile salvare le regole di notifica",
         "effective": "Effettivo: {mode}",
+        "filter_label": "Filtra ambiti di notifica",
+        "filter_placeholder": "Filtra gruppi e stanze…",
+        "no_filter_matches": "Nessun ambito di notifica corrisponde a questo filtro.",
+        "legend": "Modalità di consegna delle notifiche",
+        "cell_aria": "{cause}, {scope}. Sostituzione: {override}. Effettivo: {effective}. Attiva per impostare {next}.",
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
-          "silent": "Silenzioso",
-          "alert": "Avviso"
+          "notification": "Notifica",
+          "push_notification": "Notifica push"
         },
         "reason": {
           "direct_message": "Messaggi diretti",

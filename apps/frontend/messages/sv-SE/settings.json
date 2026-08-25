@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Aviseringspolicy",
-        "description": "Välj hur mycket uppmärksamhet varje typ av aktivitet ska få. Ärv använder serverns standard.",
+        "description": "Välj hur varje aktivitet meddelar dig på server-, rumsgrupps- och rumsnivå. Rum ärver från sin grupp och därefter från servern.",
         "load_failed": "Det gick inte att läsa in aviseringspolicyn",
         "save_failed": "Det gick inte att spara aviseringspolicyn",
         "effective": "Gäller: {mode}",
+        "filter_label": "Filtrera aviseringsomfattningar",
+        "filter_placeholder": "Filtrera grupper och rum…",
+        "no_filter_matches": "Inga aviseringsomfattningar matchar filtret.",
+        "legend": "Leveranslägen för aviseringar",
+        "cell_aria": "{cause}, {scope}. Åsidosättning: {override}. Gäller: {effective}. Aktivera för att ange {next}.",
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
-          "silent": "Tyst",
-          "alert": "Avisering"
+          "notification": "Avisering",
+          "push_notification": "Pushavisering"
         },
         "reason": {
           "direct_message": "Direktmeddelanden",

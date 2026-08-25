@@ -58,6 +58,23 @@ protobuf wire level. They are nevertheless required by the 0.5 bundled client
 because a successful human bearer-auth response must contain the complete
 renewable pair.
 
+The 0.5 notification matrix uses the additive
+`chatto.api.v1.NotificationPolicyService`. An older server returns
+`Unimplemented` for this service. It cannot misapply a room-group update as a
+server update because the new service uses an explicit scope oneof. The
+existing `NotificationService` server and room policy methods remain available
+for integrations. A rollback makes new room-group overrides temporarily
+inactive; it does not convert them to server overrides. The group map changes
+the affected projection snapshot contract IDs, so an older binary cannot
+replace a newer snapshot with data that omits the group overrides.
+
+The delivery-mode enum keeps numeric values 1, 2, and 3. The names
+`IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are additive aliases for values 2
+and 3. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
+Existing protobuf JSON responses continue to use the previous names so older
+JSON clients can decode them. A JSON client that sends a new alias requires a
+server that includes the new schema.
+
 This breaking realtime migration does not retire the `chatto.api.v1`
 ConnectRPC namespace. It remains Chatto's resource-oriented public integrations
 API. Do not replace explicit resource reads, pagination, mutation responses, or

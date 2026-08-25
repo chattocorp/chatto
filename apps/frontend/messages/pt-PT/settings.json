@@ -277,15 +277,20 @@
       },
       "policy": {
         "title": "Política de notificações",
-        "description": "Escolha quanta atenção deve receber cada tipo de atividade. Herdar usa a predefinição do servidor.",
+        "description": "Escolha como cada atividade o avisa no servidor, grupo de salas e sala. As salas herdam do grupo e depois do servidor.",
         "load_failed": "Não foi possível carregar a política de notificações",
         "save_failed": "Não foi possível guardar a política de notificações",
         "effective": "Efetivo: {mode}",
+        "filter_label": "Filtrar âmbitos de notificação",
+        "filter_placeholder": "Filtrar grupos e salas…",
+        "no_filter_matches": "Nenhum âmbito de notificação corresponde a este filtro.",
+        "legend": "Modos de entrega de notificações",
+        "cell_aria": "{cause}, {scope}. Substituição: {override}. Efetivo: {effective}. Ative para definir {next}.",
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
-          "silent": "Silencioso",
-          "alert": "Alerta"
+          "notification": "Notificação",
+          "push_notification": "Notificação push"
         },
         "reason": {
           "direct_message": "Mensagens diretas",
