@@ -86,6 +86,41 @@ func RoomIDOfEvent(event *corev1.Event) string {
 	return roomIDOfEvent(event)
 }
 
+// MessageReadProtectedEventRoomID identifies a durable fact whose public
+// delivery can expose message content or message-specific metadata.
+func (c *ChattoCore) MessageReadProtectedEventRoomID(event *corev1.Event) (string, bool) {
+	if event == nil {
+		return "", false
+	}
+	switch event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted,
+		*corev1.Event_MessageEdited,
+		*corev1.Event_MessageRetracted,
+		*corev1.Event_MessageBody,
+		*corev1.Event_MessagePinned,
+		*corev1.Event_MessageUnpinned,
+		*corev1.Event_ThreadCreated,
+		*corev1.Event_ThreadFollowed,
+		*corev1.Event_ThreadUnfollowed,
+		*corev1.Event_ReactionAdded,
+		*corev1.Event_ReactionRemoved:
+		roomID := roomIDOfEvent(event)
+		return roomID, roomID != ""
+	case *corev1.Event_AssetCreated:
+		roomID := event.GetAssetCreated().GetRoomId()
+		return roomID, roomID != ""
+	case *corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted,
+		*corev1.Event_AssetAttached:
+		roomID, _, ok := c.AssetEventTimelineTarget(event)
+		return roomID, ok
+	default:
+		return "", false
+	}
+}
+
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
 	if event == nil {
 		return ""

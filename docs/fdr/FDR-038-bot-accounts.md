@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-21
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -48,6 +48,9 @@ exercise more authority than its human owner currently possesses.
   permissions allow.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
+- Channel-room membership does not give a bot message content. The bot needs an
+  explicit `message.read` grant, bounded by the same permission on its owner.
+  DM membership authorizes the bot to read that DM.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current effective permissions allow
@@ -252,10 +255,11 @@ override, but bots themselves cannot exercise bot-management operations.
 - **ADRs:** ADR-007 (per-user encryption and crypto-shredding), ADR-033
   (event-sourced state), ADR-036 (runtime state), ADR-040 (permission-only RBAC
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
-  runtime credentials), ADR-052 (subject-specific RBAC)
+  runtime credentials), ADR-052 (subject-specific RBAC), ADR-080 (explicit
+  message-read permissions)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-022
   (User Profile), FDR-023 (Authentication & Sessions), FDR-025 (User Search &
-  Member Directory)
+  Member Directory), FDR-039 (Message Access & Interactions)
 
 ## Open Questions
 

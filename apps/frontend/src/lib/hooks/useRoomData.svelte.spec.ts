@@ -48,6 +48,7 @@ function projectedRoom(
         permissions: [
           { permission: 'message.post', granted: true },
           { permission: 'message.post-in-thread', granted: true },
+          { permission: 'message.read', granted: true },
           { permission: 'message.attach', granted: true },
           { permission: 'message.react', granted: true }
         ]
@@ -120,6 +121,7 @@ describe('useRoomData projection selector', () => {
 
     try {
       expect(room.roomData?.room.id).toBe('dm-a');
+      expect(room.roomData?.canReadMessages).toBe(true);
       expect(room.roomData?.canPostMessage).toBe(true);
       expect(room.roomData?.canPostInThread).toBe(true);
       expect(room.roomData?.canAttach).toBe(true);

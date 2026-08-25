@@ -176,6 +176,18 @@ func TestPinnedMessageCommandsAuthorizationIdempotenceAndDMRejection(t *testing.
 	if err != nil || len(page.Items) != 1 || page.Items[0].Event.GetId() != message.Id || page.LatestPinEventID != first.PinEventID {
 		t.Fatalf("ListPinnedMessages = %+v, %v", page, err)
 	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().ListPinnedMessages(ctx, PinnedMessageListInput{ActorID: manager.Id, RoomID: room.Id, Limit: 50}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("ListPinnedMessages without message.read error = %v, want permission denied", err)
+	}
+	if _, err := chatto.RoomCommands().CreatePinnedMessage(ctx, input); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("CreatePinnedMessage without message.read error = %v, want permission denied", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.Id, manager.Id, PermMessageRead); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read: %v", err)
+	}
 	pinEvents, _, err := chatto.EventPublisher.SubjectEvents(ctx, evtstream.RoomAggregate(room.Id).Subject(evtstream.EventMessagePinned))
 	if err != nil || len(pinEvents) != 1 {
 		t.Fatalf("pinned event count = %d, %v", len(pinEvents), err)

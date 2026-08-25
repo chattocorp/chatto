@@ -48,6 +48,12 @@ lists only rooms visible to both the bot owner and the person managing it,
 while retaining the directory's complete group layout so permissions such as
 `room.create` remain configurable for an empty group.
 
+Channel-room membership alone does not expose messages to a bot. Grant the bot
+`message.read` at the server, room-group, or room scope that it needs. The bot
+owner must have the same effective grant at that scope. DM membership
+authorizes the bot to read that DM. Posting remains a separate `message.post`
+or `message.post-in-thread` decision.
+
 ## Authenticate requests
 
 Send the key as an HTTP bearer credential to the same public API used by other

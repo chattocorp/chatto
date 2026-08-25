@@ -38,6 +38,23 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 	return room, kind, nil
 }
 
+// requireRoomMessageReader preserves membership as the first privacy boundary,
+// then applies the room-kind message-content boundary.
+func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanReadMessages(ctx, actorID, kind, room.GetId())
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
 func (c *ChattoCore) requireThreadRoot(ctx context.Context, kind RoomKind, roomID, threadRootEventID string) (*corev1.Event, error) {
 	if strings.TrimSpace(threadRootEventID) == "" {
 		return nil, invalidArgument("thread_root_event_id is required")

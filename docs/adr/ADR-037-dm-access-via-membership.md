@@ -39,3 +39,5 @@ This decision does not make DMs globally visible. It removes the redundant read 
   writers cannot create or extend them.
 - Subscription filtering and sidebar queries no longer need a second DM-specific read check on top of membership.
 - API fields, frontend guards, tests, and permission seed data that existed only for `dm.view` / `dm.write` have been removed.
+- The channel-room `message.read` permission does not apply to DMs. A stored
+  `message.read` decision for a DM does not change participant access.

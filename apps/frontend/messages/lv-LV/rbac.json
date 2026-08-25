@@ -101,6 +101,7 @@
       "room_list": "Skatīt telpas direktorijā. Lietotājam var atļaut redzēt telpu (piemēram, pieprasīt piekļuvi), neļaujot tai pievienoties.",
       "room_manage": "Rediģējiet telpas iestatījumus un atļaujas un dzēsiet telpas",
       "room_ban_member": "Aizliegt dalībniekus no telpām",
+      "message_read": "Lasīt ziņojumus kanālu telpās",
       "message_post": "Publicējiet saknes ziņojumus telpās un sāciet DM",
       "message_post_in_thread": "Publicējiet atbildes pavedienā",
       "message_attach": "Pievienojiet ziņojumiem failus",

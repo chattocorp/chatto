@@ -111,7 +111,7 @@ delivered only as RealtimeProjectionEvent operations.
 | `id` | `string` | Stable event ID. |
 | `created_at` | `google.protobuf.Timestamp` | Time the event was created. |
 | `actor_id` | `optional string` | User or system actor that caused the event, when known. |
-| `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | A user is typing in a room or thread. |
+| `event.user_typing` | [`RealtimeTypingEvent`](#chatto-realtime-v1-RealtimeTypingEvent) | A user is typing in a room or thread that the viewer can read. |
 | `event.presence_changed` | [`RealtimePresenceChangedEvent`](#chatto-realtime-v1-RealtimePresenceChangedEvent) | A user's live presence changed. |
 | `event.session_terminated` | [`RealtimeSessionTerminatedEvent`](#chatto-realtime-v1-RealtimeSessionTerminatedEvent) | The current user's session was terminated. |
 
@@ -563,8 +563,11 @@ Confirms projection streaming has started.
 
 Typing signal.
 
-This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
-where to display typing state; clients normally do not hydrate it.
+This is an ephemeral signal. The viewer must be a room member. A
+channel-room viewer also needs current `message.read` authority. DM
+membership authorizes DM typing delivery. `room_id` and
+`thread_root_event_id` identify where to display typing state; clients
+normally do not hydrate it.
 
 | Field | Type | Description |
 | --- | --- | --- |

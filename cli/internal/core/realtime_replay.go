@@ -207,6 +207,22 @@ func (c *ChattoCore) PlanRealtimeReplay(ctx context.Context, userID, resumeCurso
 			plan.StartCursor = boundaryCursor
 			return plan, nil
 		}
+		if protectedRoomID, protected := c.MessageReadProtectedEventRoomID(&event); protected {
+			kind, err := c.FindRoomKind(ctx, protectedRoomID)
+			if errors.Is(err, ErrNotFound) {
+				continue
+			}
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("resolve replay message room %s: %w", protectedRoomID, err)
+			}
+			canRead, err := c.CanReadMessages(ctx, userID, kind, protectedRoomID)
+			if err != nil {
+				return RealtimeReplayPlan{}, fmt.Errorf("authorize replay message room %s: %w", protectedRoomID, err)
+			}
+			if !canRead {
+				continue
+			}
+		}
 		roomID, roomSubject := realtimeReplayRoomSubject(msg.Subject)
 		assetID, assetSubject := evtstream.ParseAssetSubject(msg.Subject)
 		_, userSubject := evtstream.ParseUserSubject(msg.Subject)

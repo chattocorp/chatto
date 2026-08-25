@@ -101,6 +101,7 @@
       "room_list": "See rooms in the directory. A user can be allowed to see a room (e.g. to request access) without being allowed to join it.",
       "room_manage": "Edit a room's settings and permissions, and delete rooms",
       "room_ban_member": "Ban members from rooms",
+      "message_read": "Read messages in channel rooms",
       "message_post": "Post root messages in rooms and start DMs",
       "message_post_in_thread": "Post replies inside a thread",
       "message_attach": "Attach files to messages",

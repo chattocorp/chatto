@@ -490,8 +490,10 @@ Reads room-scoped asset metadata and freshly signed asset URLs.
 
 ### GetAsset
 
-Reads one asset. Authentication and room membership are required. Returns
-NOT_FOUND when the asset is missing, deleted, or owned by a different room.
+Reads one asset. Authentication and room membership are required.
+Channel-room assets also require message.read. DM membership authorizes DM
+assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
+different room.
 
 ```http
 POST /api/connect/chatto.api.v1.AssetService/GetAsset
@@ -526,8 +528,10 @@ Response containing one room-scoped asset.
 ### BatchGetAssets
 
 Reads many assets in one room. Authentication and room membership are
-required. Missing, deleted, and wrong-room asset IDs are omitted. Results
-preserve first-seen request order and repeated asset IDs are de-duplicated.
+required. Channel-room assets also require message.read. DM membership
+authorizes DM assets. Missing, deleted, and wrong-room asset IDs are
+omitted. Results preserve first-seen request order, and repeated asset IDs
+are de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets
@@ -1156,9 +1160,11 @@ Current message-search availability.
 
 ### SearchMessages
 
-Searches current message bodies. Results are authorized and hydrated from
-current Chatto state after provider matching. Returns FAILED_PRECONDITION
-when Search is disabled and UNAVAILABLE when its provider is not ready.
+Searches current message bodies in rooms where the caller is a member.
+Channel-room results also require message.read. DM membership authorizes DM
+results. Results are authorized and hydrated from current Chatto state
+after provider matching. Returns FAILED_PRECONDITION when Search is
+disabled and UNAVAILABLE when its provider is not ready.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageSearchService/SearchMessages
@@ -1288,7 +1294,9 @@ Result of creating a message.
 Edits a message body. Authors can edit their own messages within the edit
 window. Non-authors need message.manage and cannot change channel echo
 state. Disabled rooms reject creation of a new channel echo while allowing
-an existing echo to be removed.
+an existing echo to be removed. Room membership is also required.
+Channel-room edits require message.read. DM membership authorizes the DM
+read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -1426,9 +1434,11 @@ Result of removing a link preview from a message.
 ### GetMessage
 
 Reads one renderable message, including current body, attachment metadata,
-link preview, reactions, thread metadata, and pin state. Authentication and room
-membership are required. Returns NOT_FOUND when the event does not exist,
-is not a message, has been retracted, or belongs to a different room.
+link preview, reactions, thread metadata, and pin state. Authentication
+and room membership are required. Channel-room reads also require
+message.read. DM membership authorizes DM reads. Returns NOT_FOUND when the
+event does not exist, is not a message, has been retracted, or belongs to a
+different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -1461,10 +1471,12 @@ Response containing one renderable message.
 
 ### BatchGetMessages
 
-Reads many renderable messages and their current pin state in one room. Authentication and room
-membership are required. Missing, retracted, non-message, and wrong-room
-event IDs are omitted. Results preserve first-seen request order and
-repeated event IDs are de-duplicated.
+Reads many renderable messages and their current pin state in one room.
+Authentication and room membership are required. Channel-room reads also
+require message.read. DM membership authorizes DM reads. Missing,
+retracted, non-message, and wrong-room event IDs are omitted. Results
+preserve first-seen request order, and repeated event IDs are
+de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/BatchGetMessages
@@ -1498,7 +1510,8 @@ Response containing renderable messages.
 ### AddReaction
 
 Adds a reaction to a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read. DM
+membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/AddReaction
@@ -1540,7 +1553,8 @@ Result of adding a reaction.
 ### RemoveReaction
 
 Removes a reaction from a message. The user must be a room member and have
-message.react in the target room.
+message.react. Channel-room reactions also require message.read. DM
+membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
@@ -2075,8 +2089,9 @@ Active room bans visible to the current moderator.
 ### ListRoomAttachments
 
 Lists current message-owned room attachments. Authentication and room
-membership are required. Returns PERMISSION_DENIED when the room is
-inaccessible to the caller.
+membership are required. Channel-room attachments also require
+message.read. DM membership authorizes DM attachments. Returns
+PERMISSION_DENIED when the room is inaccessible to the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListRoomAttachments
@@ -2111,8 +2126,8 @@ Room-scoped attachment list response.
 
 ### ListPinnedMessages
 
-Lists current pinned messages in a channel room. Room membership is
-required; direct-message rooms do not support pinned messages.
+Lists current pinned messages in a channel room. Room membership and
+message.read are required; direct-message rooms do not support pins.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
@@ -2147,8 +2162,8 @@ Current pinned messages in one channel room.
 
 ### CreatePinnedMessage
 
-Pins a current message. The caller must have room.manage. Repeating an
-existing pin is idempotent. Direct-message rooms are rejected.
+Pins a current message. The caller must have room.manage and message.read.
+Repeating an existing pin is idempotent. Direct-message rooms are rejected.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
@@ -2249,8 +2264,9 @@ Result of refreshing a typing indicator.
 
 ### GetRoomEvents
 
-Returns one page of room timeline events, including related user data needed
-to render the page.
+Returns one page of room timeline events, including related user data
+needed to render the page. Room membership is required. Channel-room reads
+also require message.read. DM membership authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
@@ -2292,7 +2308,8 @@ Response containing one room timeline page.
 Returns a room timeline window centered around a specific event. Use this to
 open a permalink, search result, or notification target in context. Returns
 NOT_FOUND when the anchor event is missing or not visible in the room
-timeline and PERMISSION_DENIED when the room is inaccessible.
+timeline. Returns PERMISSION_DENIED when room membership is missing or when
+channel-room message.read is missing. DM membership authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
@@ -2330,8 +2347,10 @@ Response containing a room timeline window around a specific event.
 
 ### MarkRoomAsRead
 
-Marks a room timeline as read through the supplied event. If no event is
-supplied, the server marks through the room's latest root event. Clients
+Marks a room timeline as read through the supplied event. Room membership
+is required. Channel-room reads also require message.read. DM membership
+authorizes DM reads. If no event is supplied, the server marks through the
+room's latest root event. Clients
 usually call this after the user has viewed the latest visible event in the
 room.
 
@@ -2555,9 +2574,12 @@ Reads, marks read, and deletes notifications for the authenticated viewer.
 
 ### GetNotificationOccurrence
 
-Gets one exact visible occurrence. Returns NOT_FOUND when it is absent,
-deleted, expired, or no longer visible to the authenticated viewer, and
-UNIMPLEMENTED when this server cannot validate its signal kind.
+Gets one exact visible occurrence. Message-derived occurrences require
+current room membership. Channel-room occurrences also require
+message.read. DM membership authorizes DM occurrences. Returns NOT_FOUND
+when the occurrence is absent, deleted, expired, or no longer visible to
+the authenticated viewer. Returns UNIMPLEMENTED when this server cannot
+validate its signal kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
@@ -2626,6 +2648,9 @@ Exact visible notification occurrences requested by stable ID.
 
 Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
+Message-derived occurrences require current room membership.
+Channel-room occurrences also require message.read. DM membership
+authorizes DM occurrences.
 Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 signal kind this server version cannot validate and assemble.
 
@@ -3084,9 +3109,9 @@ Reads room directory data.
 ### ListRooms
 
 Lists rooms visible to the current user. Channel rooms are non-archived
-rooms visible through membership or room.list. DM rooms are membership-only
-and empty DM conversations are omitted. Results are returned as a finite
-navigation snapshot.
+rooms visible through membership or room.list. DM membership authorizes DM
+reads. Empty DMs are omitted. Results are returned as a finite navigation
+snapshot.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomDirectoryService/ListRooms
@@ -3354,8 +3379,10 @@ Manages thread follow state for the current user.
 
 ### ListFollowedThreads
 
-Returns followed threads for the current user, including enough root-message
-data for clients to render the list without extra per-field fetches.
+Returns followed threads in rooms where the current user is a member.
+Channel-room threads also require message.read. Historical DM threads use
+DM membership. The result includes enough root-message data for clients to
+render the list without extra per-field fetches.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
@@ -3389,8 +3416,10 @@ Response containing one followed-thread page.
 
 ### FollowThread
 
-Follows a thread for the current user. Followed threads can be surfaced in
-clients and can participate in thread notification behavior.
+Follows a thread for the current user. Room membership and channel-room
+message.read are required. DMs do not support current thread actions.
+Followed threads can be surfaced in clients and can participate in thread
+notification behavior.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/FollowThread
@@ -3424,8 +3453,10 @@ Result of following a thread.
 
 ### UnfollowThread
 
-Stops following a thread for the current user. The response reports the
-resulting follow state so clients can update local UI immediately.
+Stops following a thread for the current user. Room membership and
+channel-room message.read are required. DMs do not support current thread
+actions. The response reports the resulting follow state so clients can
+update local UI immediately.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
@@ -3459,8 +3490,10 @@ Result of unfollowing a thread.
 
 ### GetThreadEvents
 
-Returns one page of events in a message thread. Initial pages include the
-thread root message; cursor pages return replies in the requested direction.
+Returns one page of events in a message thread. Room membership is
+required. Channel-room reads also require message.read. Historical DM
+threads use DM membership. Initial pages include the thread root message;
+cursor pages return replies in the requested direction.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
@@ -3503,8 +3536,10 @@ Response containing one thread timeline page.
 
 Returns a thread timeline window centered around a specific event. Use this
 to open a reply from a notification or search result in context. Returns
-NOT_FOUND when the thread root or anchor event is missing or hidden and
-PERMISSION_DENIED when the room is inaccessible.
+NOT_FOUND when the thread root or anchor event is missing or hidden.
+Returns PERMISSION_DENIED when room membership is missing or when
+channel-room message.read is missing. Historical DM threads use DM
+membership.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
@@ -3544,7 +3579,8 @@ Response containing a thread timeline window around a specific event.
 ### MarkThreadAsRead
 
 Marks a thread timeline as read through the supplied event without changing
-the room-level read marker.
+the room-level read marker. Room membership and channel-room message.read
+are required. DMs do not support current thread actions.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
@@ -5287,10 +5323,10 @@ Room kinds to include in directory responses.
 
 | Name | Number | Description |
 | --- | --- | --- |
-| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include both visible channel rooms and the caller's active DM rooms. |
-| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include both visible channel rooms and the caller's active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_UNSPECIFIED` | `0` | Include visible channel rooms and readable active DM rooms. |
+| `ROOM_DIRECTORY_SCOPE_ALL` | `1` | Include visible channel rooms and readable active DM rooms. |
 | `ROOM_DIRECTORY_SCOPE_CHANNELS` | `2` | Include visible channel rooms only. |
-| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's active DM rooms only. |
+| `ROOM_DIRECTORY_SCOPE_DMS` | `3` | Include the caller's readable active DM rooms only. |
 
 
 <a id="chatto-api-v1-AccountCreationPolicy"></a>

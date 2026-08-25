@@ -101,6 +101,7 @@
       "room_list": "Vaadake ruume kataloogis. Kasutajal võib lubada ruumi näha (nt taotleda juurdepääsu), ilma et tal lubataks sellega liituda.",
       "room_manage": "Muutke ruumi seadeid ja lubasid ning kustutage ruume",
       "room_ban_member": "Keelake liikmetele tubadest lahkuda",
+      "message_read": "Lugege sõnumeid kanaliruumides",
       "message_post": "Postitage ruumidesse juurteateid ja alustage DM-e",
       "message_post_in_thread": "Postitage vastused lõime sees",
       "message_attach": "Failide manustamine sõnumitele",

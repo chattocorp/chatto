@@ -430,8 +430,10 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 		t.Fatalf("CreateBot: %v", err)
 	}
 
-	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionDeny {
-		t.Fatalf("unconfigured bot message.post = %s, %v; want deny", decision, err)
+	for _, permission := range []Permission{PermMessageRead, PermMessagePost} {
+		if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", permission); err != nil || decision != DecisionDeny {
+			t.Fatalf("unconfigured bot %s = %s, %v; want deny", permission, decision, err)
+		}
 	}
 	if allowed, err := c.CanCreateBots(ctx, bot.User.GetId()); err != nil || allowed {
 		t.Fatalf("bot CanCreateBots = %v, %v; want false", allowed, err)
@@ -455,12 +457,24 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionAllow {
 		t.Fatalf("configured bot message.post = %s, %v; want allow", decision, err)
 	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessageRead, PermissionStateAllow); err != nil {
+		t.Fatalf("SetUserPermissionState message.read allow: %v", err)
+	}
+	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionAllow {
+		t.Fatalf("configured bot message.read = %s, %v; want allow", decision, err)
+	}
 
 	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessagePost); err != nil {
 		t.Fatalf("deny owner permission: %v", err)
 	}
 	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessagePost); err != nil || decision != DecisionDeny {
 		t.Fatalf("owner-capped bot message.post = %s, %v; want deny", decision, err)
+	}
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("deny owner message.read: %v", err)
+	}
+	if decision, err := c.PermResolver().Resolve(ctx, bot.User.GetId(), KindChannel, "", PermMessageRead); err != nil || decision != DecisionDeny {
+		t.Fatalf("owner-capped bot message.read = %s, %v; want deny", decision, err)
 	}
 	matrix, err := c.GetUserPermissionMatrix(ctx, owner.GetId(), bot.User.GetId())
 	if err != nil {
@@ -478,6 +492,43 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermRoomCreate, PermissionStateAllow); !errors.Is(err, ErrBotOwnerPermissionCeiling) {
 		t.Fatalf("over-ceiling grant err = %v, want ErrBotOwnerPermissionCeiling", err)
+	}
+}
+
+func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "dm-bot-owner", "DM Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_reader_bot", "DM Reader Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	participant, err := c.CreateUser(ctx, SystemActorID, "dm-bot-participant", "DM Bot Participant", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := c.FindOrCreateDM(ctx, participant.GetId(), []string{bot.User.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	message, err := c.PostMessage(ctx, KindDM, dm.GetId(), participant.GetId(), "message for bot participant", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyServerPermission message.read: %v", err)
+	}
+	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindChannel, ""); err != nil || canRead {
+		t.Fatalf("unconfigured bot channel CanReadMessages = %v, %v; want false", canRead, err)
+	}
+	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || !canRead {
+		t.Fatalf("bot DM CanReadMessages = %v, %v; want true", canRead, err)
+	}
+	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), dm.GetId(), message.GetId()); err != nil {
+		t.Fatalf("GetMessage as bot DM participant: %v", err)
 	}
 }
 

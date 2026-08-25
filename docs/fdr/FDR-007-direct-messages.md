@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-19
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -15,8 +15,12 @@ Users can start a private, one-to-one conversation with anyone they can see in a
 - Starting a DM creates the durable room and participant memberships immediately so the complete composer is available, but the empty conversation stays out of every participant's navigation until its first message is sent.
 - The bundled web client starts DMs through ConnectRPC `RoomService.StartDM`, which delegates to the shared core DM model.
 - DM rooms appear in the per-server room sidebar with their participants' names and avatars rather than a room name.
+- Active DM navigation uses message history to include and order DMs for their
+  participants. Exhaustive authenticated state also retains membership-derived
+  room metadata for routing.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
-- A user can read a DM if and only if they are a participant in that DM room. There is no separate "can view DMs" permission.
+- A user can read a DM only when they are a participant. `message.read` does
+  not apply to DMs, and there is no `dm.*` read permission.
 - Operators can prevent a user from starting new DMs or sending messages in existing DMs by revoking `message.post`.
 - Operators cannot ban or remove participants from an existing DM room. Channel member bans are a `room.ban-member` action and are rejected for DMs.
 - Inside a DM room, ordinary message-related features apply: posting, flat reply attribution, reactions, edits, deletes, mentions, and attachments.
@@ -31,11 +35,18 @@ Users can start a private, one-to-one conversation with anyone they can see in a
 **Why:** Room infrastructure already models the hard parts: membership, messages, reactions, attachments, unread state, live delivery, and notification fan-out. Reusing the room aggregate keeps DMs boring and makes the event-sourced room model apply uniformly. See ADR-033, ADR-034, and ADR-037.
 **Tradeoff:** Some room code still has to branch on `kind` for DM-only policy, but those branches should be about behavior (creation, privacy boundary, presentation), not storage or delivery plumbing.
 
-### 2. Reading is membership-based, writing uses message permissions
+### 2. Membership authorizes DM reads
 
-**Decision:** DM read access comes only from room membership. Starting DMs and posting messages in them use `message.post`. Reply attribution does not change that permission, and thread posting does not apply to DMs.
-**Why:** A user who is a participant in a private conversation should be able to read that conversation, and sending a DM is still just sending a message. Reusing the message permissions avoids a lonely DM-only permission while preserving the abuse-control lever. See ADR-037.
-**Tradeoff:** There is no soft "hide DMs from this user" switch, and revoking `message.post` blocks channel posting as well as DM starts / messages. Operators who need a total messaging timeout can use that; finer abuse controls should be modeled separately if needed.
+**Decision:** DM membership authorizes complete DM reads for humans and bots.
+`message.read` grants and denials do not change DM access. Starting DMs and
+posting messages in them use `message.post`. Reply attribution does not change
+that permission, and thread posting does not apply to DMs.
+**Why:** Membership is the fixed private participant boundary. Chatto has no
+permission UI for one DM, and hiding a DM from its participant is surprising.
+See ADR-037 and ADR-080.
+**Tradeoff:** Operators cannot use `message.read` to hide an existing DM from
+one of its participants. They can revoke posting authority or suspend the
+account.
 
 ### 3. Threads are channel-room-only
 
@@ -80,9 +91,12 @@ message. Self-DMs do not notify their author, and ordinary DMs default to Alert.
 - `message.post` — start DMs and send messages in DM rooms.
 - `message.react` — add and remove reactions in DM rooms.
 
-DMs have no `dm.*` permissions. Message and reaction permissions apply inside DM rooms subject to the moderation deny-list above. `message.post-in-thread` is inapplicable to DMs regardless of the viewer's effective permissions.
+DMs have no `dm.*` permissions. Membership authorizes reads. Message-action and
+reaction permissions apply inside DM rooms subject to the moderation deny-list
+above. `message.post-in-thread` does not apply to DMs regardless of the
+viewer's effective permissions.
 
 ## Related
 
-- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications)
+- **ADRs:** ADR-033 (event-sourced state), ADR-034 (single event stream), ADR-037 (DM access via membership), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)

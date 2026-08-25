@@ -472,6 +472,54 @@ func TestRealtimeProjectionMapsThreadingModeChangeToRoomAndTimeline(t *testing.T
 	}
 }
 
+func TestRealtimeProjectionOmitsMessageStateWithoutMessageRead(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-no-message-read", "RT No Message Read", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-no-message-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	message, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "hidden after denial", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+
+	snapshot, err := env.httpServer.connectAPI.BuildRealtimeProjectionSnapshot(env.ctx, viewer.Id, []string{room.Id})
+	if err != nil {
+		t.Fatalf("BuildRealtimeProjectionSnapshot: %v", err)
+	}
+	if len(snapshot.Timelines) != 0 {
+		t.Fatalf("snapshot timelines = %d, want 0", len(snapshot.Timelines))
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, core.NewEVTEventEnvelope(message))
+	if err != nil {
+		t.Fatalf("realtimeProjectionFrameForEvent: %v", err)
+	}
+	if !handled || frame.GetProjectionEvent() == nil || len(frame.GetProjectionEvent().GetOperations()) != 0 {
+		t.Fatalf("message frame = %+v, handled=%v; want empty cursor-advance projection", frame, handled)
+	}
+
+	_, err = env.httpServer.realtimeEventEnvelope(env.ctx, viewer.GetId(), core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		ActorId: "typing-author",
+		Event: &corev1.LiveEvent_UserTyping{UserTyping: &corev1.UserTypingEvent{
+			RoomId: room.GetId(),
+		}},
+	}))
+	if !errors.Is(err, core.ErrPermissionDenied) {
+		t.Fatalf("typing mapper err = %v, want permission denied", err)
+	}
+}
+
 func TestRealtimeWebSocketDeliversCallLifecycleTimelineEvents(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.config.LiveKit = config.LiveKitConfig{
@@ -540,9 +588,16 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-pin-projection-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
 	event := core.NewEVTEventEnvelope(&corev1.Event{
 		Id: "pin-1", CreatedAt: timestamppb.Now(), ActorId: viewer.Id,
-		Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: "R1", MessageEventId: "M1"}},
+		Event: &corev1.Event_MessagePinned{MessagePinned: &corev1.MessagePinnedEvent{RoomId: room.Id, MessageEventId: "M1"}},
 	})
 	frame, handled, err := env.httpServer.realtimeProjectionFrameForEvent(env.ctx, viewer.Id, event)
 	if err != nil {
@@ -552,13 +607,13 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 		t.Fatalf("pin projection frame = %+v, handled=%v", frame, handled)
 	}
 	change := frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" {
+	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_CREATED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
 		t.Fatalf("pinned message change = %+v", change)
 	}
 
 	retraction := core.NewEVTEventEnvelope(&corev1.Event{
 		Id: "retract-1", CreatedAt: timestamppb.Now(), ActorId: viewer.Id,
-		Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: "R1", EventId: "M1"}},
+		Event: &corev1.Event_MessageRetracted{MessageRetracted: &corev1.MessageRetractedEvent{RoomId: room.Id, EventId: "M1"}},
 	})
 	frame, handled, err = env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, retraction, map[string]struct{}{})
 	if err != nil {
@@ -568,7 +623,7 @@ func TestRealtimeProjectionMapsPinnedMessageChangeThroughKnownServerStateOperati
 		t.Fatalf("retraction projection frame = %+v, handled=%v", frame, handled)
 	}
 	change = frame.GetProjectionEvent().GetOperations()[0].GetServerStateUpsert().GetPinnedMessageChange()
-	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED || change.GetRoomId() != "R1" || change.GetMessageEventId() != "M1" {
+	if change.GetAction() != realtimev1.RealtimeProjectionPinnedMessageAction_REALTIME_PROJECTION_PINNED_MESSAGE_ACTION_DELETED || change.GetRoomId() != room.Id || change.GetMessageEventId() != "M1" {
 		t.Fatalf("retraction pinned message change = %+v", change)
 	}
 }

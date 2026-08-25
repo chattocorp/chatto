@@ -744,6 +744,24 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 	switch payload := event.GetEvent().(type) {
 	case *corev1.LiveEvent_UserTyping:
 		typing := payload.UserTyping
+		kind, err := s.core.FindRoomKind(ctx, typing.GetRoomId())
+		if err != nil {
+			return err
+		}
+		isMember, err := s.core.RoomMembershipExists(ctx, kind, viewerID, typing.GetRoomId())
+		if err != nil {
+			return err
+		}
+		if !isMember {
+			return core.ErrPermissionDenied
+		}
+		canRead, err := s.core.CanReadMessages(ctx, viewerID, kind, typing.GetRoomId())
+		if err != nil {
+			return err
+		}
+		if !canRead {
+			return core.ErrPermissionDenied
+		}
 		envelope.Event = &realtimev1.RealtimeEventEnvelope_UserTyping{UserTyping: &realtimev1.RealtimeTypingEvent{
 			RoomId: typing.GetRoomId(), ThreadRootEventId: optionalRealtimeString(typing.GetThreadRootEventId()),
 		}}

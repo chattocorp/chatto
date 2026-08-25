@@ -86,7 +86,7 @@ type ThreadTimelineAroundResult struct {
 }
 
 func (s *RoomTimelineReadModel) GetRoomEvents(ctx context.Context, input RoomTimelineEventsInput) (*RoomTimelineEventsResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +107,7 @@ func (s *RoomTimelineReadModel) GetRoomEvents(ctx context.Context, input RoomTim
 }
 
 func (s *RoomTimelineReadModel) GetRoomEventsAround(ctx context.Context, actorID, roomID, eventID string, limit int) (*RoomTimelineAroundResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -123,7 +123,7 @@ func (s *RoomTimelineReadModel) GetRoomEventsAround(ctx context.Context, actorID
 }
 
 func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID, eventID string) (*MessageReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,11 +135,11 @@ func (s *RoomTimelineReadModel) GetMessage(ctx context.Context, actorID, roomID,
 }
 
 // GetTimelineEvent returns a message's source event after applying current room
-// membership authorization. Unlike GetMessage, it deliberately permits a
+// membership and message-read authorization. Unlike GetMessage, it deliberately permits a
 // deleted message whose encrypted body has already been erased so transports
 // can hydrate the durable timeline tombstone.
 func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, roomID, eventID string) (*MessageReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -151,7 +151,7 @@ func (s *RoomTimelineReadModel) GetTimelineEvent(ctx context.Context, actorID, r
 }
 
 func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, roomID string, eventIDs []string) (*BatchMessagesReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -177,7 +177,7 @@ func (s *RoomTimelineReadModel) BatchGetMessages(ctx context.Context, actorID, r
 }
 
 func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input ThreadTimelineEventsInput) (*ThreadTimelineEventsResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -210,7 +210,7 @@ func (s *RoomTimelineReadModel) GetThreadEvents(ctx context.Context, input Threa
 }
 
 func (s *RoomTimelineReadModel) GetThreadEventsAround(ctx context.Context, actorID, roomID, threadRootEventID, eventID string, limit int) (*ThreadTimelineAroundResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}

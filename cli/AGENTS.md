@@ -256,6 +256,8 @@ authorization, live events, backup/restore, and backend tests.
   `owners.emails`.
 - DM rooms have an explicit privacy boundary; owners/admins/moderators do not
   get moderation visibility into DM contents.
+- DM membership is the complete DM content-read boundary. `message.read`
+  applies only to channel rooms. Do not add a second DM read gate.
 - Permission strings use exactly `{object}.{verb}` with hyphenated verbs:
   `room.ban-member`, `message.post-in-thread`, `admin.view-users`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and

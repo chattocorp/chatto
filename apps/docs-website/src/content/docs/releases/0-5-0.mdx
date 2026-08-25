@@ -97,7 +97,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   <ReleaseFeatureCard title="A more practical permission baseline">
     The `everyone` role now acts as a scoped default that named roles and direct-user
     decisions can override at the same or a narrower scope. Fresh announcement rooms also
-    give admins an explicit room-level posting grant.
+    give admins an explicit room-level posting grant. The new `message.read` permission
+    separates channel-room membership from access to channel-room message content.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Visible cleanup health" size="small">
@@ -127,6 +128,14 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   mixed-version peers or rollback targets after issuance. Custom clients must persist and
   serialize `/oauth/token` refresh grants, including the same `refresh_request_id` across a
   lost-response retry.
+- Before or during the upgrade, grant `message.read` to every existing role or
+  account that must keep channel-room message access. A server-level `everyone`
+  grant preserves the previous channel-room membership-based behavior. Chatto
+  never migrates, backfills, or reconciles existing RBAC state, while fresh
+  servers receive the grant during empty-stream bootstrap. DM membership
+  continues to authorize DM reads. Upgrade every replica before you rely on a
+  channel-room deny or missing grant because older replicas enforce membership
+  only.
 - Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
   environment-variable equivalents) from server configuration; those settings no longer
   exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and

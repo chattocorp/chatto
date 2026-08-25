@@ -101,6 +101,7 @@
       "room_list": "Se rom i katalogen. En bruker kan få lov til å se et rom (f.eks. for å be om tilgang) uten å få lov til å bli med i det.",
       "room_manage": "Rediger et roms innstillinger og tillatelser, og slett rom",
       "room_ban_member": "Ban medlemmer fra rom",
+      "message_read": "Les meldinger i kanalrom",
       "message_post": "Legg ut root-meldinger i rom og start DM-er",
       "message_post_in_thread": "Legg inn svar i en tråd",
       "message_attach": "Legg ved filer til meldinger",

@@ -70,7 +70,8 @@
       "remove_account_suffix": "を開いてください。"
     },
     "timeline": {
-      "beginning": "ここから会話が始まります。"
+      "beginning": "ここから会話が始まります。",
+      "read_denied": "このルームのメッセージを読む権限がありません。"
     },
     "message": {
       "empty": "まだメッセージはありません",

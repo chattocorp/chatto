@@ -89,24 +89,35 @@ message ListFollowedThreadsResponse {
 
 // Manages thread follow state for the current user.
 service ThreadService {
-  // Returns followed threads for the current user, including enough root-message
-  // data for clients to render the list without extra per-field fetches.
+  // Returns followed threads in rooms where the current user is a member.
+  // Channel-room threads also require message.read. Historical DM threads use
+  // DM membership. The result includes enough root-message data for clients to
+  // render the list without extra per-field fetches.
   rpc ListFollowedThreads(ListFollowedThreadsRequest) returns (ListFollowedThreadsResponse);
-  // Follows a thread for the current user. Followed threads can be surfaced in
-  // clients and can participate in thread notification behavior.
+  // Follows a thread for the current user. Room membership and channel-room
+  // message.read are required. DMs do not support current thread actions.
+  // Followed threads can be surfaced in clients and can participate in thread
+  // notification behavior.
   rpc FollowThread(FollowThreadRequest) returns (FollowThreadResponse);
-  // Stops following a thread for the current user. The response reports the
-  // resulting follow state so clients can update local UI immediately.
+  // Stops following a thread for the current user. Room membership and
+  // channel-room message.read are required. DMs do not support current thread
+  // actions. The response reports the resulting follow state so clients can
+  // update local UI immediately.
   rpc UnfollowThread(UnfollowThreadRequest) returns (UnfollowThreadResponse);
-  // Returns one page of events in a message thread. Initial pages include the
-  // thread root message; cursor pages return replies in the requested direction.
+  // Returns one page of events in a message thread. Room membership is
+  // required. Channel-room reads also require message.read. Historical DM
+  // threads use DM membership. Initial pages include the thread root message;
+  // cursor pages return replies in the requested direction.
   rpc GetThreadEvents(GetThreadEventsRequest) returns (GetThreadEventsResponse);
   // Returns a thread timeline window centered around a specific event. Use this
   // to open a reply from a notification or search result in context. Returns
-  // NOT_FOUND when the thread root or anchor event is missing or hidden and
-  // PERMISSION_DENIED when the room is inaccessible.
+  // NOT_FOUND when the thread root or anchor event is missing or hidden.
+  // Returns PERMISSION_DENIED when room membership is missing or when
+  // channel-room message.read is missing. Historical DM threads use DM
+  // membership.
   rpc GetThreadEventsAround(GetThreadEventsAroundRequest) returns (GetThreadEventsAroundResponse);
   // Marks a thread timeline as read through the supplied event without changing
-  // the room-level read marker.
+  // the room-level read marker. Room membership and channel-room message.read
+  // are required. DMs do not support current thread actions.
   rpc MarkThreadAsRead(MarkThreadAsReadRequest) returns (MarkThreadAsReadResponse);
 }

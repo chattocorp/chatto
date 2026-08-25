@@ -70,7 +70,8 @@
       "remove_account_suffix": " pro tento server před jeho odebráním."
     },
     "timeline": {
-      "beginning": "Toto je začátek tohoto rozhovoru."
+      "beginning": "Toto je začátek tohoto rozhovoru.",
+      "read_denied": "Nemáte oprávnění číst zprávy v této místnosti."
     },
     "message": {
       "empty": "Zatím žádné zprávy",

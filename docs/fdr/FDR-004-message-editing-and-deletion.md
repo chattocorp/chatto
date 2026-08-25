@@ -10,6 +10,10 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 ## Behavior
 
 - Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
+- Editing requires current room membership. In a channel room, it also requires
+  `message.read` because the operation reads and returns the current message.
+  DM membership authorizes the read. Posting and deletion remain independently
+  authorized and do not return surrounding message state.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Edited messages show a pen icon after their text. The icon is not a control.
@@ -78,10 +82,13 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 ## Permissions
 
 - `message.manage` — edit and delete *other* users' messages.
+- `message.read` — read and edit a channel-room message. DM membership
+  authorizes the read. Deletion remains independently authorized by authorship
+  or `message.manage`.
 - (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)
 - Attachment and link-preview removal is author-only; `message.manage` does not grant cross-user removal for those partial message edits.
 
 ## Related
 
-- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications)
+- **ADRs:** ADR-007 (per-user encryption with crypto-shredding), ADR-011 (message body/event split), ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-034 (single domain event stream), ADR-038 (room-owned thread state), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-006 (@Mentions), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)

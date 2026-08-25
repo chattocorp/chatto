@@ -70,7 +70,8 @@
       "remove_account_suffix": " kaldırmadan önce bu sunucu için."
     },
     "timeline": {
-      "beginning": "Bu, bu konuşmanın başlangıcıdır."
+      "beginning": "Bu, bu konuşmanın başlangıcıdır.",
+      "read_denied": "Bu odadaki mesajları okuma izniniz yok."
     },
     "message": {
       "empty": "Henüz mesaj yok",

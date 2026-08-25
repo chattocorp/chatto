@@ -1223,6 +1223,22 @@ func TestMessageServiceUpdateMessageAuthorAndRBAC(t *testing.T) {
 	if body, err := env.core.GetMessageBody(env.ctx, original.Id); err != nil || body != "author edit" {
 		t.Fatalf("body after author edit = %q, %v; want author edit, nil", body, err)
 	}
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{
+		RoomId:  room.Id,
+		EventId: original.Id,
+		Body:    stringPtr("hidden edit"),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("UpdateMessage without message.read code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if body, err := env.core.GetMessageBody(env.ctx, original.Id); err != nil || body != "author edit" {
+		t.Fatalf("body after denied edit = %q, %v; want author edit, nil", body, err)
+	}
+	if err := env.core.ClearUserRoomPermissionState(env.ctx, core.SystemActorID, room.Id, env.viewer.Id, core.PermMessageRead); err != nil {
+		t.Fatalf("ClearUserRoomPermissionState message.read: %v", err)
+	}
 
 	echo := false
 	if _, err := env.messages.UpdateMessage(authorCtx, connect.NewRequest(&apiv1.UpdateMessageRequest{

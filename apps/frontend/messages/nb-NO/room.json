@@ -70,7 +70,8 @@
       "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
-      "beginning": "Dette er begynnelsen på denne samtalen."
+      "beginning": "Dette er begynnelsen på denne samtalen.",
+      "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet."
     },
     "message": {
       "empty": "Ingen meldinger ennå",

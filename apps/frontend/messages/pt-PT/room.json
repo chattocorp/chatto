@@ -70,7 +70,8 @@
       "remove_account_suffix": " deste servidor antes de o remover."
     },
     "timeline": {
-      "beginning": "Este é o início desta conversa."
+      "beginning": "Este é o início desta conversa.",
+      "read_denied": "Não tens permissão para ler mensagens nesta sala."
     },
     "message": {
       "empty": "Ainda não há mensagens",

@@ -40,6 +40,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Message permissions
+  'message.read': {
+    description: () => m('rbac.permission_descriptions.message_read')
+  },
   'message.post': {
     description: () => m('rbac.permission_descriptions.message_post')
   },

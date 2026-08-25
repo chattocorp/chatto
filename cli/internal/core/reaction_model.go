@@ -16,7 +16,8 @@ type ReactionMutationInput struct {
 
 // ReactionModel returns the operation-level model for user-facing reaction
 // mutations. Public transports should authenticate at the edge, pass the actor
-// ID here, and let this model own membership and message.react checks.
+// ID here, and let this model own membership, applicable channel-room
+// message.read, and message.react checks.
 func (c *ChattoCore) ReactionModel() *ReactionModel {
 	return c.reactionModel
 }
@@ -29,13 +30,15 @@ type ReactionModel struct {
 }
 
 // AddReaction adds actorID's reaction to a message. Authorization: actor must
-// be a room member and have message.react in the target room.
+// be a room member and have message.react. Channel-room reactions also require
+// message.read; DM membership authorizes the DM read.
 func (s *ReactionModel) AddReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
 	return s.mutateAuthorizedReaction(ctx, input, true)
 }
 
 // RemoveReaction removes actorID's reaction from a message. Authorization:
-// actor must be a room member and have message.react in the target room.
+// actor must be a room member and have message.react. Channel-room reactions
+// also require message.read; DM membership authorizes the DM read.
 func (s *ReactionModel) RemoveReaction(ctx context.Context, input ReactionMutationInput) (bool, error) {
 	return s.mutateAuthorizedReaction(ctx, input, false)
 }
@@ -45,7 +48,7 @@ func (s *ReactionModel) authorizeReaction(ctx context.Context, input ReactionMut
 		return KindChannel, err
 	}
 
-	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return KindChannel, err
 	}

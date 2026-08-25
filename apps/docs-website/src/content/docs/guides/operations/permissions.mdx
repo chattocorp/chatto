@@ -22,7 +22,7 @@ Every Chatto server starts with four system roles. You cannot delete them.
 
 | Role          | Default behavior                                                                                                                                                                                                                                                                         |
 | ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account.                                                             |
+| **everyone**  | Every authenticated user has this role. Fresh servers grant normal member defaults here: room discovery/joining, message reading, posting, thread posting, attaching files, reactions, echoing thread replies, and deleting your own account.                                            |
 | **moderator** | Adds server-wide moderation defaults for managing messages and banning room members.                                                                                                                                                                                                     |
 | **admin**     | Adds broad server administration defaults, including room administration, role management, user administration, audit access, and `message.manage`. Ordinary posting, attachments, threads, reactions, and echoing otherwise come from `everyone`. System diagnostics remain owner-only. |
 | **owner**     | Always has every permission virtually. Owner permissions are not stored as editable grants.                                                                                                                                                                                              |
@@ -66,12 +66,13 @@ Permissions can be configured at different scopes:
 
 Each setting can be **Allow**, **Deny**, or **Inherit**. Inherit means "use the next broader setting for this same user or role". For example, a room set to Inherit checks the room group, then the server. It never inherits a setting from another role.
 
-Room-relevant permissions such as `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
+Room-relevant permissions such as `message.read`, `message.post`, `message.attach`, `message.react`, `message.manage`, `room.join`, and `room.ban-member` can be configured at room/group/server scope. Server-only permissions such as `server.manage`, `role.manage`, and `admin.view-audit` are configured only at server scope.
 
 ## Important permissions
 
 | Permission                | Meaning                                                                                                                                                                         |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
 | `message.post`            | Post root messages and start DMs. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`.                                              |
 | `message.post-in-thread`  | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread.                                                          |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
@@ -92,6 +93,15 @@ Room-relevant permissions such as `message.post`, `message.attach`, `message.rea
 | `user.delete-self`        | Delete your own account.                                                                                                                                                        |
 
 The full list is visible in the admin UI.
+
+<Aside type="caution" title="Existing servers need an explicit read grant">
+  Chatto applies defaults only when it bootstraps an empty RBAC stream. Before
+  or during an upgrade to 0.5, grant `message.read` to each role or account
+  that must keep channel-room message access. Grant it to `everyone` at server
+  scope to preserve the previous channel-room membership-based behavior.
+  Chatto does not migrate, backfill, or reconcile existing RBAC state. This
+  permission does not control DM reads.
+</Aside>
 
 Slow Mode is room configuration rather than a permission. It paces new
 messages from ordinary members across the room and its threads. Effective
@@ -178,7 +188,9 @@ Use `owners.emails` in `chatto.toml` to recover owner access if needed. The user
 
 DMs use the same permission names where they make sense, but private conversations have extra protection. For non-owners, Chatto always blocks channel management actions in DMs, including `message.manage`, `message.echo`, `room.manage`, `room.ban-member`, `room.create`, and `message.post-in-thread`. Role grants cannot enable them.
 
-Only participants can access a DM. Owners cannot read or moderate a DM they are not part of.
+Each participant can read the complete DM. `message.read` grants and denials do
+not change DM access. Owners cannot read or moderate a DM that they are not
+part of.
 
 ## Where to configure permissions
 

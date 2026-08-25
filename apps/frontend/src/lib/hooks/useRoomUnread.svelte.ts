@@ -10,13 +10,19 @@ import { useUnreadMarker, type UnreadMarkerEvent } from './useUnreadMarker.svelt
  * Must be called during component initialization (uses context).
  */
 export function useRoomUnread(
-  getProps: () => { roomId: string; events: readonly UnreadMarkerEvent[] }
+  getProps: () => {
+    roomId: string;
+    events: readonly UnreadMarkerEvent[];
+    canReadMessages?: boolean;
+  }
 ) {
   const serverScope = useServerScope();
   const roomUnreadStore = serverScope.store.roomUnread;
 
   const unread = useUnreadMarker(() => getProps().roomId, {
     markAsRead: async (targetRoomId: string, upToEventId?: string) => {
+      if (getProps().canReadMessages === false) return null;
+
       const optimisticRead = roomUnreadStore.beginOptimisticRead(targetRoomId);
 
       try {

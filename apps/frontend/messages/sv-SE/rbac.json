@@ -101,6 +101,7 @@
       "room_list": "Se rum i katalogen. En användare kan tillåtas se ett rum (t.ex. för att begära åtkomst) utan att få gå med i det.",
       "room_manage": "Redigera ett rums inställningar och behörigheter och ta bort rum",
       "room_ban_member": "Blockera medlemmar från rum",
+      "message_read": "Läs meddelanden i kanalrum",
       "message_post": "Lägg upp rootmeddelanden i rum och starta DM",
       "message_post_in_thread": "Lägg upp svar i en tråd",
       "message_attach": "Bifoga filer till meddelanden",

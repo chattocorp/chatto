@@ -70,7 +70,8 @@
       "remove_account_suffix": " dieses Servers."
     },
     "timeline": {
-      "beginning": "Dies ist der Anfang dieser Unterhaltung."
+      "beginning": "Dies ist der Anfang dieser Unterhaltung.",
+      "read_denied": "Du hast keine Berechtigung, Nachrichten in diesem Raum zu lesen."
     },
     "message": {
       "empty": "Noch keine Nachrichten",

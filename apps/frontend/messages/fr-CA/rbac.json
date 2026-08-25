@@ -101,6 +101,7 @@
       "room_list": "Voir les salles dans l'annuaire. Un utilisateur peut être autorisé à voir une salle (par exemple pour demander l'accès) sans être autorisé à la rejoindre.",
       "room_manage": "Modifier les paramètres et les autorisations d'une salle et supprimer des salles",
       "room_ban_member": "Interdire les membres des salles",
+      "message_read": "Lire les messages dans les salons",
       "message_post": "Publiez des messages root dans les salons et démarrez des DM",
       "message_post_in_thread": "Publier des réponses dans un fil de discussion",
       "message_attach": "Joindre des fichiers aux messages",

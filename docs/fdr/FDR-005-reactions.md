@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -12,6 +12,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
 - Clicking a pill toggles the current user's reaction.
+- Adding or removing a reaction requires room membership and `message.react`.
+  In a channel room, it also requires `message.read`. DM membership authorizes
+  the read.
 - Another user's reaction to your message creates one exact Ambient
   notification occurrence when the reaction preference resolves to Silent or
   Alert. Your own reactions do not notify you. Removing the reaction removes
@@ -80,11 +83,12 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 ### 9. Reaction authorization is request-time and room-scoped
 
 **Decision:** Every user-facing add/remove attempt captures the room aggregate
-tail, waits the projections used by membership, `message.react`, room state,
-message aliasing, and reaction-limit decisions, and evaluates the complete
-operation-level gate. A concurrent room change rejects the append and reruns
-the decision. A cross-aggregate authorization change does not retroactively
-cancel an already-authorized, otherwise conflict-free attempt.
+tail, waits the projections used by membership, applicable channel-room
+`message.read`, `message.react`, room state, message aliasing, and
+reaction-limit decisions, and evaluates the complete operation-level gate. A concurrent room change
+rejects the append and reruns the decision. A cross-aggregate authorization
+change does not retroactively cancel an already-authorized, otherwise
+conflict-free attempt.
 
 **Why:** Reactions are low-risk, high-frequency room mutations. Request-time
 authorization matches normal command semantics and avoids serializing reaction
@@ -100,8 +104,10 @@ into a narrow commit-time authorization fence instead.
 ## Permissions
 
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
+- `message.read` — read the target channel-room message and the aggregate
+  reaction state. DM membership authorizes the read.
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list)
-- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-033 (event-sourced state with projections), ADR-034 (single event stream), ADR-035 (per-aggregate migration), ADR-042 (protobuf-first public API), ADR-044 (ConnectRPC service conventions), ADR-048 (frontend optimistic UI), ADR-051 (server-scoped resumable client projection), ADR-068 (selectable event mutation consistency boundaries), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **FDRs:** FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-039 (Message Access & Interactions)
