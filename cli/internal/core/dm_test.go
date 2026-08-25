@@ -212,6 +212,39 @@ func TestDMRoomPermissionDefaults(t *testing.T) {
 	})
 }
 
+func TestDMMessageReadPermissionKeepsPostingIndependent(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "dm-message-reader", "DM Message Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	other, err := chatto.CreateUser(ctx, SystemActorID, "dm-message-other", "DM Message Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, reader.GetId(), []string{other.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	visible, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), other.GetId(), "visible DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage visible: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), dm.GetId(), visible.GetId()); err != nil {
+		t.Fatalf("GetMessage before denial: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, reader.GetId(), dm.GetId(), visible.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("GetMessage after denial error = %v, want ErrPermissionDenied", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), reader.GetId(), "write-only DM message", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage after message.read denial: %v", err)
+	}
+}
+
 func TestFindOrCreateDM(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
