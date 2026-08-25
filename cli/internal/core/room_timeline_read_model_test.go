@@ -225,6 +225,9 @@ func TestRoomTimelineReadModelInteractionScopedAccess(t *testing.T) {
 	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
 		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
 	}
+	if _, err := chatto.RoomTimelineReads().roomTimelineVisibility(ctx, reader.GetId(), KindChannel, room.GetId()); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("roomTimelineVisibility after permission loss error = %v, want ErrPermissionDenied", err)
+	}
 	if _, err := chatto.RoomTimelineReads().GetThreadEvents(ctx, ThreadTimelineEventsInput{
 		ActorID: reader.GetId(), RoomID: room.GetId(), ThreadRootEventID: mentionedRoot.GetId(),
 	}); !errors.Is(err, ErrPermissionDenied) {

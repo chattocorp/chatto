@@ -271,6 +271,13 @@ func (s *RoomTimelineReadModel) roomTimelineVisibility(ctx context.Context, acto
 	if broad || kind == KindDM {
 		return nil, nil
 	}
+	interactions, err := s.core.CanReadMessageInteractions(ctx, actorID, kind, roomID)
+	if err != nil {
+		return nil, err
+	}
+	if !interactions {
+		return nil, ErrPermissionDenied
+	}
 	return func(event *corev1.Event) bool {
 		rootID, ok := s.core.MessageEventThreadRoot(roomID, event)
 		return ok && s.core.roomModel.hasThreadInteraction(actorID, roomID, rootID)
