@@ -197,7 +197,7 @@ async function addReactionViaAPI(
 
 test.describe('Room-Level Permission Overrides', () => {
   test.describe('message.read — Message Content', () => {
-    test('live revocation scrubs content while write-only posting remains available', async ({
+    test('live read-mode revocation scrubs content while write-only posting remains available', async ({
       page,
       browser,
       serverURL
@@ -229,6 +229,7 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(visibleBody)).toBeVisible();
 
         await denyRoomPermission(page, roomId, 'everyone', 'message.read');
+        await denyRoomPermission(page, roomId, 'everyone', 'message.read-interactions');
 
         const denial = memberPage.getByText(
           'You do not have permission to read messages in this room.'
