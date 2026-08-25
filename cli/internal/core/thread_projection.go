@@ -300,7 +300,9 @@ func (p *ThreadProjection) applyMessageInteractionStateLocked(event *corev1.Even
 	}
 	p.messageThreads[event.GetId()] = threadMessageRef{roomID: message.GetRoomId(), threadRootEventID: rootID}
 
-	if message.GetEchoOfEventId() != "" {
+	// Either echo field identifies derived channel-echo state. Malformed or
+	// partially upgraded echo facts must not create interaction causes.
+	if message.GetEchoOfEventId() != "" || message.GetEchoFromThreadRootEventId() != "" {
 		return
 	}
 	if message.GetInThread() == "" {
@@ -642,6 +644,12 @@ func cloneThreadInteraction(interaction *projectedThreadInteraction) *ThreadInte
 			return -1
 		}
 		if a.Kind > b.Kind {
+			return 1
+		}
+		if a.SourceEventID < b.SourceEventID {
+			return -1
+		}
+		if a.SourceEventID > b.SourceEventID {
 			return 1
 		}
 		return 0

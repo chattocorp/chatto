@@ -164,8 +164,12 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 		envelopeID: "ECHO", roomID: "R1", actorID: "ECHO-AUTHOR", echoOfEventID: "REPLY",
 		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*corev1.MessageMention{directThreadMention("ECHO-MENTION")},
 	})
+	partialEcho := postedEvent(postedOpts{
+		envelopeID: "PARTIAL-ECHO", roomID: "R1", actorID: "PARTIAL-ECHO-AUTHOR",
+		echoFromThreadRootEventID: "ROOT", at: 4, mentions: []*corev1.MessageMention{directThreadMention("PARTIAL-ECHO-MENTION")},
+	})
 	applyAll(t, p, []*corev1.Event{
-		roomCreatedTimelineEvent("ROOM", "R1", "room", 1), root, reply, echo,
+		roomCreatedTimelineEvent("ROOM", "R1", "room", 1), root, reply, echo, partialEcho,
 		editedEvent("EDIT", "REPLY", "R1", "REPLIER", "edited", 5),
 		retractedEvent("RETRACT", "REPLY", "R1", "REPLIER", "removed", 6),
 		roomCreatedEvent("DM1", "", "", corev1.RoomKind_ROOM_KIND_DM),
@@ -177,7 +181,7 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 			t.Errorf("HasInteraction(%s) = false, want true", userID)
 		}
 	}
-	for _, userID := range []string{"LEGACY", "ROLE", "HERE", "ALL", "REPLIER", "ECHO-AUTHOR", "ECHO-MENTION", "DM-AUTHOR", "DM-MENTION"} {
+	for _, userID := range []string{"LEGACY", "ROLE", "HERE", "ALL", "REPLIER", "ECHO-AUTHOR", "ECHO-MENTION", "PARTIAL-ECHO-AUTHOR", "PARTIAL-ECHO-MENTION", "DM-AUTHOR", "DM-MENTION"} {
 		if p.HasInteraction(userID, "R1", "ROOT") || p.HasInteraction(userID, "DM1", "DM-MESSAGE") {
 			t.Errorf("unexpected interaction for %s", userID)
 		}
@@ -186,10 +190,28 @@ func TestThreadProjection_DerivesInteractionRelationshipsFromTypedMessageFacts(t
 	if !ok || len(interaction.Causes) != 2 || interaction.Causes[0].SourceEventID != "ROOT" || interaction.Causes[1].SourceEventID != "REPLY" {
 		t.Fatalf("DIRECT interaction = %#v, %v; want root and reply mention facts", interaction, ok)
 	}
-	for eventID, wantRoot := range map[string]string{"ROOT": "ROOT", "REPLY": "ROOT", "ECHO": "ROOT"} {
+	for eventID, wantRoot := range map[string]string{"ROOT": "ROOT", "REPLY": "ROOT", "ECHO": "ROOT", "PARTIAL-ECHO": "ROOT"} {
 		if got, ok := p.ThreadRootForMessage("R1", eventID); !ok || got != wantRoot {
 			t.Errorf("ThreadRootForMessage(%s) = %q, %v; want %q, true", eventID, got, ok, wantRoot)
 		}
+	}
+}
+
+func TestThreadProjection_InteractionCauseOrderIsDeterministic(t *testing.T) {
+	p := NewThreadProjection()
+	applyAll(t, p, []*corev1.Event{
+		roomCreatedTimelineEvent("ROOM", "R1", "room", 1),
+		postedEvent(postedOpts{envelopeID: "ROOT", roomID: "R1", actorID: "AUTHOR", at: 2}),
+		postedEvent(postedOpts{envelopeID: "MENTION-Z", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*corev1.MessageMention{directThreadMention("TARGET")}}),
+		postedEvent(postedOpts{envelopeID: "MENTION-A", roomID: "R1", actorID: "AUTHOR", inThread: "ROOT", at: 3, mentions: []*corev1.MessageMention{directThreadMention("TARGET")}}),
+	})
+
+	interaction, ok := p.Interaction("TARGET", "R1", "ROOT")
+	if !ok || len(interaction.Causes) != 2 {
+		t.Fatalf("Interaction = %#v, %v; want two causes", interaction, ok)
+	}
+	if interaction.Causes[0].SourceEventID != "MENTION-A" || interaction.Causes[1].SourceEventID != "MENTION-Z" {
+		t.Fatalf("cause order = %#v; want source event ID tie-break", interaction.Causes)
 	}
 }
 
