@@ -287,6 +287,7 @@
         "legend": "Bildirim teslim modları",
         "cell_aria": "{cause}, {scope}. Geçersiz kılma: {override}. Geçerli: {effective}. {next} olarak ayarlamak için etkinleştirin.",
         "server_default_cell_aria": "{cause}, {scope}. Varsayılan: {current}. {next} olarak ayarlamak için etkinleştirin.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Geçerli değil.",
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
@@ -305,6 +306,17 @@
           "reaction": "Mesajlarınıza verilen tepkiler",
           "activity": "Etkinlik",
           "room_invitation": "Oda davetleri"
+        },
+        "reason_hint": {
+          "direct_message": "Diğer üyelerin doğrudan mesaj konuşmalarında gönderdiği mesajlar.",
+          "direct_mention": "Kullanıcı adınızdan doğrudan bahseden mesajlar.",
+          "reply": "Mesajlarınızdan birine verilen yanıtlar.",
+          "role_mention": "Size atanmış bir rolden bahseden mesajlar.",
+          "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
+          "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
+          "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
+          "followed_room": "Takip ettiğiniz odalarda ileti dizisi dışında gönderilen mesajlar.",
+          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
         }
       }
     },

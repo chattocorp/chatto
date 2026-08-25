@@ -287,6 +287,7 @@
         "legend": "Bezorgmodi voor meldingen",
         "cell_aria": "{cause}, {scope}. Overschrijving: {override}. Effectief: {effective}. Activeer om {next} in te stellen.",
         "server_default_cell_aria": "{cause}, {scope}. Standaard: {current}. Activeer om {next} in te stellen.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Niet van toepassing.",
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
@@ -305,6 +306,17 @@
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
           "room_invitation": "Uitnodigingen voor ruimtes"
+        },
+        "reason_hint": {
+          "direct_message": "Berichten die andere leden in privégesprekken sturen.",
+          "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
+          "reply": "Berichten die op een van je berichten antwoorden.",
+          "role_mention": "Berichten waarin een aan jou toegewezen rol wordt vermeld.",
+          "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
+          "all": "Berichten met @all in een ruimte waarvan je lid bent.",
+          "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
+          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
+          "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }
     },

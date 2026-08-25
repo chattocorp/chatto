@@ -209,12 +209,13 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       {#snippet leadingHeader()}
         Permission
       {/snippet}
-      {#snippet columnHeader(scope)}
+      {#snippet columnHeader(scope, highlighted)}
         <span
           class={[
             scope.kind === 'SERVER' ? 'font-semibold' : '',
-            scope.kind === 'GROUP' ? 'text-neutral-action' : '',
-            scope.kind === 'ROOM' ? 'text-muted' : ''
+            highlighted ? 'text-action' : '',
+            !highlighted && scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+            !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
           ]}
           title={`${scope.label} (${scope.kind.toLowerCase()})`}
         >

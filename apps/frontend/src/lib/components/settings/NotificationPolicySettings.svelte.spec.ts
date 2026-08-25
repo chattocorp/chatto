@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { render } from 'vitest-browser-svelte';
+import { flushSync } from 'svelte';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
@@ -100,6 +101,69 @@ describe('NotificationPolicySettings', () => {
     expect(container.textContent).not.toContain('Reset to defaults');
   });
 
+  it('explains every activity from its row heading instead of cell title popups', () => {
+    const { container } = render(NotificationPolicySettings);
+    const helpButtons = container.querySelectorAll(
+      'tbody th[scope="row"] button[aria-label^="More information: "]'
+    );
+
+    expect(helpButtons).toHaveLength(9);
+    expect(helpButtons[0]?.getAttribute('aria-label')).toBe('More information: Direct messages');
+    (helpButtons[0] as HTMLButtonElement).dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+    expect(container.querySelector('[role="tooltip"]')?.textContent?.trim()).toBe(
+      'Messages that other members send in direct-message conversations.'
+    );
+    expect(container.querySelectorAll('td[data-notification-field] [title]')).toHaveLength(0);
+  });
+
+  it('marks direct messages as not applicable to room groups and channel rooms', () => {
+    const { container } = render(NotificationPolicySettings);
+    const groupCell = container.querySelector(
+      'td[data-notification-scope="roomGroup:group-1"][data-notification-field="directMessages"]'
+    )!;
+    const channelCell = container.querySelector(
+      'td[data-notification-scope="room:room-1"][data-notification-field="directMessages"]'
+    )!;
+    const serverCell = container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="directMessages"]'
+    )!;
+    const dmCell = container.querySelector(
+      'td[data-notification-scope="room:dm-1"][data-notification-field="directMessages"]'
+    )!;
+
+    for (const [cell, scope] of [
+      [groupCell, 'Channels'],
+      [channelCell, 'general']
+    ] as const) {
+      expect(cell.querySelector('button')).toBeNull();
+      const placeholder = cell.querySelector('[role="img"]')!;
+      expect(placeholder.textContent?.trim()).toBe('—');
+      expect(placeholder.getAttribute('aria-label')).toBe(
+        `Direct messages, ${scope}. Not applicable.`
+      );
+    }
+    expect(serverCell.querySelector('button')).not.toBeNull();
+    expect(dmCell.querySelector('button')).not.toBeNull();
+  });
+
+  it('highlights the active column heading together with its cells', () => {
+    const { container } = render(NotificationPolicySettings);
+    const cell = container.querySelector(
+      'td[data-notification-scope="room:room-1"][data-notification-field="directMentions"]'
+    ) as HTMLTableCellElement;
+    const heading = container.querySelector(
+      'th[data-notification-scope="room:room-1"] span[title]'
+    ) as HTMLElement;
+
+    expect(heading.className).toContain('text-muted');
+    cell.dispatchEvent(new MouseEvent('mouseenter'));
+    flushSync();
+
+    expect(heading.className).toContain('text-action');
+    expect(heading.className).not.toContain('text-muted');
+  });
+
   it('retains a matched room group and cycles a server default to Off', async () => {
     const { container } = render(NotificationPolicySettings);
     const input = container.querySelector(
@@ -163,12 +227,12 @@ describe('NotificationPolicySettings', () => {
 
     const { container } = render(NotificationPolicySettings);
 
-    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4);
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4 - 2);
     expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
     const placeholders = container.querySelectorAll(
       'td[data-notification-field] > span[role="status"]'
     );
-    expect(placeholders).toHaveLength(9 * 4);
+    expect(placeholders).toHaveLength(9 * 4 - 2);
     expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
   });
 
@@ -222,6 +286,6 @@ describe('NotificationPolicySettings', () => {
     );
     expect(
       saveFailure.container.querySelectorAll('td[data-notification-field] button')
-    ).toHaveLength(9 * 4);
+    ).toHaveLength(9 * 4 - 2);
   });
 });

@@ -287,6 +287,7 @@
         "legend": "Leveringsmåter for varsler",
         "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktiver for å angi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ikke relevant.",
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
@@ -305,6 +306,17 @@
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
           "room_invitation": "Invitasjoner til rom"
+        },
+        "reason_hint": {
+          "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
+          "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
+          "reply": "Meldinger som svarer på en av meldingene dine.",
+          "role_mention": "Meldinger som omtaler en rolle du er tildelt.",
+          "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
+          "all": "Meldinger som bruker @all i et rom du er medlem av.",
+          "followed_thread": "Nye svar i tråder du følger.",
+          "followed_room": "Meldinger på toppnivå i rom du følger.",
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }
     },

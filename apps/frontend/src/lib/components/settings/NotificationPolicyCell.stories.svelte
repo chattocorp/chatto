@@ -6,7 +6,9 @@
   Notification-policy adapter for the shared matrix cell control. It maps the
   three delivery modes to the shared icon and colour language, displays
   effective inherited values, and owns the scope-specific state cycle. Server
-  defaults are concrete starting values and do not display as inherited.
+  defaults are concrete starting values and do not display as inherited. The
+  cell keeps its detailed state and next action in its accessible label without
+  showing that text as a native browser tooltip.
   `.trim();
 
   const { Story } = defineMeta({

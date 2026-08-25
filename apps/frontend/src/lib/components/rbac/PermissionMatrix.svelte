@@ -361,20 +361,20 @@ focusing a cell highlights its permission row and role column.
       {#snippet leadingHeader()}
         {m('rbac.permissions.permission')}
       {/snippet}
-      {#snippet columnHeader(role)}
+      {#snippet columnHeader(role, highlighted)}
         {@const handle =
           onRoleClick && (isRoleClickable ? isRoleClickable(role) : true) ? onRoleClick : undefined}
         {#if handle}
           <button
             type="button"
-            class="cursor-pointer hover:underline"
+            class={['cursor-pointer hover:underline', highlighted ? 'text-action' : '']}
             onclick={() => handle(role)}
             title={`${role.displayName} — click to manage`}
           >
             @{role.roleName}
           </button>
         {:else}
-          <span>@{role.roleName}</span>
+          <span class={highlighted ? 'text-action' : ''}>@{role.roleName}</span>
         {/if}
       {/snippet}
       {#snippet trailingHeader()}

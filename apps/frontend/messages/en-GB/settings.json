@@ -287,6 +287,7 @@
         "legend": "Notification delivery modes",
         "cell_aria": "{cause}, {scope}. Override: {override}. Effective: {effective}. Activate to set {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Default: {current}. Activate to set {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Not applicable.",
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
@@ -305,6 +306,17 @@
           "reaction": "Reactions to your messages",
           "activity": "Activity",
           "room_invitation": "Room invitations"
+        },
+        "reason_hint": {
+          "direct_message": "Messages that other members send in direct-message conversations.",
+          "direct_mention": "Messages that mention your username directly.",
+          "reply": "Messages that reply to one of your messages.",
+          "role_mention": "Messages that mention a role assigned to you.",
+          "here": "Messages that use @here while your presence is not offline.",
+          "all": "Messages that use @all in a room you belong to.",
+          "followed_thread": "New replies in threads that you follow.",
+          "followed_room": "Top-level messages in rooms that you follow.",
+          "reaction": "Reactions that other members add to your messages."
         }
       }
     },

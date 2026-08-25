@@ -106,6 +106,7 @@ describe('NotificationPolicyCell', () => {
     expect(button.ariaLabel).toContain('Default: Push notification');
     expect(button.ariaLabel).not.toContain('Inherit');
     expect(button.ariaLabel).toContain('Activate to set Off');
+    expect(button.hasAttribute('title')).toBe(false);
 
     button.focus();
     await userEvent.keyboard('{Enter}');

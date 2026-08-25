@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import { RoomKind } from '$lib/api-client/roomDirectory';
-import { notificationPolicyColumns } from './notificationPolicyMatrix';
+import {
+  notificationPolicyCellApplicable,
+  notificationPolicyColumns
+} from './notificationPolicyMatrix';
 
 const rooms = [
   { id: 'r1', name: 'general', viewerIsMember: true, type: RoomKind.CHANNEL },
@@ -27,5 +30,24 @@ describe('notificationPolicyColumns', () => {
     expect(
       notificationPolicyColumns('Server', groups, rooms, 'help').map((column) => column.key)
     ).toEqual(['server', 'roomGroup:g2', 'room:r2']);
+  });
+
+  it('limits direct-message controls to the server and DM conversations', () => {
+    const columns = notificationPolicyColumns('Server', groups, rooms, '');
+    const applicability = Object.fromEntries(
+      columns.map((column) => [column.key, notificationPolicyCellApplicable('directMessages', column)])
+    );
+
+    expect(applicability).toEqual({
+      server: true,
+      'roomGroup:g1': false,
+      'room:r1': false,
+      'roomGroup:g2': false,
+      'room:r2': false,
+      'room:d1': true
+    });
+    expect(columns.every((column) => notificationPolicyCellApplicable('directMentions', column))).toBe(
+      true
+    );
   });
 });

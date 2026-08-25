@@ -98,7 +98,6 @@ intensity.
     {disabled}
     pressed={override !== null}
     {ariaLabel}
-    title={ariaLabel}
     onActivate={() => onChange(next)}
   />
 </span>

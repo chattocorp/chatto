@@ -47,7 +47,11 @@
     <span data-test-row-heading={row.id} data-highlighted={highlighted}>{row.label}</span>
   {/snippet}
   {#snippet columnHeader(column, highlighted)}
-    <span data-test-column-heading={column.id} data-highlighted={highlighted}>
+    <span
+      class={highlighted ? 'text-action' : 'text-muted'}
+      data-test-column-heading={column.id}
+      data-highlighted={highlighted}
+    >
       {column.label}
     </span>
   {/snippet}

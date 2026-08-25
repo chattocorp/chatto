@@ -6,8 +6,8 @@ Rows are notification causes. Columns follow the current navigation layout.
 -->
 <script lang="ts">
   import { Panel } from '$lib/components/admin';
-  import { MatrixTable } from '$lib/components/matrix';
-  import { Hint } from '$lib/ui';
+  import { MatrixCellButton, MatrixTable } from '$lib/components/matrix';
+  import { HelpTooltip, Hint } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -17,6 +17,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   } from '$lib/api-client/notifications';
   import NotificationPolicyCell from './NotificationPolicyCell.svelte';
   import {
+    notificationPolicyCellApplicable,
     notificationPolicyColumns,
     type NotificationPolicyColumn
   } from './notificationPolicyMatrix';
@@ -28,6 +29,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   type NotificationPolicyRow = {
     field: NotificationPolicyField;
     label: string;
+    hint: string;
   };
 
   const serverScope = useServerScope();
@@ -38,28 +40,49 @@ Rows are notification causes. Columns follow the current navigation layout.
   const rows = $derived<NotificationPolicyRow[]>([
     {
       field: 'directMessages',
-      label: m('settings.notifications.policy.reason.direct_message')
+      label: m('settings.notifications.policy.reason.direct_message'),
+      hint: m('settings.notifications.policy.reason_hint.direct_message')
     },
     {
       field: 'directMentions',
-      label: m('settings.notifications.policy.reason.direct_mention')
+      label: m('settings.notifications.policy.reason.direct_mention'),
+      hint: m('settings.notifications.policy.reason_hint.direct_mention')
     },
-    { field: 'replies', label: m('settings.notifications.policy.reason.reply') },
+    {
+      field: 'replies',
+      label: m('settings.notifications.policy.reason.reply'),
+      hint: m('settings.notifications.policy.reason_hint.reply')
+    },
     {
       field: 'roleMentions',
-      label: m('settings.notifications.policy.reason.role_mention')
+      label: m('settings.notifications.policy.reason.role_mention'),
+      hint: m('settings.notifications.policy.reason_hint.role_mention')
     },
-    { field: 'hereMentions', label: m('settings.notifications.policy.reason.here') },
-    { field: 'allMentions', label: m('settings.notifications.policy.reason.all') },
+    {
+      field: 'hereMentions',
+      label: m('settings.notifications.policy.reason.here'),
+      hint: m('settings.notifications.policy.reason_hint.here')
+    },
+    {
+      field: 'allMentions',
+      label: m('settings.notifications.policy.reason.all'),
+      hint: m('settings.notifications.policy.reason_hint.all')
+    },
     {
       field: 'followedThreads',
-      label: m('settings.notifications.policy.reason.followed_thread')
+      label: m('settings.notifications.policy.reason.followed_thread'),
+      hint: m('settings.notifications.policy.reason_hint.followed_thread')
     },
     {
       field: 'followedRooms',
-      label: m('settings.notifications.policy.reason.followed_room')
+      label: m('settings.notifications.policy.reason.followed_room'),
+      hint: m('settings.notifications.policy.reason_hint.followed_room')
     },
-    { field: 'reactions', label: m('settings.notifications.policy.reason.reaction') }
+    {
+      field: 'reactions',
+      label: m('settings.notifications.policy.reason.reaction'),
+      hint: m('settings.notifications.policy.reason_hint.reaction')
+    }
   ]);
 
   const columns = $derived(
@@ -78,6 +101,13 @@ Rows are notification causes. Columns follow the current navigation layout.
     if (column.kind === 'server') return 'bg-surface-emphasized/40';
     if (column.kind === 'roomGroup') return 'bg-surface-emphasized/20';
     return '';
+  }
+
+  function notApplicableLabel(row: NotificationPolicyRow, column: NotificationPolicyColumn) {
+    return m('settings.notifications.policy.not_applicable_cell_aria', {
+      cause: row.label,
+      scope: column.label
+    });
   }
 </script>
 
@@ -141,17 +171,23 @@ Rows are notification causes. Columns follow the current navigation layout.
       'data-notification-field': row.field
     })}
     isCellInteractive={(row, column) =>
-      Boolean(matrixState.policy(column.scope)) && !matrixState.isPending(column.scope, row.field)}
+      notificationPolicyCellApplicable(row.field, column) &&
+      Boolean(matrixState.policy(column.scope)) &&
+      !matrixState.isPending(column.scope, row.field)}
     spacerTestId="notification-matrix-spacer"
   >
     {#snippet leadingHeader()}
       {m('settings.notifications.policy.reason.activity')}
     {/snippet}
-    {#snippet columnHeader(column)}
+    {#snippet columnHeader(column, highlighted)}
       <span
         class={[
           column.kind === 'server' ? 'font-semibold' : '',
-          column.kind === 'roomGroup' ? 'text-neutral-action' : 'text-muted'
+          highlighted
+            ? 'text-action'
+            : column.kind === 'roomGroup'
+              ? 'text-neutral-action'
+              : 'text-muted'
         ]}
         title={column.label}
       >
@@ -159,11 +195,25 @@ Rows are notification causes. Columns follow the current navigation layout.
       </span>
     {/snippet}
     {#snippet rowHeader(row, highlighted)}
-      <span class={['text-sm', highlighted ? 'text-action' : '']}>{row.label}</span>
+      <div class="flex items-center gap-2">
+        <HelpTooltip label={`${m('ui.tooltip.more_information')}: ${row.label}`}>
+          {row.hint}
+        </HelpTooltip>
+        <span class={['text-sm', highlighted ? 'text-action' : '']}>{row.label}</span>
+      </div>
     {/snippet}
     {#snippet cell(row, column)}
-      {@const policy = matrixState.policy(column.scope)}
-      {#if policy}
+      {@const applicable = notificationPolicyCellApplicable(row.field, column)}
+      {#if !applicable}
+        {@const label = notApplicableLabel(row, column)}
+        <MatrixCellButton
+          applicable={false}
+          icon=""
+          ariaLabel={label}
+          onActivate={() => undefined}
+        />
+      {:else if matrixState.policy(column.scope)}
+        {@const policy = matrixState.policy(column.scope)!}
         <NotificationPolicyCell
           field={row.field}
           causeLabel={row.label}

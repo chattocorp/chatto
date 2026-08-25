@@ -287,6 +287,7 @@
         "legend": "Modalità di consegna delle notifiche",
         "cell_aria": "{cause}, {scope}. Sostituzione: {override}. Effettivo: {effective}. Attiva per impostare {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Predefinito: {current}. Attiva per impostare {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Non applicabile.",
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
@@ -305,6 +306,17 @@
           "reaction": "Reazioni ai tuoi messaggi",
           "activity": "Attività",
           "room_invitation": "Inviti alle stanze"
+        },
+        "reason_hint": {
+          "direct_message": "Messaggi inviati da altri membri nelle conversazioni dirette.",
+          "direct_mention": "Messaggi che menzionano direttamente il tuo nome utente.",
+          "reply": "Messaggi in risposta a uno dei tuoi messaggi.",
+          "role_mention": "Messaggi che menzionano un ruolo assegnato a te.",
+          "here": "Messaggi che usano @here quando la tua presenza non è offline.",
+          "all": "Messaggi che usano @all in una stanza di cui fai parte.",
+          "followed_thread": "Nuove risposte nelle discussioni che segui.",
+          "followed_room": "Messaggi principali nelle stanze che segui.",
+          "reaction": "Reazioni aggiunte ai tuoi messaggi da altri membri."
         }
       }
     },

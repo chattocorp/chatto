@@ -287,6 +287,7 @@
         "legend": "通知送达模式",
         "cell_aria": "{cause}，{scope}。覆盖：{override}。当前生效：{effective}。激活以设置为{next}。",
         "server_default_cell_aria": "{cause}，{scope}。默认：{current}。激活以设置为{next}。",
+        "not_applicable_cell_aria": "{cause}，{scope}。不适用。",
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
@@ -305,6 +306,17 @@
           "reaction": "对你消息的回应",
           "activity": "动态",
           "room_invitation": "房间邀请"
+        },
+        "reason_hint": {
+          "direct_message": "其他成员在私信对话中发送的消息。",
+          "direct_mention": "直接提及你的用户名的消息。",
+          "reply": "回复你某条消息的消息。",
+          "role_mention": "提及已分配给你的身份组的消息。",
+          "here": "当你的在线状态不是离线时使用 @here 的消息。",
+          "all": "在你已加入的房间中使用 @all 的消息。",
+          "followed_thread": "你所关注讨论串中的新回复。",
+          "followed_room": "你所关注房间中不属于讨论串的消息。",
+          "reaction": "其他成员添加到你消息上的回应。"
         }
       }
     },

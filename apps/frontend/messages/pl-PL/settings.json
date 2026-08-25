@@ -287,6 +287,7 @@
         "legend": "Tryby dostarczania powiadomień",
         "cell_aria": "{cause}, {scope}. Nadpisanie: {override}. Obowiązuje: {effective}. Aktywuj, aby ustawić {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Domyślne: {current}. Aktywuj, aby ustawić {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Nie dotyczy.",
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
@@ -305,6 +306,17 @@
           "reaction": "Reakcje na Twoje wiadomości",
           "activity": "Aktywność",
           "room_invitation": "Zaproszenia do pokoi"
+        },
+        "reason_hint": {
+          "direct_message": "Wiadomości wysyłane przez innych członków w rozmowach bezpośrednich.",
+          "direct_mention": "Wiadomości, które bezpośrednio wymieniają Twoją nazwę użytkownika.",
+          "reply": "Wiadomości będące odpowiedzią na jedną z Twoich wiadomości.",
+          "role_mention": "Wiadomości, które wspominają rolę przypisaną do Ciebie.",
+          "here": "Wiadomości z @here, gdy Twój status obecności nie jest ustawiony na offline.",
+          "all": "Wiadomości z @all w pokoju, do którego należysz.",
+          "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
+          "followed_room": "Wiadomości poza wątkami w obserwowanych przez Ciebie pokojach.",
+          "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków."
         }
       }
     },

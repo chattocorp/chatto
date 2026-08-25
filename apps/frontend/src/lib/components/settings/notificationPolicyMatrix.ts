@@ -1,6 +1,7 @@
 import { RoomKind } from '$lib/api-client/roomDirectory';
 import {
   notificationPolicyScopeKey,
+  type NotificationPolicyField,
   type NotificationPolicyScope
 } from '$lib/api-client/notifications';
 import type { RoomsListGroup, RoomsListItem } from '$lib/state/server/rooms.svelte';
@@ -10,6 +11,7 @@ export type NotificationPolicyColumn = {
   label: string;
   displayLabel: string;
   kind: 'server' | 'roomGroup' | 'room';
+  roomKind: RoomKind | null;
   scope: NotificationPolicyScope;
 };
 
@@ -48,17 +50,19 @@ export function notificationPolicyColumns(
 
     columns.push(column({ kind: 'roomGroup', id: group.id }, group.name, group.name));
     for (const room of groupMatches ? children : matchedChildren) {
-      columns.push(column({ kind: 'room', id: room.id }, room.name, `#${room.name}`));
+      columns.push(
+        column({ kind: 'room', id: room.id }, room.name, `#${room.name}`, room.type)
+      );
     }
   }
 
   for (const room of memberChannels) {
     if (groupedRoomIDs.has(room.id) || !matches(room.name, query)) continue;
-    columns.push(column({ kind: 'room', id: room.id }, room.name, `#${room.name}`));
+    columns.push(column({ kind: 'room', id: room.id }, room.name, `#${room.name}`, room.type));
   }
   for (const room of memberDMs) {
     if (!matches(room.name, query)) continue;
-    columns.push(column({ kind: 'room', id: room.id }, room.name, room.name));
+    columns.push(column({ kind: 'room', id: room.id }, room.name, room.name, room.type));
   }
 
   return columns;
@@ -71,13 +75,27 @@ function matches(label: string, query: string): boolean {
 function column(
   scope: NotificationPolicyScope,
   label: string,
-  displayLabel: string
+  displayLabel: string,
+  roomKind: RoomKind | null = null
 ): NotificationPolicyColumn {
   return {
     key: notificationPolicyScopeKey(scope),
     label,
     displayLabel,
     kind: scope.kind,
+    roomKind,
     scope
   };
+}
+
+/**
+ * Direct-message activity has a server default and per-conversation overrides.
+ * Channel rooms and their groups can never produce a direct-message signal.
+ */
+export function notificationPolicyCellApplicable(
+  field: NotificationPolicyField,
+  column: NotificationPolicyColumn
+): boolean {
+  if (field !== 'directMessages') return true;
+  return column.kind === 'server' || column.roomKind === RoomKind.DM;
 }

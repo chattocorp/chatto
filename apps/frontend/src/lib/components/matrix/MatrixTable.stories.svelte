@@ -170,8 +170,8 @@
   <span class={highlighted ? 'text-action' : ''}>{row.label}</span>
 {/snippet}
 
-{#snippet labelColumn(column: Column)}
-  {column.label}
+{#snippet labelColumn(column: Column, highlighted: boolean)}
+  <span class={highlighted ? 'text-action' : 'text-muted'}>{column.label}</span>
 {/snippet}
 
 {#snippet interactiveCell(row: Row, column: Column)}

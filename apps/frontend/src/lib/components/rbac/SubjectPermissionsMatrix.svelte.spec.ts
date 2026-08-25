@@ -62,6 +62,7 @@ it('highlights the hovered permission row and scope column', () => {
     'td[data-scope="server"][data-permission="message.delete"]'
   ) as HTMLTableCellElement;
   const columnHeader = container.querySelector('th[data-scope="group:general"]') as HTMLElement;
+  const columnLabel = columnHeader.querySelector('span[title]') as HTMLElement;
   const permissionName = intersection.parentElement!.querySelector(
     '[data-testid="permission-name"]'
   ) as HTMLElement;
@@ -74,6 +75,7 @@ it('highlights the hovered permission row and scope column', () => {
   expect(sameColumn.className).toContain('bg-action/8');
   expect(unrelated.className).not.toContain('bg-action/');
   expect(columnHeader.className).toContain('bg-action/10');
+  expect(columnLabel.className).toContain('text-action');
   expect(permissionName.className).toContain('text-action');
   expect(getComputedStyle(intersection).backgroundColor).not.toBe(
     getComputedStyle(sameRow).backgroundColor
@@ -330,9 +332,7 @@ it('localizes binary cell labels, state details, and owner ceilings', async () =
       decisionMode: 'binary'
     }
   });
-  const button = container.querySelector(
-    'button[aria-label^="message.post"]'
-  ) as HTMLButtonElement;
+  const button = container.querySelector('button[aria-label^="message.post"]') as HTMLButtonElement;
 
   expect(button.ariaLabel).toBe('message.post ist für Bot in Server aktiviert');
   expect(button.title).toContain('Derzeit nicht verfügbar');

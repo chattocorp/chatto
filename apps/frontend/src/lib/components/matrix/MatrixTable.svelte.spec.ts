@@ -19,7 +19,9 @@ describe('MatrixTable', () => {
     expect(headingShell.className).toContain('[writing-mode:vertical-rl]');
     expect(headingShell.className).toContain('rotate-180');
 
-    const rowHeading = container.querySelector('[data-test-row-heading="mentions"]')!.closest('th')!;
+    const rowHeading = container
+      .querySelector('[data-test-row-heading="mentions"]')!
+      .closest('th')!;
     expect(rowHeading.className).toContain('text-start');
     expect(rowHeading.className).toContain('font-normal');
   });
@@ -56,6 +58,9 @@ describe('MatrixTable', () => {
         .querySelector('[data-test-column-heading="general"]')
         ?.getAttribute('data-highlighted')
     ).toBe('true');
+    expect(container.querySelector('[data-test-column-heading="general"]')?.className).toContain(
+      'text-action'
+    );
 
     intersection.dispatchEvent(new MouseEvent('mouseleave'));
     flushSync();
@@ -113,6 +118,9 @@ describe('MatrixTable', () => {
         .querySelector('[data-test-column-heading="general"]')
         ?.getAttribute('data-highlighted')
     ).toBe('false');
+    expect(container.querySelector('[data-test-column-heading="general"]')?.className).toContain(
+      'text-muted'
+    );
   });
 
   it('does not highlight cells that the adapter marks as non-interactive', () => {

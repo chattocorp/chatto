@@ -287,6 +287,7 @@
         "legend": "Paziņojumu piegādes režīmi",
         "cell_aria": "{cause}, {scope}. Pārrakstīšana: {override}. Spēkā: {effective}. Aktivizējiet, lai iestatītu {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Noklusējums: {current}. Aktivizējiet, lai iestatītu {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Nav piemērojams.",
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
@@ -305,6 +306,17 @@
           "reaction": "Reakcijas uz jūsu ziņojumiem",
           "activity": "Aktivitāte",
           "room_invitation": "Uzaicinājumi uz telpām"
+        },
+        "reason_hint": {
+          "direct_message": "Ziņojumi, ko citi dalībnieki nosūta tiešo ziņojumu sarunās.",
+          "direct_mention": "Ziņojumi, kuros tieši pieminēts jūsu lietotājvārds.",
+          "reply": "Ziņojumi, kas atbild uz kādu no jūsu ziņojumiem.",
+          "role_mention": "Ziņojumi, kuros pieminēta jums piešķirta loma.",
+          "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
+          "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
+          "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
+          "followed_room": "Augstākā līmeņa ziņojumi telpās, kurām sekojat.",
+          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
         }
       }
     },

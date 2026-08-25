@@ -137,6 +137,9 @@ color alone.
 
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.
+Direct-message policy applies at server scope and to individual direct-message
+rooms. Its room-group and channel-room cells are not applicable and cannot be
+changed.
 
 A room uses the group that contains it at the exact source-event sequence. A
 room move changes future effective policy. It does not change historical

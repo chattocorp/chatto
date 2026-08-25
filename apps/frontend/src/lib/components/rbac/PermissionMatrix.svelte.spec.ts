@@ -295,10 +295,11 @@ describe('PermissionMatrix', () => {
 
     expect(intersection.className).toContain('bg-action/15');
     expect(sameRow.className).toContain('bg-action/8');
-    expect(sameColumn.className).toContain('bg-action/8');
-    expect(unrelated.className).not.toContain('bg-action/');
-    expect(columnHeader.className).toContain('bg-action/10');
-    expect(rowLabel.className).toContain('bg-action/8');
+		expect(sameColumn.className).toContain('bg-action/8');
+		expect(unrelated.className).not.toContain('bg-action/');
+		expect(columnHeader.className).toContain('bg-action/10');
+		expect(columnHeader.querySelector('span.text-action, button.text-action')).not.toBeNull();
+		expect(rowLabel.className).toContain('bg-action/8');
     expect(rowLabel.querySelector('[data-testid="permission-name"]')!.className).toContain(
       'text-action'
     );
