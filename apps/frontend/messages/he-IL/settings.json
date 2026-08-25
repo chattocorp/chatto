@@ -287,7 +287,6 @@
         "legend": "מצבי מסירת התראות",
         "cell_aria": "{cause}, {scope}. דריסה: {override}. בתוקף: {effective}. הפעילו כדי להגדיר {next}.",
         "server_default_cell_aria": "{cause}, {scope}. ברירת מחדל: {current}. הפעילו כדי להגדיר {next}.",
-        "reset_defaults": "איפוס לברירות המחדל",
         "delivery_mode": {
           "inherit": "ירושה",
           "off": "כבוי",

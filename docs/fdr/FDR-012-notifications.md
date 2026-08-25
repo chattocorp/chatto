@@ -126,14 +126,14 @@ current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
 preference exists, it shows the product default at full intensity without an
 inheritance marker. Server cells cycle through Off, Notification, and Push
-notification. Reset to defaults clears all server preferences.
+notification.
 
 Room-group and room cells cycle through Inherit, Off, Notification, Push
 notification, and back to Inherit. Off uses a grey crossed bell. Both
 notification modes use notification orange, with a bell for Notification and a
-phone for Push notification. An inherited cell shows the effective mode with a
-link marker. The legend and distinct icons make the state clear without color
-alone.
+phone for Push notification. An inherited cell shows the effective mode at
+reduced intensity. The legend and distinct icons make the state clear without
+color alone.
 
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.

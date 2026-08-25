@@ -23,7 +23,6 @@ const mocks = vi.hoisted(() => ({
       errorKind: null as 'load' | 'save' | null,
       load: vi.fn().mockResolvedValue(undefined),
       update: vi.fn().mockResolvedValue(undefined),
-      resetServerDefaults: vi.fn().mockResolvedValue(undefined),
       policy: vi.fn(() => undefined),
       isPending: vi.fn(() => false)
     }

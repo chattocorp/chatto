@@ -12,18 +12,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
 }
 
-const serverDefaultsPatch = {
-  directMessages: null,
-  directMentions: null,
-  replies: null,
-  roleMentions: null,
-  hereMentions: null,
-  allMentions: null,
-  followedThreads: null,
-  followedRooms: null,
-  reactions: null
-} satisfies NotificationPolicyPatch;
-
 /**
  * Server-scoped lifecycle owner for the notification policy matrix.
  * Policies remain authoritative server responses; cells only enter pending
@@ -92,11 +80,6 @@ export class NotificationPolicyMatrixState {
     value: NotificationPolicyPatch[NotificationPolicyField]
   ): Promise<void> {
     await this.#updatePatch(scope, { [field]: value });
-  }
-
-  /** Clear every server override so the product defaults become current. */
-  async resetServerDefaults(): Promise<void> {
-    await this.#updatePatch({ kind: 'server' }, serverDefaultsPatch);
   }
 
   async #updatePatch(

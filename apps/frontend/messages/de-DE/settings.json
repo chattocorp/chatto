@@ -287,7 +287,6 @@
         "legend": "Benachrichtigungsmodi",
         "cell_aria": "{cause}, {scope}. Überschreibung: {override}. Wirksam: {effective}. Aktivieren, um {next} festzulegen.",
         "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktivieren, um {next} festzulegen.",
-        "reset_defaults": "Auf Standardwerte zurücksetzen",
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",

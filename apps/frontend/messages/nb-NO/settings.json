@@ -287,7 +287,6 @@
         "legend": "Leveringsmåter for varsler",
         "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktiver for å angi {next}.",
-        "reset_defaults": "Tilbakestill til standardinnstillinger",
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",

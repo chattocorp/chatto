@@ -8,7 +8,7 @@ Rows are notification causes. Columns follow the current navigation layout.
   import { Panel } from '$lib/components/admin';
   import { MatrixTable } from '$lib/components/matrix';
   import { Hint } from '$lib/ui';
-  import { Button, ShortcutTextInput } from '$lib/ui/form';
+  import { ShortcutTextInput } from '$lib/ui/form';
   import { m } from '$lib/i18n/messages';
   import { useServerScope } from '$lib/state/server/scope.svelte';
   import {
@@ -70,14 +70,6 @@ Rows are notification causes. Columns follow the current navigation layout.
       scopeFilter
     )
   );
-  const serverPolicy = $derived(matrixState.policy({ kind: 'server' }));
-  const serverHasOverrides = $derived(
-    Boolean(serverPolicy && rows.some((row) => serverPolicy.overrides[row.field] !== null))
-  );
-  const serverResetting = $derived(
-    rows.some((row) => matrixState.isPending({ kind: 'server' }, row.field))
-  );
-
   $effect(() => {
     void matrixState.load(columns.map((item) => item.scope));
   });
@@ -95,29 +87,18 @@ Rows are notification causes. Columns follow the current navigation layout.
   noPadding
 >
   {#snippet actions()}
-    <div class="flex flex-col items-end gap-2 sm:flex-row sm:items-center">
-      <Button
-        variant="ghost"
-        size="sm"
-        loading={serverResetting}
-        disabled={!serverHasOverrides}
-        onclick={() => void matrixState.resetServerDefaults()}
-      >
-        {m('settings.notifications.policy.reset_defaults')}
-      </Button>
-      <div class="w-48 sm:w-64">
-        <ShortcutTextInput
-          id="notification-scope-filter"
-          testid="notification-scope-filter"
-          label={m('settings.notifications.policy.filter_label')}
-          labelHidden
-          shortcutKey="/"
-          placeholder={m('settings.notifications.policy.filter_placeholder')}
-          leadingIcon="iconify icon-[uil--search]"
-          autocomplete="off"
-          bind:value={scopeFilter}
-        />
-      </div>
+    <div class="w-48 sm:w-64">
+      <ShortcutTextInput
+        id="notification-scope-filter"
+        testid="notification-scope-filter"
+        label={m('settings.notifications.policy.filter_label')}
+        labelHidden
+        shortcutKey="/"
+        placeholder={m('settings.notifications.policy.filter_placeholder')}
+        leadingIcon="iconify icon-[uil--search]"
+        autocomplete="off"
+        bind:value={scopeFilter}
+      />
     </div>
   {/snippet}
 

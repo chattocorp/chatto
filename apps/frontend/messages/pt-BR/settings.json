@@ -287,7 +287,6 @@
         "legend": "Modos de entrega de notificações",
         "cell_aria": "{cause}, {scope}. Substituição: {override}. Efetivo: {effective}. Ative para definir {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Padrão: {current}. Ative para definir {next}.",
-        "reset_defaults": "Restaurar padrões",
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",

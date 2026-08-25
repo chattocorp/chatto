@@ -287,7 +287,6 @@
         "legend": "Bildirim teslim modları",
         "cell_aria": "{cause}, {scope}. Geçersiz kılma: {override}. Geçerli: {effective}. {next} olarak ayarlamak için etkinleştirin.",
         "server_default_cell_aria": "{cause}, {scope}. Varsayılan: {current}. {next} olarak ayarlamak için etkinleştirin.",
-        "reset_defaults": "Varsayılanlara sıfırla",
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",

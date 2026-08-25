@@ -287,7 +287,6 @@
         "legend": "Teavituste edastusviisid",
         "cell_aria": "{cause}, {scope}. Erand: {override}. Kehtiv: {effective}. Aktiveeri, et määrata {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Vaikeseade: {current}. Aktiveeri, et määrata {next}.",
-        "reset_defaults": "Lähtesta vaikeväärtustele",
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",

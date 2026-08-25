@@ -287,7 +287,6 @@
         "legend": "Notification delivery modes",
         "cell_aria": "{cause}, {scope}. Override: {override}. Effective: {effective}. Activate to set {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Default: {current}. Activate to set {next}.",
-        "reset_defaults": "Reset to defaults",
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",

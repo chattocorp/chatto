@@ -51,13 +51,6 @@ test.describe('Notification policy', () => {
 
     await page.reload();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
-
-    await page.getByRole('button', { name: 'Reset to defaults' }).click();
-    await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
-    await expect(inheritedDirectMessages).toHaveAttribute(
-      'aria-label',
-      /Effective: Push notification/
-    );
   });
 
   test('resolves server, group, and room overrides and shows member rooms only', async ({

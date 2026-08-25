@@ -18,7 +18,6 @@ const { mocks } = vi.hoisted(() => ({
       errorKind: null as 'load' | 'save' | null,
       load: vi.fn(),
       update: vi.fn(),
-      resetServerDefaults: vi.fn(),
       policy: vi.fn(),
       isPending: vi.fn((_scope: NotificationPolicyScope, _field: NotificationPolicyField) => false)
     }
@@ -82,7 +81,6 @@ describe('NotificationPolicySettings', () => {
     mocks.matrix.errorKind = null;
     mocks.matrix.load.mockResolvedValue(undefined);
     mocks.matrix.update.mockResolvedValue(undefined);
-    mocks.matrix.resetServerDefaults.mockResolvedValue(undefined);
     mocks.matrix.isPending.mockReturnValue(false);
     mocks.matrix.policy.mockImplementation((scope: NotificationPolicyScope) => policy(scope));
   });
@@ -99,6 +97,7 @@ describe('NotificationPolicySettings', () => {
     expect(container.querySelector('th[data-notification-scope="room:room-2"]')).toBeNull();
     expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
     expect(container.textContent).not.toContain('Room invitations');
+    expect(container.textContent).not.toContain('Reset to defaults');
   });
 
   it('retains a matched room group and cycles a server default to Off', async () => {
@@ -130,26 +129,6 @@ describe('NotificationPolicySettings', () => {
     expect(button.ariaLabel).toContain('Default: Push notification');
     expect(button.ariaLabel).toContain('Activate to set Off');
     expect(button.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
-  });
-
-  it('resets configured server cells to product defaults', async () => {
-    mocks.matrix.policy.mockImplementation((scope: NotificationPolicyScope) => {
-      const result = policy(scope);
-      if (scope.kind === 'server') {
-        result.overrides.directMessages = NotificationDeliveryMode.OFF;
-        result.effective.directMessages = NotificationDeliveryMode.OFF;
-      }
-      return result;
-    });
-    const { container } = render(NotificationPolicySettings);
-
-    const reset = [...container.querySelectorAll('button')].find((button) =>
-      button.textContent?.includes('Reset to defaults')
-    ) as HTMLButtonElement;
-    expect(reset).toBeDefined();
-    expect(reset.disabled).toBe(false);
-    reset.click();
-    expect(mocks.matrix.resetServerDefaults).toHaveBeenCalledOnce();
   });
 
   it('explains the three delivery modes in the legend', () => {

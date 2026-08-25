@@ -287,7 +287,6 @@
         "legend": "Paziņojumu piegādes režīmi",
         "cell_aria": "{cause}, {scope}. Pārrakstīšana: {override}. Spēkā: {effective}. Aktivizējiet, lai iestatītu {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Noklusējums: {current}. Aktivizējiet, lai iestatītu {next}.",
-        "reset_defaults": "Atiestatīt noklusējumus",
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",

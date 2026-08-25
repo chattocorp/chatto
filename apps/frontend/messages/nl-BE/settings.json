@@ -287,7 +287,6 @@
         "legend": "Bezorgmodi voor meldingen",
         "cell_aria": "{cause}, {scope}. Overschrijving: {override}. Effectief: {effective}. Activeer om {next} in te stellen.",
         "server_default_cell_aria": "{cause}, {scope}. Standaard: {current}. Activeer om {next} in te stellen.",
-        "reset_defaults": "Standaardinstellingen herstellen",
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",

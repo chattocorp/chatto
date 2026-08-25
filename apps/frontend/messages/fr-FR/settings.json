@@ -287,7 +287,6 @@
         "legend": "Modes de distribution des notifications",
         "cell_aria": "{cause}, {scope}. Remplacement : {override}. Effectif : {effective}. Activez pour définir {next}.",
         "server_default_cell_aria": "{cause}, {scope}. Valeur par défaut : {current}. Activez pour définir {next}.",
-        "reset_defaults": "Rétablir les valeurs par défaut",
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
