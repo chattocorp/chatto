@@ -40,12 +40,6 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 		return c.Request
 	}
 
-	if credential.auth.Kind == authctx.RuntimeCredentialKindCookieSession {
-		credential.cookieRecord = s.renewCookieSessionIfNeeded(c, credential.auth.Handle, credential.cookieRecord)
-		if credential.cookieRecord.GetExpiresAt() != nil {
-			credential.auth.ExpiresAt = credential.cookieRecord.GetExpiresAt().AsTime()
-		}
-	}
 	ctx := authctx.WithUser(c.Request.Context(), credential.user)
 	ctx = authctx.WithCredential(ctx, credential.auth)
 

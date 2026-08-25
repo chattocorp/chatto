@@ -14,6 +14,7 @@ import { getCurrentUserViaConnect, type CurrentUser } from '$lib/api-client/view
 import { isAuthenticationRequiredError } from './errors';
 import { saveReturnUrl } from './returnNavigation';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
+import { revokeLegacyOriginBearerSession } from './originBearerMigration';
 
 export type { CurrentUser };
 
@@ -47,6 +48,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
+      await revokeLegacyOriginBearerSession();
       serverRegistry.authenticateOriginCookie(cachedUser);
       const originId = serverRegistry.originServer?.id;
       if (originId) {
@@ -69,6 +71,13 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
           return cached;
         }
         cachedUser = null;
+        try {
+          await revokeLegacyOriginBearerSession();
+        } catch {
+          // Keep portable authority in local state until a later load can prove
+          // that the server revoked it. The cookie-only client never uses it.
+          return null;
+        }
         serverRegistry.clearOriginAuthentication();
         return null;
       }

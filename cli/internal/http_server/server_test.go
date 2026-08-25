@@ -406,6 +406,9 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 		core:   chattoCore,
 		mailer: nil, // Not needed for testing
 	}
+	browserStore := newJetStreamBrowserSessionStore(chattoCore)
+	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
+	router.Use(s.loadBrowserSession())
 	if configure != nil {
 		configure(s)
 	}
@@ -712,7 +715,7 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 	}
 }
 
-func TestAuthRoutes_Login_CookieOnlyDoesNotIssueBearerCredentials(t *testing.T) {
+func TestAuthRoutes_BrowserLoginDoesNotIssueBearerCredentials(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)
 	if _, err := chattoCore.CreateUser(ctx, "system", "cookieonly", "Cookie Only", "password123"); err != nil {
@@ -723,20 +726,23 @@ func TestAuthRoutes_Login_CookieOnlyDoesNotIssueBearerCredentials(t *testing.T) 
 		"login":    "cookieonly",
 		"password": "password123",
 	})
-	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
+	resp, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
 	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
-	resp, err := client.Do(req)
-	if err != nil {
-		t.Fatalf("POST /auth/login: %v", err)
+		t.Fatalf("POST /auth/browser/login: %v", err)
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
 		responseBody, _ := io.ReadAll(resp.Body)
 		t.Fatalf("login status = %d, want 200: %s", resp.StatusCode, responseBody)
+	}
+	authCookieCount := 0
+	for _, cookie := range resp.Cookies() {
+		if cookie.Name == browserSessionCookieName {
+			authCookieCount++
+		}
+	}
+	if authCookieCount != 1 {
+		t.Fatalf("browser login set %d authentication cookies, want 1", authCookieCount)
 	}
 
 	var result map[string]any
@@ -749,7 +755,235 @@ func TestAuthRoutes_Login_CookieOnlyDoesNotIssueBearerCredentials(t *testing.T) 
 		}
 	}
 	if cookies := client.Jar.Cookies(resp.Request.URL); len(cookies) == 0 {
-		t.Fatal("cookie-only login did not save a browser session")
+		t.Fatal("browser login did not save a browser session")
+	}
+}
+
+func TestAuthRoutes_BrowserLoginRotatesHandle(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	for _, account := range []struct {
+		login string
+		name  string
+	}{
+		{login: "browser-first", name: "Browser First"},
+		{login: "browser-second", name: "Browser Second"},
+	} {
+		if _, err := chattoCore.CreateUser(ctx, "system", account.login, account.name, "password123"); err != nil {
+			t.Fatalf("CreateUser %q: %v", account.login, err)
+		}
+	}
+
+	login := func(identifier string) string {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"login": identifier, "password": "password123"})
+		response, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+		if err != nil {
+			t.Fatalf("browser login %q: %v", identifier, err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("browser login %q status = %d, want 200", identifier, response.StatusCode)
+		}
+		for _, cookie := range client.Jar.Cookies(response.Request.URL) {
+			if cookie.Name == browserSessionCookieName {
+				return cookie.Value
+			}
+		}
+		t.Fatalf("browser login %q did not set %s", identifier, browserSessionCookieName)
+		return ""
+	}
+
+	firstHandle := login("browser-first")
+	secondHandle := login("browser-second")
+	if secondHandle == firstHandle {
+		t.Fatalf("browser login reused handle %q across an authentication change", firstHandle)
+	}
+	if _, err := chattoCore.ValidateCookieCredential(ctx, firstHandle); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("old browser handle validation error = %v, want ErrCookieSessionNotFound", err)
+	}
+	record, err := chattoCore.ValidateCookieCredential(ctx, secondHandle)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+	secondUser, err := chattoCore.GetUserByLogin(ctx, "browser-second")
+	if err != nil {
+		t.Fatalf("GetUserByLogin: %v", err)
+	}
+	if record.GetUserId() != secondUser.GetId() {
+		t.Fatalf("browser handle user = %q, want %q", record.GetUserId(), secondUser.GetId())
+	}
+}
+
+func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.T) {
+	var server *HTTPServer
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
+		server = configured
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "browser-renew", "Browser Renew", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"login": "browser-renew", "password": "password123"})
+	loginResponse, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
+	}
+
+	var sessionID, csrfToken string
+	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
+		switch cookie.Name {
+		case browserSessionCookieName:
+			sessionID = cookie.Value
+		case csrfCookieName:
+			csrfToken = cookie.Value
+		}
+	}
+	if sessionID == "" || csrfToken == "" {
+		t.Fatalf("browser login cookies: session=%t csrf=%t", sessionID != "", csrfToken != "")
+	}
+	before, err := chattoCore.ValidateCookieCredential(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential before renewal: %v", err)
+	}
+	server.cookieSessionRenewalNow = func() time.Time {
+		return before.GetExpiresAt().AsTime().Add(-time.Hour)
+	}
+
+	renewRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/session/renew", nil)
+	if err != nil {
+		t.Fatalf("NewRequest renewal: %v", err)
+	}
+	renewRequest.Header.Set(csrfHeaderName, csrfToken)
+	renewResponse, err := client.Do(renewRequest)
+	if err != nil {
+		t.Fatalf("browser renewal: %v", err)
+	}
+	defer renewResponse.Body.Close()
+	if renewResponse.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(renewResponse.Body)
+		t.Fatalf("browser renewal status = %d, want 200: %s", renewResponse.StatusCode, responseBody)
+	}
+
+	var renewedSessionID string
+	for _, cookie := range client.Jar.Cookies(renewResponse.Request.URL) {
+		if cookie.Name == browserSessionCookieName {
+			renewedSessionID = cookie.Value
+		}
+	}
+	if renewedSessionID != sessionID {
+		t.Fatalf("browser renewal changed handle from %q to %q", sessionID, renewedSessionID)
+	}
+	after, err := chattoCore.ValidateCookieCredential(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential after renewal: %v", err)
+	}
+	if !after.GetExpiresAt().AsTime().After(before.GetExpiresAt().AsTime()) {
+		t.Fatalf("browser renewal expiry = %v, want after %v", after.GetExpiresAt().AsTime(), before.GetExpiresAt().AsTime())
+	}
+}
+
+func TestAuthenticatedPublicDiscoveryDoesNotSetCookies(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
+		server.router.Use(server.csrfMiddleware())
+		server.setupConnectAPI()
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "discovery-cookie", "Discovery Cookie", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": "discovery-cookie", "password": "password123"})
+	loginResponse, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
+	}
+
+	discoveryResponse, err := client.Get(ts.URL + serverDiscoveryConnectPath + "?connect=v1&encoding=json&message=%7B%7D")
+	if err != nil {
+		t.Fatalf("authenticated discovery GET: %v", err)
+	}
+	defer discoveryResponse.Body.Close()
+	if discoveryResponse.StatusCode != http.StatusOK {
+		t.Fatalf("authenticated discovery status = %d, want 200", discoveryResponse.StatusCode)
+	}
+	if got := discoveryResponse.Header.Get("Cache-Control"); got != "public, no-cache" {
+		t.Fatalf("authenticated discovery Cache-Control = %q, want public, no-cache", got)
+	}
+	if cookies := discoveryResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("authenticated discovery Set-Cookie = %v, want none", cookies)
+	}
+}
+
+func TestAuthRoutes_BrowserMigrationRevokesBearerAuthorityAndKeepsCookie(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, "system", "browser-migrate", "Browser Migrate", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"login": "browser-migrate", "password": "password123"})
+	loginResponse, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("login: %v", err)
+	}
+	defer loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("login status = %d, want 200", loginResponse.StatusCode)
+	}
+	var credentials struct {
+		AccessToken  string `json:"token"`
+		RefreshToken string `json:"refreshToken"`
+	}
+	if err := json.NewDecoder(loginResponse.Body).Decode(&credentials); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+	if got, err := chattoCore.ValidateAuthToken(ctx, credentials.AccessToken); err != nil || got != user.Id {
+		t.Fatalf("ValidateAuthToken before migration = %q, %v", got, err)
+	}
+
+	var sessionID string
+	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
+		if cookie.Name == browserSessionCookieName {
+			sessionID = cookie.Value
+		}
+	}
+	if sessionID == "" {
+		t.Fatal("login did not set the browser session cookie")
+	}
+
+	revokeBody, _ := json.Marshal(map[string]string{
+		"accessToken":  credentials.AccessToken,
+		"refreshToken": credentials.RefreshToken,
+	})
+	revokeRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/revoke-bearer-session", bytes.NewReader(revokeBody))
+	if err != nil {
+		t.Fatalf("NewRequest revocation: %v", err)
+	}
+	revokeRequest.Header.Set("Content-Type", "application/json")
+	revokeResponse, err := client.Do(revokeRequest)
+	if err != nil {
+		t.Fatalf("revoke bearer session: %v", err)
+	}
+	defer revokeResponse.Body.Close()
+	if revokeResponse.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(revokeResponse.Body)
+		t.Fatalf("revoke bearer status = %d, want 200: %s", revokeResponse.StatusCode, responseBody)
+	}
+	if _, err := chattoCore.ValidateAuthToken(ctx, credentials.AccessToken); !errors.Is(err, core.ErrAuthTokenNotFound) {
+		t.Fatalf("ValidateAuthToken after migration err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if record, err := chattoCore.ValidateCookieCredential(ctx, sessionID); err != nil || record.GetUserId() != user.Id {
+		t.Fatalf("ValidateCookieCredential after migration = %v, %v", record, err)
 	}
 }
 
@@ -1348,15 +1582,9 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	request, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/register/complete", bytes.NewReader(body))
+	resp, err := client.Post(ts.URL+"/auth/browser/register/complete", "application/json", bytes.NewReader(body))
 	if err != nil {
-		t.Fatalf("Failed to create register/complete request: %v", err)
-	}
-	request.Header.Set("Content-Type", "application/json")
-	request.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
-	resp, err := client.Do(request)
-	if err != nil {
-		t.Fatalf("Failed to send register/complete request: %v", err)
+		t.Fatalf("Failed to send browser register/complete request: %v", err)
 	}
 	defer resp.Body.Close()
 
@@ -2886,7 +3114,7 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredentialID, ok := cookieCredentialIDFromSession(sessions.Default(c))
+			cookieCredentialID, ok := s.browserSessionID(c)
 
 			capture.Lock()
 			defer capture.Unlock()
@@ -2947,11 +3175,11 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 	}
 }
 
-func TestAuthRoutes_LoginCookieOnlyRechecksAuthGeneration(t *testing.T) {
+func TestAuthRoutes_BrowserLoginRechecksAuthGeneration(t *testing.T) {
 	var capturedSessionID string
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			capturedSessionID, _ = cookieCredentialIDFromSession(sessions.Default(c))
+			capturedSessionID, _ = s.browserSessionID(c)
 			if err := s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456"); err != nil {
 				t.Errorf("SetPasswordHash: %v", err)
 			}
@@ -2963,13 +3191,7 @@ func TestAuthRoutes_LoginCookieOnlyRechecksAuthGeneration(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"login": "stale-cookie-only", "password": "password123"})
-	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("NewRequest: %v", err)
-	}
-	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
-	resp, err := client.Do(req)
+	resp, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
 	if err != nil {
 		t.Fatalf("login request: %v", err)
 	}
@@ -2995,7 +3217,7 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredentialID, ok := cookieCredentialIDFromSession(sessions.Default(c))
+			cookieCredentialID, ok := s.browserSessionID(c)
 
 			capture.Lock()
 			defer capture.Unlock()

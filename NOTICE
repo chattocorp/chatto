@@ -40,6 +40,7 @@ Server and CLI Go Components:
   MIT License
 - imageorient (https://github.com/disintegration/imageorient) - MIT License
 - rs/cors (https://github.com/rs/cors) - MIT License
+- SCS session management (https://github.com/alexedwards/scs) - MIT License
 - LiveKit Protocol (https://github.com/livekit/protocol) - Apache License 2.0
 - NATS Server, Go client, JSM, and nkeys (https://nats.io/) - Apache License 2.0
 - nativewebp (https://github.com/HugoSmits86/nativewebp) - MIT License

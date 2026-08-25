@@ -763,19 +763,17 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 	}
 	if err := s.ensureCSRFToken(c); err != nil {
 		session = sessions.Default(c)
-		cookieCredentialID, _ := cookieCredentialIDFromSession(session)
+		cookieCredentialID, _ := s.browserSessionID(c)
 		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
-		session.Clear()
-		_ = session.Save()
+		s.clearBrowserSessionCookie(c)
 		clearCSRFCookie(c)
 		return fmt.Errorf("create csrf token: %w", err)
 	}
 	if err := s.core.RecordLoginSucceeded(ctx, userID, providerConfig.Type+":"+providerConfig.ID); err != nil {
 		session = sessions.Default(c)
-		cookieCredentialID, _ := cookieCredentialIDFromSession(session)
+		cookieCredentialID, _ := s.browserSessionID(c)
 		_ = s.core.RevokeCookieSession(ctx, cookieCredentialID)
-		session.Clear()
-		_ = session.Save()
+		s.clearBrowserSessionCookie(c)
 		clearCSRFCookie(c)
 		return fmt.Errorf("append login audit event: %w", err)
 	}

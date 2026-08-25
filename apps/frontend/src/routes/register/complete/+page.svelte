@@ -1,7 +1,6 @@
 <script lang="ts">
   import { goto } from '$app/navigation';
   import { resolve } from '$app/paths';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import AuthLayout from '$lib/components/AuthLayout.svelte';
   import { m } from '$lib/i18n/messages';
@@ -54,12 +53,9 @@
     isLoading = true;
 
     try {
-      const response = await fetch('/auth/register/complete', {
+      const response = await fetch('/auth/browser/register/complete', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...browserCookieAuthenticationHeaders
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           token,
           login,

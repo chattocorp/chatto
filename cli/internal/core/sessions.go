@@ -19,6 +19,14 @@ var (
 	ErrCookieSessionNotFound = errors.New("cookie session not found")
 )
 
+// CookieSessionStoreEntry is the revisioned value loaded by an HTTP session
+// store adapter. The revision must be supplied when a request changes or
+// conditionally deletes the value so replicas cannot overwrite one another.
+type CookieSessionStoreEntry struct {
+	Value    []byte
+	Revision uint64
+}
+
 func (c *ChattoCore) cookieSessionTTL() time.Duration {
 	return c.authTokenTTL()
 }
@@ -43,24 +51,62 @@ func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userI
 }
 
 func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *corev1.CookieSession, error) {
-	if userID == "" {
-		return "", nil, ErrCookieSessionNotFound
-	}
-	if err := c.requireHumanUser(ctx, userID); err != nil {
-		if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) {
-			return "", nil, ErrCookieSessionNotFound
-		}
+	tokenData, err := c.newCookieSessionDataForGeneration(ctx, userID, source, authGeneration, freshAuthAt, freshAuthMethod, freshAuthSource)
+	if err != nil {
 		return "", nil, err
-	}
-	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
-		if !errors.Is(err, ErrAuthenticationRevoked) {
-			return "", nil, err
-		}
-		return "", nil, ErrCookieSessionNotFound
 	}
 
 	sessionID := NewAuthToken()
+	data, err := json.Marshal(tokenData)
+	if err != nil {
+		return "", nil, fmt.Errorf("failed to marshal cookie session: %w", err)
+	}
+	if err := c.CreateCookieSessionValue(ctx, sessionID, data, time.Now()); err != nil {
+		return "", nil, err
+	}
+
+	return sessionID, c.cookieSessionRecordFromAuthTokenData(tokenData), nil
+}
+
+// NewCookieSessionData validates a browser authentication and returns the
+// typed record that a session-store adapter can commit under its own opaque
+// token.
+func (c *ChattoCore) NewCookieSessionData(ctx context.Context, userID, source string) (AuthTokenData, error) {
+	authGeneration, err := c.CurrentAuthGeneration(ctx, userID)
+	if err != nil {
+		return AuthTokenData{}, err
+	}
+	return c.NewCookieSessionDataForGeneration(ctx, userID, source, authGeneration)
+}
+
+// NewCookieSessionDataForGeneration returns a typed browser-session record for
+// an authentication that proved credentials against authGeneration.
+func (c *ChattoCore) NewCookieSessionDataForGeneration(ctx context.Context, userID, source string, authGeneration uint64) (AuthTokenData, error) {
 	now := time.Now()
+	return c.newCookieSessionDataForGeneration(ctx, userID, source, authGeneration, now, freshAuthMethodForSource(source), source)
+}
+
+func (c *ChattoCore) newCookieSessionDataForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (AuthTokenData, error) {
+	if userID == "" {
+		return AuthTokenData{}, ErrCookieSessionNotFound
+	}
+	if err := c.requireHumanUser(ctx, userID); err != nil {
+		if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) {
+			return AuthTokenData{}, ErrCookieSessionNotFound
+		}
+		return AuthTokenData{}, err
+	}
+	if err := c.RequireAuthenticationAllowed(ctx, userID, authGeneration); err != nil {
+		if !errors.Is(err, ErrAuthenticationRevoked) {
+			return AuthTokenData{}, err
+		}
+		return AuthTokenData{}, ErrCookieSessionNotFound
+	}
+
+	now := freshAuthAt
+	if now.IsZero() {
+		now = time.Now()
+	}
 	tokenData := AuthTokenData{
 		UserID:         userID,
 		Kind:           AuthTokenKindFirstPartySession,
@@ -76,18 +122,80 @@ func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userI
 		tokenData.FreshAuthMethod = freshAuthMethod
 		tokenData.FreshAuthSource = freshAuthSource
 	}
+	return tokenData, nil
+}
 
-	data, err := json.Marshal(tokenData)
-	if err != nil {
-		return "", nil, fmt.Errorf("failed to marshal cookie session: %w", err)
+// LoadCookieSessionValue returns a well-formed, unexpired cookie-session value
+// together with the exact KV revision observed by the caller. Malformed or
+// expired records fail closed and are removed with a revision fence.
+func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID string, now time.Time) (CookieSessionStoreEntry, error) {
+	if sessionID == "" {
+		return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
 	}
-
 	key := c.authTokenKey(sessionID)
-	if _, err := c.storage.runtimeStateKV.Create(ctx, key, data, jetstream.KeyTTL(tokenData.ExpiresAt.Sub(now))); err != nil {
-		return "", nil, fmt.Errorf("failed to store cookie session: %w", err)
+	entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
+		}
+		return CookieSessionStoreEntry{}, fmt.Errorf("failed to load cookie session: %w", err)
 	}
+	if _, err := decodeCookieSessionValue(entry.Value(), now); err != nil {
+		_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+		return CookieSessionStoreEntry{}, ErrCookieSessionNotFound
+	}
+	return CookieSessionStoreEntry{Value: append([]byte(nil), entry.Value()...), Revision: entry.Revision()}, nil
+}
 
-	return sessionID, c.cookieSessionRecordFromAuthTokenData(tokenData), nil
+// CreateCookieSessionValue commits a new opaque cookie session with physical
+// retention bounded by the record's authoritative expiry.
+func (c *ChattoCore) CreateCookieSessionValue(ctx context.Context, sessionID string, value []byte, now time.Time) error {
+	tokenData, err := decodeCookieSessionValue(value, now)
+	if err != nil {
+		return err
+	}
+	if _, err := c.storage.runtimeStateKV.Create(ctx, c.authTokenKey(sessionID), value, jetstream.KeyTTL(tokenData.ExpiresAt.Sub(now))); err != nil {
+		return fmt.Errorf("failed to store cookie session: %w", err)
+	}
+	return nil
+}
+
+// UpdateCookieSessionValue changes one cookie session only when the caller
+// still owns the revision it loaded. The updated message receives a fresh
+// per-message TTL that matches the authoritative expiry in the value.
+func (c *ChattoCore) UpdateCookieSessionValue(ctx context.Context, sessionID string, value []byte, revision uint64, now time.Time) error {
+	tokenData, err := decodeCookieSessionValue(value, now)
+	if err != nil {
+		return err
+	}
+	if _, err := c.updateRuntimeStateUntil(ctx, c.authTokenKey(sessionID), value, revision, tokenData.ExpiresAt, now); err != nil {
+		return fmt.Errorf("failed to update cookie session: %w", err)
+	}
+	return nil
+}
+
+// DeleteCookieSessionValue removes a cookie session only if it still has the
+// revision loaded by the request. This is intended for conditional cleanup;
+// explicit logout uses RevokeCookieSession so it fences every earlier writer.
+func (c *ChattoCore) DeleteCookieSessionValue(ctx context.Context, sessionID string, revision uint64) error {
+	if sessionID == "" {
+		return nil
+	}
+	return c.deleteRuntimeStateKey(ctx, c.authTokenKey(sessionID), jetstream.LastRevision(revision))
+}
+
+func decodeCookieSessionValue(value []byte, now time.Time) (AuthTokenData, error) {
+	var tokenData AuthTokenData
+	if err := json.Unmarshal(value, &tokenData); err != nil ||
+		tokenData.UserID == "" ||
+		tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
+		tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
+		tokenData.CreatedAt.IsZero() ||
+		tokenData.ExpiresAt.IsZero() ||
+		!now.Before(tokenData.ExpiresAt) {
+		return AuthTokenData{}, ErrCookieSessionNotFound
+	}
+	return tokenData, nil
 }
 
 // ValidateCookieCredential validates a typed cookie-presentation runtime

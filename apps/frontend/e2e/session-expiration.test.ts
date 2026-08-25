@@ -215,18 +215,18 @@ test.describe('Session Expiration Handling', () => {
 
     // Get initial cookie
     const initialCookies = await page.context().cookies();
-    const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_session');
+    const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_auth');
     expect(initialSessionCookie).toBeDefined();
 
-    // Ordinary navigation validates the cookie and can re-sign the same
-    // server-side handle. The KV record renews only near expiry.
+    // Ordinary navigation validates the cookie without re-signing it or
+    // updating the server-side record.
     await page.goto(routes.settings);
     await page.waitForURL(routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
     // Get updated cookie
     const updatedCookies = await page.context().cookies();
-    const updatedSessionCookie = updatedCookies.find((c) => c.name === 'chatto_session');
+    const updatedSessionCookie = updatedCookies.find((c) => c.name === 'chatto_auth');
     expect(updatedSessionCookie).toBeDefined();
 
     // Cookie expiration should be ~90 days from login.
@@ -237,9 +237,9 @@ test.describe('Session Expiration Handling', () => {
     // Verify the cookie has a reasonable fixed expiration.
     expect(updatedSessionCookie!.expires).toBeGreaterThan(expectedMinExpires);
 
-    // Re-signing can change the signed envelope and subsecond browser expiry.
-    // The server-side stable-handle and no-KV-write contracts have focused Go tests.
+    // Ordinary navigation does not replace the opaque handle or its expiry.
     expect(Math.abs(updatedSessionCookie!.expires - initialSessionCookie!.expires)).toBeLessThan(2);
+    expect(updatedSessionCookie!.value).toBe(initialSessionCookie!.value);
 
     const originAuthentication = await page.evaluate(() => {
       const registrations = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]') as Array<{
@@ -323,7 +323,7 @@ test.describe('Cookie session renewal', () => {
     }
   });
 
-  test('renews the signed cookie in the final quarter of its lifetime', async ({
+  test('automatically renews the opaque cookie in the final quarter of its lifetime', async ({
     page,
     authPage
   }) => {
@@ -336,23 +336,26 @@ test.describe('Cookie session renewal', () => {
     await authPage.expectLoggedIn();
 
     const initialSessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_session'
+      (cookie) => cookie.name === 'chatto_auth'
     );
     expect(initialSessionCookie).toBeDefined();
 
-    // This intentional wall-clock wait moves the 12-second session into its
-    // final quarter. Renewal depends on the server clock, not a browser timer.
-    await page.waitForTimeout(9200);
-    await page.goto(`${routes.settings}?renewal=${timestamp}`);
-    await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
+    // The realtime connection asks the frontend to call the explicit renewal
+    // endpoint when the session enters its final quarter.
+    await expect
+      .poll(
+        async () =>
+          (await page.context().cookies()).find((cookie) => cookie.name === 'chatto_auth')
+            ?.expires ?? 0,
+        { timeout: 11_000, intervals: [250] }
+      )
+      .toBeGreaterThan(initialSessionCookie!.expires);
 
     const renewedSessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_session'
+      (cookie) => cookie.name === 'chatto_auth'
     );
     expect(renewedSessionCookie).toBeDefined();
-    // Re-signing changes the cookie envelope. Focused Go tests verify that the
-    // opaque server-side handle inside that envelope stays stable.
-    expect(renewedSessionCookie!.value).not.toBe(initialSessionCookie!.value);
+    expect(renewedSessionCookie!.value).toBe(initialSessionCookie!.value);
     expect(renewedSessionCookie!.expires).toBeGreaterThan(initialSessionCookie!.expires);
   });
 });

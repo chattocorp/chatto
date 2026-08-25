@@ -70,6 +70,9 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 		core:    chattoCore,
 		version: "test",
 	}
+	browserStore := newJetStreamBrowserSessionStore(chattoCore)
+	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
+	router.Use(s.loadBrowserSession())
 	s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
 		if clientID != testOAuthClientID {
 			return OAuthClient{}, false, nil
@@ -91,9 +94,8 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 	return s
 }
 
-func TestInjectUserIntoContextRenewsStableCookieCredential(t *testing.T) {
+func TestInjectUserIntoContextDoesNotRenewCookieCredential(t *testing.T) {
 	s := setupOAuthServer(t)
-	s.cookieSessionRenewalNow = func() time.Time { return time.Now().Add(89 * 24 * time.Hour) }
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
 
@@ -136,67 +138,8 @@ func TestInjectUserIntoContextRenewsStableCookieCredential(t *testing.T) {
 	if err != nil {
 		t.Fatalf("renewed cookie session validation: %v", err)
 	}
-	if !renewed.GetExpiresAt().AsTime().After(created.GetExpiresAt().AsTime()) {
-		t.Fatalf("renewed expiry = %v, want after %v", renewed.GetExpiresAt(), created.GetExpiresAt())
-	}
-}
-
-func TestCookieSessionRenewalSurvivesCookieSaveFailure(t *testing.T) {
-	s := setupOAuthServer(t)
-	s.cookieSessionRenewalNow = func() time.Time { return time.Now().Add(89 * 24 * time.Hour) }
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	t.Cleanup(cancel)
-
-	user, err := s.core.CreateUser(ctx, core.SystemActorID, "failed-rotation-user", "Failed Rotation User", "password123")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	oldSessionID, _, err := s.core.CreateCookieSession(ctx, user.Id, "password_login")
-	if err != nil {
-		t.Fatalf("CreateCookieSession: %v", err)
-	}
-
-	baseStore := cookie.NewStore([]byte("test-secret-key-32-bytes-long!!"))
-	store := &toggleSaveErrorSessionStore{Store: baseStore}
-	router := gin.New()
-	router.Use(sessions.Sessions("chatto_session", store))
-	s.router = router
-
-	s.router.GET("/test/failed-cookie-renewal", func(c *gin.Context) {
-		session := sessions.Default(c)
-		session.Set(sessionKeyRuntimeCredentialID, oldSessionID)
-		if err := session.Save(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
-		store.fail = true
-		credential, ok, err := s.cookiePresentedCredential(c)
-		if err != nil || !ok {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "old credential was not presented"})
-			return
-		}
-		s.renewCookieSessionIfNeeded(c, oldSessionID, credential.cookieRecord)
-		storedID, stored := cookieCredentialIDFromSession(session)
-		if !stored || storedID != oldSessionID {
-			c.JSON(http.StatusInternalServerError, gin.H{
-				"error":     "stable credential changed",
-				"stored":    stored,
-				"stored_id": storedID,
-			})
-			return
-		}
-		c.Status(http.StatusNoContent)
-	})
-
-	req := httptest.NewRequest(http.MethodGet, "/test/failed-cookie-renewal", nil)
-	w := httptest.NewRecorder()
-	s.router.ServeHTTP(w, req)
-	if w.Code != http.StatusNoContent {
-		t.Fatalf("failed rotation status = %d, want 204: %s", w.Code, w.Body.String())
-	}
-	if _, err := s.core.ValidateCookieCredential(ctx, oldSessionID); err != nil {
-		t.Fatalf("stable cookie credential was revoked after failed renewal: %v", err)
+	if !renewed.GetExpiresAt().AsTime().Equal(created.GetExpiresAt().AsTime()) {
+		t.Fatalf("validated expiry = %v, want unchanged %v", renewed.GetExpiresAt(), created.GetExpiresAt())
 	}
 }
 
@@ -1306,7 +1249,7 @@ func TestOAuthToken_CORS(t *testing.T) {
 	}
 }
 
-func TestCookieSessionAuthenticationClearsStaleGeneration(t *testing.T) {
+func TestCookieSessionAuthenticationRejectsStaleGenerationWithoutMutatingCookie(t *testing.T) {
 	s := setupOAuthServer(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	t.Cleanup(cancel)
@@ -1341,8 +1284,8 @@ func TestCookieSessionAuthenticationClearsStaleGeneration(t *testing.T) {
 		}
 
 		sessionID, ok := cookieCredentialIDFromSession(session)
-		if ok || sessionID != "" {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "session auth was not cleared"})
+		if !ok || sessionID != oldSessionID {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "validation mutated stale browser state"})
 			return
 		}
 		c.Status(http.StatusNoContent)
@@ -1373,8 +1316,8 @@ func TestCookiePresentedCredentialRejectsRetiredSignedSessionFields(t *testing.T
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields authenticated"})
 			return
 		}
-		if session.Get(retiredSessionKeyUserID) != nil || session.Get(retiredSessionKeyCredentialID) != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "retired signed-session fields were not cleared"})
+		if session.Get(retiredSessionKeyUserID) == nil || session.Get(retiredSessionKeyCredentialID) == nil {
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "validation mutated retired signed-session fields"})
 			return
 		}
 		c.Status(http.StatusNoContent)

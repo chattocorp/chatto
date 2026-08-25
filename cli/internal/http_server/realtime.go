@@ -23,14 +23,15 @@ import (
 )
 
 const (
-	realtimePath                = "/api/realtime"
-	realtimeProtocolVersion     = 2
-	realtimeReadLimitBytes      = 64 << 10
-	realtimeReadBufferBytes     = 256
-	realtimeWriteBufferBytes    = 512
-	realtimeCompressionMinBytes = 1024
-	realtimeHandshakeTimeout    = 10 * time.Second
-	realtimeWriteTimeout        = 10 * time.Second
+	realtimePath                    = "/api/realtime"
+	realtimeProtocolVersion         = 2
+	realtimeReadLimitBytes          = 64 << 10
+	realtimeReadBufferBytes         = 256
+	realtimeWriteBufferBytes        = 512
+	realtimeCompressionMinBytes     = 1024
+	realtimeHandshakeTimeout        = 10 * time.Second
+	realtimeWriteTimeout            = 10 * time.Second
+	realtimeCredentialCheckInterval = time.Minute
 	// Bound compacted reset construction as well as the long-lived per-socket
 	// projection. Each retained room can carry up to 50 decrypted timeline rows.
 	realtimeMaxRetainedRooms         = 64
@@ -220,6 +221,45 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 	}
 
+	if credentialOK && (credential.Kind == authctx.RuntimeCredentialKindCookieSession || credential.Kind == authctx.RuntimeCredentialKindBearerToken) {
+		credentialCheckDone := make(chan struct{})
+		credentialCheckEvery := realtimeCredentialCheckInterval
+		if s.realtimeCredentialCheckEvery > 0 {
+			credentialCheckEvery = s.realtimeCredentialCheckEvery
+		}
+		go func() {
+			defer close(credentialCheckDone)
+			ticker := time.NewTicker(credentialCheckEvery)
+			defer ticker.Stop()
+			for {
+				select {
+				case <-ticker.C:
+					err := s.revalidateRealtimeCredential(ctx)
+					if !errors.Is(err, core.ErrNotAuthenticated) {
+						// Transient storage failures do not log out a valid user. The
+						// next interval retries the independent validation.
+						continue
+					}
+					terminateRealtimeForCredentialRevocation(cancel, writeFrame, func() {
+						_ = conn.WriteControl(
+							websocket.CloseMessage,
+							websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
+							time.Now().Add(time.Second),
+						)
+						_ = conn.Close()
+					})
+					return
+				case <-ctx.Done():
+					return
+				}
+			}
+		}()
+		defer func() {
+			cancel()
+			<-credentialCheckDone
+		}()
+	}
+
 	var oauthClientAccessDenied <-chan struct{}
 	stopOAuthClientAccessWatch := func() {}
 	if credential, ok := authctx.CredentialForContext(ctx); ok && credential.OAuthClientID != "" {
@@ -300,6 +340,16 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 	if subscribeEvents == nil {
 		writeError("bad_subscribe", "second frame must be subscribe_events", true)
 		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseProtocolError, "bad subscribe"), time.Now().Add(time.Second))
+		return
+	}
+	if err := s.revalidateRealtimeCredential(ctx); err != nil {
+		if errors.Is(err, core.ErrNotAuthenticated) {
+			writeError("authentication_required", "authentication required", true)
+			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
+			return
+		}
+		writeError("temporarily_unavailable", "authentication service temporarily unavailable", true)
+		_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.CloseTryAgainLater, "temporarily unavailable"), time.Now().Add(time.Second))
 		return
 	}
 	if err := conn.SetReadDeadline(time.Time{}); err != nil {
@@ -625,9 +675,26 @@ func terminateRealtimeForBearerExpiry(
 	closeConnection()
 }
 
+func terminateRealtimeForCredentialRevocation(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "authentication_required",
+			Message:   "the session is no longer valid",
+			Reconnect: false,
+		},
+	}})
+	closeConnection()
+}
+
 // terminateRealtimeForCookieRenewal reconnects a cookie-authenticated browser
-// before the credential expires. The replacement upgrade renews the stable KV
-// record with OCC and refreshes the browser cookie without user interaction.
+// before the credential expires. The bundled client first calls the explicit
+// HTTP renewal endpoint, then opens a replacement socket with the same stable
+// handle and a renewed cookie lifetime.
 func terminateRealtimeForCookieRenewal(
 	cancel context.CancelFunc,
 	writeFrame func(*realtimev1.RealtimeServerFrame) error,
@@ -750,6 +817,41 @@ func (s *HTTPServer) realtimeAuthenticatedUser(ctx context.Context, hello *realt
 		return ctx, nil, err
 	}
 	return ctx, nil, core.ErrNotAuthenticated
+}
+
+// revalidateRealtimeCredential checks the exact runtime credential that
+// authorized the socket. It closes the upgrade-to-subscribe gap and bounds
+// access when a live revocation signal is lost.
+func (s *HTTPServer) revalidateRealtimeCredential(ctx context.Context) error {
+	credential, ok := authctx.CredentialForContext(ctx)
+	if !ok {
+		return core.ErrNotAuthenticated
+	}
+	switch credential.Kind {
+	case authctx.RuntimeCredentialKindCookieSession:
+		record, err := s.core.ValidateCookieCredential(ctx, credential.Handle)
+		if err != nil {
+			if errors.Is(err, core.ErrCookieSessionNotFound) {
+				return core.ErrNotAuthenticated
+			}
+			return err
+		}
+		if record.GetUserId() != credential.UserID {
+			return core.ErrNotAuthenticated
+		}
+	case authctx.RuntimeCredentialKindBearerToken:
+		validated, err := s.core.ValidatePresentedRuntimeCredential(ctx, credential.Handle, core.AuthTokenPresentationBearer)
+		if err != nil {
+			if errors.Is(err, core.ErrAuthTokenNotFound) {
+				return core.ErrNotAuthenticated
+			}
+			return err
+		}
+		if validated.UserID != credential.UserID {
+			return core.ErrNotAuthenticated
+		}
+	}
+	return nil
 }
 
 func (s *HTTPServer) realtimeServerFrameForEvent(ctx context.Context, viewerID string, event core.EventEnvelope) (*realtimev1.RealtimeServerFrame, error) {

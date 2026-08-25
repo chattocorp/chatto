@@ -6,13 +6,15 @@ const {
   clearOriginAuthenticationMock,
   handleAuthenticationRequiredMock,
   clearAuthenticationRequiredMock,
-  authenticateOriginCookieMock
+  authenticateOriginCookieMock,
+  revokeLegacyOriginBearerSessionMock
 } = vi.hoisted(() => ({
   getCurrentUserViaConnectMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
   handleAuthenticationRequiredMock: vi.fn(),
   clearAuthenticationRequiredMock: vi.fn(),
-  authenticateOriginCookieMock: vi.fn()
+  authenticateOriginCookieMock: vi.fn(),
+  revokeLegacyOriginBearerSessionMock: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({
@@ -43,6 +45,10 @@ vi.mock('$lib/state/server/registry.svelte', () => ({
   }
 }));
 
+vi.mock('./originBearerMigration', () => ({
+  revokeLegacyOriginBearerSession: revokeLegacyOriginBearerSessionMock
+}));
+
 const user = {
   id: 'U1',
   login: 'alice',
@@ -61,6 +67,7 @@ async function loadModule() {
 describe('loadCurrentUser', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    revokeLegacyOriginBearerSessionMock.mockResolvedValue(undefined);
   });
 
   it('refreshes from the server on each call', async () => {
@@ -90,9 +97,23 @@ describe('loadCurrentUser', () => {
       expect.objectContaining({ bearerToken: null })
     );
     expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
   });
 
-  it('never retries an unauthenticated cookie request with a stored origin bearer', async () => {
+  it('keeps legacy bearer state when server-side revocation fails', async () => {
+    getCurrentUserViaConnectMock.mockResolvedValueOnce(user).mockResolvedValueOnce(user);
+    revokeLegacyOriginBearerSessionMock
+      .mockRejectedValueOnce(new Error('unavailable'))
+      .mockResolvedValueOnce(undefined);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledTimes(2);
+    expect(authenticateOriginCookieMock).toHaveBeenCalledOnce();
+    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+  });
+
+  it('revokes a stored origin bearer instead of using it after cookie authentication fails', async () => {
     getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
     const { loadCurrentUser } = await loadModule();
 
@@ -102,7 +123,18 @@ describe('loadCurrentUser', () => {
       baseUrl: '/api/connect',
       bearerToken: null
     });
+    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
     expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+  });
+
+  it('keeps stored bearer authority when revocation after a failed cookie probe is unavailable', async () => {
+    getCurrentUserViaConnectMock.mockRejectedValueOnce({ message: 'authentication required' });
+    revokeLegacyOriginBearerSessionMock.mockRejectedValueOnce(new Error('unavailable'));
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toBeNull();
+    expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
   });
 
   it('keeps the cached user when a later refresh errors', async () => {

@@ -11,7 +11,6 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/gin-contrib/sessions"
 	"github.com/gin-gonic/gin"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
@@ -37,9 +36,9 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 			}
 		}
 
-		session := sessions.Default(c)
 		if isSafeHTTPMethod(c.Request.Method) &&
-			hasCookieCredential(session) &&
+			s.hasCookieCredential(c) &&
+			c.Request.URL.Path != serverDiscoveryConnectPath &&
 			!isImmutableFrontendAsset(c.Request.URL.Path) {
 			if err := s.ensureCSRFToken(c); err != nil {
 				if errors.Is(err, errAuthenticationServiceUnavailable) {
@@ -64,6 +63,25 @@ func (s *HTTPServer) ensureCSRFToken(c *gin.Context) error {
 		return nil
 	}
 	if existingToken, err := c.Cookie(csrfCookieName); err == nil && s.validSignedCSRFToken(existingToken, binding) {
+		return nil
+	}
+	token, err := s.generateCSRFToken(binding)
+	if err != nil {
+		return err
+	}
+	s.setCSRFCookie(c, token)
+	return nil
+}
+
+func (s *HTTPServer) refreshCSRFToken(c *gin.Context) error {
+	binding, ok, err := s.csrfBinding(c)
+	if err != nil {
+		return errAuthenticationServiceUnavailable
+	}
+	if !ok {
+		return nil
+	}
+	if existingToken, err := c.Cookie(csrfCookieName); err == nil && s.validSignedCSRFToken(existingToken, binding) {
 		s.setCSRFCookie(c, existingToken)
 		return nil
 	}
@@ -79,7 +97,7 @@ func (s *HTTPServer) requiresCSRF(c *gin.Context) bool {
 	if isSafeHTTPMethod(c.Request.Method) {
 		return false
 	}
-	if !hasCookieCredential(sessions.Default(c)) {
+	if !s.hasCookieCredential(c) {
 		return false
 	}
 	return !isCSRFExemptUnsafePath(c.Request.URL.Path)
@@ -96,9 +114,12 @@ func isCSRFExemptUnsafePath(path string) bool {
 	}
 	switch path {
 	case "/auth/login",
+		"/auth/browser/login",
+		"/auth/browser/revoke-bearer-session",
 		"/auth/register",
 		"/auth/register/verify-code",
 		"/auth/register/complete",
+		"/auth/browser/register/complete",
 		"/auth/forgot-password",
 		"/auth/reset-password",
 		"/oauth/token":
@@ -142,8 +163,8 @@ func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool, error) {
 	return csrfBindingForSession(credential.auth.UserID, credential.cookieRecord), true, nil
 }
 
-func hasCookieCredential(session sessions.Session) bool {
-	_, ok := cookieCredentialIDFromSession(session)
+func (s *HTTPServer) hasCookieCredential(c *gin.Context) bool {
+	_, ok := s.browserSessionID(c)
 	return ok
 }
 

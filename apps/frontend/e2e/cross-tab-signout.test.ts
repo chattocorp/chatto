@@ -55,7 +55,7 @@ test.describe('Cross-Tab Sign-Out', () => {
 
     // Get the session cookie from tab 1
     const cookies = await authPage.page.context().cookies();
-    const sessionCookie = cookies.find((c) => c.name === 'chatto_session');
+    const sessionCookie = cookies.find((c) => c.name === 'chatto_auth');
     expect(sessionCookie).toBeDefined();
 
     // Create a second browser context with the same session cookie

@@ -203,7 +203,7 @@
     error = '';
     isLoading = true;
     try {
-      const response = await fetch('/auth/register/complete', {
+      const response = await fetch('/auth/browser/register/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

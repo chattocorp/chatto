@@ -77,6 +77,7 @@ class FakeServerConnection {
   client = {};
   statusUpdates: ConnectionStatus[] = [];
   authRequiredCalls = 0;
+  browserRenewalCalls = 0;
   authRenewed = false;
   #reconnect: ((reason: string) => void) | null = null;
   #wasDisconnected = false;
@@ -111,6 +112,11 @@ class FakeServerConnection {
     this.authRequiredCalls++;
     if (this.authRenewed) this.bearerToken = 'token-2';
     return this.authRenewed;
+  }
+
+  async renewBrowserSession(): Promise<boolean> {
+    this.browserRenewalCalls++;
+    return true;
   }
 }
 
@@ -826,6 +832,7 @@ describe('eventBusManager realtime transport', () => {
     await vi.advanceTimersByTimeAsync(0);
 
     expect(fake.authRequiredCalls).toBe(0);
+    expect(fake.browserRenewalCalls).toBe(1);
     expect(sockets).toHaveLength(2);
   });
 

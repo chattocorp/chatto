@@ -1,4 +1,5 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
+import { csrfFetch } from '$lib/auth/csrf';
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
 
@@ -60,6 +61,7 @@ export class ServerConnection {
   #token: string | null;
   #accessTokenExpiresAt: number | null;
   #renewalTimer: ReturnType<typeof setTimeout> | null = null;
+  #browserRenewal: Promise<boolean> | null = null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
   #apis = new WeakMap<object, unknown>();
@@ -199,6 +201,35 @@ export class ServerConnection {
       serverRegistry.handleAuthenticationRequired(this.#serverId);
     }
     return false;
+  }
+
+  /** Renew the origin's stable HttpOnly cookie before its current window ends. */
+  renewBrowserSession(): Promise<boolean> {
+    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+      return Promise.resolve(false);
+    }
+    if (this.#browserRenewal) return this.#browserRenewal;
+
+    const renew = async () => {
+      const response = await csrfFetch('/auth/browser/session/renew', { method: 'POST' });
+      if (response.status === 401) {
+        serverRegistry.handleAuthenticationRequired(this.#serverId!);
+        return false;
+      }
+      if (!response.ok) {
+        throw new Error(`Browser session renewal failed (${response.status})`);
+      }
+      return true;
+    };
+    const operation =
+      typeof navigator !== 'undefined' && navigator.locks
+        ? navigator.locks.request('chatto:origin-session-renewal', renew)
+        : renew();
+    const renewal = operation.finally(() => {
+      if (this.#browserRenewal === renewal) this.#browserRenewal = null;
+    });
+    this.#browserRenewal = renewal;
+    return renewal;
   }
 
   /** Adopt a rotated token without replacing the connection or query scope. */

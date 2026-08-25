@@ -1,6 +1,5 @@
 <script lang="ts">
   import { resolve } from '$app/paths';
-  import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
   import { completeOriginAuthentication } from '$lib/auth/originAuthentication';
   import { startRemoteReauthentication } from '$lib/auth/reauth';
   import { navigateAfterAuthentication } from '$lib/auth/returnNavigation';
@@ -118,12 +117,9 @@
     isLoading = true;
 
     try {
-      const response = await fetch('/auth/login', {
+      const response = await fetch('/auth/browser/login', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          ...browserCookieAuthenticationHeaders
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ identifier, password }),
         credentials: 'include'
       });

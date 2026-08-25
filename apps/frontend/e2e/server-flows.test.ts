@@ -65,7 +65,7 @@ test.describe('Landing Page', () => {
   }) => {
     await createAndLoginTestUser(page);
     const sessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_session'
+      (cookie) => cookie.name === 'chatto_auth'
     );
     expect(sessionCookie).toBeDefined();
 
@@ -84,9 +84,7 @@ test.describe('Landing Page', () => {
         expect(viewer.user?.profile?.id).toBeTruthy();
 
         await freshPage.goto(routes.settings);
-        await expect(
-          freshPage.getByRole('heading', { name: 'Profile', level: 1 })
-        ).toBeVisible();
+        await expect(freshPage.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
         await expect(freshPage).not.toHaveURL(routes.login);
       },
       { baseURL: serverURL }
@@ -321,9 +319,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
 
     // Fill in credentials on the remote's login page
     await remoteLoginPage.locator('input[autocomplete="username"]').fill('remoteuser');
-    await remoteLoginPage
-      .locator('input[autocomplete="current-password"]')
-      .fill('password123');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('password123');
     await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
     await expect(remoteLoginPage).toHaveURL(/\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
@@ -365,9 +361,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     });
 
     await remoteLoginPage.locator('input[autocomplete="username"]').fill('remoteonlyuser');
-    await remoteLoginPage
-      .locator('input[autocomplete="current-password"]')
-      .fill('password123');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('password123');
     await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
     await expect(remoteLoginPage).toHaveURL(/\/oauth\/consent/, {
       timeout: TIMEOUTS.REALTIME_EVENT
@@ -418,9 +412,7 @@ test.describe('Add Server - Remote Auth Flow', () => {
     });
 
     await remoteLoginPage.locator('input[autocomplete="username"]').fill('wronguser');
-    await remoteLoginPage
-      .locator('input[autocomplete="current-password"]')
-      .fill('wrongpassword');
+    await remoteLoginPage.locator('input[autocomplete="current-password"]').fill('wrongpassword');
     await remoteLoginPage.getByRole('button', { name: 'Sign In' }).click();
 
     // Should show an auth error on the remote's login page

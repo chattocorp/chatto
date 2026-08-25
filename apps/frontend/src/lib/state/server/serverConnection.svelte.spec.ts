@@ -1,21 +1,27 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-const { mockHandleAuthenticationRequired, mockRenewServerAuthentication, mockServers } = vi.hoisted(
-  () => ({
-    mockHandleAuthenticationRequired: vi.fn(),
-    mockRenewServerAuthentication: vi.fn(),
-    mockServers: new Map<
-      string,
-      {
-        id: string;
-        url: string;
-        token: string | null;
-        accessTokenExpiresAt?: number | null;
-        refreshTokenExpiresAt?: number | null;
-      }
-    >()
-  })
-);
+const {
+  mockCsrfFetch,
+  mockHandleAuthenticationRequired,
+  mockRenewServerAuthentication,
+  mockServers
+} = vi.hoisted(() => ({
+  mockCsrfFetch: vi.fn(),
+  mockHandleAuthenticationRequired: vi.fn(),
+  mockRenewServerAuthentication: vi.fn(),
+  mockServers: new Map<
+    string,
+    {
+      id: string;
+      url: string;
+      token: string | null;
+      accessTokenExpiresAt?: number | null;
+      refreshTokenExpiresAt?: number | null;
+    }
+  >()
+}));
+
+vi.mock('$lib/auth/csrf', () => ({ csrfFetch: mockCsrfFetch }));
 
 vi.mock('./registry.svelte', () => ({
   serverRegistry: {
@@ -65,6 +71,7 @@ describe('ServerConnection', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockServers.clear();
+    mockCsrfFetch.mockResolvedValue(new Response(null, { status: 200 }));
     mockRenewServerAuthentication.mockImplementation(async (id: string) => {
       mockHandleAuthenticationRequired(id);
       return null;
@@ -268,6 +275,44 @@ describe('ServerConnection', () => {
 
     expect(mockRenewServerAuthentication).toHaveBeenCalledWith('remote-1', true);
     expect(mockHandleAuthenticationRequired).toHaveBeenCalledWith('remote-1');
+    client.dispose();
+  });
+
+  it('renews an origin cookie through the dedicated browser endpoint', async () => {
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    await expect(client.renewBrowserSession()).resolves.toBe(true);
+
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+    expect(mockCsrfFetch).toHaveBeenCalledWith('/auth/browser/session/renew', { method: 'POST' });
+    client.dispose();
+  });
+
+  it('coalesces concurrent origin-cookie renewal requests', async () => {
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    let finishRenewal!: (response: Response) => void;
+    mockCsrfFetch.mockReturnValue(
+      new Promise<Response>((resolve) => {
+        finishRenewal = resolve;
+      })
+    );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    const first = client.renewBrowserSession();
+    const second = client.renewBrowserSession();
+    finishRenewal(new Response(null, { status: 200 }));
+
+    await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
     client.dispose();
   });
 

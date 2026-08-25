@@ -444,27 +444,12 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
 	})
 
-	// renewSessionIfAuthenticated validates the stable cookie-session record,
-	// renews its expiry with KV OCC when needed, and refreshes the signed browser
-	// cookie. Public immutable assets skip authentication so their responses can
-	// never carry user-specific cookies.
-	renewSessionIfAuthenticated := func(c *gin.Context) {
-		credential, ok, _ := s.cookiePresentedCredential(c)
-		if ok {
-			s.renewCookieSessionIfNeeded(c, credential.auth.Handle, credential.cookieRecord)
-		}
-	}
-
 	// Custom static file handler with precompressed file support
 	serveStatic := func(c *gin.Context, filePath string) {
 		// Clean the path and prevent directory traversal
 		filePath = path.Clean("/" + filePath)[1:]
 		if filePath == "" {
 			filePath = "200.html"
-		}
-
-		if !isImmutableFrontendAsset(c.Request.URL.Path) {
-			renewSessionIfAuthenticated(c)
 		}
 
 		// Release builds may retain only compressed representations.

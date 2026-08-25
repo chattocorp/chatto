@@ -6,11 +6,7 @@
  */
 
 import { SvelteMap, SvelteSet } from 'svelte/reactivity';
-import type {
-  EventHandler,
-  ProjectionHandler,
-  EventBus
-} from '$lib/eventBus.svelte';
+import type { EventHandler, ProjectionHandler, EventBus } from '$lib/eventBus.svelte';
 import { transientEventKind, type TransientEventEnvelope } from '$lib/realtimeEvents';
 import { realtimeEventToEventEnvelope } from '$lib/realtimeEventMapper';
 import {
@@ -240,10 +236,13 @@ class EventBusManager {
       if (pendingHydrationRoomId === roomId) pendingHydrationRoomId = null;
       requestedRoomIds.delete(roomId);
       clearHydrationRetryTimer();
-      hydrationRetryTimer = setTimeout(() => {
-        hydrationRetryTimer = null;
-        sendNextRoomHydration();
-      }, Math.max(1, retryAfterMs ?? HYDRATION_RETRY_FALLBACK_MS));
+      hydrationRetryTimer = setTimeout(
+        () => {
+          hydrationRetryTimer = null;
+          sendNextRoomHydration();
+        },
+        Math.max(1, retryAfterMs ?? HYDRATION_RETRY_FALLBACK_MS)
+      );
     };
 
     const resolvePoll = (caughtUp: boolean) => {
@@ -308,11 +307,39 @@ class EventBusManager {
       } catch (error) {
         console.warn(`[eventBus:${serverId}] bearer renewal temporarily failed`, error);
         if (stopped) return;
-        if (mode === 'live') scheduleReconnect('bearer renewal temporarily failed', RECONNECT_WAIT_MS);
+        if (mode === 'live')
+          scheduleReconnect('bearer renewal temporarily failed', RECONNECT_WAIT_MS);
         else {
           mode = 'dormant';
           resolvePoll(false);
         }
+      }
+    };
+
+    const renewBrowserSession = async (current: RealtimeSocket) => {
+      current.onclose = null;
+      if (socket === current) socket = null;
+      socketSubscribed = false;
+      pendingHydrationRoomId = null;
+      clearHydrationRetryTimer();
+      sync.markStale();
+      serverConnection.setRealtimeConnectionStatus('disconnected', reconnectAttempts);
+      current.close(1000, 'session_renewal_required');
+      try {
+        const renewed = await serverConnection.renewBrowserSession();
+        if (stopped) return;
+        if (!renewed) {
+          mode = 'dormant';
+          resolvePoll(false);
+          return;
+        }
+        reconnectAttempts = 0;
+        if (mode === 'live') scheduleReconnect('browser session renewed', 0);
+        else if (mode === 'polling') connect('browser session renewed');
+      } catch (error) {
+        console.warn(`[eventBus:${serverId}] browser session renewal failed`, error);
+        if (mode === 'live') scheduleReconnect('browser session renewal retry', RECONNECT_WAIT_MS);
+        else resolvePoll(false);
       }
     };
 
@@ -491,6 +518,10 @@ class EventBusManager {
             case 'close':
               if (frame.frame.value.code === 'authentication_required') {
                 void recoverFromAuthenticationRequired(nextSocket, 'close frame');
+                return;
+              }
+              if (frame.frame.value.code === 'session_renewal_required') {
+                void renewBrowserSession(nextSocket);
                 return;
               }
               nextSocket.onclose = null;
