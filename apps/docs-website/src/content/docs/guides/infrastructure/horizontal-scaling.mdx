@@ -171,8 +171,8 @@ The [Docker Compose deployment guide](/guides/deployment/docker-compose/) includ
 | Setting | Must match across server processes? | Notes |
 |---------|-------------------------------------|-------|
 | NATS client URL & credentials | Yes | All connect to the same external NATS deployment |
-| `cookie_signing_secret` | Yes | Cookie validation |
-| `cookie_encryption_secret` | Yes, when configured | Cookie confidentiality |
+| `cookie_signing_secret` | Yes | Browser-flow cookie validation and CSRF proofs |
+| `cookie_encryption_secret` | Yes, when configured | Browser-flow cookie confidentiality |
 | `core.secret_key` | Yes | Runtime credential, OAuth-code, account-flow, and invite-link verifier keys |
 | `core.assets.signing_secret` | Yes | Asset URL signing |
 | `webserver.url` | Yes | Public URL for absolute links |

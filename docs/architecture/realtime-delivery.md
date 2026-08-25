@@ -47,10 +47,18 @@ Cookie connections retain the cookie record expiry accepted during the HTTP
 upgrade. Their timer ends at the start of the final renewal quarter. The
 handler cancels authorized work, sends a reconnecting
 `session_renewal_required` close when possible, and closes the socket. The
-replacement upgrade advances the same cookie-session record with KV OCC and
-returns the refreshed signed cookie in the `101` response. The frontend keeps
-its route, projection, opaque cursor, and retained-room set during this
-automatic reconnect. Bot API keys have no expiry timer.
+frontend calls the CSRF-protected browser renewal route. That route advances
+the same cookie-session record with KV OCC and writes the same SCS handle with
+the new lifetime. The frontend then opens the replacement socket. The upgrade
+does not update the record or set a cookie. The frontend keeps its route,
+projection, opaque cursor, and retained-room set during this automatic
+reconnect. Bot API keys have no expiry timer.
+
+After the hello, the server revalidates the exact human credential before it
+starts the subscription. It repeats that check once per minute. A definitive
+revocation closes the socket even if a process-local termination signal was
+lost. A temporary storage error leaves the connection open until the next
+check.
 
 Bot API-key connections similarly retain only the non-secret HMAC verifier
 generation accepted during the hello. Each connection registers atomically

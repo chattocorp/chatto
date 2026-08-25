@@ -2,6 +2,8 @@
 
 Key files: [`cli/internal/connectapi/api.go`](../../cli/internal/connectapi/api.go),
 [`cli/internal/http_server/connect.go`](../../cli/internal/http_server/connect.go),
+[`cli/internal/http_server/auth.go`](../../cli/internal/http_server/auth.go),
+[`cli/internal/http_server/browser_session_store.go`](../../cli/internal/http_server/browser_session_store.go),
 [`cli/internal/http_server/cimd.go`](../../cli/internal/http_server/cimd.go),
 [`cli/internal/http_server/oauth.go`](../../cli/internal/http_server/oauth.go),
 [`cli/internal/http_server/oidc.go`](../../cli/internal/http_server/oidc.go),
@@ -27,7 +29,8 @@ Related decisions: [ADR-044](../adr/ADR-044-connectrpc-service-conventions.md),
 | Surface | Mount | Contract | Access boundary |
 | ------- | ----- | -------- | --------------- |
 | Public ConnectRPC | `/api/connect/chatto.{auth,discovery,api,admin}.v1.*` | Unary Connect, gRPC, and gRPC-Web services | Explicit per-service public or authenticated-user policy; method-level authorization remains inside operation models |
-| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer access token in the hello frame or same-origin cookie; per-event authorization in `StreamMyEvents`; bearer expiry and cookie renewal thresholds request reconnects, while OAuth-client blocks terminate matching established sessions |
+| Browser authentication | `POST /auth/browser/login`, `POST /auth/browser/register/complete`, `POST /auth/browser/session/renew`, `POST /auth/browser/revoke-bearer-session` | Cookie-only password/registration authentication, stable-handle session renewal, and release migration from stored origin bearer authority | Login and registration are public credential checks; renewal requires the same-origin HttpOnly cookie and signed double-submit CSRF proof; migration proves the bearer capability and also requires CSRF when a cookie is present |
+| Realtime WebSocket | `GET /api/realtime` | Binary `chatto.realtime.v1.Realtime*` frames | Bearer access token in the hello frame or same-origin cookie; exact human credentials are revalidated before subscription and once per minute; bearer expiry and cookie renewal thresholds request reconnects, while OAuth-client blocks terminate matching established sessions |
 | Server OIDC client metadata | `GET /oauth/client-metadata.json` | CIMD public-client identity and exact callbacks for Chatto server login | Public; mounted only when an OIDC provider uses this deployment's metadata URL as its client ID |
 | Frontend OAuth client metadata | `GET /oauth/frontend-client-metadata.json` | CIMD public-client identity and exact popup callback for connecting the bundled frontend to Chatto servers | Public; always mounted |
 | Chatto client authorization | `GET /oauth/authorize`, `POST /oauth/token` | Authorization Code with S256 PKCE plus rotating refresh grant for a client application connecting to a Chatto server; browser clients use a CIMD URL `client_id`, Desktop uses its built-in identity, and an optional `provider_id` hint can start one server-configured login provider | Public authorization start and CORS token/refresh exchange; the validated client identity and exact callback are bound through code exchange, refresh remains client-bound, and provider hints cannot supply an issuer or endpoint |

@@ -2,7 +2,7 @@
 
 **Date:** 2026-03-01
 
-**Updated:** 2026-08-21
+**Updated:** 2026-08-25
 
 ## Context
 
@@ -17,17 +17,25 @@ Authentication approaches for WebSocket:
 
 Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
 
-ADR-046 moved cookie sessions onto typed runtime credentials. Signed browser
-sessions store only an opaque runtime credential handle; the user ID is loaded
-from the `session.{hmac}` runtime credential record. Signed sessions without
-that typed handle are not authentication inputs.
+ADR-046 moved cookie sessions onto typed runtime credentials. The SCS-managed
+`chatto_auth` cookie stores only an opaque runtime credential handle; the user
+ID is loaded from the `session.{hmac}` runtime credential record. The separate
+encrypted `chatto_session` cookie holds only short-lived browser-flow state.
 
-The realtime WebSocket handler reads the authenticated user from request context and creates connection-scoped state without inheriting request-local caches. The connection acknowledgement includes the server version for frontend upgrade detection.
+The realtime WebSocket handler reads the authenticated user from request
+context and creates connection-scoped state without inheriting request-local
+caches. It revalidates the exact human credential before subscription and once
+per minute. A cookie connection ends at the start of its final renewal quarter.
+The bundled frontend calls the explicit HTTP renewal route and reconnects the
+same event bus. The WebSocket upgrade does not update the session or set a
+cookie. The connection acknowledgement includes the server version for
+frontend upgrade detection.
 
 ## Consequences
 
-- **Zero client-side token management**: The browser handles cookie storage, expiry, and attachment to requests automatically. No token refresh logic in the frontend.
+- **No readable origin credential**: The browser stores and attaches the HttpOnly cookie. The frontend only reacts to a renewal signal and cannot read the credential value.
 - **WebSocket auth is implicit for same-origin cookie clients**: The user is authenticated before the WS protocol even starts. Bearer-token clients use the realtime protocol's token path.
 - **Non-browser clients use bearer tokens**: CLI tools, bots, multi-instance frontends, and future mobile apps can use opaque bearer tokens instead of cookies. Cookie sessions remain the same-origin browser path.
-- **Session refresh on static file requests**: The cookie TTL is refreshed when the server serves static frontend files (`refreshSessionIfAuthenticated`), preventing cookie expiry during passive browsing sessions.
+- **Explicit automatic renewal**: Ordinary HTTP and WebSocket requests are read-only. At the renewal threshold, the frontend calls the CSRF-protected renewal route and reconnects without user action.
+- **Bounded revocation checks**: Established cookie and bearer sockets revalidate their exact credential once per minute, so a lost process-local termination signal cannot preserve access for the full session window.
 - **Server version in the connection acknowledgement**: The frontend uses this to detect when the server has been upgraded and prompt users to refresh. This is a lightweight deployment coordination mechanism.

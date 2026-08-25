@@ -2,6 +2,8 @@
 
 **Date:** 2026-03-20
 
+**Updated:** 2026-08-25
+
 ## Status
 
 Partially superseded by [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md),
@@ -26,9 +28,11 @@ The frontend is server-agnostic by default. It doesn't assume it is served by a 
 1. **Probe-based origin detection**: On init, call `chatto.discovery.v1.ServerDiscoveryService.GetServer` on the current origin. If it responds, auto-register the origin as a server. If it fails (static hosting), skip.
 2. **No `isHome` flag**: The origin server is identified by comparing `server.url` to `window.location.origin` at runtime — no stored flag.
 3. **Cookie-only origin auth**: The client uses the HttpOnly cookie for the
-   server that serves the SPA. It does not store or present bearer credentials
-   returned by direct authentication for that server. Remote servers use
-   persisted renewable bearer sessions obtained through Chatto OAuth.
+   server that serves the SPA. Dedicated browser authentication does not issue
+   bearer credentials for that server. During migration, the client revokes
+   old origin bearer authority before it removes the local credentials. Remote
+   servers use persisted renewable bearer sessions obtained through Chatto
+   OAuth.
 
 Bearer tokens are only handed to API clients that need to authenticate
 ConnectRPC, realtime WebSocket, or direct HTTP API traffic. Browser media

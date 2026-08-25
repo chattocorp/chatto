@@ -32,7 +32,7 @@ Discovery is also the right place for custom clients to learn public server iden
 
 | Client shape | Credential |
 | ------------ | ---------- |
-| Same-origin browser app | HttpOnly cookie session. The bundled client does not store or present the bearer credentials returned by direct authentication. |
+| Same-origin browser app | HttpOnly cookie session. Dedicated bundled-browser authentication does not create or return bearer credentials. |
 | Cross-origin Chatto frontend | OAuth authorization code with PKCE, then a renewable opaque bearer session. |
 | Bot integration | Bot API key created in Server Admin → Bots. |
 | User-authorized client | OAuth authorization code with PKCE, then a renewable opaque bearer session. |

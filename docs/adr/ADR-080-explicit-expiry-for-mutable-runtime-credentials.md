@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-24
 
+**Updated:** 2026-08-25
+
 **Status:** Accepted
 
 **Partially supersedes:** [ADR-036](ADR-036-runtime-state-kv-boundary.md) and
@@ -59,27 +61,40 @@ change the same record, one publish succeeds and the other reloads the current
 revision or returns a conflict according to the operation. No process-local
 lock is required.
 
-A cookie session has one stable opaque handle. In the final quarter of the
-current window, the core advances `ExpiresAt` on the same record and publishes
-the revision with the remaining TTL. The expected KV revision serializes
-concurrent renewal across replicas. Logout deletes the stable key without a
-revision condition. This delete fences a renewal that races logout: either the
-renewal publishes first and logout deletes it, or the delete makes the renewal
-fail its expected-revision check.
+A cookie session has one opaque handle. SCS manages the `chatto_auth` cookie
+through a Chatto store adapter for JetStream. The cookie is HttpOnly,
+SameSite=Lax, host-only, and persistent. The adapter stores the exact KV
+revision that SCS loaded with the request and uses it for later changes.
+Renewal updates the handle in place. Each successful authentication uses the
+SCS token-renewal operation to replace the handle and prevent session fixation.
 
-After valid cookie authentication, the HTTP edge signs the same handle again
-with the record's remaining lifetime. This operation does not change the KV
-record outside the final-quarter renewal. It lets the next response repair a
-browser cookie when an earlier `Set-Cookie` response was lost. A response that
+Ordinary cookie validation does not change the KV record or write
+`Set-Cookie`. Only authentication, explicit renewal, logout, and one-time
+release migration can change browser authentication state. Every response that
 sets an authentication cookie uses `Cache-Control: private, no-store`.
-Content-hashed public frontend assets do not authenticate the cookie and do
-not set authentication or CSRF cookies.
+Discovery, ordinary API responses, frontend responses, immutable assets, and
+WebSocket upgrades do not set authentication cookies. The separate encrypted
+`chatto_session` cookie stores only short-lived browser-flow state.
+
+In the final quarter of the current window, the explicit browser renewal route
+advances `ExpiresAt` on the same record and publishes the revision with the
+remaining TTL. The route is CSRF-protected and returns the same opaque handle
+with the new browser lifetime. The expected KV revision serializes concurrent
+renewal across replicas. Logout deletes the stable key without a revision
+condition. This delete fences a renewal that races logout: either the renewal
+publishes first and logout deletes it, or the delete makes the renewal fail its
+expected-revision check.
 
 A cookie-authenticated realtime connection has a deadline at the start of the
 final quarter. At that deadline, the server cancels authorized work and asks
-the client to reconnect. The replacement WebSocket upgrade renews the stable
-record and includes the signed cookie in the `101` response. This renewal does
-not require user action.
+the client to renew. The bundled frontend calls the browser renewal route and
+then reconnects the same event bus. The WebSocket upgrade remains read-only.
+This renewal does not require user action.
+
+The server revalidates the exact cookie or bearer credential before it starts
+a realtime subscription and once per minute after that. A definitive
+revocation closes the socket. A temporary storage error waits for the next
+check instead of logging out the user.
 
 A bearer refresh updates its stable renewable-session record. An ordinary
 refresh keeps the current `ExpiresAt` value and publishes with the remaining
@@ -91,7 +106,8 @@ Immutable bearer access-token records use `KeyTTL` when Chatto creates them.
 Chatto does not update those records.
 
 The bundled frontend uses the secure HttpOnly cookie for its origin server. It
-refreshes remote renewable bearer sessions in the background. Neither path
+coalesces origin-cookie renewal and uses a Web Lock to coordinate browser tabs.
+It refreshes remote renewable bearer sessions in the background. Neither path
 requires a user to extend a session manually.
 
 ## Consequences
@@ -100,6 +116,8 @@ requires a user to extend a session manually.
 - One key stores each cookie session or renewable bearer authority.
 - Cookie renewal keeps the same opaque browser handle. Concurrent requests do
   not fork replacement handles, and logout fences concurrent renewal.
+- Ordinary responses cannot overwrite a newer login or renewed cookie because
+  they do not write authentication cookies.
 - JetStream removes the current mutable revision after its explicit lifetime.
 - There is no expiry-marker keyspace, watcher, scheduler, startup scan, or
   cross-replica cleanup orchestration.
@@ -114,6 +132,9 @@ requires a user to extend a session manually.
   quarter.
 - Public immutable frontend assets remain safe for shared caching because they
   do not carry authentication cookies.
+- SCS owns standard cookie-session lifecycle behavior. Chatto owns the small
+  JetStream adapter, typed authorization record, explicit expiry, and
+  cross-replica revision checks.
 
 ## Alternatives considered
 
@@ -130,6 +151,10 @@ requires a user to extend a session manually.
   cannot represent arbitrary configured lifetimes.
 - **Keep sliding validation writes:** This can keep a copied credential alive
   indefinitely and makes validation depend on a successful write.
+- **Implement the complete cookie lifecycle in Chatto:** This duplicates
+  established cookie and session-management behavior. SCS provides that
+  lifecycle and supports a custom store, so Chatto only needs the JetStream
+  adapter and its authorization rules.
 
 ## Related
 

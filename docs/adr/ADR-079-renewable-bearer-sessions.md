@@ -138,12 +138,14 @@ realtime sockets retain the same fixed-expiry bound described above.
 
 ### Client behavior
 
-Direct password, registration, and external-identity account-creation
-requests can explicitly select cookie-only browser authentication. In that
-mode, the server creates the HttpOnly cookie session and does not create or
-return a bearer or refresh credential. Calls that do not select cookie-only
-mode keep the bearer response for programmatic clients. This is an additive
-request mode; the existing response remains the default.
+Dedicated bundled-browser password and registration routes always select
+cookie-only authentication. External-identity account creation selects the
+same mode through its public ConnectRPC request. In that mode, the server
+creates the HttpOnly cookie session and does not create or return a bearer or
+refresh credential. Calls that do not select cookie-only mode keep the bearer
+response for programmatic clients. During a release upgrade, the bundled
+frontend validates the origin cookie, revokes any stored origin refresh or
+access authority on the server, and only then removes those local credentials.
 
 The bundled frontend persists the access token, refresh credential, both
 expiry instants, OAuth client ID when applicable, and any in-flight refresh
@@ -240,6 +242,14 @@ sign-in and coordinated-upgrade requirement.
 - **Accept the previous refresh token for a grace period without a request
   ID:** hides lost responses but also makes intentional replay
   indistinguishable from recovery and weakens reuse detection.
+- **Replace the protocol with a general OAuth server package:** packages such
+  as Fosite use transactional storage operations for authorization and token
+  sessions. Chatto's public refresh contract also requires deterministic
+  lost-response recovery, a client-persisted request ID, reuse detection, and
+  one JetStream revision boundary. Adapting that contract would reproduce the
+  current protocol inside the package's storage layer. Chatto therefore keeps
+  this narrow NATS-specific protocol and uses external packages where their
+  storage contracts map directly, such as SCS for cookie sessions.
 
 ## Related
 

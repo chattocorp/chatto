@@ -24,14 +24,17 @@ Login comparison runs bcrypt against a dummy hash for unknown users and OAuth-on
 ### Sessions and tokens
 
 Chatto issues **opaque credentials**, not JWTs. Same-origin cookie-session
-handles use typed `RUNTIME_STATE` `session.{hmac}` records with explicit fixed
-expiry. The browser handle rotates in the final quarter of its lifetime, while
-ordinary validation remains read-only. Each changed record revision keeps a
-per-message TTL equal to its remaining explicit lifetime.
+handles use typed `RUNTIME_STATE` `session.{hmac}` records with explicit
+expiry. In the final quarter, the bundled browser automatically extends the
+same stable handle through a dedicated route. Ordinary validation remains
+read-only. Each changed record revision keeps a per-message TTL equal to its
+remaining explicit lifetime.
 
-Human bearer authentication uses renewable sessions. Each login returns a
-short-lived access token (15 minutes by default), a rotating refresh
-credential, and a renewable session window (90 days by default). The
+Human bearer authentication uses renewable sessions. Programmatic direct
+login and remote OAuth return a short-lived access token (15 minutes by
+default), a rotating refresh credential, and a renewable session window (90
+days by default). The bundled same-origin browser uses only its HttpOnly
+cookie. The
 access verifier is a fixed-expiry `session.{hmac}` record; the stable
 `renewable_session.{hmac}` record holds the current rotation generation and is
 the revocation authority for every access generation. Ordinary KV revision
@@ -45,11 +48,12 @@ retry with the same client-persisted request ID can recover a lost response;
 reuse of an older refresh generation under another request ID revokes the
 whole renewable session. Deleting the stable record rejects every access
 generation on its next API request or realtime connection, even before its
-short-lived verifier record expires. A realtime socket that already
-authenticated can continue only until that access token's fixed expiry unless
-a separate logout or account-lifecycle signal closes it sooner.
+short-lived verifier record expires. The server checks the exact human
+credential before a realtime subscription starts and once per minute after
+that. A bearer socket also cannot continue past the access token's fixed
+expiry.
 
-Browser sessions use signed cookies with the following options:
+The `chatto_auth` browser authentication cookie has these options:
 
 | Option     | Value                                   |
 | ---------- | --------------------------------------- |
@@ -57,11 +61,18 @@ Browser sessions use signed cookies with the following options:
 | `SameSite` | `Lax`                                   |
 | `Secure`   | `true` when `webserver.url` is `https://` |
 | `Path`     | `/`                                     |
-| `MaxAge`   | 90 days                                 |
+| `MaxAge`   | `auth.token_ttl` (90 days by default)   |
 
-Session cookies are always signed with `webserver.cookie_signing_secret`. They are additionally **encrypted** if `webserver.cookie_encryption_secret` is set. When the encryption secret is missing, Chatto logs a startup warning — running `chatto init` on a fresh server generates both secrets automatically.
+The cookie contains only a random SCS handle. It does not contain identity or
+authorization data. The user ID, source, auth generation, fresh-auth metadata,
+and explicit expiry live in the server-side `session.{hmac}` record.
 
-New browser session cookies store only an opaque runtime credential handle. The user ID, source, auth generation, and fresh-auth metadata live in the server-side `session.{hmac}` runtime credential record.
+The separate `chatto_session` cookie stores short-lived provider, invitation,
+and OAuth browser-flow state. Chatto signs it with
+`webserver.cookie_signing_secret` and also encrypts it when
+`webserver.cookie_encryption_secret` is set. When the encryption secret is
+missing, Chatto logs a startup warning. Running `chatto init` on a fresh server
+generates both secrets automatically.
 
 ### Email verification
 

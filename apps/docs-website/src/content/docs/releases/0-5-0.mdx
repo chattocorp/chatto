@@ -87,8 +87,8 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     Human clients use short-lived access tokens and rotating refresh credentials. The bundled
     frontend renews the session window in the background and reconnects realtime in place
     without reopening OAuth, showing a manual warning, or losing the current route. The bundled
-    same-origin client uses only its safer HttpOnly cookie. Separately hosted browser clients
-    use Chatto OAuth for renewable bearer sessions.
+    same-origin client uses only its safer HttpOnly cookie and renews it automatically.
+    Separately hosted browser clients use Chatto OAuth for renewable bearer sessions.
   </ReleaseFeatureCard>
 
   <ReleaseFeatureCard title="Faster, leaner restarts">
@@ -121,8 +121,9 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 ## Upgrade Notes
 
 - Browser sessions that still use the retired pre-typed cookie format are not accepted by
-  0.5. Affected users are signed out once and must sign in again; current typed browser
-  sessions stored under `session.*` remain valid.
+  0.5. Affected users are signed out once and must sign in again. Current typed browser
+  sessions stored under `session.*` remain valid and move to the dedicated `chatto_auth`
+  cookie after successful validation.
 - Pre-renewal bearer records are not accepted by 0.5 servers. Affected users sign in once to
   receive the new access/refresh pair. Upgrade every serving replica and bundled client
   together: older binaries treat new access records as sliding credentials and are not safe

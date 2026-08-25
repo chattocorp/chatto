@@ -2,6 +2,8 @@
 
 **Date:** 2026-06-30
 
+**Updated:** 2026-08-25
+
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
 [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
@@ -77,9 +79,11 @@ The migration completed at the 0.5 compatibility boundary:
    credential, not from ad-hoc source-string checks.
 3. Write browser cookie sessions as first-party `session.{hmac}` runtime
    credentials with `presentation = "cookie"`.
-4. Store only the opaque runtime credential handle in signed browser sessions.
-   Retired signed-session fields such as `user_id` and `cookie_session_id` are
-   cleared but never accepted as authentication inputs.
+4. Store only the opaque runtime credential handle in the SCS-managed
+   `chatto_auth` cookie. Retain the signed and optionally encrypted
+   `chatto_session` cookie only for short-lived browser-flow state. Retired
+   signed-session fields such as `user_id` and `cookie_session_id` are never
+   accepted as authentication inputs.
 5. Keep cookie renewal, revocation, logout audit, live session termination, and
    auth-context injection on the shared credential path once the presentation
    channel has been checked.
