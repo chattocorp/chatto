@@ -44,6 +44,51 @@ func TestAuthorizedRoomAttachmentReadsRequireMessageRead(t *testing.T) {
 	}
 }
 
+func TestAuthorizedDMAttachmentReadsIgnoreMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "dm-attachment-reader", "DM Attachment Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "dm-attachment-author", "DM Attachment Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, reader.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	attachment := uploadRoomAttachment(t, chatto, ctx, author.GetId(), dm.GetId(), "direct-message.png")
+	message, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), author.GetId(), "direct message file", []string{attachment.GetId()}, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+
+	roomAttachments, err := chatto.ListRoomAttachments(ctx, ListRoomAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId()})
+	if err != nil {
+		t.Fatalf("ListRoomAttachments after DM denial: %v", err)
+	}
+	if got := attachmentNames(roomAttachments.Items); !sameStrings(got, []string{"direct-message.png"}) {
+		t.Fatalf("attachment names = %v, want [direct-message.png]", got)
+	}
+	if _, err := chatto.GetRoomAsset(ctx, RoomAssetInput{ActorID: reader.GetId(), RoomID: dm.GetId(), AssetID: attachment.GetId()}); err != nil {
+		t.Fatalf("GetRoomAsset after DM denial: %v", err)
+	}
+	if assets, err := chatto.BatchGetRoomAssets(ctx, BatchRoomAssetsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), AssetIDs: []string{attachment.GetId()}}); err != nil || len(assets) != 1 {
+		t.Fatalf("BatchGetRoomAssets after DM denial = %d assets, %v; want 1, nil", len(assets), err)
+	}
+	if attachments, err := chatto.MessageAttachments(ctx, MessageAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), EventID: message.GetId()}); err != nil || len(attachments) != 1 {
+		t.Fatalf("MessageAttachments after DM denial = %d attachments, %v; want 1, nil", len(attachments), err)
+	}
+	if sets, err := chatto.BatchMessageAttachments(ctx, BatchMessageAttachmentsInput{ActorID: reader.GetId(), RoomID: dm.GetId(), EventIDs: []string{message.GetId()}}); err != nil || len(sets) != 1 || len(sets[0].Attachments) != 1 {
+		t.Fatalf("BatchMessageAttachments after DM denial = %+v, %v; want one attachment set", sets, err)
+	}
+}
+
 func TestChattoCore_GetRoomAttachmentsIncludesRootAndThreadFiles(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

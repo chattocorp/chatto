@@ -250,8 +250,18 @@ func TestDMMessageReadPermissionDoesNotRestrictParticipants(t *testing.T) {
 	if _, err := chatto.RoomTimelineReads().GetMessage(ctx, outsider.GetId(), dm.GetId(), visible.GetId()); !errors.Is(err, ErrNotRoomMember) {
 		t.Fatalf("GetMessage outsider error = %v, want ErrNotRoomMember", err)
 	}
-	if _, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), reader.GetId(), "DM message after read denial", nil, "", "", nil, false); err != nil {
+	posted, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), reader.GetId(), "DM message after read denial", nil, "", "", nil, false)
+	if err != nil {
 		t.Fatalf("PostMessage after inapplicable message.read denial: %v", err)
+	}
+	editedBody := "edited DM message after read denial"
+	if _, _, err := chatto.Messages().UpdateMessage(ctx, MessageUpdateInput{
+		ActorID: reader.GetId(),
+		RoomID:  dm.GetId(),
+		EventID: posted.GetId(),
+		Body:    &editedBody,
+	}); err != nil {
+		t.Fatalf("UpdateMessage after inapplicable message.read denial: %v", err)
 	}
 }
 
@@ -686,6 +696,9 @@ func TestDMUnreadStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create DM: %v", err)
 	}
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user2.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
 
 	t.Run("no unread when no messages", func(t *testing.T) {
 		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
@@ -733,9 +746,9 @@ func TestDMUnreadStatus(t *testing.T) {
 			t.Fatal("Expected last event to exist after posting")
 		}
 
-		// Mark as read for user2
-		if err := core.SetLastReadEventID(ctx, KindDM, user2.Id, room.Id, lastID); err != nil {
-			t.Fatalf("SetLastReadEventID error: %v", err)
+		// Mark as read through the user-facing authorization boundary.
+		if _, err := core.ReadState().MarkRoomAsRead(ctx, user2.Id, room.Id, lastID); err != nil {
+			t.Fatalf("MarkRoomAsRead error: %v", err)
 		}
 
 		// user2 should no longer have unread
@@ -812,9 +825,14 @@ func TestDMReactions(t *testing.T) {
 		t.Fatalf("Failed to post message: %v", err)
 	}
 	messageEventID := event.Id
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user2.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
 
 	t.Run("can add reaction to DM message", func(t *testing.T) {
-		added, err := core.ReactionModel().addReaction(ctx, KindDM, room.Id, messageEventID, "thumbsup", user2.Id)
+		added, err := core.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+			ActorID: user2.Id, RoomID: room.Id, MessageEventID: messageEventID, Emoji: "thumbsup",
+		})
 		if err != nil {
 			t.Fatalf("AddReaction error: %v", err)
 		}
@@ -834,7 +852,9 @@ func TestDMReactions(t *testing.T) {
 	})
 
 	t.Run("can remove reaction from DM message", func(t *testing.T) {
-		removed, err := core.ReactionModel().removeReaction(ctx, KindDM, room.Id, messageEventID, "thumbsup", user2.Id)
+		removed, err := core.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
+			ActorID: user2.Id, RoomID: room.Id, MessageEventID: messageEventID, Emoji: "thumbsup",
+		})
 		if err != nil {
 			t.Fatalf("RemoveReaction error: %v", err)
 		}
@@ -862,6 +882,9 @@ func TestDMNotifications(t *testing.T) {
 	room, _, err := core.FindOrCreateDM(ctx, user1.Id, []string{user2.Id})
 	if err != nil {
 		t.Fatalf("Failed to create DM: %v", err)
+	}
+	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user2.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
 
 	t.Run("DM message triggers notification to other participants", func(t *testing.T) {

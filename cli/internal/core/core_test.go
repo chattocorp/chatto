@@ -849,3 +849,33 @@ func TestFilterLiveSyncEvent_DropsTypingWithoutMessageRead(t *testing.T) {
 		t.Fatalf("typing event = %+v, delivered=%v; want denied", event, ok)
 	}
 }
+
+func TestFilterLiveSyncEventDeliversDMTypingWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-viewer", "DM Typing Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "dm-typing-author", "DM Typing Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, viewer.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+
+	live := newLiveEvent(author.GetId(), &corev1.LiveEvent{Event: &corev1.LiveEvent_UserTyping{
+		UserTyping: &corev1.UserTypingEvent{RoomId: dm.GetId()},
+	}})
+	event, ok := chatto.filterLiveSyncEvent(ctx, viewer.GetId(), map[string]struct{}{dm.GetId(): {}}, &nats.Msg{
+		Subject: subjects.LiveSyncRoomEvent(string(KindDM), dm.GetId(), "user_typing"),
+	}, live)
+	if !ok || event == nil {
+		t.Fatalf("DM typing event = %+v, delivered=%v; want delivered", event, ok)
+	}
+}

@@ -29,6 +29,7 @@ func TestMessageSearchReadModelResolvesAuthorizedScope(t *testing.T) {
 	require.NoError(t, err)
 	_, err = chattoCore.PostMessage(ctx, KindDM, dm.Id, author.Id, "searchable direct message", nil, "", "", nil, false)
 	require.NoError(t, err)
+	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, dm.Id, viewer.Id, PermMessageRead))
 	_, err = chattoCore.ArchiveRoom(ctx, SystemActorID, KindChannel, archived.Id)
 	require.NoError(t, err)
 	require.NoError(t, chattoCore.DenyRoomPermission(ctx, SystemActorID, archived.Id, RoleEveryone, PermMessageRead))
