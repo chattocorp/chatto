@@ -27,13 +27,13 @@ const (
 type RoomDirectoryScope int32
 
 const (
-	// Include both visible channel rooms and the caller's active DM rooms.
+	// Include visible channel rooms and readable active DM rooms.
 	RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_UNSPECIFIED RoomDirectoryScope = 0
-	// Include both visible channel rooms and the caller's active DM rooms.
+	// Include visible channel rooms and readable active DM rooms.
 	RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_ALL RoomDirectoryScope = 1
 	// Include visible channel rooms only.
 	RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_CHANNELS RoomDirectoryScope = 2
-	// Include the caller's active DM rooms only.
+	// Include the caller's readable active DM rooms only.
 	RoomDirectoryScope_ROOM_DIRECTORY_SCOPE_DMS RoomDirectoryScope = 3
 )
 

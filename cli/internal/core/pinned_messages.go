@@ -42,10 +42,11 @@ type PinnedMessageListResult struct {
 	LatestPinEventID string
 }
 
-// ListPinnedMessages returns active pins for a channel room. Any member may
-// read them; direct-message rooms deliberately do not support pins.
+// ListPinnedMessages returns active pins for a channel room. A member with
+// message-read authority may read them; direct-message rooms do not support
+// pins.
 func (s *RoomTimelineReadModel) ListPinnedMessages(ctx context.Context, input PinnedMessageListInput) (*PinnedMessageListResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, input.ActorID, input.RoomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, input.ActorID, input.RoomID)
 	if err != nil {
 		return nil, err
 	}
@@ -113,6 +114,15 @@ func (s *RoomCommandModel) mutatePinnedMessage(ctx context.Context, input Pinned
 			}
 			if room.GetArchived() {
 				return ErrRoomArchived
+			}
+			if create {
+				canRead, readErr := s.core.CanReadMessages(ctx, input.ActorID, memberKind, room.GetId())
+				if readErr != nil {
+					return readErr
+				}
+				if !canRead {
+					return ErrPermissionDenied
+				}
 			}
 			return nil
 		})

@@ -13,7 +13,7 @@
       "missing_group": "Choisissez un groupe de pièces avant de créer une pièce.",
       "failed": "Échec de la création du salon",
       "creating": "Création...",
-      "submit": "Créer une salle"
+      "submit_and_configure": "Créer et configurer"
     },
     "join": {
       "title": "Rejoindre la salle",
@@ -70,7 +70,8 @@
       "remove_account_suffix": " de ce serveur avant de le retirer."
     },
     "timeline": {
-      "beginning": "Ceci est le début de cette conversation."
+      "beginning": "Ceci est le début de cette conversation.",
+      "read_denied": "Vous n’avez pas l’autorisation de lire les messages dans ce salon."
     },
     "message": {
       "empty": "Aucun message pour l'instant",
@@ -100,6 +101,8 @@
       "meta": {
         "pinned": "Message épinglé",
         "thread": "Sujet",
+        "edited": "Message modifié",
+        "echoed_to_channel": "Également envoyé au canal",
         "reply_count_one": "1 réponse",
         "reply_count_many": "Réponses de {count}",
         "follow_thread": "Suivre le fil de discussion",

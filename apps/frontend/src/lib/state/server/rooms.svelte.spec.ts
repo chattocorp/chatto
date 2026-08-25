@@ -13,7 +13,7 @@ import { GetViewerResponse, ViewerUser } from '@chatto/api-types/api/v1/viewer_p
 import { RealtimeProjectionRoom } from '@chatto/api-types/realtime/v1/realtime_pb';
 import { ServerProjectionStore } from './projection.svelte';
 import { RealtimeProjectionSyncState } from './realtimeSync.svelte';
-import { NavigationStore } from './rooms.svelte';
+import { isNavigationVisibleRoom, NavigationStore } from './rooms.svelte';
 
 function navigationFor(
   projection: ServerProjectionStore,
@@ -30,12 +30,14 @@ function projectedRoom(
     kind = RoomKind.CHANNEL,
     member = true,
     memberUserIds = [],
-    hasMessageHistory
+    hasMessageHistory,
+    canReadMessages = true
   }: {
     kind?: RoomKind;
     member?: boolean;
     memberUserIds?: string[];
     hasMessageHistory?: boolean;
+    canReadMessages?: boolean;
   } = {}
 ): RealtimeProjectionRoom {
   return new RealtimeProjectionRoom({
@@ -45,7 +47,8 @@ function projectedRoom(
         isMember: member,
         permissions: [
           new PermissionGrant({ permission: 'room.join', granted: true }),
-          new PermissionGrant({ permission: 'room.manage', granted: id === 'managed' })
+          new PermissionGrant({ permission: 'room.manage', granted: id === 'managed' }),
+          new PermissionGrant({ permission: 'message.read', granted: canReadMessages })
         ]
       })
     }),
@@ -124,6 +127,22 @@ describe('NavigationStore', () => {
 
     projection.rooms.delete('older');
     expect(navigation.rooms.map((room) => room.id)).toEqual(['newer']);
+  });
+
+  it('uses DM history instead of message.read to control DM navigation', () => {
+    const projection = new ServerProjectionStore();
+    projection.rooms.set(
+      'unreadable-dm',
+      projectedRoom('unreadable-dm', {
+        kind: RoomKind.DM,
+        hasMessageHistory: true,
+        canReadMessages: false
+      })
+    );
+    const { navigation } = navigationFor(projection);
+
+    expect(navigation.rooms.map((room) => room.id)).toEqual(['unreadable-dm']);
+    expect(isNavigationVisibleRoom(navigation.rooms[0])).toBe(true);
   });
 
   it('treats a missing Important count as zero after the last Important occurrence is read', () => {

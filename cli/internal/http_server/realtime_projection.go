@@ -226,6 +226,29 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 	if advanceWithoutReset {
 		return realtimeProjectionServerFrame(projection), true, nil
 	}
+	if roomID, protected := s.core.MessageReadProtectedEventRoomID(evt); protected {
+		kind, err := s.core.FindRoomKind(ctx, roomID)
+		if err != nil {
+			if errors.Is(err, core.ErrNotFound) {
+				return realtimeProjectionServerFrame(projection), true, nil
+			}
+			return nil, false, err
+		}
+		isMember, err := s.core.RoomMembershipExists(ctx, kind, viewerID, roomID)
+		if err != nil {
+			return nil, false, err
+		}
+		if !isMember {
+			return realtimeProjectionServerFrame(projection), true, nil
+		}
+		canRead, err := s.core.CanReadMessages(ctx, viewerID, kind, roomID)
+		if err != nil {
+			return nil, false, err
+		}
+		if !canRead {
+			return realtimeProjectionServerFrame(projection), true, nil
+		}
+	}
 
 	appendOperation := func(operation *realtimev1.RealtimeProjectionOperation) {
 		projection.Operations = append(projection.Operations, operation)
@@ -334,6 +357,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if retainsTimeline(thread.GetRoomId()) {
 				timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, thread.GetRoomId(), thread.GetThreadRootEventId())
 				if err != nil {
+					if errors.Is(err, core.ErrPermissionDenied) {
+						return realtimeProjectionServerFrame(projection), true, nil
+					}
 					return nil, false, err
 				}
 				appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
@@ -359,6 +385,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 		timelineEvent, includes, eventCursor, err := s.connectAPI.BuildRealtimeProjectionTimelineEvent(ctx, viewerID, roomID, messageEventID)
 		if err != nil {
+			if errors.Is(err, core.ErrPermissionDenied) {
+				return nil
+			}
 			return err
 		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineEventUpsert{
@@ -439,6 +468,9 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 		}
 		timeline, err := s.connectAPI.BuildRealtimeProjectionRoomTimeline(ctx, viewerID, roomID)
 		if err != nil {
+			if errors.Is(err, core.ErrPermissionDenied) {
+				return nil
+			}
 			return fmt.Errorf("hydrate realtime room timeline %q: %w", roomID, err)
 		}
 		appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_RoomTimelineReplace{

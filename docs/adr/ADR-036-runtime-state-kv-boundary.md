@@ -4,7 +4,7 @@
 
 **Updated:** 2026-08-23
 
-**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
+**Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
 
 ## Context
 
@@ -86,7 +86,7 @@ Current occupants include:
 - Mutable human sessions: `session.{hmac}` cookie records and
   `renewable_session.{hmac}` bearer authorities store explicit expiry. Each
   changed revision uses revision-checked JetStream publish with a per-message
-  TTL equal to its remaining explicit lifetime. See ADR-080.
+  TTL equal to its remaining explicit lifetime. See ADR-081.
 - OAuth authorization-code verifiers: `grant.{hmac}`, with per-key 5-minute
   TTL. Values include the user auth generation they were issued against.
 - Account workflow credential verifiers: `email_otp.{hmac(subject)}.{hmac(code)}`,
@@ -173,7 +173,7 @@ from exact unread notification occurrences instead of preserving
 
 - [ADR-033](ADR-033-event-sourced-state-with-projections.md) — defines the
   event-sourced content/domain boundary.
-- [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
+- [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)
   — separates mutable human-session state from immutable cleanup deadlines.
 - [ADR-028](ADR-028-event-id-keyed-read-state.md) — defines the read-cursor
   shape that now lives in `RUNTIME_STATE`.

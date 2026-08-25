@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -138,9 +138,12 @@ and the bounded notification lifecycle. ADR-076 defines that architecture.
 
 **Decision:** An occurrence may be listed, opened, mutated, or delivered only
 while the recipient still exists and can currently see its room and exact
-target. Removed reactions, retracted targets, deleted rooms, and lost room
-access remove the corresponding occurrence. Durable visibility-loss boundaries
-prevent old queued activity from reappearing after a quick regain of access.
+target. Channel-room message-derived occurrences also require current
+`message.read`. DM membership authorizes DM occurrences. Without applicable
+access, Chatto hides the occurrence. Removed reactions, retracted targets,
+deleted rooms, and lost room access remove the corresponding occurrence.
+Durable visibility-loss boundaries prevent old queued activity from
+reappearing after a quick regain of room access.
 Actor identity is hydrated from current account data; an unavailable or deleted
 actor does not by itself expose copied profile data or make an otherwise valid
 occurrence invisible.
@@ -227,13 +230,14 @@ contract ships, new signal variants are additive.
 ## Permissions
 
 Notification policy and triage are user-scoped. Current account, room,
-message/thread target, and exact reaction visibility govern whether an
-occurrence may be listed, opened, mutated, or delivered. There is no separate
-permission to manage another user's notification list.
+applicable channel-room `message.read`, message/thread target, and exact
+reaction visibility govern whether an occurrence may be listed, opened,
+mutated, or delivered. DM membership authorizes DM occurrences. There is no
+separate permission to manage another user's notification list.
 
 ## Related
 
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
-  ADR-077
+  ADR-077, ADR-080
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
-  FDR-013, FDR-018, FDR-019, FDR-027
+  FDR-013, FDR-018, FDR-019, FDR-027, FDR-039

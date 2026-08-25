@@ -46,9 +46,11 @@ type MessageSearchServiceClient interface {
 	// Reports whether the operator enabled Search and whether its provider can
 	// currently answer. This method remains available when Search is disabled.
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
-	// Searches current message bodies. Results are authorized and hydrated from
-	// current Chatto state after provider matching. Returns FAILED_PRECONDITION
-	// when Search is disabled and UNAVAILABLE when its provider is not ready.
+	// Searches current message bodies in rooms where the caller is a member.
+	// Channel-room results also require message.read. DM membership authorizes DM
+	// results. Results are authorized and hydrated from current Chatto state
+	// after provider matching. Returns FAILED_PRECONDITION when Search is
+	// disabled and UNAVAILABLE when its provider is not ready.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
 }
 
@@ -100,9 +102,11 @@ type MessageSearchServiceHandler interface {
 	// Reports whether the operator enabled Search and whether its provider can
 	// currently answer. This method remains available when Search is disabled.
 	GetStatus(context.Context, *connect.Request[v1.GetStatusRequest]) (*connect.Response[v1.GetStatusResponse], error)
-	// Searches current message bodies. Results are authorized and hydrated from
-	// current Chatto state after provider matching. Returns FAILED_PRECONDITION
-	// when Search is disabled and UNAVAILABLE when its provider is not ready.
+	// Searches current message bodies in rooms where the caller is a member.
+	// Channel-room results also require message.read. DM membership authorizes DM
+	// results. Results are authorized and hydrated from current Chatto state
+	// after provider matching. Returns FAILED_PRECONDITION when Search is
+	// disabled and UNAVAILABLE when its provider is not ready.
 	SearchMessages(context.Context, *connect.Request[v1.SearchMessagesRequest]) (*connect.Response[v1.SearchMessagesResponse], error)
 }
 

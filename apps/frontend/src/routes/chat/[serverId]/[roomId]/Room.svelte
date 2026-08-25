@@ -38,6 +38,7 @@
   import { clearLastRoom, setLastRoom } from '$lib/storage/lastRoom';
   import type { RoomSidebarPanel } from '$lib/storage/roomSidebarPanel';
   import { toast } from '$lib/ui/toast';
+  import { EmptyState } from '$lib/ui';
   import PageTitle from '$lib/ui/PageTitle.svelte';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
   import { tick } from 'svelte';
@@ -130,17 +131,21 @@
   const jumpState = composerContext.jumpState;
   const currentUser = $derived(stores.currentUser);
   const roomMessageStore = $derived(stores.messagesForRoom(roomId));
+  const room = useRoomData(() => ({ roomId }));
+  const canReadMessages = $derived(room.roomData?.canReadMessages !== false);
+  const shouldHydrateRoom = $derived(Boolean(room.roomData) && canReadMessages);
 
   $effect(() => {
     const mountedStores = stores;
     const selectedRoomId = roomId;
-    untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
+    const hydrateRoom = shouldHydrateRoom;
+    if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     return () => {
       // Invalidate any historical-window request before this room becomes
       // inactive. Its late response must not replace the retained latest
       // projection while another room is being rendered.
       navigation.clearMainHighlight();
-      untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
+      if (hydrateRoom) untrack(() => mountedStores.restoreProjectedRoomWindow(selectedRoomId));
     };
   });
 
@@ -158,10 +163,11 @@
   );
 
   // --- Extracted hooks ---
-  const room = useRoomData(() => ({ roomId }));
   const supportsPinnedMessages = $derived(serverInfo.supportsFeature('pinnedMessages'));
   const roomPinsStore = $derived(
-    room.roomData && !room.isDM && supportsPinnedMessages ? stores.pinsForRoom(roomId) : null
+    room.roomData && canReadMessages && !room.isDM && supportsPinnedMessages
+      ? stores.pinsForRoom(roomId)
+      : null
   );
 
   $effect(() => {
@@ -179,7 +185,11 @@
     void stores.mentionRoles.refresh();
   });
 
-  const unread = useRoomUnread(() => ({ roomId, events: roomMessageStore.rootEvents }));
+  const unread = useRoomUnread(() => ({
+    roomId,
+    events: roomMessageStore.rootEvents,
+    canReadMessages
+  }));
 
   // Room permissions — derived reactively, no $effect needed
   let permissions = $derived({
@@ -633,11 +643,13 @@
       <div
         class={[
           'relative flex min-h-0 min-w-0 flex-1 flex-col transition-opacity duration-200',
-          threadId ? 'opacity-30 @min-[768px]:opacity-100' : '',
+          threadId && canReadMessages ? 'opacity-30 @min-[768px]:opacity-100' : '',
           mobileRoomSidebarPanel ? 'max-lg:opacity-30' : ''
         ]}
         data-testid="room-main-pane"
-        inert={(threadId && !splitThreadLayout) || mobileRoomSidebarPanel ? true : undefined}
+        inert={(threadId && canReadMessages && !splitThreadLayout) || mobileRoomSidebarPanel
+          ? true
+          : undefined}
         {@attach roomDropZone}
       >
         <DropZoneOverlay visible={isDraggingFiles} />
@@ -686,19 +698,25 @@
           {/snippet}
         </PaneHeader>
 
-        <RoomEventsPane
-          {roomId}
-          messageStore={roomMessageStore}
-          unreadMarkerEventId={unread.unreadMarkerEventId}
-          onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
-          onOpenThread={openThread}
-          onOpenCall={openRoomCall}
-          pendingHighlightId={navigation.pendingMainHighlightId}
-          onHighlightComplete={() => navigation.clearMainHighlight()}
-          typingUserIds={typingIndicator.userIds}
-          typingMembers={getRoomMembers()}
-          {threadingMode}
-        />
+        {#if canReadMessages}
+          <RoomEventsPane
+            {roomId}
+            messageStore={roomMessageStore}
+            unreadMarkerEventId={unread.unreadMarkerEventId}
+            onUnreadMarkerCleared={() => unread.clearUnreadMarker()}
+            onOpenThread={openThread}
+            onOpenCall={openRoomCall}
+            pendingHighlightId={navigation.pendingMainHighlightId}
+            onHighlightComplete={() => navigation.clearMainHighlight()}
+            typingUserIds={typingIndicator.userIds}
+            typingMembers={getRoomMembers()}
+            {threadingMode}
+          />
+        {:else}
+          <EmptyState icon="icon-[uil--eye-slash]">
+            {m('room.timeline.read_denied')}
+          </EmptyState>
+        {/if}
 
         <MessageComposer
           {roomId}
@@ -735,7 +753,7 @@
         />
       </div>
 
-      {#if threadId && room.roomData}
+      {#if threadId && room.roomData && canReadMessages}
         {#await loadThreadPane(threadPaneLoadAttempt)}
           <div
             class="absolute inset-y-0 end-0 z-10 flex min-h-0 w-full min-w-0 flex-col items-center justify-center overflow-hidden border-s border-border bg-background p-4 text-sm text-muted inline-end-overlay-shadow sm:w-[90%] @min-[768px]:relative @min-[768px]:inset-auto @min-[768px]:z-auto @min-[768px]:w-[var(--thread-pane-width)] @min-[768px]:shrink-0 @min-[768px]:shadow-none"

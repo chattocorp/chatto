@@ -16,6 +16,7 @@ function roomData(overrides: Partial<RoomData> = {}): RoomData {
       threadingMode: RoomThreadingMode.ENABLED
     },
     spaceName: 'Test Space',
+    canReadMessages: true,
     canPostMessage: true,
     canPostInThread: true,
     canAttach: true,

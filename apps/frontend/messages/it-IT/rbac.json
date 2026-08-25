@@ -101,6 +101,7 @@
       "room_list": "Vedi le stanze nella directory. A un utente può essere consentito di vedere una stanza (ad esempio per richiedere l'accesso) senza che gli sia consentito accedervi.",
       "room_manage": "Modifica le impostazioni e le autorizzazioni di una stanza ed elimina le stanze",
       "room_ban_member": "Escludi i membri dalle stanze",
+      "message_read": "Leggere i messaggi nelle stanze canale",
       "message_post": "Pubblica messaggi root nelle stanze virtuali e avvia i messaggi diretti",
       "message_post_in_thread": "Pubblica le risposte all'interno di un thread",
       "message_attach": "Allega file ai messaggi",

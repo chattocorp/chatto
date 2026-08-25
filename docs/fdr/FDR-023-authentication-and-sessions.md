@@ -66,7 +66,7 @@ providers, and a bootstrap path for first-boot operator setup.
 
 **Decision:** Human bearer access tokens have a fixed 15-minute default lifetime. Renewable sessions and cookie runtime credentials have a 90-day default window. Refresh rotation advances an active bearer session in the final quarter. Cookie sessions advance the same stable record and physical TTL in the final quarter.
 **Why:** Short access credentials bound theft without forcing an interactive OAuth round trip every few minutes. Automatic window renewal keeps active users signed in. Cookie validation does not write storage on each request. Renewal keeps one stable handle, which prevents concurrent requests from creating multiple valid replacements and lets logout fence renewal with one key delete. Login rotates the handle to prevent session fixation.
-**Tradeoff:** Clients must implement serialized rotation plus lost-response recovery. A client that is inactive for a complete session window must sign in again. An attacker that keeps exclusive control of a refresh credential can keep that bearer session active. See ADR-079 and ADR-080.
+**Tradeoff:** Clients must implement serialized rotation plus lost-response recovery. A client that is inactive for a complete session window must sign in again. An attacker that keeps exclusive control of a refresh credential can keep that bearer session active. See ADR-079 and ADR-081.
 
 ### 4. WebSocket auth at HTTP upgrade
 
@@ -142,7 +142,7 @@ Authentication itself doesn't have a permission gate (you're either authenticate
 
 ## Related
 
-- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-046 (typed runtime credentials), ADR-067 (Electron desktop packaging), ADR-071 (CIMD-identified open OAuth clients), ADR-074 (device-local frontend server catalogue), ADR-079 (renewable bearer sessions), ADR-080 (explicit expiry for mutable runtime credentials)
+- **ADRs:** ADR-017 (cookie-session auth for WebSocket), ADR-024 (opaque bearer tokens for cross-origin auth), ADR-025 (multi-instance client architecture), ADR-036 (runtime state in `RUNTIME_STATE`), ADR-046 (typed runtime credentials), ADR-067 (Electron desktop packaging), ADR-071 (CIMD-identified open OAuth clients), ADR-074 (device-local frontend server catalogue), ADR-079 (renewable bearer sessions), ADR-081 (explicit expiry for mutable runtime credentials)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-034 (Chatto Desktop), FDR-036 (Invite Links)
 
 ## Open Questions

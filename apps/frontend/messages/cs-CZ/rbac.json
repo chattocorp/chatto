@@ -101,6 +101,7 @@
       "room_list": "Podívejte se na místnosti v adresáři. Uživateli může být povoleno vidět místnost (např. požádat o přístup), aniž by mu bylo povoleno se k ní připojit.",
       "room_manage": "Upravte nastavení a oprávnění místnosti a smažte místnosti",
       "room_ban_member": "Zakázat členům přístup do místností",
+      "message_read": "Číst zprávy v kanálových místnostech",
       "message_post": "Zveřejňujte kořenové zprávy v místnostech a spusťte DM",
       "message_post_in_thread": "Zveřejňujte odpovědi uvnitř vlákna",
       "message_attach": "Připojování souborů ke zprávám",

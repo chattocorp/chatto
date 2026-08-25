@@ -456,6 +456,75 @@ func TestMyEventsFilter_DeliversUniversalDisableToPriorEffectiveMember(t *testin
 	}
 }
 
+func TestMyEventsFilter_DropsMessageAndAssetFactsWithoutMessageRead(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, room, messageID := setupReactionTest(t, chatto, ctx)
+	message, err := chatto.GetRoomEventByEventID(ctx, KindChannel, room.Id, messageID)
+	if err != nil {
+		t.Fatalf("GetRoomEventByEventID: %v", err)
+	}
+
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+
+	service := NewMyEventsModel(chatto)
+	memberRooms := map[string]struct{}{room.Id: {}}
+	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.Id, memberRooms, room.Id, message, 123); ok || delivered != nil {
+		t.Fatalf("message event delivered %T/%v without message.read, want dropped", delivered, ok)
+	}
+
+	assetEvent := &corev1.Event{
+		Id: NewEventID(),
+		Event: &corev1.Event_AssetProcessingStarted{AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+			AssetId: "asset-1", MessageEventId: messageID,
+		}},
+	}
+	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(viewer.Id, memberRooms, room.Id, assetEvent, 124); ok || delivered != nil {
+		t.Fatalf("asset event delivered %T/%v without message.read, want dropped", delivered, ok)
+	}
+}
+
+func TestMyEventsFilter_DeliversDMFactsDespiteMessageReadDenial(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "live-dm-viewer", "Live DM Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "live-dm-author", "Live DM Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, viewer.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), author.GetId(), "live DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	service := NewMyEventsModel(chatto)
+	memberRooms := map[string]struct{}{dm.GetId(): {}}
+	if delivered, ok := service.filterReadyEVTRoomSubjectEvent(viewer.GetId(), memberRooms, dm.GetId(), message, 123); !ok || delivered == nil {
+		t.Fatalf("DM message event delivered %T/%v, want delivery", delivered, ok)
+	}
+	assetEvent := &corev1.Event{
+		Id: NewEventID(),
+		Event: &corev1.Event_AssetProcessingStarted{AssetProcessingStarted: &corev1.AssetProcessingStartedEvent{
+			AssetId: "dm-asset-1", MessageEventId: message.GetId(),
+		}},
+	}
+	if delivered, ok := service.filterReadyEVTAssetSubjectEvent(viewer.GetId(), memberRooms, dm.GetId(), assetEvent, 124); !ok || delivered == nil {
+		t.Fatalf("DM asset event delivered %T/%v, want delivery", delivered, ok)
+	}
+}
+
 func TestStreamMyEvents_DeleteEchoDeliversOnlyEchoRetract(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

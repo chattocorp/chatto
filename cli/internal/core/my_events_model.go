@@ -102,8 +102,10 @@ func (s *MyEventsModel) Metrics() MyEventsMetrics {
 //
 // Authorization:
 //   - Room events (live.sync.room.> and deliverable live.evt.room.>) are
-//     delivered only for rooms where the user is a member. The membership set
-//     is pre-loaded across both kinds (channel + dm) and updated as
+//     delivered only for rooms where the user is a member. Message-bearing
+//     durable facts and typing indicators in channel rooms also require
+//     message.read. DM membership authorizes DM delivery. The membership set is
+//     pre-loaded across both kinds (channel + dm) and updated as
 //     join/leave/room-deleted events arrive.
 //   - User/config/member subjects are filtered by isAuthorizedForLiveEvent.
 //   - Presence updates from the per-process PresenceHub are deployment-wide;
@@ -314,6 +316,12 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 		if !isMember {
 			return nil, false
 		}
+		if event.GetUserTyping() != nil {
+			canRead, err := s.core.CanReadMessages(ctx, userID, RoomKind(kind), roomID)
+			if err != nil || !canRead {
+				return nil, false
+			}
+		}
 		return NewLiveEventEnvelope(event), true
 	}
 
@@ -389,6 +397,16 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 	if !isMember {
 		return nil, false
 	}
+	if protectedRoomID, protected := s.core.MessageReadProtectedEventRoomID(event); protected {
+		kind, err := s.core.FindRoomKind(context.Background(), protectedRoomID)
+		if err != nil {
+			return nil, false
+		}
+		canRead, err := s.core.CanReadMessages(context.Background(), userID, kind, protectedRoomID)
+		if err != nil || !canRead {
+			return nil, false
+		}
+	}
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true
 }
 
@@ -397,6 +415,14 @@ func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(userID string, memberRoo
 		return nil, false
 	}
 	if _, isMember := memberRooms[roomID]; !isMember {
+		return nil, false
+	}
+	kind, err := s.core.FindRoomKind(context.Background(), roomID)
+	if err != nil {
+		return nil, false
+	}
+	canRead, err := s.core.CanReadMessages(context.Background(), userID, kind, roomID)
+	if err != nil || !canRead {
 		return nil, false
 	}
 	return NewEVTEventEnvelopeWithDeliverySeq(event, seq), true

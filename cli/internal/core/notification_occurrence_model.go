@@ -938,6 +938,10 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	if err != nil || !member {
 		return member, err
 	}
+	allowed, err := m.core.CanReadMessages(ctx, recipientID, KindOfRoom(room), room.GetId())
+	if err != nil || !allowed {
+		return allowed, err
+	}
 	messageVisible := func(eventID string) bool {
 		entry, ok := m.core.roomModel.timelineEntry(eventID)
 		if !ok || entry.Event == nil || roomIDOfEvent(entry.Event) != room.GetId() {

@@ -4,7 +4,7 @@
 
 **Status:** Accepted
 
-**Partially superseded by:** [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
+**Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
 
 **Partially supersedes:** [ADR-024](ADR-024-opaque-bearer-tokens-for-cross-origin-auth.md) and [ADR-036](ADR-036-runtime-state-kv-boundary.md) for human bearer-credential lifetime and renewal. Their opaque-token and runtime-state decisions remain current.
 
@@ -43,7 +43,7 @@ and explicit external-identity account-creation flows, and to delegated bearer
 sessions issued by OAuth Authorization Code with PKCE. OAuth sessions remain
 bound to their validated client ID. Bot API keys remain non-expiring durable
 bot credentials, and same-origin cookie sessions use the separate stable-key
-renewal behavior in ADR-080.
+renewal behavior in ADR-081.
 
 The default access-token lifetime is 15 minutes and is configurable with
 `auth.access_token_ttl` / `CHATTO_AUTH_ACCESS_TOKEN_TTL`. The renewable session
@@ -259,5 +259,5 @@ sign-in and coordinated-upgrade requirement.
 - [ADR-046](ADR-046-typed-runtime-credentials.md)
 - [ADR-051](ADR-051-server-scoped-resumable-client-projection.md)
 - [ADR-071](ADR-071-cimd-identified-open-oauth-clients.md)
-- [ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
+- [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)
 - [FDR-023](../fdr/FDR-023-authentication-and-sessions.md)

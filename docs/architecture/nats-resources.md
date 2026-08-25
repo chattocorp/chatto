@@ -8,7 +8,7 @@ Related decisions: [ADR-001](../adr/ADR-001-nats-jetstream-as-primary-data-store
 [ADR-066](../adr/ADR-066-durable-asset-processing-runtime-unit.md), and
 [ADR-069](../adr/ADR-069-explicit-durable-consumer-lifecycle.md), and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md), and
-[ADR-080](../adr/ADR-080-explicit-expiry-for-mutable-runtime-credentials.md).
+[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md).
 
 Key and subject schemas are maintained separately in the
 [runtime state](runtime-state.md) and [subject and event](subjects-and-events.md)

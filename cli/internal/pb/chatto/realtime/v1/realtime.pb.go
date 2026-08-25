@@ -2696,7 +2696,7 @@ type isRealtimeEventEnvelope_Event interface {
 }
 
 type RealtimeEventEnvelope_UserTyping struct {
-	// A user is typing in a room or thread.
+	// A user is typing in a room or thread that the viewer can read.
 	UserTyping *RealtimeTypingEvent `protobuf:"bytes,30,opt,name=user_typing,json=userTyping,proto3,oneof"`
 }
 
@@ -2718,8 +2718,11 @@ func (*RealtimeEventEnvelope_SessionTerminated) isRealtimeEventEnvelope_Event() 
 
 // Typing signal.
 //
-// This is an ephemeral signal. `room_id` and `thread_root_event_id` identify
-// where to display typing state; clients normally do not hydrate it.
+// This is an ephemeral signal. The viewer must be a room member. A
+// channel-room viewer also needs current `message.read` authority. DM
+// membership authorizes DM typing delivery. `room_id` and
+// `thread_root_event_id` identify where to display typing state; clients
+// normally do not hydrate it.
 type RealtimeTypingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room where the actor is typing.

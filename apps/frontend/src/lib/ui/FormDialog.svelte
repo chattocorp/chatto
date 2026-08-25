@@ -93,11 +93,14 @@ The submit button's color follows `submitTone` (`action` by default; use
   // Link the description copy to the dialog (only when present) so screen
   // readers announce it on open.
   const formDialogId = $props.id();
+  // The footer stays outside the scrollable form body. Associate its submit
+  // button with this stable form ID to preserve native Enter-to-submit behavior.
+  const formId = `${formDialogId}-form`;
   const descriptionId = `${formDialogId}-description`;
 </script>
 
 <Dialog bind:visible {title} {size} describedBy={description ? descriptionId : undefined} {onclose}>
-  <form onsubmit={handleSubmit} class="flex flex-col gap-5">
+  <form id={formId} onsubmit={handleSubmit} class="flex flex-col gap-5">
     {#if description}
       <div id={descriptionId} class="text-muted">
         {@render description()}
@@ -109,21 +112,19 @@ The submit button's color follows `submitTone` (`action` by default; use
     {#if error}
       <FormError {error} />
     {/if}
+  </form>
 
-    <!--
-      Footer "section": divider hugs the buttons, with pt-3 above the buttons
-      to mirror the well's pb-3 below. -mx-3 cancels the well's px-3 so the
-      divider extends to the well edges.
-    -->
+  {#snippet footer()}
     <div class="-mx-3">
       <div class="h-px bg-text/10" aria-hidden="true"></div>
-      <footer class="flex justify-end gap-2 px-3 pt-3">
+      <div class="flex justify-end gap-2 px-3 pt-3">
         <Button type="button" variant="secondary" onclick={onclose} disabled={loading}>
           {#if cancelIcon}<span class={cancelIcon}></span>{/if}
           {cancelLabel}
         </Button>
         <Button
           type="submit"
+          form={formId}
           variant={submitVariant}
           {loading}
           loadingText={submitLoadingText}
@@ -132,7 +133,7 @@ The submit button's color follows `submitTone` (`action` by default; use
           {#if submitIcon}<span class={submitIcon}></span>{/if}
           {submitLabel}
         </Button>
-      </footer>
+      </div>
     </div>
-  </form>
+  {/snippet}
 </Dialog>

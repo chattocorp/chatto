@@ -510,6 +510,38 @@ func TestRoomServiceStartDM(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodePermissionDenied {
 		t.Fatalf("StartDM denied user code = %v, want permission denied", connect.CodeOf(err))
 	}
+
+	bot, err := env.core.CreateBot(env.ctx, env.viewer.GetId(), "connect_dm_start_bot", "Connect DM Start Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, env.viewer.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeServer}, core.PermMessagePost, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post: %v", err)
+	}
+	dmWithBot, err := env.rooms.StartDM(ctx, connect.NewRequest(&apiv1.StartDMRequest{
+		ParticipantIds: []string{bot.User.GetId()},
+	}))
+	if err != nil {
+		t.Fatalf("human StartDM with bot: %v", err)
+	}
+	botCtx := withCaller(env.ctx, bot.User)
+	for name, participantIDs := range map[string][]string{
+		"self":     nil,
+		"existing": {env.viewer.GetId()},
+	} {
+		t.Run("bot cannot start "+name+" DM", func(t *testing.T) {
+			if _, err := env.rooms.StartDM(botCtx, connect.NewRequest(&apiv1.StartDMRequest{
+				ParticipantIds: participantIDs,
+			})); connect.CodeOf(err) != connect.CodePermissionDenied {
+				t.Fatalf("bot StartDM code = %v, want permission denied", connect.CodeOf(err))
+			}
+		})
+	}
+	if _, err := env.messages.CreateMessage(botCtx, connect.NewRequest(&apiv1.CreateMessageRequest{
+		RoomId: dmWithBot.Msg.GetRoom().GetId(), Body: "bot reply in human-started DM",
+	})); err != nil {
+		t.Fatalf("bot CreateMessage in human-started DM: %v", err)
+	}
 }
 
 func TestRoomServiceRejectsDMRooms(t *testing.T) {

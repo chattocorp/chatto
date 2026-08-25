@@ -101,6 +101,7 @@
       "room_list": "Vidu ĉambrojn en la dosierujo. Uzanto povas esti permesita vidi ĉambron (ekz. por peti aliron) sen esti permesita aliĝi al ĝi.",
       "room_manage": "Redaktu agordojn kaj permesojn de ĉambro, kaj forigu ĉambrojn",
       "room_ban_member": "Malpermesu membrojn de ĉambroj",
+      "message_read": "Legi mesaĝojn en kanalĉambroj",
       "message_post": "Afiŝu radikajn mesaĝojn en ĉambroj kaj komencu DM-ojn",
       "message_post_in_thread": "Afiŝu respondojn ene de fadeno",
       "message_attach": "Aligu dosierojn al mesaĝoj",

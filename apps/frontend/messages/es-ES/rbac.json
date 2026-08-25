@@ -101,6 +101,7 @@
       "room_list": "Ver salas en el directorio. A un usuario se le puede permitir ver una sala (por ejemplo, para solicitar acceso) sin que se le permita unirse a ella.",
       "room_manage": "Editar la configuración y los permisos de una sala y eliminar salas",
       "room_ban_member": "Prohibir el ingreso de miembros a las salas",
+      "message_read": "Leer mensajes en salas de canales",
       "message_post": "Publicar mensajes raíz en salas e iniciar mensajes directos",
       "message_post_in_thread": "Publicar respuestas dentro de un hilo",
       "message_attach": "Adjuntar archivos a mensajes",

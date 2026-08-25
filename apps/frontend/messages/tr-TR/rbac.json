@@ -101,6 +101,7 @@
       "room_list": "Dizindeki odalara bakın. Bir kullanıcının, bir odaya katılmasına izin verilmeden bir odayı görmesine (örneğin erişim talebinde bulunmasına) izin verilebilir.",
       "room_manage": "Bir odanın ayarlarını ve izinlerini düzenleyin ve odaları silin",
       "room_ban_member": "Üyeleri odalardan yasaklayın",
+      "message_read": "Kanal odalarındaki iletileri okuyun",
       "message_post": "Odalara root mesajları gönderin ve DM'leri başlatın",
       "message_post_in_thread": "Yanıtları bir ileti dizisinde yayınlama",
       "message_attach": "Mesajlara dosya ekleyin",

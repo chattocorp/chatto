@@ -6,6 +6,7 @@ import {
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import { withLoggedInServerWindow } from './fixtures/serverUser';
 import {
   connectPost,
   connectPostResponse,
@@ -19,6 +20,7 @@ import {
   joinRoomViaConnect,
   unwrapAdminRole
 } from './fixtures/connectHelpers';
+import { TIMEOUTS } from './constants';
 import * as routes from './routes';
 
 interface TestServer {
@@ -190,6 +192,88 @@ async function addReactionViaAPI(
 // ============================================================================
 
 test.describe('Room-Level Permission Overrides', () => {
+  test.describe('message.read — Message Content', () => {
+    test('live revocation scrubs content while write-only posting remains available', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+      const visibleBody = `Visible before message.read denial ${Date.now()}`;
+      expect(await postMessageViaAPI(page, roomId, visibleBody)).not.toBeNull();
+
+      const member = await createSecondTestUser(page);
+      const browserErrors: string[] = [];
+
+      await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
+        memberPage.on('console', (message) => {
+          // Chromium reports the intentional denied timeline request as a
+          // generic resource error. Keep all other console errors actionable.
+          const expectedDeniedRequest =
+            'Failed to load resource: the server responded with a status of 403 (Forbidden)';
+          if (message.type() === 'error' && message.text() !== expectedDeniedRequest) {
+            browserErrors.push(message.text());
+          }
+        });
+        memberPage.on('pageerror', (error) => browserErrors.push(error.message));
+
+        await joinRoomViaAPI(memberPage, roomId);
+        await memberPage.goto(routes.room(roomId));
+        await expect(memberPage.getByText(visibleBody)).toBeVisible();
+
+        await denyRoomPermission(page, roomId, 'everyone', 'message.read');
+
+        const denial = memberPage.getByText(
+          'You do not have permission to read messages in this room.'
+        );
+        await expect(denial).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(memberPage.getByText(visibleBody)).toHaveCount(0);
+        await expect(memberPage.locator('[role="article"]')).toHaveCount(0);
+        await expect(memberPage.getByTestId('message-input')).toHaveAttribute(
+          'contenteditable',
+          'true'
+        );
+
+        const deniedTimeline = await connectPostResponse(
+          memberPage,
+          'chatto.api.v1.RoomService/GetRoomEvents',
+          { roomId, limit: 10 }
+        );
+        expect(deniedTimeline.status()).toBe(403);
+        await expect(deniedTimeline.json()).resolves.toEqual(
+          expect.objectContaining({ code: 'permission_denied' })
+        );
+
+        const writeOnlyBody = `Posted without message.read ${Date.now()}`;
+        const composer = memberPage.getByTestId('message-input');
+        await composer.fill(writeOnlyBody);
+        await composer.press('Control+Enter');
+        await expect(composer).toBeEmpty();
+        await expect(memberPage.getByText(writeOnlyBody)).toHaveCount(0);
+
+        await page.goto(routes.room(roomId));
+        await expect(page.getByText(writeOnlyBody)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+
+        await grantRoomPermission(page, roomId, 'everyone', 'message.read');
+
+        await expect(denial).toHaveCount(0, { timeout: TIMEOUTS.REALTIME_EVENT });
+        await expect(memberPage.getByText(visibleBody)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+        await expect(memberPage.getByText(writeOnlyBody)).toBeVisible({
+          timeout: TIMEOUTS.REALTIME_EVENT
+        });
+      });
+
+      expect(browserErrors, 'browser console and page errors').toEqual([]);
+    });
+  });
+
   test.describe('message.post — Chat Input', () => {
     test('room denial disables chat input even when server allows', async ({
       page,

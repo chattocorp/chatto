@@ -242,7 +242,7 @@ test.describe('Message editing', () => {
     await roomPage.expectMessageVisible(editedMessage);
     await roomPage.expectMessageNotVisible(originalMessage);
 
-    // Verify "(edited)" indicator appears
+    // Verify the edit marker appears.
     const editedMsg = roomPage.getMessage(editedMessage);
     await editedMsg.expectEdited();
   });

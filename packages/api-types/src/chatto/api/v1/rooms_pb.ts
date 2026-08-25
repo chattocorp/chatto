@@ -785,7 +785,9 @@ export class JoinRoomGroupResponse extends Message<JoinRoomGroupResponse> {
 }
 
 /**
- * Request to start or fetch a direct-message room.
+ * Request to start or fetch a direct-message room for a human caller. A valid
+ * request from a bot receives PERMISSION_DENIED, including when the room
+ * already exists.
  *
  * @generated from message chatto.api.v1.StartDMRequest
  */

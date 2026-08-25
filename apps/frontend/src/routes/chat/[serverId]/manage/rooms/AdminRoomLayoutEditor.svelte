@@ -13,7 +13,6 @@
   } from '$lib/state/server/adminRoomLayout.svelte';
   import { EmptyState, Hint, Pill, ToggleChip } from '$lib/ui';
   import ConfirmDialog from '$lib/ui/ConfirmDialog.svelte';
-  import Dialog from '$lib/ui/Dialog.svelte';
   import FormDialog from '$lib/ui/FormDialog.svelte';
   import { Button, TextInput } from '$lib/ui/form';
   import PaneHeader from '$lib/ui/PaneHeader.svelte';
@@ -233,12 +232,18 @@
     createRoomDialogVisible = true;
   }
 
-  function handleRoomCreated() {
+  function handleRoomCreated(roomId: string) {
     createRoomDialogVisible = false;
     createRoomGroupId = null;
     toast.success(m('admin.rooms_admin.room_created'));
     layout.handleRoomCreated();
     onroomcreated?.();
+    void goto(
+      resolve('/chat/[serverId]/manage/rooms/[roomId]', {
+        serverId: serverSegment,
+        roomId
+      })
+    );
   }
 
   // --- Sidebar link editing ---
@@ -558,11 +563,14 @@
   </div>
 </div>
 
-<Dialog bind:visible={createRoomDialogVisible} title={m('admin.rooms_admin.create_room')} size="sm">
-  {#if createRoomDialogVisible && createRoomGroupId}
-    <CreateRoom groupId={createRoomGroupId} onroomcreated={handleRoomCreated} />
-  {/if}
-</Dialog>
+{#if createRoomDialogVisible && createRoomGroupId}
+  <CreateRoom
+    bind:visible={createRoomDialogVisible}
+    groupId={createRoomGroupId}
+    onclose={() => (createRoomGroupId = null)}
+    onroomcreated={handleRoomCreated}
+  />
+{/if}
 
 <FormDialog
   bind:visible={createGroupDialogVisible}

@@ -101,6 +101,7 @@
       "room_list": "在聊天室目錄中查看聊天室。可允許使用者查看聊天室（例如申請存取權），但不允許加入。",
       "room_manage": "編輯聊天室的設定及權限，並刪除聊天室",
       "room_ban_member": "禁止成員進入聊天室",
+      "message_read": "閱讀頻道聊天室中的訊息",
       "message_post": "在聊天室發佈主訊息及發起私訊",
       "message_post_in_thread": "在討論串內回覆",
       "message_attach": "在訊息中附加檔案",

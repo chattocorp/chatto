@@ -14,7 +14,7 @@ Key files: [`cli/internal/core/storage.go`](../../cli/internal/core/storage.go),
 
 Related decisions: [ADR-036](../adr/ADR-036-runtime-state-kv-boundary.md) and
 [ADR-079](../adr/ADR-079-renewable-bearer-sessions.md) and
-[ADR-080](../adr/ADR-080-explicit-expiry-for-mutable-runtime-credentials.md).
+[ADR-081](../adr/ADR-081-explicit-expiry-for-mutable-runtime-credentials.md).
 
 ## KV buckets
 

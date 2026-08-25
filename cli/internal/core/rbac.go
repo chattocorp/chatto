@@ -845,14 +845,6 @@ func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, gro
 // permission, ensuring consistent resolution logic (DM rooms
 // additionally have their boundary deny-list applied).
 func (c *ChattoCore) GetUserEffectiveSpacePermissions(ctx context.Context, kind RoomKind, userID string) ([]Permission, error) {
-	if kind == KindDM {
-		return []Permission{
-			PermRoomJoin,
-			PermMessagePost,
-			PermMessageReact,
-		}, nil
-	}
-
 	var result []Permission
 	for _, permMeta := range PermissionsForScope(ScopeServer) {
 		perm := permMeta.Permission

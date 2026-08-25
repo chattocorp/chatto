@@ -101,6 +101,7 @@
       "room_list": "Zobacz pokoje w katalogu. Użytkownik może uzyskać dostęp do pokoju (np. poprosić o dostęp) bez możliwości dołączenia do niego.",
       "room_manage": "Edytuj ustawienia i uprawnienia pokoju oraz usuwaj pokoje",
       "room_ban_member": "Zablokuj członkom dostęp do pokojów",
+      "message_read": "Czytaj wiadomości w pokojach kanałów",
       "message_post": "Publikuj wiadomości root w pokojach i rozpoczynaj czaty",
       "message_post_in_thread": "Publikuj odpowiedzi w wątku",
       "message_attach": "Dołącz pliki do wiadomości",

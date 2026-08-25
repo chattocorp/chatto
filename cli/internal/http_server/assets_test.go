@@ -1950,3 +1950,43 @@ func TestAsset_RevokedMembership_RevokesStableURL(t *testing.T) {
 		t.Errorf("expected cached thumbnail ticket to fail after leave, got %d", thumb2.StatusCode)
 	}
 }
+
+func TestAsset_RevokedMessageReadRevokesStableURL(t *testing.T) {
+	env := setupAssetTestServerWithS3(t)
+
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "asset-read-viewer", "Asset Read Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "asset-read-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, viewer.Id, core.KindChannel, viewer.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	env.login(t, "asset-read-viewer", "password123")
+	_, attachment := env.postAssetMessageWithAttachment(t, room.Id, "private", createAssetTestPNG(t, 64, 64), "private.png")
+	attachmentURL := attachment.GetAssetUrl().GetUrl()
+	plainClient := &http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error { return http.ErrUseLastResponse }}
+
+	before, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET before denial: %v", err)
+	}
+	before.Body.Close()
+	if before.StatusCode != http.StatusOK {
+		t.Fatalf("status before denial = %d, want 200", before.StatusCode)
+	}
+	if err := env.core.DenyRoomPermission(env.ctx, core.SystemActorID, room.Id, core.RoleEveryone, core.PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission: %v", err)
+	}
+	after, err := plainClient.Get(env.server.URL + attachmentURL)
+	if err != nil {
+		t.Fatalf("GET after denial: %v", err)
+	}
+	after.Body.Close()
+	if after.StatusCode != http.StatusForbidden {
+		t.Fatalf("status after denial = %d, want 403", after.StatusCode)
+	}
+}

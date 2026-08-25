@@ -1,4 +1,4 @@
-# ADR-080: Explicit Expiry for Mutable Runtime Credentials
+# ADR-081: Explicit Expiry for Mutable Runtime Credentials
 
 **Date:** 2026-08-24
 

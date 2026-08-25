@@ -6,7 +6,7 @@
 
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
-[ADR-080](ADR-080-explicit-expiry-for-mutable-runtime-credentials.md)
+[ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md)
 for cookie-session expiry storage and origin-client preference.
 
 ## Context

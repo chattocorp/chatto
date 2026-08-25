@@ -101,6 +101,7 @@
       "room_list": "Ver salas no directório. Um utilizador pode ter permissão para ver uma sala (por exemplo, para solicitar acesso) sem ter permissão para aderir a ela.",
       "room_manage": "Edite as definições e permissões de uma sala e apague salas",
       "room_ban_member": "Banir membros das salas",
+      "message_read": "Ler mensagens em salas de canal",
       "message_post": "Publicar mensagens root nas salas e iniciar DMs",
       "message_post_in_thread": "Colocar respostas dentro de um tópico",
       "message_attach": "Anexar ficheiros às mensagens",

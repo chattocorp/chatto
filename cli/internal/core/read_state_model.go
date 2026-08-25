@@ -65,7 +65,7 @@ func (s *ReadStateModel) RoomMarkerIDsChangedAfter(ctx context.Context, userID s
 }
 
 func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, upToEventID string) (*MarkRoomAsReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}
@@ -135,7 +135,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 }
 
 func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, threadRootEventID, upToEventID string) (*MarkThreadAsReadResult, error) {
-	room, kind, err := s.core.requireRoomMember(ctx, actorID, roomID)
+	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
 	if err != nil {
 		return nil, err
 	}

@@ -13,7 +13,7 @@
       "missing_group": "Elige un grupo de sala antes de crear una sala.",
       "failed": "No se pudo crear la sala",
       "creating": "Creando...",
-      "submit": "Crear Sala"
+      "submit_and_configure": "Crear y configurar"
     },
     "join": {
       "title": "Unirse a la sala",
@@ -70,7 +70,8 @@
       "remove_account_suffix": " de este servidor antes de eliminarlo."
     },
     "timeline": {
-      "beginning": "Este es el comienzo de esta conversación."
+      "beginning": "Este es el comienzo de esta conversación.",
+      "read_denied": "No tienes permiso para leer mensajes en esta sala."
     },
     "message": {
       "empty": "Aún no hay mensajes",
@@ -100,6 +101,8 @@
       "meta": {
         "pinned": "Mensaje fijado",
         "thread": "Hilo",
+        "edited": "Mensaje editado",
+        "echoed_to_channel": "También enviado al canal",
         "reply_count_one": "1 respuesta",
         "reply_count_many": "{count} responde",
         "follow_thread": "Seguir hilo",

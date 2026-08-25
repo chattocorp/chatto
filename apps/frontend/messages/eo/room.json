@@ -13,7 +13,7 @@
       "missing_group": "Elektu ĉambrogrupon antaŭ krei ĉambron.",
       "failed": "Malsukcesis krei ĉambron",
       "creating": "Kreante...",
-      "submit": "Krei Ĉambron"
+      "submit_and_configure": "Krei kaj agordi ĉambron"
     },
     "join": {
       "title": "Aliĝu al Ĉambro",
@@ -70,7 +70,8 @@
       "remove_account_suffix": " de ĉi tiu servilo antaŭ ol forigi ĝin."
     },
     "timeline": {
-      "beginning": "Jen la komenco de ĉi tiu konversacio."
+      "beginning": "Jen la komenco de ĉi tiu konversacio.",
+      "read_denied": "Vi ne havas permeson legi mesaĝojn en ĉi tiu ĉambro."
     },
     "message": {
       "empty": "Ankoraŭ neniuj mesaĝoj",
@@ -100,6 +101,8 @@
       "meta": {
         "pinned": "Alpinglita mesaĝo",
         "thread": "Fadeno",
+        "edited": "Redaktita mesaĝo",
+        "echoed_to_channel": "Ankaŭ sendita al la kanalo",
         "reply_count_one": "1 respondo",
         "reply_count_many": "{count} respondas",
         "follow_thread": "Sekvu fadenon",

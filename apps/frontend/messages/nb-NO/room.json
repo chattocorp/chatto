@@ -13,7 +13,7 @@
       "missing_group": "Velg en romgruppe før du oppretter et rom.",
       "failed": "Kunne ikke opprette rom",
       "creating": "Oppretter ...",
-      "submit": "Opprett rom"
+      "submit_and_configure": "Opprett og konfigurer rommet"
     },
     "join": {
       "title": "Bli med i rommet",
@@ -70,7 +70,8 @@
       "remove_account_suffix": " for denne serveren før du fjerner den."
     },
     "timeline": {
-      "beginning": "Dette er begynnelsen på denne samtalen."
+      "beginning": "Dette er begynnelsen på denne samtalen.",
+      "read_denied": "Du har ikke tillatelse til å lese meldinger i dette rommet."
     },
     "message": {
       "empty": "Ingen meldinger ennå",
@@ -100,6 +101,8 @@
       "meta": {
         "pinned": "Festet melding",
         "thread": "Tråd",
+        "edited": "Redigert melding",
+        "echoed_to_channel": "Også sendt til kanalen",
         "reply_count_one": "1 svar",
         "reply_count_many": "{count} svarer",
         "follow_thread": "Følg tråden",

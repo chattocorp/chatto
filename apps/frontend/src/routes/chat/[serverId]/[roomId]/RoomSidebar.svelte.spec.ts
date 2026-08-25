@@ -278,6 +278,7 @@ function roomData(members: RoomMember[], totalCount: number, hasMore: boolean): 
       threadingMode: RoomThreadingMode.ENABLED
     },
     spaceName: 'Test Server',
+    canReadMessages: true,
     canPostMessage: true,
     canPostInThread: true,
     canAttach: true,

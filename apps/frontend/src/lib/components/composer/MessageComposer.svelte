@@ -304,14 +304,14 @@
 {#if composer.pendingThreadDestinationConfirmation}
   <Dialog
     visible
-    size="sm"
+    size="md"
     title={m('composer.recent_thread_confirm_title')}
     onclose={() => composer.cancelThreadDestinationConfirmation()}
   >
     <p class="text-muted">{m('composer.recent_thread_confirm_body')}</p>
 
     {#snippet footer()}
-      <div class="flex flex-wrap justify-end gap-2">
+      <div class="flex justify-end gap-2">
         <Button variant="secondary" onclick={() => composer.cancelThreadDestinationConfirmation()}>
           {m('common.cancel')}
         </Button>
