@@ -129,19 +129,12 @@ Rows are notification causes. Columns follow the current navigation layout.
       {@const presentation = notificationDeliveryModePresentation(mode)}
       <span class="inline-flex items-center gap-1.5">
         <span
-          class={['iconify h-5 w-5 rounded-md p-1', presentation.icon, presentation.legendClass]}
+          class={['iconify h-5 w-5 shrink-0', presentation.icon, presentation.legendClass]}
           aria-hidden="true"
         ></span>
         {notificationDeliveryModeLabel(mode)}
       </span>
     {/each}
-    <span class="inline-flex items-center gap-1.5">
-      <span
-        class="iconify icon-[uil--link] h-4 w-4 rounded-full bg-background text-muted ring-1 ring-border"
-        aria-hidden="true"
-      ></span>
-      {m('settings.notifications.policy.delivery_mode.inherit')}
-    </span>
   </div>
 
   {#if matrixState.error}

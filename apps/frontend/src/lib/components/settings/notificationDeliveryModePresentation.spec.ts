@@ -17,7 +17,7 @@ describe('notification delivery mode presentation', () => {
     expect(notificationDeliveryModePresentation(NotificationDeliveryMode.OFF)).toEqual({
       icon: 'icon-[ph--bell-slash-fill]',
       tone: 'neutral',
-      legendClass: 'bg-surface-emphasized text-muted'
+      legendClass: 'text-text'
     });
   });
 
@@ -27,14 +27,14 @@ describe('notification delivery mode presentation', () => {
     ).toEqual({
       icon: 'icon-[ph--bell-fill]',
       tone: 'warning',
-      legendClass: 'bg-warning/20 text-warning'
+      legendClass: 'text-warning'
     });
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.PUSH_NOTIFICATION)
     ).toEqual({
       icon: 'icon-[ph--phone-fill]',
       tone: 'warning',
-      legendClass: 'bg-warning/20 text-warning'
+      legendClass: 'text-warning'
     });
   });
 

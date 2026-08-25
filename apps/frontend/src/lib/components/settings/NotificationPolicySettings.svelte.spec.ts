@@ -162,7 +162,8 @@ describe('NotificationPolicySettings', () => {
     expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
-    expect(legend?.querySelector('[class~="icon-[uil--link]"]')).not.toBeNull();
+    expect(legend?.textContent).not.toContain('Inherit');
+    expect(legend?.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
   });
 
   it('uses stable keys for every loaded scope', async () => {

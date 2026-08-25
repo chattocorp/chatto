@@ -16,21 +16,21 @@ export function notificationDeliveryModePresentation(
     return {
       icon: 'icon-[ph--bell-slash-fill]',
       tone: 'neutral',
-      legendClass: 'bg-surface-emphasized text-muted'
+      legendClass: 'text-text'
     };
   }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
     return {
       icon: 'icon-[ph--bell-fill]',
       tone: 'warning',
-      legendClass: 'bg-warning/20 text-warning'
+      legendClass: 'text-warning'
     };
   }
   if (mode === NotificationDeliveryMode.PUSH_NOTIFICATION) {
     return {
       icon: 'icon-[ph--phone-fill]',
       tone: 'warning',
-      legendClass: 'bg-warning/20 text-warning'
+      legendClass: 'text-warning'
     };
   }
   throw new Error(`Unsupported notification delivery mode: ${mode}`);
