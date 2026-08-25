@@ -38,16 +38,20 @@ test.describe('Notification policy', () => {
         'td[data-notification-scope="server"][data-notification-field="directMessages"] [class~="icon-[uil--link]"]'
       )
     ).toHaveCount(0);
-    const inheritedDirectMessages = page.locator(
-      'td[data-notification-scope^="roomGroup:"][data-notification-field="directMessages"] button'
+    const groupDirectMessages = page.locator(
+      'td[data-notification-scope^="roomGroup:"][data-notification-field="directMessages"]'
     );
+    await expect(groupDirectMessages.getByRole('button')).toHaveCount(0);
+    await expect(groupDirectMessages.getByRole('img')).toHaveAttribute(
+      'aria-label',
+      /Not applicable/
+    );
+
     await directMessages.click();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Off/);
-    await expect(inheritedDirectMessages).toHaveAttribute('aria-label', /Effective: Off/);
 
     await directMessages.press('Enter');
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
-    await expect(inheritedDirectMessages).toHaveAttribute('aria-label', /Effective: Notification/);
 
     await page.reload();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
