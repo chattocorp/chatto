@@ -31,10 +31,14 @@ type wsTestEnv struct {
 }
 
 func setupWebSocketTestServer(t testing.TB) *wsTestEnv {
-	return setupWebSocketTestServerWithAccessTokenTTL(t, 0)
+	return setupWebSocketTestServerWithTTLs(t, 0, 0)
 }
 
 func setupWebSocketTestServerWithAccessTokenTTL(t testing.TB, accessTokenTTL time.Duration) *wsTestEnv {
+	return setupWebSocketTestServerWithTTLs(t, accessTokenTTL, 0)
+}
+
+func setupWebSocketTestServerWithTTLs(t testing.TB, accessTokenTTL, cookieSessionTTL time.Duration) *wsTestEnv {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 
@@ -45,6 +49,7 @@ func setupWebSocketTestServerWithAccessTokenTTL(t testing.TB, accessTokenTTL tim
 
 	coreConfig := config.CoreConfig{
 		SecretKey:          "test-core-secret",
+		AuthTokenTTL:       cookieSessionTTL,
 		AuthAccessTokenTTL: accessTokenTTL,
 		Assets: config.AssetsConfig{
 			SigningSecret: "test-signing-secret",
@@ -70,7 +75,7 @@ func setupWebSocketTestServerWithAccessTokenTTL(t testing.TB, accessTokenTTL tim
 
 	s := &HTTPServer{
 		config: config.ChattoConfig{
-			Auth: config.AuthConfig{},
+			Auth: config.AuthConfig{TokenTTL: config.Duration(cookieSessionTTL)},
 			Webserver: config.WebserverConfig{
 				URL:                 "http://localhost:4000",
 				CookieSigningSecret: "test-secret-key-32-bytes-long!!",
@@ -114,7 +119,13 @@ func (env *wsTestEnv) login(t testing.TB, login, password string) {
 	t.Helper()
 
 	loginBody := `{"login":"` + login + `","password":"` + password + `"}`
-	resp, err := env.client.Post(env.server.URL+"/auth/login", "application/json", strings.NewReader(loginBody))
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/login", strings.NewReader(loginBody))
+	if err != nil {
+		t.Fatalf("Failed to create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	resp, err := env.client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}

@@ -43,7 +43,14 @@ best-effort sends a reconnecting `authentication_required` close, and tears
 down the socket. The bundled frontend serializes refresh for that server,
 installs the rotated pair without replacing its per-server state, and reconnects
 the same event bus with its RAM-only opaque resume cursor and retained-room set.
-Cookie sessions and bot API keys have no access-expiry timer.
+Cookie connections retain the cookie record expiry accepted during the HTTP
+upgrade. Their timer ends at the start of the final renewal quarter. The
+handler cancels authorized work, sends a reconnecting
+`session_renewal_required` close when possible, and closes the socket. The
+replacement upgrade advances the same cookie-session record with KV OCC and
+returns the refreshed signed cookie in the `101` response. The frontend keeps
+its route, projection, opaque cursor, and retained-room set during this
+automatic reconnect. Bot API keys have no expiry timer.
 
 Bot API-key connections similarly retain only the non-secret HMAC verifier
 generation accepted during the hello. Each connection registers atomically

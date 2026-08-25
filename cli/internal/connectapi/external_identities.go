@@ -74,17 +74,28 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err != nil {
 		return nil, connectError(err)
 	}
-	credentials, err := s.api.core.CreateBearerSessionWithSource(ctx, user.GetId(), "external_identity_create")
-	if err != nil {
-		return nil, connectError(err)
+	cookieOnly := strings.EqualFold(
+		strings.TrimSpace(req.Header().Get(BrowserAuthenticationModeHeader)),
+		BrowserAuthenticationModeCookie,
+	)
+	var credentials core.BearerSessionCredentials
+	if !cookieOnly {
+		credentials, err = s.api.core.CreateBearerSessionWithSource(ctx, user.GetId(), "external_identity_create")
+		if err != nil {
+			return nil, connectError(err)
+		}
 	}
 	browserSession, err := createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
 	if err != nil {
-		_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_session_failed")
+		if credentials.RefreshToken != "" {
+			_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_session_failed")
+		}
 		return nil, connectError(err)
 	}
 	if err := s.api.core.RecordLoginSucceeded(ctx, user.GetId(), flow.ProviderType+":"+flow.ProviderID); err != nil {
-		_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_audit_failed")
+		if credentials.RefreshToken != "" {
+			_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_audit_failed")
+		}
 		if browserSession.Revoke != nil {
 			_ = browserSession.Revoke(ctx)
 		}
@@ -93,14 +104,17 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 	if err := s.api.core.DeletePendingExternalIdentityFlow(ctx, req.Msg.GetToken()); err != nil {
 		return nil, connectError(err)
 	}
-	return connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
+	response := connect.NewResponse(&authv1.CreateExternalIdentityAccountResponse{
 		UserId:                user.GetId(),
 		Login:                 user.GetLogin(),
 		Token:                 credentials.AccessToken,
 		RefreshToken:          credentials.RefreshToken,
 		ExpiresIn:             remainingLifetimeSeconds(credentials.AccessTokenExpiresAt),
 		RefreshTokenExpiresIn: remainingLifetimeSeconds(credentials.SessionExpiresAt),
-	}), nil
+	})
+	response.Header().Set("Cache-Control", "no-store")
+	response.Header().Set("Pragma", "no-cache")
+	return response, nil
 }
 
 func remainingLifetimeSeconds(expiresAt time.Time) int64 {

@@ -6,6 +6,7 @@ const { mocks } = vi.hoisted(() => ({
     originId: 'origin',
     authenticated: new Set<string>(),
     beginExplicitSignOutRedirect: vi.fn(),
+    cancelExplicitSignOutRedirect: vi.fn(),
     signOutServer: vi.fn(),
     signOutServers: vi.fn(),
     unsubscribePushBeforeLeaving: vi.fn(),
@@ -19,6 +20,8 @@ const { mocks } = vi.hoisted(() => ({
 
 vi.mock('$lib/auth/signOut', () => ({
   beginExplicitSignOutRedirect: mocks.beginExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect: mocks.cancelExplicitSignOutRedirect,
+  ServerLogoutRejectedError: class ServerLogoutRejectedError extends Error {},
   signOutServer: mocks.signOutServer,
   signOutServers: mocks.signOutServers
 }));
@@ -105,14 +108,26 @@ describe('ClientAccountCoordinator', () => {
     expect(mocks.notifyLogout).not.toHaveBeenCalled();
   });
 
+  it('preserves authentication when the server rejects logout', async () => {
+    const { ServerLogoutRejectedError } = await import('$lib/auth/signOut');
+    mocks.signOutServer.mockRejectedValueOnce(new ServerLogoutRejectedError(503));
+
+    await expect(clientAccount.signOutCurrentServer('origin')).rejects.toBeInstanceOf(
+      ServerLogoutRejectedError
+    );
+
+    expect(mocks.cancelExplicitSignOutRedirect).toHaveBeenCalledOnce();
+    expect(mocks.clearLastRoom).not.toHaveBeenCalled();
+    expect(mocks.clearServerAuthentication).not.toHaveBeenCalled();
+    expect(mocks.notifyLogout).not.toHaveBeenCalled();
+  });
+
   it('preserves all-server authentication when any push cleanup cannot establish a delivery fence', async () => {
     mocks.unsubscribePushBeforeLeaving
       .mockResolvedValueOnce(undefined)
       .mockRejectedValueOnce(new Error('remote browser lookup failed'));
 
-    await expect(clientAccount.signOutAllServers()).rejects.toThrow(
-      'remote browser lookup failed'
-    );
+    await expect(clientAccount.signOutAllServers()).rejects.toThrow('remote browser lookup failed');
 
     expect(mocks.unsubscribePushBeforeLeaving).toHaveBeenCalledTimes(2);
     expect(mocks.beginExplicitSignOutRedirect).not.toHaveBeenCalled();

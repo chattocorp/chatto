@@ -898,6 +898,33 @@ func TestBearerExpiryCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
 	}
 }
 
+func TestCookieRenewalCancelsAuthorizationAndRequestsReconnect(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	var written *realtimev1.RealtimeServerFrame
+	closed := false
+
+	terminateRealtimeForCookieRenewal(
+		cancel,
+		func(frame *realtimev1.RealtimeServerFrame) error {
+			written = frame
+			return nil
+		},
+		func() { closed = true },
+	)
+
+	select {
+	case <-ctx.Done():
+	default:
+		t.Fatal("authorized context remained active at the cookie renewal boundary")
+	}
+	if !closed {
+		t.Fatal("connection remained open at the cookie renewal boundary")
+	}
+	if written.GetClose().GetCode() != "session_renewal_required" || !written.GetClose().GetReconnect() {
+		t.Fatalf("renewal frame = %+v, want reconnecting session_renewal_required", written)
+	}
+}
+
 func TestRealtimeWebSocketBoundsWholeCatchUpDuration(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	env.httpServer.realtimeCatchUps.timeout = -time.Nanosecond
@@ -2291,6 +2318,60 @@ func TestRealtimeWebSocketAuthenticatesWithCookie(t *testing.T) {
 
 	conn := env.connectRealtime(t)
 	subscribeRealtime(t, conn, "")
+}
+
+func TestRealtimeWebSocketPreservesRenewedCookieOnUpgrade(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie-renew", "RT Cookie Renew", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "rt-cookie-renew", "password123")
+	env.httpServer.cookieSessionRenewalNow = func() time.Time { return time.Now().Add(89 * 24 * time.Hour) }
+
+	wsURL := "ws" + strings.TrimPrefix(env.server.URL, "http") + realtimePath
+	header := http.Header{}
+	for _, c := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
+		header.Add("Cookie", c.String())
+	}
+	conn, response, err := websocket.DefaultDialer.Dial(wsURL, header)
+	if err != nil {
+		t.Fatalf("Realtime WebSocket dial: %v", err)
+	}
+	t.Cleanup(func() { _ = conn.Close() })
+	if response == nil {
+		t.Fatal("WebSocket upgrade did not return an HTTP response")
+	}
+	foundSessionCookie := false
+	for _, cookie := range response.Cookies() {
+		if cookie.Name == "chatto_session" && cookie.Value != "" {
+			foundSessionCookie = true
+			env.cookieJar.SetCookies(mustParseURL(env.server.URL), []*http.Cookie{cookie})
+		}
+	}
+	if !foundSessionCookie {
+		t.Fatalf("WebSocket 101 Set-Cookie = %v, want renewed chatto_session", response.Header.Values("Set-Cookie"))
+	}
+	subscribeRealtime(t, conn, "")
+
+	// A second handshake proves that the browser can present the cookie from the
+	// first 101 response and authenticate without a bearer token.
+	secondConn := env.connectRealtime(t)
+	subscribeRealtime(t, secondConn, "")
+}
+
+func TestRealtimeWebSocketCookieSessionStopsAtRenewalBoundary(t *testing.T) {
+	env := setupWebSocketTestServerWithTTLs(t, 0, 2*time.Second)
+	if _, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-cookie-deadline", "RT Cookie Deadline", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	env.login(t, "rt-cookie-deadline", "password123")
+
+	conn := env.connectRealtime(t)
+	subscribeRealtime(t, conn, "")
+	frame, ok := readRealtimeServerFrame(t, conn, 4*time.Second)
+	if !ok || frame.GetClose().GetCode() != "session_renewal_required" || !frame.GetClose().GetReconnect() {
+		t.Fatalf("cookie deadline frame = %+v, want reconnecting session_renewal_required", frame)
+	}
 }
 
 func TestRealtimeWebSocketRequiresBearerAcrossOrigins(t *testing.T) {

@@ -394,11 +394,11 @@ func (c *ChattoCore) RevokeAllAuthTokensForUserWithReason(ctx context.Context, u
 			continue
 		}
 
-		if err := c.recordBearerTokenRevoked(ctx, userID, reason); err != nil {
-			return revoked, err
-		}
 		if err := c.deleteRuntimeStateKey(ctx, key); err != nil {
 			return revoked, fmt.Errorf("failed to revoke renewable session: %w", err)
+		}
+		if err := c.recordBearerTokenRevoked(ctx, userID, reason); err != nil {
+			c.logger.Warn("Failed to append bearer-token revocation audit event", "error", err)
 		}
 		revoked++
 	}
@@ -439,13 +439,13 @@ func (c *ChattoCore) RevokeOAuthClientTokens(ctx context.Context, clientID strin
 		if session.Kind != AuthTokenKindOAuthAccessToken || session.ClientID != clientID {
 			continue
 		}
-		if session.UserID != "" {
-			if err := c.recordBearerTokenRevoked(ctx, session.UserID, "oauth_client_blocked"); err != nil {
-				return revoked, err
-			}
-		}
 		if err := c.deleteRuntimeStateKey(ctx, key); err != nil {
 			return revoked, fmt.Errorf("failed to revoke OAuth client token: %w", err)
+		}
+		if session.UserID != "" {
+			if err := c.recordBearerTokenRevoked(ctx, session.UserID, "oauth_client_blocked"); err != nil {
+				c.logger.Warn("Failed to append OAuth token revocation audit event", "error", err)
+			}
 		}
 		revoked++
 	}

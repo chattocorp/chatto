@@ -210,6 +210,31 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 		t.Fatalf("pending create flow after confirmation error = %v, want ErrExternalIdentityFlowNotFound", err)
 	}
 
+	cookieOnlyToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
+		ProviderID:    "gitlab-main",
+		ProviderType:  config.AuthProviderTypeGitLab,
+		ProviderLabel: "GitLab",
+		Issuer:        "gitlab-main",
+		Subject:       "cookie-only-account",
+		LoginHint:     "cookie-only-sso-user",
+	})
+	if err != nil {
+		t.Fatalf("CreatePendingExternalIdentityCreateFlow cookie only: %v", err)
+	}
+	cookieOnlyRequest := connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+		Token: cookieOnlyToken,
+		Login: "cookie-only-sso-user",
+	})
+	cookieOnlyRequest.Header().Set(BrowserAuthenticationModeHeader, BrowserAuthenticationModeCookie)
+	cookieOnlyCreated, err := env.externalAuth.CreateExternalIdentityAccount(env.ctx, cookieOnlyRequest)
+	if err != nil {
+		t.Fatalf("CreateExternalIdentityAccount cookie only: %v", err)
+	}
+	if cookieOnlyCreated.Msg.GetToken() != "" || cookieOnlyCreated.Msg.GetRefreshToken() != "" ||
+		cookieOnlyCreated.Msg.GetExpiresIn() != 0 || cookieOnlyCreated.Msg.GetRefreshTokenExpiresIn() != 0 {
+		t.Fatalf("cookie-only external identity response contains bearer credentials: %+v", cookieOnlyCreated.Msg)
+	}
+
 	fallbackToken, err := env.core.CreatePendingExternalIdentityCreateFlow(env.ctx, core.PendingExternalIdentityFlow{
 		ProviderID:      "discord-main",
 		ProviderType:    config.AuthProviderTypeDiscord,

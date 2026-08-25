@@ -424,14 +424,14 @@ func (c *ChattoCore) revokeRenewableSession(ctx context.Context, sessionID, reas
 		}
 		return err
 	}
-	// Durable audit append remains a prerequisite for revocation. Deleting the
-	// stable key without a revision then fences any rotation that raced the
-	// append and ensures the latest generation is revoked too.
-	if err := c.recordBearerTokenRevoked(ctx, session.UserID, reason); err != nil {
-		return err
-	}
+	// Delete the stable authority before the best-effort audit append. The
+	// unrevisioned delete fences a rotation that raced this lookup and ensures
+	// an audit outage cannot leave a credential active.
 	if err := c.deleteRuntimeStateKey(ctx, c.renewableSessionKey(sessionID)); err != nil {
 		return fmt.Errorf("revoke renewable session: %w", err)
+	}
+	if err := c.recordBearerTokenRevoked(ctx, session.UserID, reason); err != nil {
+		c.logger.Warn("Failed to append bearer-token revocation audit event", "error", err)
 	}
 	return nil
 }

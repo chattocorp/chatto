@@ -200,7 +200,7 @@ test.describe('Session Expiration Handling', () => {
     await page.waitForURL(routes.settings, { timeout: TIMEOUTS.REALTIME_EVENT });
   });
 
-  test('same-origin login keeps a stable cookie without persisted bearer credentials', async ({
+  test('same-origin login keeps a renewable cookie without persisted bearer credentials', async ({
     page,
     authPage
   }) => {
@@ -218,8 +218,8 @@ test.describe('Session Expiration Handling', () => {
     const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_session');
     expect(initialSessionCookie).toBeDefined();
 
-    // Ordinary navigation validates the cookie without rewriting its runtime
-    // record or signed browser value. Rotation happens only near expiry.
+    // Ordinary navigation validates the cookie and can re-sign the same
+    // server-side handle. The KV record renews only near expiry.
     await page.goto(routes.settings);
     await page.waitForURL(routes.settings);
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
@@ -237,8 +237,9 @@ test.describe('Session Expiration Handling', () => {
     // Verify the cookie has a reasonable fixed expiration.
     expect(updatedSessionCookie!.expires).toBeGreaterThan(expectedMinExpires);
 
-    expect(updatedSessionCookie!.value).toBe(initialSessionCookie!.value);
-    expect(updatedSessionCookie!.expires).toBe(initialSessionCookie!.expires);
+    // Re-signing can change the signed envelope and subsecond browser expiry.
+    // The server-side stable-handle and no-KV-write contracts have focused Go tests.
+    expect(Math.abs(updatedSessionCookie!.expires - initialSessionCookie!.expires)).toBeLessThan(2);
 
     const originAuthentication = await page.evaluate(() => {
       const registrations = JSON.parse(localStorage.getItem('chatto:instances') ?? '[]') as Array<{
@@ -313,7 +314,7 @@ test.describe('Session Expiration Handling', () => {
   });
 });
 
-test.describe('Cookie session rotation', () => {
+test.describe('Cookie session renewal', () => {
   test.use({
     serverOptions: {
       env: {
@@ -322,12 +323,12 @@ test.describe('Cookie session rotation', () => {
     }
   });
 
-  test('rotates the signed cookie in the final quarter of its lifetime', async ({
+  test('renews the signed cookie in the final quarter of its lifetime', async ({
     page,
     authPage
   }) => {
     const timestamp = Date.now();
-    const testLogin = `sessionrotate${timestamp}`;
+    const testLogin = `sessionrenew${timestamp}`;
     const testPassword = 'testpassword123';
 
     await authPage.createUserViaApi(testLogin, testPassword);
@@ -340,16 +341,18 @@ test.describe('Cookie session rotation', () => {
     expect(initialSessionCookie).toBeDefined();
 
     // This intentional wall-clock wait moves the 12-second session into its
-    // final quarter. Rotation depends on the server clock, not a browser timer.
+    // final quarter. Renewal depends on the server clock, not a browser timer.
     await page.waitForTimeout(9200);
-    await page.goto(`${routes.settings}?rotation=${timestamp}`);
+    await page.goto(`${routes.settings}?renewal=${timestamp}`);
     await expect(page.getByRole('heading', { name: 'Profile', level: 1 })).toBeVisible();
 
-    const rotatedSessionCookie = (await page.context().cookies()).find(
+    const renewedSessionCookie = (await page.context().cookies()).find(
       (cookie) => cookie.name === 'chatto_session'
     );
-    expect(rotatedSessionCookie).toBeDefined();
-    expect(rotatedSessionCookie!.value).not.toBe(initialSessionCookie!.value);
-    expect(rotatedSessionCookie!.expires).toBeGreaterThan(initialSessionCookie!.expires);
+    expect(renewedSessionCookie).toBeDefined();
+    // Re-signing changes the cookie envelope. Focused Go tests verify that the
+    // opaque server-side handle inside that envelope stays stable.
+    expect(renewedSessionCookie!.value).not.toBe(initialSessionCookie!.value);
+    expect(renewedSessionCookie!.expires).toBeGreaterThan(initialSessionCookie!.expires);
   });
 });

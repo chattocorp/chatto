@@ -393,7 +393,10 @@ func (s *HTTPServer) oauthCookieCredential(c *gin.Context) (presentedRuntimeCred
 	if !ok {
 		return presentedRuntimeCredential{}, false, nil
 	}
-	credential.auth.Handle, credential.cookieRecord = s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
+	credential.cookieRecord = s.renewCookieSessionIfNeeded(c, credential.auth.Handle, credential.cookieRecord)
+	if credential.cookieRecord.GetExpiresAt() != nil {
+		credential.auth.ExpiresAt = credential.cookieRecord.GetExpiresAt().AsTime()
+	}
 	return credential, true, nil
 }
 

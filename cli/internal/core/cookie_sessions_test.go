@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -111,6 +112,85 @@ func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing
 	}
 	if after.Revision() != before.Revision() {
 		t.Fatalf("cookie validation changed revision from %d to %d", before.Revision(), after.Revision())
+	}
+}
+
+func TestChattoCore_ConcurrentCookieRenewalKeepsOneStableHandle(t *testing.T) {
+	core, _ := setupTestCore(t)
+	core.config.AuthTokenTTL = 4 * time.Hour
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-concurrent-renew-user", "Cookie Concurrent Renew User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	sessionID, created, err := core.CreateCookieSession(ctx, user.GetId(), "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+	now := created.GetExpiresAt().AsTime().Add(-30 * time.Minute)
+	wantExpiry := now.Add(4 * time.Hour)
+
+	var wait sync.WaitGroup
+	errs := make(chan error, 2)
+	for range 2 {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			_, _, renewErr := core.RenewCookieSession(ctx, sessionID, now)
+			errs <- renewErr
+		}()
+	}
+	wait.Wait()
+	close(errs)
+	for renewErr := range errs {
+		if renewErr != nil {
+			t.Fatalf("RenewCookieSession: %v", renewErr)
+		}
+	}
+
+	renewed, err := core.ValidateCookieCredential(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+	if !renewed.GetExpiresAt().AsTime().Equal(wantExpiry) {
+		t.Fatalf("renewed expiry = %v, want %v", renewed.GetExpiresAt(), wantExpiry)
+	}
+	assertRuntimeKVHasTTL(t, core, core.authTokenKey(sessionID))
+}
+
+func TestChattoCore_LogoutDeleteFencesConcurrentCookieRenewal(t *testing.T) {
+	core, _ := setupTestCore(t)
+	core.config.AuthTokenTTL = 4 * time.Hour
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "cookie-renew-revoke-user", "Cookie Renew Revoke User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	for attempt := 0; attempt < 20; attempt++ {
+		sessionID, created, err := core.CreateCookieSession(ctx, user.GetId(), "password_login")
+		if err != nil {
+			t.Fatalf("CreateCookieSession attempt %d: %v", attempt, err)
+		}
+		now := created.GetExpiresAt().AsTime().Add(-30 * time.Minute)
+		start := make(chan struct{})
+		var wait sync.WaitGroup
+		wait.Add(2)
+		go func() {
+			defer wait.Done()
+			<-start
+			_, _, _ = core.RenewCookieSession(ctx, sessionID, now)
+		}()
+		go func() {
+			defer wait.Done()
+			<-start
+			_ = core.RevokeCookieSession(ctx, sessionID)
+		}()
+		close(start)
+		wait.Wait()
+		if _, err := core.ValidateCookieCredential(ctx, sessionID); !errors.Is(err, ErrCookieSessionNotFound) {
+			t.Fatalf("attempt %d validation error = %v, want ErrCookieSessionNotFound", attempt, err)
+		}
 	}
 }
 
@@ -222,21 +302,23 @@ func TestChattoCore_CookieSessionFreshAuth(t *testing.T) {
 		t.Fatalf("new cookie session should be fresh: %v", err)
 	}
 
-	created.FreshAuthAt = timestamppb.New(time.Now().Add(-FreshAuthWindow - time.Minute))
-	rotatedID, rotated, err := core.CreateCookieSessionForGenerationPreservingFreshAuth(ctx, user.Id, "session_rotation", created.GetAuthGeneration(), created)
+	renewed, didRenew, err := core.RenewCookieSession(ctx, sessionID, created.GetExpiresAt().AsTime().Add(-time.Minute))
 	if err != nil {
-		t.Fatalf("CreateCookieSessionForGenerationPreservingFreshAuth: %v", err)
+		t.Fatalf("RenewCookieSession: %v", err)
 	}
-	if rotated.GetFreshAuthAt() == nil || !rotated.GetFreshAuthAt().AsTime().Equal(created.GetFreshAuthAt().AsTime()) {
-		t.Fatalf("rotated fresh auth at = %v, want %v", rotated.GetFreshAuthAt(), created.GetFreshAuthAt())
+	if !didRenew {
+		t.Fatal("RenewCookieSession didRenew = false, want true")
 	}
-	if err := core.RequireFreshAuthForCookieSession(ctx, rotatedID); !errors.Is(err, ErrFreshAuthRequired) {
-		t.Fatalf("rotated stale session fresh auth err = %v, want ErrFreshAuthRequired", err)
+	if renewed.GetFreshAuthAt() == nil || !renewed.GetFreshAuthAt().AsTime().Equal(created.GetFreshAuthAt().AsTime()) {
+		t.Fatalf("renewed fresh auth at = %v, want %v", renewed.GetFreshAuthAt(), created.GetFreshAuthAt())
 	}
-	if err := core.MarkCookieSessionFresh(ctx, rotatedID, "password", "current_password"); err != nil {
+	if renewed.GetFreshAuthMethod() != created.GetFreshAuthMethod() || renewed.GetFreshAuthSource() != created.GetFreshAuthSource() {
+		t.Fatalf("renewed fresh-auth provenance = %q/%q, want %q/%q", renewed.GetFreshAuthMethod(), renewed.GetFreshAuthSource(), created.GetFreshAuthMethod(), created.GetFreshAuthSource())
+	}
+	if err := core.MarkCookieSessionFresh(ctx, sessionID, "password", "current_password"); err != nil {
 		t.Fatalf("MarkCookieSessionFresh: %v", err)
 	}
-	if err := core.RequireFreshAuthForCookieSession(ctx, rotatedID); err != nil {
+	if err := core.RequireFreshAuthForCookieSession(ctx, sessionID); err != nil {
 		t.Fatalf("marked cookie session should be fresh: %v", err)
 	}
 }

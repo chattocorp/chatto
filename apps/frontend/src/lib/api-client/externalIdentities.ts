@@ -4,6 +4,7 @@ import {
   handleAuthError,
   type ConnectAPIConfig
 } from './connect.js';
+import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
 import { ExternalIdentityAuthService } from '@chatto/api-types/chatto/auth/v1/external_identity_auth_connect';
 import {
   ExternalIdentityFlowKind,
@@ -58,10 +59,6 @@ export type ExternalIdentityList = {
 export type CreatedExternalIdentityAccount = {
   userId: string;
   login: string;
-  token: string;
-  refreshToken: string;
-  expiresIn: number;
-  refreshTokenExpiresIn: number;
 };
 
 export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
@@ -80,14 +77,12 @@ export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPICon
       login: string;
       displayName: string;
     }): Promise<CreatedExternalIdentityAccount> {
-      const response = await client.createExternalIdentityAccount(input);
+      const response = await client.createExternalIdentityAccount(input, {
+        headers: browserCookieAuthenticationHeaders
+      });
       return {
         userId: response.userId,
-        login: response.login,
-        token: response.token,
-        refreshToken: response.refreshToken,
-        expiresIn: Number(response.expiresIn),
-        refreshTokenExpiresIn: Number(response.refreshTokenExpiresIn)
+        login: response.login
       };
     },
 

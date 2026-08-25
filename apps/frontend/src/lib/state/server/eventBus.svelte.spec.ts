@@ -809,6 +809,26 @@ describe('eventBusManager realtime transport', () => {
     expect(hello.frame.value.bearerToken).toBe('token-2');
   });
 
+  it('reconnects cookie sessions when the server requests automatic renewal', async () => {
+    vi.useFakeTimers();
+    const { fake, socket } = await startAndSubscribe();
+
+    await socket.receive(
+      serverFrame({
+        case: 'close',
+        value: new RealtimeClose({
+          code: 'session_renewal_required',
+          message: 'browser session ready for renewal',
+          reconnect: true
+        })
+      })
+    );
+    await vi.advanceTimersByTimeAsync(0);
+
+    expect(fake.authRequiredCalls).toBe(0);
+    expect(sockets).toHaveLength(2);
+  });
+
   it('reconnects when the ServerConnection retry bridge requests it', async () => {
     vi.useFakeTimers();
     const { fake } = await startAndSubscribe();

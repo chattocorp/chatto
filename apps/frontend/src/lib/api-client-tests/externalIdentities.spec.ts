@@ -100,17 +100,18 @@ describe('createExternalIdentityFlowAPI', () => {
       api.createAccount({ token: 'flow-token', login: 'octo', displayName: 'Octo Person' })
     ).resolves.toEqual({
       userId: 'user-1',
-      login: 'octo',
-      token: 'session-token',
-      refreshToken: 'refresh-token',
-      expiresIn: 900,
-      refreshTokenExpiresIn: 7_776_000
+      login: 'octo'
     });
-    expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith({
-      token: 'flow-token',
-      login: 'octo',
-      displayName: 'Octo Person'
-    });
+    expect(mocks.createExternalIdentityAccount).toHaveBeenCalledWith(
+      {
+        token: 'flow-token',
+        login: 'octo',
+        displayName: 'Octo Person'
+      },
+      {
+        headers: { 'X-Chatto-Authentication-Mode': 'cookie' }
+      }
+    );
   });
 });
 

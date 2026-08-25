@@ -80,7 +80,7 @@ The migration completed at the 0.5 compatibility boundary:
 4. Store only the opaque runtime credential handle in signed browser sessions.
    Retired signed-session fields such as `user_id` and `cookie_session_id` are
    cleared but never accepted as authentication inputs.
-5. Keep cookie rotation, revocation, logout audit, live session termination, and
+5. Keep cookie renewal, revocation, logout audit, live session termination, and
    auth-context injection on the shared credential path once the presentation
    channel has been checked.
 6. Stop reading, refreshing, revoking, or scanning legacy `cookie_session.*`
@@ -108,7 +108,7 @@ programmatic client can use the bearer presentation.
 The 0.5 cutoff has a deliberate compatibility cost: browsers that still carry
 the retired cookie-session shape are signed out once. In return, every active
 browser session now follows typed validation and explicit revocation rules.
-Cookie records use fixed explicit expiry plus handle rotation, while bearer
+Cookie records use explicit expiry plus stable-handle renewal, while bearer
 access records use fixed expiry and a stable `renewable_session.*` authority.
 User-wide cleanup covers both
 `session.*` records and renewable-session authorities.

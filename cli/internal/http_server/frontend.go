@@ -99,7 +99,7 @@ func setServiceWorkerETag(c *gin.Context, content []byte) bool {
 
 func setFrontendCacheHeaders(c *gin.Context) {
 	urlPath := c.Request.URL.Path
-	if strings.HasPrefix(urlPath, "/_app/immutable/") {
+	if isImmutableFrontendAsset(urlPath) {
 		c.Header("Cache-Control", cacheControlImmutable)
 
 		// Extract ETag from the content-hashed filename
@@ -123,6 +123,10 @@ func setFrontendCacheHeaders(c *gin.Context) {
 		c.Header("Cache-Control", cacheControlNoCache)
 	}
 	c.Next()
+}
+
+func isImmutableFrontendAsset(urlPath string) bool {
+	return strings.HasPrefix(urlPath, "/_app/immutable/")
 }
 
 func (s *HTTPServer) currentServerIconURL(ctx context.Context, size int) string {
@@ -440,14 +444,14 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 		s.redirectBrowserIcon(c, 180, "/icons/apple-touch-icon.png")
 	})
 
-	// rotateSessionIfAuthenticated validates and rotates authenticated
-	// cookie-session records for active SPA browsing. KV TTL is set only when
-	// a session is created, so near-expiry sessions are rotated instead of
-	// "touched" in place.
-	rotateSessionIfAuthenticated := func(c *gin.Context) {
+	// renewSessionIfAuthenticated validates the stable cookie-session record,
+	// renews its expiry with KV OCC when needed, and refreshes the signed browser
+	// cookie. Public immutable assets skip authentication so their responses can
+	// never carry user-specific cookies.
+	renewSessionIfAuthenticated := func(c *gin.Context) {
 		credential, ok, _ := s.cookiePresentedCredential(c)
 		if ok {
-			_, _ = s.rotateCookieSessionIfNeeded(c, credential.auth.UserID, credential.auth.Handle, credential.cookieRecord)
+			s.renewCookieSessionIfNeeded(c, credential.auth.Handle, credential.cookieRecord)
 		}
 	}
 
@@ -459,8 +463,9 @@ func (s *HTTPServer) setupFrontendRoutes() error {
 			filePath = "200.html"
 		}
 
-		// Rotate near-expiry sessions on every SPA route.
-		rotateSessionIfAuthenticated(c)
+		if !isImmutableFrontendAsset(c.Request.URL.Path) {
+			renewSessionIfAuthenticated(c)
+		}
 
 		// Release builds may retain only compressed representations.
 		if !frontendFileExists(clientFS, filePath) {

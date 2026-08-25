@@ -38,7 +38,9 @@ func (s *HTTPServer) csrfMiddleware() gin.HandlerFunc {
 		}
 
 		session := sessions.Default(c)
-		if isSafeHTTPMethod(c.Request.Method) && hasCookieCredential(session) {
+		if isSafeHTTPMethod(c.Request.Method) &&
+			hasCookieCredential(session) &&
+			!isImmutableFrontendAsset(c.Request.URL.Path) {
 			if err := s.ensureCSRFToken(c); err != nil {
 				if errors.Is(err, errAuthenticationServiceUnavailable) {
 					c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{"error": "Authentication service temporarily unavailable"})

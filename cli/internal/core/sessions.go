@@ -42,19 +42,6 @@ func (c *ChattoCore) CreateCookieSessionForGeneration(ctx context.Context, userI
 	return c.createCookieSessionForGeneration(ctx, userID, source, authGeneration, now, freshAuthMethodForSource(source), source)
 }
 
-func (c *ChattoCore) CreateCookieSessionForGenerationPreservingFreshAuth(ctx context.Context, userID, source string, authGeneration uint64, previous *corev1.CookieSession) (string, *corev1.CookieSession, error) {
-	var freshAuthAt time.Time
-	var freshAuthMethod, freshAuthSource string
-	if previous != nil {
-		if previous.GetFreshAuthAt() != nil {
-			freshAuthAt = previous.GetFreshAuthAt().AsTime()
-		}
-		freshAuthMethod = previous.GetFreshAuthMethod()
-		freshAuthSource = previous.GetFreshAuthSource()
-	}
-	return c.createCookieSessionForGeneration(ctx, userID, source, authGeneration, freshAuthAt, freshAuthMethod, freshAuthSource)
-}
-
 func (c *ChattoCore) createCookieSessionForGeneration(ctx context.Context, userID, source string, authGeneration uint64, freshAuthAt time.Time, freshAuthMethod, freshAuthSource string) (string, *corev1.CookieSession, error) {
 	if userID == "" {
 		return "", nil, ErrCookieSessionNotFound
@@ -123,6 +110,80 @@ func (c *ChattoCore) ValidateCookieCredential(ctx context.Context, sessionID str
 	}
 
 	return c.cookieSessionRecordFromValidatedCredential(credential), nil
+}
+
+// RenewCookieSession advances one cookie session's expiry in place when its
+// current window is in the final quarter. The expected KV revision serializes
+// renewal with other replicas and makes an unrevisioned logout delete fence a
+// concurrent renewal without changing the browser's opaque handle.
+func (c *ChattoCore) RenewCookieSession(ctx context.Context, sessionID string, now time.Time) (*corev1.CookieSession, bool, error) {
+	if sessionID == "" {
+		return nil, false, ErrCookieSessionNotFound
+	}
+	ttl := c.cookieSessionTTL()
+	if ttl <= 0 {
+		return nil, false, fmt.Errorf("cookie session TTL must be positive")
+	}
+
+	key := c.authTokenKey(sessionID)
+	for attempt := 0; attempt < 8; attempt++ {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+				return nil, false, ErrCookieSessionNotFound
+			}
+			return nil, false, fmt.Errorf("failed to get cookie session for renewal: %w", err)
+		}
+
+		var tokenData AuthTokenData
+		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil ||
+			tokenData.UserID == "" ||
+			tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
+			tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
+			tokenData.CreatedAt.IsZero() ||
+			tokenData.ExpiresAt.IsZero() {
+			_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+			return nil, false, ErrCookieSessionNotFound
+		}
+		if !now.Before(tokenData.ExpiresAt) {
+			_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+			return nil, false, ErrCookieSessionNotFound
+		}
+
+		validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+			UserID:         tokenData.UserID,
+			CreatedAt:      tokenData.CreatedAt,
+			AuthGeneration: tokenData.AuthGeneration,
+		})
+		if err != nil {
+			if errors.Is(err, ErrAuthenticationRevoked) {
+				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+				return nil, false, ErrCookieSessionNotFound
+			}
+			return nil, false, err
+		}
+		if validation.ShouldPersistAuthGeneration {
+			tokenData.AuthGeneration = validation.AuthGeneration
+		}
+
+		if tokenData.ExpiresAt.Sub(now) > ttl/4 {
+			return c.cookieSessionRecordFromAuthTokenData(tokenData), false, nil
+		}
+
+		tokenData.ExpiresAt = now.Add(ttl)
+		value, err := json.Marshal(tokenData)
+		if err != nil {
+			return nil, false, fmt.Errorf("failed to marshal renewed cookie session: %w", err)
+		}
+		if _, err := c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, now); err != nil {
+			if isRuntimeStateRevisionConflict(err) {
+				continue
+			}
+			return nil, false, fmt.Errorf("failed to renew cookie session: %w", err)
+		}
+		return c.cookieSessionRecordFromAuthTokenData(tokenData), true, nil
+	}
+	return nil, false, fmt.Errorf("renew cookie session: too much contention")
 }
 
 func (c *ChattoCore) cookieSessionRecordFromAuthTokenData(tokenData AuthTokenData) *corev1.CookieSession {

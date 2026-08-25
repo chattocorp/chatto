@@ -42,8 +42,8 @@ This applies to first-party bearer sessions issued by password, registration,
 and explicit external-identity account-creation flows, and to delegated bearer
 sessions issued by OAuth Authorization Code with PKCE. OAuth sessions remain
 bound to their validated client ID. Bot API keys remain non-expiring durable
-bot credentials, and same-origin cookie sessions use the separate fixed-window
-rotation behavior in ADR-080.
+bot credentials, and same-origin cookie sessions use the separate stable-key
+renewal behavior in ADR-080.
 
 The default access-token lifetime is 15 minutes and is configurable with
 `auth.access_token_ttl` / `CHATTO_AUTH_ACCESS_TOKEN_TTL`. The renewable session
@@ -120,9 +120,10 @@ credential pair. This also recovers a process failure between committing the
 stable rotation and creating its access record.
 
 Any other presentation of an older generation is refresh-credential reuse.
-The server durably records bearer revocation before deleting the stable
-renewable-session key, invalidating the winner and every outstanding access
-token for that session. Two concurrent refresh attempts with different
+The server first deletes the stable renewable-session key, invalidating the
+winner and every outstanding access token for that session. It then records
+the revocation audit fact as a best-effort action. An audit outage cannot keep
+the credential active. Two concurrent refresh attempts with different
 request IDs therefore produce at most one temporary winner and then revoke the
 session when the loser observes reuse. Clients must serialize refreshes; the
 bundled frontend coalesces same-tab work and uses a per-server Web Lock so tabs
@@ -136,6 +137,13 @@ the stable authority, rejecting all overlap at its next validation. Established
 realtime sockets retain the same fixed-expiry bound described above.
 
 ### Client behavior
+
+Direct password, registration, and external-identity account-creation
+requests can explicitly select cookie-only browser authentication. In that
+mode, the server creates the HttpOnly cookie session and does not create or
+return a bearer or refresh credential. Calls that do not select cookie-only
+mode keep the bearer response for programmatic clients. This is an additive
+request mode; the existing response remains the default.
 
 The bundled frontend persists the access token, refresh credential, both
 expiry instants, OAuth client ID when applicable, and any in-flight refresh

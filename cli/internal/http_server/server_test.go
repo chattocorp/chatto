@@ -24,6 +24,7 @@ import (
 	"github.com/gin-contrib/sessions/cookie"
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/email"
 	"hmans.de/chatto/internal/evtstream"
@@ -711,6 +712,47 @@ func TestAuthRoutes_Login_Success(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_Login_CookieOnlyDoesNotIssueBearerCredentials(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "cookieonly", "Cookie Only", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{
+		"login":    "cookieonly",
+		"password": "password123",
+	})
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("POST /auth/login: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("login status = %d, want 200: %s", resp.StatusCode, responseBody)
+	}
+
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode login response: %v", err)
+	}
+	for _, field := range []string{"token", "refreshToken", "expiresIn", "refreshTokenExpiresIn"} {
+		if _, exists := result[field]; exists {
+			t.Fatalf("cookie-only login response contains %q", field)
+		}
+	}
+	if cookies := client.Jar.Cookies(resp.Request.URL); len(cookies) == 0 {
+		t.Fatal("cookie-only login did not save a browser session")
+	}
+}
+
 func TestAuthRoutes_Login_DisabledReturns403BeforeCredentialValidation(t *testing.T) {
 	disabled := false
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
@@ -958,6 +1000,47 @@ func TestAuthRoutes_Logout(t *testing.T) {
 	}
 	if deleted != 0 {
 		t.Fatalf("Logout left %d cookie sessions behind, want 0", deleted)
+	}
+}
+
+func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
+	var server *HTTPServer
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
+		server = configured
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "logout-unavailable", "Logout Unavailable", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"login": "logout-unavailable", "password": "password123"})
+	loginRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest login: %v", err)
+	}
+	loginRequest.Header.Set("Content-Type", "application/json")
+	loginRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	loginResponse, err := client.Do(loginRequest)
+	if err != nil {
+		t.Fatalf("login request: %v", err)
+	}
+	loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("login status = %d, want 200", loginResponse.StatusCode)
+	}
+
+	server.nc.Close()
+	logoutResponse, err := client.Post(ts.URL+"/auth/logout", "application/json", nil)
+	if err != nil {
+		t.Fatalf("logout request: %v", err)
+	}
+	defer logoutResponse.Body.Close()
+	if logoutResponse.StatusCode != http.StatusServiceUnavailable {
+		responseBody, _ := io.ReadAll(logoutResponse.Body)
+		t.Fatalf("logout status = %d, want 503: %s", logoutResponse.StatusCode, responseBody)
+	}
+	if cookies := client.Jar.Cookies(loginResponse.Request.URL); len(cookies) == 0 {
+		t.Fatal("failed logout cleared the browser session")
 	}
 }
 
@@ -1265,7 +1348,13 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	resp, err := client.Post(ts.URL+"/auth/register/complete", "application/json", bytes.NewReader(body))
+	request, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/register/complete", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("Failed to create register/complete request: %v", err)
+	}
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	resp, err := client.Do(request)
 	if err != nil {
 		t.Fatalf("Failed to send register/complete request: %v", err)
 	}
@@ -1283,6 +1372,11 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 
 	if result["success"] != true {
 		t.Error("Expected success: true")
+	}
+	for _, field := range []string{"token", "refreshToken", "expiresIn", "refreshTokenExpiresIn"} {
+		if _, exists := result[field]; exists {
+			t.Fatalf("cookie-only registration response contains %q", field)
+		}
 	}
 
 	user, ok := result["user"].(map[string]interface{})
@@ -2848,6 +2942,45 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 		t.Fatal("Stale login response should not include a bearer token")
 	}
 
+	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
+	}
+}
+
+func TestAuthRoutes_LoginCookieOnlyRechecksAuthGeneration(t *testing.T) {
+	var capturedSessionID string
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
+		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
+			capturedSessionID, _ = cookieCredentialIDFromSession(sessions.Default(c))
+			if err := s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456"); err != nil {
+				t.Errorf("SetPasswordHash: %v", err)
+			}
+		}
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "", "stale-cookie-only", "Stale Cookie Only", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+
+	body, _ := json.Marshal(map[string]string{"login": "stale-cookie-only", "password": "password123"})
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("login request: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnauthorized {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("login status = %d, want 401: %s", resp.StatusCode, responseBody)
+	}
+	if capturedSessionID == "" {
+		t.Fatal("password-login hook did not capture a cookie session")
+	}
 	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
 		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/charmbracelet/log"
@@ -61,11 +62,35 @@ func (s *HTTPServer) createConnectBrowserSession(c *gin.Context, userID, source 
 }
 
 func saveCookieSession(c *gin.Context, sessionID string) error {
+	markAuthenticationCookieResponsePrivate(c)
 	session := sessions.Default(c)
 	session.Set(sessionKeyRuntimeCredentialID, sessionID)
 	session.Delete(retiredSessionKeyUserID)
 	session.Delete(retiredSessionKeyCredentialID)
 	return session.Save()
+}
+
+func (s *HTTPServer) saveValidatedCookieSession(c *gin.Context, sessionID string, expiresAt, now time.Time) error {
+	if sessionID == "" || !now.Before(expiresAt) {
+		return core.ErrCookieSessionNotFound
+	}
+	markAuthenticationCookieResponsePrivate(c)
+	session := sessions.Default(c)
+	session.Options(cookieSessionOptions(
+		expiresAt.Sub(now),
+		strings.HasPrefix(s.config.Webserver.URL, "https"),
+	))
+	session.Set(sessionKeyRuntimeCredentialID, sessionID)
+	session.Delete(retiredSessionKeyUserID)
+	session.Delete(retiredSessionKeyCredentialID)
+	return session.Save()
+}
+
+func markAuthenticationCookieResponsePrivate(c *gin.Context) {
+	if c == nil || strings.Contains(strings.ToLower(c.Writer.Header().Get("Cache-Control")), "no-store") {
+		return
+	}
+	c.Header("Cache-Control", "private, no-store")
 }
 
 func clearCookieSessionAuth(session sessions.Session) {
@@ -141,56 +166,45 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 	return presentedRuntimeCredential{
 		user: user,
 		auth: authctx.RuntimeCredential{
-			Kind:   authctx.RuntimeCredentialKindCookieSession,
-			UserID: userID,
-			Handle: sessionID,
+			Kind:      authctx.RuntimeCredentialKindCookieSession,
+			UserID:    userID,
+			Handle:    sessionID,
+			ExpiresAt: record.GetExpiresAt().AsTime(),
 		},
 		cookieRecord: record,
 	}, true, nil
 }
 
-func (s *HTTPServer) rotateCookieSessionIfNeeded(c *gin.Context, userID, oldSessionID string, record *corev1.CookieSession) (string, *corev1.CookieSession) {
+func (s *HTTPServer) renewCookieSessionIfNeeded(c *gin.Context, sessionID string, record *corev1.CookieSession) *corev1.CookieSession {
 	if record == nil || record.GetExpiresAt() == nil {
-		return oldSessionID, record
+		return record
 	}
 	now := time.Now()
-	if s.cookieSessionRotationNow != nil {
-		now = s.cookieSessionRotationNow()
+	if s.cookieSessionRenewalNow != nil {
+		now = s.cookieSessionRenewalNow()
 	}
-	if !shouldRotateCookieSession(record, s.config.Auth.TokenTTLOrDefault(), now) {
-		return oldSessionID, record
-	}
-
-	newSessionID, newRecord, err := s.core.CreateCookieSessionForGenerationPreservingFreshAuth(c.Request.Context(), userID, "session_rotation", record.GetAuthGeneration(), record)
-	if err != nil {
-		log.Warn("Failed to rotate cookie session", "userId", userID, "error", err)
-		if errors.Is(err, core.ErrCookieSessionNotFound) {
-			clearCookieSessionAuth(sessions.Default(c))
+	if shouldRenewCookieSession(record, s.config.Auth.TokenTTLOrDefault(), now) {
+		renewed, _, err := s.core.RenewCookieSession(c.Request.Context(), sessionID, now)
+		if err != nil {
+			log.Warn("Failed to renew cookie session", "error", err)
+			if errors.Is(err, core.ErrCookieSessionNotFound) {
+				return record
+			}
+		} else {
+			record = renewed
 		}
-		return oldSessionID, record
 	}
 
-	session := sessions.Default(c)
-	session.Set(sessionKeyRuntimeCredentialID, newSessionID)
-	session.Delete(retiredSessionKeyUserID)
-	session.Delete(retiredSessionKeyCredentialID)
-	if err := session.Save(); err != nil {
-		log.Warn("Failed to save rotated cookie session", "userId", userID, "error", err)
-		// Keep the request-local session aligned with the cookie that the browser
-		// still has. A later save in the same request must not persist the revoked
-		// replacement credential.
-		session.Set(sessionKeyRuntimeCredentialID, oldSessionID)
-		_ = s.core.RevokeCookieSession(c.Request.Context(), newSessionID)
-		return oldSessionID, record
+	if record.GetExpiresAt() == nil {
+		return record
 	}
-
-	if err := s.core.RevokeCookieSession(c.Request.Context(), oldSessionID); err != nil {
-		log.Warn("Failed to revoke old rotated cookie session", "userId", userID, "error", err)
+	if err := s.saveValidatedCookieSession(c, sessionID, record.GetExpiresAt().AsTime(), now); err != nil {
+		log.Warn("Failed to refresh validated browser cookie", "error", err)
 	}
-	return newSessionID, newRecord
+	return record
 }
 
-func shouldRotateCookieSession(record *corev1.CookieSession, ttl time.Duration, now time.Time) bool {
+func shouldRenewCookieSession(record *corev1.CookieSession, ttl time.Duration, now time.Time) bool {
 	if record == nil || record.GetExpiresAt() == nil || ttl <= 0 {
 		return false
 	}

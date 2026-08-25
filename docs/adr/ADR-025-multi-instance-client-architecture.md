@@ -73,9 +73,9 @@ Each server state store has permission and viewer-capability state loaded from C
 Human bearer sessions use short fixed-lifetime access tokens and rotating
 refresh credentials. The frontend serializes rotation, refreshes before access
 expiry, and advances the renewable-session window without user action. Origin
-cookie sessions rotate their handle in the final quarter of a fixed credential
-lifetime. ADR-079 and ADR-080 own the detailed rotation, recovery, revocation,
-and expiry contract.
+cookie sessions renew one stable handle in the final quarter of the current
+credential window. ADR-079 and ADR-080 own the detailed renewal, recovery,
+revocation, and expiry contract.
 
 ## Consequences
 

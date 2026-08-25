@@ -59,10 +59,27 @@ change the same record, one publish succeeds and the other reloads the current
 revision or returns a conflict according to the operation. No process-local
 lock is required.
 
-A cookie session has a fixed window. In the final quarter of that window, the
-HTTP edge creates a new session and cookie before it revokes the old session.
-This rotation gives an active browser a new fixed window without a write on
-each request.
+A cookie session has one stable opaque handle. In the final quarter of the
+current window, the core advances `ExpiresAt` on the same record and publishes
+the revision with the remaining TTL. The expected KV revision serializes
+concurrent renewal across replicas. Logout deletes the stable key without a
+revision condition. This delete fences a renewal that races logout: either the
+renewal publishes first and logout deletes it, or the delete makes the renewal
+fail its expected-revision check.
+
+After valid cookie authentication, the HTTP edge signs the same handle again
+with the record's remaining lifetime. This operation does not change the KV
+record outside the final-quarter renewal. It lets the next response repair a
+browser cookie when an earlier `Set-Cookie` response was lost. A response that
+sets an authentication cookie uses `Cache-Control: private, no-store`.
+Content-hashed public frontend assets do not authenticate the cookie and do
+not set authentication or CSRF cookies.
+
+A cookie-authenticated realtime connection has a deadline at the start of the
+final quarter. At that deadline, the server cancels authorized work and asks
+the client to reconnect. The replacement WebSocket upgrade renews the stable
+record and includes the signed cookie in the `101` response. This renewal does
+not require user action.
 
 A bearer refresh updates its stable renewable-session record. An ordinary
 refresh keeps the current `ExpiresAt` value and publishes with the remaining
@@ -81,6 +98,8 @@ requires a user to extend a session manually.
 
 - Session validation is read-only in the normal valid case.
 - One key stores each cookie session or renewable bearer authority.
+- Cookie renewal keeps the same opaque browser handle. Concurrent requests do
+  not fork replacement handles, and logout fences concurrent renewal.
 - JetStream removes the current mutable revision after its explicit lifetime.
 - There is no expiry-marker keyspace, watcher, scheduler, startup scan, or
   cross-replica cleanup orchestration.
@@ -93,6 +112,8 @@ requires a user to extend a session manually.
 - An inactive browser or bearer client must sign in after one complete session
   window. Normal activity renews the session automatically in the final
   quarter.
+- Public immutable frontend assets remain safe for shared caching because they
+  do not carry authentication cookies.
 
 ## Alternatives considered
 

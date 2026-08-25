@@ -1,4 +1,10 @@
-import { beginExplicitSignOutRedirect, signOutServer, signOutServers } from '$lib/auth/signOut';
+import {
+  beginExplicitSignOutRedirect,
+  cancelExplicitSignOutRedirect,
+  ServerLogoutRejectedError,
+  signOutServer,
+  signOutServers
+} from '$lib/auth/signOut';
 import { notifyLogout } from '$lib/auth/sessionChannel';
 import { unsubscribeBeforeLeaving as unsubscribePushBeforeLeaving } from '$lib/notifications/pushNotifications';
 import { clearLastRoom } from '$lib/storage/lastRoom';
@@ -18,7 +24,15 @@ class ClientAccountCoordinator {
     const origin = serverRegistry.isOriginServer(serverId);
     await unsubscribePushBeforeLeaving(serverId);
     if (origin) beginExplicitSignOutRedirect();
-    await signOutServer(server, origin).catch(() => undefined);
+    try {
+      await signOutServer(server, origin);
+    } catch (error) {
+      if (error instanceof ServerLogoutRejectedError) {
+        if (origin) cancelExplicitSignOutRedirect();
+        throw error;
+      }
+      // A client can still discard local state when the server is unreachable.
+    }
     clearLastRoom(serverId);
 
     if (origin) {

@@ -68,7 +68,11 @@ func (s *HTTPServer) setupRealtimeAPI() {
 	s.router.GET(realtimePath, func(c *gin.Context) {
 		req := s.injectUserIntoContext(c)
 		req = req.WithContext(connectapi.WithRequestBaseURL(req.Context(), s.requestBaseURL(req)))
-		conn, err := upgrader.Upgrade(c.Writer, req, nil)
+		upgradeHeaders := make(http.Header)
+		for _, cookie := range c.Writer.Header().Values("Set-Cookie") {
+			upgradeHeaders.Add("Set-Cookie", cookie)
+		}
+		conn, err := upgrader.Upgrade(c.Writer, req, upgradeHeaders)
 		if err != nil {
 			s.logger.Warn("Realtime WebSocket upgrade failed", "error", err)
 			return
@@ -172,30 +176,37 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		return
 	}
 
-	var bearerAccessExpired <-chan time.Time
-	var bearerAccessExpiryTimer *time.Timer
-	if credential, ok := authctx.CredentialForContext(ctx); ok &&
-		credential.Kind == authctx.RuntimeCredentialKindBearerToken && !credential.ExpiresAt.IsZero() {
-		remaining := time.Until(credential.ExpiresAt)
+	var credentialDeadlineReached <-chan time.Time
+	var credentialDeadlineTimer *time.Timer
+	credential, credentialOK := authctx.CredentialForContext(ctx)
+	credentialDeadline, deadlineOK := realtimeCredentialDeadline(credential, s.config.Auth.TokenTTLOrDefault())
+	if credentialOK && deadlineOK {
+		remaining := time.Until(credentialDeadline)
 		if remaining <= 0 {
-			writeError("authentication_required", "access token expired", true)
-			_ = conn.WriteControl(websocket.CloseMessage, websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"), time.Now().Add(time.Second))
-			return
+			remaining = time.Nanosecond
 		}
-		bearerAccessExpiryTimer = time.NewTimer(remaining)
-		bearerAccessExpired = bearerAccessExpiryTimer.C
+		credentialDeadlineTimer = time.NewTimer(remaining)
+		credentialDeadlineReached = credentialDeadlineTimer.C
 	}
-	if bearerAccessExpiryTimer != nil {
-		defer bearerAccessExpiryTimer.Stop()
-		bearerExpiryWatcherDone := make(chan struct{})
+	if credentialDeadlineTimer != nil {
+		defer credentialDeadlineTimer.Stop()
+		credentialDeadlineWatcherDone := make(chan struct{})
 		go func() {
-			defer close(bearerExpiryWatcherDone)
+			defer close(credentialDeadlineWatcherDone)
 			select {
-			case <-bearerAccessExpired:
-				terminateRealtimeForBearerExpiry(cancel, writeFrame, func() {
+			case <-credentialDeadlineReached:
+				terminate := terminateRealtimeForBearerExpiry
+				closeCode := websocket.ClosePolicyViolation
+				closeReason := "authentication required"
+				if credential.Kind == authctx.RuntimeCredentialKindCookieSession {
+					terminate = terminateRealtimeForCookieRenewal
+					closeCode = websocket.CloseNormalClosure
+					closeReason = "credential renewal required"
+				}
+				terminate(cancel, writeFrame, func() {
 					_ = conn.WriteControl(
 						websocket.CloseMessage,
-						websocket.FormatCloseMessage(websocket.ClosePolicyViolation, "authentication required"),
+						websocket.FormatCloseMessage(closeCode, closeReason),
 						time.Now().Add(time.Second),
 					)
 					_ = conn.Close()
@@ -205,7 +216,7 @@ func (s *HTTPServer) serveRealtimeWebSocket(parent context.Context, conn *websoc
 		}()
 		defer func() {
 			cancel()
-			<-bearerExpiryWatcherDone
+			<-credentialDeadlineWatcherDone
 		}()
 	}
 
@@ -542,6 +553,23 @@ func shouldCompressRealtimeFrame(compressionEnabled bool, payloadBytes int) bool
 	return compressionEnabled && payloadBytes >= realtimeCompressionMinBytes
 }
 
+func realtimeCredentialDeadline(credential authctx.RuntimeCredential, cookieTTL time.Duration) (time.Time, bool) {
+	if credential.ExpiresAt.IsZero() {
+		return time.Time{}, false
+	}
+	switch credential.Kind {
+	case authctx.RuntimeCredentialKindBearerToken:
+		return credential.ExpiresAt, true
+	case authctx.RuntimeCredentialKindCookieSession:
+		if cookieTTL <= 0 {
+			return credential.ExpiresAt, true
+		}
+		return credential.ExpiresAt.Add(-cookieTTL / 4), true
+	default:
+		return time.Time{}, false
+	}
+}
+
 func readRealtimeClientFrame(conn *websocket.Conn, timeout time.Duration) (*realtimev1.RealtimeClientFrame, error) {
 	if err := conn.SetReadDeadline(time.Now().Add(timeout)); err != nil {
 		return nil, err
@@ -591,6 +619,25 @@ func terminateRealtimeForBearerExpiry(
 		Close: &realtimev1.RealtimeClose{
 			Code:      "authentication_required",
 			Message:   "the access token has expired",
+			Reconnect: true,
+		},
+	}})
+	closeConnection()
+}
+
+// terminateRealtimeForCookieRenewal reconnects a cookie-authenticated browser
+// before the credential expires. The replacement upgrade renews the stable KV
+// record with OCC and refreshes the browser cookie without user interaction.
+func terminateRealtimeForCookieRenewal(
+	cancel context.CancelFunc,
+	writeFrame func(*realtimev1.RealtimeServerFrame) error,
+	closeConnection func(),
+) {
+	cancel()
+	_ = writeFrame(&realtimev1.RealtimeServerFrame{Frame: &realtimev1.RealtimeServerFrame_Close{
+		Close: &realtimev1.RealtimeClose{
+			Code:      "session_renewal_required",
+			Message:   "the browser session is ready for renewal",
 			Reconnect: true,
 		},
 	}})
