@@ -16,6 +16,11 @@ describe('isSafeInternalPath', () => {
     'chat',
     '//attacker.example/path',
     '/\\attacker.example/path',
+    '/chat\\settings',
+    '/\t/attacker.example',
+    '/\r/attacker.example',
+    '/\n/attacker.example',
+    '/\u007f/attacker.example',
     'https://attacker.example/path',
     'http://attacker.example/path',
     'javascript:alert(1)'

@@ -6,6 +6,7 @@ import {
   loginAsAdminAndUsePrimaryServer,
   type TestUser
 } from './fixtures/testUser';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import * as routes from './routes';
 
 interface TestServer {
@@ -63,7 +64,8 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
  * Logs in an existing user via HTTP endpoint.
  */
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: { login, password }
   });
 

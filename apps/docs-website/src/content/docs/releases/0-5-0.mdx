@@ -121,16 +121,16 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
-- Browser sessions that still use the retired pre-typed cookie format are not accepted by
-  0.5. Affected users are signed out once and must sign in again. Current typed browser
-  sessions stored under `session.*` remain valid and move to the dedicated `chatto_auth`
-  cookie after successful validation.
+- Pre-0.5 browser authentication cookies are not accepted by the SCS-backed
+  `chatto_auth_*` path. Affected users must sign in once after the upgrade. After
+  that sign-in, active browser sessions renew automatically without user action.
 - Pre-renewal bearer records are not accepted by 0.5 servers. Affected users sign in once to
   receive the new access/refresh pair. Upgrade every serving replica and bundled client
   together: older binaries treat new access records as sliding credentials and are not safe
   mixed-version peers or rollback targets after issuance. Custom clients must persist and
-  serialize `/oauth/token` refresh grants, including the same `refresh_request_id` across a
-  lost-response retry.
+  serialize `/oauth/token` refresh grants. Generate one cryptographically random
+  UUID version 4 `refresh_request_id` for each rotation, and keep that same value
+  across a lost-response retry.
 - Before or during the upgrade, grant `message.read` to every existing role or
   account that must keep channel-room message access. A server-level `everyone`
   grant preserves the previous channel-room membership-based behavior. Chatto

@@ -33,7 +33,10 @@ describe('revokeLegacyOriginBearerSession', () => {
 
     expect(csrfFetchMock).toHaveBeenCalledWith('/auth/browser/revoke-bearer-session', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Chatto-Authentication-Mode': 'cookie'
+      },
       body: JSON.stringify({
         accessToken: 'cht_AT_legacy',
         refreshToken: 'cht_RT_legacy'

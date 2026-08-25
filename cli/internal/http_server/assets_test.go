@@ -28,6 +28,7 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/assets"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	"hmans.de/chatto/internal/core/linkpreview"
 	"hmans.de/chatto/internal/email"
@@ -184,7 +185,14 @@ func (env *assetTestEnv) login(t *testing.T, login, password string) {
 	t.Helper()
 
 	loginBody := fmt.Sprintf(`{"login":"%s","password":"%s"}`, login, password)
-	resp, err := env.client.Post(env.server.URL+"/auth/login", "application/json", bytes.NewReader([]byte(loginBody)))
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/browser/login", bytes.NewReader([]byte(loginBody)))
+	if err != nil {
+		t.Fatalf("Create login request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", env.server.URL)
+	resp, err := env.client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}

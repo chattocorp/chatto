@@ -73,26 +73,6 @@ func (s *HTTPServer) ensureCSRFToken(c *gin.Context) error {
 	return nil
 }
 
-func (s *HTTPServer) refreshCSRFToken(c *gin.Context) error {
-	binding, ok, err := s.csrfBinding(c)
-	if err != nil {
-		return errAuthenticationServiceUnavailable
-	}
-	if !ok {
-		return nil
-	}
-	if existingToken, err := c.Cookie(csrfCookieName); err == nil && s.validSignedCSRFToken(existingToken, binding) {
-		s.setCSRFCookie(c, existingToken)
-		return nil
-	}
-	token, err := s.generateCSRFToken(binding)
-	if err != nil {
-		return err
-	}
-	s.setCSRFCookie(c, token)
-	return nil
-}
-
 func (s *HTTPServer) requiresCSRF(c *gin.Context) bool {
 	if isSafeHTTPMethod(c.Request.Method) {
 		return false
@@ -164,8 +144,8 @@ func (s *HTTPServer) csrfBinding(c *gin.Context) (csrfBinding, bool, error) {
 }
 
 func (s *HTTPServer) hasCookieCredential(c *gin.Context) bool {
-	_, ok := s.browserSessionID(c)
-	return ok
+	cookies, err := browserSessionCookies(c.Request)
+	return err != nil || len(cookies) != 0
 }
 
 func csrfBindingForSession(userID string, record *corev1.CookieSession) csrfBinding {
@@ -227,7 +207,7 @@ func (s *HTTPServer) setCSRFCookie(c *gin.Context, token string) {
 	c.SetCookie(
 		csrfCookieName,
 		token,
-		60*60*24*90,
+		int(s.config.Auth.TokenTTLOrDefault().Seconds()),
 		"/",
 		"",
 		strings.HasPrefix(s.config.Webserver.URL, "https"),

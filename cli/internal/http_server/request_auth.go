@@ -49,10 +49,12 @@ func (s *HTTPServer) injectUserIntoContext(c *gin.Context) *http.Request {
 func (s *HTTPServer) presentedCredentialFromRequest(c *gin.Context) (presentedRuntimeCredential, bool, error) {
 	if authHeader := c.GetHeader("Authorization"); authHeader != "" {
 		if token, ok := strings.CutPrefix(authHeader, "Bearer "); ok && strings.TrimSpace(token) != "" {
-			if credential, ok, err := s.bearerPresentedCredential(c.Request.Context(), strings.TrimSpace(token)); ok || err != nil {
-				return credential, ok, err
-			}
+			return s.bearerPresentedCredential(c.Request.Context(), strings.TrimSpace(token))
 		}
+		// An explicit Authorization header is authoritative. Never execute the
+		// request with a different ambient cookie identity when it is malformed,
+		// unsupported, expired, or revoked.
+		return presentedRuntimeCredential{}, false, nil
 	}
 
 	if !s.requestIsSameOrigin(c.Request) {

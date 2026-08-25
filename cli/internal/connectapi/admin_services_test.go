@@ -81,6 +81,25 @@ func TestServerDiscoveryServiceGetServerPublicMetadata(t *testing.T) {
 	}
 }
 
+func TestIsValidInternalRedirectPath(t *testing.T) {
+	for _, test := range []struct {
+		value string
+		valid bool
+	}{
+		{value: "/chat/-/settings/account", valid: true},
+		{value: "//attacker.example", valid: false},
+		{value: "/chat\\settings", valid: false},
+		{value: "/\t/attacker.example", valid: false},
+		{value: "/\r/attacker.example", valid: false},
+		{value: "/\n/attacker.example", valid: false},
+		{value: "/\x7f/attacker.example", valid: false},
+	} {
+		if got := isValidInternalRedirectPath(test.value); got != test.valid {
+			t.Errorf("isValidInternalRedirectPath(%q) = %v, want %v", test.value, got, test.valid)
+		}
+	}
+}
+
 func TestServerDiscoveryServiceGetServerReportsDisabledDirectLogin(t *testing.T) {
 	disabled := false
 	api := New(nil, config.ChattoConfig{

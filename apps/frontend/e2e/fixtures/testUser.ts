@@ -1,5 +1,5 @@
 import { expect, type Page } from '@playwright/test';
-import { csrfHeaders } from './csrf';
+import { browserAuthenticationHeaders } from './csrf';
 import {
   connectPost,
   expectPermissionDecisionUpdate,
@@ -138,7 +138,8 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
   };
 
   // Login via HTTP endpoint (user already created by bootstrap)
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: {
       login: adminUser.login,
       password: adminUser.password
@@ -160,9 +161,9 @@ export async function loginAsAdmin(page: Page): Promise<TestUser> {
  * app while the session is still valid, then perform the logout request.
  */
 export async function logoutCurrentUser(page: Page): Promise<void> {
-  const headers = await csrfHeaders(page);
+  const headers = await browserAuthenticationHeaders(page);
   await unloadPageForIdentitySwitch(page);
-  const response = await page.request.post('/auth/logout', { headers });
+  const response = await page.request.post('/auth/browser/logout', { headers, data: {} });
   expect(response.ok()).toBeTruthy();
 }
 
@@ -311,7 +312,8 @@ export async function clearUserPermissionOverride(
  * Useful for multi-tab tests where the same user needs to be logged into multiple pages.
  */
 export async function loginTestUser(page: Page, user: TestUser): Promise<void> {
-  const loginResponse = await page.request.post('/auth/login', {
+  const loginResponse = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
     data: {
       login: user.login,
       password: user.password

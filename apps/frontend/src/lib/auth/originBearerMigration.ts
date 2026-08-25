@@ -1,4 +1,5 @@
 import { serverRegistry } from '$lib/state/server/registry.svelte';
+import { browserCookieAuthenticationHeaders } from './authenticationMode';
 import { csrfFetch } from './csrf';
 
 /**
@@ -12,7 +13,10 @@ export async function revokeLegacyOriginBearerSession(): Promise<void> {
 
   const response = await csrfFetch('/auth/browser/revoke-bearer-session', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...browserCookieAuthenticationHeaders
+    },
     body: JSON.stringify({
       accessToken: origin.token,
       refreshToken: origin.refreshToken

@@ -1,11 +1,14 @@
 import { isExplicitSignOutRedirectInProgress } from '$lib/auth/signOut';
 import { csrfFetch } from '$lib/auth/csrf';
+import { browserCookieAuthenticationHeaders } from '$lib/auth/authenticationMode';
 import type { ConnectAPIConfig } from '$lib/api-client/connect';
 import { serverRegistry } from './registry.svelte';
 
 export type ConnectionStatus = 'connected' | 'connecting' | 'dormant' | 'disconnected';
 
 const HIDDEN_RECONNECT_AFTER_MS = 30_000;
+const MAX_BROWSER_RENEWAL_TIMER_MS = 24 * 60 * 60 * 1000;
+const BROWSER_RENEWAL_RETRY_MS = 60_000;
 let nextQueryScope = 0;
 
 export interface ServerConnectionConfig {
@@ -62,6 +65,8 @@ export class ServerConnection {
   #accessTokenExpiresAt: number | null;
   #renewalTimer: ReturnType<typeof setTimeout> | null = null;
   #browserRenewal: Promise<boolean> | null = null;
+  #browserRenewalTimer: ReturnType<typeof setTimeout> | null = null;
+  #browserRenewAfter: number | null = null;
   #serverId: string | undefined;
   #realtimeReconnect: ((reason: string) => void) | null = null;
   #apis = new WeakMap<object, unknown>();
@@ -211,7 +216,14 @@ export class ServerConnection {
     if (this.#browserRenewal) return this.#browserRenewal;
 
     const renew = async () => {
-      const response = await csrfFetch('/auth/browser/session/renew', { method: 'POST' });
+      const response = await csrfFetch('/auth/browser/session/renew', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...browserCookieAuthenticationHeaders
+        },
+        body: '{}'
+      });
       if (response.status === 401) {
         serverRegistry.handleAuthenticationRequired(this.#serverId!);
         return false;
@@ -219,6 +231,11 @@ export class ServerConnection {
       if (!response.ok) {
         throw new Error(`Browser session renewal failed (${response.status})`);
       }
+      const body: Record<string, unknown> = await response.json().catch(() => ({}));
+      const renewAfter =
+        typeof body.renewAfter === 'string' ? Date.parse(body.renewAfter) : Number.NaN;
+      this.#browserRenewAfter = Number.isFinite(renewAfter) ? renewAfter : null;
+      this.#scheduleBrowserSessionMaintenance();
       return true;
     };
     const operation =
@@ -230,6 +247,46 @@ export class ServerConnection {
     });
     this.#browserRenewal = renewal;
     return renewal;
+  }
+
+  #scheduleBrowserSessionMaintenance(retryDelayMs?: number): void {
+    if (this.#browserRenewalTimer !== null) {
+      clearTimeout(this.#browserRenewalTimer);
+      this.#browserRenewalTimer = null;
+    }
+    if (this.#token !== null || !this.#serverId || !serverRegistry.isOriginServer(this.#serverId)) {
+      return;
+    }
+    const remaining =
+      this.#browserRenewAfter === null
+        ? MAX_BROWSER_RENEWAL_TIMER_MS
+        : this.#browserRenewAfter - Date.now();
+    const delay = retryDelayMs ?? Math.min(MAX_BROWSER_RENEWAL_TIMER_MS, Math.max(0, remaining));
+    this.#browserRenewalTimer = setTimeout(() => {
+      this.#browserRenewalTimer = null;
+      if (this.#browserRenewAfter !== null && Date.now() < this.#browserRenewAfter) {
+        this.#scheduleBrowserSessionMaintenance();
+        return;
+      }
+      void this.renewBrowserSession().catch((error) => {
+        console.warn('[auth:%s] background browser-session renewal failed', this.#host, error);
+        this.#scheduleBrowserSessionMaintenance(BROWSER_RENEWAL_RETRY_MS);
+      });
+    }, delay);
+  }
+
+  #maintainBrowserSessionIfDue(): void {
+    if (this.#browserRenewAfter === null || Date.now() >= this.#browserRenewAfter) {
+      void this.renewBrowserSession().catch((error) => {
+        console.warn('[auth:%s] browser-session maintenance failed', this.#host, error);
+        this.#scheduleBrowserSessionMaintenance(BROWSER_RENEWAL_RETRY_MS);
+      });
+    }
+  }
+
+  /** Start or resume automatic origin-cookie maintenance. */
+  maintainBrowserSession(): void {
+    this.#maintainBrowserSessionIfDue();
   }
 
   /** Adopt a rotated token without replacing the connection or query scope. */
@@ -294,6 +351,7 @@ export class ServerConnection {
           );
 
           this.#lastVisibleAt = Date.now();
+          this.#maintainBrowserSessionIfDue();
           if (hiddenDuration >= HIDDEN_RECONNECT_AFTER_MS) {
             this.forceReconnect(`tab visible after ${Math.round(hiddenDuration / 1000)}s hidden`);
           }
@@ -333,6 +391,7 @@ export class ServerConnection {
       // or Wi-Fi re-association following sleep).
       this.#onlineHandler = () => {
         console.debug('[ws:%s] online event fired', this.#host);
+        this.#maintainBrowserSessionIfDue();
         this.forceReconnect('network came back online');
       };
       window.addEventListener('online', this.#onlineHandler);
@@ -357,6 +416,10 @@ export class ServerConnection {
     if (this.#renewalTimer !== null) {
       clearTimeout(this.#renewalTimer);
       this.#renewalTimer = null;
+    }
+    if (this.#browserRenewalTimer !== null) {
+      clearTimeout(this.#browserRenewalTimer);
+      this.#browserRenewalTimer = null;
     }
   }
 }

@@ -52,6 +52,20 @@ func TestBrowserCookieAuthenticationIsSameOriginOnly(t *testing.T) {
 	if crossOriginBearerResponse.Code != http.StatusOK || crossOriginBearerResponse.Body.String() != user.Id {
 		t.Fatalf("cross-origin bearer status/body = %d/%q", crossOriginBearerResponse.Code, crossOriginBearerResponse.Body.String())
 	}
+
+	for _, authorization := range []string{"Bearer invalid", "Basic Zm9vOmJhcg=="} {
+		t.Run(authorization, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "/test/whoami", nil)
+			request.Header.Set("Origin", "https://chatto.example")
+			request.Header.Set("Authorization", authorization)
+			addCookies(request, cookies)
+			response := httptest.NewRecorder()
+			server.router.ServeHTTP(response, request)
+			if response.Code != http.StatusUnauthorized {
+				t.Fatalf("explicit invalid authorization status = %d, want 401", response.Code)
+			}
+		})
+	}
 }
 
 func TestBrowserCookieAuthenticationCanonicalizesDefaultPort(t *testing.T) {

@@ -48,11 +48,13 @@ upgrade. Their timer ends at the start of the final renewal quarter. The
 handler cancels authorized work, sends a reconnecting
 `session_renewal_required` close when possible, and closes the socket. The
 frontend calls the CSRF-protected browser renewal route. That route advances
-the same cookie-session record with KV OCC and writes the same SCS handle with
-the new lifetime. The frontend then opens the replacement socket. The upgrade
-does not update the record or set a cookie. The frontend keeps its route,
+the same cookie-session record with KV OCC and writes the same SCS handle in a
+fresh browser cookie slot with the new lifetime. The frontend then opens the
+replacement socket. The upgrade does not update the record or set a cookie. The frontend keeps its route,
 projection, opaque cursor, and retained-room set during this automatic
-reconnect. Bot API keys have no expiry timer.
+reconnect. The route also returns the next renewal time. An HTTP timer uses
+that value when realtime transport is blocked or disconnected. Bot API keys
+have no expiry timer.
 
 After the hello, the server revalidates the exact human credential before it
 starts the subscription. It repeats that check once per minute. A definitive

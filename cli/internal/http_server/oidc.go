@@ -293,7 +293,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 	session.Delete(providerSessionKey(providerRuntime.config.ID, "session"))
 	_ = session.Save()
 
-	user, err := s.core.GetUserByExternalIdentity(ctx, identity.issuer, identity.subject)
+	user, authGeneration, err := s.core.GetUserByExternalIdentityForAuthentication(ctx, identity.issuer, identity.subject)
 	if err != nil {
 		log.Error("Failed to lookup user by external identity", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
@@ -325,7 +325,7 @@ func (s *HTTPServer) handleProviderCallback(c *gin.Context, providerRuntime *aut
 		}
 	}
 
-	if err := s.completeProviderLogin(c, session, user.Id, providerRuntime.config); err != nil {
+	if err := s.completeProviderLogin(c, session, user.Id, authGeneration, providerRuntime.config); err != nil {
 		log.Error("Failed to complete provider login", "provider_id", providerRuntime.config.ID, "provider_type", providerRuntime.config.Type, "userId", user.Id, "error", err)
 		c.Redirect(http.StatusTemporaryRedirect, "/login?error=provider_failed")
 		return
@@ -755,10 +755,10 @@ func displayNameHintFromParts(parts ...string) string {
 	return ""
 }
 
-func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, providerConfig config.AuthProviderConfig) error {
+func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, authGeneration uint64, providerConfig config.AuthProviderConfig) error {
 	ctx := c.Request.Context()
 	source := providerConfig.Type + "_login"
-	if err := s.createCookieSession(c, userID, source); err != nil {
+	if err := s.createCookieSessionForGeneration(c, userID, source, authGeneration); err != nil {
 		return fmt.Errorf("save cookie session: %w", err)
 	}
 	if err := s.ensureCSRFToken(c); err != nil {
@@ -785,10 +785,6 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 		// in the browser session.
 		session.Delete("oauth_redirect")
 		_ = session.Save()
-		authGeneration, err := s.core.CurrentAuthGeneration(ctx, userID)
-		if err != nil {
-			return fmt.Errorf("read auth generation for OAuth authorize: %w", err)
-		}
 		s.continueOAuthAuthorize(c, userID, authGeneration)
 		return nil
 	}

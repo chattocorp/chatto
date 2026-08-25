@@ -17,8 +17,8 @@ import (
 )
 
 const (
-	// Retired signed-session keys are migrated to the dedicated SCS cookie and
-	// then deleted. They are never the primary authentication representation.
+	// Retired signed-session keys are deleted when new browser authentication is
+	// issued. They are never accepted as authentication inputs.
 	sessionKeyRuntimeCredentialID = "runtime_credential_id"
 	retiredSessionKeyUserID       = "user_id"
 	retiredSessionKeyCredentialID = "cookie_session_id"
@@ -49,7 +49,22 @@ func (s *HTTPServer) createCookieSessionForGeneration(c *gin.Context, userID, so
 // concurrent renewal or logout.
 func (s *HTTPServer) issueBrowserSession(c *gin.Context, data core.AuthTokenData) (string, error) {
 	s.ensureBrowserSessionManagers()
-	sessionCtx := s.browserCookieContext(c.Request.Context())
+	current, ok, err := s.cookiePresentedCredential(c)
+	if err != nil {
+		return "", err
+	}
+	currentToken := ""
+	if ok {
+		currentToken = current.auth.Handle
+	}
+	cookieName, err := newBrowserSessionCookieName()
+	if err != nil {
+		return "", err
+	}
+	sessionCtx, err := s.browserCookieContext(c, currentToken)
+	if err != nil {
+		return "", err
+	}
 	if err := s.browserSessions.RenewToken(sessionCtx); err != nil {
 		return "", err
 	}
@@ -59,10 +74,20 @@ func (s *HTTPServer) issueBrowserSession(c *gin.Context, data core.AuthTokenData
 	if err != nil {
 		return "", err
 	}
+	for _, session := range current.presentedSessions {
+		if session.handle == currentToken {
+			continue
+		}
+		if err := s.core.RevokeCookieSession(c.Request.Context(), session.handle); err != nil {
+			_ = s.core.RevokeCookieSession(c.Request.Context(), token)
+			return "", err
+		}
+	}
 
-	c.Set(issuedBrowserSessionKey, token)
 	markAuthenticationCookieResponsePrivate(c)
-	s.browserSessions.WriteSessionCookie(sessionCtx, c.Writer, token, expiry)
+	s.clearBrowserSessionCookie(c)
+	c.Set(issuedBrowserSessionKey, issuedBrowserSession{name: cookieName, token: token})
+	s.writeBrowserSessionCookie(c, cookieName, token, expiry)
 	clearLegacyCookieAuthentication(sessions.Default(c))
 	return token, nil
 }
@@ -115,29 +140,75 @@ func clearLegacyCookieAuthentication(session sessions.Session) {
 func (s *HTTPServer) clearBrowserSessionCookie(c *gin.Context) {
 	s.ensureBrowserSessionManagers()
 	markAuthenticationCookieResponsePrivate(c)
-	s.browserSessions.WriteSessionCookie(c.Request.Context(), c.Writer, "", time.Time{})
+	names := make(map[string]struct{})
+	if c.Request != nil {
+		for _, cookie := range c.Request.Cookies() {
+			if isBrowserSessionCookieName(cookie.Name) {
+				if len(names) >= browserSessionCleanupLimit {
+					break
+				}
+				names[cookie.Name] = struct{}{}
+			}
+		}
+	}
+	if issued, ok := c.Get(issuedBrowserSessionKey); ok {
+		if session, ok := issued.(issuedBrowserSession); ok && session.name != "" {
+			names[session.name] = struct{}{}
+		}
+	}
+	for name := range names {
+		s.writeBrowserSessionCookie(c, name, "", time.Time{})
+	}
+}
+
+type issuedBrowserSession struct {
+	name  string
+	token string
+}
+
+func (s *HTTPServer) writeBrowserSessionCookie(c *gin.Context, name, token string, expiry time.Time) {
+	s.ensureBrowserSessionManagers()
+	cookie := &http.Cookie{
+		Name:     name,
+		Value:    token,
+		Path:     s.browserSessions.Cookie.Path,
+		Domain:   s.browserSessions.Cookie.Domain,
+		HttpOnly: s.browserSessions.Cookie.HttpOnly,
+		Secure:   s.browserSessions.Cookie.Secure,
+		SameSite: s.browserSessions.Cookie.SameSite,
+	}
+	if expiry.IsZero() {
+		cookie.Expires = time.Unix(1, 0)
+		cookie.MaxAge = -1
+	} else if s.browserSessions.Cookie.Persist {
+		cookie.Expires = time.Unix(expiry.Unix()+1, 0)
+		cookie.MaxAge = int(time.Until(expiry).Seconds() + 1)
+	}
+	c.Writer.Header().Add("Set-Cookie", cookie.String())
+	c.Writer.Header().Add("Cache-Control", `no-cache="Set-Cookie"`)
 }
 
 type presentedRuntimeCredential struct {
-	user         *corev1.User
-	auth         authctx.RuntimeCredential
-	cookieRecord *corev1.CookieSession
+	user              *corev1.User
+	auth              authctx.RuntimeCredential
+	cookieRecord      *corev1.CookieSession
+	presentedSessions []presentedCookieSession
+}
+
+type presentedCookieSession struct {
+	handle string
+	userID string
 }
 
 func (s *HTTPServer) browserSessionID(c *gin.Context) (string, bool) {
 	if issued, ok := c.Get(issuedBrowserSessionKey); ok {
-		if handle, ok := issued.(string); ok && handle != "" {
-			return handle, true
+		if session, ok := issued.(issuedBrowserSession); ok && session.token != "" {
+			return session.token, true
 		}
 	}
-	if cookie, err := c.Request.Cookie(browserSessionCookieName); err == nil && cookie.Value != "" {
-		return cookie.Value, true
-	}
-	if _, exists := c.Get(sessions.DefaultKey); exists {
-		session := sessions.Default(c)
-		if token, _ := session.Get(sessionKeyRuntimeCredentialID).(string); token != "" {
-			return token, true
-		}
+	cookies, err := browserSessionCookies(c.Request)
+	if err == nil && len(cookies) == 1 {
+		return cookies[0].token, true
 	}
 	return "", false
 }
@@ -155,18 +226,54 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		return presentedRuntimeCredential{}, false, err
 	}
 
-	sessionID, ok := s.browserSessionID(c)
-	if !ok {
+	var cookies []browserSessionCookie
+	if issued, ok := c.Get(issuedBrowserSessionKey); ok {
+		if session, ok := issued.(issuedBrowserSession); ok && session.name != "" && session.token != "" {
+			// The session issued by this response is authoritative for follow-up
+			// work such as CSRF binding. Do not let a request cookie created on a
+			// clock-ahead replica outrank it.
+			cookies = []browserSessionCookie{{name: session.name, token: session.token}}
+		}
+	}
+	if len(cookies) == 0 {
+		var err error
+		cookies, err = browserSessionCookies(c.Request)
+		if err != nil {
+			return presentedRuntimeCredential{}, false, err
+		}
+	}
+	if len(cookies) == 0 {
 		return presentedRuntimeCredential{}, false, nil
 	}
 
-	record, err := s.core.ValidateCookieCredential(c.Request.Context(), sessionID)
-	if err != nil {
-		if errors.Is(err, core.ErrCookieSessionNotFound) {
-			return presentedRuntimeCredential{}, false, nil
+	var selected browserSessionCookie
+	var record *corev1.CookieSession
+	presentedSessions := make([]presentedCookieSession, 0, len(cookies))
+	seenTokens := make(map[string]struct{}, len(cookies))
+	for _, cookie := range cookies {
+		if _, ok := seenTokens[cookie.token]; ok {
+			continue
 		}
-		log.Warn("Failed to validate cookie session", "error", err)
-		return presentedRuntimeCredential{}, false, err
+		seenTokens[cookie.token] = struct{}{}
+		candidate, err := s.core.ValidateCookieCredential(c.Request.Context(), cookie.token)
+		if err != nil {
+			if errors.Is(err, core.ErrCookieSessionNotFound) {
+				continue
+			}
+			log.Warn("Failed to validate cookie session", "error", err)
+			return presentedRuntimeCredential{}, false, err
+		}
+		presentedSessions = append(presentedSessions, presentedCookieSession{
+			handle: cookie.token,
+			userID: candidate.GetUserId(),
+		})
+		if record == nil || cookieSessionIsNewer(candidate, cookie, record, selected) {
+			selected = cookie
+			record = candidate
+		}
+	}
+	if record == nil {
+		return presentedRuntimeCredential{}, false, nil
 	}
 	userID := record.GetUserId()
 	if userID == "" {
@@ -179,29 +286,26 @@ func (s *HTTPServer) cookiePresentedCredential(c *gin.Context) (presentedRuntime
 		return presentedRuntimeCredential{}, false, nil
 	}
 
-	// A release upgrade migrates the old mixed-purpose signed cookie to the
-	// dedicated opaque authentication cookie without replacing the server-side
-	// authority. Normal requests never re-sign an existing SCS cookie.
-	_, issuedInThisResponse := c.Get(issuedBrowserSessionKey)
-	if _, err := c.Request.Cookie(browserSessionCookieName); err != nil &&
-		!issuedInThisResponse &&
-		c.Request.URL.Path != serverDiscoveryConnectPath {
-		markAuthenticationCookieResponsePrivate(c)
-		cookieCtx := s.browserCookieContext(c.Request.Context())
-		s.browserSessions.WriteSessionCookie(cookieCtx, c.Writer, sessionID, record.GetExpiresAt().AsTime())
-		clearLegacyCookieAuthentication(sessions.Default(c))
-	}
-
 	return presentedRuntimeCredential{
 		user: user,
 		auth: authctx.RuntimeCredential{
 			Kind:      authctx.RuntimeCredentialKindCookieSession,
 			UserID:    userID,
-			Handle:    sessionID,
+			Handle:    selected.token,
 			ExpiresAt: record.GetExpiresAt().AsTime(),
 		},
-		cookieRecord: record,
+		cookieRecord:      record,
+		presentedSessions: presentedSessions,
 	}, true, nil
+}
+
+func cookieSessionIsNewer(candidate *corev1.CookieSession, candidateCookie browserSessionCookie, current *corev1.CookieSession, currentCookie browserSessionCookie) bool {
+	candidateCreatedAt := candidate.GetCreatedAt().AsTime()
+	currentCreatedAt := current.GetCreatedAt().AsTime()
+	if !candidateCreatedAt.Equal(currentCreatedAt) {
+		return candidateCreatedAt.After(currentCreatedAt)
+	}
+	return candidateCookie.name > currentCookie.name
 }
 
 func cookieSessionOptions(cfgTTL time.Duration, secure bool) sessions.Options {

@@ -61,6 +61,19 @@ export type CreatedExternalIdentityAccount = {
   login: string;
 };
 
+function externalIdentityStartURL(value: string): string {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error('External identity link returned an invalid URL.');
+  }
+  if (url.protocol !== 'https:' && url.protocol !== 'http:') {
+    throw new Error('External identity link returned an unsafe URL.');
+  }
+  return url.href;
+}
+
 export function createExternalIdentityFlowAPI(config: ExternalIdentityFlowAPIConfig = {}) {
   const client = createChattoClient(ExternalIdentityAuthService, {
     baseUrl: config.baseUrl ?? '/api/connect'
@@ -128,7 +141,7 @@ export function createExternalIdentityAPI(config: ExternalIdentityAPIConfig) {
         const response = await client.startExternalIdentityLink(input, {
           headers: headers()
         });
-        return response.startUrl;
+        return externalIdentityStartURL(response.startUrl);
       } catch (err) {
         return handleAuthError(config, err);
       }

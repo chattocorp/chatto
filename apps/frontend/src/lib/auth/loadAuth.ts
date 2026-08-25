@@ -50,6 +50,7 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
       cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
       await revokeLegacyOriginBearerSession();
       serverRegistry.authenticateOriginCookie(cachedUser);
+      serverConnectionManager.originClient.maintainBrowserSession();
       const originId = serverRegistry.originServer?.id;
       if (originId) {
         serverRegistry.clearAuthenticationRequired(originId);

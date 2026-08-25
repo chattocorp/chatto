@@ -7,6 +7,7 @@ import {
   type TestUser
 } from './fixtures/testUser';
 import { withLoggedInServerWindow } from './fixtures/serverUser';
+import { browserAuthenticationHeaders } from './fixtures/csrf';
 import {
   connectPost,
   connectPostResponse,
@@ -61,7 +62,10 @@ async function createSecondTestUser(page: Page): Promise<TestUser> {
 }
 
 async function loginUser(page: Page, login: string, password: string): Promise<void> {
-  const resp = await page.request.post('/auth/login', { data: { login, password } });
+  const resp = await page.request.post('/auth/browser/login', {
+    headers: await browserAuthenticationHeaders(page),
+    data: { login, password }
+  });
   expect(resp.ok()).toBeTruthy();
   expect((await resp.json()).success).toBe(true);
 }

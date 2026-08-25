@@ -215,7 +215,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Get initial cookie
     const initialCookies = await page.context().cookies();
-    const initialSessionCookie = initialCookies.find((c) => c.name === 'chatto_auth');
+    const initialSessionCookie = initialCookies.find((c) => c.name.startsWith('chatto_auth_'));
     expect(initialSessionCookie).toBeDefined();
 
     // Ordinary navigation validates the cookie without re-signing it or
@@ -226,7 +226,7 @@ test.describe('Session Expiration Handling', () => {
 
     // Get updated cookie
     const updatedCookies = await page.context().cookies();
-    const updatedSessionCookie = updatedCookies.find((c) => c.name === 'chatto_auth');
+    const updatedSessionCookie = updatedCookies.find((c) => c.name.startsWith('chatto_auth_'));
     expect(updatedSessionCookie).toBeDefined();
 
     // Cookie expiration should be ~90 days from login.
@@ -335,8 +335,8 @@ test.describe('Cookie session renewal', () => {
     await authPage.login(testLogin, testPassword);
     await authPage.expectLoggedIn();
 
-    const initialSessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_auth'
+    const initialSessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
     );
     expect(initialSessionCookie).toBeDefined();
 
@@ -345,14 +345,14 @@ test.describe('Cookie session renewal', () => {
     await expect
       .poll(
         async () =>
-          (await page.context().cookies()).find((cookie) => cookie.name === 'chatto_auth')
+          (await page.context().cookies()).find((cookie) => cookie.name.startsWith('chatto_auth_'))
             ?.expires ?? 0,
         { timeout: 11_000, intervals: [250] }
       )
       .toBeGreaterThan(initialSessionCookie!.expires);
 
-    const renewedSessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_auth'
+    const renewedSessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
     );
     expect(renewedSessionCookie).toBeDefined();
     expect(renewedSessionCookie!.value).toBe(initialSessionCookie!.value);

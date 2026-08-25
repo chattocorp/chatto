@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-27
 
-**Updated:** 2026-08-23
+**Updated:** 2026-08-25
 
 **Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for mutable human-session expiry storage.
 
@@ -79,10 +79,11 @@ Current occupants include:
   records and deletes entries whose stored user ID matches.
 - Renewable human bearer-session authorities: `renewable_session.{hmac}` with
   user/client binding, current window expiry, auth generation, current refresh
-  generation, last refresh request ID/time, and fresh-auth metadata. Rotation
-  uses KV revision OCC across replicas and advances the window in its final
-  quarter. The raw refresh credential is never stored; deleting this key
-  invalidates every access generation.
+  generation, last refresh-request verifier/time, and fresh-auth metadata. The
+  verifier is a purpose-separated HMAC of a raw UUID version 4 recovery nonce.
+  Rotation uses KV revision OCC across replicas and advances the window in its
+  final quarter. The raw refresh credential and recovery nonce are never
+  stored; deleting this key invalidates every access generation.
 - Mutable human sessions: `session.{hmac}` cookie records and
   `renewable_session.{hmac}` bearer authorities store explicit expiry. Each
   changed revision uses revision-checked JetStream publish with a per-message

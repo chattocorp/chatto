@@ -40,20 +40,21 @@ access verifier is a fixed-expiry `session.{hmac}` record; the stable
 the revocation authority for every access generation. Ordinary KV revision
 checks serialize its updates. A refresh in the final quarter advances the
 session window and sets the changed record's per-message TTL to its new
-remaining lifetime. Access token validation does not extend either expiry. Raw
+remaining lifetime. Access-token validation does not extend either expiry. Raw
 access and refresh credentials are not stored.
 
-Refresh rotation uses JetStream KV revision checks across replicas. An exact
-retry with the same client-persisted request ID can recover a lost response;
-reuse of an older refresh generation under another request ID revokes the
-whole renewable session. Deleting the stable record rejects every access
-generation on its next API request or realtime connection, even before its
-short-lived verifier record expires. The server checks the exact human
-credential before a realtime subscription starts and once per minute after
-that. A bearer socket also cannot continue past the access token's fixed
-expiry.
+Refresh rotation uses JetStream KV revision checks across replicas. The client
+generates a random UUID version 4 recovery nonce for each rotation. The server
+stores only its purpose-separated HMAC verifier. An exact retry with the same
+client-persisted request ID can recover a lost response; reuse of an older
+refresh generation under another request ID revokes the whole renewable
+session. Deleting the stable record rejects every access generation on its next
+API request or realtime connection, even before its short-lived verifier record
+expires. The server checks the exact human credential before a realtime
+subscription starts and once per minute after that. A bearer socket also cannot
+continue past the access token's fixed expiry.
 
-The `chatto_auth` browser authentication cookie has these options:
+Each `chatto_auth_<slot>` browser authentication cookie has these options:
 
 | Option     | Value                                   |
 | ---------- | --------------------------------------- |
@@ -65,7 +66,12 @@ The `chatto_auth` browser authentication cookie has these options:
 
 The cookie contains only a random SCS handle. It does not contain identity or
 authorization data. The user ID, source, auth generation, fresh-auth metadata,
-and explicit expiry live in the server-side `session.{hmac}` record.
+and explicit expiry live in the server-side `session.{hmac}` record. Chatto
+uses a new cookie slot for each successful sign-in or renewal. If an old HTTP
+response arrives late, it cannot overwrite a newer session cookie. Chatto
+ignores revoked slots and removes obsolete slots during the next authentication
+change. Concurrent renewals can create more than one slot for the same handle.
+Chatto validates that handle once and converges the browser back to one slot.
 
 The separate `chatto_session` cookie stores short-lived provider, invitation,
 and OAuth browser-flow state. Chatto signs it with

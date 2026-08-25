@@ -22,6 +22,23 @@ afterEach(() => {
 });
 
 describe('signOutServer', () => {
+  it('uses the guarded browser route for origin cookie logout', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('{}', { status: 200 }));
+    vi.stubGlobal('fetch', fetchMock);
+
+    await signOutServer({ ...remoteServer, token: null }, true);
+
+    expect(fetchMock).toHaveBeenCalledWith('/auth/browser/logout', {
+      method: 'POST',
+      headers: expect.any(Headers),
+      body: '{}',
+      signal: expect.any(AbortSignal)
+    });
+    const headers = fetchMock.mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
+  });
+
   it('aborts stale remote logout requests', async () => {
     vi.useFakeTimers();
 

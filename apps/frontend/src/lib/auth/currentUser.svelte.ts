@@ -3,6 +3,7 @@ import {
   type CurrentUser,
   type ViewerAPIConfig
 } from '$lib/api-client/viewer';
+import { browserCookieAuthenticationHeaders } from './authenticationMode';
 import { clearCachedUser } from './loadAuth';
 import { csrfFetch } from './csrf';
 import { isAuthenticationRequiredError } from './errors';
@@ -85,7 +86,14 @@ export class CurrentUserState {
     this.#isLoggingOut = true;
 
     if (options.revokeServerSession) {
-      await csrfFetch('/auth/logout', { method: 'POST' }).catch(() => {});
+      await csrfFetch('/auth/browser/logout', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...browserCookieAuthenticationHeaders
+        },
+        body: '{}'
+      }).catch(() => {});
       this.user = undefined;
       clearCachedUser();
       this.loading = false;

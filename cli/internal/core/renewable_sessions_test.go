@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"encoding/json"
 	"errors"
 	"sync"
@@ -8,6 +9,12 @@ import (
 	"time"
 
 	"hmans.de/chatto/internal/config"
+)
+
+const (
+	testRefreshRequestIDA = "00000000-0000-4000-8000-000000000001"
+	testRefreshRequestIDB = "00000000-0000-4000-8000-000000000002"
+	testRefreshRequestIDC = "00000000-0000-4000-8000-000000000003"
 )
 
 func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testing.T) {
@@ -37,7 +44,7 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	}
 	startCoreServices(t, second)
 
-	const requestID = "lost-response-request-0001"
+	const requestID = testRefreshRequestIDA
 	rotated, err := first.RefreshBearerSession(ctx, initial.RefreshToken, requestID, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
@@ -58,6 +65,79 @@ func TestChattoCore_RefreshBearerSessionRotatesAndRecoversLostResponse(t *testin
 	}
 	if _, err := first.storage.runtimeStateKV.Get(ctx, sessionKey); !isRuntimeStateKeyAbsent(err) {
 		t.Fatalf("revoked renewable session lookup error = %v, want absent key", err)
+	}
+}
+
+func TestChattoCore_RefreshBearerSessionRejectsReusedRequestIDForNewRotation(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-request-id-user", "Refresh Request ID User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
+	if err != nil {
+		t.Fatalf("first refresh: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, rotated.RefreshToken, testRefreshRequestIDA, ""); !errors.Is(err, ErrRefreshRequestIDInvalid) {
+		t.Fatalf("reused request ID error = %v, want ErrRefreshRequestIDInvalid", err)
+	}
+}
+
+func TestChattoCore_RefreshBearerSessionRequiresUUIDv4RecoveryNonce(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-nonce-user", "Refresh Nonce User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	for _, requestID := range []string{
+		"predictable-request-id",
+		"00000000-0000-3000-8000-000000000001",
+		"00000000-0000-4000-7000-000000000001",
+		"00000000-0000-4000-8000-000000000001\n",
+	} {
+		if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, requestID, ""); !errors.Is(err, ErrRefreshRequestIDInvalid) {
+			t.Fatalf("request ID %q error = %v, want ErrRefreshRequestIDInvalid", requestID, err)
+		}
+	}
+}
+
+func TestChattoCore_RefreshBearerSessionStoresOnlyRecoveryNonceVerifier(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-verifier-user", "Refresh Verifier User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, ""); err != nil {
+		t.Fatalf("RefreshBearerSession: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+	session, entry, err := chattoCore.loadRenewableSession(ctx, sessionID)
+	if err != nil {
+		t.Fatalf("loadRenewableSession: %v", err)
+	}
+	if session.LastRefreshRequestVerifier != chattoCore.refreshRequestVerifier(testRefreshRequestIDA) {
+		t.Fatalf("stored recovery verifier = %q", session.LastRefreshRequestVerifier)
+	}
+	if bytes.Contains(entry.Value(), []byte(testRefreshRequestIDA)) {
+		t.Fatal("renewable session stored the raw recovery nonce")
 	}
 }
 
@@ -96,7 +176,7 @@ func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) 
 	rotated, err := chattoCore.refreshBearerSessionAt(
 		ctx,
 		initial.RefreshToken,
-		"automatic-window-renewal",
+		testRefreshRequestIDA,
 		"",
 		now,
 	)
@@ -119,7 +199,7 @@ func TestChattoCore_RefreshBearerSessionRenewsActiveSessionWindow(t *testing.T) 
 	recovered, err := chattoCore.refreshBearerSessionAt(
 		ctx,
 		initial.RefreshToken,
-		"automatic-window-renewal",
+		testRefreshRequestIDA,
 		"",
 		now.Add(time.Minute),
 	)
@@ -145,7 +225,7 @@ func TestChattoCore_RefreshBearerSessionKeepsCurrentWindowBeforeRenewalQuarter(t
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
 
-	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "ordinary-window-refresh", "")
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
 	}
@@ -176,7 +256,7 @@ func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *tes
 		t.Fatalf("validateRenewableSession: %v", err)
 	}
 	session.CurrentGeneration++
-	session.LastRefreshRequestID = "committed-before-process-exit"
+	session.LastRefreshRequestVerifier = chattoCore.refreshRequestVerifier(testRefreshRequestIDA)
 	session.LastRotatedAt = now
 	value, err := json.Marshal(session)
 	if err != nil {
@@ -193,12 +273,134 @@ func TestChattoCore_RefreshRetryRepairsAccessRecordAfterCommittedRotation(t *tes
 		t.Fatalf("commit rotation without access record: %v", err)
 	}
 
-	recovered, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, session.LastRefreshRequestID, "")
+	recovered, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession recovery: %v", err)
 	}
 	if got, err := chattoCore.ValidateAuthToken(ctx, recovered.AccessToken); err != nil || got != user.Id {
 		t.Fatalf("ValidateAuthToken recovered = %q, %v", got, err)
+	}
+}
+
+func TestChattoCore_RefreshRetryKeepsOriginalAccessExpiryAndPhysicalTTL(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	chattoCore.config.AuthAccessTokenTTL = time.Minute
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "rotation-ttl-user", "Rotation TTL User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	sessionID, _, ok := chattoCore.parseRefreshToken(initial.RefreshToken)
+	if !ok {
+		t.Fatal("initial refresh credential did not parse")
+	}
+	now := time.Now()
+	issuedAt := now.Add(-30 * time.Second)
+	session, entry, err := chattoCore.validateRenewableSession(ctx, sessionID, now)
+	if err != nil {
+		t.Fatalf("validateRenewableSession: %v", err)
+	}
+	session.CurrentGeneration++
+	session.LastRefreshRequestVerifier = chattoCore.refreshRequestVerifier(testRefreshRequestIDA)
+	session.LastRotatedAt = issuedAt
+	value, err := json.Marshal(session)
+	if err != nil {
+		t.Fatalf("marshal committed session: %v", err)
+	}
+	if _, err := chattoCore.updateRuntimeStateUntil(ctx, entry.Key(), value, entry.Revision(), session.ExpiresAt, now); err != nil {
+		t.Fatalf("commit rotation without access record: %v", err)
+	}
+
+	recovered, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
+	if err != nil {
+		t.Fatalf("recover access record: %v", err)
+	}
+	wantExpiry := issuedAt.Add(time.Minute)
+	if !recovered.AccessTokenExpiresAt.Equal(wantExpiry) {
+		t.Fatalf("recovered access expiry = %v, want %v", recovered.AccessTokenExpiresAt, wantExpiry)
+	}
+	accessEntry, err := chattoCore.storage.runtimeStateKV.Get(ctx, chattoCore.authTokenKey(recovered.AccessToken))
+	if err != nil {
+		t.Fatalf("get recovered access record: %v", err)
+	}
+	stream, err := chattoCore.js.Stream(ctx, "KV_RUNTIME_STATE")
+	if err != nil {
+		t.Fatalf("get RUNTIME_STATE stream: %v", err)
+	}
+	msg, err := stream.GetMsg(ctx, accessEntry.Revision())
+	if err != nil {
+		t.Fatalf("get recovered access message: %v", err)
+	}
+	physicalTTL, err := time.ParseDuration(msg.Header.Get("Nats-TTL"))
+	if err != nil {
+		t.Fatalf("parse recovered access TTL: %v", err)
+	}
+	if physicalTTL > 31*time.Second || physicalTTL < 29*time.Second {
+		t.Fatalf("recovered physical TTL = %v, want about 30s", physicalTTL)
+	}
+}
+
+func TestChattoCore_RefreshRetrySurvivesFreshAuthMetadataChange(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-fresh-retry-user", "Refresh Fresh Retry User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "unknown")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	now := time.Now()
+	rotated, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
+	if err != nil {
+		t.Fatalf("initial refresh: %v", err)
+	}
+	if err := chattoCore.MarkBearerTokenFresh(ctx, rotated.AccessToken, "password", "current_password"); err != nil {
+		t.Fatalf("MarkBearerTokenFresh: %v", err)
+	}
+	recovered, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now.Add(time.Second))
+	if err != nil {
+		t.Fatalf("recover after fresh-auth change: %v", err)
+	}
+	if recovered.AccessToken != rotated.AccessToken || recovered.RefreshToken != rotated.RefreshToken {
+		t.Fatal("fresh-auth change altered deterministic recovery credentials")
+	}
+}
+
+func TestChattoCore_RefreshRetryAllowsSmallReplicaClockSkewWithoutRevocation(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "refresh-skew-user", "Refresh Skew User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	initial, err := chattoCore.CreateBearerSessionWithSource(ctx, user.Id, "password_login")
+	if err != nil {
+		t.Fatalf("CreateBearerSessionWithSource: %v", err)
+	}
+	now := time.Now()
+	rotated, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
+	if err != nil {
+		t.Fatalf("initial refresh: %v", err)
+	}
+	recovered, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now.Add(-time.Second))
+	if err != nil {
+		t.Fatalf("recover with small negative skew: %v", err)
+	}
+	if recovered.AccessToken != rotated.AccessToken || recovered.RefreshToken != rotated.RefreshToken {
+		t.Fatal("clock-skew recovery returned different credentials")
+	}
+
+	if _, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now.Add(-2*time.Minute)); err == nil || errors.Is(err, ErrRefreshTokenReused) {
+		t.Fatalf("large negative skew error = %v, want retryable non-reuse error", err)
+	}
+	if _, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now.Add(time.Second)); err != nil {
+		t.Fatalf("large clock-skew attempt revoked session: %v", err)
 	}
 }
 
@@ -213,18 +415,18 @@ func TestChattoCore_RefreshBearerSessionReuseRevokesSession(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
-	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "first-rotation-request", "")
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
 	}
 
-	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "different-request-id", ""); !errors.Is(err, ErrRefreshTokenReused) {
+	if _, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDB, ""); !errors.Is(err, ErrRefreshTokenReused) {
 		t.Fatalf("stale refresh error = %v, want ErrRefreshTokenReused", err)
 	}
 	if _, err := chattoCore.ValidateAuthToken(ctx, rotated.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("rotated access after session revoke error = %v, want ErrAuthTokenNotFound", err)
 	}
-	if _, err := chattoCore.RefreshBearerSession(ctx, rotated.RefreshToken, "later-refresh-request", ""); !errors.Is(err, ErrRefreshTokenNotFound) {
+	if _, err := chattoCore.RefreshBearerSession(ctx, rotated.RefreshToken, testRefreshRequestIDC, ""); !errors.Is(err, ErrRefreshTokenNotFound) {
 		t.Fatalf("latest refresh after session revoke error = %v, want ErrRefreshTokenNotFound", err)
 	}
 }
@@ -246,7 +448,7 @@ func TestChattoCore_AccessExpiryDoesNotEndRenewableSession(t *testing.T) {
 	if _, err := chattoCore.ValidateAuthToken(ctx, initial.AccessToken); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("expired access validation error = %v, want ErrAuthTokenNotFound", err)
 	}
-	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "refresh-after-access-expiry", "")
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession after access expiry: %v", err)
 	}
@@ -266,7 +468,7 @@ func TestChattoCore_FreshAuthSurvivesConcurrentAccessRotation(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CreateBearerSessionWithSource: %v", err)
 	}
-	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, "rotate-before-fresh-auth", "")
+	rotated, err := chattoCore.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDA, "")
 	if err != nil {
 		t.Fatalf("RefreshBearerSession: %v", err)
 	}
@@ -310,7 +512,7 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *test
 			credentials[index], errorsByReplica[index] = replica.RefreshBearerSession(
 				ctx,
 				initial.RefreshToken,
-				[]string{"parallel-request-a", "parallel-request-b"}[index],
+				[]string{testRefreshRequestIDA, testRefreshRequestIDB}[index],
 				"",
 			)
 		}(index, replica)
@@ -341,7 +543,7 @@ func TestChattoCore_ConcurrentRefreshAcrossReplicasFencesAndRevokesReuse(t *test
 			t.Fatalf("winner remained valid after detected reuse: %v", err)
 		}
 	}
-	if _, err := first.RefreshBearerSession(ctx, initial.RefreshToken, "post-race-request", ""); !errors.Is(err, ErrRefreshTokenNotFound) {
+	if _, err := first.RefreshBearerSession(ctx, initial.RefreshToken, testRefreshRequestIDC, ""); !errors.Is(err, ErrRefreshTokenNotFound) {
 		t.Fatalf("initial refresh after detected concurrent reuse = %v, want ErrRefreshTokenNotFound", err)
 	}
 }
@@ -361,7 +563,7 @@ func TestChattoCore_RefreshBearerSessionRejectsExpiredWindow(t *testing.T) {
 	_, err = chattoCore.refreshBearerSessionAt(
 		ctx,
 		initial.RefreshToken,
-		"after-window-expiry",
+		testRefreshRequestIDA,
 		"",
 		initial.SessionExpiresAt.Add(time.Second),
 	)
@@ -384,14 +586,14 @@ func TestChattoCore_LostResponseRecoveryEndsAtAccessExpiry(t *testing.T) {
 	}
 
 	now := time.Now()
-	rotated, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, "bounded-recovery-request", "", now)
+	rotated, err := chattoCore.refreshBearerSessionAt(ctx, initial.RefreshToken, testRefreshRequestIDA, "", now)
 	if err != nil {
 		t.Fatalf("initial refresh: %v", err)
 	}
 	_, err = chattoCore.refreshBearerSessionAt(
 		ctx,
 		initial.RefreshToken,
-		"bounded-recovery-request",
+		testRefreshRequestIDA,
 		"",
 		now.Add(chattoCore.bearerAccessTokenTTL()),
 	)

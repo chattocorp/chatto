@@ -176,28 +176,12 @@ func TestImmutableFrontendAssetNeverCarriesAuthenticationCookies(t *testing.T) {
 		router: router,
 	}
 	router.Use(server.csrfMiddleware())
-	router.GET("/test-auth-cookie", func(c *gin.Context) {
-		if err := saveCookieSession(c, sessionID); err != nil {
-			c.Status(http.StatusInternalServerError)
-			return
-		}
-		c.Status(http.StatusNoContent)
-	})
 	if err := server.setupFrontendRoutes(); err != nil {
 		t.Fatalf("setupFrontendRoutes: %v", err)
 	}
 
-	loginRequest := httptest.NewRequest(http.MethodGet, "/test-auth-cookie", nil)
-	loginResponse := httptest.NewRecorder()
-	router.ServeHTTP(loginResponse, loginRequest)
-	if loginResponse.Code != http.StatusNoContent {
-		t.Fatalf("save auth cookie status = %d, want 204", loginResponse.Code)
-	}
-
 	assetRequest := httptest.NewRequest(http.MethodGet, "/_app/immutable/entry/start.CxnbWTuF.js", nil)
-	for _, authCookie := range loginResponse.Result().Cookies() {
-		assetRequest.AddCookie(authCookie)
-	}
+	assetRequest.AddCookie(&http.Cookie{Name: browserSessionCookieName, Value: sessionID})
 	assetResponse := httptest.NewRecorder()
 	router.ServeHTTP(assetResponse, assetRequest)
 

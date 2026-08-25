@@ -1,4 +1,5 @@
 import type { RegisteredServer } from '$lib/state/server/registry.svelte';
+import { browserCookieAuthenticationHeaders } from './authenticationMode';
 import { csrfFetch } from './csrf';
 
 export const SIGN_OUT_TIMEOUT_MS = 5000;
@@ -40,11 +41,13 @@ export async function signOutServer(
     : undefined;
 
   if (isOriginServer) {
+    headers['Content-Type'] = 'application/json';
+    Object.assign(headers, browserCookieAuthenticationHeaders);
     const response = await withSignOutTimeout((signal) =>
-      csrfFetch('/auth/logout', {
+      csrfFetch('/auth/browser/logout', {
         method: 'POST',
         headers,
-        body,
+        body: body ?? '{}',
         signal
       })
     );

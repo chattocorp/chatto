@@ -260,6 +260,22 @@ describe('createExternalIdentityAPI', () => {
     );
   });
 
+  it('rejects an unsafe provider-link navigation URL from a remote server', async () => {
+    mocks.startExternalIdentityLink.mockResolvedValue({
+      startUrl: 'javascript:alert(document.domain)'
+    });
+
+    const api = createExternalIdentityAPI({
+      serverId: 'remote',
+      baseUrl: 'https://remote.example.test/api/connect',
+      bearerToken: 'token'
+    });
+
+    await expect(
+      api.startLink({ providerId: 'github-main', redirectPath: '/chat/-/settings/account' })
+    ).rejects.toThrow('External identity link returned an unsafe URL.');
+  });
+
   it('disconnects a linked identity with bearer auth', async () => {
     mocks.disconnectExternalIdentity.mockResolvedValue({ disconnected: true });
 

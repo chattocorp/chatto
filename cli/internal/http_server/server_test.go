@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"net/http/cookiejar"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -408,7 +409,6 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 	}
 	browserStore := newJetStreamBrowserSessionStore(chattoCore)
 	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
-	router.Use(s.loadBrowserSession())
 	if configure != nil {
 		configure(s)
 	}
@@ -430,6 +430,24 @@ func setupTestHTTPServerWithHook(t *testing.T, configure func(*HTTPServer)) (*ht
 	}
 
 	return ts, client, chattoCore
+}
+
+func postBrowserAuthentication(client *http.Client, endpoint string, body []byte) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, endpoint, bytes.NewReader(body))
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", req.URL.Scheme+"://"+req.URL.Host)
+	if client.Jar != nil {
+		for _, cookie := range client.Jar.Cookies(req.URL) {
+			if cookie.Name == csrfCookieName {
+				req.Header.Set(csrfHeaderName, cookie.Value)
+			}
+		}
+	}
+	return client.Do(req)
 }
 
 // setupTestHTTPServerWithMailer creates an HTTPServer with MockSender enabled.
@@ -726,7 +744,7 @@ func TestAuthRoutes_BrowserLoginDoesNotIssueBearerCredentials(t *testing.T) {
 		"login":    "cookieonly",
 		"password": "password123",
 	})
-	resp, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	resp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("POST /auth/browser/login: %v", err)
 	}
@@ -737,7 +755,7 @@ func TestAuthRoutes_BrowserLoginDoesNotIssueBearerCredentials(t *testing.T) {
 	}
 	authCookieCount := 0
 	for _, cookie := range resp.Cookies() {
-		if cookie.Name == browserSessionCookieName {
+		if isBrowserSessionCookieName(cookie.Name) {
 			authCookieCount++
 		}
 	}
@@ -759,6 +777,81 @@ func TestAuthRoutes_BrowserLoginDoesNotIssueBearerCredentials(t *testing.T) {
 	}
 }
 
+func TestAuthRoutes_BrowserLoginRejectsCrossSiteAndFormRequests(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "login-csrf", "Login CSRF", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": "login-csrf", "password": "password123"})
+
+	tests := []struct {
+		name        string
+		contentType string
+		origin      string
+		mode        string
+		wantStatus  int
+	}{
+		{name: "plain HTML form", contentType: "text/plain", origin: "https://attacker.example", wantStatus: http.StatusUnsupportedMediaType},
+		{name: "cross-origin fetch", contentType: "application/json", origin: "https://attacker.example", mode: connectapi.BrowserAuthenticationModeCookie, wantStatus: http.StatusForbidden},
+		{name: "missing browser mode", contentType: "application/json", origin: ts.URL, wantStatus: http.StatusForbidden},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/login", bytes.NewReader(body))
+			if err != nil {
+				t.Fatalf("NewRequest: %v", err)
+			}
+			req.Header.Set("Content-Type", test.contentType)
+			req.Header.Set("Origin", test.origin)
+			if test.mode != "" {
+				req.Header.Set(connectapi.BrowserAuthenticationModeHeader, test.mode)
+			}
+			resp, err := client.Do(req)
+			if err != nil {
+				t.Fatalf("browser login: %v", err)
+			}
+			resp.Body.Close()
+			if resp.StatusCode != test.wantStatus {
+				t.Fatalf("status = %d, want %d", resp.StatusCode, test.wantStatus)
+			}
+			for _, cookie := range resp.Cookies() {
+				if isBrowserSessionCookieName(cookie.Name) {
+					t.Fatalf("rejected browser login set %s", browserSessionCookieName)
+				}
+			}
+		})
+	}
+}
+
+func TestAuthRoutes_ProgrammaticLoginRejectsFormContentType(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "form-login", "Form Login", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body := []byte(`{"login":"form-login","password":"password123","ignore":"="}`)
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "text/plain")
+	req.Header.Set("Origin", "https://attacker.example")
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("programmatic login: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusUnsupportedMediaType {
+		t.Fatalf("status = %d, want 415", resp.StatusCode)
+	}
+	for _, cookie := range resp.Cookies() {
+		if isBrowserSessionCookieName(cookie.Name) {
+			t.Fatalf("form login set %s", browserSessionCookieName)
+		}
+	}
+}
+
 func TestAuthRoutes_BrowserLoginRotatesHandle(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)
@@ -777,7 +870,7 @@ func TestAuthRoutes_BrowserLoginRotatesHandle(t *testing.T) {
 	login := func(identifier string) string {
 		t.Helper()
 		body, _ := json.Marshal(map[string]string{"login": identifier, "password": "password123"})
-		response, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+		response, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 		if err != nil {
 			t.Fatalf("browser login %q: %v", identifier, err)
 		}
@@ -786,7 +879,7 @@ func TestAuthRoutes_BrowserLoginRotatesHandle(t *testing.T) {
 			t.Fatalf("browser login %q status = %d, want 200", identifier, response.StatusCode)
 		}
 		for _, cookie := range client.Jar.Cookies(response.Request.URL) {
-			if cookie.Name == browserSessionCookieName {
+			if isBrowserSessionCookieName(cookie.Name) {
 				return cookie.Value
 			}
 		}
@@ -826,7 +919,7 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	}
 
 	body, _ := json.Marshal(map[string]string{"login": "browser-renew", "password": "password123"})
-	loginResponse, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("browser login: %v", err)
 	}
@@ -838,10 +931,12 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	var sessionID, csrfToken string
 	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
 		switch cookie.Name {
-		case browserSessionCookieName:
-			sessionID = cookie.Value
 		case csrfCookieName:
 			csrfToken = cookie.Value
+		default:
+			if isBrowserSessionCookieName(cookie.Name) {
+				sessionID = cookie.Value
+			}
 		}
 	}
 	if sessionID == "" || csrfToken == "" {
@@ -851,16 +946,35 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	if err != nil {
 		t.Fatalf("ValidateCookieCredential before renewal: %v", err)
 	}
+	noOpResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/renew", []byte("{}"))
+	if err != nil {
+		t.Fatalf("early browser renewal: %v", err)
+	}
+	var noOpBody struct {
+		Renewed    bool   `json:"renewed"`
+		RenewAfter string `json:"renewAfter"`
+	}
+	if err := json.NewDecoder(noOpResponse.Body).Decode(&noOpBody); err != nil {
+		t.Fatalf("decode early renewal response: %v", err)
+	}
+	noOpResponse.Body.Close()
+	if noOpResponse.StatusCode != http.StatusOK || noOpBody.Renewed || noOpBody.RenewAfter == "" {
+		t.Fatalf("early renewal status/body = %d/%+v", noOpResponse.StatusCode, noOpBody)
+	}
+	var noOpSessionID string
+	for _, cookie := range client.Jar.Cookies(noOpResponse.Request.URL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			noOpSessionID = cookie.Value
+		}
+	}
+	if noOpSessionID != sessionID {
+		t.Fatalf("early renewal changed handle from %q to %q", sessionID, noOpSessionID)
+	}
 	server.cookieSessionRenewalNow = func() time.Time {
 		return before.GetExpiresAt().AsTime().Add(-time.Hour)
 	}
 
-	renewRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/session/renew", nil)
-	if err != nil {
-		t.Fatalf("NewRequest renewal: %v", err)
-	}
-	renewRequest.Header.Set(csrfHeaderName, csrfToken)
-	renewResponse, err := client.Do(renewRequest)
+	renewResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/renew", []byte("{}"))
 	if err != nil {
 		t.Fatalf("browser renewal: %v", err)
 	}
@@ -872,7 +986,7 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 
 	var renewedSessionID string
 	for _, cookie := range client.Jar.Cookies(renewResponse.Request.URL) {
-		if cookie.Name == browserSessionCookieName {
+		if isBrowserSessionCookieName(cookie.Name) {
 			renewedSessionID = cookie.Value
 		}
 	}
@@ -888,6 +1002,320 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	}
 }
 
+func TestAuthRoutes_DelayedRenewalCannotOverwriteNewLogin(t *testing.T) {
+	var server *HTTPServer
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
+		server = configured
+	})
+	ctx := testContext(t)
+	for _, account := range []struct {
+		login string
+		name  string
+	}{
+		{login: "renewal-old-login", name: "Renewal Old Login"},
+		{login: "renewal-new-login", name: "Renewal New Login"},
+	} {
+		if _, err := chattoCore.CreateUser(ctx, "system", account.login, account.name, "password123"); err != nil {
+			t.Fatalf("CreateUser %q: %v", account.login, err)
+		}
+	}
+
+	login := func(identifier string) {
+		t.Helper()
+		body, _ := json.Marshal(map[string]string{"login": identifier, "password": "password123"})
+		response, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
+		if err != nil {
+			t.Fatalf("browser login %q: %v", identifier, err)
+		}
+		defer response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			responseBody, _ := io.ReadAll(response.Body)
+			t.Fatalf("browser login %q status = %d: %s", identifier, response.StatusCode, responseBody)
+		}
+	}
+
+	login("renewal-old-login")
+	requestURL, err := url.Parse(ts.URL + "/auth/browser/session/renew")
+	if err != nil {
+		t.Fatalf("Parse renewal URL: %v", err)
+	}
+	var oldHandle string
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			oldHandle = cookie.Value
+		}
+	}
+	oldRecord, err := chattoCore.ValidateCookieCredential(ctx, oldHandle)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential old login: %v", err)
+	}
+	server.cookieSessionRenewalNow = func() time.Time {
+		return oldRecord.GetExpiresAt().AsTime().Add(-time.Hour)
+	}
+
+	// Execute renewal without a cookie jar so its Set-Cookie fields can be
+	// applied after the later login, reproducing browser response reordering.
+	renewRequest, err := http.NewRequest(http.MethodPost, requestURL.String(), strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest renewal: %v", err)
+	}
+	renewRequest.Header.Set("Content-Type", "application/json")
+	renewRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	renewRequest.Header.Set("Origin", requestURL.Scheme+"://"+requestURL.Host)
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		renewRequest.AddCookie(cookie)
+		if cookie.Name == csrfCookieName {
+			renewRequest.Header.Set(csrfHeaderName, cookie.Value)
+		}
+	}
+	delayedRenewal, err := ts.Client().Do(renewRequest)
+	if err != nil {
+		t.Fatalf("delayed renewal: %v", err)
+	}
+	defer delayedRenewal.Body.Close()
+	if delayedRenewal.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(delayedRenewal.Body)
+		t.Fatalf("delayed renewal status = %d: %s", delayedRenewal.StatusCode, responseBody)
+	}
+	if got := len(delayedRenewal.Cookies()); got > 2 {
+		t.Fatalf("renewal Set-Cookie count = %d, want at most 2", got)
+	}
+
+	login("renewal-new-login")
+	client.Jar.SetCookies(requestURL, delayedRenewal.Cookies())
+
+	checkRequest := httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		checkRequest.AddCookie(cookie)
+	}
+	checkContext, _ := gin.CreateTestContext(httptest.NewRecorder())
+	checkContext.Request = checkRequest
+	credential, ok, err := server.cookiePresentedCredential(checkContext)
+	if err != nil || !ok {
+		t.Fatalf("cookie authentication after reordered responses = %t, %v", ok, err)
+	}
+	newUser, err := chattoCore.GetUserByLogin(ctx, "renewal-new-login")
+	if err != nil {
+		t.Fatalf("GetUserByLogin new login: %v", err)
+	}
+	if credential.auth.UserID != newUser.GetId() {
+		t.Fatalf("reordered response selected user %q, want %q", credential.auth.UserID, newUser.GetId())
+	}
+	if _, err := chattoCore.ValidateCookieCredential(ctx, oldHandle); !errors.Is(err, core.ErrCookieSessionNotFound) {
+		t.Fatalf("old renewed handle validation error = %v, want ErrCookieSessionNotFound", err)
+	}
+
+	// The next maintenance request removes the orphaned stale slot and keeps a
+	// single cookie carrying the current handle.
+	maintenance, err := postBrowserAuthentication(client, requestURL.String(), []byte("{}"))
+	if err != nil {
+		t.Fatalf("maintenance after reordered responses: %v", err)
+	}
+	defer maintenance.Body.Close()
+	if maintenance.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(maintenance.Body)
+		t.Fatalf("maintenance status = %d: %s", maintenance.StatusCode, responseBody)
+	}
+	authCookies := 0
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			authCookies++
+		}
+	}
+	if authCookies != 1 {
+		t.Fatalf("authentication cookie count after maintenance = %d, want 1", authCookies)
+	}
+}
+
+func TestAuthRoutes_ConcurrentRenewalSlotsConverge(t *testing.T) {
+	var server *HTTPServer
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
+		server = configured
+	})
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "concurrent-renewal", "Concurrent Renewal", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": "concurrent-renewal", "password": "password123"})
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
+	}
+
+	requestURL, err := url.Parse(ts.URL + "/auth/browser/session/renew")
+	if err != nil {
+		t.Fatalf("Parse renewal URL: %v", err)
+	}
+	requestCookies := client.Jar.Cookies(requestURL)
+	var handle string
+	var csrfToken string
+	for _, cookie := range requestCookies {
+		if isBrowserSessionCookieName(cookie.Name) {
+			handle = cookie.Value
+		}
+		if cookie.Name == csrfCookieName {
+			csrfToken = cookie.Value
+		}
+	}
+	record, err := chattoCore.ValidateCookieCredential(ctx, handle)
+	if err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+	server.cookieSessionRenewalNow = func() time.Time {
+		return record.GetExpiresAt().AsTime().Add(-time.Hour)
+	}
+
+	const responseCount = browserSessionCookieLimit + 1
+	delayedCookies := make([][]*http.Cookie, 0, responseCount)
+	for range responseCount {
+		request, err := http.NewRequest(http.MethodPost, requestURL.String(), strings.NewReader("{}"))
+		if err != nil {
+			t.Fatalf("NewRequest renewal: %v", err)
+		}
+		request.Header.Set("Content-Type", "application/json")
+		request.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+		request.Header.Set("Origin", requestURL.Scheme+"://"+requestURL.Host)
+		request.Header.Set(csrfHeaderName, csrfToken)
+		for _, cookie := range requestCookies {
+			request.AddCookie(cookie)
+		}
+		response, err := ts.Client().Do(request)
+		if err != nil {
+			t.Fatalf("concurrent renewal: %v", err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("concurrent renewal status = %d, want 200", response.StatusCode)
+		}
+		delayedCookies = append(delayedCookies, response.Cookies())
+	}
+	for index := len(delayedCookies) - 1; index >= 0; index-- {
+		client.Jar.SetCookies(requestURL, delayedCookies[index])
+	}
+	authCookies := 0
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			authCookies++
+		}
+	}
+	if authCookies != responseCount {
+		t.Fatalf("concurrent authentication cookie count = %d, want %d", authCookies, responseCount)
+	}
+
+	checkRequest := httptest.NewRequest(http.MethodGet, requestURL.String(), nil)
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		checkRequest.AddCookie(cookie)
+	}
+	checkContext, _ := gin.CreateTestContext(httptest.NewRecorder())
+	checkContext.Request = checkRequest
+	credential, ok, err := server.cookiePresentedCredential(checkContext)
+	if err != nil || !ok || credential.auth.Handle != handle {
+		t.Fatalf("cookie authentication with concurrent slots = %t, %q, %v", ok, credential.auth.Handle, err)
+	}
+
+	maintenance, err := postBrowserAuthentication(client, requestURL.String(), []byte("{}"))
+	if err != nil {
+		t.Fatalf("maintenance after concurrent renewal: %v", err)
+	}
+	defer maintenance.Body.Close()
+	if maintenance.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(maintenance.Body)
+		t.Fatalf("maintenance status = %d: %s", maintenance.StatusCode, responseBody)
+	}
+	authCookies = 0
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			authCookies++
+		}
+	}
+	if authCookies != 1 {
+		t.Fatalf("authentication cookie count after convergence = %d, want 1", authCookies)
+	}
+}
+
+func TestAuthRoutes_BrowserRenewalRevokesParallelSessionHandles(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "parallel-browser-login", "Parallel Browser Login", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	secondJar, err := cookiejar.New(nil)
+	if err != nil {
+		t.Fatalf("cookiejar.New: %v", err)
+	}
+	secondClient := &http.Client{Jar: secondJar, CheckRedirect: client.CheckRedirect}
+	body, _ := json.Marshal(map[string]string{"login": "parallel-browser-login", "password": "password123"})
+	for _, loginClient := range []*http.Client{client, secondClient} {
+		response, err := postBrowserAuthentication(loginClient, ts.URL+"/auth/browser/login", body)
+		if err != nil {
+			t.Fatalf("browser login: %v", err)
+		}
+		response.Body.Close()
+		if response.StatusCode != http.StatusOK {
+			t.Fatalf("browser login status = %d, want 200", response.StatusCode)
+		}
+	}
+
+	requestURL, err := url.Parse(ts.URL + "/auth/browser/session/renew")
+	if err != nil {
+		t.Fatalf("Parse renewal URL: %v", err)
+	}
+	cookieURL, err := url.Parse(ts.URL + "/")
+	if err != nil {
+		t.Fatalf("Parse cookie URL: %v", err)
+	}
+	handles := make([]string, 0, 2)
+	for _, loginClient := range []*http.Client{client, secondClient} {
+		for _, cookie := range loginClient.Jar.Cookies(requestURL) {
+			if !isBrowserSessionCookieName(cookie.Name) {
+				continue
+			}
+			handles = append(handles, cookie.Value)
+			if loginClient == secondClient {
+				client.Jar.SetCookies(cookieURL, []*http.Cookie{cookie})
+			}
+		}
+	}
+	if len(handles) != 2 {
+		t.Fatalf("parallel browser handle count = %d, want 2", len(handles))
+	}
+
+	renewal, err := postBrowserAuthentication(client, requestURL.String(), []byte("{}"))
+	if err != nil {
+		t.Fatalf("browser renewal: %v", err)
+	}
+	defer renewal.Body.Close()
+	if renewal.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(renewal.Body)
+		t.Fatalf("browser renewal status = %d: %s", renewal.StatusCode, responseBody)
+	}
+
+	validHandles := 0
+	for _, handle := range handles {
+		if _, err := chattoCore.ValidateCookieCredential(ctx, handle); err == nil {
+			validHandles++
+		} else if !errors.Is(err, core.ErrCookieSessionNotFound) {
+			t.Fatalf("ValidateCookieCredential: %v", err)
+		}
+	}
+	if validHandles != 1 {
+		t.Fatalf("valid parallel browser handles after renewal = %d, want 1", validHandles)
+	}
+	authCookies := 0
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) {
+			authCookies++
+		}
+	}
+	if authCookies != 1 {
+		t.Fatalf("authentication cookie count after parallel cleanup = %d, want 1", authCookies)
+	}
+}
+
 func TestAuthenticatedPublicDiscoveryDoesNotSetCookies(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
 		server.router.Use(server.csrfMiddleware())
@@ -898,7 +1326,7 @@ func TestAuthenticatedPublicDiscoveryDoesNotSetCookies(t *testing.T) {
 		t.Fatalf("CreateUser: %v", err)
 	}
 	body, _ := json.Marshal(map[string]string{"login": "discovery-cookie", "password": "password123"})
-	loginResponse, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("browser login: %v", err)
 	}
@@ -950,10 +1378,18 @@ func TestAuthRoutes_BrowserMigrationRevokesBearerAuthorityAndKeepsCookie(t *test
 	if got, err := chattoCore.ValidateAuthToken(ctx, credentials.AccessToken); err != nil || got != user.Id {
 		t.Fatalf("ValidateAuthToken before migration = %q, %v", got, err)
 	}
+	browserLoginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	browserLoginResponse.Body.Close()
+	if browserLoginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("browser login status = %d, want 200", browserLoginResponse.StatusCode)
+	}
 
 	var sessionID string
-	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
-		if cookie.Name == browserSessionCookieName {
+	for _, cookie := range client.Jar.Cookies(browserLoginResponse.Request.URL) {
+		if isBrowserSessionCookieName(cookie.Name) {
 			sessionID = cookie.Value
 		}
 	}
@@ -965,12 +1401,7 @@ func TestAuthRoutes_BrowserMigrationRevokesBearerAuthorityAndKeepsCookie(t *test
 		"accessToken":  credentials.AccessToken,
 		"refreshToken": credentials.RefreshToken,
 	})
-	revokeRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/revoke-bearer-session", bytes.NewReader(revokeBody))
-	if err != nil {
-		t.Fatalf("NewRequest revocation: %v", err)
-	}
-	revokeRequest.Header.Set("Content-Type", "application/json")
-	revokeResponse, err := client.Do(revokeRequest)
+	revokeResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/revoke-bearer-session", revokeBody)
 	if err != nil {
 		t.Fatalf("revoke bearer session: %v", err)
 	}
@@ -1181,7 +1612,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 	}
 	body, _ := json.Marshal(loginBody)
 
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -1199,7 +1630,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 		t.Fatalf("Login created %d cookie sessions, want 1", deleted)
 	}
 
-	loginResp, err = client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(body))
+	loginResp, err = postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("Failed to login again: %v", err)
 	}
@@ -1209,7 +1640,7 @@ func TestAuthRoutes_Logout(t *testing.T) {
 	}
 
 	// Now logout
-	logoutResp, err := client.Post(ts.URL+"/auth/logout", "application/json", nil)
+	logoutResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/logout", []byte("{}"))
 	if err != nil {
 		t.Fatalf("Failed to logout: %v", err)
 	}
@@ -1248,13 +1679,7 @@ func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"login": "logout-unavailable", "password": "password123"})
-	loginRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/login", bytes.NewReader(body))
-	if err != nil {
-		t.Fatalf("NewRequest login: %v", err)
-	}
-	loginRequest.Header.Set("Content-Type", "application/json")
-	loginRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
-	loginResponse, err := client.Do(loginRequest)
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("login request: %v", err)
 	}
@@ -1264,7 +1689,7 @@ func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
 	}
 
 	server.nc.Close()
-	logoutResponse, err := client.Post(ts.URL+"/auth/logout", "application/json", nil)
+	logoutResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/logout", []byte("{}"))
 	if err != nil {
 		t.Fatalf("logout request: %v", err)
 	}
@@ -1275,6 +1700,79 @@ func TestAuthRoutes_LogoutReportsAuthoritativeRevocationFailure(t *testing.T) {
 	}
 	if cookies := client.Jar.Cookies(loginResponse.Request.URL); len(cookies) == 0 {
 		t.Fatal("failed logout cleared the browser session")
+	}
+}
+
+func TestAuthRoutes_CrossSiteLogoutCannotClearBrowserAuthentication(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "logout-csrf", "Logout CSRF", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": user.GetLogin(), "password": "password123"})
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	loginResponse.Body.Close()
+	var sessionID, csrfToken string
+	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
+		switch cookie.Name {
+		case csrfCookieName:
+			csrfToken = cookie.Value
+		default:
+			if isBrowserSessionCookieName(cookie.Name) {
+				sessionID = cookie.Value
+			}
+		}
+	}
+	if sessionID == "" || csrfToken == "" {
+		t.Fatal("browser login did not establish session and CSRF cookies")
+	}
+
+	// SameSite=Lax withholds cookies on a cross-site POST, but a browser still
+	// applies Set-Cookie from the response. The programmatic route must not emit
+	// deletion cookies when an empty HTML form reaches it.
+	formRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/logout", strings.NewReader(""))
+	if err != nil {
+		t.Fatalf("NewRequest form logout: %v", err)
+	}
+	formRequest.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+	formRequest.Header.Set("Origin", "https://attacker.example")
+	formResponse, err := ts.Client().Do(formRequest)
+	if err != nil {
+		t.Fatalf("form logout: %v", err)
+	}
+	formResponse.Body.Close()
+	if cookies := formResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("programmatic form logout Set-Cookie = %v, want none", cookies)
+	}
+
+	crossSiteRequest, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/logout", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest browser logout: %v", err)
+	}
+	crossSiteRequest.Header.Set("Content-Type", "application/json")
+	crossSiteRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	crossSiteRequest.Header.Set(csrfHeaderName, csrfToken)
+	crossSiteRequest.Header.Set("Origin", "https://attacker.example")
+	for _, cookie := range client.Jar.Cookies(loginResponse.Request.URL) {
+		crossSiteRequest.AddCookie(cookie)
+	}
+	crossSiteResponse, err := ts.Client().Do(crossSiteRequest)
+	if err != nil {
+		t.Fatalf("cross-site browser logout: %v", err)
+	}
+	crossSiteResponse.Body.Close()
+	if crossSiteResponse.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-site browser logout status = %d, want 403", crossSiteResponse.StatusCode)
+	}
+	if cookies := crossSiteResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("rejected browser logout Set-Cookie = %v, want none", cookies)
+	}
+	if _, err := chattoCore.ValidateCookieCredential(ctx, sessionID); err != nil {
+		t.Fatalf("cross-site logout revoked browser session: %v", err)
 	}
 }
 
@@ -1582,7 +2080,7 @@ func TestAuthRoutes_RegisterComplete_Success(t *testing.T) {
 	}
 	body, _ := json.Marshal(reqBody)
 
-	resp, err := client.Post(ts.URL+"/auth/browser/register/complete", "application/json", bytes.NewReader(body))
+	resp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/register/complete", body)
 	if err != nil {
 		t.Fatalf("Failed to send browser register/complete request: %v", err)
 	}
@@ -2031,7 +2529,7 @@ func TestAuthRoutes_EmailVerification_Success(t *testing.T) {
 	}
 
 	loginBody, _ := json.Marshal(map[string]string{"login": "verifyuser", "password": "password123"})
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", loginBody)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -2114,7 +2612,7 @@ func TestAuthRoutes_EmailVerification_EmailUsesConfiguredOTPExpiration(t *testin
 	}
 
 	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", loginBody)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -2155,7 +2653,7 @@ func TestAuthRoutes_EmailVerification_RequestCodeLimit(t *testing.T) {
 	}
 
 	loginBody, _ := json.Marshal(map[string]string{"login": "verify-limit-user", "password": "password123"})
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", loginBody)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -2203,7 +2701,7 @@ func TestAuthRoutes_EmailVerification_SendFailureDoesNotConsumeThrottle(t *testi
 	}
 
 	loginBody, _ := json.Marshal(map[string]string{"login": user.Login, "password": "password123"})
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", loginBody)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -2264,7 +2762,7 @@ func TestAuthRoutes_EmailVerification_DuplicateEmail(t *testing.T) {
 	}
 
 	loginBody, _ := json.Marshal(map[string]string{"login": "user2", "password": "password123"})
-	loginResp, err := client.Post(ts.URL+"/auth/login", "application/json", bytes.NewReader(loginBody))
+	loginResp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", loginBody)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)
 	}
@@ -3090,6 +3588,11 @@ func TestAuthRoutes_Login_ReturnsToken(t *testing.T) {
 	if result["expiresIn"].(float64) <= 0 || result["refreshTokenExpiresIn"].(float64) <= 0 {
 		t.Fatalf("register lifetimes = %v/%v", result["expiresIn"], result["refreshTokenExpiresIn"])
 	}
+	for _, cookie := range resp.Cookies() {
+		if isBrowserSessionCookieName(cookie.Name) || cookie.Name == csrfCookieName {
+			t.Fatalf("programmatic login set browser cookie %q", cookie.Name)
+		}
+	}
 }
 
 func TestAuthRoutes_LoginStaleCredentialErrorIsInvalidCredentials(t *testing.T) {
@@ -3107,24 +3610,15 @@ func TestAuthRoutes_LoginStaleCredentialErrorIsInvalidCredentials(t *testing.T) 
 func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing.T) {
 	var capture struct {
 		sync.Mutex
-		userID    string
-		sessionID string
-		err       error
+		userID string
+		err    error
 	}
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredentialID, ok := s.browserSessionID(c)
-
 			capture.Lock()
 			defer capture.Unlock()
-
-			if !ok {
-				capture.err = errors.New("cookie session was not saved before hook")
-				return
-			}
 			capture.userID = userID
-			capture.sessionID = cookieCredentialID
 			capture.err = s.core.SetPasswordHash(c.Request.Context(), userID, "newpassword456")
 		}
 	})
@@ -3145,14 +3639,13 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 	capture.Lock()
 	hookErr := capture.err
 	capturedUserID := capture.userID
-	capturedSessionID := capture.sessionID
 	capture.Unlock()
 
 	if hookErr != nil {
 		t.Fatalf("password-login hook failed: %v", hookErr)
 	}
-	if capturedUserID == "" || capturedSessionID == "" {
-		t.Fatal("password-login hook did not capture a cookie session")
+	if capturedUserID == "" {
+		t.Fatal("password-login hook did not run")
 	}
 
 	if resp.StatusCode != http.StatusUnauthorized {
@@ -3170,8 +3663,8 @@ func TestAuthRoutes_LoginStaleBearerTokenIssuanceIsInvalidCredentials(t *testing
 		t.Fatal("Stale login response should not include a bearer token")
 	}
 
-	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
+	if deleted, err := chattoCore.RevokeCookieSessionsForUser(ctx, capturedUserID); err != nil || deleted != 0 {
+		t.Fatalf("programmatic stale login cookie sessions = %d, %v; want 0", deleted, err)
 	}
 }
 
@@ -3191,7 +3684,7 @@ func TestAuthRoutes_BrowserLoginRechecksAuthGeneration(t *testing.T) {
 	}
 
 	body, _ := json.Marshal(map[string]string{"login": "stale-cookie-only", "password": "password123"})
-	resp, err := client.Post(ts.URL+"/auth/browser/login", "application/json", bytes.NewReader(body))
+	resp, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
 	if err != nil {
 		t.Fatalf("login request: %v", err)
 	}
@@ -3208,24 +3701,17 @@ func TestAuthRoutes_BrowserLoginRechecksAuthGeneration(t *testing.T) {
 	}
 }
 
-func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
+func TestAuthRoutes_LoginBearerTokenFailureDoesNotCreateCookieSession(t *testing.T) {
 	var capture struct {
 		sync.Mutex
-		userID    string
-		sessionID string
+		userID string
 	}
 
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(s *HTTPServer) {
 		s.passwordLoginSessionCreatedHook = func(c *gin.Context, userID string, _ uint64) {
-			cookieCredentialID, ok := s.browserSessionID(c)
-
 			capture.Lock()
 			defer capture.Unlock()
-
-			if ok {
-				capture.userID = userID
-				capture.sessionID = cookieCredentialID
-			}
+			capture.userID = userID
 			s.core.EventPublisher = nil
 		}
 	})
@@ -3245,11 +3731,10 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 
 	capture.Lock()
 	capturedUserID := capture.userID
-	capturedSessionID := capture.sessionID
 	capture.Unlock()
 
-	if capturedUserID == "" || capturedSessionID == "" {
-		t.Fatal("password-login hook did not capture a cookie session")
+	if capturedUserID == "" {
+		t.Fatal("password-login hook did not run")
 	}
 
 	if resp.StatusCode != http.StatusInternalServerError {
@@ -3267,8 +3752,8 @@ func TestAuthRoutes_LoginBearerTokenFailureRevokesCookieSession(t *testing.T) {
 		t.Fatal("Failed login response should not include a bearer token")
 	}
 
-	if _, err := chattoCore.ValidateCookieCredential(ctx, capturedSessionID); !errors.Is(err, core.ErrCookieSessionNotFound) {
-		t.Fatalf("ValidateCookieCredential err = %v, want ErrCookieSessionNotFound", err)
+	if deleted, err := chattoCore.RevokeCookieSessionsForUser(ctx, capturedUserID); err != nil || deleted != 0 {
+		t.Fatalf("programmatic failed login cookie sessions = %d, %v; want 0", deleted, err)
 	}
 }
 
@@ -3350,5 +3835,10 @@ func TestAuthRoutes_RegisterComplete_ReturnsToken(t *testing.T) {
 
 	if !strings.HasPrefix(token, "cht_AT") {
 		t.Errorf("Token %q should start with 'cht_AT'", token)
+	}
+	for _, cookie := range resp.Cookies() {
+		if isBrowserSessionCookieName(cookie.Name) || cookie.Name == csrfCookieName {
+			t.Fatalf("programmatic registration set browser cookie %q", cookie.Name)
+		}
 	}
 }

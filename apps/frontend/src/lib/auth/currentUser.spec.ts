@@ -72,10 +72,14 @@ describe('CurrentUserState', () => {
 
     await state.handleAuthFailure({ revokeServerSession: true });
 
-    expect(fetch).toHaveBeenCalledWith('/auth/logout', {
+    expect(fetch).toHaveBeenCalledWith('/auth/browser/logout', {
       method: 'POST',
-      headers: expect.any(Headers)
+      headers: expect.any(Headers),
+      body: '{}'
     });
+    const headers = vi.mocked(fetch).mock.calls[0]?.[1]?.headers as Headers;
+    expect(headers.get('Content-Type')).toBe('application/json');
+    expect(headers.get('X-Chatto-Authentication-Mode')).toBe('cookie');
     expect(state.user).toBeUndefined();
     expect(clearCachedUserMock).toHaveBeenCalledOnce();
     expect(onAuthenticationRequired).not.toHaveBeenCalled();

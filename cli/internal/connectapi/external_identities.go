@@ -85,12 +85,12 @@ func (s *externalIdentityAuthService) CreateExternalIdentityAccount(ctx context.
 			return nil, connectError(err)
 		}
 	}
-	browserSession, err := createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
-	if err != nil {
-		if credentials.RefreshToken != "" {
-			_ = s.api.core.RevokeRefreshTokenWithReason(ctx, credentials.RefreshToken, "external_identity_create_session_failed")
+	var browserSession BrowserSession
+	if cookieOnly {
+		browserSession, err = createBrowserSessionFromContext(ctx, user.GetId(), "external_identity_create")
+		if err != nil {
+			return nil, connectError(err)
 		}
-		return nil, connectError(err)
 	}
 	if err := s.api.core.RecordLoginSucceeded(ctx, user.GetId(), flow.ProviderType+":"+flow.ProviderID); err != nil {
 		if credentials.RefreshToken != "" {
@@ -321,5 +321,13 @@ func providerLinkedIdentity(provider config.AuthProviderConfig, identities []cor
 }
 
 func isValidInternalRedirectPath(redirect string) bool {
-	return strings.HasPrefix(redirect, "/") && !strings.HasPrefix(redirect, "//") && !strings.Contains(redirect, "\\")
+	if !strings.HasPrefix(redirect, "/") || strings.HasPrefix(redirect, "//") || strings.Contains(redirect, "\\") {
+		return false
+	}
+	for _, char := range redirect {
+		if char <= 0x1f || char == 0x7f {
+			return false
+		}
+	}
+	return true
 }

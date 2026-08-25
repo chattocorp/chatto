@@ -2,6 +2,8 @@
 
 **Date:** 2026-08-22
 
+**Updated:** 2026-08-25
+
 **Status:** Accepted
 
 **Partially superseded by:** [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) for renewable-session expiry storage.
@@ -61,15 +63,16 @@ window is clamped to its remaining lifetime.
   session. Its JSON value contains the user, optional OAuth client ID,
   credential kind and source, safe audit request metadata, creation and
   current window expiry, user auth generation, current rotation generation,
-  previous refresh request ID and rotation time, and authoritative fresh-auth
-  metadata. Each revision preserves or advances its explicit expiry and sets
-  its per-message TTL to the remaining lifetime.
+  previous refresh-request verifier and rotation time, and authoritative
+  fresh-auth metadata. The verifier is a purpose-separated HMAC of the raw
+  recovery nonce. Each revision preserves or advances its explicit expiry and
+  sets its per-message TTL to the remaining lifetime.
 - `session.{hmac}` is one short-lived access-token verifier record. It includes
   its fixed expiry, renewable-session ID, access generation, user auth
-  generation, and the established typed-credential metadata. Fresh-auth fields
-  are copied at issuance, but validation resolves their current values from the
-  stable session so re-verification remains correct across concurrent rotation.
-  Validation does not renew the access record's TTL.
+  generation, and the established typed-credential metadata. Validation
+  resolves fresh-auth values from the stable session, so a fresh-auth change
+  does not modify deterministic lost-response recovery. Validation does not
+  renew the access record's TTL.
 
 The stable session ID is opaque and HMAC-keyed before it enters
 `RUNTIME_STATE`. Access tokens and refresh credentials are deterministic,
@@ -93,19 +96,21 @@ also invalidates the stable sessions issued to that client.
 Refresh uses the public `/oauth/token` endpoint with
 `grant_type=refresh_token`. The request includes the refresh credential, the
 OAuth `client_id` when the session is delegated, and a client-generated
-`refresh_request_id`. The endpoint accepts the existing JSON and standard form
-encodings, returns the rotated access and refresh credentials with both
-remaining lifetimes, and marks responses non-cacheable.
+`refresh_request_id`. The request ID is a cryptographically random UUID version
+4. It is a show-once recovery nonce, so the server stores only its HMAC verifier.
+The endpoint accepts the existing JSON and standard form encodings, returns the
+rotated access and refresh credentials with both remaining lifetimes, and marks
+responses non-cacheable.
 
 The client must persist the request ID before sending the request and keep it
 until a valid response has been persisted. The server rotates as follows:
 
 1. Authenticate the HMAC refresh credential, stable session, client binding,
    current window expiry, OAuth-client policy, and user auth generation.
-2. Increment the generation and record the request ID and rotation time by
-   updating the stable key with its exact JetStream KV revision. If the current
-   window is in its final quarter, advance its expiry. Publish the revision
-   with a per-message TTL equal to the remaining explicit lifetime.
+2. Increment the generation and record the request-ID verifier and rotation
+   time by updating the stable key with its exact JetStream KV revision. If the
+   current window is in its final quarter, advance its expiry. Publish the
+   revision with a per-message TTL equal to the remaining explicit lifetime.
 3. Create the deterministic access-token verifier for the committed generation.
 4. Return the deterministic credential pair.
 
@@ -187,8 +192,8 @@ would treat a new short-lived access record as a sliding bearer record and
 could extend it beyond its intended expiry. Rolling back to a pre-renewal
 binary after issuing new credentials has the same problem; revoke the affected
 bearer sessions or require users to sign in again before such a rollback.
-Current typed cookie sessions are independent and are not invalidated by this
-bearer-record migration.
+Pre-0.5 browser authentication cookies are not accepted by the dedicated SCS
+cookie path. Affected browser users also sign in once after the upgrade.
 
 The additive fields on `chatto.auth.v1.CreateExternalIdentityAccountResponse`
 remain wire-compatible, but clients participating in human bearer auth must

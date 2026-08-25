@@ -18,6 +18,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"hmans.de/chatto/internal/authctx"
 	"hmans.de/chatto/internal/config"
+	"hmans.de/chatto/internal/connectapi"
 	"hmans.de/chatto/internal/core"
 	authv1 "hmans.de/chatto/internal/pb/chatto/auth/v1"
 	"hmans.de/chatto/internal/pb/chatto/auth/v1/authv1connect"
@@ -72,7 +73,6 @@ func setupOAuthServerWithTokenTTL(t *testing.T, tokenTTL time.Duration) *HTTPSer
 	}
 	browserStore := newJetStreamBrowserSessionStore(chattoCore)
 	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
-	router.Use(s.loadBrowserSession())
 	s.oauthClientResolveHook = func(_ context.Context, clientID string) (OAuthClient, bool, error) {
 		if clientID != testOAuthClientID {
 			return OAuthClient{}, false, nil
@@ -109,12 +109,6 @@ func TestInjectUserIntoContextDoesNotRenewCookieCredential(t *testing.T) {
 	}
 
 	s.router.GET("/test/renewed-cookie-context", func(c *gin.Context) {
-		session := sessions.Default(c)
-		session.Set(sessionKeyRuntimeCredentialID, sessionID)
-		if err := session.Save(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
 		request := s.injectUserIntoContext(c)
 		credential, ok := authctx.CredentialForContext(request.Context())
 		if !ok {
@@ -125,6 +119,7 @@ func TestInjectUserIntoContextDoesNotRenewCookieCredential(t *testing.T) {
 	})
 
 	req := httptest.NewRequest(http.MethodGet, "/test/renewed-cookie-context", nil)
+	req.AddCookie(&http.Cookie{Name: browserSessionCookieName, Value: sessionID})
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 	if w.Code != http.StatusOK {
@@ -887,15 +882,17 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 	}
 
 	authClient := authv1connect.NewExternalIdentityAuthServiceClient(client, ts.URL+connectAPIPrefix)
-	created, err := authClient.CreateExternalIdentityAccount(ctx, connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
+	createRequest := connect.NewRequest(&authv1.CreateExternalIdentityAccountRequest{
 		Token: createToken,
 		Login: "sso-oauth-created",
-	}))
+	})
+	createRequest.Header().Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	created, err := authClient.CreateExternalIdentityAccount(ctx, createRequest)
 	if err != nil {
 		t.Fatalf("CreateExternalIdentityAccount: %v", err)
 	}
-	if created.Msg.GetToken() == "" {
-		t.Fatal("CreateExternalIdentityAccount token is empty")
+	if created.Msg.GetToken() != "" || created.Msg.GetRefreshToken() != "" {
+		t.Fatal("browser external-identity account creation returned bearer credentials")
 	}
 	if err := s.core.GrantOAuthClientConsent(ctx, created.Msg.GetUserId(), testOAuthClientID, "Test Client", "https://client.example", "https://client.example"); err != nil {
 		t.Fatalf("GrantOAuthClientConsent: %v", err)
@@ -1163,7 +1160,7 @@ func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
 		return response.Code, result, response.Header()
 	}
 
-	status, first, headers := exchange("refresh-grant-request-0001")
+	status, first, headers := exchange("00000000-0000-4000-8000-000000000001")
 	if status != http.StatusOK {
 		t.Fatalf("first refresh status = %d, body = %v", status, first)
 	}
@@ -1174,12 +1171,12 @@ func TestOAuthToken_RefreshGrantRotatesAndRecoversRetry(t *testing.T) {
 		t.Fatalf("token response cache headers = %v", headers)
 	}
 
-	status, retry, _ := exchange("refresh-grant-request-0001")
+	status, retry, _ := exchange("00000000-0000-4000-8000-000000000001")
 	if status != http.StatusOK || retry["access_token"] != first["access_token"] || retry["refresh_token"] != first["refresh_token"] {
 		t.Fatalf("same-request retry status/body = %d, %v; first = %v", status, retry, first)
 	}
 
-	status, reused, _ := exchange("refresh-grant-request-0002")
+	status, reused, _ := exchange("00000000-0000-4000-8000-000000000002")
 	if status != http.StatusBadRequest || reused["error"] != "invalid_grant" {
 		t.Fatalf("reuse status/body = %d, %v", status, reused)
 	}
@@ -1201,7 +1198,7 @@ func TestOAuthToken_RefreshGrantRenewsActiveSessionWindow(t *testing.T) {
 	body, err := json.Marshal(map[string]string{
 		"grant_type":         "refresh_token",
 		"refresh_token":      initial.RefreshToken,
-		"refresh_request_id": "automatic-window-renewal",
+		"refresh_request_id": "00000000-0000-4000-8000-000000000001",
 	})
 	if err != nil {
 		t.Fatalf("marshal request: %v", err)
@@ -1271,32 +1268,23 @@ func TestCookieSessionAuthenticationRejectsStaleGenerationWithoutMutatingCookie(
 	}
 
 	s.router.GET("/test/rotate-stale-session", func(c *gin.Context) {
-		session := sessions.Default(c)
-		session.Set(sessionKeyRuntimeCredentialID, oldSessionID)
-		if err := session.Save(); err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-			return
-		}
-
 		if _, ok, err := s.cookiePresentedCredential(c); err != nil || ok {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "stale session authenticated"})
-			return
-		}
-
-		sessionID, ok := cookieCredentialIDFromSession(session)
-		if !ok || sessionID != oldSessionID {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "validation mutated stale browser state"})
 			return
 		}
 		c.Status(http.StatusNoContent)
 	})
 
 	req := httptest.NewRequest("GET", "/test/rotate-stale-session", nil)
+	req.AddCookie(&http.Cookie{Name: browserSessionCookieName, Value: oldSessionID})
 	w := httptest.NewRecorder()
 	s.router.ServeHTTP(w, req)
 
 	if w.Code != http.StatusNoContent {
 		t.Fatalf("stale rotation status = %d, want 204: %s", w.Code, w.Body.String())
+	}
+	if cookies := w.Header().Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("stale validation Set-Cookie = %v, want none", cookies)
 	}
 }
 

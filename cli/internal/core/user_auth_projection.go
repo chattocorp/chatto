@@ -398,6 +398,21 @@ func (p *UserAuthProjection) ExternalIdentityOwnerID(issuer, subject string) (st
 	return userID, userID != ""
 }
 
+// ExternalIdentityAuthentication returns the identity owner and the exact
+// authentication generation from one projection snapshot. Authentication
+// callers must carry this generation through credential issuance so an unlink
+// that races the login invalidates the pending proof.
+func (p *UserAuthProjection) ExternalIdentityAuthentication(issuer, subject string) (string, uint64, bool) {
+	p.RLock()
+	defer p.RUnlock()
+	userID := p.identityIndex[externalIdentityHash(issuer, subject)]
+	user := p.users[userID]
+	if userID == "" || user == nil || user.deleted {
+		return "", 0, false
+	}
+	return userID, user.authGeneration, true
+}
+
 func (p *UserAuthProjection) ExternalIdentities(userID string) []ExternalIdentity {
 	p.RLock()
 	defer p.RUnlock()

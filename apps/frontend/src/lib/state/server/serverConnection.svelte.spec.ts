@@ -289,7 +289,14 @@ describe('ServerConnection', () => {
     await expect(client.renewBrowserSession()).resolves.toBe(true);
 
     expect(mockCsrfFetch).toHaveBeenCalledOnce();
-    expect(mockCsrfFetch).toHaveBeenCalledWith('/auth/browser/session/renew', { method: 'POST' });
+    expect(mockCsrfFetch).toHaveBeenCalledWith('/auth/browser/session/renew', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Chatto-Authentication-Mode': 'cookie'
+      },
+      body: '{}'
+    });
     client.dispose();
   });
 
@@ -313,6 +320,56 @@ describe('ServerConnection', () => {
 
     await expect(Promise.all([first, second])).resolves.toEqual([true, true]);
     expect(mockCsrfFetch).toHaveBeenCalledOnce();
+    client.dispose();
+  });
+
+  it('uses the server renewal deadline without requiring realtime transport', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    mockCsrfFetch
+      .mockResolvedValueOnce(
+        Response.json({ renewAfter: new Date(61_000).toISOString() }, { status: 200 })
+      )
+      .mockResolvedValue(
+        Response.json({ renewAfter: new Date(86_461_000).toISOString() }, { status: 200 })
+      );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    await client.renewBrowserSession();
+    await vi.advanceTimersByTimeAsync(59_999);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(1);
+    expect(mockCsrfFetch).toHaveBeenCalledTimes(2);
+    client.dispose();
+  });
+
+  it('retries initial browser-session maintenance after a transient failure', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(1_000);
+    mockServers.set('origin', {
+      id: 'origin',
+      url: window.location.origin,
+      token: null
+    });
+    mockCsrfFetch
+      .mockRejectedValueOnce(new Error('temporarily unavailable'))
+      .mockResolvedValue(
+        Response.json({ renewAfter: new Date(86_401_000).toISOString() }, { status: 200 })
+      );
+    const client = new ServerConnection(makeConfig({ serverId: 'origin' }));
+
+    client.maintainBrowserSession();
+    await vi.advanceTimersByTimeAsync(0);
+    expect(mockCsrfFetch).toHaveBeenCalledOnce();
+
+    await vi.advanceTimersByTimeAsync(60_000);
+    expect(mockCsrfFetch).toHaveBeenCalledTimes(2);
     client.dispose();
   });
 

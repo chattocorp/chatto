@@ -2383,7 +2383,7 @@ func TestRealtimeWebSocketRevalidatesCookieBeforeSubscription(t *testing.T) {
 	env.login(t, "rt-cookie-subscribe-revoke", "password123")
 	var sessionID string
 	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
-		if cookie.Name == browserSessionCookieName {
+		if isBrowserSessionCookieName(cookie.Name) {
 			sessionID = cookie.Value
 		}
 	}
@@ -2420,7 +2420,7 @@ func TestRealtimeWebSocketPeriodicallyRevalidatesCookie(t *testing.T) {
 	env.login(t, "rt-cookie-periodic-revoke", "password123")
 	var sessionID string
 	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
-		if cookie.Name == browserSessionCookieName {
+		if isBrowserSessionCookieName(cookie.Name) {
 			sessionID = cookie.Value
 		}
 	}
@@ -2449,7 +2449,7 @@ func TestRealtimeWebSocketDoesNotRenewCookieOnUpgrade(t *testing.T) {
 	env.httpServer.cookieSessionRenewalNow = func() time.Time { return time.Now().Add(89 * 24 * time.Hour) }
 	var sessionID string
 	for _, cookie := range env.cookieJar.Cookies(mustParseURL(env.server.URL)) {
-		if cookie.Name == browserSessionCookieName {
+		if isBrowserSessionCookieName(cookie.Name) {
 			sessionID = cookie.Value
 			break
 		}
@@ -2476,7 +2476,7 @@ func TestRealtimeWebSocketDoesNotRenewCookieOnUpgrade(t *testing.T) {
 		t.Fatal("WebSocket upgrade did not return an HTTP response")
 	}
 	for _, cookie := range response.Cookies() {
-		if cookie.Name == browserSessionCookieName || cookie.Name == "chatto_session" {
+		if isBrowserSessionCookieName(cookie.Name) || cookie.Name == "chatto_session" {
 			t.Fatalf("WebSocket upgrade unexpectedly rewrote cookie %q", cookie.Name)
 		}
 	}

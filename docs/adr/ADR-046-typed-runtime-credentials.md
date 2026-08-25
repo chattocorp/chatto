@@ -79,8 +79,8 @@ The migration completed at the 0.5 compatibility boundary:
    credential, not from ad-hoc source-string checks.
 3. Write browser cookie sessions as first-party `session.{hmac}` runtime
    credentials with `presentation = "cookie"`.
-4. Store only the opaque runtime credential handle in the SCS-managed
-   `chatto_auth` cookie. Retain the signed and optionally encrypted
+4. Store only the opaque runtime credential handle in SCS-managed
+   `chatto_auth_<slot>` cookies. Retain the signed and optionally encrypted
    `chatto_session` cookie only for short-lived browser-flow state. Retired
    signed-session fields such as `user_id` and `cookie_session_id` are never
    accepted as authentication inputs.

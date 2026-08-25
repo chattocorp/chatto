@@ -7,6 +7,7 @@ const {
   handleAuthenticationRequiredMock,
   clearAuthenticationRequiredMock,
   authenticateOriginCookieMock,
+  maintainBrowserSessionMock,
   revokeLegacyOriginBearerSessionMock
 } = vi.hoisted(() => ({
   getCurrentUserViaConnectMock: vi.fn(),
@@ -14,6 +15,7 @@ const {
   handleAuthenticationRequiredMock: vi.fn(),
   clearAuthenticationRequiredMock: vi.fn(),
   authenticateOriginCookieMock: vi.fn(),
+  maintainBrowserSessionMock: vi.fn(),
   revokeLegacyOriginBearerSessionMock: vi.fn()
 }));
 
@@ -31,7 +33,8 @@ vi.mock('$lib/api-client/viewer', () => ({
 
 vi.mock('$lib/state/server/serverConnection.svelte', () => ({
   serverConnectionManager: {
-    originConnectBaseUrl: '/api/connect'
+    originConnectBaseUrl: '/api/connect',
+    originClient: { maintainBrowserSession: maintainBrowserSessionMock }
   }
 }));
 
@@ -85,6 +88,7 @@ describe('loadCurrentUser', () => {
       bearerToken: null
     });
     expect(authenticateOriginCookieMock).toHaveBeenCalledTimes(2);
+    expect(maintainBrowserSessionMock).toHaveBeenCalledTimes(2);
   });
 
   it('discards a legacy origin bearer after cookie authentication succeeds', async () => {

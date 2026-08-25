@@ -45,6 +45,20 @@ func (c *ChattoCore) GetUserByExternalIdentity(ctx context.Context, issuer, subj
 	return nil, nil
 }
 
+// GetUserByExternalIdentityForAuthentication returns the mapped user and the
+// authentication generation that was current in the same projection snapshot
+// as the identity mapping. Credential issuance must use that generation.
+func (c *ChattoCore) GetUserByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*corev1.User, uint64, error) {
+	user, authGeneration, ok, err := c.userModel.userByExternalIdentityForAuthentication(ctx, issuer, subject)
+	if err != nil {
+		return nil, 0, err
+	}
+	if !ok {
+		return nil, 0, nil
+	}
+	return user, authGeneration, nil
+}
+
 // GetUserByOIDCSubject looks up a user by their OIDC issuer and subject.
 func (c *ChattoCore) GetUserByOIDCSubject(ctx context.Context, issuer, subject string) (*corev1.User, error) {
 	return c.GetUserByExternalIdentity(ctx, issuer, subject)

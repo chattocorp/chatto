@@ -237,7 +237,6 @@ func (s *HTTPServer) setupRoutes() error {
 	secureCookies := strings.HasPrefix(s.config.Webserver.URL, "https")
 	browserSessionStore := newJetStreamBrowserSessionStore(s.core)
 	s.browserSessions = newBrowserSessionManager(browserSessionStore, s.config.Auth.TokenTTLOrDefault(), secureCookies)
-	s.router.Use(s.loadBrowserSession())
 
 	// The legacy encrypted session is retained only for short-lived provider,
 	// invitation, and OAuth browser-flow state. Authentication uses the separate

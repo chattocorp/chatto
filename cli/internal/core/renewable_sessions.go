@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
@@ -21,8 +22,10 @@ const (
 	renewableSessionKeyPrefix = "renewable_session."
 	refreshTokenPrefix        = "cht_RT_"
 	accessTokenPrefix         = "cht_AT"
-	maxRefreshRequestIDLength = 128
+	refreshRecoveryClockSkew  = time.Minute
 )
+
+var refreshRequestIDPattern = regexp.MustCompile(`^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$`)
 
 var (
 	// ErrRefreshTokenNotFound is returned for malformed, expired, revoked, or
@@ -53,20 +56,22 @@ type BearerSessionCredentials struct {
 // one human bearer login. CurrentGeneration and the KV revision jointly fence
 // refresh-token rotation across replicas.
 type RenewableSession struct {
-	UserID               string                       `json:"user_id"`
-	ClientID             string                       `json:"client_id,omitempty"`
-	Kind                 AuthTokenKind                `json:"kind"`
-	Source               string                       `json:"source,omitempty"`
-	Request              *corev1.AuditRequestMetadata `json:"request,omitempty"`
-	CreatedAt            time.Time                    `json:"created_at"`
-	ExpiresAt            time.Time                    `json:"expires_at"`
-	AuthGeneration       uint64                       `json:"auth_generation"`
-	CurrentGeneration    uint64                       `json:"current_generation"`
-	LastRefreshRequestID string                       `json:"last_refresh_request_id,omitempty"`
-	LastRotatedAt        time.Time                    `json:"last_rotated_at,omitempty"`
-	FreshAuthAt          time.Time                    `json:"fresh_auth_at,omitempty"`
-	FreshAuthMethod      string                       `json:"fresh_auth_method,omitempty"`
-	FreshAuthSource      string                       `json:"fresh_auth_source,omitempty"`
+	UserID            string                       `json:"user_id"`
+	ClientID          string                       `json:"client_id,omitempty"`
+	Kind              AuthTokenKind                `json:"kind"`
+	Source            string                       `json:"source,omitempty"`
+	Request           *corev1.AuditRequestMetadata `json:"request,omitempty"`
+	CreatedAt         time.Time                    `json:"created_at"`
+	ExpiresAt         time.Time                    `json:"expires_at"`
+	AuthGeneration    uint64                       `json:"auth_generation"`
+	CurrentGeneration uint64                       `json:"current_generation"`
+	// LastRefreshRequestVerifier is a purpose-separated HMAC of the show-once
+	// recovery nonce. The raw nonce must not enter runtime state or backups.
+	LastRefreshRequestVerifier string    `json:"last_refresh_request_verifier,omitempty"`
+	LastRotatedAt              time.Time `json:"last_rotated_at,omitempty"`
+	FreshAuthAt                time.Time `json:"fresh_auth_at,omitempty"`
+	FreshAuthMethod            string    `json:"fresh_auth_method,omitempty"`
+	FreshAuthSource            string    `json:"fresh_auth_source,omitempty"`
 }
 
 func (c *ChattoCore) bearerAccessTokenTTL() time.Duration {
@@ -131,16 +136,19 @@ func (c *ChattoCore) parseRefreshToken(token string) (string, uint64, bool) {
 }
 
 func validRefreshRequestID(requestID string) bool {
-	if len(requestID) < 16 || len(requestID) > maxRefreshRequestIDLength {
-		return false
-	}
-	for _, char := range requestID {
-		if (char >= 'a' && char <= 'z') || (char >= 'A' && char <= 'Z') || (char >= '0' && char <= '9') || char == '-' || char == '_' {
-			continue
-		}
-		return false
-	}
-	return true
+	return refreshRequestIDPattern.MatchString(requestID)
+}
+
+func (c *ChattoCore) refreshRequestVerifier(requestID string) string {
+	mac := hmac.New(sha256.New, []byte(c.config.SecretKey))
+	_, _ = mac.Write([]byte("refresh-request-recovery-v1"))
+	_, _ = mac.Write([]byte{0})
+	_, _ = mac.Write([]byte(requestID))
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func refreshRequestVerifierMatches(stored, presented string) bool {
+	return stored != "" && subtle.ConstantTimeCompare([]byte(stored), []byte(presented)) == 1
 }
 
 // CreateBearerSessionWithSource creates a renewable first-party bearer session.
@@ -219,7 +227,7 @@ func (c *ChattoCore) createBearerSession(ctx context.Context, userID, clientID, 
 		return BearerSessionCredentials{}, fmt.Errorf("store renewable session: %w", err)
 	}
 	credentials := c.credentialsForGeneration(sessionID, session, now)
-	if err := c.createAccessTokenRecord(ctx, sessionID, session, now); err != nil {
+	if err := c.createAccessTokenRecord(ctx, sessionID, session, now, now); err != nil {
 		_ = c.deleteRuntimeStateKey(ctx, sessionKey)
 		return BearerSessionCredentials{}, err
 	}
@@ -248,10 +256,10 @@ func (c *ChattoCore) bearerAccessExpiresAt(session RenewableSession, issuedAt ti
 	return expiresAt
 }
 
-func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID string, session RenewableSession, issuedAt time.Time) error {
+func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID string, session RenewableSession, issuedAt, storedAt time.Time) error {
 	token := c.accessTokenForGeneration(sessionID, session.CurrentGeneration)
 	expiresAt := c.bearerAccessExpiresAt(session, issuedAt)
-	ttl := expiresAt.Sub(issuedAt)
+	ttl := expiresAt.Sub(storedAt)
 	if ttl <= 0 {
 		return ErrRefreshTokenNotFound
 	}
@@ -267,9 +275,6 @@ func (c *ChattoCore) createAccessTokenRecord(ctx context.Context, sessionID stri
 		AuthGeneration:     session.AuthGeneration,
 		RenewableSessionID: sessionID,
 		AccessGeneration:   session.CurrentGeneration,
-		FreshAuthAt:        session.FreshAuthAt,
-		FreshAuthMethod:    session.FreshAuthMethod,
-		FreshAuthSource:    session.FreshAuthSource,
 	}
 	value, err := json.Marshal(data)
 	if err != nil {
@@ -334,8 +339,9 @@ func (c *ChattoCore) validateRenewableSession(ctx context.Context, sessionID str
 }
 
 // RefreshBearerSession rotates a refresh credential using a client-persisted
-// idempotency key. The immediately preceding committed rotation can be replayed
-// only with the same request ID and only while its access token remains useful.
+// UUID version 4 recovery nonce. The immediately preceding committed rotation
+// can be replayed only with the same nonce and only while its access token
+// remains useful. Runtime state stores only a purpose-separated HMAC verifier.
 func (c *ChattoCore) RefreshBearerSession(ctx context.Context, refreshToken, requestID, clientID string) (BearerSessionCredentials, error) {
 	return c.refreshBearerSessionAt(ctx, refreshToken, requestID, clientID, time.Now())
 }
@@ -348,6 +354,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 	if !ok {
 		return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 	}
+	requestVerifier := c.refreshRequestVerifier(requestID)
 
 	for attempt := 0; attempt < 8; attempt++ {
 		session, entry, err := c.validateRenewableSession(ctx, sessionID, now)
@@ -360,24 +367,31 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 
 		if presentedGeneration != session.CurrentGeneration {
 			if presentedGeneration+1 == session.CurrentGeneration &&
-				session.LastRefreshRequestID == requestID &&
-				!session.LastRotatedAt.IsZero() &&
-				now.Sub(session.LastRotatedAt) >= 0 &&
-				now.Sub(session.LastRotatedAt) < c.bearerAccessTokenTTL() {
-				if err := c.createAccessTokenRecord(ctx, sessionID, session, session.LastRotatedAt); err != nil {
-					return BearerSessionCredentials{}, err
+				refreshRequestVerifierMatches(session.LastRefreshRequestVerifier, requestVerifier) &&
+				!session.LastRotatedAt.IsZero() {
+				recoveryAge := now.Sub(session.LastRotatedAt)
+				if recoveryAge < -refreshRecoveryClockSkew {
+					return BearerSessionCredentials{}, fmt.Errorf("refresh recovery timestamp exceeds clock-skew allowance")
 				}
-				return c.credentialsForGeneration(sessionID, session, session.LastRotatedAt), nil
+				if recoveryAge < c.bearerAccessTokenTTL() {
+					if err := c.createAccessTokenRecord(ctx, sessionID, session, session.LastRotatedAt, now); err != nil {
+						return BearerSessionCredentials{}, err
+					}
+					return c.credentialsForGeneration(sessionID, session, session.LastRotatedAt), nil
+				}
 			}
 			if err := c.revokeRenewableSession(ctx, sessionID, "refresh_token_reuse"); err != nil {
 				return BearerSessionCredentials{}, err
 			}
 			return BearerSessionCredentials{}, ErrRefreshTokenReused
 		}
+		if refreshRequestVerifierMatches(session.LastRefreshRequestVerifier, requestVerifier) {
+			return BearerSessionCredentials{}, ErrRefreshRequestIDInvalid
+		}
 
 		next := session
 		next.CurrentGeneration++
-		next.LastRefreshRequestID = requestID
+		next.LastRefreshRequestVerifier = requestVerifier
 		next.LastRotatedAt = now
 		renewedWindow := c.renewableSessionWindowNeedsRenewal(next, now)
 		if renewedWindow {
@@ -399,7 +413,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 		// Commit the rotation before publishing its access credential. If the
 		// process fails between these operations, retrying the same persisted
 		// request ID recreates the exact deterministic credential above.
-		if err := c.createAccessTokenRecord(ctx, sessionID, next, now); err != nil {
+		if err := c.createAccessTokenRecord(ctx, sessionID, next, now, now); err != nil {
 			return BearerSessionCredentials{}, err
 		}
 		confirmed, _, err := c.validateRenewableSession(ctx, sessionID, now)
@@ -407,7 +421,7 @@ func (c *ChattoCore) refreshBearerSessionAt(ctx context.Context, refreshToken, r
 			return BearerSessionCredentials{}, err
 		}
 		if confirmed.CurrentGeneration != next.CurrentGeneration ||
-			confirmed.LastRefreshRequestID != requestID ||
+			!refreshRequestVerifierMatches(confirmed.LastRefreshRequestVerifier, requestVerifier) ||
 			!confirmed.LastRotatedAt.Equal(now) {
 			return BearerSessionCredentials{}, ErrRefreshTokenNotFound
 		}

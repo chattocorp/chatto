@@ -59,7 +59,6 @@ func setupCSRFTestServer(t *testing.T) (*httptest.Server, *http.Client) {
 	}
 	browserStore := newJetStreamBrowserSessionStore(chattoCore)
 	s.browserSessions = newBrowserSessionManager(browserStore, s.config.Auth.TokenTTLOrDefault(), false)
-	router.Use(s.loadBrowserSession())
 	router.Use(func(c *gin.Context) {
 		if c.GetHeader("X-Test-Cancel-Authentication") == "true" {
 			ctx, cancel := context.WithCancel(c.Request.Context())
@@ -377,8 +376,12 @@ func TestCSRFMiddleware(t *testing.T) {
 			switch cookie.Name {
 			case csrfCookieName:
 				t.Fatal("safe request should not rewrite the CSRF cookie")
-			case browserSessionCookieName, "chatto_session":
-				t.Fatal("safe request should not rewrite an authentication or flow-state cookie")
+			case "chatto_session":
+				t.Fatal("safe request should not rewrite the flow-state cookie")
+			default:
+				if isBrowserSessionCookieName(cookie.Name) {
+					t.Fatal("safe request should not rewrite an authentication cookie")
+				}
 			}
 		}
 		if got := storedCSRFCookieValue(t, client, server.URL); got != initialToken {

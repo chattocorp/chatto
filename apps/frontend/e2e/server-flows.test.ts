@@ -64,8 +64,8 @@ test.describe('Landing Page', () => {
     serverURL
   }) => {
     await createAndLoginTestUser(page);
-    const sessionCookie = (await page.context().cookies()).find(
-      (cookie) => cookie.name === 'chatto_auth'
+    const sessionCookie = (await page.context().cookies()).find((cookie) =>
+      cookie.name.startsWith('chatto_auth_')
     );
     expect(sessionCookie).toBeDefined();
 
@@ -74,7 +74,14 @@ test.describe('Landing Page', () => {
       async ({ context, page: freshPage }) => {
         await context.addCookies([sessionCookie!]);
 
-        const rejectedResponse = await freshPage.request.post('/auth/logout');
+        const rejectedResponse = await freshPage.request.post('/auth/browser/logout', {
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Chatto-Authentication-Mode': 'cookie',
+            Origin: new URL(serverURL).origin
+          },
+          data: {}
+        });
         expect(rejectedResponse.status()).toBe(403);
 
         const viewer = await connectPost<ViewerResponse>(

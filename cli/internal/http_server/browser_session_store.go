@@ -2,6 +2,8 @@ package http_server
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,9 +18,71 @@ import (
 )
 
 const (
-	browserSessionCookieName = "chatto_auth"
-	browserSessionValueKey   = "runtime_credential"
+	// browserSessionCookieName is the retired single-slot cookie. Accepting it
+	// lets an in-flight response from an earlier revision converge on the new
+	// slot format without making it authoritative over a newer login.
+	browserSessionCookieName       = "chatto_auth"
+	browserSessionCookieNamePrefix = browserSessionCookieName + "_"
+	browserSessionCookieSlotBytes  = 16
+	browserSessionCookieLimit      = 4
+	browserSessionCleanupLimit     = 16
+	browserSessionValueKey         = "runtime_credential"
 )
+
+type browserSessionCookie struct {
+	name  string
+	token string
+}
+
+func isBrowserSessionCookieName(name string) bool {
+	if name == browserSessionCookieName {
+		return true
+	}
+	suffix, ok := strings.CutPrefix(name, browserSessionCookieNamePrefix)
+	if !ok || len(suffix) != base64.RawURLEncoding.EncodedLen(browserSessionCookieSlotBytes) {
+		return false
+	}
+	for _, char := range suffix {
+		if (char >= 'a' && char <= 'z') ||
+			(char >= 'A' && char <= 'Z') ||
+			(char >= '0' && char <= '9') ||
+			char == '-' || char == '_' {
+			continue
+		}
+		return false
+	}
+	return true
+}
+
+func browserSessionCookies(request *http.Request) ([]browserSessionCookie, error) {
+	if request == nil {
+		return nil, nil
+	}
+	cookies := make([]browserSessionCookie, 0, 1)
+	seenTokens := make(map[string]struct{})
+	for _, cookie := range request.Cookies() {
+		if !isBrowserSessionCookieName(cookie.Name) || cookie.Value == "" {
+			continue
+		}
+		if _, ok := seenTokens[cookie.Value]; ok {
+			continue
+		}
+		if len(cookies) >= browserSessionCookieLimit {
+			return nil, errors.New("too many distinct browser session handles")
+		}
+		seenTokens[cookie.Value] = struct{}{}
+		cookies = append(cookies, browserSessionCookie{name: cookie.Name, token: cookie.Value})
+	}
+	return cookies, nil
+}
+
+func newBrowserSessionCookieName() (string, error) {
+	buf := make([]byte, browserSessionCookieSlotBytes)
+	if _, err := rand.Read(buf); err != nil {
+		return "", err
+	}
+	return browserSessionCookieNamePrefix + base64.RawURLEncoding.EncodeToString(buf), nil
+}
 
 type browserSessionRequestStateKey struct{}
 
@@ -166,32 +230,16 @@ func (s *HTTPServer) ensureBrowserSessionManagers() {
 	s.browserSessions = newBrowserSessionManager(store, s.config.Auth.TokenTTLOrDefault(), secure)
 }
 
-func (s *HTTPServer) browserCookieContext(ctx context.Context) context.Context {
+// browserCookieContext loads SCS state only for a request that will mutate the
+// browser session. Ordinary authenticated and public requests validate the
+// opaque handle directly and do not cause a second JetStream read.
+func (s *HTTPServer) browserCookieContext(c *gin.Context, token string) (context.Context, error) {
 	s.ensureBrowserSessionManagers()
-	loaded, err := s.browserSessions.Load(ctx, "")
+	state := &browserSessionRequestState{}
+	baseCtx := context.WithValue(c.Request.Context(), browserSessionRequestStateKey{}, state)
+	loaded, err := s.browserSessions.Load(baseCtx, token)
 	if err != nil {
-		return ctx
+		return nil, err
 	}
-	return loaded
-}
-
-func (s *HTTPServer) loadBrowserSession() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		s.ensureBrowserSessionManagers()
-		state := &browserSessionRequestState{}
-		baseCtx := context.WithValue(c.Request.Context(), browserSessionRequestStateKey{}, state)
-
-		var token string
-		if cookie, err := c.Request.Cookie(browserSessionCookieName); err == nil {
-			token = cookie.Value
-		}
-		ctx, err := s.browserSessions.Load(baseCtx, token)
-		if err != nil {
-			ctx = baseCtx
-			ctx, _ = s.browserSessions.Load(ctx, "")
-			ctx = context.WithValue(ctx, authenticationValidationErrorKey{}, err)
-		}
-		c.Request = c.Request.WithContext(ctx)
-		c.Next()
-	}
+	return loaded, nil
 }

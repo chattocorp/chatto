@@ -17,9 +17,11 @@ Authentication approaches for WebSocket:
 
 Use cookie-based sessions (90-day expiry, `HttpOnly`, `SameSiteLax`) for the embedded browser SPA. For WebSocket connections, the session cookie is sent with the HTTP upgrade request, so the user is already authenticated before the WebSocket handshake completes.
 
-ADR-046 moved cookie sessions onto typed runtime credentials. The SCS-managed
-`chatto_auth` cookie stores only an opaque runtime credential handle; the user
-ID is loaded from the `session.{hmac}` runtime credential record. The separate
+ADR-046 moved cookie sessions onto typed runtime credentials. Each SCS-managed
+`chatto_auth_<slot>` cookie stores only an opaque runtime credential handle; the
+user ID is loaded from the `session.{hmac}` runtime credential record. Chatto
+uses a fresh cookie slot for authentication and renewal responses. This design
+prevents a late response from replacing a newer browser session. The separate
 encrypted `chatto_session` cookie holds only short-lived browser-flow state.
 
 The realtime WebSocket handler reads the authenticated user from request
@@ -29,7 +31,8 @@ per minute. A cookie connection ends at the start of its final renewal quarter.
 The bundled frontend calls the explicit HTTP renewal route and reconnects the
 same event bus. The WebSocket upgrade does not update the session or set a
 cookie. The connection acknowledgement includes the server version for
-frontend upgrade detection.
+frontend upgrade detection. The renewal route also returns the next renewal
+time. An independent HTTP timer uses it when realtime transport is unavailable.
 
 ## Consequences
 

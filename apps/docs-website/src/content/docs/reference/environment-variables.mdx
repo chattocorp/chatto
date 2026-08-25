@@ -28,7 +28,7 @@ Every `chatto.toml` setting can be overridden with an environment variable. The 
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_SIGNING_SECRET" toml="webserver.cookie_signing_secret" required>
-  256-bit hex secret for signing browser-flow cookies and CSRF proofs. The opaque `chatto_auth` authentication cookie does not contain signed user data. Generate with `openssl rand -hex 32`.
+  256-bit hex secret for signing browser-flow cookies and CSRF proofs. The opaque `chatto_auth_*` authentication cookies do not contain signed user data. Generate with `openssl rand -hex 32`.
 </EnvVar>
 
 <EnvVar name="CHATTO_WEBSERVER_COOKIE_ENCRYPTION_SECRET" toml="webserver.cookie_encryption_secret">

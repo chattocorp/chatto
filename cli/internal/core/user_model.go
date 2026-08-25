@@ -132,6 +132,15 @@ func (m *UserModel) userByExternalIdentity(ctx context.Context, issuer, subject 
 	return m.users.Projection().GetContext(ctx, userID)
 }
 
+func (m *UserModel) userByExternalIdentityForAuthentication(ctx context.Context, issuer, subject string) (*corev1.User, uint64, bool, error) {
+	userID, authGeneration, ok := m.auth.Projection().ExternalIdentityAuthentication(issuer, subject)
+	if !ok {
+		return nil, 0, false, nil
+	}
+	user, ok, err := m.users.Projection().GetContext(ctx, userID)
+	return user, authGeneration, ok, err
+}
+
 func (m *UserModel) loginExists(login string) bool {
 	return m.users.Projection().LoginExists(login)
 }

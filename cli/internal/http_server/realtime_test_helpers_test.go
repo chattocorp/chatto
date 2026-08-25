@@ -119,12 +119,13 @@ func (env *wsTestEnv) login(t testing.TB, login, password string) {
 	t.Helper()
 
 	loginBody := `{"login":"` + login + `","password":"` + password + `"}`
-	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/login", strings.NewReader(loginBody))
+	req, err := http.NewRequest(http.MethodPost, env.server.URL+"/auth/browser/login", strings.NewReader(loginBody))
 	if err != nil {
 		t.Fatalf("Failed to create login request: %v", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", env.server.URL)
 	resp, err := env.client.Do(req)
 	if err != nil {
 		t.Fatalf("Failed to login: %v", err)

@@ -61,16 +61,23 @@ change the same record, one publish succeeds and the other reloads the current
 revision or returns a conflict according to the operation. No process-local
 lock is required.
 
-A cookie session has one opaque handle. SCS manages the `chatto_auth` cookie
-through a Chatto store adapter for JetStream. The cookie is HttpOnly,
-SameSite=Lax, host-only, and persistent. The adapter stores the exact KV
-revision that SCS loaded with the request and uses it for later changes.
-Renewal updates the handle in place. Each successful authentication uses the
-SCS token-renewal operation to replace the handle and prevent session fixation.
+A cookie session has one opaque server-side handle. SCS manages the handle
+through a Chatto store adapter for JetStream. The browser stores it in an
+HttpOnly, SameSite=Lax, host-only, persistent `chatto_auth_<slot>` cookie. Each
+authentication or renewal response uses a new random slot name and clears the
+slots that its request presented. A late response can add an older slot, but it
+cannot overwrite a newer slot. Validation examines a small bounded set of
+distinct handles, deduplicates one handle that appears in concurrent response
+slots, ignores invalid or revoked handles, and selects the newest valid
+session. The next authentication change removes obsolete slots. The adapter
+stores the exact KV revision that SCS loaded with the request and uses it for
+later changes. Renewal updates the stable handle in place. Each successful
+authentication uses the SCS token-renewal operation to replace the handle and
+prevent session fixation.
 
 Ordinary cookie validation does not change the KV record or write
-`Set-Cookie`. Only authentication, explicit renewal, logout, and one-time
-release migration can change browser authentication state. Every response that
+`Set-Cookie`. Only authentication, explicit renewal, and logout can change
+browser authentication state. Every response that
 sets an authentication cookie uses `Cache-Control: private, no-store`.
 Discovery, ordinary API responses, frontend responses, immutable assets, and
 WebSocket upgrades do not set authentication cookies. The separate encrypted
@@ -78,12 +85,13 @@ WebSocket upgrades do not set authentication cookies. The separate encrypted
 
 In the final quarter of the current window, the explicit browser renewal route
 advances `ExpiresAt` on the same record and publishes the revision with the
-remaining TTL. The route is CSRF-protected and returns the same opaque handle
-with the new browser lifetime. The expected KV revision serializes concurrent
-renewal across replicas. Logout deletes the stable key without a revision
-condition. This delete fences a renewal that races logout: either the renewal
-publishes first and logout deletes it, or the delete makes the renewal fail its
-expected-revision check.
+remaining TTL. The route requires JSON, the browser-auth mode header, an exact
+same-origin request, and CSRF proof. It returns the same opaque handle in a new
+browser cookie slot with the new lifetime and supplies the next renewal time.
+The expected KV revision serializes concurrent renewal across replicas. Logout
+deletes the stable key without a revision condition. This delete fences a
+renewal that races logout: either the renewal publishes first and logout
+deletes it, or the delete makes the renewal fail its expected-revision check.
 
 A cookie-authenticated realtime connection has a deadline at the start of the
 final quarter. At that deadline, the server cancels authorized work and asks
@@ -107,8 +115,10 @@ Chatto does not update those records.
 
 The bundled frontend uses the secure HttpOnly cookie for its origin server. It
 coalesces origin-cookie renewal and uses a Web Lock to coordinate browser tabs.
-It refreshes remote renewable bearer sessions in the background. Neither path
-requires a user to extend a session manually.
+A server-provided renewal time drives an HTTP timer, so renewal does not depend
+on a working realtime transport. The realtime close signal is a second trigger.
+The frontend refreshes remote renewable bearer sessions in the background.
+Neither path requires a user to extend a session manually.
 
 ## Consequences
 

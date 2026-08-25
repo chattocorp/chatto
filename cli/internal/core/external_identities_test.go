@@ -421,9 +421,12 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	if err := core.LinkExternalIdentity(ctx, "github-main", "github", "github-main", "12345", user.Id); err != nil {
 		t.Fatalf("LinkExternalIdentity: %v", err)
 	}
-	authGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
+	authenticatedUser, authGeneration, err := core.GetUserByExternalIdentityForAuthentication(ctx, "github-main", "12345")
 	if err != nil {
-		t.Fatalf("CurrentAuthGeneration: %v", err)
+		t.Fatalf("GetUserByExternalIdentityForAuthentication: %v", err)
+	}
+	if authenticatedUser == nil || authenticatedUser.GetId() != user.GetId() {
+		t.Fatalf("authentication lookup user = %v, want %s", authenticatedUser, user.GetId())
 	}
 	token, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration)
 	if err != nil {
@@ -466,6 +469,9 @@ func TestChattoCore_DisconnectExternalIdentity(t *testing.T) {
 	}
 	if _, err := core.CreateAuthTokenWithSourceGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrAuthTokenNotFound) {
 		t.Fatalf("CreateAuthTokenWithSourceGeneration old generation err = %v, want ErrAuthTokenNotFound", err)
+	}
+	if _, err := core.NewCookieSessionDataForGeneration(ctx, user.Id, "external_identity_login", authGeneration); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("NewCookieSessionDataForGeneration old generation err = %v, want ErrCookieSessionNotFound", err)
 	}
 	afterGeneration, err := core.CurrentAuthGeneration(ctx, user.Id)
 	if err != nil {
