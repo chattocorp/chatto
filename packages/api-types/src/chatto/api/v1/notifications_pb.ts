@@ -147,6 +147,9 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
   followedThreads?: NotificationDeliveryMode;
 
   /**
+   * Delivery mode for top-level activity in rooms followed by the viewer.
+   * Servers without room-follow support apply it to all joined channel rooms.
+   *
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8;
    */
   followedRooms?: NotificationDeliveryMode;
@@ -532,7 +535,8 @@ export class FollowedThreadActivity extends Message<FollowedThreadActivity> {
 }
 
 /**
- * Activity in a room followed by the viewer.
+ * Top-level activity in a room followed by the viewer. Servers without
+ * room-follow support can emit it for any channel room joined by the viewer.
  *
  * @generated from message chatto.api.v1.FollowedRoomActivity
  */

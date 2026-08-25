@@ -134,6 +134,10 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 	} else if message.GetInThread() == "" {
+		// TODO(#2112): The snapshot does not have room-follow state yet. Until
+		// followed rooms are implemented, enabling this policy applies to all
+		// top-level messages in channel rooms that the recipient has joined.
+		// Replace this membership fanout with source-time room followers.
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
 			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}

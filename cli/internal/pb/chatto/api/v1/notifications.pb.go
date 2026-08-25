@@ -160,10 +160,12 @@ type NotificationDeliveryModes struct {
 	HereMentions    *NotificationDeliveryMode `protobuf:"varint,5,opt,name=here_mentions,json=hereMentions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"here_mentions,omitempty"`
 	AllMentions     *NotificationDeliveryMode `protobuf:"varint,6,opt,name=all_mentions,json=allMentions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"all_mentions,omitempty"`
 	FollowedThreads *NotificationDeliveryMode `protobuf:"varint,7,opt,name=followed_threads,json=followedThreads,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"followed_threads,omitempty"`
-	FollowedRooms   *NotificationDeliveryMode `protobuf:"varint,8,opt,name=followed_rooms,json=followedRooms,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"followed_rooms,omitempty"`
-	Reactions       *NotificationDeliveryMode `protobuf:"varint,9,opt,name=reactions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"reactions,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	// Delivery mode for top-level activity in rooms followed by the viewer.
+	// Servers without room-follow support apply it to all joined channel rooms.
+	FollowedRooms *NotificationDeliveryMode `protobuf:"varint,8,opt,name=followed_rooms,json=followedRooms,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"followed_rooms,omitempty"`
+	Reactions     *NotificationDeliveryMode `protobuf:"varint,9,opt,name=reactions,proto3,enum=chatto.api.v1.NotificationDeliveryMode,oneof" json:"reactions,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NotificationDeliveryModes) Reset() {
@@ -648,7 +650,8 @@ func (x *FollowedThreadActivity) GetMessage() *NotificationMessageReference {
 	return nil
 }
 
-// Activity in a room followed by the viewer.
+// Top-level activity in a room followed by the viewer. Servers without
+// room-follow support can emit it for any channel room joined by the viewer.
 type FollowedRoomActivity struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	Message       *NotificationMessageReference `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`

@@ -39,6 +39,8 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode here_mentions = 5;
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
+  // Delivery mode for top-level activity in rooms followed by the viewer.
+  // Servers without room-follow support apply it to all joined channel rooms.
   optional NotificationDeliveryMode followed_rooms = 8;
   optional NotificationDeliveryMode reactions = 9;
 }
@@ -102,7 +104,8 @@ message FollowedThreadActivity {
   NotificationMessageReference message = 1;
 }
 
-// Activity in a room followed by the viewer.
+// Top-level activity in a room followed by the viewer. Servers without
+// room-follow support can emit it for any channel room joined by the viewer.
 message FollowedRoomActivity {
   NotificationMessageReference message = 1;
 }
