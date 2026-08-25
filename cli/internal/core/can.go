@@ -239,6 +239,9 @@ func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind Room
 // room membership for both room kinds.
 func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
 	if kind == KindDM {
+		if _, err := c.GetRoom(ctx, kind, roomID); err != nil {
+			return false, err
+		}
 		return true, nil
 	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageRead)

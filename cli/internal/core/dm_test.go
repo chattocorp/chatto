@@ -255,6 +255,31 @@ func TestDMMessageReadPermissionDoesNotRestrictParticipants(t *testing.T) {
 	}
 }
 
+func TestCanReadMessagesRejectsChannelWithDMKind(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "kind-mismatch-reader", "Kind Mismatch Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, SystemActorID, KindChannel, "", "kind-mismatch-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := chatto.JoinRoom(ctx, reader.GetId(), KindChannel, reader.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
+	}
+	if canRead, err := chatto.CanReadMessages(ctx, reader.GetId(), KindChannel, room.GetId()); err != nil || canRead {
+		t.Fatalf("channel CanReadMessages = %v, %v; want false", canRead, err)
+	}
+	if canRead, err := chatto.CanReadMessages(ctx, reader.GetId(), KindDM, room.GetId()); err == nil || canRead {
+		t.Fatalf("mismatched DM-kind CanReadMessages = %v, %v; want false with error", canRead, err)
+	}
+}
+
 func TestFindOrCreateDM(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := context.Background()
