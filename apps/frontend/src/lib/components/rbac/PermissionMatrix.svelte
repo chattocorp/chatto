@@ -27,7 +27,7 @@ focusing a cell highlights its permission row and role column.
 <script lang="ts">
   import { onDestroy, type Snippet } from 'svelte';
   import { Panel } from '$lib/components/admin';
-  import { MatrixTable } from '$lib/components/matrix';
+  import { MatrixColumnHeading, MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { useServerScope } from '$lib/state/server/scope.svelte';
@@ -367,20 +367,14 @@ focusing a cell highlights its permission row and role column.
         {#if handle}
           <button
             type="button"
-            class="cursor-pointer text-sm hover:underline"
+            class="cursor-pointer hover:underline"
             onclick={() => handle(role)}
-            style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
             title={`${role.displayName} — click to manage`}
           >
             @{role.roleName}
           </button>
         {:else}
-          <span
-            class="text-sm"
-            style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-          >
-            @{role.roleName}
-          </span>
+          <span>@{role.roleName}</span>
         {/if}
       {/snippet}
       {#snippet trailingHeader()}
@@ -389,16 +383,17 @@ focusing a cell highlights its permission row and role column.
             class="bg-background px-0 py-3 text-center align-bottom font-medium"
             style="width: 2rem; min-width: 2rem; height: 12rem"
           >
-            <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
-            <a
-              href={newRoleHref}
-              class="cursor-pointer text-sm font-medium text-action hover:underline"
-              style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-              data-testid="new-role-column"
-            >
-              {m('admin.permissions.new_role_action')}
-            </a>
-            <!-- eslint-enable svelte/no-navigation-without-resolve -->
+            <MatrixColumnHeading>
+              <!-- eslint-disable svelte/no-navigation-without-resolve -- newRoleHref is resolved by the owning route -->
+              <a
+                href={newRoleHref}
+                class="cursor-pointer font-medium text-action hover:underline"
+                data-testid="new-role-column"
+              >
+                {m('admin.permissions.new_role_action')}
+              </a>
+              <!-- eslint-enable svelte/no-navigation-without-resolve -->
+            </MatrixColumnHeading>
           </th>
         {/if}
       {/snippet}

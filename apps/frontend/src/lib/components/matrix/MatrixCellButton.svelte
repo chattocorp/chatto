@@ -80,6 +80,7 @@ state machine and supplies the semantic tone, icon, and activation callback.
   <span
     class="inline-flex h-10 w-10 items-center justify-center text-xs text-muted/30"
     {title}
+    role="img"
     aria-label={ariaLabel}
   >
     —

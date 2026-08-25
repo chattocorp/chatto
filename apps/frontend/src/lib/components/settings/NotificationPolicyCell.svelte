@@ -7,13 +7,17 @@ Inherited room-group and room cells render the effective mode with a link
 marker so their source is not encoded by intensity alone.
 -->
 <script lang="ts">
-  import { MatrixCellButton, type MatrixCellTone } from '$lib/components/matrix';
+  import { MatrixCellButton } from '$lib/components/matrix';
   import {
     NotificationDeliveryMode,
     type NotificationPolicyField,
     type NotificationPolicyScope
   } from '$lib/api-client/notifications';
   import { m } from '$lib/i18n/messages';
+  import {
+    notificationDeliveryModeLabel,
+    notificationDeliveryModePresentation
+  } from './notificationDeliveryModePresentation';
 
   let {
     field,
@@ -42,22 +46,24 @@ marker so their source is not encoded by intensity alone.
   const next = $derived(nextMode(override, effective, canInherit));
   const explicitVisual = $derived(!canInherit || override !== null);
   const usesDefault = $derived(!canInherit && override === null);
-  const icon = $derived(modeIcon(visual));
-  const tone = $derived(modeTone(visual));
+  const presentation = $derived(notificationDeliveryModePresentation(visual));
   const ariaLabel = $derived(
     usesDefault
       ? m('settings.notifications.policy.server_default_cell_aria', {
           cause: causeLabel,
           scope: scopeLabel,
-          current: modeLabel(effective),
-          next: modeLabel(next)
+          current: notificationDeliveryModeLabel(effective),
+          next: notificationDeliveryModeLabel(next)
         })
       : m('settings.notifications.policy.cell_aria', {
           cause: causeLabel,
           scope: scopeLabel,
-          override: override === null ? modeLabel(null) : modeLabel(override),
-          effective: modeLabel(effective),
-          next: modeLabel(next)
+          override:
+            override === null
+              ? notificationDeliveryModeLabel(null)
+              : notificationDeliveryModeLabel(override),
+          effective: notificationDeliveryModeLabel(effective),
+          next: notificationDeliveryModeLabel(next)
         })
   );
 
@@ -76,30 +82,6 @@ marker so their source is not encoded by intensity alone.
     }
     return inheritanceAvailable ? null : NotificationDeliveryMode.OFF;
   }
-
-  function modeLabel(mode: NotificationDeliveryMode | null): string {
-    if (mode === NotificationDeliveryMode.OFF) {
-      return m('settings.notifications.policy.delivery_mode.off');
-    }
-    if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
-      return m('settings.notifications.policy.delivery_mode.notification');
-    }
-    if (mode === NotificationDeliveryMode.PUSH_NOTIFICATION) {
-      return m('settings.notifications.policy.delivery_mode.push_notification');
-    }
-    return m('settings.notifications.policy.delivery_mode.inherit');
-  }
-
-  function modeIcon(mode: NotificationDeliveryMode): string {
-    if (mode === NotificationDeliveryMode.OFF) return 'icon-[uil--bell-slash]';
-    if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) return 'icon-[uil--bell]';
-    return 'icon-[uil--mobile-android]';
-  }
-
-  function modeTone(mode: NotificationDeliveryMode): MatrixCellTone {
-    if (mode === NotificationDeliveryMode.OFF) return 'neutral';
-    return 'warning';
-  }
 </script>
 
 <span
@@ -108,9 +90,9 @@ marker so their source is not encoded by intensity alone.
   data-notification-source={usesDefault ? 'default' : override === null ? 'inherited' : 'override'}
 >
   <MatrixCellButton
-    {tone}
+    tone={presentation.tone}
     explicit={explicitVisual}
-    {icon}
+    icon={presentation.icon}
     {loading}
     {disabled}
     inheritedMarker={canInherit && override === null}

@@ -9,6 +9,7 @@ snippets.
 <script lang="ts" generics="TRow, TColumn">
   import type { Snippet } from 'svelte';
   import { DataTable } from '$lib/components/admin';
+  import MatrixColumnHeading from './MatrixColumnHeading.svelte';
 
   let {
     rows,
@@ -118,7 +119,9 @@ snippets.
         data-matrix-column={getColumnKey(column)}
         {...columnAttributes?.(column) ?? {}}
       >
-        {@render columnHeader(column, columnHighlighted(column))}
+        <MatrixColumnHeading>
+          {@render columnHeader(column, columnHighlighted(column))}
+        </MatrixColumnHeading>
       </th>
     {/each}
     {@render trailingHeader?.()}

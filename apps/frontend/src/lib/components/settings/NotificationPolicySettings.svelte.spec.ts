@@ -5,6 +5,7 @@ import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import {
   NotificationDeliveryMode,
   notificationPolicyScopeKey,
+  type NotificationPolicyField,
   type NotificationPolicyScope,
   type ScopedNotificationPolicy
 } from '$lib/api-client/notifications';
@@ -19,7 +20,7 @@ const { mocks } = vi.hoisted(() => ({
       update: vi.fn(),
       resetServerDefaults: vi.fn(),
       policy: vi.fn(),
-      isPending: vi.fn(() => false)
+      isPending: vi.fn((_scope: NotificationPolicyScope, _field: NotificationPolicyField) => false)
     }
   }
 }));
@@ -174,5 +175,73 @@ describe('NotificationPolicySettings', () => {
       'room:room-1',
       'room:dm-1'
     ]);
+  });
+
+  it('renders per-cell loading placeholders while the visible scopes load', () => {
+    mocks.matrix.loading = true;
+    mocks.matrix.policy.mockReturnValue(undefined);
+
+    const { container } = render(NotificationPolicySettings);
+
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4);
+    expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
+    const placeholders = container.querySelectorAll(
+      'td[data-notification-field] > span[role="status"]'
+    );
+    expect(placeholders).toHaveLength(9 * 4);
+    expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
+  });
+
+  it('keeps independent cells available while one update is pending', () => {
+    mocks.matrix.isPending.mockImplementation(
+      (scope: NotificationPolicyScope, field: NotificationPolicyField) =>
+        scope.kind === 'server' && field === 'directMessages'
+    );
+    const { container } = render(NotificationPolicySettings);
+    const pending = container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="directMessages"] button'
+    ) as HTMLButtonElement;
+    const available = container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="directMentions"] button'
+    ) as HTMLButtonElement;
+
+    expect(pending.disabled).toBe(false);
+    expect(pending.getAttribute('aria-disabled')).toBe('true');
+    expect(pending.querySelector('[class~="icon-[uil--spinner]"]')).not.toBeNull();
+    pending.click();
+    expect(mocks.matrix.update).not.toHaveBeenCalled();
+
+    expect(available.getAttribute('aria-disabled')).toBeNull();
+    available.click();
+    expect(mocks.matrix.update).toHaveBeenCalledWith(
+      { kind: 'server' },
+      'directMentions',
+      NotificationDeliveryMode.OFF
+    );
+  });
+
+  it('shows localized load and save errors without hiding the matrix', () => {
+    mocks.matrix.error = 'Policy service unavailable';
+    mocks.matrix.errorKind = 'load';
+    mocks.matrix.policy.mockReturnValue(undefined);
+    const loadFailure = render(NotificationPolicySettings);
+
+    expect(loadFailure.container.textContent).toContain(
+      'Failed to load notification policy: Policy service unavailable'
+    );
+    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
+    loadFailure.unmount();
+
+    mocks.matrix.error = 'Update was rejected';
+    mocks.matrix.errorKind = 'save';
+    mocks.matrix.policy.mockImplementation((scope: NotificationPolicyScope) => policy(scope));
+    const saveFailure = render(NotificationPolicySettings);
+
+    expect(saveFailure.container.textContent).toContain(
+      'Failed to save notification policy: Update was rejected'
+    );
+    expect(
+      saveFailure.container.querySelectorAll('td[data-notification-field] button')
+    ).toHaveLength(9 * 4);
   });
 });

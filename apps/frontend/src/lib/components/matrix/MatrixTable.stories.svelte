@@ -18,10 +18,23 @@
     { id: 'design', label: '#design', kind: 'room' }
   ];
 
+  const componentDescription = `
+  Domain-neutral matrix geometry for settings and administration. Consumers
+  supply stable row and column keys, headings, cell snippets, scope shading,
+  and interaction rules. The table supplies rotated column headings, sticky
+  row headings, native horizontal scrolling, and coordinated hover and focus
+  highlighting.
+  `.trim();
+
   const { Story } = defineMeta({
     title: 'Admin/Matrix primitives',
     component: MatrixTable,
-    tags: ['autodocs']
+    tags: ['autodocs'],
+    parameters: {
+      docs: {
+        description: { component: componentDescription }
+      }
+    }
   });
 </script>
 
@@ -35,7 +48,19 @@
   }
 </script>
 
-<Story name="Light" asChild globals={{ theme: 'light' }}>
+<Story
+  name="Light"
+  asChild
+  globals={{ theme: 'light' }}
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Move the pointer or keyboard focus between cells to see the active row, column, and intersection.'
+      }
+    }
+  }}
+>
   <div class="max-w-3xl rounded-lg bg-background p-4">
     <MatrixTable
       {rows}
@@ -52,7 +77,18 @@
   </div>
 </Story>
 
-<Story name="Dark" asChild globals={{ theme: 'dark' }}>
+<Story
+  name="Dark"
+  asChild
+  globals={{ theme: 'dark' }}
+  parameters={{
+    docs: {
+      description: {
+        story: 'The same scope hierarchy and interaction language in the dark theme.'
+      }
+    }
+  }}
+>
   <div class="max-w-3xl rounded-lg bg-background p-4">
     <MatrixTable
       {rows}
@@ -69,7 +105,18 @@
   </div>
 </Story>
 
-<Story name="Loading and disabled" asChild>
+<Story
+  name="Loading and disabled"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'Cell adapters can keep one operation pending while other cells remain available, or disable the full surface when editing is not allowed.'
+      }
+    }
+  }}
+>
   <div class="max-w-3xl rounded-lg bg-background p-4">
     <MatrixTable
       {rows}
@@ -86,7 +133,18 @@
   </div>
 </Story>
 
-<Story name="Narrow viewport" asChild>
+<Story
+  name="Narrow viewport"
+  asChild
+  parameters={{
+    docs: {
+      description: {
+        story:
+          'The table keeps the row heading at the start edge and uses native horizontal scrolling for the scope columns.'
+      }
+    }
+  }}
+>
   <div class="w-72 rounded-lg bg-background p-2">
     <MatrixTable
       {rows}
@@ -113,12 +171,7 @@
 {/snippet}
 
 {#snippet labelColumn(column: Column)}
-  <span
-    class="text-sm"
-    style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-  >
-    {column.label}
-  </span>
+  {column.label}
 {/snippet}
 
 {#snippet interactiveCell(row: Row, column: Column)}

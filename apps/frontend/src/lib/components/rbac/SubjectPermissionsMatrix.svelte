@@ -212,12 +212,10 @@ scrolling; the table only scrolls horizontally when its columns overflow.
       {#snippet columnHeader(scope)}
         <span
           class={[
-            'text-sm',
             scope.kind === 'SERVER' ? 'font-semibold' : '',
             scope.kind === 'GROUP' ? 'text-neutral-action' : '',
             scope.kind === 'ROOM' ? 'text-muted' : ''
           ]}
-          style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
           title={`${scope.label} (${scope.kind.toLowerCase()})`}
         >
           {#if scope.kind === 'ROOM'}#{/if}{scope.label}

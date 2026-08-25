@@ -20,6 +20,10 @@ Rows are notification causes. Columns follow the current navigation layout.
     notificationPolicyColumns,
     type NotificationPolicyColumn
   } from './notificationPolicyMatrix';
+  import {
+    notificationDeliveryModeLabel,
+    notificationDeliveryModePresentation
+  } from './notificationDeliveryModePresentation';
 
   type NotificationPolicyRow = {
     field: NotificationPolicyField;
@@ -83,19 +87,6 @@ Rows are notification causes. Columns follow the current navigation layout.
     if (column.kind === 'roomGroup') return 'bg-surface-emphasized/20';
     return '';
   }
-
-  function modeIcon(mode: NotificationDeliveryMode): string {
-    if (mode === NotificationDeliveryMode.OFF) return 'icon-[uil--bell-slash]';
-    if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) return 'icon-[uil--bell]';
-    return 'icon-[uil--mobile-android]';
-  }
-
-  function modeLegendClass(mode: NotificationDeliveryMode): string {
-    if (mode === NotificationDeliveryMode.OFF) {
-      return 'bg-surface-emphasized text-muted';
-    }
-    return 'bg-warning/20 text-warning';
-  }
 </script>
 
 <Panel
@@ -135,22 +126,13 @@ Rows are notification causes. Columns follow the current navigation layout.
     aria-label={m('settings.notifications.policy.legend')}
   >
     {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
+      {@const presentation = notificationDeliveryModePresentation(mode)}
       <span class="inline-flex items-center gap-1.5">
         <span
-          class={[
-            'iconify h-5 w-5 rounded-md p-1',
-            modeIcon(mode),
-            modeLegendClass(mode)
-          ]}
+          class={['iconify h-5 w-5 rounded-md p-1', presentation.icon, presentation.legendClass]}
           aria-hidden="true"
         ></span>
-        {#if mode === NotificationDeliveryMode.OFF}
-          {m('settings.notifications.policy.delivery_mode.off')}
-        {:else if mode === NotificationDeliveryMode.IN_APP_NOTIFICATION}
-          {m('settings.notifications.policy.delivery_mode.notification')}
-        {:else}
-          {m('settings.notifications.policy.delivery_mode.push_notification')}
-        {/if}
+        {notificationDeliveryModeLabel(mode)}
       </span>
     {/each}
     <span class="inline-flex items-center gap-1.5">
@@ -194,11 +176,9 @@ Rows are notification causes. Columns follow the current navigation layout.
     {#snippet columnHeader(column)}
       <span
         class={[
-          'text-sm',
           column.kind === 'server' ? 'font-semibold' : '',
           column.kind === 'roomGroup' ? 'text-neutral-action' : 'text-muted'
         ]}
-        style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
         title={column.label}
       >
         {column.displayLabel}
@@ -223,11 +203,12 @@ Rows are notification causes. Columns follow the current navigation layout.
       {:else}
         <span
           class="inline-flex h-10 w-10 items-center justify-center"
-          aria-label={m('common.loading')}
+          role={matrixState.loading ? 'status' : undefined}
         >
           {#if matrixState.loading}
             <span class="iconify icon-[uil--spinner] animate-spin text-muted" aria-hidden="true"
             ></span>
+            <span class="sr-only">{m('common.loading')}</span>
           {:else}
             <span class="text-muted/30" aria-hidden="true">—</span>
           {/if}
