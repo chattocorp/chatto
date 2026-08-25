@@ -258,6 +258,10 @@ authorization, live events, backup/restore, and backend tests.
   get moderation visibility into DM contents.
 - DM membership is the complete DM content-read boundary. `message.read`
   applies only to channel rooms. Do not add a second DM read gate.
+- A bot must never start or fetch a DM through `RoomService.StartDM`, even when
+  it has `message.post` or the DM already exists. A human must start the DM.
+  After that, the bot can read it through membership and can use its normal
+  message permissions inside it.
 - Permission strings use exactly `{object}.{verb}` with hyphenated verbs:
   `room.ban-member`, `message.post-in-thread`, `admin.view-users`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and

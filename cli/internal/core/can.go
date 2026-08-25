@@ -79,11 +79,20 @@ func (c *ChattoCore) CanManageBots(ctx context.Context, userID string) (bool, er
 	return c.HasServerPermission(ctx, userID, PermBotManage)
 }
 
-// CanStartDM checks if a user can start DM conversations. DMs are allowed by
-// default for authenticated users, but an applicable server-scope
-// message.post deny still blocks the action. This keeps global suspension
-// roles effective without requiring a default server-scope message.post allow.
+// CanStartDM checks if a human user can start DM conversations. Bot accounts
+// can never start or fetch DMs through the creation operation, regardless of
+// their permissions. DMs are allowed by default for active human users, but an
+// applicable server-scope message.post deny still blocks the action. This
+// keeps global suspension roles effective without requiring a default
+// server-scope message.post allow.
 func (c *ChattoCore) CanStartDM(ctx context.Context, userID string) (bool, error) {
+	isBot, _, accountExists := c.userModel.isBotAndOwner(userID)
+	if !accountExists {
+		return false, ErrNotFound
+	}
+	if isBot {
+		return false, nil
+	}
 	decision, err := c.ResolveUserPermission(ctx, userID, KindDM, "", PermMessagePost)
 	if err != nil {
 		return false, err

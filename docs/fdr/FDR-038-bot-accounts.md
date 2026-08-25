@@ -51,6 +51,10 @@ exercise more authority than its human owner currently possesses.
 - Channel-room membership does not give a bot message content. The bot needs an
   explicit `message.read` grant, bounded by the same permission on its owner.
   DM membership authorizes the bot to read that DM.
+- A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
+  has `message.post` or the DM already exists. A human must start a DM that
+  includes the bot. The bot can then interact in that DM through its normal
+  message permissions.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current effective permissions allow
@@ -207,6 +211,18 @@ across existing and future surfaces.
 **Tradeoff:** Older clients that do not understand the additive bot marker will
 render a bot like an ordinary user until they are upgraded.
 
+### 9. Bots cannot start DMs
+
+**Decision:** Bot account kind always denies `RoomService.StartDM`. This rule
+applies before RBAC and has no owner override. A human can start a DM with a
+bot, after which DM membership and normal message permissions apply.
+**Why:** An automation credential must not create an unsolicited private
+conversation. The account-kind rule is visible and cannot be enabled by an
+incorrect permission grant.
+**Tradeoff:** A bot cannot use the idempotent start operation to get an
+existing DM. It must use the room state that Chatto sends after a human starts
+the DM.
+
 ## Permissions
 
 - `bot.create` — create bot accounts and become their owner.
@@ -249,6 +265,10 @@ override, but bots themselves cannot exercise bot-management operations.
   bot. A binary predating the ownership event cannot project the new owner, so
   rolling back after ownership writes requires a binary that understands the
   event.
+- Chatto 0.5 denies `RoomService.StartDM` to bot callers. This behavior is a
+  breaking authorization change for an integration that used this RPC. During
+  a mixed-replica rollout, an older replica can still accept the call. Upgrade
+  all replicas before you depend on this boundary.
 
 ## Related
 

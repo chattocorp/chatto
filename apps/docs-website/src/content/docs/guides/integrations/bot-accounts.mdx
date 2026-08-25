@@ -54,6 +54,16 @@ owner must have the same effective grant at that scope. DM membership
 authorizes the bot to read that DM. Posting remains a separate `message.post`
 or `message.post-in-thread` decision.
 
+## Direct messages
+
+A bot cannot start a DM. This rule also prevents a bot from using
+`RoomService.StartDM` to get a self-DM or an existing DM. A permission grant
+cannot change the rule.
+
+A human can start a DM that includes the bot. DM membership then lets the bot
+read the complete DM. Grant `message.post` if the bot must send messages in
+that DM. The owner must also have `message.post`.
+
 ## Authenticate requests
 
 Send the key as an HTTP bearer credential to the same public API used by other

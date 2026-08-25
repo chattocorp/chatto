@@ -164,7 +164,9 @@ message JoinRoomGroupResponse {
   repeated string joined_room_ids = 1;
 }
 
-// Request to start or fetch a direct-message room.
+// Request to start or fetch a direct-message room for a human caller. A valid
+// request from a bot receives PERMISSION_DENIED, including when the room
+// already exists.
 message StartDMRequest {
   // Other participants to include in the direct-message room. The current user
   // is always included by the server. An empty list creates or fetches the
@@ -420,8 +422,10 @@ service RoomService {
   // Joins every unarchived room in a group that the current user can join.
   // Already-joined and non-joinable rooms are skipped.
   rpc JoinRoomGroup(JoinRoomGroupRequest) returns (JoinRoomGroupResponse);
-  // Starts or fetches a direct-message room for the current user and the
-  // requested participant set. The caller must be allowed to start DMs.
+  // Starts or fetches a direct-message room for the current human user and the
+  // requested participant set. The caller must have message.post. A valid
+  // request from a bot receives PERMISSION_DENIED and cannot use this RPC to
+  // fetch an existing DM.
   rpc StartDM(StartDMRequest) returns (StartDMResponse);
   // Leaves the room as the current user. Direct-message and universal rooms
   // cannot be left.

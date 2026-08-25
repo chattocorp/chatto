@@ -73,7 +73,7 @@ Room-relevant permissions such as `message.read`, `message.post`, `message.attac
 | Permission                | Meaning                                                                                                                                                                         |
 | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `message.read`            | Read channel-room message and thread content, attachments, message search results, typing indicators, and message-derived activity. Channel-room membership is also required. DM membership authorizes DM reads. Fresh servers allow this for `everyone`; existing servers are never backfilled. |
-| `message.post`            | Post root messages and start DMs. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`.                                              |
+| `message.post`            | Post root messages. A human with this permission can also start DMs. A bot cannot start a DM. Explicitly establishing a channel-room root as a thread also requires `message.post-in-thread`. |
 | `message.post-in-thread`  | Post messages inside channel-room threads and, together with `message.post`, explicitly establish a root as a thread.                                                          |
 | `message.attach`          | Attach files to new messages. Fresh servers allow this for `everyone`; existing servers upgraded from older versions may need an operator grant if uploads should stay enabled. |
 | `message.manage`          | Edit or delete other users' messages. Authors can edit/delete their own messages without this permission.                                                                       |
@@ -191,6 +191,11 @@ DMs use the same permission names where they make sense, but private conversatio
 Each participant can read the complete DM. `message.read` grants and denials do
 not change DM access. Owners cannot read or moderate a DM that they are not
 part of.
+
+Only a human can start a DM. A bot cannot use `RoomService.StartDM`, even when
+it has `message.post` or the DM already exists. A human must start the DM. The
+bot can then use `message.post` and other applicable message permissions in
+that DM.
 
 ## Where to configure permissions
 

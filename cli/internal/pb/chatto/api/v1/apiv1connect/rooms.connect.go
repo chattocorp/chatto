@@ -114,8 +114,10 @@ type RoomServiceClient interface {
 	// Joins every unarchived room in a group that the current user can join.
 	// Already-joined and non-joinable rooms are skipped.
 	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
-	// Starts or fetches a direct-message room for the current user and the
-	// requested participant set. The caller must be allowed to start DMs.
+	// Starts or fetches a direct-message room for the current human user and the
+	// requested participant set. The caller must have message.post. A valid
+	// request from a bot receives PERMISSION_DENIED and cannot use this RPC to
+	// fetch an existing DM.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.
@@ -509,8 +511,10 @@ type RoomServiceHandler interface {
 	// Joins every unarchived room in a group that the current user can join.
 	// Already-joined and non-joinable rooms are skipped.
 	JoinRoomGroup(context.Context, *connect.Request[v1.JoinRoomGroupRequest]) (*connect.Response[v1.JoinRoomGroupResponse], error)
-	// Starts or fetches a direct-message room for the current user and the
-	// requested participant set. The caller must be allowed to start DMs.
+	// Starts or fetches a direct-message room for the current human user and the
+	// requested participant set. The caller must have message.post. A valid
+	// request from a bot receives PERMISSION_DENIED and cannot use this RPC to
+	// fetch an existing DM.
 	StartDM(context.Context, *connect.Request[v1.StartDMRequest]) (*connect.Response[v1.StartDMResponse], error)
 	// Leaves the room as the current user. Direct-message and universal rooms
 	// cannot be left.

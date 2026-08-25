@@ -13,6 +13,18 @@ interface ListRoomsResponse {
   rooms?: Array<{ room?: { id?: string } }>;
 }
 
+interface ListBotsResponse {
+  bots?: Array<{ user?: { id?: string; login?: string } }>;
+}
+
+interface ViewerResponse {
+  user?: { profile?: { id?: string } };
+}
+
+interface StartDMResponse {
+  room?: { id?: string };
+}
+
 interface CreatedUserResponse {
   id?: string;
 }
@@ -53,25 +65,23 @@ async function captureShowOnceBotKey(page: Page): Promise<string> {
   return apiKey;
 }
 
-async function getRoomAsBot(
+async function callAsBot(
   serverURL: string,
   apiKey: string,
-  roomId: string
+  procedure: string,
+  body: Record<string, unknown>
 ): Promise<BotAPIResult> {
   // Use Node's fetch rather than page.request so the admin's browser cookies
   // cannot supply ambient authority and Playwright never records the key.
-  const response = await fetch(
-    new URL('/api/connect/chatto.api.v1.RoomDirectoryService/GetRoom', serverURL),
-    {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Connect-Protocol-Version': '1',
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({ roomId })
-    }
-  );
+  const response = await fetch(new URL(`/api/connect/${procedure}`, serverURL), {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Connect-Protocol-Version': '1',
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify(body)
+  });
 
   let code: string | undefined;
   try {
@@ -86,6 +96,14 @@ async function getRoomAsBot(
   }
 
   return { status: response.status, ...(code ? { code } : {}) };
+}
+
+async function getRoomAsBot(
+  serverURL: string,
+  apiKey: string,
+  roomId: string
+): Promise<BotAPIResult> {
+  return callAsBot(serverURL, apiKey, 'chatto.api.v1.RoomDirectoryService/GetRoom', { roomId });
 }
 
 async function createHumanOwner(
@@ -145,6 +163,16 @@ test.describe('Bot account lifecycle', () => {
       page.getByRole('heading', { name: botDisplayName, exact: true, level: 1 })
     ).toBeVisible();
 
+    const listedBots = await connectPost<ListBotsResponse>(
+      page,
+      'chatto.api.v1.BotService/ListBots'
+    );
+    const botId = listedBots.bots?.find((bot) => bot.user?.login === botLogin)?.user?.id;
+    if (!botId) throw new Error('The new bot was not present in the bot directory');
+    const viewer = await connectPost<ViewerResponse>(page, 'chatto.api.v1.ViewerService/GetViewer');
+    const adminId = viewer.user?.profile?.id;
+    if (!adminId) throw new Error('The viewer response did not contain the admin user ID');
+
     await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({
       status: 403,
       code: 'permission_denied'
@@ -167,6 +195,47 @@ test.describe('Bot account lifecycle', () => {
     ).toBeVisible();
 
     await expect(getRoomAsBot(serverURL, originalKey, roomId)).resolves.toEqual({ status: 200 });
+
+    await permissionFilter.fill('message.post');
+    const disabledMessagePost = page.getByRole('button', {
+      name: 'message.post is Disabled for bot at Server',
+      exact: true
+    });
+    await expect(disabledMessagePost).toBeEnabled();
+    await disabledMessagePost.click();
+    await expect(
+      page.getByRole('button', {
+        name: 'message.post is Enabled for bot at Server',
+        exact: true
+      })
+    ).toBeVisible();
+
+    const startedDM = await connectPost<StartDMResponse>(
+      page,
+      'chatto.api.v1.RoomService/StartDM',
+      { participantIds: [botId] }
+    );
+    const dmRoomId = startedDM.room?.id;
+    if (!dmRoomId) throw new Error('The human-started bot DM did not return a room ID');
+
+    // A direct message.post grant lets the bot interact in an existing DM,
+    // but it cannot invoke StartDM even to retrieve that same DM or itself.
+    await expect(
+      callAsBot(serverURL, originalKey, 'chatto.api.v1.RoomService/StartDM', {
+        participantIds: [adminId]
+      })
+    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    await expect(
+      callAsBot(serverURL, originalKey, 'chatto.api.v1.RoomService/StartDM', {
+        participantIds: []
+      })
+    ).resolves.toEqual({ status: 403, code: 'permission_denied' });
+    await expect(
+      callAsBot(serverURL, originalKey, 'chatto.api.v1.MessageService/CreateMessage', {
+        roomId: dmRoomId,
+        body: 'Bot reply in a human-started DM'
+      })
+    ).resolves.toEqual({ status: 200 });
 
     await page.getByRole('button', { name: 'Reassign owner', exact: true }).click();
     const reassignDialog = page.getByRole('dialog', { name: 'Reassign owner' });

@@ -92,6 +92,9 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityAdminView) {
 		t.Fatal("bot unexpectedly granted admin.view capability")
 	}
+	if apiCapabilityGranted(viewer.Msg.GetCapabilities().GetGrants(), viewerCapabilityDMStart) {
+		t.Fatal("bot unexpectedly granted dm.start capability")
+	}
 
 	rotated, err := service.RotateBotApiKey(ctx, connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetUser().GetId()}))
 	if err != nil || rotated.Msg.GetApiKey() == "" || rotated.Msg.GetApiKey() == created.Msg.GetApiKey() {

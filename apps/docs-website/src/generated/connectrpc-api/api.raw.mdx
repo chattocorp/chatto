@@ -1811,8 +1811,10 @@ Result of joining all joinable rooms in one room group.
 
 ### StartDM
 
-Starts or fetches a direct-message room for the current user and the
-requested participant set. The caller must be allowed to start DMs.
+Starts or fetches a direct-message room for the current human user and the
+requested participant set. The caller must have message.post. A valid
+request from a bot receives PERMISSION_DENIED and cannot use this RPC to
+fetch an existing DM.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/StartDM
@@ -1822,7 +1824,9 @@ POST /api/connect/chatto.api.v1.RoomService/StartDM
 
 #### Input: StartDMRequest
 
-Request to start or fetch a direct-message room.
+Request to start or fetch a direct-message room for a human caller. A valid
+request from a bot receives PERMISSION_DENIED, including when the room
+already exists.
 
 | Field | Type | Description |
 | --- | --- | --- |

@@ -532,6 +532,83 @@ func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
 	}
 }
 
+func TestBotCannotStartDMButCanParticipateInHumanStartedDM(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "dm-start-owner", "DM Start Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_start_bot", "DM Start Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	participant, err := c.CreateUser(ctx, SystemActorID, "dm-start-participant", "DM Start Participant", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	other, err := c.CreateUser(ctx, SystemActorID, "dm-start-other", "DM Start Other", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	if allowed, err := c.CanStartDM(ctx, bot.User.GetId()); err != nil || allowed {
+		t.Fatalf("bot CanStartDM without message.post = %v, %v; want false, nil", allowed, err)
+	}
+	if err := c.SetUserPermissionState(ctx, owner.GetId(), bot.User.GetId(), PermissionTargetScope{Kind: MatrixScopeServer}, PermMessagePost, PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.post: %v", err)
+	}
+	if allowed, err := c.CanStartDM(ctx, bot.User.GetId()); err != nil || allowed {
+		t.Fatalf("bot CanStartDM with message.post = %v, %v; want false, nil", allowed, err)
+	}
+	if allowed, err := c.CanStartDM(ctx, "missing-dm-actor"); allowed || !errors.Is(err, ErrNotFound) {
+		t.Fatalf("missing actor CanStartDM = %v, %v; want false, ErrNotFound", allowed, err)
+	}
+	for name, participantIDs := range map[string][]string{
+		"self":  nil,
+		"human": {participant.GetId()},
+		"group": {participant.GetId(), other.GetId()},
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, _, err := c.RoomCommands().StartDM(ctx, RoomStartDMInput{
+				ActorID: bot.User.GetId(), ParticipantIDs: participantIDs,
+			}); !errors.Is(err, ErrPermissionDenied) {
+				t.Fatalf("bot StartDM error = %v, want ErrPermissionDenied", err)
+			}
+			roomID := DMRoomID(ensureInList(participantIDs, bot.User.GetId()))
+			if _, err := c.GetRoom(ctx, KindDM, roomID); err == nil {
+				t.Fatal("bot StartDM created a DM despite the account-kind invariant")
+			}
+		})
+	}
+
+	dm, created, err := c.RoomCommands().StartDM(ctx, RoomStartDMInput{
+		ActorID: participant.GetId(), ParticipantIDs: []string{bot.User.GetId()},
+	})
+	if err != nil {
+		t.Fatalf("human StartDM with bot: %v", err)
+	}
+	if !created {
+		t.Fatal("human StartDM with bot did not create the DM")
+	}
+	if _, _, err := c.RoomCommands().StartDM(ctx, RoomStartDMInput{
+		ActorID: bot.User.GetId(), ParticipantIDs: []string{participant.GetId()},
+	}); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("bot StartDM for existing DM error = %v, want ErrPermissionDenied", err)
+	}
+	reply, err := c.Messages().PostMessage(ctx, MessagePostInput{
+		ActorID: bot.User.GetId(), RoomID: dm.GetId(), Body: "bot reply in human-started DM",
+	})
+	if err != nil {
+		t.Fatalf("bot PostMessage in human-started DM: %v", err)
+	}
+	if reply.Event == nil {
+		t.Fatal("bot PostMessage returned no event")
+	}
+	if _, err := c.RoomTimelineReads().GetMessage(ctx, participant.GetId(), dm.GetId(), reply.Event.GetId()); err != nil {
+		t.Fatalf("human GetMessage for bot reply: %v", err)
+	}
+}
+
 func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)
