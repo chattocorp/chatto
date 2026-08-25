@@ -18,6 +18,10 @@ describe('MatrixTable', () => {
     const headingShell = heading.parentElement!;
     expect(headingShell.className).toContain('[writing-mode:vertical-rl]');
     expect(headingShell.className).toContain('rotate-180');
+
+    const rowHeading = container.querySelector('[data-test-row-heading="mentions"]')!.closest('th')!;
+    expect(rowHeading.className).toContain('text-start');
+    expect(rowHeading.className).toContain('font-normal');
   });
 
   it('coordinates hover highlighting across the row, column, and intersection', () => {

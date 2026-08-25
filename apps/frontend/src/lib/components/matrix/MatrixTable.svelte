@@ -136,7 +136,7 @@ snippets.
     <th
       scope="row"
       class={[
-        'sticky start-0 z-10 px-4 py-2 whitespace-nowrap',
+        'sticky start-0 z-10 px-4 py-2 text-start font-normal whitespace-nowrap',
         rowHighlighted(row) ? 'bg-action/8' : 'bg-background'
       ]}
     >
