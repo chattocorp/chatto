@@ -475,7 +475,7 @@ func (h *MyEventsHub) handleLiveEVT(ctx context.Context, msg *nats.Msg) bool {
 		}
 		waitCtx, cancel := context.WithTimeout(ctx, liveEVTProjectionWaitTimeout)
 		defer cancel()
-		if err := h.model.waitForLiveEVTAssetEvent(waitCtx, evtSubject, seq); err != nil {
+		if err := h.model.waitForLiveEVTAssetEvent(waitCtx, evtSubject, &event, seq); err != nil {
 			h.model.core.logger.Warn("Live EVT asset projection readiness failed", "subject", msg.Subject, "sequence", seq, "error", err)
 			return true
 		}

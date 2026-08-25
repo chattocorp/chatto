@@ -1116,18 +1116,26 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	roomID string,
 	eventID string,
 	limit int,
+	visibility ...func(*corev1.Event) bool,
 ) (entries []*TimelineEntry, targetIndex int, hasOlder bool, hasNewer bool, ok bool) {
 	if limit <= 0 || eventID == "" {
 		return nil, 0, false, false, false
 	}
 	p.RLock()
 	defer p.RUnlock()
+	var visible func(*corev1.Event) bool
+	if len(visibility) > 0 {
+		visible = visibility[0]
+	}
 	roomEntries := p.byRoom[roomID]
 	targetVisibleIndex := -1
 	visibleCount := 0
 	for _, idx := range roomEntries {
 		entry := p.entryAtLocked(idx)
 		if p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		if visible != nil && (entry == nil || !visible(entry.Event)) {
 			continue
 		}
 		if entry != nil && entry.Event != nil && entry.Event.GetId() == eventID {
@@ -1157,6 +1165,9 @@ func (p *RoomTimelineProjection) VisibleRoomTimelineAround(
 	for _, idx := range roomEntries {
 		entry := p.entryAtLocked(idx)
 		if p.isHiddenEchoEntryLocked(entry) {
+			continue
+		}
+		if visible != nil && (entry == nil || !visible(entry.Event)) {
 			continue
 		}
 		if visibleIndex >= start && visibleIndex < end {

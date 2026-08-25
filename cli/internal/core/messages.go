@@ -1357,7 +1357,7 @@ func (c *ChattoCore) authorizeMessageMutation(
 		return ErrNotRoomMember
 	}
 	if policy.requireMessageRead {
-		canRead, err := c.CanReadMessages(ctx, actorID, kind, roomID)
+		canRead, err := c.CanReadMessage(ctx, actorID, kind, roomID, eventID)
 		if err != nil {
 			return err
 		}

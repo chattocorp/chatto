@@ -276,6 +276,68 @@ test.describe('Room-Level Permission Overrides', () => {
 
       expect(browserErrors, 'browser console and page errors').toEqual([]);
     });
+
+    test('message.read-interactions reveals the complete thread after a direct mention', async ({
+      page,
+      browser,
+      serverURL
+    }) => {
+      await createAndLoginTestUser(page);
+      await usePrimaryServerViaAPI(page);
+      const roomId = await createRoomViaAPI(page);
+      await joinRoomViaAPI(page, roomId);
+
+      const rootBody = `Interaction root ${Date.now()}`;
+      const root = await postMessageViaAPI(page, roomId, rootBody, { createThread: true });
+      expect(root).not.toBeNull();
+      const earlierBody = `Earlier interaction reply ${Date.now()}`;
+      const earlierReply = await replyToMessageViaAPI(page, roomId, root!.id, earlierBody);
+      expect(earlierReply).not.toBeNull();
+      const unrelatedBody = `Unrelated root ${Date.now()}`;
+      expect(await postMessageViaAPI(page, roomId, unrelatedBody)).not.toBeNull();
+
+      const member = await createSecondTestUser(page);
+      await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
+        await joinRoomViaAPI(memberPage, roomId);
+        await denyRoomPermission(page, roomId, 'everyone', 'message.read');
+
+        type TimelineResponse = { page?: { events?: Array<{ id?: string }> } };
+        const beforeMention = await connectPost<TimelineResponse>(
+          memberPage,
+          'chatto.api.v1.RoomService/GetRoomEvents',
+          { roomId, limit: 20 }
+        );
+        expect(beforeMention.page?.events ?? []).toEqual([]);
+
+        const mentionBody = `@${member.login} interaction access ${Date.now()}`;
+        const mentionReply = await replyToMessageViaAPI(page, roomId, root!.id, mentionBody);
+        expect(mentionReply).not.toBeNull();
+
+        const roomTimeline = await connectPost<TimelineResponse>(
+          memberPage,
+          'chatto.api.v1.RoomService/GetRoomEvents',
+          { roomId, limit: 20 }
+        );
+        expect((roomTimeline.page?.events ?? []).map((event) => event.id)).toEqual([root!.id]);
+
+        const threadTimeline = await connectPost<TimelineResponse>(
+          memberPage,
+          'chatto.api.v1.ThreadService/GetThreadEvents',
+          { roomId, threadRootEventId: root!.id, limit: 20 }
+        );
+        expect((threadTimeline.page?.events ?? []).map((event) => event.id)).toEqual([
+          root!.id,
+          earlierReply!.id,
+          mentionReply!.id
+        ]);
+
+        await memberPage.goto(routes.thread(roomId, root!.id));
+        await expect(memberPage.getByText(rootBody)).toBeVisible();
+        await expect(memberPage.getByText(earlierBody)).toBeVisible();
+        await expect(memberPage.getByText(mentionBody)).toBeVisible();
+        await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);
+      });
+    });
   });
 
   test.describe('message.post — Chat Input', () => {

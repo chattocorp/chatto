@@ -1049,6 +1049,80 @@ func TestThreadServiceListFollowedThreadsReturnsHydratedPage(t *testing.T) {
 	}
 }
 
+func TestThreadServiceListsAndGetsActiveInteractions(t *testing.T) {
+	env := newConnectAPITestEnv(t)
+	room := env.createJoinedRoom("interaction-list")
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "interaction-list-author", "Interaction List Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	if _, err := env.core.JoinRoom(env.ctx, author.GetId(), core.KindChannel, author.GetId(), room.GetId()); err != nil {
+		t.Fatalf("JoinRoom author: %v", err)
+	}
+	authoredRoot := env.post(room.GetId(), env.viewer.GetId(), "viewer-authored root", "")
+	mentionedRoot := env.post(room.GetId(), author.GetId(), "mention target root", "")
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), env.viewer.GetId(), core.PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	mentionReply := env.post(room.GetId(), author.GetId(), "hello @timeline-viewer", mentionedRoot.GetId())
+
+	if _, err := env.threads.ListInteractions(env.ctx, connect.NewRequest(&apiv1.ListInteractionsRequest{})); connect.CodeOf(err) != connect.CodeUnauthenticated {
+		t.Fatalf("unauthenticated ListInteractions code = %v, want %v", connect.CodeOf(err), connect.CodeUnauthenticated)
+	}
+	ctx := withCaller(env.ctx, env.viewer)
+	listed, err := env.threads.ListInteractions(ctx, connect.NewRequest(&apiv1.ListInteractionsRequest{
+		Page: &apiv1.PageRequest{Limit: 1},
+	}))
+	if err != nil {
+		t.Fatalf("ListInteractions: %v", err)
+	}
+	if len(listed.Msg.GetInteractions()) != 1 || listed.Msg.GetPage().GetTotalCount() != 2 || !listed.Msg.GetPage().GetHasMore() {
+		t.Fatalf("ListInteractions page = %+v, want one of two with more", listed.Msg)
+	}
+	latest := listed.Msg.GetInteractions()[0]
+	if latest.GetRoomId() != room.GetId() || latest.GetThreadRootEventId() != mentionedRoot.GetId() || latest.GetLastActivityAt() == nil {
+		t.Fatalf("latest interaction = %+v, want mentioned thread", latest)
+	}
+	if len(latest.GetCauses()) != 1 || latest.GetCauses()[0].GetType() != apiv1.ThreadInteractionCauseType_THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION ||
+		latest.GetCauses()[0].GetSourceMessageEventId() != mentionReply.GetId() {
+		t.Fatalf("mentioned interaction causes = %+v", latest.GetCauses())
+	}
+
+	got, err := env.threads.GetInteraction(ctx, connect.NewRequest(&apiv1.GetInteractionRequest{
+		RoomId: room.GetId(), ThreadRootEventId: authoredRoot.GetId(),
+	}))
+	if err != nil {
+		t.Fatalf("GetInteraction authored root: %v", err)
+	}
+	causes := got.Msg.GetInteraction().GetCauses()
+	if len(causes) != 1 || causes[0].GetType() != apiv1.ThreadInteractionCauseType_THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED || causes[0].GetSourceMessageEventId() != authoredRoot.GetId() {
+		t.Fatalf("authored interaction causes = %+v", causes)
+	}
+	if _, err := env.threads.GetInteraction(ctx, connect.NewRequest(&apiv1.GetInteractionRequest{
+		RoomId: room.GetId(), ThreadRootEventId: "missing-root",
+	})); connect.CodeOf(err) != connect.CodeNotFound {
+		t.Fatalf("missing GetInteraction code = %v, want %v", connect.CodeOf(err), connect.CodeNotFound)
+	}
+
+	if err := env.core.DenyUserRoomPermission(env.ctx, core.SystemActorID, room.GetId(), env.viewer.GetId(), core.PermMessageReadInteractions); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read-interactions: %v", err)
+	}
+	listed, err = env.threads.ListInteractions(ctx, connect.NewRequest(&apiv1.ListInteractionsRequest{}))
+	if err != nil || len(listed.Msg.GetInteractions()) != 0 || listed.Msg.GetPage().GetTotalCount() != 0 {
+		t.Fatalf("ListInteractions after permission loss = %+v, %v; want empty", listed, err)
+	}
+	if _, err := env.threads.GetInteraction(ctx, connect.NewRequest(&apiv1.GetInteractionRequest{
+		RoomId: room.GetId(), ThreadRootEventId: mentionedRoot.GetId(),
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("GetInteraction after permission loss code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+	if _, err := env.threads.GetInteraction(ctx, connect.NewRequest(&apiv1.GetInteractionRequest{
+		RoomId: room.GetId(), ThreadRootEventId: "unknown-root",
+	})); connect.CodeOf(err) != connect.CodePermissionDenied {
+		t.Fatalf("missing GetInteraction after permission loss code = %v, want %v", connect.CodeOf(err), connect.CodePermissionDenied)
+	}
+}
+
 func TestThreadServiceListFollowedThreadsFiltersMembershipLoss(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	room := env.createJoinedRoom("followed-loss")

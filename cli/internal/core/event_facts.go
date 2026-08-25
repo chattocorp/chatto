@@ -109,16 +109,98 @@ func (c *ChattoCore) MessageReadProtectedEventRoomID(event *corev1.Event) (strin
 	case *corev1.Event_AssetCreated:
 		roomID := event.GetAssetCreated().GetRoomId()
 		return roomID, roomID != ""
+	case *corev1.Event_AssetAttached:
+		roomID := event.GetAssetAttached().GetRoomId()
+		return roomID, roomID != ""
 	case *corev1.Event_AssetProcessingStarted,
 		*corev1.Event_AssetProcessingSucceeded,
 		*corev1.Event_AssetProcessingFailed,
-		*corev1.Event_AssetDeleted,
-		*corev1.Event_AssetAttached:
+		*corev1.Event_AssetDeleted:
 		roomID, _, ok := c.AssetEventTimelineTarget(event)
 		return roomID, ok
 	default:
 		return "", false
 	}
+}
+
+// MessageEventThreadRoot resolves the canonical channel-room thread affected
+// by one message-derived fact. The Threads and Assets projections must be
+// current through the fact before callers use this result for authorization.
+func (c *ChattoCore) MessageEventThreadRoot(roomID string, event *corev1.Event) (string, bool) {
+	if event == nil || roomID == "" {
+		return "", false
+	}
+	messageRoot := func(eventID string) (string, bool) {
+		if eventID == "" {
+			return "", false
+		}
+		if rootID, ok := c.roomModel.threadRootForMessage(roomID, eventID); ok {
+			return rootID, true
+		}
+		canonicalID, err := c.canonicalReactionMessageEventID(roomID, eventID)
+		if err != nil || canonicalID == "" || canonicalID == eventID {
+			return "", false
+		}
+		return c.roomModel.threadRootForMessage(roomID, canonicalID)
+	}
+
+	messageEventID, ok := c.MessageEventSourceMessageID(roomID, event)
+	if !ok {
+		return "", false
+	}
+	return messageRoot(messageEventID)
+}
+
+// MessageEventSourceMessageID returns the message that owns one protected
+// message-derived fact. Asset creation has no message owner until attachment
+// and therefore returns false.
+func (c *ChattoCore) MessageEventSourceMessageID(roomID string, event *corev1.Event) (string, bool) {
+	if event == nil || roomID == "" {
+		return "", false
+	}
+	protectedRoomID, protected := c.MessageReadProtectedEventRoomID(event)
+	if !protected || protectedRoomID != roomID {
+		return "", false
+	}
+	var messageEventID string
+	switch payload := event.GetEvent().(type) {
+	case *corev1.Event_MessagePosted:
+		messageEventID = event.GetId()
+	case *corev1.Event_MessageBody:
+		messageEventID = payload.MessageBody.GetEventId()
+	case *corev1.Event_MessageEdited:
+		messageEventID = payload.MessageEdited.GetEventId()
+	case *corev1.Event_MessageRetracted:
+		messageEventID = payload.MessageRetracted.GetEventId()
+	case *corev1.Event_MessagePinned:
+		messageEventID = payload.MessagePinned.GetMessageEventId()
+	case *corev1.Event_MessageUnpinned:
+		messageEventID = payload.MessageUnpinned.GetMessageEventId()
+	case *corev1.Event_ThreadCreated:
+		messageEventID = payload.ThreadCreated.GetThreadRootEventId()
+	case *corev1.Event_ThreadFollowed:
+		messageEventID = payload.ThreadFollowed.GetThreadRootEventId()
+	case *corev1.Event_ThreadUnfollowed:
+		messageEventID = payload.ThreadUnfollowed.GetThreadRootEventId()
+	case *corev1.Event_ReactionAdded:
+		messageEventID = payload.ReactionAdded.GetMessageEventId()
+	case *corev1.Event_ReactionRemoved:
+		messageEventID = payload.ReactionRemoved.GetMessageEventId()
+	case *corev1.Event_AssetAttached:
+		messageEventID = payload.AssetAttached.GetMessageEventId()
+	case *corev1.Event_AssetProcessingStarted,
+		*corev1.Event_AssetProcessingSucceeded,
+		*corev1.Event_AssetProcessingFailed,
+		*corev1.Event_AssetDeleted:
+		assetRoomID, targetEventID, ok := c.AssetEventTimelineTarget(event)
+		if !ok || assetRoomID != roomID {
+			return "", false
+		}
+		messageEventID = targetEventID
+	default:
+		return "", false
+	}
+	return messageEventID, messageEventID != ""
 }
 
 func assetCreatedRoomID(event *corev1.AssetCreatedEvent) string {
@@ -349,10 +431,11 @@ func eventNeedsReactionProjection(event *corev1.Event) bool {
 
 func eventNeedsThreadProjection(event *corev1.Event) bool {
 	switch event.GetEvent().(type) {
-	case *corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
+	case *corev1.Event_RoomCreated, *corev1.Event_RoomDeleted,
+		*corev1.Event_ThreadCreated, *corev1.Event_ThreadFollowed, *corev1.Event_ThreadUnfollowed:
 		return true
 	case *corev1.Event_MessagePosted:
-		return event.GetMessagePosted().GetInThread() != ""
+		return true
 	case *corev1.Event_MessageEdited, *corev1.Event_MessageRetracted:
 		return true
 	case *corev1.Event_UserKeyShreddingRequested, *corev1.Event_UserKeyShredded:

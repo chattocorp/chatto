@@ -237,7 +237,7 @@ func (a *API) BuildRealtimeProjectionSnapshot(ctx context.Context, userID string
 		}
 		seenTimelineRooms[roomID] = struct{}{}
 		if room := memberRooms[roomID]; room != nil {
-			canRead, err := a.core.CanReadMessages(ctx, userID, core.KindOfRoom(room.Room), room.Room.GetId())
+			canRead, err := a.core.CanAccessRoomMessages(ctx, userID, core.KindOfRoom(room.Room), room.Room.GetId())
 			if err != nil {
 				return nil, fmt.Errorf("authorize realtime timeline %q: %w", roomID, err)
 			}

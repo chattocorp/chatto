@@ -491,7 +491,8 @@ Reads room-scoped asset metadata and freshly signed asset URLs.
 ### GetAsset
 
 Reads one asset. Authentication and room membership are required.
-Channel-room assets also require message.read. DM membership authorizes DM
+Channel-room assets also require message.read or a matching thread
+relationship with message.read-interactions. DM membership authorizes DM
 assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
 different room.
 
@@ -528,10 +529,11 @@ Response containing one room-scoped asset.
 ### BatchGetAssets
 
 Reads many assets in one room. Authentication and room membership are
-required. Channel-room assets also require message.read. DM membership
-authorizes DM assets. Missing, deleted, and wrong-room asset IDs are
-omitted. Results preserve first-seen request order, and repeated asset IDs
-are de-duplicated.
+required. Channel-room assets also require message.read or a matching
+thread relationship with message.read-interactions. DM membership
+authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
+IDs are omitted. Results preserve first-seen request order, and repeated
+asset IDs are de-duplicated.
 
 ```http
 POST /api/connect/chatto.api.v1.AssetService/BatchGetAssets
@@ -1161,7 +1163,8 @@ Current message-search availability.
 ### SearchMessages
 
 Searches current message bodies in rooms where the caller is a member.
-Channel-room results also require message.read. DM membership authorizes DM
+Channel-room results also require message.read or a matching thread
+relationship with message.read-interactions. DM membership authorizes DM
 results. Results are authorized and hydrated from current Chatto state
 after provider matching. Returns FAILED_PRECONDITION when Search is
 disabled and UNAVAILABLE when its provider is not ready.
@@ -1295,8 +1298,8 @@ Edits a message body. Authors can edit their own messages within the edit
 window. Non-authors need message.manage and cannot change channel echo
 state. Disabled rooms reject creation of a new channel echo while allowing
 an existing echo to be removed. Room membership is also required.
-Channel-room edits require message.read. DM membership authorizes the DM
-read.
+Channel-room edits require message.read or a matching thread relationship
+with message.read-interactions. DM membership authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/UpdateMessage
@@ -1436,9 +1439,10 @@ Result of removing a link preview from a message.
 Reads one renderable message, including current body, attachment metadata,
 link preview, reactions, thread metadata, and pin state. Authentication
 and room membership are required. Channel-room reads also require
-message.read. DM membership authorizes DM reads. Returns NOT_FOUND when the
-event does not exist, is not a message, has been retracted, or belongs to a
-different room.
+message.read or a matching thread relationship with
+message.read-interactions. DM membership authorizes DM reads. Returns
+NOT_FOUND when the event does not exist, is not a message, has been
+retracted, or belongs to a different room.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/GetMessage
@@ -1473,9 +1477,10 @@ Response containing one renderable message.
 
 Reads many renderable messages and their current pin state in one room.
 Authentication and room membership are required. Channel-room reads also
-require message.read. DM membership authorizes DM reads. Missing,
-retracted, non-message, and wrong-room event IDs are omitted. Results
-preserve first-seen request order, and repeated event IDs are
+require message.read or a matching thread relationship with
+message.read-interactions. DM membership authorizes DM reads. Missing,
+retracted, non-message, wrong-room, and inaccessible event IDs are omitted.
+Results preserve first-seen request order, and repeated event IDs are
 de-duplicated.
 
 ```http
@@ -1510,8 +1515,9 @@ Response containing renderable messages.
 ### AddReaction
 
 Adds a reaction to a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read. DM
-membership authorizes the DM read.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read-interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/AddReaction
@@ -1553,8 +1559,9 @@ Result of adding a reaction.
 ### RemoveReaction
 
 Removes a reaction from a message. The user must be a room member and have
-message.react. Channel-room reactions also require message.read. DM
-membership authorizes the DM read.
+message.react. Channel-room reactions also require message.read or a
+matching thread relationship with message.read-interactions. DM membership
+authorizes the DM read.
 
 ```http
 POST /api/connect/chatto.api.v1.MessageService/RemoveReaction
@@ -2093,9 +2100,11 @@ Active room bans visible to the current moderator.
 ### ListRoomAttachments
 
 Lists current message-owned room attachments. Authentication and room
-membership are required. Channel-room attachments also require
-message.read. DM membership authorizes DM attachments. Returns
-PERMISSION_DENIED when the room is inaccessible to the caller.
+membership are required. Channel-room attachments also require message.read
+or a matching thread relationship with message.read-interactions. DM
+membership authorizes DM attachments. The server omits attachments from
+inaccessible threads. Returns PERMISSION_DENIED when the room is
+inaccessible to the caller.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListRoomAttachments
@@ -2130,8 +2139,10 @@ Room-scoped attachment list response.
 
 ### ListPinnedMessages
 
-Lists current pinned messages in a channel room. Room membership and
-message.read are required; direct-message rooms do not support pins.
+Lists current pinned messages in a channel room. Room membership plus
+message.read or message.read-interactions are required. The server omits
+pins from threads that the caller cannot read. Direct-message rooms do not
+support pins.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/ListPinnedMessages
@@ -2166,8 +2177,9 @@ Current pinned messages in one channel room.
 
 ### CreatePinnedMessage
 
-Pins a current message. The caller must have room.manage and message.read.
-Repeating an existing pin is idempotent. Direct-message rooms are rejected.
+Pins a current message. The caller must have room.manage and must be able
+to read the message. Repeating an existing pin is idempotent. Direct-message
+rooms are rejected.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/CreatePinnedMessage
@@ -2270,7 +2282,9 @@ Result of refreshing a typing indicator.
 
 Returns one page of room timeline events, including related user data
 needed to render the page. Room membership is required. Channel-room reads
-also require message.read. DM membership authorizes DM reads.
+also require message.read or message.read-interactions. The server returns
+only related thread roots for an interaction-scoped caller. DM membership
+authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEvents
@@ -2312,8 +2326,9 @@ Response containing one room timeline page.
 Returns a room timeline window centered around a specific event. Use this to
 open a permalink, search result, or notification target in context. Returns
 NOT_FOUND when the anchor event is missing or not visible in the room
-timeline. Returns PERMISSION_DENIED when room membership is missing or when
-channel-room message.read is missing. DM membership authorizes DM reads.
+timeline. Returns PERMISSION_DENIED when room membership or both read modes
+are missing, or when the anchor is in an unrelated thread. DM membership
+authorizes DM reads.
 
 ```http
 POST /api/connect/chatto.api.v1.RoomService/GetRoomEventsAround
@@ -2352,9 +2367,10 @@ Response containing a room timeline window around a specific event.
 ### MarkRoomAsRead
 
 Marks a room timeline as read through the supplied event. Room membership
-is required. Channel-room reads also require message.read. DM membership
-authorizes DM reads. If no event is supplied, the server marks through the
-room's latest root event. Clients
+is required. Channel-room reads also require message.read or
+message.read-interactions. DM membership authorizes DM reads. If no event
+is supplied, the server marks through the latest root event that the caller
+can read. Clients
 usually call this after the user has viewed the latest visible event in the
 room.
 
@@ -2579,11 +2595,12 @@ Reads, marks read, and deletes notifications for the authenticated viewer.
 ### GetNotificationOccurrence
 
 Gets one exact visible occurrence. Message-derived occurrences require
-current room membership. Channel-room occurrences also require
-message.read. DM membership authorizes DM occurrences. Returns NOT_FOUND
-when the occurrence is absent, deleted, expired, or no longer visible to
-the authenticated viewer. Returns UNIMPLEMENTED when this server cannot
-validate its signal kind.
+current room membership. Channel-room occurrences also require message.read
+or a matching thread relationship with message.read-interactions. DM
+membership authorizes DM occurrences. Returns NOT_FOUND when the occurrence
+is absent, deleted, expired, or no longer visible to the authenticated
+viewer. Returns UNIMPLEMENTED when this server cannot validate its signal
+kind.
 
 ```http
 POST /api/connect/chatto.api.v1.NotificationService/GetNotificationOccurrence
@@ -2652,9 +2669,9 @@ Exact visible notification occurrences requested by stable ID.
 
 Lists exact Notifications 2.0 occurrences. Clients may derive temporary
 presentation groups without changing occurrence identity or counts.
-Message-derived occurrences require current room membership.
-Channel-room occurrences also require message.read. DM membership
-authorizes DM occurrences.
+Message-derived occurrences require current room membership. Channel-room
+occurrences also require message.read or a matching thread relationship
+with message.read-interactions. DM membership authorizes DM occurrences.
 Returns UNIMPLEMENTED rather than silently omitting an occurrence whose
 signal kind this server version cannot validate and assemble.
 
@@ -3379,14 +3396,85 @@ Authenticated server runtime configuration response.
 
 Manages thread follow state for the current user.
 
+<a id="chatto-api-v1-ThreadService-GetInteraction"></a>
+
+### GetInteraction
+
+Returns one active interaction relationship for the current account.
+Room membership and message.read-interactions are required. Returns
+NOT_FOUND when no relationship exists.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/GetInteraction
+```
+
+<a id="chatto-api-v1-GetInteractionRequest"></a>
+
+#### Input: GetInteractionRequest
+
+Request for one interaction relationship of the current account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Required. Channel room containing the thread. |
+| `thread_root_event_id` | `string` | Required. Event ID of the thread root message. |
+
+
+<a id="chatto-api-v1-GetInteractionResponse"></a>
+
+#### Result: GetInteractionResponse
+
+Response containing one current interaction relationship.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `interaction` | [`ThreadInteraction`](#chatto-api-v1-ThreadInteraction) | Current relationship. |
+
+
+<a id="chatto-api-v1-ThreadService-ListInteractions"></a>
+
+### ListInteractions
+
+Lists active interaction relationships for the current account. Rows
+without current room membership or message.read-interactions are omitted.
+Clients can use this list to recover thread access after a realtime reset.
+
+```http
+POST /api/connect/chatto.api.v1.ThreadService/ListInteractions
+```
+
+<a id="chatto-api-v1-ListInteractionsRequest"></a>
+
+#### Input: ListInteractionsRequest
+
+Request for a page of the current account's interaction relationships.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
+
+
+<a id="chatto-api-v1-ListInteractionsResponse"></a>
+
+#### Result: ListInteractionsResponse
+
+Response containing one interaction relationship page.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `interactions` | repeated [`ThreadInteraction`](#chatto-api-v1-ThreadInteraction) | Relationships in newest-activity-first order. |
+| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
+
+
 <a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
 
 ### ListFollowedThreads
 
 Returns followed threads in rooms where the current user is a member.
-Channel-room threads also require message.read. Historical DM threads use
-DM membership. The result includes enough root-message data for clients to
-render the list without extra per-field fetches.
+Channel-room threads also require message.read or an active relationship
+with message.read-interactions. Historical DM threads use DM membership.
+The result includes enough root-message data for clients to render the
+list without extra per-field fetches.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/ListFollowedThreads
@@ -3420,8 +3508,9 @@ Response containing one followed-thread page.
 
 ### FollowThread
 
-Follows a thread for the current user. Room membership and channel-room
-message.read are required. DMs do not support current thread actions.
+Follows a thread for the current user. Room membership plus message.read or
+an active relationship with message.read-interactions are required. DMs do
+not support current thread actions.
 Followed threads can be surfaced in clients and can participate in thread
 notification behavior.
 
@@ -3457,10 +3546,10 @@ Result of following a thread.
 
 ### UnfollowThread
 
-Stops following a thread for the current user. Room membership and
-channel-room message.read are required. DMs do not support current thread
-actions. The response reports the resulting follow state so clients can
-update local UI immediately.
+Stops following a thread for the current user. Room membership plus
+message.read or an active relationship with message.read-interactions are
+required. DMs do not support current thread actions. The response reports
+the resulting follow state so clients can update local UI immediately.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/UnfollowThread
@@ -3495,9 +3584,10 @@ Result of unfollowing a thread.
 ### GetThreadEvents
 
 Returns one page of events in a message thread. Room membership is
-required. Channel-room reads also require message.read. Historical DM
-threads use DM membership. Initial pages include the thread root message;
-cursor pages return replies in the requested direction.
+required. Channel-room reads also require message.read or an active
+relationship with message.read-interactions. Historical DM threads use DM
+membership. Initial pages include the thread root message; cursor pages
+return replies in the requested direction.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEvents
@@ -3541,9 +3631,9 @@ Response containing one thread timeline page.
 Returns a thread timeline window centered around a specific event. Use this
 to open a reply from a notification or search result in context. Returns
 NOT_FOUND when the thread root or anchor event is missing or hidden.
-Returns PERMISSION_DENIED when room membership is missing or when
-channel-room message.read is missing. Historical DM threads use DM
-membership.
+Returns PERMISSION_DENIED when room membership is missing, both read modes
+are missing, or an interaction-scoped account has no relationship with the
+thread. Historical DM threads use DM membership.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/GetThreadEventsAround
@@ -3583,8 +3673,9 @@ Response containing a thread timeline window around a specific event.
 ### MarkThreadAsRead
 
 Marks a thread timeline as read through the supplied event without changing
-the room-level read marker. Room membership and channel-room message.read
-are required. DMs do not support current thread actions.
+the room-level read marker. Room membership plus message.read or an active
+relationship with message.read-interactions are required. DMs do not
+support current thread actions.
 
 ```http
 POST /api/connect/chatto.api.v1.ThreadService/MarkThreadAsRead
@@ -5125,6 +5216,35 @@ Current follow state for one thread and viewer.
 
 
 
+<a id="chatto-api-v1-ThreadInteraction"></a>
+
+### ThreadInteraction
+
+One active interaction relationship for the current account.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `room_id` | `string` | Channel room containing the thread. |
+| `thread_root_event_id` | `string` | Event ID of the thread root message. |
+| `causes` | repeated [`ThreadInteractionCause`](#chatto-api-v1-ThreadInteractionCause) | Post-time facts that established the relationship. |
+| `last_activity_at` | `google.protobuf.Timestamp` | Latest visible activity in the thread. |
+
+
+
+<a id="chatto-api-v1-ThreadInteractionCause"></a>
+
+### ThreadInteractionCause
+
+One post-time fact that established a thread interaction relationship.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `type` | [`ThreadInteractionCauseType`](#chatto-api-v1-ThreadInteractionCauseType) | Relationship cause. |
+| `source_message_event_id` | `string` | Message event that established the cause. |
+| `created_at` | `google.protobuf.Timestamp` | Time when the source message was posted. |
+
+
+
 <a id="chatto-api-v1-ActiveCall"></a>
 
 ### ActiveCall
@@ -5344,6 +5464,19 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
+
+
+<a id="chatto-api-v1-ThreadInteractionCauseType"></a>
+
+### ThreadInteractionCauseType
+
+Post-time reason that the current account is related to one thread.
+
+| Name | Number | Description |
+| --- | --- | --- |
+| `THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED` | `0` | The cause is absent or unknown. |
+| `THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED` | `1` | The current account authored the thread root. |
+| `THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION` | `2` | Another account directly mentioned the current account. |
 
 
 <a id="chatto-api-v1-CallMediaPublisherKind"></a>

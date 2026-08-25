@@ -11,6 +11,7 @@ import (
 	"github.com/nats-io/nats.go"
 	"google.golang.org/protobuf/types/known/timestamppb"
 	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -317,7 +318,14 @@ func (s *MyEventsModel) filterLiveSyncEvent(ctx context.Context, userID string, 
 			return nil, false
 		}
 		if event.GetUserTyping() != nil {
-			canRead, err := s.core.CanReadMessages(ctx, userID, RoomKind(kind), roomID)
+			typing := event.GetUserTyping()
+			var canRead bool
+			var err error
+			if typing.GetThreadRootEventId() != "" {
+				canRead, err = s.core.CanReadThreadMessages(ctx, userID, RoomKind(kind), roomID, typing.GetThreadRootEventId())
+			} else {
+				canRead, err = s.core.CanReadMessages(ctx, userID, RoomKind(kind), roomID)
+			}
 			if err != nil || !canRead {
 				return nil, false
 			}
@@ -402,7 +410,7 @@ func (s *MyEventsModel) filterReadyEVTRoomSubjectEvent(userID string, memberRoom
 		if err != nil {
 			return nil, false
 		}
-		canRead, err := s.core.CanReadMessages(context.Background(), userID, kind, protectedRoomID)
+		canRead, err := s.core.CanReadMessageEvent(context.Background(), userID, kind, protectedRoomID, event)
 		if err != nil || !canRead {
 			return nil, false
 		}
@@ -421,7 +429,7 @@ func (s *MyEventsModel) filterReadyEVTAssetSubjectEvent(userID string, memberRoo
 	if err != nil {
 		return nil, false
 	}
-	canRead, err := s.core.CanReadMessages(context.Background(), userID, kind, roomID)
+	canRead, err := s.core.CanReadMessageEvent(context.Background(), userID, kind, roomID, event)
 	if err != nil || !canRead {
 		return nil, false
 	}
@@ -445,11 +453,34 @@ func (s *MyEventsModel) waitForLiveEVTRoomEvent(ctx context.Context, subject str
 			return err
 		}
 	}
-	return nil
+	return s.waitForLiveMessageAuthorization(ctx, event)
 }
 
-func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, seq uint64) error {
-	return s.core.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq))
+func (s *MyEventsModel) waitForLiveEVTAssetEvent(ctx context.Context, subject string, event *corev1.Event, seq uint64) error {
+	if err := s.core.assetModel.waitForAssets(ctx, events.SubjectPosition(subject, seq)); err != nil {
+		return err
+	}
+	return s.waitForLiveMessageAuthorization(ctx, event)
+}
+
+func (s *MyEventsModel) waitForLiveMessageAuthorization(ctx context.Context, event *corev1.Event) error {
+	roomID, protected := s.core.MessageReadProtectedEventRoomID(event)
+	if !protected {
+		return nil
+	}
+	messageEventID, hasSource := s.core.MessageEventSourceMessageID(roomID, event)
+	if !hasSource {
+		return nil
+	}
+	entry, ok := s.core.roomModel.timelineEntry(messageEventID)
+	if !ok || entry == nil || entry.Event == nil || entry.StreamSeq == 0 {
+		return fmt.Errorf("message authorization source %q is not projected", messageEventID)
+	}
+	position := events.SubjectPosition(evtstream.RoomAggregate(roomID).SubjectFor(entry.Event), entry.StreamSeq)
+	if err := s.core.roomModel.waitForThreads(ctx, position); err != nil {
+		return fmt.Errorf("wait for message authorization source %q: %w", messageEventID, err)
+	}
+	return nil
 }
 
 func (s *MyEventsModel) waitForLiveEVTUserEvent(ctx context.Context, subject string, seq uint64) error {

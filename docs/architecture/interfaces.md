@@ -84,6 +84,13 @@ first-seen order, and omits missing or inaccessible resource scopes. The
 existing `NotificationService` policy methods remain available for server and
 room integrations.
 
+`ThreadService.GetInteraction` and `ThreadService.ListInteractions` expose the
+authenticated account's current derived thread relationships and their typed
+post-time causes. Each result requires current channel-room membership and
+`message.read-interactions`. Clients use this service to recover related
+threads after a realtime reset. The service does not expose projection
+coordinates or create a durable relationship grant.
+
 `AdminDiagnosticsService.GetSystemInfo` is owner-only and includes
 broker-derived status for Chatto's known durable worker queues. The additive
 worker list is absent on older servers; clients must treat that as diagnostics

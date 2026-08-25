@@ -46,8 +46,10 @@ Room timeline message hydration obtains deletion and channel-echo metadata as
 one detached snapshot through `RoomTimelineReadModel`; ConnectAPI does not read
 that projection directly. `RoomModel` is the sole production owner of the Room
 Directory, Room Group Layout, Room Timeline, Threads, and Reactions
-projections. Membership, message, thread, reaction, asset, realtime, room-group
-OCC, and sidebar-ordering paths use focused `RoomModel` operations instead of
+projections. The Threads projection also derives channel message-to-root
+mappings and account-to-thread interaction relationships from message-post
+facts. Membership, message, thread, reaction, asset, realtime, room-group OCC,
+and sidebar-ordering paths use focused `RoomModel` operations instead of
 projection fields on `ChattoCore`. Raw membership reads are named as explicit
 membership so they remain distinct from policy-derived Universal-room access.
 
@@ -248,7 +250,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Projection | Contract | Payload store | Pointer store | Publication |
 | ---------- | -------- | ------------- | ------------- | ----------- |
 | Room Directory, Notification Decisions, Notifications, Server Config, Room Group Layout, Call State, Reactions, Content Keys, RBAC | `v1` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Elected publisher checks hourly; cold/delta replay publishes immediately and unchanged state refreshes at 23 hours. Notification Decisions caps restore and publication at the notification worker's full acknowledged EVT floor. Notifications binds its snapshots to the independent `NOTIFICATIONS` stream identity and sequence |
-| Threads, Mentionables | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates pre-request snapshot contracts |
+| Threads, Mentionables | `v2` per projection | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Threads restores channel-room identity, canonical message-to-thread mappings, and post-time interaction causes. The key-shredding request boundary invalidates pre-request snapshot contracts |
 | Room Timeline | `v7` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores call lifecycle and Threading Mode change rows plus active pin associations, and rebuilds Slow Mode's latest-original-post index; earlier contracts remain isolated |
 | Assets | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | Restores explicit exclusive attachments while retaining first uploader-authored message-reference ownership for older histories; earlier snapshots remain independently addressable during rollout and rollback |
 | Users (profile state only) | `v3` | `PROJECTION_SNAPSHOTS` or configured S3 | Encrypted per-projection `RUNTIME_STATE` pointer with KV revision OCC | The key-shredding request boundary invalidates `v2` snapshots |
@@ -263,7 +265,7 @@ reconstruction. Legacy cohort paths remain outside application S3 expiry.
 | Room organization  | Room Group Layout    | `evt.group.>`, `evt.layout.>`                              | `RoomGroupProjection`, `RoomLayoutProjection`; sidebar groups, sidebar links, and mixed sidebar item ordering |
 | Room timeline      | Room Timeline        | `evt.room.>`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Visible room timeline including call start/end and Threading Mode change facts, latest message bodies, tombstone timestamps, hidden echoes, current attachment-bearing message index, direct message-post lookup, active canonical pinned-message associations, the latest pin-fact marker per room, and latest original post by room and author |
 | Assets             | Assets               | `evt.asset.>`, legacy `evt.room.*.asset_*`, `evt.room.*.message_body` | `AssetModel`; detached asset declaration/room/processing/deletion snapshots, derivative graph, exclusive message attachment/author references, public link-preview image references, and legacy uploader-matched first-reference compatibility |
-| Threads            | Threads              | `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Per-thread existence, reply logs, summaries, participants, reply counts, and follow state  |
+| Threads            | Threads              | `evt.room.*.room_created`, `evt.room.*.room_deleted`, `evt.room.*.thread_created`, `evt.room.*.thread_followed`, `evt.room.*.thread_unfollowed`, `evt.room.*.message_posted`, `evt.room.*.message_edited`, `evt.room.*.message_retracted`, `evt.user.*.user_key_shredding_requested`, `evt.user.*.user_key_shredded` | Per-thread existence, reply logs, summaries, participants, reply counts, follow state, canonical message-to-thread mappings, and account-to-thread interaction relationships with typed post-time causes |
 | Reactions          | Reactions            | `evt.room.>`                                               | Current canonical per-message reaction sets, echo-to-original reaction aliases, and room-scoped snapshot OCC positions; intentionally broad so reaction writes can OCC against the room tail |
 | Voice calls        | Call State           | `evt.room.>`                                               | Current LiveKit call session, participants, active room IDs, and room-scoped snapshot OCC positions |
 | Server/user config | Server Config        | `evt.config.>`, selected user cleanup/preference facts     | `ConfigModel`; server config, branding refs, user preferences, explicit per-signal-class server/room-group/room notification delivery modes, blocked usernames; group deletion leaves group override maps inert; historical coarse notification-level facts decode but have no projected effect |
@@ -287,8 +289,9 @@ projection-owned physical consumer filters.
 Focused logical filters suit stable derived indexes such as Threads. Broad
 filters remain intentional for projections whose snapshots expose room-tail
 OCC positions, such as Reactions and Call State. Threads reports the focused
-logical subjects above for waits and diagnostics; non-thread room facts are
-skipped before `Apply`.
+logical subjects above for waits and diagnostics. It applies channel room
+lifecycle and message facts for interaction authorization and skips unrelated
+room facts before `Apply`.
 
 Room Timeline, Threads, Assets, and Notification Decisions physically replay
 through one `evt.>` filter. Their narrower logical subjects still determine

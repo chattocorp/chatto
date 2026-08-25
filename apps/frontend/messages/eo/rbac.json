@@ -102,6 +102,7 @@
       "room_manage": "Redaktu agordojn kaj permesojn de ĉambro, kaj forigu ĉambrojn",
       "room_ban_member": "Malpermesu membrojn de ĉambroj",
       "message_read": "Legi mesaĝojn en kanalĉambroj",
+      "message_read_interactions": "Legi kompletajn fadenojn, kiujn vi verkis aŭ en kiuj alia uzanto rekte menciis vin",
       "message_post": "Afiŝu radikajn mesaĝojn en ĉambroj kaj komencu DM-ojn",
       "message_post_in_thread": "Afiŝu respondojn ene de fadeno",
       "message_attach": "Aligu dosierojn al mesaĝoj",

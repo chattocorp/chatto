@@ -904,7 +904,12 @@ func (s *HTTPServer) mapRealtimeLive(ctx context.Context, viewerID string, envel
 		if !isMember {
 			return core.ErrPermissionDenied
 		}
-		canRead, err := s.core.CanReadMessages(ctx, viewerID, kind, typing.GetRoomId())
+		var canRead bool
+		if typing.GetThreadRootEventId() != "" {
+			canRead, err = s.core.CanReadThreadMessages(ctx, viewerID, kind, typing.GetRoomId(), typing.GetThreadRootEventId())
+		} else {
+			canRead, err = s.core.CanReadMessages(ctx, viewerID, kind, typing.GetRoomId())
+		}
 		if err != nil {
 			return err
 		}

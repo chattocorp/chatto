@@ -44,6 +44,7 @@ type DirectoryRoomViewerState struct {
 	CanListRoom            bool
 	CanJoinRoom            bool
 	CanReadMessages        bool
+	CanReadInteractions    bool
 	CanPostMessage         bool
 	CanPostInThread        bool
 	CanAttach              bool
@@ -416,8 +417,12 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 	if err != nil {
 		return DirectoryRoomViewerState{}, err
 	}
+	canReadInteractions, err := s.core.CanReadMessageInteractions(ctx, actorID, kind, room.Id)
+	if err != nil {
+		return DirectoryRoomViewerState{}, err
+	}
 	hasUnread := false
-	if isMember && canReadMessages {
+	if isMember && (canReadMessages || canReadInteractions) {
 		hasUnread, err = s.core.HasUnread(ctx, kind, actorID, room.Id)
 		if err != nil {
 			return DirectoryRoomViewerState{}, err
@@ -488,6 +493,7 @@ func (s *RoomDirectoryReadModel) roomViewerState(ctx context.Context, actorID st
 		CanListRoom:            canList,
 		CanJoinRoom:            canJoin,
 		CanReadMessages:        isMember && canReadMessages,
+		CanReadInteractions:    isMember && canReadInteractions,
 		CanPostMessage:         canPostMessage,
 		CanPostInThread:        canPostInThread,
 		CanAttach:              canAttach,

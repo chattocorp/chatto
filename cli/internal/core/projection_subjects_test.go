@@ -76,6 +76,8 @@ func TestProjectionSubjectPolicy(t *testing.T) {
 			name: "threads use focused room event families plus key shredding",
 			got:  NewThreadProjection().Subjects(),
 			want: []string{
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomCreated),
+				evtstream.RoomEventTypeFilter(evtstream.EventRoomDeleted),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadCreated),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadFollowed),
 				evtstream.RoomEventTypeFilter(evtstream.EventThreadUnfollowed),

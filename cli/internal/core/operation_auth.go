@@ -39,13 +39,45 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 }
 
 // requireRoomMessageReader preserves membership as the first privacy boundary,
-// then applies the room-kind message-content boundary.
+// then requires at least one configured room message-read mode. A caller that
+// has only interaction-scoped access must still filter or authorize the target
+// thread or message.
 func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {
 		return nil, KindChannel, err
 	}
-	allowed, err := c.CanReadMessages(ctx, actorID, kind, room.GetId())
+	allowed, err := c.CanAccessRoomMessages(ctx, actorID, kind, room.GetId())
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
+func (c *ChattoCore) requireThreadMessageReader(ctx context.Context, actorID, roomID, threadRootEventID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanReadThreadMessages(ctx, actorID, kind, room.GetId(), threadRootEventID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	if !allowed {
+		return nil, KindChannel, ErrPermissionDenied
+	}
+	return room, kind, nil
+}
+
+func (c *ChattoCore) requireMessageReader(ctx context.Context, actorID, roomID, messageEventID string) (*corev1.Room, RoomKind, error) {
+	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
+	if err != nil {
+		return nil, KindChannel, err
+	}
+	allowed, err := c.CanReadMessage(ctx, actorID, kind, room.GetId(), messageEventID)
 	if err != nil {
 		return nil, KindChannel, err
 	}

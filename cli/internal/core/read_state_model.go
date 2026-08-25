@@ -76,7 +76,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		hasLast     bool
 	)
 	if strings.TrimSpace(upToEventID) != "" {
-		targetEventID, targetTime, found, err := s.roomReadAnchor(ctx, kind, room.Id, upToEventID)
+		targetEventID, targetTime, found, err := s.roomReadAnchor(ctx, actorID, kind, room.Id, upToEventID)
 		if err != nil {
 			return nil, err
 		}
@@ -87,7 +87,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		}
 	}
 	if !hasLast {
-		lastEventID, lastTime, hasLast, err = s.core.GetRoomLastEvent(ctx, kind, room.Id)
+		lastEventID, lastTime, hasLast, err = s.core.GetRoomLastReadableEvent(ctx, kind, actorID, room.Id)
 		if err != nil {
 			return nil, err
 		}
@@ -135,7 +135,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 }
 
 func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, threadRootEventID, upToEventID string) (*MarkThreadAsReadResult, error) {
-	room, kind, err := s.core.requireRoomMessageReader(ctx, actorID, roomID)
+	room, kind, err := s.core.requireThreadMessageReader(ctx, actorID, roomID, threadRootEventID)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }
 
-func (s *ReadStateModel) roomReadAnchor(ctx context.Context, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
+func (s *ReadStateModel) roomReadAnchor(ctx context.Context, actorID string, kind RoomKind, roomID, eventID string) (eventIDOut string, ts time.Time, found bool, err error) {
 	if strings.TrimSpace(eventID) == "" {
 		return "", time.Time{}, false, nil
 	}
@@ -189,6 +189,13 @@ func (s *ReadStateModel) roomReadAnchor(ctx context.Context, kind RoomKind, room
 	message := event.GetMessagePosted()
 	if message == nil || message.GetInThread() != "" || message.GetEchoOfEventId() != "" {
 		return "", time.Time{}, false, invalidArgument("up_to_event_id must identify a root message in the room timeline")
+	}
+	allowed, err := s.core.CanReadMessage(ctx, actorID, kind, roomID, event.Id)
+	if err != nil {
+		return "", time.Time{}, false, err
+	}
+	if !allowed {
+		return "", time.Time{}, false, ErrPermissionDenied
 	}
 	if createdAt := event.GetCreatedAt(); createdAt != nil {
 		return event.Id, createdAt.AsTime(), true, nil

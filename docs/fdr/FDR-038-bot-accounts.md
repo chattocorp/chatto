@@ -48,9 +48,11 @@ exercise more authority than its human owner currently possesses.
   permissions allow.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
-- Channel-room membership does not give a bot message content. The bot needs an
-  explicit `message.read` grant, bounded by the same permission on its owner.
-  DM membership authorizes the bot to read that DM.
+- Channel-room membership does not give a bot message content. The bot needs
+  an explicit `message.read` grant for broad access or an explicit
+  `message.read-interactions` grant for related threads. Each grant is bounded
+  by the same permission on its owner. DM membership authorizes the bot to
+  read that DM.
 - A bot cannot start or fetch a DM through `RoomService.StartDM`, even if it
   has `message.post` or the DM already exists. A human must start a DM that
   includes the bot. The bot can then interact in that DM through its normal
@@ -228,6 +230,11 @@ the DM.
 - `bot.create` — create bot accounts and become their owner.
 - `bot.manage` — view and manage every bot on the server, including reassigning
   its owner, while preserving the current owner's permission ceiling.
+- `message.read` — give the bot broad message access in configured channel
+  rooms, subject to membership and the owner's matching permission.
+- `message.read-interactions` — give the bot complete access to a
+  channel-room thread that it started or where another account directly
+  mentioned it, subject to membership and the owner's matching permission.
 
 Fresh RBAC bootstrap grants `bot.create` to `everyone` and `bot.manage` to
 `admin`. Effective owners have `bot.manage` through the virtual owner override,

@@ -16,6 +16,7 @@ const Permission = {
   ManageRoom: 'room.manage',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
+  ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   React: 'message.react'
 } as const;
@@ -217,6 +218,35 @@ describe('createRoomDirectoryAPI', () => {
       canManageOthersMessage: false,
       canManageRoom: true,
       canBanRoomMembers: false
+    });
+  });
+
+  it('admits a room when interaction-scoped reads are enabled', async () => {
+    mocks.getRoom.mockResolvedValue({
+      room: {
+        room: {
+          id: 'room-interactions',
+          name: 'bot-work',
+          kind: RoomKind.CHANNEL
+        },
+        viewerState: roomViewerState({
+          isMember: true,
+          hasUnread: false,
+          [Permission.ReadMessages]: false,
+          [Permission.ReadInteractions]: true
+        })
+      }
+    });
+
+    const api = createRoomDirectoryAPI({
+      serverId: 'remote',
+      baseUrl: '/api/connect',
+      bearerToken: null
+    });
+
+    await expect(api.getRoom('room-interactions')).resolves.toMatchObject({
+      id: 'room-interactions',
+      canReadMessages: true
     });
   });
 

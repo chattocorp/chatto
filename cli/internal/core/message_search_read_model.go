@@ -73,7 +73,7 @@ func (s *MessageSearchReadModel) ResolveScope(ctx context.Context, input Message
 			if room == nil {
 				continue
 			}
-			allowed, err := s.core.CanReadMessages(ctx, input.ActorID, KindOfRoom(room), room.GetId())
+			allowed, err := s.core.CanAccessRoomMessages(ctx, input.ActorID, KindOfRoom(room), room.GetId())
 			if err != nil {
 				return nil, err
 			}

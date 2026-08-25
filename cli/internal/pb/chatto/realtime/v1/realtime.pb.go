@@ -2718,11 +2718,11 @@ func (*RealtimeEventEnvelope_SessionTerminated) isRealtimeEventEnvelope_Event() 
 
 // Typing signal.
 //
-// This is an ephemeral signal. The viewer must be a room member. A
-// channel-room viewer also needs current `message.read` authority. DM
-// membership authorizes DM typing delivery. `room_id` and
-// `thread_root_event_id` identify where to display typing state; clients
-// normally do not hydrate it.
+// This is an ephemeral signal. The viewer must be a room member. Main-room
+// typing requires `message.read`. Thread typing requires `message.read` or a
+// matching thread relationship with `message.read-interactions`. DM membership
+// authorizes DM typing delivery. `room_id` and `thread_root_event_id` identify
+// where to display typing state; clients normally do not hydrate it.
 type RealtimeTypingEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Room where the actor is typing.

@@ -4,11 +4,45 @@
 // @ts-nocheck
 
 import type { BinaryReadOptions, FieldList, JsonReadOptions, JsonValue, PartialMessage, PlainMessage } from "@bufbuild/protobuf";
-import { Message, proto3 } from "@bufbuild/protobuf";
+import { Message, proto3, Timestamp } from "@bufbuild/protobuf";
 import { Message as Message$1, ThreadSummary } from "./message_types_pb.js";
 import { RoomSummary } from "./rooms_pb.js";
 import { PageInfo, PageRequest } from "./pagination_pb.js";
 import { RoomTimelineIncludes } from "./room_timeline_pb.js";
+
+/**
+ * Post-time reason that the current account is related to one thread.
+ *
+ * @generated from enum chatto.api.v1.ThreadInteractionCauseType
+ */
+export enum ThreadInteractionCauseType {
+  /**
+   * The cause is absent or unknown.
+   *
+   * @generated from enum value: THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED = 0;
+   */
+  UNSPECIFIED = 0,
+
+  /**
+   * The current account authored the thread root.
+   *
+   * @generated from enum value: THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED = 1;
+   */
+  ROOT_AUTHORED = 1,
+
+  /**
+   * Another account directly mentioned the current account.
+   *
+   * @generated from enum value: THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION = 2;
+   */
+  DIRECT_MENTION = 2,
+}
+// Retrieve enum metadata with: proto3.getEnumType(ThreadInteractionCauseType)
+proto3.util.setEnumType(ThreadInteractionCauseType, "chatto.api.v1.ThreadInteractionCauseType", [
+  { no: 0, name: "THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED" },
+  { no: 1, name: "THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED" },
+  { no: 2, name: "THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION" },
+]);
 
 /**
  * Current follow state for one thread and viewer.
@@ -416,5 +450,307 @@ export class ListFollowedThreadsResponse extends Message<ListFollowedThreadsResp
 
   static equals(a: ListFollowedThreadsResponse | PlainMessage<ListFollowedThreadsResponse> | undefined, b: ListFollowedThreadsResponse | PlainMessage<ListFollowedThreadsResponse> | undefined): boolean {
     return proto3.util.equals(ListFollowedThreadsResponse, a, b);
+  }
+}
+
+/**
+ * One post-time fact that established a thread interaction relationship.
+ *
+ * @generated from message chatto.api.v1.ThreadInteractionCause
+ */
+export class ThreadInteractionCause extends Message<ThreadInteractionCause> {
+  /**
+   * Relationship cause.
+   *
+   * @generated from field: chatto.api.v1.ThreadInteractionCauseType type = 1;
+   */
+  type = ThreadInteractionCauseType.UNSPECIFIED;
+
+  /**
+   * Message event that established the cause.
+   *
+   * @generated from field: string source_message_event_id = 2;
+   */
+  sourceMessageEventId = "";
+
+  /**
+   * Time when the source message was posted.
+   *
+   * @generated from field: google.protobuf.Timestamp created_at = 3;
+   */
+  createdAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ThreadInteractionCause>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadInteractionCause";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "type", kind: "enum", T: proto3.getEnumType(ThreadInteractionCauseType) },
+    { no: 2, name: "source_message_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "created_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadInteractionCause {
+    return new ThreadInteractionCause().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadInteractionCause {
+    return new ThreadInteractionCause().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadInteractionCause {
+    return new ThreadInteractionCause().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadInteractionCause | PlainMessage<ThreadInteractionCause> | undefined, b: ThreadInteractionCause | PlainMessage<ThreadInteractionCause> | undefined): boolean {
+    return proto3.util.equals(ThreadInteractionCause, a, b);
+  }
+}
+
+/**
+ * One active interaction relationship for the current account.
+ *
+ * @generated from message chatto.api.v1.ThreadInteraction
+ */
+export class ThreadInteraction extends Message<ThreadInteraction> {
+  /**
+   * Channel room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Event ID of the thread root message.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  /**
+   * Post-time facts that established the relationship.
+   *
+   * @generated from field: repeated chatto.api.v1.ThreadInteractionCause causes = 3;
+   */
+  causes: ThreadInteractionCause[] = [];
+
+  /**
+   * Latest visible activity in the thread.
+   *
+   * @generated from field: google.protobuf.Timestamp last_activity_at = 4;
+   */
+  lastActivityAt?: Timestamp;
+
+  constructor(data?: PartialMessage<ThreadInteraction>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ThreadInteraction";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 3, name: "causes", kind: "message", T: ThreadInteractionCause, repeated: true },
+    { no: 4, name: "last_activity_at", kind: "message", T: Timestamp },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ThreadInteraction {
+    return new ThreadInteraction().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ThreadInteraction {
+    return new ThreadInteraction().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ThreadInteraction {
+    return new ThreadInteraction().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ThreadInteraction | PlainMessage<ThreadInteraction> | undefined, b: ThreadInteraction | PlainMessage<ThreadInteraction> | undefined): boolean {
+    return proto3.util.equals(ThreadInteraction, a, b);
+  }
+}
+
+/**
+ * Request for one interaction relationship of the current account.
+ *
+ * @generated from message chatto.api.v1.GetInteractionRequest
+ */
+export class GetInteractionRequest extends Message<GetInteractionRequest> {
+  /**
+   * Required. Channel room containing the thread.
+   *
+   * @generated from field: string room_id = 1;
+   */
+  roomId = "";
+
+  /**
+   * Required. Event ID of the thread root message.
+   *
+   * @generated from field: string thread_root_event_id = 2;
+   */
+  threadRootEventId = "";
+
+  constructor(data?: PartialMessage<GetInteractionRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetInteractionRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "room_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+    { no: 2, name: "thread_root_event_id", kind: "scalar", T: 9 /* ScalarType.STRING */ },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInteractionRequest {
+    return new GetInteractionRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInteractionRequest {
+    return new GetInteractionRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInteractionRequest {
+    return new GetInteractionRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetInteractionRequest | PlainMessage<GetInteractionRequest> | undefined, b: GetInteractionRequest | PlainMessage<GetInteractionRequest> | undefined): boolean {
+    return proto3.util.equals(GetInteractionRequest, a, b);
+  }
+}
+
+/**
+ * Response containing one current interaction relationship.
+ *
+ * @generated from message chatto.api.v1.GetInteractionResponse
+ */
+export class GetInteractionResponse extends Message<GetInteractionResponse> {
+  /**
+   * Current relationship.
+   *
+   * @generated from field: chatto.api.v1.ThreadInteraction interaction = 1;
+   */
+  interaction?: ThreadInteraction;
+
+  constructor(data?: PartialMessage<GetInteractionResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.GetInteractionResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "interaction", kind: "message", T: ThreadInteraction },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): GetInteractionResponse {
+    return new GetInteractionResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): GetInteractionResponse {
+    return new GetInteractionResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): GetInteractionResponse {
+    return new GetInteractionResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: GetInteractionResponse | PlainMessage<GetInteractionResponse> | undefined, b: GetInteractionResponse | PlainMessage<GetInteractionResponse> | undefined): boolean {
+    return proto3.util.equals(GetInteractionResponse, a, b);
+  }
+}
+
+/**
+ * Request for a page of the current account's interaction relationships.
+ *
+ * @generated from message chatto.api.v1.ListInteractionsRequest
+ */
+export class ListInteractionsRequest extends Message<ListInteractionsRequest> {
+  /**
+   * Page request. Defaults to 20 results when absent or limit is zero.
+   *
+   * @generated from field: chatto.api.v1.PageRequest page = 1;
+   */
+  page?: PageRequest;
+
+  constructor(data?: PartialMessage<ListInteractionsRequest>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListInteractionsRequest";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "page", kind: "message", T: PageRequest },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInteractionsRequest {
+    return new ListInteractionsRequest().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInteractionsRequest {
+    return new ListInteractionsRequest().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInteractionsRequest {
+    return new ListInteractionsRequest().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListInteractionsRequest | PlainMessage<ListInteractionsRequest> | undefined, b: ListInteractionsRequest | PlainMessage<ListInteractionsRequest> | undefined): boolean {
+    return proto3.util.equals(ListInteractionsRequest, a, b);
+  }
+}
+
+/**
+ * Response containing one interaction relationship page.
+ *
+ * @generated from message chatto.api.v1.ListInteractionsResponse
+ */
+export class ListInteractionsResponse extends Message<ListInteractionsResponse> {
+  /**
+   * Relationships in newest-activity-first order.
+   *
+   * @generated from field: repeated chatto.api.v1.ThreadInteraction interactions = 1;
+   */
+  interactions: ThreadInteraction[] = [];
+
+  /**
+   * Page metadata.
+   *
+   * @generated from field: chatto.api.v1.PageInfo page = 2;
+   */
+  page?: PageInfo;
+
+  constructor(data?: PartialMessage<ListInteractionsResponse>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.ListInteractionsResponse";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "interactions", kind: "message", T: ThreadInteraction, repeated: true },
+    { no: 2, name: "page", kind: "message", T: PageInfo },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): ListInteractionsResponse {
+    return new ListInteractionsResponse().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): ListInteractionsResponse {
+    return new ListInteractionsResponse().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): ListInteractionsResponse {
+    return new ListInteractionsResponse().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: ListInteractionsResponse | PlainMessage<ListInteractionsResponse> | undefined, b: ListInteractionsResponse | PlainMessage<ListInteractionsResponse> | undefined): boolean {
+    return proto3.util.equals(ListInteractionsResponse, a, b);
   }
 }

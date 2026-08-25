@@ -938,7 +938,15 @@ func (m *NotificationOccurrenceModel) targetVisibleFromCurrentProjections(ctx co
 	if err != nil || !member {
 		return member, err
 	}
-	allowed, err := m.core.CanReadMessages(ctx, recipientID, KindOfRoom(room), room.GetId())
+	entry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
+	if !ok || entry == nil || entry.Event == nil {
+		return false, nil
+	}
+	messagePosition := events.SubjectPosition(evtstream.RoomAggregate(room.GetId()).SubjectFor(entry.Event), entry.StreamSeq)
+	if err := m.core.roomModel.waitForThreads(ctx, messagePosition); err != nil {
+		return false, fmt.Errorf("wait for notification message relationship: %w", err)
+	}
+	allowed, err := m.core.CanReadMessage(ctx, recipientID, KindOfRoom(room), room.GetId(), message.GetEventId())
 	if err != nil || !allowed {
 		return allowed, err
 	}

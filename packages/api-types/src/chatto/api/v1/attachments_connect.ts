@@ -16,7 +16,8 @@ export const AssetService = {
   methods: {
     /**
      * Reads one asset. Authentication and room membership are required.
-     * Channel-room assets also require message.read. DM membership authorizes DM
+     * Channel-room assets also require message.read or a matching thread
+     * relationship with message.read-interactions. DM membership authorizes DM
      * assets. Returns NOT_FOUND when the asset is missing, deleted, or owned by a
      * different room.
      *
@@ -30,10 +31,11 @@ export const AssetService = {
     },
     /**
      * Reads many assets in one room. Authentication and room membership are
-     * required. Channel-room assets also require message.read. DM membership
-     * authorizes DM assets. Missing, deleted, and wrong-room asset IDs are
-     * omitted. Results preserve first-seen request order, and repeated asset IDs
-     * are de-duplicated.
+     * required. Channel-room assets also require message.read or a matching
+     * thread relationship with message.read-interactions. DM membership
+     * authorizes DM assets. Missing, deleted, wrong-room, and inaccessible asset
+     * IDs are omitted. Results preserve first-seen request order, and repeated
+     * asset IDs are de-duplicated.
      *
      * @generated from rpc chatto.api.v1.AssetService.BatchGetAssets
      */

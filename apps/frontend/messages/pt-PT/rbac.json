@@ -102,6 +102,7 @@
       "room_manage": "Edite as definições e permissões de uma sala e apague salas",
       "room_ban_member": "Banir membros das salas",
       "message_read": "Ler mensagens em salas de canal",
+      "message_read_interactions": "Ler tópicos completos que criou ou nos quais outro utilizador o mencionou diretamente",
       "message_post": "Publicar mensagens root nas salas e iniciar DMs",
       "message_post_in_thread": "Colocar respostas dentro de um tópico",
       "message_attach": "Anexar ficheiros às mensagens",

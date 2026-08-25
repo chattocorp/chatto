@@ -86,6 +86,7 @@ const RoomPermission = {
   JoinRoom: 'room.join',
   ManageMessage: 'message.manage',
   ManageRoom: 'room.manage',
+  ReadInteractions: 'message.read-interactions',
   ReadMessages: 'message.read',
   PostInThread: 'message.post-in-thread',
   PostMessage: 'message.post',
@@ -205,7 +206,10 @@ export function mapDirectoryRoom(entry: RoomWithViewerState): DirectoryRoomSumma
     slowModeNextPostAt: entry.viewerState?.slowModeNextPostAt?.toDate().toISOString() ?? null,
     isMember: entry.viewerState?.isMember ?? false,
     hasUnread: entry.viewerState?.hasUnread ?? false,
-    canReadMessages: roomPermissionDecision(entry.viewerState, RoomPermission.ReadMessages),
+    canReadMessages: anyRoomPermissionDecision(entry.viewerState, [
+      RoomPermission.ReadMessages,
+      RoomPermission.ReadInteractions
+    ]),
     canJoinRoom: hasRoomPermission(entry.viewerState, RoomPermission.JoinRoom),
     canManageRoom: hasRoomPermission(entry.viewerState, RoomPermission.ManageRoom)
   };
@@ -232,6 +236,16 @@ function roomPermissionDecision(
 ): boolean | null {
   const grant = state?.permissions.find((candidate) => candidate.permission === permission);
   return grant ? grant.granted : null;
+}
+
+function anyRoomPermissionDecision(
+  state: RoomViewerState | undefined,
+  permissions: readonly string[]
+): boolean | null {
+  const decisions = permissions.map((permission) => roomPermissionDecision(state, permission));
+  if (decisions.some((decision) => decision === true)) return true;
+  if (decisions.some((decision) => decision === false)) return false;
+  return null;
 }
 
 function hasRoomGroupPermission(

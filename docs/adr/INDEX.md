@@ -96,3 +96,4 @@ replace part of their original design.
 | [ADR-079](ADR-079-renewable-bearer-sessions.md) | Renewable Bearer Sessions with Rotating Refresh Credentials | Accepted | 2026-08-22 |
 | [ADR-080](ADR-080-explicit-message-read-permissions.md) | Gate Message Content with `message.read` | Accepted | 2026-08-23 |
 | [ADR-081](ADR-081-explicit-expiry-for-mutable-runtime-credentials.md) | Explicit Expiry for Mutable Runtime Credentials | Accepted | 2026-08-24 |
+| [ADR-082](ADR-082-derive-thread-interactions-from-message-facts.md) | Derive Thread Interactions from Message Facts | Accepted | 2026-08-25 |

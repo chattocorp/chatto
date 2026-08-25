@@ -279,7 +279,7 @@ func (a *API) viewerHasUnreadRooms(ctx context.Context, userID string) (bool, er
 		if found.Load() {
 			return struct{}{}, nil
 		}
-		canRead, err := a.core.CanReadMessages(ctx, userID, core.KindChannel, room.GetId())
+		canRead, err := a.core.CanAccessRoomMessages(ctx, userID, core.KindChannel, room.GetId())
 		if err != nil || !canRead {
 			return struct{}{}, err
 		}

@@ -60,9 +60,9 @@ they upgrade an existing server. They must replace all old replicas before
 they rely on a deny or absent decision as a security boundary. Old replicas
 continue to use membership-only reads.
 
-Interaction-scoped message access remains a later feature slice. This ADR does
-not select its permission name, access causes, durable representation,
-revocation rules, inspection UI, or reconnect behavior.
+ADR-081 adds interaction-scoped message access with
+`message.read-interactions`. It derives thread relationships from durable
+message facts and keeps this ADR's broad `message.read` boundary unchanged.
 
 ## Consequences
 
@@ -77,5 +77,5 @@ revocation rules, inspection UI, or reconnect behavior.
 - APIs and clients can distinguish room visibility from message-content
   visibility without treating missing permission as an implicit privacy mode.
 - The authorization change is breaking experimental behavior under ADR-045.
-- Interaction-scoped channel-room access can build on this boundary after its
-  security model is complete. It does not need a separate DM access cause.
+- Interaction-scoped channel-room access builds on this boundary through
+  ADR-081. It does not add a DM access cause.

@@ -102,6 +102,7 @@
       "room_manage": "Edytuj ustawienia i uprawnienia pokoju oraz usuwaj pokoje",
       "room_ban_member": "Zablokuj członkom dostęp do pokojów",
       "message_read": "Czytaj wiadomości w pokojach kanałów",
+      "message_read_interactions": "Czytać całe wątki utworzone przez Ciebie lub takie, w których inny użytkownik wspomniał Cię bezpośrednio",
       "message_post": "Publikuj wiadomości root w pokojach i rozpoczynaj czaty",
       "message_post_in_thread": "Publikuj odpowiedzi w wątku",
       "message_attach": "Dołącz pliki do wiadomości",

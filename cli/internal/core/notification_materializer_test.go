@@ -186,6 +186,55 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 	}
 }
 
+func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "interaction-notify-author", "Interaction Notify Author", "password")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "interaction-notify-recipient", "Interaction Notify Recipient", "password")
+	if err != nil {
+		t.Fatalf("CreateUser recipient: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.GetId(), KindChannel, "", "interaction-notify-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), recipient.GetId()} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "notification root", nil, "", "", nil, true)
+	if err != nil {
+		t.Fatalf("PostMessage root: %v", err)
+	}
+	if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	mention, err := chattoCore.PostMessage(
+		ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-notify-recipient please review", nil, root.GetId(), "", nil, false,
+	)
+	if err != nil {
+		t.Fatalf("PostMessage mention: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("WaitCurrent: %v", err)
+	}
+	occurrences := testNotificationOccurrences(t, chattoCore, recipient.GetId())
+	if len(occurrences) != 1 || occurrences[0].GetSourceEventId() != mention.GetId() || !testOccurrenceHasKind(occurrences[0], notificationTestSignalDirectMention) {
+		t.Fatalf("interaction mention occurrences = %+v, want exact direct mention", occurrences)
+	}
+	visible, err := chattoCore.NotificationOccurrences().VisibleOccurrences(ctx, recipient.GetId(), occurrences)
+	if err != nil {
+		t.Fatalf("VisibleOccurrences: %v", err)
+	}
+	if len(visible) != 1 || visible[0].GetId() != occurrences[0].GetId() {
+		t.Fatalf("visible interaction occurrences = %+v, want mention occurrence", visible)
+	}
+}
+
 func TestDirectMessagesRemainExactOccurrences(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

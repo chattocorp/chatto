@@ -265,6 +265,60 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	}
 }
 
+func TestChattoCore_HasUnread_UsesLatestReadableInteractionRoot(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chatto.CreateUser(ctx, SystemActorID, "interaction-unread-author", "Interaction Unread Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	reader, err := chatto.CreateUser(ctx, SystemActorID, "interaction-unread-reader", "Interaction Unread Reader", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser reader: %v", err)
+	}
+	room, err := chatto.CreateRoom(ctx, author.GetId(), KindChannel, "", "interaction-unread", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	for _, userID := range []string{author.GetId(), reader.GetId()} {
+		if _, err := chatto.JoinRoom(ctx, userID, KindChannel, userID, room.GetId()); err != nil {
+			t.Fatalf("JoinRoom %s: %v", userID, err)
+		}
+	}
+	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyRoomPermission message.read: %v", err)
+	}
+	first, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader first", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage first related root: %v", err)
+	}
+	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), first.GetId()); err != nil {
+		t.Fatalf("MarkRoomAsRead first related root: %v", err)
+	}
+	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated newer root", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage unrelated root: %v", err)
+	}
+	if hasUnread, err := chatto.HasUnread(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || hasUnread {
+		t.Fatalf("unread after unrelated root = %v, %v; want false", hasUnread, err)
+	}
+	second, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader second", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage second related root: %v", err)
+	}
+	if hasUnread, err := chatto.HasUnread(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || !hasUnread {
+		t.Fatalf("unread after related root = %v, %v; want true", hasUnread, err)
+	}
+	if _, err := chatto.ReadState().MarkRoomAsRead(ctx, reader.GetId(), room.GetId(), ""); err != nil {
+		t.Fatalf("MarkRoomAsRead latest readable root: %v", err)
+	}
+	if marker, err := chatto.GetLastReadEventID(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || marker != second.GetId() {
+		t.Fatalf("read marker = %q, %v; want %q (first was %q)", marker, err, second.GetId(), first.GetId())
+	}
+	if hasUnread, err := chatto.HasUnread(ctx, KindChannel, reader.GetId(), room.GetId()); err != nil || hasUnread {
+		t.Fatalf("unread after mark = %v, %v; want false", hasUnread, err)
+	}
+}
+
 func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

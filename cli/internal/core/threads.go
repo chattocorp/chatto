@@ -721,7 +721,7 @@ func (c *ChattoCore) listFollowedThreadsInSpace(ctx context.Context, userID stri
 		if !isMember {
 			continue
 		}
-		canRead, err := c.CanReadMessages(ctx, userID, kind, roomID)
+		canRead, err := c.CanReadThreadMessages(ctx, userID, kind, roomID, threadRootEventID)
 		if err != nil {
 			c.logger.Warn("Failed to check message-read authority for followed thread", "error", err, "room_id", roomID, "thread_root_event_id", threadRootEventID)
 			continue
@@ -783,7 +783,7 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 		if !isMember {
 			continue
 		}
-		canRead, err := c.CanReadMessages(ctx, userID, kind, ref.roomID)
+		canRead, err := c.CanReadThreadMessages(ctx, userID, kind, ref.roomID, ref.threadRootEventID)
 		if err != nil {
 			return nil, fmt.Errorf("read followed thread message permission %s: %w", ref.threadRootEventID, err)
 		}
