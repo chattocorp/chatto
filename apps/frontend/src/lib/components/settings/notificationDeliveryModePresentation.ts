@@ -14,21 +14,21 @@ export function notificationDeliveryModePresentation(
 ): NotificationDeliveryModePresentation {
   if (mode === NotificationDeliveryMode.OFF) {
     return {
-      icon: 'icon-[uil--bell-slash]',
+      icon: 'icon-[ph--bell-slash-fill]',
       tone: 'neutral',
       legendClass: 'bg-surface-emphasized text-muted'
     };
   }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
     return {
-      icon: 'icon-[uil--bell]',
+      icon: 'icon-[ph--bell-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     };
   }
   if (mode === NotificationDeliveryMode.PUSH_NOTIFICATION) {
     return {
-      icon: 'icon-[uil--mobile-android]',
+      icon: 'icon-[ph--device-mobile-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     };

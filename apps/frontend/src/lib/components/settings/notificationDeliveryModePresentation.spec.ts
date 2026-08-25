@@ -15,7 +15,7 @@ describe('notification delivery mode presentation', () => {
 
   it('uses the neutral crossed-out bell language for Off', () => {
     expect(notificationDeliveryModePresentation(NotificationDeliveryMode.OFF)).toEqual({
-      icon: 'icon-[uil--bell-slash]',
+      icon: 'icon-[ph--bell-slash-fill]',
       tone: 'neutral',
       legendClass: 'bg-surface-emphasized text-muted'
     });
@@ -25,14 +25,14 @@ describe('notification delivery mode presentation', () => {
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.IN_APP_NOTIFICATION)
     ).toEqual({
-      icon: 'icon-[uil--bell]',
+      icon: 'icon-[ph--bell-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     });
     expect(
       notificationDeliveryModePresentation(NotificationDeliveryMode.PUSH_NOTIFICATION)
     ).toEqual({
-      icon: 'icon-[uil--mobile-android]',
+      icon: 'icon-[ph--device-mobile-fill]',
       tone: 'warning',
       legendClass: 'bg-warning/20 text-warning'
     });

@@ -159,9 +159,9 @@ describe('NotificationPolicySettings', () => {
     expect(legend?.textContent).toContain('Off');
     expect(legend?.textContent).toContain('Notification');
     expect(legend?.textContent).toContain('Push notification');
-    expect(legend?.querySelector('[class~="icon-[uil--bell-slash]"]')).not.toBeNull();
-    expect(legend?.querySelector('[class~="icon-[uil--bell]"]')).not.toBeNull();
-    expect(legend?.querySelector('[class~="icon-[uil--mobile-android]"]')).not.toBeNull();
+    expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
+    expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
+    expect(legend?.querySelector('[class~="icon-[ph--device-mobile-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[uil--link]"]')).not.toBeNull();
   });
 
