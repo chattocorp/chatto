@@ -84,7 +84,12 @@ snippets.
     hoveredCell = { row: getRowKey(row), column: getColumnKey(column) };
   }
 
-  function setFocused(row: TRow, column: TColumn) {
+  function setFocused(row: TRow, column: TColumn, event: FocusEvent) {
+    const target = event.target;
+    if (!(target instanceof HTMLElement) || !target.matches(':focus-visible')) {
+      focusedCell = null;
+      return;
+    }
     focusedCell = { row: getRowKey(row), column: getColumnKey(column) };
   }
 </script>
@@ -147,7 +152,8 @@ snippets.
         {...cellAttributes?.(row, column) ?? {}}
         onmouseenter={interactive ? () => setHovered(row, column) : undefined}
         onmouseleave={interactive ? () => (hoveredCell = null) : undefined}
-        onfocusin={interactive ? () => setFocused(row, column) : undefined}
+        onpointerdown={interactive ? () => (focusedCell = null) : undefined}
+        onfocusin={interactive ? (event) => setFocused(row, column, event) : undefined}
         onfocusout={interactive ? () => (focusedCell = null) : undefined}
       >
         {@render cell(row, column)}

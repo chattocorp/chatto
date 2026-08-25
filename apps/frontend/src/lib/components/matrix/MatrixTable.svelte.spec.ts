@@ -1,5 +1,6 @@
 import '../../../app.css';
 import { describe, expect, it } from 'vitest';
+import { userEvent } from 'vitest/browser';
 import { render } from 'vitest-browser-svelte';
 import { flushSync } from 'svelte';
 import MatrixTableTestHarness from './MatrixTableTestHarness.svelte';
@@ -80,6 +81,34 @@ describe('MatrixTable', () => {
     button.blur();
     flushSync();
     expect(cell.className).toContain('bg-surface-emphasized/40');
+  });
+
+  it('does not retain coordinated highlighting after pointer activation', async () => {
+    const { container } = render(MatrixTableTestHarness);
+    const cell = container.querySelector(
+      '[data-test-cell="mentions:general"]'
+    ) as HTMLTableCellElement;
+    const button = cell.querySelector('button')!;
+
+    cell.dispatchEvent(new MouseEvent('mouseenter'));
+    await userEvent.click(button);
+    expect(document.activeElement).toBe(button);
+
+    cell.dispatchEvent(new MouseEvent('mouseleave'));
+    flushSync();
+
+    expect(cell.className).toContain('bg-surface-emphasized/20');
+    expect(cell.className).not.toContain('bg-action/');
+    expect(
+      container
+        .querySelector('[data-test-row-heading="mentions"]')
+        ?.getAttribute('data-highlighted')
+    ).toBe('false');
+    expect(
+      container
+        .querySelector('[data-test-column-heading="general"]')
+        ?.getAttribute('data-highlighted')
+    ).toBe('false');
   });
 
   it('does not highlight cells that the adapter marks as non-interactive', () => {
