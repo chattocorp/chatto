@@ -16,7 +16,8 @@ Chatto controls who can do what through role-based access control. Every authent
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads, and `message.read` supplies the
   explicit read authority. DM membership authorizes DM reads. `message.post`
-  separately gates starting DMs and sending root messages.
+  separately gates root-message posting and lets human users start DMs. Bot
+  accounts cannot start DMs regardless of their permissions.
 - Server admins can drag-and-drop to reorder custom roles. System role positions are fixed for ordering consistency.
 - Custom role display names are limited to 80 bytes; descriptions are limited to 500 bytes.
 - Owners are always granted all permissions. An effective owner has the durable `owner` role; verified users listed in `owners.emails` in `chatto.toml` are materialized into that role at boot or through retryable durable work after verification.
@@ -104,7 +105,11 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
   Existing servers are not backfilled or reconciled, so operators must add any
   wanted grants during upgrade. DM membership authorizes DM reads without this
   permission.
-- `message.post` — post root messages in rooms and start DMs. Fresh servers grant this to `everyone` at server scope; fresh announcement rooms replace that baseline with a room-level `everyone` deny and a room-level `admin` allow. Moderators and other named roles need their own room-level posting grant.
+- `message.post` — post root messages in rooms and let human users start DMs.
+  Bot accounts cannot start DMs. Fresh servers grant this permission to
+  `everyone` at server scope. Fresh announcement rooms replace that baseline
+  with a room-level `everyone` deny and a room-level `admin` allow. Moderators
+  and other named roles need their own room-level posting grant.
 - `message.attach` — attach files to new messages. Fresh servers grant this to `everyone` at server scope; existing servers are not automatically backfilled after upgrade, so operators may need to grant it manually if uploads should remain enabled.
 - `room.manage` — edit/configure/delete channel rooms.
 - `room.ban-member` — ban members from channel rooms. DM membership is not managed through this permission.

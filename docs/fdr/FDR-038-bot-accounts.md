@@ -277,9 +277,10 @@ override, but bots themselves cannot exercise bot-management operations.
   with owner override), ADR-045 (public API stability tiers), ADR-046 (typed
   runtime credentials), ADR-052 (subject-specific RBAC), ADR-080 (explicit
   message-read permissions)
-- **FDRs:** FDR-001 (Roles & Permissions), FDR-018 (Account Lifecycle), FDR-022
-  (User Profile), FDR-023 (Authentication & Sessions), FDR-025 (User Search &
-  Member Directory), FDR-039 (Message Access & Interactions)
+- **FDRs:** FDR-001 (Roles & Permissions), FDR-007 (Direct Messages), FDR-018
+  (Account Lifecycle), FDR-022 (User Profile), FDR-023 (Authentication &
+  Sessions), FDR-025 (User Search & Member Directory), FDR-039 (Message Access
+  & Interactions)
 
 ## Open Questions
 
