@@ -135,10 +135,10 @@ foundEmpty:
 	}
 	room, err = env.api.BuildRealtimeProjectionRoomSummary(env.ctx, env.viewer.Id, dm.Id)
 	if err != nil {
-		t.Fatalf("BuildRealtimeProjectionRoomSummary without message.read: %v", err)
+		t.Fatalf("BuildRealtimeProjectionRoomSummary after message.read denial: %v", err)
 	}
-	if room.HasMessageHistory != nil {
-		t.Fatalf("unreadable DM has_message_history = %v, want absent", *room.HasMessageHistory)
+	if room.HasMessageHistory == nil || !*room.HasMessageHistory {
+		t.Fatalf("DM has_message_history after inapplicable denial = %v, want true", room.HasMessageHistory)
 	}
 }
 

@@ -2,10 +2,6 @@
 
 **Date:** 2026-05-31
 
-> **Partially superseded by [ADR-080](ADR-080-explicit-message-read-permissions.md).**
-> DM membership remains necessary. ADR-080 adds explicit message-read
-> permissions and removes membership-only read authority.
-
 ## Context
 
 Direct messages used to carry two server-scope permissions:
@@ -43,3 +39,5 @@ This decision does not make DMs globally visible. It removes the redundant read 
   writers cannot create or extend them.
 - Subscription filtering and sidebar queries no longer need a second DM-specific read check on top of membership.
 - API fields, frontend guards, tests, and permission seed data that existed only for `dm.view` / `dm.write` have been removed.
+- The channel-room `message.read` permission does not apply to DMs. A stored
+  `message.read` decision for a DM does not change participant access.

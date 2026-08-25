@@ -67,8 +67,9 @@ const (
 
 	// ===== Message Permissions =====
 
-	// PermMessageRead allows reading message content in rooms and DMs. Room
-	// membership remains a separate, necessary access boundary.
+	// PermMessageRead allows reading message content in channel rooms. Room
+	// membership remains a separate requirement. DM membership authorizes DM
+	// reads without this permission.
 	PermMessageRead Permission = "message.read"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
@@ -171,7 +172,7 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
-	{PermMessageRead, "Read Messages", "Read message content in rooms and DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
+	{PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageAttach, "Attach Files", "Attach files to messages", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},

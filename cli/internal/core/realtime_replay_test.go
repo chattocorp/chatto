@@ -483,6 +483,52 @@ func TestPlanRealtimeReplayOmitsMessagesWithoutMessageRead(t *testing.T) {
 	}
 }
 
+func TestPlanRealtimeReplayIncludesDMMessagesDespiteMessageReadDenial(t *testing.T) {
+	chatto, _ := setupTestCore(t)
+	ctx := testContext(t)
+	viewer, err := chatto.CreateUser(ctx, SystemActorID, "replay-dm-viewer", "Replay DM Viewer", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser viewer: %v", err)
+	}
+	author, err := chatto.CreateUser(ctx, SystemActorID, "replay-dm-author", "Replay DM Author", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser author: %v", err)
+	}
+	dm, _, err := chatto.FindOrCreateDM(ctx, viewer.GetId(), []string{author.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, dm.GetId(), viewer.GetId(), PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), "")
+	if err != nil {
+		t.Fatalf("initial PlanRealtimeReplay: %v", err)
+	}
+	message, err := chatto.PostMessage(ctx, KindDM, dm.GetId(), author.GetId(), "replayed DM message", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+
+	plan, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), boundary.BoundaryCursor)
+	if err != nil {
+		t.Fatalf("PlanRealtimeReplay: %v", err)
+	}
+	if plan.Reset {
+		t.Fatalf("PlanRealtimeReplay reset = true, want incremental DM replay")
+	}
+	found := false
+	for _, event := range plan.Events {
+		if event.EVTEvent().GetId() == message.GetId() {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("PlanRealtimeReplay omitted DM message %s after inapplicable message.read denial", message.GetId())
+	}
+}
+
 func TestRealtimeReplayRequiresResetForServerProjectionAggregates(t *testing.T) {
 	for _, subject := range []string{
 		"evt.config.server.server_name_changed",

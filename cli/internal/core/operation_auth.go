@@ -39,7 +39,7 @@ func (c *ChattoCore) requireRoomMember(ctx context.Context, actorID, roomID stri
 }
 
 // requireRoomMessageReader preserves membership as the first privacy boundary,
-// then requires explicit authority to read message content.
+// then applies the room-kind message-content boundary.
 func (c *ChattoCore) requireRoomMessageReader(ctx context.Context, actorID, roomID string) (*corev1.Room, RoomKind, error) {
 	room, kind, err := c.requireRoomMember(ctx, actorID, roomID)
 	if err != nil {

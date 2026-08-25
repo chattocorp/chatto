@@ -495,6 +495,43 @@ func TestBotPermissionsAreExplicitAndOwnerCapped(t *testing.T) {
 	}
 }
 
+func TestBotDMReadUsesMembershipInsteadOfDelegatedMessageRead(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	owner, err := c.CreateUser(ctx, SystemActorID, "dm-bot-owner", "DM Bot Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := c.CreateBot(ctx, owner.GetId(), "dm_reader_bot", "DM Reader Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	participant, err := c.CreateUser(ctx, SystemActorID, "dm-bot-participant", "DM Bot Participant", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser participant: %v", err)
+	}
+	dm, _, err := c.FindOrCreateDM(ctx, participant.GetId(), []string{bot.User.GetId()})
+	if err != nil {
+		t.Fatalf("FindOrCreateDM: %v", err)
+	}
+	message, err := c.PostMessage(ctx, KindDM, dm.GetId(), participant.GetId(), "message for bot participant", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := c.DenyServerPermission(ctx, SystemActorID, RoleEveryone, PermMessageRead); err != nil {
+		t.Fatalf("DenyServerPermission message.read: %v", err)
+	}
+	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindChannel, ""); err != nil || canRead {
+		t.Fatalf("unconfigured bot channel CanReadMessages = %v, %v; want false", canRead, err)
+	}
+	if canRead, err := c.CanReadMessages(ctx, bot.User.GetId(), KindDM, dm.GetId()); err != nil || !canRead {
+		t.Fatalf("bot DM CanReadMessages = %v, %v; want true", canRead, err)
+	}
+	if _, err := c.RoomTimelineReads().GetMessage(ctx, bot.User.GetId(), dm.GetId(), message.GetId()); err != nil {
+		t.Fatalf("GetMessage as bot DM participant: %v", err)
+	}
+}
+
 func TestCanonicalUserPermissionManagementUsesBotAuthorization(t *testing.T) {
 	c, _ := setupTestCore(t)
 	ctx := testContext(t)

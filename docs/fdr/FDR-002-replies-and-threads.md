@@ -1,7 +1,7 @@
 # FDR-002: Replies & Threads
 
 **Status:** Active
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -100,7 +100,9 @@ Chatto messages can link to one another via reply attribution, and channel-room 
 
 ## Permissions
 
-- `message.read` — read room and thread timelines. Room membership is also required.
+- `message.read` — read channel-room and thread timelines. Channel-room
+  membership is also required. DM membership authorizes historical DM thread
+  reads.
 - `message.post` — post a root message (with or without `inReplyTo`) in a room. Explicitly establishing that root as a thread also requires `message.post-in-thread`; automatic root-thread creation in Required rooms does not.
 - `message.post-in-thread` — post a message inside a channel-room thread (with or without `inReplyTo`), and—together with `message.post`—explicitly establish a root as a thread. This permission does not make threads available in DMs.
 

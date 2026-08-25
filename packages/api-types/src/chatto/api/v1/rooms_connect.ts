@@ -195,9 +195,10 @@ export const RoomService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Lists current message-owned room attachments. Authentication, room
-     * membership, and message.read are required. Returns PERMISSION_DENIED when
-     * the room is inaccessible to the caller.
+     * Lists current message-owned room attachments. Authentication and room
+     * membership are required. Channel-room attachments also require
+     * message.read. DM membership authorizes DM attachments. Returns
+     * PERMISSION_DENIED when the room is inaccessible to the caller.
      *
      * @generated from rpc chatto.api.v1.RoomService.ListRoomAttachments
      */
@@ -257,7 +258,8 @@ export const RoomService = {
     },
     /**
      * Returns one page of room timeline events, including related user data
-     * needed to render the page. Room membership and message.read are required.
+     * needed to render the page. Room membership is required. Channel-room reads
+     * also require message.read. DM membership authorizes DM reads.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetRoomEvents
      */
@@ -271,8 +273,8 @@ export const RoomService = {
      * Returns a room timeline window centered around a specific event. Use this to
      * open a permalink, search result, or notification target in context. Returns
      * NOT_FOUND when the anchor event is missing or not visible in the room
-     * timeline and PERMISSION_DENIED when room membership or message.read is
-     * missing.
+     * timeline. Returns PERMISSION_DENIED when room membership is missing or when
+     * channel-room message.read is missing. DM membership authorizes DM reads.
      *
      * @generated from rpc chatto.api.v1.RoomService.GetRoomEventsAround
      */
@@ -284,8 +286,9 @@ export const RoomService = {
     },
     /**
      * Marks a room timeline as read through the supplied event. Room membership
-     * and message.read are required. If no event is
-     * supplied, the server marks through the room's latest root event. Clients
+     * is required. Channel-room reads also require message.read. DM membership
+     * authorizes DM reads. If no event is supplied, the server marks through the
+     * room's latest root event. Clients
      * usually call this after the user has viewed the latest visible event in the
      * room.
      *

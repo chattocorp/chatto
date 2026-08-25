@@ -129,7 +129,7 @@ describe('NavigationStore', () => {
     expect(navigation.rooms.map((room) => room.id)).toEqual(['newer']);
   });
 
-  it('omits a DM from navigation when message.read is denied', () => {
+  it('uses DM history instead of message.read to control DM navigation', () => {
     const projection = new ServerProjectionStore();
     projection.rooms.set(
       'unreadable-dm',
@@ -142,7 +142,7 @@ describe('NavigationStore', () => {
     const { navigation } = navigationFor(projection);
 
     expect(navigation.rooms.map((room) => room.id)).toEqual(['unreadable-dm']);
-    expect(isNavigationVisibleRoom(navigation.rooms[0])).toBe(false);
+    expect(isNavigationVisibleRoom(navigation.rooms[0])).toBe(true);
   });
 
   it('treats a missing Important count as zero after the last Important occurrence is read', () => {

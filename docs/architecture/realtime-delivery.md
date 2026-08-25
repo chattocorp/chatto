@@ -110,8 +110,9 @@ idempotent operations:
 - every public server directory user;
 - lightweight state for every room visible to the viewer and the complete
   visible room-group layout; DM participant references remain eager;
-- complete channel membership and the latest 50 renderable timeline events only
-  for retained rooms where the viewer has `message.read`;
+- complete channel membership and the latest 50 renderable timeline events for
+  retained DMs and for retained channel rooms where the viewer has
+  `message.read`;
 - the newest finite Notifications 2.0 occurrences, exact total and Important
   unread-occurrence counts, and complete per-room counterparts;
 - every active call visible to the viewer; and
@@ -124,12 +125,11 @@ crypto-erased bodies therefore appear only as normal tombstones. Requested
 timeline windows are assembled concurrently with bounded concurrency.
 Never-viewed room bodies are not decrypted during bootstrap.
 
-The projection's room set is exhaustive rather than message-read-filtered:
-it includes joined DMs that do not yet contain a message. Each DM summary says
-whether it has root-message history only when the viewer has `message.read`;
-otherwise the optional field remains absent. The bundled client retains empty
-DMs for routing and authorization but omits empty or unreadable DMs from the
-sidebar and quick switcher.
+The projection's room set is exhaustive rather than message-read-filtered. It
+includes joined DMs that do not yet contain a message. Each DM summary says
+whether it has root-message history. DM membership authorizes the read. The
+bundled client retains empty DMs for routing and authorization but omits them
+from the sidebar and quick switcher.
 The first `room_activity` operation promotes the room into navigation, while an
 absent history field from an older server preserves the previous visible
 fallback. This lets a `StartDM` response navigate immediately without exposing
@@ -200,9 +200,9 @@ projection through normal operations, then marks it ready only at `caught_up`.
 
 For a valid short gap, the handler subscribes to the process-wide live hub,
 captures an EVT cutoff, waits until every registered projection is current
-before reading membership, `message.read`, or compacted state, and performs bounded
-JetStream point reads for the
-sequences after the cursor. It does not create a JetStream consumer. Each
+before reading membership, applicable `message.read`, or compacted state, and
+performs bounded JetStream point reads for the sequences after the cursor. It
+does not create a JetStream consumer. Each
 deliverable room, asset, or user fact waits for its owning projection and is
 converted to current public resource operations. The handler sends `caught_up`
 at the cutoff, discards buffered live duplicates through that sequence, and
@@ -222,8 +222,8 @@ This lets new browsers refetch transient hydrated search plaintext without
 materialising room timelines, while older projection-v1 clients safely reapply
 the familiar state and advance their cursor.
 
-Effective membership and `message.read` changes are authoritative timeline
-boundaries. When a
+Effective membership and channel-room `message.read` changes are authoritative
+timeline boundaries. DM membership is the complete DM read boundary. When a
 viewer gains room access through a join, Universal membership, or unarchive,
 live mapping pairs the current room and any retained timeline with
 authoritative active-call and notification replacements. Newly visible calls
@@ -378,8 +378,9 @@ while continuing to process the known top-level operation.
 
 RBAC facts are fanned through the shared hub. The mapper normally responds with
 a reconnecting `projection_reset_required` close so the next subscription
-starts from current authorization and removes message state after a
-`message.read` loss. A human viewer's own direct permission
+starts from current authorization and removes channel-room message state after
+a `message.read` loss. A `message.read` decision does not remove DM state from
+a participant. A human viewer's own direct permission
 mutation targeting a bot cannot change that viewer's authorization, so their
 connection instead receives an empty projection envelope and advances its
 cursor without rebuilding the page. Other viewers, including the target bot,
@@ -412,9 +413,10 @@ hydrate only room existence, archive state, and visibility permissions.
 Administrative membership facts replace the complete current member-reference
 list for existing viewers.
 
-Message and asset facts are delivered only when the viewer is a member with
-current `message.read` authority. The hub and public projection mapper both
-check this boundary. Authorized facts carry lightweight replacements of the
+Message and asset facts are delivered only when the viewer is a member. A
+channel-room viewer also needs current `message.read` authority. DM membership
+authorizes DM delivery. The hub and public projection mapper both check this
+boundary. Authorized facts carry lightweight replacements of the
 affected room summary and viewer state alongside timeline mutations. Root
 messages also carry a content-free `room_activity` operation. Notification
 counts converge through notification signals and the finite resume
@@ -423,9 +425,9 @@ channel membership. Echo
 tombstone upserts explicitly distinguish
 canonical-reply deletion from direct echo removal.
 
-Typing is transient rather than durable, but it follows the same read
-boundary. The hub and public projection mapper suppress typing events unless
-the viewer is a member with current `message.read` authority.
+Typing is transient rather than durable, but it follows the same read boundary.
+The hub and public projection mapper suppress typing events unless the viewer
+is a member. A channel-room viewer also needs current `message.read` authority.
 
 Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
 finite `NotificationsReplace`. This keeps the retained canonical room row,

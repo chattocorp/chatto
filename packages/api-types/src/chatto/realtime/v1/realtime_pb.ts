@@ -2139,9 +2139,11 @@ export class RealtimeEventEnvelope extends Message<RealtimeEventEnvelope> {
 /**
  * Typing signal.
  *
- * This is an ephemeral signal. The viewer must be a room member with current
- * `message.read` authority. `room_id` and `thread_root_event_id` identify where
- * to display typing state; clients normally do not hydrate it.
+ * This is an ephemeral signal. The viewer must be a room member. A
+ * channel-room viewer also needs current `message.read` authority. DM
+ * membership authorizes DM typing delivery. `room_id` and
+ * `thread_root_event_id` identify where to display typing state; clients
+ * normally do not hydrate it.
  *
  * @generated from message chatto.realtime.v1.RealtimeTypingEvent
  */

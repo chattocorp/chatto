@@ -389,11 +389,7 @@ func (a *API) realtimeProjectionRoom(ctx context.Context, userID string, room *c
 	}
 	var hasMessageHistory *bool
 	if core.KindOfRoom(room.Room) == core.KindDM {
-		canRead, err := a.core.CanReadMessages(ctx, userID, core.KindDM, room.Room.GetId())
-		if err != nil {
-			return nil, err
-		}
-		if room.ViewerState.IsMember && canRead {
+		if room.ViewerState.IsMember {
 			_, _, exists, err := a.core.GetRoomLastEvent(ctx, core.KindDM, room.Room.GetId())
 			if err != nil {
 				return nil, err

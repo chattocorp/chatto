@@ -48,8 +48,9 @@ export const MessageService = {
      * Edits a message body. Authors can edit their own messages within the edit
      * window. Non-authors need message.manage and cannot change channel echo
      * state. Disabled rooms reject creation of a new channel echo while allowing
-     * an existing echo to be removed. Room membership and message.read are also
-     * required.
+     * an existing echo to be removed. Room membership is also required.
+     * Channel-room edits require message.read. DM membership authorizes the DM
+     * read.
      *
      * @generated from rpc chatto.api.v1.MessageService.UpdateMessage
      */
@@ -95,8 +96,9 @@ export const MessageService = {
     },
     /**
      * Reads one renderable message, including current body, attachment metadata,
-     * link preview, reactions, thread metadata, and pin state. Authentication,
-     * room membership, and message.read are required. Returns NOT_FOUND when the
+     * link preview, reactions, thread metadata, and pin state. Authentication
+     * and room membership are required. Channel-room reads also require
+     * message.read. DM membership authorizes DM reads. Returns NOT_FOUND when the
      * event does not exist, is not a message, has been retracted, or belongs to a
      * different room.
      *
@@ -110,9 +112,11 @@ export const MessageService = {
     },
     /**
      * Reads many renderable messages and their current pin state in one room.
-     * Authentication, room membership, and message.read are required. Missing,
+     * Authentication and room membership are required. Channel-room reads also
+     * require message.read. DM membership authorizes DM reads. Missing,
      * retracted, non-message, and wrong-room event IDs are omitted. Results
-     * preserve first-seen request order and repeated event IDs are de-duplicated.
+     * preserve first-seen request order, and repeated event IDs are
+     * de-duplicated.
      *
      * @generated from rpc chatto.api.v1.MessageService.BatchGetMessages
      */
@@ -124,7 +128,8 @@ export const MessageService = {
     },
     /**
      * Adds a reaction to a message. The user must be a room member and have
-     * message.read and message.react in the target room.
+     * message.react. Channel-room reactions also require message.read. DM
+     * membership authorizes the DM read.
      *
      * @generated from rpc chatto.api.v1.MessageService.AddReaction
      */
@@ -136,7 +141,8 @@ export const MessageService = {
     },
     /**
      * Removes a reaction from a message. The user must be a room member and have
-     * message.read and message.react in the target room.
+     * message.react. Channel-room reactions also require message.read. DM
+     * membership authorizes the DM read.
      *
      * @generated from rpc chatto.api.v1.MessageService.RemoveReaction
      */

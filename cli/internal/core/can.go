@@ -233,9 +233,14 @@ func (c *ChattoCore) CanJoinRoomAt(ctx context.Context, userID string, kind Room
 // Room-Scoped Permissions
 // ============================================================================
 
-// CanReadMessages checks if a user can read message content in a specific
-// room. Callers must also enforce room membership.
+// CanReadMessages checks the permission part of message-content access in a
+// specific room. DM membership is the complete DM read boundary, so
+// message.read decisions do not restrict DM participants. Callers must enforce
+// room membership for both room kinds.
 func (c *ChattoCore) CanReadMessages(ctx context.Context, userID string, kind RoomKind, roomID string) (bool, error) {
+	if kind == KindDM {
+		return true, nil
+	}
 	return c.hasRoomPermission(ctx, kind, roomID, userID, PermMessageRead)
 }
 

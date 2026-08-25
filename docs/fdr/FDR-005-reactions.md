@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -12,8 +12,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
 - Each pill shows: the emoji, how many users reacted with it, and a highlight when the current user has reacted.
 - Hovering a pill shows a tooltip with up to 5 reactor names plus an overflow count.
 - Clicking a pill toggles the current user's reaction.
-- Adding or removing a reaction requires room membership, `message.read`, and
-  `message.react` in the room.
+- Adding or removing a reaction requires room membership and `message.react`.
+  In a channel room, it also requires `message.read`. DM membership authorizes
+  the read.
 - Another user's reaction to your message creates one exact Ambient
   notification occurrence when the reaction preference resolves to Silent or
   Alert. Your own reactions do not notify you. Removing the reaction removes
@@ -82,9 +83,9 @@ sync without requiring clients to infer echo linkage from a reaction signal.
 ### 9. Reaction authorization is request-time and room-scoped
 
 **Decision:** Every user-facing add/remove attempt captures the room aggregate
-tail, waits the projections used by membership, `message.read`,
-`message.react`, room state, message aliasing, and reaction-limit decisions,
-and evaluates the complete operation-level gate. A concurrent room change
+tail, waits the projections used by membership, applicable channel-room
+`message.read`, `message.react`, room state, message aliasing, and
+reaction-limit decisions, and evaluates the complete operation-level gate. A concurrent room change
 rejects the append and reruns the decision. A cross-aggregate authorization
 change does not retroactively cancel an already-authorized, otherwise
 conflict-free attempt.
@@ -103,7 +104,8 @@ into a narrow commit-time authorization fence instead.
 ## Permissions
 
 - `message.react` — add or remove a reaction on a message. Scoped at server, group, and room.
-- `message.read` — read the target message and the aggregate reaction state.
+- `message.read` — read the target channel-room message and the aggregate
+  reaction state. DM membership authorizes the read.
 
 ## Related
 

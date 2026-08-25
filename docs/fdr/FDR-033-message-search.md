@@ -1,7 +1,7 @@
 # FDR-033: Message Search
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -69,9 +69,10 @@ does not expose the dedicated page's filters or pagination.
 
 ### 2. Current visibility is authoritative
 
-**Decision:** Results are limited to rooms where the viewer is a current member
-with `message.read`. Each result is checked again against current message state
-before delivery.
+**Decision:** Results are limited to rooms where the viewer is a current
+member. Channel-room results also require `message.read`. DM membership
+authorizes DM results. Each result is checked again against current message
+state before delivery.
 **Why:** A derived search index must never preserve access after membership or
 content visibility changes. Search cannot become an alternative path around
 the room privacy boundary.
@@ -164,8 +165,9 @@ independent transient query state.
 
 ## Permissions
 
-Search requires `message.read` at the applicable server, room-group, or room
-scope. Search omits rooms where the viewer does not have current read authority.
+Channel-room search requires `message.read` at the applicable server,
+room-group, or room scope. DM membership authorizes DM search. Search omits
+rooms where the viewer does not have current read authority.
 
 ## Related
 

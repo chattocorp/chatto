@@ -1,7 +1,7 @@
 # FDR-004: Message Editing & Deletion
 
 **Status:** Active
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -10,9 +10,10 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 ## Behavior
 
 - Authors can edit their own messages within a 3-hour window from posting time. After the window closes, only moderators can edit. The window value is queryable via `Server.messageEditWindowSeconds` so the frontend can show countdown timers and disable the edit affordance at exactly the right moment.
-- Editing requires current room membership and `message.read` because the
-  operation reads and returns the current message. Posting and deletion remain
-  independently authorized and do not return surrounding message state.
+- Editing requires current room membership. In a channel room, it also requires
+  `message.read` because the operation reads and returns the current message.
+  DM membership authorizes the read. Posting and deletion remain independently
+  authorized and do not return surrounding message state.
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Deletions remove the message body and all attachments and initially replace the rendered message with a "[Message deleted]" placeholder.
@@ -80,8 +81,9 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 ## Permissions
 
 - `message.manage` — edit and delete *other* users' messages.
-- `message.read` — read and edit a message. Deletion remains independently
-  authorized by authorship or `message.manage`.
+- `message.read` — read and edit a channel-room message. DM membership
+  authorizes the read. Deletion remains independently authorized by authorship
+  or `message.manage`.
 - (No separate permission for editing/deleting one's own messages — that's gated by authorship and the edit window only.)
 - Attachment and link-preview removal is author-only; `message.manage` does not grant cross-user removal for those partial message edits.
 

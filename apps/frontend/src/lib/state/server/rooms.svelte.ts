@@ -32,10 +32,7 @@ export type RoomsListItem = {
 };
 
 export function isNavigationVisibleRoom(room: RoomsListItem): boolean {
-  return (
-    room.type !== RoomKind.DM ||
-    (room.viewerCanReadMessages !== false && room.hasMessageHistory !== false)
-  );
+  return room.type !== RoomKind.DM || room.hasMessageHistory !== false;
 }
 
 export type RoomsListGroup = {

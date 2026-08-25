@@ -27,8 +27,9 @@ export const MessageSearchService = {
       kind: MethodKind.Unary,
     },
     /**
-     * Searches current message bodies in rooms where the caller is a member with
-     * message.read. Results are authorized and hydrated from current Chatto state
+     * Searches current message bodies in rooms where the caller is a member.
+     * Channel-room results also require message.read. DM membership authorizes DM
+     * results. Results are authorized and hydrated from current Chatto state
      * after provider matching. Returns FAILED_PRECONDITION when Search is
      * disabled and UNAVAILABLE when its provider is not ready.
      *

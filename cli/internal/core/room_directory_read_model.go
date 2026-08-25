@@ -289,43 +289,25 @@ func (s *RoomDirectoryReadModel) visibleDMRooms(ctx context.Context, actorID str
 	}
 	type visibleDMRoom struct {
 		room          *DirectoryRoom
-		canRead       bool
 		lastMessageAt time.Time
 	}
 	visible := make([]visibleDMRoom, 0, len(rooms))
 	for _, room := range rooms {
-		canRead, err := s.core.CanReadMessages(ctx, actorID, KindDM, room.GetId())
+		lastMessageAt, err := s.core.GetRoomLastMessageAt(ctx, KindDM, room.GetId())
 		if err != nil {
 			return nil, err
 		}
-		var lastMessageAt time.Time
-		if canRead {
-			lastMessageAt, err = s.core.GetRoomLastMessageAt(ctx, KindDM, room.GetId())
-			if err != nil {
-				return nil, err
-			}
-		}
-		if !includeEmpty && (!canRead || lastMessageAt.IsZero()) {
-			// An active-only list cannot use message activity when the viewer
-			// lacks authority to observe it.
+		if !includeEmpty && lastMessageAt.IsZero() {
 			continue
 		}
 		dirRoom, err := s.directoryRoom(ctx, actorID, room)
 		if err != nil {
 			return nil, err
 		}
-		visible = append(visible, visibleDMRoom{room: dirRoom, canRead: canRead, lastMessageAt: lastMessageAt})
+		visible = append(visible, visibleDMRoom{room: dirRoom, lastMessageAt: lastMessageAt})
 	}
-	// Keep readable conversations in newest-first order. Unreadable DMs sort
-	// after them without consulting message activity, so their order cannot
-	// disclose when a protected conversation changed.
+	// DM membership authorizes message activity, so active DMs sort newest-first.
 	sort.SliceStable(visible, func(i, j int) bool {
-		if visible[i].canRead != visible[j].canRead {
-			return visible[i].canRead
-		}
-		if !visible[i].canRead {
-			return false
-		}
 		return visible[i].lastMessageAt.After(visible[j].lastMessageAt)
 	})
 	result := make([]*DirectoryRoom, len(visible))

@@ -1,7 +1,7 @@
 # FDR-038: Bot Accounts
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-25
 
 ## Overview
 
@@ -48,8 +48,9 @@ exercise more authority than its human owner currently possesses.
   permissions allow.
 - Bots do not inherit the implicit `everyone` role, named-role permissions, or
   any other baseline grants. An absent bot permission is denied.
-- Room membership does not give a bot message content. The bot needs an
+- Channel-room membership does not give a bot message content. The bot needs an
   explicit `message.read` grant, bounded by the same permission on its owner.
+  DM membership authorizes the bot to read that DM.
 - Bot permissions are granted explicitly at their applicable server, room
   group, or room scope. The bot's effective permission is allowed only when
   both the bot's allowlist and its owner's current effective permissions allow

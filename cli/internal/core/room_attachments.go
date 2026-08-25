@@ -215,8 +215,9 @@ func (c *ChattoCore) messageAttachments(ctx context.Context, kind RoomKind, room
 // timeline projection's current attachment-message index, and preserves
 // attachment order within each message.
 //
-// Authorization: caller must verify room membership and message-read authority
-// before calling.
+// Authorization: caller must verify room membership and applicable
+// channel-room message-read authority before calling. DM membership authorizes
+// the DM read.
 func (c *ChattoCore) GetRoomAttachments(ctx context.Context, kind RoomKind, roomID string, limit int, offset int) (*RoomAttachmentsResult, error) {
 	if limit <= 0 {
 		limit = 50

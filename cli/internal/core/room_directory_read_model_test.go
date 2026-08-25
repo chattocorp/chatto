@@ -140,7 +140,7 @@ func TestRoomDirectoryReadModelCanIncludeEmptyDMsForExhaustiveProjection(t *test
 	}
 }
 
-func TestRoomDirectoryReadModelSortsOnlyReadableDMsByActivity(t *testing.T) {
+func TestRoomDirectoryReadModelSortsMemberDMsByActivityDespiteMessageReadDenial(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-sort-actor", "Directory Sort Actor", "password")
@@ -161,18 +161,18 @@ func TestRoomDirectoryReadModelSortsOnlyReadableDMsByActivity(t *testing.T) {
 	}
 	olderUser, olderDM := createDM("directory-sort-older")
 	newerUser, newerDM := createDM("directory-sort-newer")
-	hiddenUser, hiddenDM := createDM("directory-sort-hidden")
+	deniedUser, deniedDM := createDM("directory-sort-denied")
 	if _, err := chattoCore.PostMessage(ctx, KindDM, olderDM.Id, olderUser.Id, "older", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage older: %v", err)
 	}
 	if _, err := chattoCore.PostMessage(ctx, KindDM, newerDM.Id, newerUser.Id, "newer", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage newer: %v", err)
 	}
-	if err := chattoCore.DenyUserRoomPermission(ctx, SystemActorID, hiddenDM.Id, actor.Id, PermMessageRead); err != nil {
-		t.Fatalf("DenyUserRoomPermission hidden: %v", err)
+	if err := chattoCore.DenyUserRoomPermission(ctx, SystemActorID, deniedDM.Id, actor.Id, PermMessageRead); err != nil {
+		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
-	if _, err := chattoCore.PostMessage(ctx, KindDM, hiddenDM.Id, hiddenUser.Id, "hidden newest", nil, "", "", nil, false); err != nil {
-		t.Fatalf("PostMessage hidden: %v", err)
+	if _, err := chattoCore.PostMessage(ctx, KindDM, deniedDM.Id, deniedUser.Id, "denied permission but newest", nil, "", "", nil, false); err != nil {
+		t.Fatalf("PostMessage denied DM: %v", err)
 	}
 
 	rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, actor.Id, RoomDirectoryListOptions{IncludeDMs: true, IncludeEmptyDMs: true})
@@ -182,12 +182,12 @@ func TestRoomDirectoryReadModelSortsOnlyReadableDMsByActivity(t *testing.T) {
 	if len(rooms) != 3 {
 		t.Fatalf("exhaustive DM count = %d, want 3", len(rooms))
 	}
-	if rooms[0].Room.GetId() != newerDM.Id || rooms[1].Room.GetId() != olderDM.Id || rooms[2].Room.GetId() != hiddenDM.Id {
-		t.Fatalf("exhaustive DM order = [%s %s %s], want readable newest-first then unreadable [%s %s %s]", rooms[0].Room.GetId(), rooms[1].Room.GetId(), rooms[2].Room.GetId(), newerDM.Id, olderDM.Id, hiddenDM.Id)
+	if rooms[0].Room.GetId() != deniedDM.Id || rooms[1].Room.GetId() != newerDM.Id || rooms[2].Room.GetId() != olderDM.Id {
+		t.Fatalf("exhaustive DM order = [%s %s %s], want newest-first [%s %s %s]", rooms[0].Room.GetId(), rooms[1].Room.GetId(), rooms[2].Room.GetId(), deniedDM.Id, newerDM.Id, olderDM.Id)
 	}
 }
 
-func TestRoomDirectoryReadModelOmitsActiveDMsWithoutMessageRead(t *testing.T) {
+func TestRoomDirectoryReadModelKeepsActiveDMsWhenMessageReadIsDenied(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
 	actor, err := chattoCore.CreateUser(ctx, SystemActorID, "directory-no-read-actor", "Directory No Read Actor", "password")
@@ -216,25 +216,31 @@ func TestRoomDirectoryReadModelOmitsActiveDMsWithoutMessageRead(t *testing.T) {
 		}
 	}
 
-	list := func() {
+	list := func(wantIDs ...string) {
+		t.Helper()
 		rooms, err := chattoCore.RoomDirectoryReads().ListRooms(ctx, actor.Id, RoomDirectoryListOptions{IncludeDMs: true})
 		if err != nil {
 			t.Fatalf("ListRooms: %v", err)
 		}
-		if len(rooms) != 0 {
-			t.Fatalf("active DM room count = %d, want 0 without message.read", len(rooms))
+		if len(rooms) != len(wantIDs) {
+			t.Fatalf("active DM room count = %d, want %d", len(rooms), len(wantIDs))
+		}
+		for i, wantID := range wantIDs {
+			if rooms[i].Room.GetId() != wantID {
+				t.Fatalf("active DM room %d = %s, want %s", i, rooms[i].Room.GetId(), wantID)
+			}
 		}
 	}
 	list()
-	if _, err := chattoCore.PostMessage(ctx, KindDM, dmA.Id, otherA.Id, "activity hidden from actor", nil, "", "", nil, false); err != nil {
+	if _, err := chattoCore.PostMessage(ctx, KindDM, dmA.Id, otherA.Id, "activity visible to DM member", nil, "", "", nil, false); err != nil {
 		t.Fatalf("PostMessage: %v", err)
 	}
-	list()
+	list(dmA.Id)
 	room, err := chattoCore.RoomDirectoryReads().GetRoom(ctx, actor.Id, dmA.Id)
 	if err != nil {
 		t.Fatalf("GetRoom: %v", err)
 	}
-	if room.ViewerState.CanReadMessages || room.ViewerState.HasUnread {
-		t.Fatalf("viewer state for unreadable DM %s = %+v", room.Room.GetId(), room.ViewerState)
+	if !room.ViewerState.CanReadMessages || !room.ViewerState.HasUnread {
+		t.Fatalf("viewer state for readable DM %s = %+v", room.Room.GetId(), room.ViewerState)
 	}
 }
