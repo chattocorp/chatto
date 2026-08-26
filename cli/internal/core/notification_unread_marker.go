@@ -77,7 +77,7 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 			}
 			return false, nil
 		}
-		revision, updateErr := m.core.updateRuntimeStateTokenTTL(ctx, key, value, current.Revision(), notificationTTL)
+		revision, updateErr := m.core.updateRuntimeStateWithTTL(ctx, key, value, current.Revision(), notificationTTL)
 		if updateErr == nil {
 			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 				return false, err
