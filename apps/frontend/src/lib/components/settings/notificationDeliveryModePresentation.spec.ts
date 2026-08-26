@@ -25,7 +25,7 @@ describe('notification delivery mode presentation', () => {
     expect(notificationDeliveryModePresentation(NotificationDeliveryMode.UNREAD_BADGE)).toEqual({
       icon: 'icon-[ph--bell-fill]',
       tone: 'neutral',
-      legendClass: 'text-neutral-action'
+      legendClass: 'text-text'
     });
   });
 

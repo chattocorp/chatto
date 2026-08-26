@@ -23,7 +23,7 @@ export function notificationDeliveryModePresentation(
     return {
       icon: 'icon-[ph--bell-fill]',
       tone: 'neutral',
-      legendClass: 'text-neutral-action'
+      legendClass: 'text-text'
     };
   }
   if (mode === NotificationDeliveryMode.IN_APP_NOTIFICATION) {
