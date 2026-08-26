@@ -92,14 +92,15 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
-	if _, known := GetPermissionMetadata(perm); known {
-		isOwner, err := r.core.IsServerOwner(ctx, userID)
-		if err != nil {
-			return DecisionNone, err
-		}
-		if isOwner {
-			return DecisionAllow, nil
-		}
+	if _, known := GetPermissionMetadata(perm); !known {
+		return DecisionNone, nil
+	}
+	isOwner, err := r.core.IsServerOwner(ctx, userID)
+	if err != nil {
+		return DecisionNone, err
+	}
+	if isOwner {
+		return DecisionAllow, nil
 	}
 
 	if kind == KindDM && dmBoundaryDenies(perm) {

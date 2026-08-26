@@ -42,6 +42,20 @@ func TestPermissionHierarchy_AncestorGrantAndExactDeny(t *testing.T) {
 	}
 }
 
+func TestPermissionHierarchy_DoesNotAuthorizeUnregisteredDescendants(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, _ := core.CreateUser(ctx, SystemActorID, "hierarchy-unregistered", "Hierarchy Unregistered", "password123")
+	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermMessage); err != nil {
+		t.Fatalf("grant message ancestor: %v", err)
+	}
+
+	has, err := core.HasServerPermission(ctx, user.Id, Permission("message.unregistered"))
+	if err != nil || has {
+		t.Fatalf("unregistered descendant = %v, %v; want false, nil", has, err)
+	}
+}
+
 func TestPermissionHierarchy_ExactPathResolvesBeforeAncestorSubjects(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
