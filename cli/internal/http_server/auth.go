@@ -66,16 +66,24 @@ func isJSONAuthenticationRequest(c *gin.Context) bool {
 }
 
 // requireBrowserAuthenticationRequest blocks login CSRF before a browser route
-// can replace ambient authentication. Plain HTML forms cannot set the required
-// custom header, and cross-origin fetches cannot pass Chatto's CORS preflight.
+// can replace ambient authentication. Plain HTML forms are rejected and the
+// Origin must match the request target or configured public origin. The mode
+// header is optional for compatibility with legacy browser requests.
 func (s *HTTPServer) requireBrowserAuthenticationRequest(c *gin.Context) {
 	if !isJSONAuthenticationRequest(c) {
 		c.AbortWithStatusJSON(http.StatusUnsupportedMediaType, gin.H{"error": "Content-Type must be application/json"})
 		return
 	}
-	if !requestsCookieOnlyAuthentication(c) || !s.requestIsSameOrigin(c.Request) {
+	mode := strings.TrimSpace(c.GetHeader(connectapi.BrowserAuthenticationModeHeader))
+	if (mode != "" && !requestsCookieOnlyAuthentication(c)) || !s.requestIsSameOrigin(c.Request) {
 		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Same-origin browser authentication required"})
 		return
+	}
+	// Browser-only routes always create cookie authority. Treat an absent header
+	// as that mode after the same-origin validation above has made the request
+	// safe.
+	if mode == "" {
+		c.Request.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
 	}
 }
 

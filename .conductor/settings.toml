@@ -26,6 +26,7 @@ url = "https://docs.$CONDUCTOR_WORKSPACE_NAME.localhost:42444"
 
 [scripts]
 setup = "mise trust && mise install && mise setup && (cd authling && mise trust && mise install && mise deps)"
+archive = "exec tools/stop-workspace-dev.sh"
 run_mode = "concurrent"
 
 [scripts.run.dev]
