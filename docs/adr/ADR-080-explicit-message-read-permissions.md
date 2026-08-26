@@ -60,9 +60,10 @@ they upgrade an existing server. They must replace all old replicas before
 they rely on a deny or absent decision as a security boundary. Old replicas
 continue to use membership-only reads.
 
-ADR-081 adds interaction-scoped message access with
-`message.read-interactions`. It derives thread relationships from durable
-message facts and keeps this ADR's broad `message.read` boundary unchanged.
+ADR-082 adds interaction-scoped message access with
+`message.read.interactions`. It derives thread relationships from durable
+message facts. An effective `message.read` allow includes that narrower
+permission.
 
 ## Consequences
 
@@ -72,10 +73,10 @@ message facts and keeps this ADR's broad `message.read` boundary unchanged.
 - Fresh servers preserve current human behavior through the `everyone` grant.
 - Existing servers receive no automatic RBAC changes.
 - Operators can configure read-only and write-only channel-room accounts.
-- Bots remain deny-by-default, and bot-owner permission intersection stays
-  exact.
+- Bots remain deny-by-default. The bot allowlist and the owner's effective
+  authority are each evaluated with the explicit permission inclusion.
 - APIs and clients can distinguish room visibility from message-content
   visibility without treating missing permission as an implicit privacy mode.
 - The authorization change is breaking experimental behavior under ADR-045.
 - Interaction-scoped channel-room access builds on this boundary through
-  ADR-081. It does not add a DM access cause.
+  ADR-082. It does not add a DM access cause.

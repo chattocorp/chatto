@@ -299,7 +299,7 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 	}
 	if err := first.ClearServerPermissionState(ctx, SystemActorID, RoleEveryone, PermMessageReadInteractions); err != nil {
 		stopFirst()
-		t.Fatalf("clear message.read-interactions before restart: %v", err)
+		t.Fatalf("clear message.read.interactions before restart: %v", err)
 	}
 	eventsAfterFirstBoot := eventStreamMsgCount(t, first)
 	stopFirst()
@@ -322,7 +322,7 @@ func TestChattoCore_RunReplaysProjectionsBeforeBootEnsures(t *testing.T) {
 		t.Fatalf("message.read after restart = %s, want no reconciled decision", got)
 	}
 	if got := second.rbacModel.decision(ScopeServer, "", RoleEveryone, PermMessageReadInteractions); got != DecisionNone {
-		t.Fatalf("message.read-interactions after restart = %s, want no reconciled decision", got)
+		t.Fatalf("message.read.interactions after restart = %s, want no reconciled decision", got)
 	}
 }
 
@@ -887,6 +887,9 @@ func TestFilterLiveSyncEventAllowsRelatedThreadTyping(t *testing.T) {
 	}
 	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
 	}
 	if _, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "typing ping @typing-interaction-viewer", nil, root.GetId(), "", nil, false); err != nil {
 		t.Fatalf("PostMessage mention: %v", err)

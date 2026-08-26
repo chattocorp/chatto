@@ -29,7 +29,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
   room metadata for routing.
 - Inside a DM room, the room extras sidebar is available but starts closed and does not show the Members panel. The current Files panel and future non-member panels are shared, while channel-style moderation actions such as banning/removing room members remain unavailable.
 - A user can read a DM only when they are a participant. `message.read` and
-  `message.read-interactions` do not apply to DMs, and there is no `dm.*` read
+  `message.read.interactions` do not apply to DMs, and there is no `dm.*` read
   permission.
 - Operators can prevent a human user from starting DMs, or any user from
   sending messages in existing DMs, by revoking `message.post`.
@@ -49,7 +49,7 @@ its own DM scope. Chatto does not have a cross-server DM inbox.
 ### 2. Membership authorizes DM reads
 
 **Decision:** DM membership authorizes complete DM reads for humans and bots.
-`message.read` and `message.read-interactions` grants and denials do not change
+`message.read` and `message.read.interactions` grants and denials do not change
 DM access. A human needs `message.post` to start a DM. All users need
 `message.post` to post messages in an existing DM. Reply attribution does not
 change that permission, and thread posting does not apply to DMs.

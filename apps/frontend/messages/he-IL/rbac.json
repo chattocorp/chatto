@@ -44,6 +44,7 @@
       "allow": "לאפשר",
       "deny": "דחה",
       "winning_decision": "(החלטה מנצחת)",
+      "included_by": "Included by {permission}",
       "level_server": "שרת",
       "level_group": "קבוצה",
       "level_room": "חדר",

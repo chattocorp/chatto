@@ -256,7 +256,6 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 		PermRoomList,
 		PermRoomJoin,
 		PermMessageRead,
-		PermMessageReadInteractions,
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageAttach,
@@ -266,6 +265,25 @@ func TestDefaultEveryonePermissions(t *testing.T) {
 	}
 	if !slices.Equal(DefaultEveryonePermissions(), want) {
 		t.Errorf("everyone server defaults = %v, want %v", DefaultEveryonePermissions(), want)
+	}
+}
+
+func TestPermissionKeyPartsAllowAdditionalComponents(t *testing.T) {
+	parts := PermMessageReadInteractions.KeyParts()
+	if parts.ObjectType != "message" || parts.Verb != "read.interactions" {
+		t.Fatalf("message.read.interactions key parts = %+v", parts)
+	}
+	if got := ReconstructPermission(parts.Verb, parts.ObjectType); got != PermMessageReadInteractions {
+		t.Fatalf("reconstructed permission = %q, want %q", got, PermMessageReadInteractions)
+	}
+}
+
+func TestMessageReadExplicitlyIncludesInteractions(t *testing.T) {
+	if got := directlyIncludingPermissions(PermMessageReadInteractions); !slices.Equal(got, []Permission{PermMessageRead}) {
+		t.Fatalf("including permissions = %v, want [%s]", got, PermMessageRead)
+	}
+	if got := directlyIncludingPermissions(PermMessageRead); len(got) != 0 {
+		t.Fatalf("message.read must not be included by its child: %v", got)
 	}
 }
 

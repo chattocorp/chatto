@@ -129,7 +129,7 @@ idempotent operations:
   visible room-group layout; DM participant references remain eager;
 - complete channel membership and the latest 50 renderable timeline events for
   retained DMs. For a retained channel room, it includes all roots with
-  `message.read`, or only related roots with `message.read-interactions`;
+  `message.read`, or only related roots with `message.read.interactions`;
 - the newest finite Notifications 2.0 occurrences, exact total and Important
   unread-occurrence counts, and complete per-room counterparts;
 - every active call visible to the viewer; and

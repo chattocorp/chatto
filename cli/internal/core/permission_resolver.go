@@ -16,7 +16,9 @@ import (
 //  4. The implicit everyone role supplies the nearest scope baseline. A named
 //     allow overrides an everyone deny only at the same or a nearer scope;
 //     named denies always win.
-//  5. No decision is denied at the API boundary.
+//  5. An allow from an explicitly including permission satisfies the requested
+//     permission. Denies do not propagate through an inclusion.
+//  6. No decision is denied at the API boundary.
 //
 // This makes everyone a scoped baseline rather than an absolute restriction: a
 // room allow can grant access that everyone lacks in that room, while an
@@ -76,6 +78,7 @@ type TraceEntry struct {
 //     beats any allow across those subjects.
 //  4. Apply the implicit everyone baseline. A named allow beats an everyone
 //     deny only when it is at least as specific; named denies always win.
+//  5. Apply explicit permission inclusion to effective allows.
 func (r *PermissionResolver) Resolve(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission) (DecisionKind, error) {
 	return r.resolveWithGroup(ctx, userID, kind, roomID, "", perm)
 }
@@ -91,6 +94,10 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 	if accountExists && isBot {
 		return r.resolveBotWithGroup(ctx, userID, ownerUserID, kind, roomID, explicitGroupID, perm)
 	}
+	return r.resolveHumanWithGroup(ctx, userID, kind, roomID, explicitGroupID, perm)
+}
+
+func (r *PermissionResolver) resolveHumanWithGroup(ctx context.Context, userID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
 	if _, known := GetPermissionMetadata(perm); known {
 		isOwner, err := r.core.IsServerOwner(ctx, userID)
 		if err != nil {
@@ -114,15 +121,17 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		}
 	}
 
-	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
-	if err != nil {
-		return DecisionNone, err
-	}
-	result, _, _ := resolveApplicablePermissionDecisions(decisions)
-	if err == nil && result == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
-		result = DecisionAllow
-	}
-	return result, err
+	return resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
+		decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, candidate)
+		if err != nil {
+			return DecisionNone, err
+		}
+		result, _, _ := resolveApplicablePermissionDecisions(decisions)
+		if result == DecisionNone && kind == KindDM && dmDefaultAllows(candidate) {
+			result = DecisionAllow
+		}
+		return result, nil
+	})
 }
 
 func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID, ownerUserID string, kind RoomKind, roomID, explicitGroupID string, perm Permission) (DecisionKind, error) {
@@ -158,8 +167,16 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 }
 
 // botDelegatedDecision resolves only the bot's explicit direct-user decisions.
-// Bots never receive named-role, everyone, owner, or DM-default grants.
+// An explicit including permission can satisfy the requested permission. Bots
+// never receive named-role, everyone, owner, or DM-default grants.
 func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
+	decision, _ := resolvePermissionWithInclusions(perm, func(candidate Permission) (DecisionKind, error) {
+		return r.botDelegatedExactDecision(botUserID, kind, roomID, groupID, candidate), nil
+	})
+	return decision
+}
+
+func (r *PermissionResolver) botDelegatedExactDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
 	parts := perm.KeyParts()
 	if parts.Verb == "" || parts.ObjectType == "" {
 		return DecisionNone
@@ -170,6 +187,23 @@ func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKin
 		return DecisionNone
 	}
 	return entry.Decision
+}
+
+// resolvePermissionWithInclusions applies explicit permission inclusion to an
+// effective decision. An allow from an including permission wins. A deny or
+// absent decision on an including permission does not restrict a separately
+// allowed child permission.
+func resolvePermissionWithInclusions(perm Permission, resolveExact func(Permission) (DecisionKind, error)) (DecisionKind, error) {
+	for _, including := range directlyIncludingPermissions(perm) {
+		decision, err := resolveExact(including)
+		if err != nil {
+			return DecisionNone, err
+		}
+		if decision == DecisionAllow {
+			return DecisionAllow, nil
+		}
+	}
+	return resolveExact(perm)
 }
 
 // HasServerPermission checks a server-only permission (no room context).

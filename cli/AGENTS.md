@@ -263,8 +263,12 @@ authorization, live events, backup and restore, and backend tests.
   it has `message.post` or the DM already exists. A human must start the DM.
   After that, the bot can read it through membership and can use its normal
   message permissions inside it.
-- Permission strings use exactly `{object}.{verb}` with hyphenated verbs:
-  `room.ban-member`, `message.post-in-thread`, `admin.view-users`.
+- Permission strings use two or more non-empty dot-separated components.
+  Hyphens can stay inside a component: `room.ban-member`,
+  `message.post-in-thread`, and `message.read.interactions` are valid.
+- A dotted prefix does not automatically include a longer permission. Record
+  each permission inclusion explicitly in code and in the applicable ADR and
+  FDR. Currently, `message.read` includes `message.read.interactions`.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses

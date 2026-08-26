@@ -252,11 +252,7 @@ describe('subject permission loaders', () => {
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
     expect(
       queryClient.getQueryState(
-        adminQueryKeys.userPermissions(
-          'origin',
-          { queryScope: 'permission-loader-test' },
-          'user-a'
-        )
+        adminQueryKeys.userPermissions('origin', { queryScope: 'permission-loader-test' }, 'user-a')
       )?.isInvalidated
     ).toBe(true);
   });
@@ -318,6 +314,39 @@ describe('subject permission loaders', () => {
     expect(room.disabled).toBe(true);
     expect(rendered.container.querySelector('table')).toBe(table);
     expect(permissionMocks.getUserPermissionMatrix).toHaveBeenCalledOnce();
+  });
+
+  it('shows a bot child permission as enabled when message.read includes it', async () => {
+    permissionMocks.getUserPermissionMatrix.mockResolvedValue({
+      userId: 'bot-read',
+      applicablePermissions: ['message.read', 'message.read.interactions'],
+      scopes: [{ id: 'server', label: 'Server', kind: 'SERVER', parentGroupId: '' }],
+      cells: [
+        {
+          permission: 'message.read',
+          scopeId: 'server',
+          override: 'ALLOW',
+          effective: 'ALLOW',
+          allowPermitted: true
+        },
+        {
+          permission: 'message.read.interactions',
+          scopeId: 'server',
+          override: 'NONE',
+          effective: 'ALLOW',
+          allowPermitted: true
+        }
+      ]
+    });
+    const rendered = render(UserPermissionsMatrix, {
+      props: { userId: 'bot-read', decisionMode: 'binary', ownerCapped: true }
+    });
+    await settle();
+
+    const child = scopedCellButton(rendered.container, 'server', 'message.read.interactions');
+    expect(child.title).toContain('Included by message.read');
+    expect(child.querySelector('[class~="icon-[uil--lock]"]')).not.toBeNull();
+    expect(child.disabled).toBe(true);
   });
 
   it('serializes role mutations within one resource', async () => {

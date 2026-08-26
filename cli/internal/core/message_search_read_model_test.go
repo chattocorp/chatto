@@ -111,6 +111,7 @@ func TestMessageSearchReadModelFiltersInteractionScopedHits(t *testing.T) {
 	unrelatedRoot, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "unrelated search root", nil, "", "", nil, false)
 	require.NoError(t, err)
 	require.NoError(t, chattoCore.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageRead))
+	require.NoError(t, chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions))
 	mention, err := chattoCore.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "search this @search-interaction-reader", nil, visibleRoot.GetId(), "", nil, false)
 	require.NoError(t, err)
 

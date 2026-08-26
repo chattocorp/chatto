@@ -214,11 +214,14 @@ test.describe('Room-Level Permission Overrides', () => {
 
       await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
         memberPage.on('console', (message) => {
-          // Chromium reports the intentional denied timeline request as a
-          // generic resource error. Keep all other console errors actionable.
-          const expectedDeniedRequest =
-            'Failed to load resource: the server responded with a status of 403 (Forbidden)';
-          if (message.type() === 'error' && message.text() !== expectedDeniedRequest) {
+          // The denied request and the nonfatal realtime availability signal
+          // are expected when read authority is removed. Keep all other
+          // console errors actionable.
+          const expectedErrors = new Set([
+            'Failed to load resource: the server responded with a status of 403 (Forbidden)',
+            '[eventBus:localhost] realtime error {code: room_unavailable, message: room timeline is unavailable, fatal: false}'
+          ]);
+          if (message.type() === 'error' && !expectedErrors.has(message.text())) {
             browserErrors.push(message.text());
           }
         });
@@ -229,7 +232,7 @@ test.describe('Room-Level Permission Overrides', () => {
         await expect(memberPage.getByText(visibleBody)).toBeVisible();
 
         await denyRoomPermission(page, roomId, 'everyone', 'message.read');
-        await denyRoomPermission(page, roomId, 'everyone', 'message.read-interactions');
+        await denyRoomPermission(page, roomId, 'everyone', 'message.read.interactions');
 
         const denial = memberPage.getByText(
           'You do not have permission to read messages in this room.'
@@ -278,7 +281,7 @@ test.describe('Room-Level Permission Overrides', () => {
       expect(browserErrors, 'browser console and page errors').toEqual([]);
     });
 
-    test('message.read-interactions reveals the complete thread after a direct mention', async ({
+    test('message.read.interactions reveals the complete thread after a direct mention', async ({
       page,
       browser,
       serverURL
@@ -301,6 +304,7 @@ test.describe('Room-Level Permission Overrides', () => {
       await withLoggedInServerWindow(browser, serverURL, member, async ({ page: memberPage }) => {
         await joinRoomViaAPI(memberPage, roomId);
         await denyRoomPermission(page, roomId, 'everyone', 'message.read');
+        await grantRoomPermission(page, roomId, 'everyone', 'message.read.interactions');
 
         type TimelineResponse = { page?: { events?: Array<{ id?: string }> } };
         const beforeMention = await connectPost<TimelineResponse>(
@@ -333,7 +337,7 @@ test.describe('Room-Level Permission Overrides', () => {
         ]);
 
         await memberPage.goto(routes.thread(roomId, root!.id));
-        await expect(memberPage.getByText(rootBody)).toBeVisible();
+        await expect(memberPage.getByTestId('thread-pane').getByText(rootBody)).toBeVisible();
         await expect(memberPage.getByText(earlierBody)).toBeVisible();
         await expect(memberPage.getByText(mentionBody)).toBeVisible();
         await expect(memberPage.getByText(unrelatedBody)).toHaveCount(0);

@@ -9,6 +9,7 @@ type Level = 'SERVER' | 'GROUP' | 'ROOM';
 
 type Explanation = {
   permission: string;
+  includedByPermission?: string;
   state: DecisionKind;
   decidedAt?: Level | null;
   decidedByRole?: string | null;
@@ -74,6 +75,16 @@ describe('PermissionExplanationTable', () => {
       props: { explanations: [denied('moderator', 'GROUP')] }
     });
     expect(container.textContent).toContain('moderator');
+  });
+
+  it('shows the permission that includes the requested permission', () => {
+    const explanation = granted('everyone', 'SERVER');
+    explanation.permission = 'message.read.interactions';
+    explanation.includedByPermission = 'message.read';
+    const { container } = render(PermissionExplanationTable, {
+      props: { explanations: [explanation] }
+    });
+    expect(container.textContent).toContain('Included by message.read');
   });
 
   it('expands the trace when the toggle is clicked', async () => {

@@ -21,7 +21,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   import { MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
-  import { getPermissionDescription } from '$lib/permissions';
+  import { getIncludedByPermission, getPermissionDescription } from '$lib/permissions';
   import MatrixCell from './MatrixCell.svelte';
   import { m } from '$lib/i18n/messages';
 
@@ -149,6 +149,12 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     return groupDecision !== 'NONE' ? groupDecision : serverDecision;
   }
 
+  function includingPermission(scope: MatrixScope, permission: string): string | null {
+    const including = getIncludedByPermission(permission);
+    if (!including) return null;
+    return cellFor(scope.id, including)?.effective === 'ALLOW' ? including : null;
+  }
+
   function cycleCell(
     scope: MatrixScope,
     permission: string,
@@ -223,11 +229,19 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         </span>
       {/snippet}
       {#snippet rowHeader(permission, highlighted)}
-        <code data-testid="permission-name" class={['text-sm', highlighted ? 'text-action' : '']}
+        {@const includedBy = getIncludedByPermission(permission)}
+        <code
+          data-testid="permission-name"
+          class={['text-sm', includedBy ? 'ml-4' : '', highlighted ? 'text-action' : '']}
           >{permission}</code
         >
         <HelpTooltip label={`About ${permission}`}>
           {getPermissionDescription(permission)}
+          {#if includedBy}
+            <span class="mt-1 block"
+              >{m('rbac.permissions.included_by', { permission: includedBy })}</span
+            >
+          {/if}
         </HelpTooltip>
       {/snippet}
       {#snippet cell(permission, scope)}
@@ -237,7 +251,8 @@ scrolling; the table only scrolls horizontally when its columns overflow.
           {@const eff = decisionToState(cell.effective)}
           {@const parent = parentDecision(scope, permission)}
           {@const configured = cell.override !== 'NONE' ? cell.override : parent}
-          {@const binaryEnabled = configured === 'ALLOW'}
+          {@const includedBy = includingPermission(scope, permission)}
+          {@const binaryEnabled = configured === 'ALLOW' || includedBy !== null}
           {@const inheritedBinaryGrant =
             decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
           {@const displayOverride = forceAllow
@@ -285,6 +300,9 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   binaryEnabled
                     ? [
                         m('rbac.permissions.binary.enabled'),
+                        includedBy
+                          ? m('rbac.permissions.included_by', { permission: includedBy })
+                          : null,
                         cell.override === 'NONE' ? m('rbac.permissions.binary.inherited') : null,
                         cell.allowPermitted === false
                           ? m('rbac.permissions.binary.unavailable')
@@ -299,6 +317,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
                   ov !== 'neutral'
                     ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
                     : null,
+                  includedBy ? `Effective Allow (included by ${includedBy})` : null,
                   ov === 'neutral' && eff !== 'neutral'
                     ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
                     : null,

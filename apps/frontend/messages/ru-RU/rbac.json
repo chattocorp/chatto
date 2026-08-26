@@ -44,6 +44,7 @@
       "allow": "разрешить",
       "deny": "отрицать",
       "winning_decision": "(победное решение)",
+      "included_by": "Included by {permission}",
       "level_server": "Сервер",
       "level_group": "Группа",
       "level_room": "Комната",

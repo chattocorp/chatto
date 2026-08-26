@@ -44,6 +44,7 @@
       "allow": "dovolit",
       "deny": "popřít",
       "winning_decision": "(vítězné rozhodnutí)",
+      "included_by": "Included by {permission}",
       "level_server": "Server",
       "level_group": "Skupina",
       "level_room": "Místnost",

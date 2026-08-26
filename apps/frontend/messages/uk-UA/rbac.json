@@ -44,6 +44,7 @@
       "allow": "дозволити",
       "deny": "відхилити",
       "winning_decision": "(переможне рішення)",
+      "included_by": "Included by {permission}",
       "level_server": "Сервер",
       "level_group": "Група",
       "level_room": "Кімната",

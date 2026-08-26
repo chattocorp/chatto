@@ -74,8 +74,9 @@ const (
 
 	// PermMessageReadInteractions allows reading channel-room threads that the
 	// account authored or where another account directly mentioned it. Room
-	// membership remains a separate requirement.
-	PermMessageReadInteractions Permission = "message.read-interactions"
+	// membership remains a separate requirement. PermMessageRead explicitly
+	// includes this permission.
+	PermMessageReadInteractions Permission = "message.read.interactions"
 
 	// PermMessagePost allows posting new root messages in rooms. Server-scope
 	// decisions act as global defaults/overrides; room or group denies can narrow
@@ -250,6 +251,18 @@ func PermissionAppliesAtScope(perm Permission, scope PermissionScope) bool {
 	return slices.Contains(meta.Scopes, scope)
 }
 
+// directlyIncludingPermissions returns permissions whose effective allow also
+// allows the requested permission. Permission inclusion is explicit: dotted
+// name components do not create an automatic hierarchy.
+func directlyIncludingPermissions(perm Permission) []Permission {
+	switch perm {
+	case PermMessageReadInteractions:
+		return []Permission{PermMessageRead}
+	default:
+		return nil
+	}
+}
+
 // PermissionsForScope returns all permissions that can be configured at a given scope.
 func PermissionsForScope(scope PermissionScope) []PermissionMetadata {
 	var result []PermissionMetadata
@@ -286,7 +299,6 @@ func DefaultEveryonePermissions() []Permission {
 		PermRoomList,
 		PermRoomJoin,
 		PermMessageRead,
-		PermMessageReadInteractions,
 		PermMessagePost,
 		PermMessagePostInThread,
 		PermMessageAttach,
@@ -362,17 +374,17 @@ func DefaultAnnouncementsAdminPermissions() []Permission {
 // Permission Key Parts (for KV key generation)
 // ============================================================================
 
-// PermissionKeyParts holds the verb and objectType components for KV key generation.
-// Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
-// "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
-// the permission string — no separate mapping needed.
+// PermissionKeyParts holds the first identifier component and the remaining
+// action path. Permission strings contain at least two dot-separated
+// components. For example, message.read.interactions has object type
+// "message" and verb "read.interactions".
 type PermissionKeyParts struct {
-	Verb       string // The action: "create", "join", "post-in-thread", "view-users", etc.
+	Verb       string // The action path: "create", "post-in-thread", "read.interactions", etc.
 	ObjectType string // The target type: "server", "room", "message", "admin", etc.
 }
 
-// parseKeyParts splits a permission string into its objectType and verb components.
-// All permissions follow the "{objectType}.{verb}" convention.
+// parseKeyParts splits a permission string into its first component and the
+// remaining action path.
 func parseKeyParts(perm string) PermissionKeyParts {
 	objectType, verb, ok := strings.Cut(perm, ".")
 	if !ok {
@@ -382,14 +394,12 @@ func parseKeyParts(perm string) PermissionKeyParts {
 }
 
 func init() {
-	// Validate that all permission strings follow the "{objectType}.{verb}" format.
+	// Validate that all permission strings contain at least two non-empty
+	// dot-separated components.
 	for _, p := range allPermissions {
-		parts := parseKeyParts(string(p.Permission))
-		if parts.Verb == "" || parts.ObjectType == "" {
-			panic(fmt.Sprintf("permission %q does not follow {objectType}.{verb} format", p.Permission))
-		}
-		if strings.Contains(parts.Verb, ".") {
-			panic(fmt.Sprintf("permission %q has nested dots — verb %q must use dashes instead", p.Permission, parts.Verb))
+		components := strings.Split(string(p.Permission), ".")
+		if len(components) < 2 || slices.Contains(components, "") {
+			panic(fmt.Sprintf("permission %q must contain at least two non-empty dot-separated components", p.Permission))
 		}
 	}
 }

@@ -32,7 +32,7 @@ the message body.
 - A delivered direct `@username` mention inside a thread attempts to follow that thread for the mentioned user if they have no prior follow state for it. Role mentions, `@all`, and `@here` do not auto-follow recipients.
 - A direct mention from another account creates a durable interaction
   relationship with the message's channel-room thread. With
-  `message.read-interactions`, that relationship authorizes the complete
+  `message.read.interactions`, that relationship authorizes the complete
   thread. Self, role, `@all`, and `@here` mentions do not create this access.
 
 ## Design Decisions
@@ -122,5 +122,5 @@ No dedicated mention permission. Anyone who can post in a room can mention any u
 
 ## Related
 
-- **ADRs:** ADR-026 (event identity via NanoID), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-081 (derived thread interactions)
+- **ADRs:** ADR-026 (event identity via NanoID), ADR-076 (deterministic notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-012 (Notifications), FDR-013 (Web Push Notifications), FDR-039 (Message Access & Interactions)

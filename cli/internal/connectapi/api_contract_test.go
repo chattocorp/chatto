@@ -518,7 +518,8 @@ func TestSafeInternalErrorForLogRedactsSensitiveSubstrings(t *testing.T) {
 
 func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	got := apiPermissionExplanation(core.PermissionExplanation{
-		Permission:    core.PermAdminUsersView,
+		Permission:    core.PermMessageReadInteractions,
+		IncludedBy:    core.PermMessageRead,
 		State:         core.DecisionDeny,
 		DecidedAt:     core.LevelRoom,
 		DecidedByRole: core.RoleEveryone,
@@ -538,6 +539,9 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 
 	if got.GetState() != adminv1.PermissionDecision_PERMISSION_DECISION_DENY {
 		t.Fatalf("state = %v, want deny", got.GetState())
+	}
+	if got.GetIncludedByPermission() != string(core.PermMessageRead) {
+		t.Fatalf("included_by_permission = %q, want %q", got.GetIncludedByPermission(), core.PermMessageRead)
 	}
 	trace := got.GetTrace()
 	if len(trace) != 2 {

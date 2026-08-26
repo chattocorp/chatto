@@ -288,6 +288,9 @@ func TestChattoCore_HasUnread_UsesLatestReadableInteractionRoot(t *testing.T) {
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), reader.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
 	first, err := chatto.PostMessage(ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-unread-reader first", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatalf("PostMessage first related root: %v", err)

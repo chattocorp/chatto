@@ -13,8 +13,9 @@ DM membership continues to authorize complete DM reads.
 
 - Channel-room membership is always necessary for message access. It is not
   sufficient.
-- `message.read` gives broad access to message content in a channel room.
-- `message.read-interactions` gives access only to channel-room threads where
+- `message.read` gives broad access to message content in a channel room and
+  includes `message.read.interactions`.
+- `message.read.interactions` gives access only to channel-room threads where
   the account has an interaction relationship.
 - The same permissions and rules apply to human and bot accounts.
 - A direct mention from another account creates an interaction relationship.
@@ -32,7 +33,7 @@ DM membership continues to authorize complete DM reads.
   membership loss closes current access. Permission restoration or room
   re-entry opens an existing relationship again.
 - A DM participant can read the complete DM. `message.read` and
-  `message.read-interactions` decisions do not restrict DM reads.
+  `message.read.interactions` decisions do not restrict DM reads.
 - Message-read authority does not grant write authority. Each post, upload,
   reaction, edit, or moderation action needs its normal permission.
 - A channel-room operation that reads or returns an existing message also
@@ -54,14 +55,16 @@ DM membership continues to authorize complete DM reads.
   read succeeds or fails after the server applies the current access rules.
 - This slice does not add interaction-specific bot pings. Realtime delivery for
   bot pings is a separate feature decision.
-- Fresh servers grant both read permissions to `everyone` at server scope when
-  they initialize an empty RBAC stream.
+- Fresh servers grant only `message.read` to `everyone` at server scope when
+  they initialize an empty RBAC stream. That effective allow includes the
+  interaction permission.
 - Existing servers receive no automatic grant. Operators must review and
   update existing RBAC state.
 - Bots do not inherit `everyone`. A bot needs an explicit grant for each read
   mode that it uses.
-- A bot grant is effective only while its owner has the same permission at the
-  applicable scope.
+- A bot read grant is effective only while its owner has sufficient effective
+  read authority at the applicable scope. `message.read` can satisfy the
+  narrower requirement for the bot or its owner.
 - Old replicas know only broad `message.read`. During a mixed rollout, they
   deny interaction-scoped reads instead of giving broad access. Operators must
   complete the rollout before they depend on interaction-scoped availability.
@@ -71,12 +74,17 @@ DM membership continues to authorize complete DM reads.
 ### 1. Broad and interaction-scoped access use separate permissions
 
 **Decision:** Use `message.read` for broad channel-room access and
-`message.read-interactions` for relationship-scoped channel-room access. Keep
-membership as a separate required boundary.
+`message.read.interactions` for relationship-scoped channel-room access. Keep
+membership as a separate required boundary. Make the broad permission
+explicitly include the narrower permission. Do not infer other inclusions from
+dotted names. The child does not include the parent. A child deny cannot
+restrict an effective parent allow, and a parent deny cannot restrict a
+separate child allow.
 **Why:** Operators can inspect the difference between broad and narrow access.
 An absent broad permission does not cause an implicit privacy mode.
 **Tradeoff:** Each narrow read checks both RBAC and the requested thread
-relationship.
+relationship. The resolver and inspection surfaces must explain the explicit
+inclusion.
 
 ### 2. Direct mentions and authored roots create relationships
 
@@ -119,8 +127,9 @@ using one room-level allow decision.
 
 ### 6. New-server defaults do not change existing RBAC
 
-**Decision:** Grant both read permissions to `everyone` only during empty-RBAC
-bootstrap. Do not migrate, backfill, or reconcile an existing server.
+**Decision:** Grant only `message.read` to `everyone` during empty-RBAC
+bootstrap. Its effective allow includes `message.read.interactions`. Do not
+migrate, backfill, or reconcile an existing server.
 **Why:** Existing RBAC state belongs to the operator. Startup must not replace
 an absent decision with a code default.
 **Tradeoff:** Operators must add the new grant during an upgrade when they want
@@ -128,11 +137,13 @@ interaction-scoped reads.
 
 ### 7. Bots use the existing owner ceiling
 
-**Decision:** Use the same permissions for human and bot accounts. Keep the
-existing exact owner-permission ceiling for bot grants.
+**Decision:** Use the same permissions for human and bot accounts. Apply the
+explicit read inclusion independently to the bot allowlist and to the owner's
+effective authority.
 **Why:** This keeps one permission vocabulary and one delegation rule.
-**Tradeoff:** Removing a read permission from an owner also removes that read
-mode from the bots that the owner controls.
+**Tradeoff:** Removing broad read access from an owner does not remove a bot's
+narrow read mode when the owner still has the narrow permission. A bot still
+needs its own broad or narrow grant.
 
 ### 8. Relationships are not public resources
 
@@ -147,8 +158,9 @@ feature must define how a bot learns about a direct mention.
 ## Permissions
 
 - `message.read` — read all message content and message-specific metadata in a
-  channel room at the configured scope.
-- `message.read-interactions` — read message content and message-specific
+  channel room at the configured scope. It includes
+  `message.read.interactions`.
+- `message.read.interactions` — read message content and message-specific
   metadata only in channel-room threads with a current interaction
   relationship.
 - `message.post` — post root messages and send messages in an existing DM.
@@ -161,7 +173,7 @@ DM membership, not a message-read permission, authorizes DM reads.
 - **ADRs:** ADR-031 (room-group permission scopes), ADR-037 (DM access through
   membership), ADR-040 (permission-only RBAC with owner override), ADR-045
   (public API stability), ADR-051 (resumable client projection), ADR-080
-  (`message.read`), ADR-081 (derived interaction relationships)
+  (`message.read`), ADR-082 (derived interaction relationships)
 - **FDRs:** FDR-001 (Roles & Permissions), FDR-002 (Replies & Threads), FDR-004
   (Message Editing & Deletion), FDR-005 (Reactions), FDR-006 (@Mentions),
   FDR-007 (Direct Messages), FDR-008 (File Attachments & Video Processing),

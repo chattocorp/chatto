@@ -16,7 +16,7 @@ Direct-message rooms do not support pins.
   also requires read access to the target message because the operation returns
   the hydrated pinned message. Pins do not introduce a separate pin permission.
 - A current channel member with `message.read` may list every pin. A member
-  with `message.read-interactions` may list pins only from related threads.
+  with `message.read.interactions` may list pins only from related threads.
   Losing membership or read authority immediately removes inaccessible
   pinned-message state from the client.
 - Pins appear newest-first in an automatically paginated **Pins** sidebar tab.
@@ -125,13 +125,13 @@ snapshot schema receives a new fingerprinted contract namespace automatically.
 
 - `message.read` — list all room pins and create a pin whose response contains
   the hydrated message.
-- `message.read-interactions` — list pins from related threads and create a pin
+- `message.read.interactions` — list pins from related threads and create a pin
   for a readable related message.
 - `room.manage` — create or delete pin associations.
 
 ## Related
 
-- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-051 (resumable client projection), ADR-080 (explicit message-read permissions), ADR-081 (derived thread interactions)
+- **ADRs:** ADR-016 (OCC for message publishing), ADR-033 (event-sourced state), ADR-045 (public API stability), ADR-050 (projection snapshots), ADR-051 (resumable client projection), ADR-080 (explicit message-read permissions), ADR-082 (derived thread interactions)
 - **FDRs:** FDR-002 (Replies & Threads), FDR-003 (Thread Reply Echo), FDR-004 (Message Editing & Deletion), FDR-019 (Room Lifecycle), FDR-031 (Client–Server Compatibility Discovery), FDR-033 (Message Search), FDR-039 (Message Access & Interactions)
 - **Issue:** [#1982](https://github.com/chattocorp/chatto/issues/1982)
 

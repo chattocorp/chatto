@@ -771,6 +771,40 @@ func buildRolePermissionCell(
 	roomGrants, roomDenials map[string][]Permission,
 	roomToGroup map[string]string,
 ) (PermissionMatrixCell, bool) {
+	cell, ok := buildExactRolePermissionCell(
+		perm, scope,
+		serverGrants, serverDenials,
+		groupGrants, groupDenials,
+		roomGrants, roomDenials,
+		roomToGroup,
+	)
+	if !ok {
+		return PermissionMatrixCell{}, false
+	}
+	for _, including := range directlyIncludingPermissions(perm) {
+		includingCell, applies := buildExactRolePermissionCell(
+			including, scope,
+			serverGrants, serverDenials,
+			groupGrants, groupDenials,
+			roomGrants, roomDenials,
+			roomToGroup,
+		)
+		if applies && includingCell.Effective == MatrixDecisionAllow {
+			cell.Effective = MatrixDecisionAllow
+			break
+		}
+	}
+	return cell, true
+}
+
+func buildExactRolePermissionCell(
+	perm Permission,
+	scope PermissionMatrixScope,
+	serverGrants, serverDenials []Permission,
+	groupGrants, groupDenials map[string][]Permission,
+	roomGrants, roomDenials map[string][]Permission,
+	roomToGroup map[string]string,
+) (PermissionMatrixCell, bool) {
 	switch scope.Kind {
 	case MatrixScopeServer:
 		if !PermissionAppliesAtScope(perm, ScopeServer) {

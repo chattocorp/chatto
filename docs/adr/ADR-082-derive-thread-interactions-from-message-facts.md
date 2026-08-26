@@ -1,4 +1,4 @@
-# ADR-081: Derive Thread Interactions from Message Facts
+# ADR-082: Derive Thread Interactions from Message Facts
 
 **Date:** 2026-08-25
 
@@ -20,10 +20,19 @@ replay, search, files, notifications, and other message-derived surfaces.
 
 ## Decision
 
-Add `message.read-interactions` as a normal RBAC permission at server,
+Add `message.read.interactions` as a normal RBAC permission at server,
 room-group, and room scope. Keep `message.read` as the broad channel-room read
 permission. Keep room membership as a separate required boundary. Keep DM
 reads membership-based under ADR-037.
+
+An effective `message.read` allow includes `message.read.interactions`. This is
+an explicit inclusion, not a general rule for dotted names. An allow for
+`message.read.interactions` does not include `message.read`. A deny for
+`message.read.interactions` cannot restrict an effective `message.read` allow.
+A deny for `message.read` does not restrict a separate
+`message.read.interactions` allow. The resolver applies the same rules to human
+accounts, bot allowlists, bot-owner ceilings, permission matrices, and
+permission explanations.
 
 Derive thread interaction relationships in the existing Threads projection.
 Do not write RBAC events or another durable grant event when a relationship
@@ -37,7 +46,7 @@ starts. The projection uses `MessagePostedEvent` source facts:
 
 A relationship names one account, room, and thread-root event ID. It includes
 the source event ID, source time, and cause. It gives access to the complete
-thread while current membership and `message.read-interactions` allow access.
+thread while current membership and `message.read.interactions` allow access.
 Broad `message.read` continues to allow every thread in the room.
 
 Keep relationships after message edits and retractions. This slice does not
@@ -66,14 +75,17 @@ typing has no thread target and therefore requires broad access. Thread typing
 uses the thread relationship. A pending asset without a durable message owner
 does not qualify for interaction-scoped reads.
 
-Fresh empty-RBAC bootstrap grants `message.read-interactions` to `everyone`.
-Do not migrate, backfill, or reconcile existing RBAC state. Bots do not inherit
-the grant and use the existing exact owner ceiling for explicit bot grants.
+Fresh empty-RBAC bootstrap grants only `message.read` to `everyone`. Its
+effective allow includes `message.read.interactions`. Do not migrate, backfill,
+or reconcile existing RBAC state. Bots do not inherit `everyone`. A bot needs
+an explicit read grant, bounded by its owner's effective read authority.
 
 ## Consequences
 
 - Operators can grant narrow message access without creating one RBAC object
   for each thread.
+- Operators can see the narrower capability in its three-component name and in
+  permission explanations. Dotted names do not create other inclusions.
 - The durable room event log remains the source of relationship truth.
 - A direct mention gives access to content that was already in the thread.
 - Typed mention provenance is required. Ambiguous legacy mention rows fail
@@ -88,8 +100,8 @@ the grant and use the existing exact owner ceiling for explicit bot grants.
 - A separate bot-ping design must define realtime delivery and recovery for
   direct mentions.
 - Old replicas do not understand the narrow permission. They deny narrow reads
-  because broad `message.read` is absent. A mixed rollout can reduce
-  availability but does not give broad message access.
+  when broad `message.read` is absent. A mixed rollout can reduce availability
+  but does not give broad message access.
 - A future interaction-end feature needs a new durable end fact and must define
   whether permission restoration or room re-entry can reopen an ended
   relationship.

@@ -44,6 +44,7 @@
       "allow": "許可します",
       "deny": "拒否",
       "winning_decision": "(優勝決定)",
+      "included_by": "Included by {permission}",
       "level_server": "サーバー",
       "level_group": "グループ",
       "level_room": "部屋",

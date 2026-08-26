@@ -213,6 +213,9 @@ func TestDirectMentionOccurrenceVisibleWithInteractionScopedRead(t *testing.T) {
 	if err := chattoCore.DenyRoomPermission(ctx, SystemActorID, room.GetId(), RoleEveryone, PermMessageRead); err != nil {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
+	if err := chattoCore.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), recipient.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
+	}
 	mention, err := chattoCore.PostMessage(
 		ctx, KindChannel, room.GetId(), author.GetId(), "@interaction-notify-recipient please review", nil, root.GetId(), "", nil, false,
 	)

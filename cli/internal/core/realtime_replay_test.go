@@ -462,7 +462,7 @@ func TestPlanRealtimeReplayOmitsMessagesWithoutAReadMode(t *testing.T) {
 		t.Fatalf("DenyRoomPermission message.read: %v", err)
 	}
 	if err := chatto.DenyRoomPermission(ctx, SystemActorID, room.Id, RoleEveryone, PermMessageReadInteractions); err != nil {
-		t.Fatalf("DenyRoomPermission message.read-interactions: %v", err)
+		t.Fatalf("DenyRoomPermission message.read.interactions: %v", err)
 	}
 	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.Id, "")
 	if err != nil {
@@ -515,6 +515,9 @@ func TestPlanRealtimeReplayIncludesOnlyRelatedThreadMessages(t *testing.T) {
 	}
 	if err := chatto.DenyUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageRead); err != nil {
 		t.Fatalf("DenyUserRoomPermission message.read: %v", err)
+	}
+	if err := chatto.GrantUserRoomPermission(ctx, SystemActorID, room.GetId(), viewer.GetId(), PermMessageReadInteractions); err != nil {
+		t.Fatalf("GrantUserRoomPermission message.read.interactions: %v", err)
 	}
 	boundary, err := chatto.PlanRealtimeReplay(ctx, viewer.GetId(), "")
 	if err != nil {

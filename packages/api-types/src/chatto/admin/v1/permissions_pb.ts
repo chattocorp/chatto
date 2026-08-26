@@ -1189,6 +1189,14 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
    */
   trace: PermissionTraceEntry[] = [];
 
+  /**
+   * Permission whose effective allow includes this permission. Empty when the
+   * permission was resolved directly.
+   *
+   * @generated from field: string included_by_permission = 6;
+   */
+  includedByPermission = "";
+
   constructor(data?: PartialMessage<PermissionExplanation>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1202,6 +1210,7 @@ export class PermissionExplanation extends Message<PermissionExplanation> {
     { no: 3, name: "decided_at", kind: "enum", T: proto3.getEnumType(PermissionDecisionLevel) },
     { no: 4, name: "decided_by_role", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 5, name: "trace", kind: "message", T: PermissionTraceEntry, repeated: true },
+    { no: 6, name: "included_by_permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionExplanation {

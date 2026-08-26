@@ -44,6 +44,7 @@
       "allow": "zezwól",
       "deny": "odmów",
       "winning_decision": "(zwycięska decyzja)",
+      "included_by": "Included by {permission}",
       "level_server": "Serwer",
       "level_group": "Grupa",
       "level_room": "Pokój",

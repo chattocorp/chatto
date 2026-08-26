@@ -44,6 +44,7 @@
       "allow": "toegestaan",
       "deny": "ontkennen",
       "winning_decision": "(winnende beslissing)",
+      "included_by": "Included by {permission}",
       "level_server": "Server",
       "level_group": "Groep",
       "level_room": "Kamer",

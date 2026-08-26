@@ -148,11 +148,12 @@ func apiPermissionExplanations(explanations []core.PermissionExplanation) []*adm
 
 func apiPermissionExplanation(explanation core.PermissionExplanation) *adminv1.PermissionExplanation {
 	out := &adminv1.PermissionExplanation{
-		Permission:    string(explanation.Permission),
-		State:         apiPermissionExplanationDecision(explanation.State),
-		DecidedAt:     apiPermissionDecisionLevel(explanation.DecidedAt),
-		DecidedByRole: explanation.DecidedByRole,
-		Trace:         make([]*adminv1.PermissionTraceEntry, 0, len(explanation.Trace)),
+		Permission:           string(explanation.Permission),
+		IncludedByPermission: string(explanation.IncludedBy),
+		State:                apiPermissionExplanationDecision(explanation.State),
+		DecidedAt:            apiPermissionDecisionLevel(explanation.DecidedAt),
+		DecidedByRole:        explanation.DecidedByRole,
+		Trace:                make([]*adminv1.PermissionTraceEntry, 0, len(explanation.Trace)),
 	}
 	for i, entry := range winningTraceFirst(explanation) {
 		out.Trace = append(out.Trace, &adminv1.PermissionTraceEntry{

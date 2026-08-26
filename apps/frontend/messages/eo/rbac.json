@@ -44,6 +44,7 @@
       "allow": "permesi",
       "deny": "nei",
       "winning_decision": "(gajna decido)",
+      "included_by": "Included by {permission}",
       "level_server": "Servilo",
       "level_group": "Grupo",
       "level_room": "Ĉambro",

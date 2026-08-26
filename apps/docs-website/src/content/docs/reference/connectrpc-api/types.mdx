@@ -1432,6 +1432,7 @@ Full decision trace for one permission and target user.
 | `decided_at` | [`PermissionDecisionLevel`](#chatto-admin-v1-PermissionDecisionLevel) | Level of the winning decision, when state is not NONE. |
 | `decided_by_role` | `string` | Role name, user ID, or policy marker that produced the winning decision. |
 | `trace` | repeated [`PermissionTraceEntry`](#chatto-admin-v1-PermissionTraceEntry) | Ordered decision trace. The first entry is the winning decision. |
+| `included_by_permission` | `string` | Permission whose effective allow includes this permission. Empty when the permission was resolved directly. |
 
 <a id="chatto-admin-v1-PermissionMatrixCell"></a>
 

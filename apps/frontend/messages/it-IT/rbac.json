@@ -44,6 +44,7 @@
       "allow": "consentire",
       "deny": "negare",
       "winning_decision": "(decisione vincente)",
+      "included_by": "Included by {permission}",
       "level_server": "Server",
       "level_group": "Gruppo",
       "level_room": "Stanza",

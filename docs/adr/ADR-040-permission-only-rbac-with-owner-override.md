@@ -6,6 +6,10 @@
 > `owner` role instead of acting as a separate permission-time fallback. This
 > keeps live authorization and event-time visibility on one representation.
 >
+> **Amended 2026-08-26:** Permission identifiers can contain more than two
+> dot-separated components. A dotted prefix has no automatic meaning.
+> Permission inclusion must be explicit.
+>
 > **Partially superseded by [ADR-052](ADR-052-subject-specific-rbac-with-everyone-baseline.md).**
 > The effective-owner override, permission-only gates, and non-ranking role
 > positions remain active. ADR-052 replaces the literal all-subject,
@@ -61,6 +65,15 @@ Use a permission-only RBAC model for everyone except effective owners.
   `everyone`, so normal rooms work immediately. Room and group decisions are
   local exceptions; the built-in announcements room adds a room-level
   `everyone` deny for `message.post`.
+- Permission identifiers contain two or more non-empty dot-separated
+  components. A component can contain hyphens. The identifier structure makes
+  related capabilities visible, but it does not create a general hierarchy.
+- An effective allow can explicitly include another permission. The catalog
+  currently defines one inclusion: `message.read` includes
+  `message.read.interactions`. An allow for the included permission does not
+  include its parent. A deny for the included permission cannot restrict an
+  effective allow for its parent. A deny for the parent does not restrict a
+  separate allow for the included permission.
 
 This supersedes ADR-005.
 
@@ -81,6 +94,8 @@ This supersedes ADR-005.
 - Existing role position fields and protobuf event fields remain for
   compatibility. Removing or reserving them can be considered separately if the
   persisted event contract is migrated.
+- Permission inclusion changes effective authorization only. It does not write
+  or synthesize an additional RBAC grant.
 - The authorization fence adds an empty operational fact to protected batches.
   During a mixed-version rollout, its full concurrency guarantee starts only
   after all writing replicas understand and advance the fence.
