@@ -151,6 +151,9 @@ func TestPermissionHierarchy_ExplanationAndRoleMatrix(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
 	user, _ := core.CreateUser(ctx, SystemActorID, "hierarchy-explain", "Hierarchy Explain", "password123")
+	if err := core.GrantUserPermission(ctx, SystemActorID, user.Id, PermRoleManage); err != nil {
+		t.Fatalf("grant role.manage: %v", err)
+	}
 	if err := core.GrantServerPermission(ctx, SystemActorID, RoleEveryone, PermAdmin); err != nil {
 		t.Fatalf("grant ancestor: %v", err)
 	}
@@ -161,7 +164,7 @@ func TestPermissionHierarchy_ExplanationAndRoleMatrix(t *testing.T) {
 	if len(explanation.Trace) != 1 || explanation.Trace[0].Permission != PermAdmin {
 		t.Fatalf("trace = %+v, want one admin ancestor entry", explanation.Trace)
 	}
-	matrix, err := core.GetRolePermissionMatrix(ctx, SystemActorID, RoleEveryone)
+	matrix, err := core.GetRolePermissionMatrix(ctx, user.Id, RoleEveryone)
 	if err != nil {
 		t.Fatalf("GetRolePermissionMatrix: %v", err)
 	}

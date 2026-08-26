@@ -340,21 +340,14 @@ func TestInitServerDefaults(t *testing.T) {
 
 	t.Run("admin has expected server permissions", func(t *testing.T) {
 		// Admin-specific defaults include administration, room administration,
-		// and message management. Ordinary posting defaults come from everyone.
-		for _, perm := range PermissionsForScope(ScopeServer) {
-			if perm.Category == CategoryMessage && perm.Permission != PermMessageManage {
-				continue
-			}
-			// bot.create is deliberately inherited from everyone rather than
-			// persisted as an admin-role grant.
-			if perm.Permission == PermBotCreate {
-				continue
-			}
-			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm.Permission); got != DecisionAllow {
-				t.Errorf("admin decision for %s = %s, want %s", perm.Permission, got, DecisionAllow)
+		// and message management. Parent paths do not receive grants from their
+		// descendants. Ordinary posting defaults come from everyone.
+		for _, perm := range DefaultAdminPermissions() {
+			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm); got != DecisionAllow {
+				t.Errorf("admin decision for %s = %s, want %s", perm, got, DecisionAllow)
 			}
 		}
-		for _, perm := range []Permission{PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermBotCreate} {
+		for _, perm := range []Permission{PermServer, PermRoom, PermMessage, PermRole, PermAdmin, PermUser, PermBot, PermMessagePost, PermMessagePostInThread, PermMessageReact, PermMessageEcho, PermBotCreate} {
 			if got := core.rbacModel.decision(ScopeServer, "", RoleAdmin, perm); got != DecisionNone {
 				t.Errorf("admin server decision for %s = %s, want %s", perm, got, DecisionNone)
 			}
