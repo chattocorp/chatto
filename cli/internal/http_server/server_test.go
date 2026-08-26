@@ -794,7 +794,7 @@ func TestAuthRoutes_BrowserLoginRejectsCrossSiteAndFormRequests(t *testing.T) {
 	}{
 		{name: "plain HTML form", contentType: "text/plain", origin: "https://attacker.example", wantStatus: http.StatusUnsupportedMediaType},
 		{name: "cross-origin fetch", contentType: "application/json", origin: "https://attacker.example", mode: connectapi.BrowserAuthenticationModeCookie, wantStatus: http.StatusForbidden},
-		{name: "missing browser mode", contentType: "application/json", origin: ts.URL, wantStatus: http.StatusForbidden},
+		{name: "unsupported browser mode", contentType: "application/json", origin: ts.URL, mode: "bearer", wantStatus: http.StatusForbidden},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
@@ -822,6 +822,46 @@ func TestAuthRoutes_BrowserLoginRejectsCrossSiteAndFormRequests(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAuthRoutes_BrowserLoginAcceptsLegacySameOriginRequest(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServer(t)
+	ctx := testContext(t)
+	if _, err := chattoCore.CreateUser(ctx, "system", "legacy-browser-login", "Legacy Browser Login", "password123"); err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": "legacy-browser-login", "password": "password123"})
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/login", bytes.NewReader(body))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Origin", ts.URL)
+
+	resp, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("legacy browser login: %v", err)
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(resp.Body)
+		t.Fatalf("legacy browser login status = %d, want 200: %s", resp.StatusCode, responseBody)
+	}
+	var result map[string]any
+	if err := json.NewDecoder(resp.Body).Decode(&result); err != nil {
+		t.Fatalf("decode legacy browser login response: %v", err)
+	}
+	for _, field := range []string{"token", "refreshToken", "expiresIn", "refreshTokenExpiresIn"} {
+		if _, exists := result[field]; exists {
+			t.Fatalf("legacy browser login response contains %q", field)
+		}
+	}
+	for _, cookie := range resp.Cookies() {
+		if isBrowserSessionCookieName(cookie.Name) {
+			return
+		}
+	}
+	t.Fatal("legacy browser login did not set a browser session cookie")
 }
 
 func TestAuthRoutes_ProgrammaticLoginRejectsFormContentType(t *testing.T) {
