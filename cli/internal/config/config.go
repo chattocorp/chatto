@@ -215,6 +215,14 @@ func (c *ChattoConfig) Validate() error {
 			errs = append(errs, err.Error())
 		}
 	}
+	for _, origin := range c.Webserver.AllowedOrigins {
+		if origin == "*" {
+			continue
+		}
+		if err := validateAbsoluteHTTPURL("webserver.allowed_origins", origin); err != nil {
+			errs = append(errs, err.Error())
+		}
+	}
 	if c.NATS.Client.URL != "" {
 		if _, err := url.Parse(c.NATS.Client.URL); err != nil {
 			errs = append(errs, fmt.Sprintf("nats.client.url is invalid: %v", err))
