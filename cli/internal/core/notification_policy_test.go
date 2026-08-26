@@ -159,210 +159,75 @@ func TestGetNotificationPolicyWaitsForCurrentConfigProjection(t *testing.T) {
 	}
 }
 
-func TestSetRoomNotificationPolicyConflictsWithConcurrentMembershipLoss(t *testing.T) {
+func TestScopedNotificationPolicyUpdateRequiresCurrentScopeAccess(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
-	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-write-fence-user", "Policy Write Fence User", "password")
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-access-user", "Policy Access User", "password")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	room, err := chattoCore.CreateRoom(ctx, user.Id, KindChannel, "", "policy-write-fence-room", "")
+	other, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-access-other", "Policy Access Other", "password")
+	if err != nil {
+		t.Fatalf("CreateUser other: %v", err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, other.Id, KindChannel, "", "policy-access-room", "")
 	if err != nil {
 		t.Fatalf("CreateRoom: %v", err)
 	}
-	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-	// Seed a config fact so replacing the config projector gives us a
-	// deterministic pause after room access has been checked but before append.
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, user.Id,
-		notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-	); err != nil {
-		t.Fatalf("SetServerNotificationMode: %v", err)
-	}
-	delayedConfig := evtstream.NewProjectionHandle(
-		chattoCore.js,
-		chattoCore.storage.serverEvtStream,
-		NewConfigProjection(),
-		testCoreLogger(),
-	)
-	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
+	patch := &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
+	mask := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
 
-	result := make(chan error, 1)
-	go func() {
-		_, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, user.Id, room.Id,
-			notificationTestSignalReaction,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
-		)
-		result <- err
-	}()
-	select {
-	case early := <-result:
-		t.Fatalf("SetRoomNotificationMode returned before delayed config projection started: %v", early)
-	case <-time.After(50 * time.Millisecond):
+	if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id,
+		NotificationPolicyScope{Kind: NotificationPolicyScopeRoom, ID: room.Id}, patch, mask,
+	); !errors.Is(err, ErrPermissionDenied) {
+		t.Fatalf("room policy update error = %v, want ErrPermissionDenied", err)
 	}
-	if err := chattoCore.LeaveRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("LeaveRoom: %v", err)
-	}
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- delayedConfig.Projector().Run(runCtx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("delayed config projector did not stop")
-		}
-	})
-	select {
-	case err := <-result:
-		if !errors.Is(err, ErrPermissionDenied) {
-			t.Fatalf("SetRoomNotificationMode after concurrent leave error = %v, want ErrPermissionDenied", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("SetRoomNotificationMode did not finish after config projection caught up")
-	}
-	if got := chattoCore.configModel.notificationRoomMode(user.Id, room.Id, notificationTestSignalReaction); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-		t.Fatalf("room preference after rejected write = %v, want unspecified", got)
+	if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id,
+		NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: "missing-group"}, patch, mask,
+	); !errors.Is(err, ErrRoomGroupNotFound) {
+		t.Fatalf("room-group policy update error = %v, want ErrRoomGroupNotFound", err)
 	}
 }
 
-func TestSetRoomNotificationPolicyConflictsWithConcurrentRoomDeletion(t *testing.T) {
+func TestScopedNotificationPolicyUpdatesDoNotAdvanceAuthorizationFence(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)
-	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-delete-fence-user", "Policy Delete Fence User", "password")
+	user, err := chattoCore.CreateUser(ctx, SystemActorID, "policy-no-fence-user", "Policy No Fence User", "password")
 	if err != nil {
 		t.Fatalf("CreateUser: %v", err)
 	}
-	room, err := chattoCore.CreateRoom(ctx, user.Id, KindChannel, "", "policy-delete-fence-room", "")
-	if err != nil {
-		t.Fatalf("CreateRoom: %v", err)
-	}
-	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
-		t.Fatalf("JoinRoom: %v", err)
-	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, user.Id,
-		notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-	); err != nil {
-		t.Fatalf("SetServerNotificationMode: %v", err)
-	}
-	delayedConfig := evtstream.NewProjectionHandle(
-		chattoCore.js,
-		chattoCore.storage.serverEvtStream,
-		NewConfigProjection(),
-		testCoreLogger(),
-	)
-	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
-
-	result := make(chan error, 1)
-	go func() {
-		_, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, user.Id, room.Id,
-			notificationTestSignalReaction,
-			corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
-		)
-		result <- err
-	}()
-	select {
-	case early := <-result:
-		t.Fatalf("SetRoomNotificationMode returned before delayed config projection started: %v", early)
-	case <-time.After(50 * time.Millisecond):
-	}
-	if err := chattoCore.DeleteRoom(ctx, user.Id, KindChannel, room.Id); err != nil {
-		t.Fatalf("DeleteRoom: %v", err)
-	}
-
-	runCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- delayedConfig.Projector().Run(runCtx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("delayed config projector did not stop")
-		}
-	})
-	select {
-	case err := <-result:
-		if !errors.Is(err, ErrNotFound) {
-			t.Fatalf("SetRoomNotificationMode after concurrent deletion error = %v, want ErrNotFound", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("SetRoomNotificationMode did not finish after config projection caught up")
-	}
-	if got := chattoCore.configModel.notificationRoomMode(user.Id, room.Id, notificationTestSignalReaction); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-		t.Fatalf("room preference after rejected write = %v, want unspecified", got)
-	}
-}
-
-func TestSetRoomGroupNotificationPolicyConflictsWithConcurrentGroupDeletion(t *testing.T) {
-	chattoCore, _ := setupTestCore(t)
-	ctx := testContext(t)
-	user, err := chattoCore.CreateUser(ctx, SystemActorID, "group-policy-delete-fence-user", "Group Policy Delete Fence User", "password")
-	if err != nil {
-		t.Fatalf("CreateUser: %v", err)
-	}
-	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Group Policy Delete Fence", "")
+	group, err := chattoCore.CreateRoomGroup(ctx, SystemActorID, "Policy No Fence Group", "")
 	if err != nil {
 		t.Fatalf("CreateRoomGroup: %v", err)
 	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, user.Id,
-		notificationTestSignalReaction,
-		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
-	); err != nil {
-		t.Fatalf("SetServerNotificationMode: %v", err)
+	room, err := chattoCore.CreateRoom(ctx, SystemActorID, KindChannel, group.Id, "policy-no-fence-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
 	}
-	delayedConfig := evtstream.NewProjectionHandle(
-		chattoCore.js,
-		chattoCore.storage.serverEvtStream,
-		NewConfigProjection(),
-		testCoreLogger(),
-	)
-	chattoCore.configModel = NewConfigModel(chattoCore.EventPublisher, delayedConfig)
-
-	result := make(chan error, 1)
-	go func() {
-		_, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id,
-			NotificationPolicyScope{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
-			&corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
-			&fieldmaskpb.FieldMask{Paths: []string{"reactions"}},
-		)
-		result <- err
-	}()
-	select {
-	case early := <-result:
-		t.Fatalf("group policy update returned before delayed config projection started: %v", early)
-	case <-time.After(50 * time.Millisecond):
-	}
-	if err := chattoCore.DeleteRoomGroup(ctx, SystemActorID, group.Id); err != nil {
-		t.Fatalf("DeleteRoomGroup: %v", err)
+	if _, err := chattoCore.JoinRoom(ctx, user.Id, KindChannel, user.Id, room.Id); err != nil {
+		t.Fatalf("JoinRoom: %v", err)
 	}
 
-	runCtx, cancel := context.WithCancel(context.Background())
-	done := make(chan error, 1)
-	go func() { done <- delayedConfig.Projector().Run(runCtx) }()
-	t.Cleanup(func() {
-		cancel()
-		select {
-		case <-done:
-		case <-time.After(5 * time.Second):
-			t.Fatal("delayed config projector did not stop")
-		}
-	})
-	select {
-	case err := <-result:
-		if !errors.Is(err, ErrRoomGroupNotFound) {
-			t.Fatalf("group policy update after concurrent deletion error = %v, want ErrRoomGroupNotFound", err)
-		}
-	case <-time.After(5 * time.Second):
-		t.Fatal("group policy update did not finish after config projection caught up")
+	before, err := chattoCore.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence before policy updates: %v", err)
 	}
-	if got := chattoCore.configModel.notificationRoomGroupModes(user.Id, group.Id).GetReactions(); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED {
-		t.Fatalf("group preference after rejected write = %v, want unspecified", got)
+	patch := &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()}
+	mask := &fieldmaskpb.FieldMask{Paths: []string{"reactions"}}
+	for _, scope := range []NotificationPolicyScope{
+		{Kind: NotificationPolicyScopeRoomGroup, ID: group.Id},
+		{Kind: NotificationPolicyScopeRoom, ID: room.Id},
+	} {
+		if _, err := chattoCore.NotificationPolicy().UpdateScopedNotificationPolicy(ctx, user.Id, scope, patch, mask); err != nil {
+			t.Fatalf("UpdateScopedNotificationPolicy(%+v): %v", scope, err)
+		}
+	}
+	after, err := chattoCore.authorizationFenceSeq(ctx)
+	if err != nil {
+		t.Fatalf("authorization fence after policy updates: %v", err)
+	}
+	if after != before {
+		t.Fatalf("scoped notification policy updates advanced authorization fence: before=%d after=%d", before, after)
 	}
 }
 

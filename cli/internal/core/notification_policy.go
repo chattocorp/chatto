@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"strings"
-	"time"
 
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
@@ -13,7 +12,6 @@ import (
 
 	"hmans.de/chatto/internal/evtstream"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
-	"hmans.de/chatto/pkg/events"
 )
 
 // NotificationPolicyScopeKind identifies one supported notification-policy
@@ -314,13 +312,13 @@ func (s *NotificationPolicyModel) getScopedNotificationPolicyCurrent(ctx context
 	switch scope.Kind {
 	case NotificationPolicyScopeServer:
 	case NotificationPolicyScopeRoomGroup:
-		if _, err := s.prepareRoomGroupAccess(ctx, scope.ID); err != nil {
+		if err := s.checkRoomGroupAccess(ctx, scope.ID); err != nil {
 			return nil, err
 		}
 		group = s.core.configModel.notificationRoomGroupModes(actorID, scope.ID)
 		overrides = group
 	case NotificationPolicyScopeRoom:
-		if _, err := s.prepareRoomAccess(ctx, actorID, scope.ID); err != nil {
+		if err := s.checkRoomAccess(ctx, actorID, scope.ID); err != nil {
 			return nil, err
 		}
 		groupID := s.core.roomModel.roomGroupForRoom(scope.ID)
@@ -416,14 +414,9 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 		return s.GetScopedNotificationPolicy(ctx, actorID, scope)
 	}
 
-	for attempt := 0; attempt < maxConfigUpdateRetries; attempt++ {
-		authorizationSeq, err := s.prepareScopedResourceAccess(ctx, actorID, scope)
-		if err != nil {
+	err := s.core.configModel.updateSubject(ctx, actorID, func(_ evtstream.Aggregate, _ string, _ uint64) ([]*corev1.Event, error) {
+		if err := s.checkScopedResourceAccess(ctx, actorID, scope); err != nil {
 			return nil, err
-		}
-		agg, filter, expectedSeq, err := s.core.configModel.prepareSubject(ctx, actorID)
-		if err != nil {
-			return nil, fmt.Errorf("prepare scoped notification policy: %w", err)
 		}
 		current := s.notificationModesForScope(actorID, scope)
 		next, err := applyNotificationDeliveryModesPatch(current, patch, mask)
@@ -431,50 +424,14 @@ func (s *NotificationPolicyModel) UpdateScopedNotificationPolicy(ctx context.Con
 			return nil, err
 		}
 		if proto.Equal(current, next) {
-			unchanged, err := s.core.configModel.subjectSequenceUnchanged(ctx, filter, expectedSeq)
-			if err != nil {
-				return nil, fmt.Errorf("revalidate room notification policy: %w", err)
-			}
-			if unchanged {
-				// Recheck access at the no-op linearization boundary. A no-op has
-				// no authorization-fenced append to perform this validation for us.
-				if _, err := s.prepareScopedResourceAccess(ctx, actorID, scope); err != nil {
-					return nil, err
-				}
-				return s.GetScopedNotificationPolicy(ctx, actorID, scope)
-			}
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-			}
-			continue
+			return nil, nil
 		}
-		event := scopedNotificationPolicyChangedEvent(actorID, scope, next)
-		subject := agg.SubjectFor(event)
-		seqs, err := s.core.appendAuthorizationFencedBatch(ctx, actorID, []evtstream.BatchEntry{{
-			Subject: subject, Event: event, HasOCC: true, ExpectedSeq: expectedSeq, FilterSubject: filter,
-		}}, authorizationSeq)
-		if errors.Is(err, events.ErrConflict) {
-			select {
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			case <-time.After(time.Duration(1<<attempt) * time.Millisecond):
-			}
-			continue
-		}
-		if err != nil {
-			return nil, fmt.Errorf("update scoped notification policy: %w", err)
-		}
-		if len(seqs) == 0 {
-			return nil, errors.New("scoped notification policy committed no event")
-		}
-		if err := s.core.configModel.waitFor(ctx, events.SubjectPosition(subject, seqs[0])); err != nil {
-			return nil, fmt.Errorf("wait for scoped notification policy: %w", err)
-		}
-		return s.GetScopedNotificationPolicy(ctx, actorID, scope)
+		return []*corev1.Event{scopedNotificationPolicyChangedEvent(actorID, scope, next)}, nil
+	})
+	if err != nil {
+		return nil, fmt.Errorf("update scoped notification policy: %w", err)
 	}
-	return nil, ErrConfigConflict
+	return s.GetScopedNotificationPolicy(ctx, actorID, scope)
 }
 
 func validateNotificationPolicyScope(scope NotificationPolicyScope) error {
@@ -527,72 +484,68 @@ func scopedNotificationPolicyChangedEvent(actorID string, scope NotificationPoli
 	}})
 }
 
-func (s *NotificationPolicyModel) prepareScopedResourceAccess(ctx context.Context, actorID string, scope NotificationPolicyScope) (uint64, error) {
+func (s *NotificationPolicyModel) checkScopedResourceAccess(ctx context.Context, actorID string, scope NotificationPolicyScope) error {
 	if scope.Kind == NotificationPolicyScopeRoomGroup {
-		return s.prepareRoomGroupAccess(ctx, scope.ID)
+		return s.checkRoomGroupAccess(ctx, scope.ID)
 	}
-	return s.prepareRoomAccess(ctx, actorID, scope.ID)
+	return s.checkRoomAccess(ctx, actorID, scope.ID)
 }
 
-// prepareRoomGroupAccess captures the authorization fence shared by room-group
-// deletion, waits for the group aggregate, and confirms current existence.
-func (s *NotificationPolicyModel) prepareRoomGroupAccess(ctx context.Context, groupID string) (uint64, error) {
-	authorizationSeq, err := s.core.authorizationFenceSeq(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("capture notification policy room-group fence: %w", err)
-	}
+// checkRoomGroupAccess waits for the group aggregate and confirms current
+// existence. Policy changes use request-time scope validation because they can
+// change only the authenticated user's preferences; a preference that races a
+// group deletion is harmless and becomes inert.
+func (s *NotificationPolicyModel) checkRoomGroupAccess(ctx context.Context, groupID string) error {
 	position, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupAggregate(groupID).AllEventsFilter())
 	if err != nil {
-		return 0, fmt.Errorf("capture notification policy room-group boundary: %w", err)
+		return fmt.Errorf("capture notification policy room-group boundary: %w", err)
 	}
 	if err := s.core.roomModel.waitForGroupLayout(ctx, position); err != nil {
-		return 0, fmt.Errorf("wait for notification policy room-group boundary: %w", err)
+		return fmt.Errorf("wait for notification policy room-group boundary: %w", err)
 	}
 	if _, err := s.core.GetRoomGroup(ctx, groupID); err != nil {
-		return 0, err
+		return err
 	}
-	return authorizationSeq, nil
+	return nil
 }
 
-// prepareRoomAccess returns the authorization-fence position that must remain
-// unchanged through a room-scoped policy write.
-func (s *NotificationPolicyModel) prepareRoomAccess(ctx context.Context, actorID, roomID string) (uint64, error) {
-	authorizationSeq, err := s.core.authorizationFenceSeq(ctx)
-	if err != nil {
-		return 0, fmt.Errorf("capture notification policy authorization fence: %w", err)
-	}
+// checkRoomAccess waits for the projections that define current effective room
+// membership, then confirms that the authenticated user is a member. Policy
+// changes use request-time membership semantics because they affect only that
+// user's preferences.
+func (s *NotificationPolicyModel) checkRoomAccess(ctx context.Context, actorID, roomID string) error {
 	roomPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RoomAggregate(roomID).AllEventsFilter())
 	if err != nil {
-		return 0, fmt.Errorf("capture notification policy room boundary: %w", err)
+		return fmt.Errorf("capture notification policy room boundary: %w", err)
 	}
 	groupPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.GroupSubjectFilter())
 	if err != nil {
-		return 0, fmt.Errorf("capture notification policy group boundary: %w", err)
+		return fmt.Errorf("capture notification policy group boundary: %w", err)
 	}
 	rbacPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.RBACSubjectFilter())
 	if err != nil {
-		return 0, fmt.Errorf("capture notification policy RBAC boundary: %w", err)
+		return fmt.Errorf("capture notification policy RBAC boundary: %w", err)
 	}
 	userPosition, err := s.core.EventPublisher.LastSubjectPosition(ctx, evtstream.UserAggregate(actorID).AllEventsFilter())
 	if err != nil {
-		return 0, fmt.Errorf("capture notification policy user boundary: %w", err)
+		return fmt.Errorf("capture notification policy user boundary: %w", err)
 	}
 	if err := s.core.roomModel.waitForDirectory(ctx, roomPosition); err != nil {
-		return 0, fmt.Errorf("wait for notification policy room boundary: %w", err)
+		return fmt.Errorf("wait for notification policy room boundary: %w", err)
 	}
 	if err := s.core.roomModel.waitForGroupLayout(ctx, groupPosition); err != nil {
-		return 0, fmt.Errorf("wait for notification policy group boundary: %w", err)
+		return fmt.Errorf("wait for notification policy group boundary: %w", err)
 	}
 	if err := s.core.rbacModel.waitFor(ctx, rbacPosition); err != nil {
-		return 0, fmt.Errorf("wait for notification policy RBAC boundary: %w", err)
+		return fmt.Errorf("wait for notification policy RBAC boundary: %w", err)
 	}
 	if err := s.core.userModel.waitForUsers(ctx, userPosition); err != nil {
-		return 0, fmt.Errorf("wait for notification policy user boundary: %w", err)
+		return fmt.Errorf("wait for notification policy user boundary: %w", err)
 	}
 	if err := s.requireRoomMember(ctx, actorID, roomID); err != nil {
-		return 0, err
+		return err
 	}
-	return authorizationSeq, nil
+	return nil
 }
 
 func (s *NotificationPolicyModel) requireRoomMember(ctx context.Context, actorID, roomID string) error {

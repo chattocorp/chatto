@@ -147,6 +147,12 @@ notification decisions. Deleting a group leaves its saved user preferences
 inert. Group IDs are not reused, and deletion does not fan out cleanup writes
 to user configuration aggregates.
 
+Room-group and room policy writes validate scope access at request time and use
+OCC on the user's configuration aggregate. They do not advance the
+authorization fence. A concurrent membership loss, room deletion, or group
+deletion can leave a newly committed preference inert, but it cannot change
+another user's state or grant access to the deleted scope.
+
 ### 4. Source-time decisions are durable and replayable
 
 **Decision:** Notification recipients and effective source-time policy are
