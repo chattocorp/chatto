@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",
+          "badge": "Indicador",
+          "badge_hint": "Solo agrega un punto neutro de contenido no leído. No crea una notificación, reproduce un sonido ni envía una notificación push.",
           "notification": "Notificación",
           "push_notification": "Notificación push"
         },

@@ -111,6 +111,10 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 		}
 	}
 
+	badgeUnread, err := s.core.notificationOccurrences.HasNotificationUnread(ctx, actorID, room.Id, "")
+	if err != nil {
+		return nil, fmt.Errorf("read room Badge state: %w", err)
+	}
 	readNotifications := 0
 	if hasLast && lastEventID != "" {
 		readNotifications, err = s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, "", lastEventID)
@@ -118,7 +122,7 @@ func (s *ReadStateModel) MarkRoomAsRead(ctx context.Context, actorID, roomID, up
 			return nil, fmt.Errorf("reconcile room read state with notifications: %w", err)
 		}
 	}
-	if markerUpdated || readNotifications > 0 {
+	if markerUpdated || readNotifications > 0 || badgeUnread {
 		s.core.NotifyRoomMarkedAsRead(ctx, actorID, kind, room.Id)
 	}
 
@@ -171,6 +175,7 @@ func (s *ReadStateModel) MarkThreadAsRead(ctx context.Context, actorID, roomID, 
 		if _, err := s.core.notificationOccurrences.MarkCoveredRead(ctx, actorID, room.Id, threadRootEventID, markerEventID); err != nil {
 			return nil, fmt.Errorf("reconcile thread read state with notifications: %w", err)
 		}
+		s.core.NotifyNotificationUnreadChanged(ctx, actorID, actorID, room.Id, threadRootEventID)
 	}
 	return &MarkThreadAsReadResult{PreviousReadAt: previousReadAt}, nil
 }

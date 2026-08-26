@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
+          "badge": "Märgis",
+          "badge_hint": "Lisab ainult neutraalse lugemata sisu täpi. See ei loo teavitust, ei esita heli ega saada tõuketeavitust.",
           "notification": "Teavitus",
           "push_notification": "Tõuketeavitus"
         },

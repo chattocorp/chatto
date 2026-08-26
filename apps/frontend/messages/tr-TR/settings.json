@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
+          "badge": "Rozet",
+          "badge_hint": "Yalnızca okunmamış içerik için nötr bir nokta ekler. Bildirim oluşturmaz, ses çalmaz veya anlık bildirim göndermez.",
           "notification": "Bildirim",
           "push_notification": "Anlık bildirim"
         },

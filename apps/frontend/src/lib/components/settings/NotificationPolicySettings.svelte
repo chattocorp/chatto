@@ -136,9 +136,14 @@ Rows are notification causes. Columns follow the current navigation layout.
     class="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border bg-surface/50 px-4 py-2 text-xs text-muted"
     aria-label={m('settings.notifications.policy.legend')}
   >
-    {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
+    {#each [NotificationDeliveryMode.OFF, NotificationDeliveryMode.UNREAD_BADGE, NotificationDeliveryMode.IN_APP_NOTIFICATION, NotificationDeliveryMode.PUSH_NOTIFICATION] as mode (mode)}
       {@const presentation = notificationDeliveryModePresentation(mode)}
-      <span class="inline-flex items-center gap-1.5">
+      <span
+        class="inline-flex items-center gap-1.5"
+        title={mode === NotificationDeliveryMode.UNREAD_BADGE
+          ? m('settings.notifications.policy.delivery_mode.badge_hint')
+          : undefined}
+      >
         <span
           class={['iconify h-5 w-5 shrink-0', presentation.icon, presentation.legendClass]}
           aria-hidden="true"

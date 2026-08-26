@@ -46,10 +46,7 @@ export interface E2EServerRole {
 }
 
 export type E2ENotificationMode =
-  | 'UNSPECIFIED'
-  | 'OFF'
-  | 'IN_APP_NOTIFICATION'
-  | 'PUSH_NOTIFICATION';
+  'UNSPECIFIED' | 'OFF' | 'UNREAD_BADGE' | 'IN_APP_NOTIFICATION' | 'PUSH_NOTIFICATION';
 
 type E2ENotificationPolicyShape<Value> = {
   directMessages: Value;
@@ -69,9 +66,7 @@ export interface E2ENotificationPolicy {
 }
 
 export type E2ENotificationPolicyScope =
-  | { server: Record<string, never> }
-  | { roomGroupId: string }
-  | { roomId: string };
+  { server: Record<string, never> } | { roomGroupId: string } | { roomId: string };
 
 interface NotificationPolicyResponse {
   policy?: {
@@ -106,7 +101,7 @@ interface JoinRoomResponse {
 }
 
 interface CreateMessageResponse {
-  event?: { id?: string };
+  message?: { id?: string };
 }
 
 interface ViewerResponse {
@@ -121,7 +116,8 @@ const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
   1: 'OFF',
   2: 'IN_APP_NOTIFICATION',
-  3: 'PUSH_NOTIFICATION'
+  3: 'PUSH_NOTIFICATION',
+  4: 'UNREAD_BADGE'
 };
 
 export async function connectPost<T>(

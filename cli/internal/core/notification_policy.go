@@ -77,8 +77,23 @@ func notificationDeliveryModesEmpty(modes *corev1.NotificationDeliveryModes) boo
 }
 
 func validNotificationMode(mode corev1.NotificationDeliveryMode) bool {
-	return mode >= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF &&
-		mode <= corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+	switch mode {
+	case corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE:
+		return true
+	default:
+		return false
+	}
+}
+
+// notificationModeProducesAttention accepts every concrete mode that makes
+// activity visible to the recipient. Unknown future values fail closed during
+// version skew.
+func notificationModeProducesAttention(mode corev1.NotificationDeliveryMode) bool {
+	return mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE ||
+		notificationModeProducesOccurrence(mode)
 }
 
 // notificationModeProducesOccurrence accepts only modes this binary knows how

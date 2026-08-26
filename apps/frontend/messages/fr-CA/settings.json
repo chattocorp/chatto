@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
+          "badge": "Pastille",
+          "badge_hint": "Ajoute seulement un point neutre pour le contenu non lu. Ne crée aucune notification, ne joue aucun son et n’envoie aucune notification poussée.",
           "notification": "Notification",
           "push_notification": "Notification poussée"
         },

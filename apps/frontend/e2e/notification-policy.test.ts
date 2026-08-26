@@ -2,13 +2,18 @@ import { expect } from '@playwright/test';
 import { createAndLoginTestUser } from './fixtures/testUser';
 import { withBootstrapAdminRequest } from './fixtures/adminRequest';
 import {
+  connectPost,
   createRoomViaConnect,
   getDefaultRoomGroupIdViaConnect,
   getRoomIdByNameViaConnect,
   getScopedNotificationPolicy,
   joinRoomViaConnect,
-  updateScopedNotificationPolicy
+  postMessageViaConnect,
+  updateScopedNotificationPolicy,
+  waitForRoomReadViaConnect,
+  waitForRoomUnreadViaConnect
 } from './fixtures/connectHelpers';
+import { withServerUser } from './fixtures/serverUser';
 import { test } from './setup';
 import * as routes from './routes';
 
@@ -51,10 +56,61 @@ test.describe('Notification policy', () => {
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Off/);
 
     await directMessages.press('Enter');
+    await expect(directMessages).toHaveAttribute('aria-label', /Override: Badge/);
+
+    await directMessages.press('Enter');
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
 
     await page.reload();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Notification/);
+  });
+
+  test('Badge adds only neutral unread attention and clears when the room is read', async ({
+    page,
+    chatPage,
+    notificationsPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60_000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    const messageEventId = await postMessageViaConnect(
+      page,
+      roomId,
+      `Badge reaction target ${Date.now()}`
+    );
+    await waitForRoomReadViaConnect(page, roomId);
+    await updateScopedNotificationPolicy(page, { server: {} }, { reactions: 'UNREAD_BADGE' });
+    await chatPage.enterRoom('announcements');
+
+    await withServerUser(browser!, serverURL, async ({ page: actorPage, chatPage: actorChat }) => {
+      await actorChat.enterRoom('general');
+      await connectPost(actorPage, 'chatto.api.v1.MessageService/AddReaction', {
+        roomId,
+        messageEventId,
+        emoji: 'thumbsup'
+      });
+    });
+
+    await waitForRoomUnreadViaConnect(page, roomId, true, 10_000);
+    const roomLink = chatPage.getRoomLink('general');
+    const unreadDot = roomLink.getByTestId('room-unread-dot');
+    await expect(unreadDot).toBeVisible({ timeout: 10_000 });
+    await expect(unreadDot).toHaveClass(/bg-neutral-action/);
+    await expect(roomLink.getByTestId('room-notification-badge')).not.toBeVisible();
+    await notificationsPage.expectBellIndicatorNotVisible();
+    await notificationsPage.goto();
+    await notificationsPage.expectEmptyState();
+
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    await waitForRoomReadViaConnect(page, roomId, 10_000);
+    await chatPage.enterRoom('announcements');
+    await expect(chatPage.getRoomLink('general').getByTestId('room-unread-dot')).not.toBeVisible();
   });
 
   test('resolves server, group, and room overrides and shows member rooms only', async ({
@@ -85,19 +141,11 @@ test.describe('Notification policy', () => {
     expect(roomPolicy.overrides.followedRooms).toBeNull();
     expect(roomPolicy.effective.followedRooms).toBe('PUSH_NOTIFICATION');
 
-    roomPolicy = await updateScopedNotificationPolicy(
-      page,
-      { roomId },
-      { followedRooms: 'OFF' }
-    );
+    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { followedRooms: 'OFF' });
     expect(roomPolicy.overrides.followedRooms).toBe('OFF');
     expect(roomPolicy.effective.followedRooms).toBe('OFF');
 
-    roomPolicy = await updateScopedNotificationPolicy(
-      page,
-      { roomId },
-      { followedRooms: null }
-    );
+    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { followedRooms: null });
     expect(roomPolicy.overrides.followedRooms).toBeNull();
     expect(roomPolicy.effective.followedRooms).toBe('PUSH_NOTIFICATION');
 

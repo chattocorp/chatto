@@ -81,6 +81,276 @@ func TestUnknownPersistedDeliveryModeFailsClosedWithoutStallingMaterializer(t *t
 	}
 }
 
+func TestBadgeReactionAddsOnlyUnreadAttentionUntilRoomRead(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-reaction-author", "Badge Reaction Author", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	reactor, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-reaction-reactor", "Badge Reaction Reactor", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "badge-reaction-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{author.Id, reactor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "react here", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, author.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("mark initial message read: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, author.Id, room.Id, notificationTestSignalReaction,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("set Badge policy: %v", err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction = (%v, %v)", added, err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge materialization: %v", err)
+	}
+	if occurrences := testNotificationOccurrences(t, chattoCore, author.Id); len(occurrences) != 0 {
+		t.Fatalf("Badge occurrences = %+v, want none", occurrences)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || !unread {
+		t.Fatalf("room unread after Badge reaction = (%v, %v), want (true, nil)", unread, err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, author.Id, room.Id, notificationTestSignalReaction,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable future Badge reactions: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || !unread {
+		t.Fatalf("source-time Badge after policy change = (%v, %v), want (true, nil)", unread, err)
+	}
+	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !removed {
+		t.Fatalf("RemoveReaction = (%v, %v)", removed, err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge reaction removal: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || unread {
+		t.Fatalf("room unread after reaction removal = (%v, %v), want (false, nil)", unread, err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, author.Id, room.Id, notificationTestSignalReaction,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("restore Badge policy: %v", err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction again = (%v, %v)", added, err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for replacement Badge reaction: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || !unread {
+		t.Fatalf("room unread after replacement Badge = (%v, %v), want (true, nil)", unread, err)
+	}
+	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, author.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("mark Badge reaction read: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || unread {
+		t.Fatalf("room unread after read boundary = (%v, %v), want (false, nil)", unread, err)
+	}
+	if removed, err := chattoCore.ReactionModel().RemoveReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !removed {
+		t.Fatalf("RemoveReaction after read = (%v, %v)", removed, err)
+	}
+	if added, err := chattoCore.ReactionModel().AddReaction(ctx, ReactionMutationInput{
+		ActorID: reactor.Id, RoomID: room.Id, MessageEventID: posted.Id, Emoji: "thumbsup",
+	}); err != nil || !added {
+		t.Fatalf("AddReaction after read = (%v, %v)", added, err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge after read: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || !unread {
+		t.Fatalf("later Badge after read boundary = (%v, %v), want (true, nil)", unread, err)
+	}
+	if err := chattoCore.LeaveRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("leave Badge room: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge visibility loss: %v", err)
+	}
+	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
+		t.Fatalf("rejoin Badge room: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, author.Id, room.Id); err != nil || unread {
+		t.Fatalf("old Badge after visibility regain = (%v, %v), want (false, nil)", unread, err)
+	}
+}
+
+func TestBadgeMarkerRejectsAnOlderReplicaWrite(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-monotonic-recipient", "Badge Monotonic Recipient", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-monotonic-author", "Badge Monotonic Author", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "badge-monotonic-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{recipient.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "Badge source", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	input := CreateNotificationOccurrenceInput{
+		RecipientID:          recipient.Id,
+		SourceEventID:        posted.Id,
+		ActorID:              author.Id,
+		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+		SourceStreamSequence: 100,
+	}
+	if changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, input); err != nil || !changed {
+		t.Fatalf("record newer Badge marker = (%v, %v), want (true, nil)", changed, err)
+	}
+	input.SourceStreamSequence = 99
+	if changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, input); err != nil || changed {
+		t.Fatalf("record older Badge marker = (%v, %v), want (false, nil)", changed, err)
+	}
+	marker, _, exists, err := chattoCore.notificationBoundaries.unreadMarker(ctx, notificationReadBoundaryScope{
+		userID: recipient.Id, roomID: room.Id,
+	})
+	if err != nil || !exists || marker.GetSourceStreamSequence() != 100 {
+		t.Fatalf("stored Badge marker = (%+v, %v, %v), want sequence 100", marker, exists, err)
+	}
+}
+
+func TestBadgeMarkerIsRemovedWhenRecipientAccountIsDeleted(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-delete-recipient", "Badge Delete Recipient", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-delete-author", "Badge Delete Author", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "badge-delete-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{recipient.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "Badge source", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
+		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
+	}); err != nil || !changed {
+		t.Fatalf("record Badge marker = (%v, %v), want (true, nil)", changed, err)
+	}
+
+	if err := chattoCore.DeleteUser(ctx, SystemActorID, recipient.Id); err != nil {
+		t.Fatalf("delete Badge recipient: %v", err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge account cleanup: %v", err)
+	}
+	marker, _, exists, err := chattoCore.notificationBoundaries.unreadMarker(ctx, notificationReadBoundaryScope{
+		userID: recipient.Id, roomID: room.Id,
+	})
+	if err != nil || exists || marker != nil {
+		t.Fatalf("Badge marker after account deletion = (%+v, %v, %v), want (nil, false, nil)", marker, exists, err)
+	}
+}
+
+func TestBadgeThreadReplyRollsUpAndClearsAtThreadBoundary(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	rootAuthor, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-thread-root", "Badge Thread Root", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	replyAuthor, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-thread-reply", "Badge Thread Reply", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, rootAuthor.Id, KindChannel, "", "badge-thread-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{rootAuthor.Id, replyAuthor.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, rootAuthor.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := chattoCore.ReadState().MarkRoomAsRead(ctx, rootAuthor.Id, room.Id, root.Id); err != nil {
+		t.Fatalf("mark root read: %v", err)
+	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, rootAuthor.Id, room.Id, notificationTestSignalFollowedThread,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("set Badge policy: %v", err)
+	}
+	reply, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, replyAuthor.Id, "thread reply", nil, root.Id, "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := chattoCore.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for Badge materialization: %v", err)
+	}
+	if occurrences := testNotificationOccurrences(t, chattoCore, rootAuthor.Id); len(occurrences) != 0 {
+		t.Fatalf("Badge occurrences = %+v, want none", occurrences)
+	}
+	if unread, err := chattoCore.notificationOccurrences.HasNotificationUnread(ctx, rootAuthor.Id, room.Id, root.Id); err != nil || !unread {
+		t.Fatalf("thread Badge unread = (%v, %v), want (true, nil)", unread, err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, rootAuthor.Id, room.Id); err != nil || !unread {
+		t.Fatalf("parent room Badge unread = (%v, %v), want (true, nil)", unread, err)
+	}
+	if _, err := chattoCore.ReadState().MarkThreadAsRead(ctx, rootAuthor.Id, room.Id, root.Id, reply.Id); err != nil {
+		t.Fatalf("mark thread read: %v", err)
+	}
+	if unread, err := chattoCore.HasUnread(ctx, KindChannel, rootAuthor.Id, room.Id); err != nil || unread {
+		t.Fatalf("parent room unread after thread read = (%v, %v), want (false, nil)", unread, err)
+	}
+}
+
 func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	chattoCore, _ := setupTestCore(t)
 	ctx := testContext(t)

@@ -331,9 +331,9 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	return time.Time{}, nil
 }
 
-// HasUnread reports whether a room has unread messages for a user. Returns
-// false if the user is not a member or there are no messages. Notification
-// policy is intentionally independent from ordinary room unread state.
+// HasUnread reports whether a room has unread messages or active Badge
+// attention for a user. Thread Badge markers roll up into the parent room.
+// The result is false when the user cannot currently see the room.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
@@ -342,13 +342,17 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 	if !isMember {
 		return false, nil
 	}
+	badgeUnread, err := c.notificationOccurrences.HasNotificationUnread(ctx, userID, roomID, "")
+	if err != nil {
+		return false, fmt.Errorf("read notification Badge state: %w", err)
+	}
 
 	lastID, lastTime, exists, err := c.GetRoomLastEvent(ctx, kind, roomID)
 	if err != nil {
 		return false, err
 	}
 	if !exists {
-		return false, nil
+		return badgeUnread, nil
 	}
 
 	readID, err := c.GetLastReadEventID(ctx, kind, userID, roomID)
@@ -361,7 +365,7 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 		return true, nil
 	}
 	if readID == lastID {
-		return false, nil // Caught up — fast path
+		return badgeUnread, nil // Caught up with ordinary room messages.
 	}
 
 	// Read marker points to an older (or deleted) message. Resolve its
@@ -374,5 +378,5 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 	if readTime.IsZero() {
 		return true, nil
 	}
-	return lastTime.After(readTime), nil
+	return badgeUnread || lastTime.After(readTime), nil
 }

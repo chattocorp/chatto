@@ -35,7 +35,7 @@ function policyResponse() {
     policy: {
       overrides: {
         directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
-        followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION
+        followedRooms: NotificationDeliveryMode.UNREAD_BADGE
       },
       effective: {
         directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
@@ -45,7 +45,7 @@ function policyResponse() {
         hereMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         allMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
         followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
-        followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION,
+        followedRooms: NotificationDeliveryMode.UNREAD_BADGE,
         reactions: NotificationDeliveryMode.IN_APP_NOTIFICATION
       }
     }
@@ -207,7 +207,7 @@ describe('notification policy API', () => {
     expect(policy.overrides).toMatchObject({
       directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
       directMentions: null,
-      followedRooms: NotificationDeliveryMode.IN_APP_NOTIFICATION,
+      followedRooms: NotificationDeliveryMode.UNREAD_BADGE,
       reactions: null
     });
     expect(policy.effective.reactions).toBe(NotificationDeliveryMode.IN_APP_NOTIFICATION);

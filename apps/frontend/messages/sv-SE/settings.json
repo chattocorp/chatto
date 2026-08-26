@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
+          "badge": "Markering",
+          "badge_hint": "Lägger bara till en neutral prick för oläst innehåll. Skapar ingen avisering, spelar inget ljud och skickar ingen pushavisering.",
           "notification": "Avisering",
           "push_notification": "Pushavisering"
         },

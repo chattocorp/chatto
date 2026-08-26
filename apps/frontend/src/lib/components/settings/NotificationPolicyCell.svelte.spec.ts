@@ -23,7 +23,7 @@ describe('NotificationPolicyCell', () => {
     setReactiveLocale('en-GB');
   });
 
-  it('cycles server defaults through Off → Notification → Push notification without Inherit', async () => {
+  it('cycles server defaults through Off → Badge → Notification → Push without Inherit', async () => {
     const onChange = vi.fn();
     const rendered = render(NotificationPolicyCell, {
       props: { ...baseProps, override: null, onChange }
@@ -41,6 +41,12 @@ describe('NotificationPolicyCell', () => {
       override: NotificationDeliveryMode.OFF,
       onChange
     });
+    clickAndExpect(NotificationDeliveryMode.UNREAD_BADGE);
+    await rendered.rerender({
+      ...baseProps,
+      override: NotificationDeliveryMode.UNREAD_BADGE,
+      onChange
+    });
     clickAndExpect(NotificationDeliveryMode.IN_APP_NOTIFICATION);
     await rendered.rerender({
       ...baseProps,
@@ -56,7 +62,7 @@ describe('NotificationPolicyCell', () => {
     clickAndExpect(NotificationDeliveryMode.OFF);
   });
 
-  it('cycles nested scopes through Inherit → Off → Notification → Push notification → Inherit', async () => {
+  it('cycles nested scopes through Inherit → Off → Badge → Notification → Push → Inherit', async () => {
     const onChange = vi.fn();
     const nestedProps = {
       ...baseProps,
@@ -77,6 +83,12 @@ describe('NotificationPolicyCell', () => {
     await rendered.rerender({
       ...nestedProps,
       override: NotificationDeliveryMode.OFF,
+      onChange
+    });
+    clickAndExpect(NotificationDeliveryMode.UNREAD_BADGE);
+    await rendered.rerender({
+      ...nestedProps,
+      override: NotificationDeliveryMode.UNREAD_BADGE,
       onChange
     });
     clickAndExpect(NotificationDeliveryMode.IN_APP_NOTIFICATION);
@@ -124,6 +136,21 @@ describe('NotificationPolicyCell', () => {
     expect(container.querySelector('[class~="bg-warning"]')).toBeNull();
     expect(container.querySelector('[class~="opacity-40"]')).toBeNull();
     expect(container.querySelector('[data-notification-source="default"]')).not.toBeNull();
+  });
+
+  it('renders Badge as a filled neutral bell', () => {
+    const { container } = render(NotificationPolicyCell, {
+      props: {
+        ...baseProps,
+        override: NotificationDeliveryMode.UNREAD_BADGE,
+        effective: NotificationDeliveryMode.UNREAD_BADGE,
+        onChange: vi.fn()
+      }
+    });
+
+    expect(container.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
+    expect(container.querySelector('[class~="text-text"]')).not.toBeNull();
+    expect(container.querySelector('[class~="text-warning"]')).toBeNull();
   });
 
   it('fades an inherited nested value without changing its icon', () => {

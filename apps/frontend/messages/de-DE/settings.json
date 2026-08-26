@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
+          "badge": "Markierung",
+          "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
           "notification": "Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },

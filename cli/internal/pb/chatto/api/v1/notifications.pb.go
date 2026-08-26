@@ -32,7 +32,7 @@ type NotificationDeliveryMode int32
 const (
 	// No delivery mode was specified. This value is not a valid override.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED NotificationDeliveryMode = 0
-	// Matching activity does not create a notification occurrence.
+	// Matching activity does not create user attention.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF NotificationDeliveryMode = 1
 	// Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.
 	//
@@ -46,6 +46,9 @@ const (
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT NotificationDeliveryMode = 3
 	// Matching activity creates an in-app notification and may send push.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION NotificationDeliveryMode = 3
+	// Matching activity adds a neutral unread indicator without creating a
+	// notification occurrence, playing a sound, or sending push.
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE NotificationDeliveryMode = 4
 )
 
 // Enum value maps for NotificationDeliveryMode.
@@ -57,6 +60,7 @@ var (
 		// Duplicate value: 2: "NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION",
 		3: "NOTIFICATION_DELIVERY_MODE_ALERT",
 		// Duplicate value: 3: "NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION",
+		4: "NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE",
 	}
 	NotificationDeliveryMode_value = map[string]int32{
 		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED":         0,
@@ -65,6 +69,7 @@ var (
 		"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION": 2,
 		"NOTIFICATION_DELIVERY_MODE_ALERT":               3,
 		"NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION":   3,
+		"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE":        4,
 	}
 )
 
@@ -2692,14 +2697,15 @@ const file_chatto_api_v1_notifications_proto_rawDesc = "" +
 	"\vupdate_mask\x18\x03 \x01(\v2\x1a.google.protobuf.FieldMaskR\n" +
 	"updateMask\"|\n" +
 	"9NotificationPolicyServiceUpdateNotificationPolicyResponse\x12?\n" +
-	"\x06policy\x18\x01 \x01(\v2'.chatto.api.v1.ScopedNotificationPolicyR\x06policy*\xa9\x02\n" +
+	"\x06policy\x18\x01 \x01(\v2'.chatto.api.v1.ScopedNotificationPolicyR\x06policy*\xd6\x02\n" +
 	"\x18NotificationDeliveryMode\x12*\n" +
 	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12)\n" +
 	"!NOTIFICATION_DELIVERY_MODE_SILENT\x10\x02\x1a\x02\b\x01\x122\n" +
 	".NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION\x10\x02\x12(\n" +
 	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03\x1a\x02\b\x01\x120\n" +
-	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x1a\x02\x10\x01*\xa0\x01\n" +
+	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x12+\n" +
+	"'NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE\x10\x04\x1a\x02\x10\x01*\xa0\x01\n" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +

@@ -5,11 +5,12 @@
 
 ## Overview
 
-Notifications are a persistent, user-scoped list of exact activity that
-deserves attention. They cover direct messages, replies, direct and role
-mentions, `@here`, `@all`, followed conversations, and reactions. They borrow
-GitHub's durable-history idea but use a smaller lifecycle: Unread, Read, or
-explicitly Deleted.
+Notifications and Badge indicators are user-scoped ways to show activity that
+deserves attention. Notifications form a persistent list of exact activity.
+Badge indicators add only neutral unread dots. Both forms cover direct
+messages, replies, direct and role mentions, `@here`, `@all`, followed
+conversations, and reactions. They borrow GitHub's durable-history idea but use
+a smaller lifecycle: Unread, Read, or explicitly Deleted.
 
 The server records occurrences individually. The bundled frontend may
 consolidate them for presentation without changing occurrence identity, jump
@@ -22,6 +23,9 @@ targets, unread counts, read state, or deletion semantics.
   every other current cause is Important and uses Chatto's notification
   orange. Read rows are visually muted while remaining fully interactive. The
   list does not use a separate unread dot on each row.
+- Badge activity does not add a row to the notification page. It adds a neutral
+  unread dot to the applicable room or thread. An orange notification indicator
+  takes priority when both types of attention apply.
 - The list is divided into Today, Yesterday, This Week, and month sections
   using the preferred time zone of the account on each server.
 - Rows use concise, full localized sentences without message previews.
@@ -51,7 +55,7 @@ targets, unread counts, read state, or deletion semantics.
 ### 1. Exact occurrences, client-side grouping
 
 **Decision:** The server exposes one occurrence for each recipient, source
-activity, and notification cause. List and badge totals count exact unread
+activity, and notification cause. List and notification totals count exact unread
 occurrences, independently of pagination and presentation grouping. The bundled
 frontend groups DMs by conversation, reactions by reacted-to target, followed
 activity by thread or room, and leaves mentions and replies separate because
@@ -88,7 +92,9 @@ preference in that order. A direct-message room skips the room-group level. If
 the user has no server preference, the concrete product default supplies the
 server value.
 
-- **Off** — create no occurrence for this cause.
+- **Off** — do not create attention for this cause.
+- **Badge** — add only a neutral unread dot. Do not create a notification
+  occurrence, play a sound, or send push.
 - **Notification** — create an in-app notification without push delivery. The
   client can play the configured notification sound.
 - **Push notification** — create the same in-app notification and make it
@@ -125,15 +131,20 @@ It shows the server, visible room groups, current-member channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
 preference exists, it shows the product default at full intensity without an
-inheritance marker. Server cells cycle through Off, Notification, and Push
-notification.
+inheritance marker. Server cells cycle through Off, Badge, Notification, and
+Push notification.
 
-Room-group and room cells cycle through Inherit, Off, Notification, Push
-notification, and back to Inherit. Off uses a grey crossed bell. Both
-notification modes use notification orange, with a bell for Notification and a
-phone for Push notification. An inherited cell shows the effective mode at
-reduced intensity. The legend and distinct icons make the state clear without
-color alone.
+Room-group and room cells cycle through Inherit, Off, Badge, Notification,
+Push notification, and back to Inherit. Off uses a grey crossed bell. Badge
+uses a grey filled bell. Both notification modes use notification orange, with
+a bell for Notification and a phone for Push notification. An inherited cell
+shows the effective mode at reduced intensity. The legend and distinct icons
+make the state clear without color alone.
+
+Badge decisions use the existing room and thread read boundaries. A thread
+Badge rolls up to its parent room. Reading the thread clears its contribution
+to both indicators. Badge does not change ordinary message-unread semantics,
+and it does not update an operating-system or application-icon badge.
 
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.
@@ -159,8 +170,10 @@ another user's state or grant access to the deleted scope.
 derived asynchronously from committed domain facts. Later membership,
 preference, or follow changes do not rewrite that historical decision. A user's
 own activity does not notify them. One source activity produces at most one
-occurrence per recipient and cause; a message that is both a reply and a direct
-mention intentionally creates two occurrences.
+delivery decision per recipient and cause; a message that is both a reply and a
+direct mention intentionally produces two decisions. If both decisions use a
+notification mode, they create two occurrences. Badge decisions coalesce into
+one latest-value marker for the applicable room or thread.
 
 **Why:** Notifications describe what happened under the policy and visibility
 that applied at that moment. Deriving from committed facts makes retries
@@ -183,7 +196,8 @@ Durable visibility-loss boundaries prevent old queued activity from
 reappearing after a quick regain of room access.
 Actor identity is hydrated from current account data; an unavailable or deleted
 actor does not by itself expose copied profile data or make an otherwise valid
-occurrence invisible.
+occurrence invisible. Badge markers use the same current room, target,
+reaction, visibility-loss, and read boundaries.
 
 **Why:** Source-time eligibility explains why the notification was created, but
 it cannot override present-day privacy and target existence.
@@ -195,7 +209,9 @@ success.
 ### 6. Realtime delivery is a convergence hint
 
 **Decision:** Realtime notification updates tell clients to replace their
-finite notification view from authoritative server state. Unread totals remain
+finite notification view from authoritative server state. Badge updates tell
+clients to replace the affected room state and, when applicable, the complete
+followed-thread viewer state. Unread totals remain
 exact even when rows are grouped. The client also performs quiet periodic
 reconciliation so a lost transient update cannot leave counts stale
 indefinitely.
@@ -274,6 +290,10 @@ The public and persisted delivery-mode enums keep their numeric values. The
 new names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for values
 2 and 3. The old `SILENT` and `ALERT` names remain as deprecated aliases so old
 generated clients and stored protobuf values continue to work.
+Badge is the additive value 4. An older binary preserves that numeric
+preference but treats it as no notification output. Thus, Badge attention is
+temporarily inactive during rollback instead of becoming a notification or
+push.
 
 Room-group changes use a new
 `UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID

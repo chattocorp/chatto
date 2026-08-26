@@ -439,6 +439,11 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 		return m.removeReaction(ctx, event, payload.ReactionRemoved, streamSequence)
 	case *corev1.Event_MessageRetracted:
 		_, err := m.core.notificationOccurrences.RemoveTarget(ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId())
+		if err == nil {
+			m.core.notificationOccurrences.publishUnreadMarkerTargetInvalidations(
+				ctx, payload.MessageRetracted.GetRoomId(), payload.MessageRetracted.GetEventId(), event.GetActorId(), "",
+			)
+		}
 		return err
 	case *corev1.Event_UserLeftRoom:
 		if err := m.recordVisibilityBoundary(ctx, event.GetActorId(), payload.UserLeftRoom.GetRoomId(), streamSequence); err != nil {
@@ -471,6 +476,9 @@ func (m *NotificationMaterializer) materializeEvent(ctx context.Context, event *
 			return err
 		}
 		if err := m.core.notificationOccurrences.purgeNotificationReadBoundaries(ctx, userID); err != nil {
+			return err
+		}
+		if err := m.core.notificationOccurrences.purgeNotificationUnreadMarkers(ctx, userID); err != nil {
 			return err
 		}
 		return m.purgeVisibilityBoundaries(ctx, userID)
@@ -543,8 +551,9 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 // not emit an explicit leave event, such as disabling a universal room,
 // moving it across permission scopes, or changing room.join RBAC. These facts
 // are rare administrative operations. The materializer is the sole lifecycle
-// writer. The NOTIFICATIONS projection supplies the complete candidate set;
-// selected removals are committed as idempotent lifecycle facts.
+// writer. The NOTIFICATIONS projection and the Badge marker index supply the
+// complete candidate set. Selected occurrence removals and visibility
+// boundaries are committed as idempotent lifecycle facts.
 func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64, visibilityAt time.Time) error {
 	entries := m.core.notificationOccurrences.projection.Projection().allOccurrences(m.core.notificationOccurrences.now().UTC())
 	type recipientRoom struct {
@@ -564,6 +573,12 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 		}
 		pair := recipientRoom{recipientID: occurrence.GetRecipientId(), roomID: targetRoomID}
 		entriesByPair[pair] = append(entriesByPair[pair], occurrence)
+	}
+	for _, scope := range m.core.notificationBoundaries.unreadMarkerScopes(userID, roomID, streamSequence) {
+		pair := recipientRoom{recipientID: scope.userID, roomID: scope.roomID}
+		if _, exists := entriesByPair[pair]; !exists {
+			entriesByPair[pair] = nil
+		}
 	}
 	if len(entriesByPair) == 0 {
 		return nil
@@ -615,6 +630,11 @@ func (m *NotificationMaterializer) removeReaction(ctx context.Context, event *co
 		reaction.GetEmoji(),
 		streamSequence,
 	)
+	if err == nil {
+		m.core.notificationOccurrences.publishUnreadMarkerTargetInvalidations(
+			ctx, reaction.GetRoomId(), reaction.GetMessageEventId(), event.GetActorId(), reaction.GetEmoji(),
+		)
+	}
 	return err
 }
 
@@ -674,7 +694,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	}
 	signal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: reference, Emoji: reaction.GetEmoji()}}}
 	mode := snapshot.effectiveNotificationMode(recipientID, reaction.GetRoomId(), signal)
-	if !notificationModeProducesOccurrence(mode) {
+	if !notificationModeProducesAttention(mode) {
 		return nil
 	}
 	inputs := newNotificationOccurrenceInputs(event, []notificationRecipientDecision{{
@@ -710,6 +730,19 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 		}
 		input.SourceStreamSequence = streamSequence
 		eligible = append(eligible, input)
+	}
+	for _, input := range eligible {
+		changed, err := m.core.notificationOccurrences.recordNotificationUnreadMarker(ctx, input)
+		if err != nil {
+			return fmt.Errorf("record notification unread marker: %w", err)
+		}
+		if !changed {
+			continue
+		}
+		message := notificationSignalMessage(input.Signal)
+		m.core.NotifyNotificationUnreadChanged(
+			ctx, input.RecipientID, input.ActorID, message.GetRoomId(), message.GetThreadRootEventId(),
+		)
 	}
 	if err := m.core.notificationOccurrences.CreateMany(ctx, eligible); err != nil {
 		return fmt.Errorf("create notification occurrences: %w", err)

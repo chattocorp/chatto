@@ -29,6 +29,13 @@ func TestNotificationDeliveryModesPatchSetClearAndValidation(t *testing.T) {
 	if current.DirectMessages != nil || current.Reactions == nil {
 		t.Fatalf("patch mutated source modes: %+v", current)
 	}
+	badge, err := applyNotificationDeliveryModesPatch(current,
+		&corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()},
+		&fieldmaskpb.FieldMask{Paths: []string{"reactions"}},
+	)
+	if err != nil || badge.GetReactions() != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		t.Fatalf("Badge patch = (%+v, %v)", badge, err)
+	}
 
 	invalidMode := corev1.NotificationDeliveryMode(99)
 	for _, test := range []struct {

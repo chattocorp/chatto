@@ -41,15 +41,18 @@ Members use a matrix to control each notification cause at server, room-group, a
 | Mode | Effect |
 | ---- | ------ |
 | Inherit | Use the next broader room-group or server setting. |
-| Off | Do not create a notification for this cause. |
+| Off | Do not create attention for this cause. |
+| Badge | Add only a neutral unread dot. Do not create a notification, play a sound, or send push. |
 | Notification | Add an in-app notification. The configured in-app sound can play, but Chatto does not send push. |
 | Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
 Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Followed threads and reactions use Notification by default; followed rooms are Off until enabled. A message that matches several causes creates one exact notification per cause, so each keeps its own policy and triage identity; the client may still consolidate related activity for display. Notification policy affects future activity and does not hide ordinary unread room state.
 
-The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Notification, and Push notification.
+The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Badge, Notification, and Push notification.
 
-Room-group and room cells cycle through Inherit, Off, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+Room-group and room cells cycle through Inherit, Off, Badge, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. A grey filled bell means Badge. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+
+A Badge setting uses the existing unread dot for its room or thread. Thread dots also roll up to their parent room. Reading the room or thread clears covered Badge attention. An orange notification dot takes priority over the grey dot. Badge does not change an operating-system or application-icon badge.
 
 Channel rooms inherit from their current room group, then from the server. Direct-message rooms inherit directly from the server. A room move changes the policy for future activity only. It does not change earlier notification decisions.
 

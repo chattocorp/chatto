@@ -23,18 +23,23 @@ const (
 )
 
 // NotificationDeliveryMode controls whether qualifying activity is omitted,
-// recorded as an in-app notification, or also eligible for push delivery.
+// represented by neutral unread attention, recorded as an in-app notification,
+// or also eligible for push delivery.
 type NotificationDeliveryMode int32
 
 const (
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED NotificationDeliveryMode = 0
-	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF         NotificationDeliveryMode = 1
+	// Matching activity does not create user attention.
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF NotificationDeliveryMode = 1
 	// Deprecated: Marked as deprecated in chatto/core/v1/notification.proto.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT              NotificationDeliveryMode = 2
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION NotificationDeliveryMode = 2
 	// Deprecated: Marked as deprecated in chatto/core/v1/notification.proto.
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT             NotificationDeliveryMode = 3
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION NotificationDeliveryMode = 3
+	// Matching activity adds neutral unread attention without an occurrence,
+	// sound, or push delivery.
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE NotificationDeliveryMode = 4
 )
 
 // Enum value maps for NotificationDeliveryMode.
@@ -46,6 +51,7 @@ var (
 		// Duplicate value: 2: "NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION",
 		3: "NOTIFICATION_DELIVERY_MODE_ALERT",
 		// Duplicate value: 3: "NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION",
+		4: "NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE",
 	}
 	NotificationDeliveryMode_value = map[string]int32{
 		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED":         0,
@@ -54,6 +60,7 @@ var (
 		"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION": 2,
 		"NOTIFICATION_DELIVERY_MODE_ALERT":               3,
 		"NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION":   3,
+		"NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE":        4,
 	}
 )
 
@@ -1878,6 +1885,78 @@ func (*NotificationEvent_Removed) isNotificationEvent_Event() {}
 
 func (*NotificationEvent_AlertResolved) isNotificationEvent_Event() {}
 
+// NotificationUnreadMarker is one latest-value neutral-attention decision in
+// RUNTIME_STATE. The key owns recipient, room, and optional thread scope. The
+// value retains the source coordinates needed to compare it with visibility
+// and read boundaries after delayed materialization or process restart.
+type NotificationUnreadMarker struct {
+	state                protoimpl.MessageState `protogen:"open.v1"`
+	SourceEventId        string                 `protobuf:"bytes,1,opt,name=source_event_id,json=sourceEventId,proto3" json:"source_event_id,omitempty"`
+	ActorId              string                 `protobuf:"bytes,2,opt,name=actor_id,json=actorId,proto3" json:"actor_id,omitempty"`
+	Signal               *NotificationSignal    `protobuf:"bytes,3,opt,name=signal,proto3" json:"signal,omitempty"`
+	SourceStreamSequence uint64                 `protobuf:"varint,4,opt,name=source_stream_sequence,json=sourceStreamSequence,proto3" json:"source_stream_sequence,omitempty"`
+	unknownFields        protoimpl.UnknownFields
+	sizeCache            protoimpl.SizeCache
+}
+
+func (x *NotificationUnreadMarker) Reset() {
+	*x = NotificationUnreadMarker{}
+	mi := &file_chatto_core_v1_notification_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *NotificationUnreadMarker) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*NotificationUnreadMarker) ProtoMessage() {}
+
+func (x *NotificationUnreadMarker) ProtoReflect() protoreflect.Message {
+	mi := &file_chatto_core_v1_notification_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use NotificationUnreadMarker.ProtoReflect.Descriptor instead.
+func (*NotificationUnreadMarker) Descriptor() ([]byte, []int) {
+	return file_chatto_core_v1_notification_proto_rawDescGZIP(), []int{23}
+}
+
+func (x *NotificationUnreadMarker) GetSourceEventId() string {
+	if x != nil {
+		return x.SourceEventId
+	}
+	return ""
+}
+
+func (x *NotificationUnreadMarker) GetActorId() string {
+	if x != nil {
+		return x.ActorId
+	}
+	return ""
+}
+
+func (x *NotificationUnreadMarker) GetSignal() *NotificationSignal {
+	if x != nil {
+		return x.Signal
+	}
+	return nil
+}
+
+func (x *NotificationUnreadMarker) GetSourceStreamSequence() uint64 {
+	if x != nil {
+		return x.SourceStreamSequence
+	}
+	return 0
+}
+
 var File_chatto_core_v1_notification_proto protoreflect.FileDescriptor
 
 const file_chatto_core_v1_notification_proto_rawDesc = "" +
@@ -2011,14 +2090,20 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x04read\x18e \x01(\v2 .chatto.core.v1.NotificationReadH\x00R\x04read\x12?\n" +
 	"\aremoved\x18f \x01(\v2#.chatto.core.v1.NotificationRemovedH\x00R\aremoved\x12R\n" +
 	"\x0ealert_resolved\x18g \x01(\v2).chatto.core.v1.NotificationAlertResolvedH\x00R\ralertResolvedB\a\n" +
-	"\x05event*\xa9\x02\n" +
+	"\x05event\"\xcf\x01\n" +
+	"\x18NotificationUnreadMarker\x12&\n" +
+	"\x0fsource_event_id\x18\x01 \x01(\tR\rsourceEventId\x12\x19\n" +
+	"\bactor_id\x18\x02 \x01(\tR\aactorId\x12:\n" +
+	"\x06signal\x18\x03 \x01(\v2\".chatto.core.v1.NotificationSignalR\x06signal\x124\n" +
+	"\x16source_stream_sequence\x18\x04 \x01(\x04R\x14sourceStreamSequence*\xd6\x02\n" +
 	"\x18NotificationDeliveryMode\x12*\n" +
 	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12)\n" +
 	"!NOTIFICATION_DELIVERY_MODE_SILENT\x10\x02\x1a\x02\b\x01\x122\n" +
 	".NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION\x10\x02\x12(\n" +
 	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03\x1a\x02\b\x01\x120\n" +
-	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x1a\x02\x10\x01*\xa0\x01\n" +
+	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x12+\n" +
+	"'NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE\x10\x04\x1a\x02\x10\x01*\xa0\x01\n" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +
@@ -2038,7 +2123,7 @@ func file_chatto_core_v1_notification_proto_rawDescGZIP() []byte {
 }
 
 var file_chatto_core_v1_notification_proto_enumTypes = make([]protoimpl.EnumInfo, 2)
-var file_chatto_core_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_chatto_core_v1_notification_proto_msgTypes = make([]protoimpl.MessageInfo, 24)
 var file_chatto_core_v1_notification_proto_goTypes = []any{
 	(NotificationDeliveryMode)(0),        // 0: chatto.core.v1.NotificationDeliveryMode
 	(NotificationAttentionLevel)(0),      // 1: chatto.core.v1.NotificationAttentionLevel
@@ -2065,10 +2150,11 @@ var file_chatto_core_v1_notification_proto_goTypes = []any{
 	(*NotificationRemoved)(nil),          // 22: chatto.core.v1.NotificationRemoved
 	(*NotificationAlertResolved)(nil),    // 23: chatto.core.v1.NotificationAlertResolved
 	(*NotificationEvent)(nil),            // 24: chatto.core.v1.NotificationEvent
-	(*timestamppb.Timestamp)(nil),        // 25: google.protobuf.Timestamp
+	(*NotificationUnreadMarker)(nil),     // 25: chatto.core.v1.NotificationUnreadMarker
+	(*timestamppb.Timestamp)(nil),        // 26: google.protobuf.Timestamp
 }
 var file_chatto_core_v1_notification_proto_depIdxs = []int32{
-	25, // 0: chatto.core.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
+	26, // 0: chatto.core.v1.Notification.created_at:type_name -> google.protobuf.Timestamp
 	3,  // 1: chatto.core.v1.Notification.dm_message:type_name -> chatto.core.v1.DMMessageNotification
 	4,  // 2: chatto.core.v1.Notification.mention:type_name -> chatto.core.v1.MentionNotification
 	5,  // 3: chatto.core.v1.Notification.reply:type_name -> chatto.core.v1.ReplyNotification
@@ -2100,26 +2186,27 @@ var file_chatto_core_v1_notification_proto_depIdxs = []int32{
 	15, // 29: chatto.core.v1.NotificationSignal.followed_thread_activity:type_name -> chatto.core.v1.FollowedThreadActivity
 	16, // 30: chatto.core.v1.NotificationSignal.followed_room_activity:type_name -> chatto.core.v1.FollowedRoomActivity
 	17, // 31: chatto.core.v1.NotificationSignal.reaction_received:type_name -> chatto.core.v1.ReactionReceived
-	25, // 32: chatto.core.v1.NotificationOccurrence.source_created_at:type_name -> google.protobuf.Timestamp
+	26, // 32: chatto.core.v1.NotificationOccurrence.source_created_at:type_name -> google.protobuf.Timestamp
 	18, // 33: chatto.core.v1.NotificationOccurrence.signal:type_name -> chatto.core.v1.NotificationSignal
-	25, // 34: chatto.core.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
+	26, // 34: chatto.core.v1.NotificationOccurrence.expires_at:type_name -> google.protobuf.Timestamp
 	1,  // 35: chatto.core.v1.NotificationOccurrence.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
-	25, // 36: chatto.core.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
-	25, // 37: chatto.core.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
+	26, // 36: chatto.core.v1.NotificationOccurrence.alert_expires_at:type_name -> google.protobuf.Timestamp
+	26, // 37: chatto.core.v1.NotificationSignalled.source_created_at:type_name -> google.protobuf.Timestamp
 	18, // 38: chatto.core.v1.NotificationSignalled.signal:type_name -> chatto.core.v1.NotificationSignal
 	1,  // 39: chatto.core.v1.NotificationSignalled.attention_level:type_name -> chatto.core.v1.NotificationAttentionLevel
-	25, // 40: chatto.core.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
-	25, // 41: chatto.core.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
-	25, // 42: chatto.core.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
+	26, // 40: chatto.core.v1.NotificationSignalled.alert_expires_at:type_name -> google.protobuf.Timestamp
+	26, // 41: chatto.core.v1.NotificationEvent.occurred_at:type_name -> google.protobuf.Timestamp
+	26, // 42: chatto.core.v1.NotificationEvent.expires_at:type_name -> google.protobuf.Timestamp
 	20, // 43: chatto.core.v1.NotificationEvent.signalled:type_name -> chatto.core.v1.NotificationSignalled
 	21, // 44: chatto.core.v1.NotificationEvent.read:type_name -> chatto.core.v1.NotificationRead
 	22, // 45: chatto.core.v1.NotificationEvent.removed:type_name -> chatto.core.v1.NotificationRemoved
 	23, // 46: chatto.core.v1.NotificationEvent.alert_resolved:type_name -> chatto.core.v1.NotificationAlertResolved
-	47, // [47:47] is the sub-list for method output_type
-	47, // [47:47] is the sub-list for method input_type
-	47, // [47:47] is the sub-list for extension type_name
-	47, // [47:47] is the sub-list for extension extendee
-	0,  // [0:47] is the sub-list for field type_name
+	18, // 47: chatto.core.v1.NotificationUnreadMarker.signal:type_name -> chatto.core.v1.NotificationSignal
+	48, // [48:48] is the sub-list for method output_type
+	48, // [48:48] is the sub-list for method input_type
+	48, // [48:48] is the sub-list for extension type_name
+	48, // [48:48] is the sub-list for extension extendee
+	0,  // [0:48] is the sub-list for field type_name
 }
 
 func init() { file_chatto_core_v1_notification_proto_init() }
@@ -2159,7 +2246,7 @@ func file_chatto_core_v1_notification_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_chatto_core_v1_notification_proto_rawDesc), len(file_chatto_core_v1_notification_proto_rawDesc)),
 			NumEnums:      2,
-			NumMessages:   23,
+			NumMessages:   24,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

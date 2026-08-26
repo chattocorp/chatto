@@ -102,16 +102,21 @@ message RoomMessageNotification {
 }
 
 // NotificationDeliveryMode controls whether qualifying activity is omitted,
-// recorded as an in-app notification, or also eligible for push delivery.
+// represented by neutral unread attention, recorded as an in-app notification,
+// or also eligible for push delivery.
 enum NotificationDeliveryMode {
   option allow_alias = true;
 
   NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
+  // Matching activity does not create user attention.
   NOTIFICATION_DELIVERY_MODE_OFF = 1;
   NOTIFICATION_DELIVERY_MODE_SILENT = 2 [deprecated = true];
   NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION = 2;
   NOTIFICATION_DELIVERY_MODE_ALERT = 3 [deprecated = true];
   NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
+  // Matching activity adds neutral unread attention without an occurrence,
+  // sound, or push delivery.
+  NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
 }
 
 // NotificationDeliveryModes stores explicit delivery modes for Chatto's
@@ -274,4 +279,15 @@ message NotificationEvent {
     NotificationRemoved removed = 102;
     NotificationAlertResolved alert_resolved = 103;
   }
+}
+
+// NotificationUnreadMarker is one latest-value neutral-attention decision in
+// RUNTIME_STATE. The key owns recipient, room, and optional thread scope. The
+// value retains the source coordinates needed to compare it with visibility
+// and read boundaries after delayed materialization or process restart.
+message NotificationUnreadMarker {
+  string source_event_id = 1;
+  string actor_id = 2;
+  NotificationSignal signal = 3;
+  uint64 source_stream_sequence = 4;
 }

@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
+          "badge": "Znacznik",
+          "badge_hint": "Dodaje tylko neutralną kropkę nieprzeczytanej treści. Nie tworzy powiadomienia, nie odtwarza dźwięku ani nie wysyła powiadomienia push.",
           "notification": "Powiadomienie",
           "push_notification": "Powiadomienie push"
         },

@@ -36,7 +36,7 @@
     directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
     replies: NotificationDeliveryMode.IN_APP_NOTIFICATION,
     roleMentions: NotificationDeliveryMode.IN_APP_NOTIFICATION,
-    hereMentions: NotificationDeliveryMode.OFF,
+    hereMentions: NotificationDeliveryMode.UNREAD_BADGE,
     allMentions: NotificationDeliveryMode.OFF,
     followedThreads: NotificationDeliveryMode.IN_APP_NOTIFICATION,
     followedRooms: NotificationDeliveryMode.OFF,

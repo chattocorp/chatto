@@ -195,16 +195,18 @@ describe('NotificationPolicySettings', () => {
     expect(button.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
   });
 
-  it('explains the three delivery modes in the legend', () => {
+  it('explains the four delivery modes in the legend', () => {
     const { container } = render(NotificationPolicySettings);
 
     const legend = container.querySelector('[aria-label="Notification delivery modes"]');
     expect(legend?.textContent).toContain('Off');
+    expect(legend?.textContent).toContain('Badge');
     expect(legend?.textContent).toContain('Notification');
     expect(legend?.textContent).toContain('Push notification');
     expect(legend?.querySelector('[class~="icon-[ph--bell-slash-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--bell-fill]"]')).not.toBeNull();
     expect(legend?.querySelector('[class~="icon-[ph--phone-fill]"]')).not.toBeNull();
+    expect(legend?.querySelector('[title*="neutral unread dot"]')).not.toBeNull();
     expect(legend?.textContent).not.toContain('Inherit');
     expect(legend?.querySelector('[class~="icon-[uil--link]"]')).toBeNull();
   });

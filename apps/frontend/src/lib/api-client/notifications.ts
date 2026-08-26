@@ -323,6 +323,7 @@ function requiredNotificationDeliveryMode(
 ): NotificationDeliveryMode {
   if (
     mode !== NotificationDeliveryMode.OFF &&
+    mode !== NotificationDeliveryMode.UNREAD_BADGE &&
     mode !== NotificationDeliveryMode.IN_APP_NOTIFICATION &&
     mode !== NotificationDeliveryMode.PUSH_NOTIFICATION
   ) {

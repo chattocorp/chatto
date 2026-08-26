@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
+          "badge": "Markering",
+          "badge_hint": "Voegt alleen een neutraal bolletje voor ongelezen inhoud toe. Maakt geen melding, speelt geen geluid af en verstuurt geen pushmelding.",
           "notification": "Melding",
           "push_notification": "Pushmelding"
         },

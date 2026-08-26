@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
+          "badge": "Merke",
+          "badge_hint": "Legger bare til en nøytral prikk for ulest innhold. Det opprettes ikke et varsel, spilles ikke av lyd og sendes ikke et push-varsel.",
           "notification": "Varsel",
           "push_notification": "Push-varsel"
         },

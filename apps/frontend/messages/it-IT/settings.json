@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
+          "badge": "Indicatore",
+          "badge_hint": "Aggiunge solo un punto neutro per i contenuti non letti. Non crea una notifica, non riproduce un suono e non invia una notifica push.",
           "notification": "Notifica",
           "push_notification": "Notifica push"
         },

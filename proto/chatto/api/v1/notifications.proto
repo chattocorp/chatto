@@ -17,7 +17,7 @@ enum NotificationDeliveryMode {
 
   // No delivery mode was specified. This value is not a valid override.
   NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
-  // Matching activity does not create a notification occurrence.
+  // Matching activity does not create user attention.
   NOTIFICATION_DELIVERY_MODE_OFF = 1;
   // Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.
   NOTIFICATION_DELIVERY_MODE_SILENT = 2 [deprecated = true];
@@ -27,6 +27,9 @@ enum NotificationDeliveryMode {
   NOTIFICATION_DELIVERY_MODE_ALERT = 3 [deprecated = true];
   // Matching activity creates an in-app notification and may send push.
   NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
+  // Matching activity adds a neutral unread indicator without creating a
+  // notification occurrence, playing a sound, or sending push.
+  NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
 }
 
 // Delivery modes for Chatto's finite built-in notification signal classes.

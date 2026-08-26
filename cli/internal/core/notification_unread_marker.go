@@ -1,0 +1,210 @@
+package core
+
+import (
+	"context"
+	"errors"
+	"fmt"
+
+	"github.com/nats-io/nats.go/jetstream"
+	"google.golang.org/protobuf/proto"
+
+	"hmans.de/chatto/internal/core/subjects"
+	"hmans.de/chatto/internal/jetstreamutil"
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+)
+
+const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."
+
+func notificationUnreadMarkerKey(userID, roomID, threadRootEventID string) string {
+	key := notificationUnreadMarkerKeyPrefix + userID + "." + roomID
+	if threadRootEventID != "" {
+		key += "." + threadRootEventID
+	}
+	return key
+}
+
+func notificationUnreadMarkerFilter(userID string) string {
+	return notificationUnreadMarkerKeyPrefix + userID + ".>"
+}
+
+// recordNotificationUnreadMarker stores one monotonic latest-value Badge
+// decision. Redelivery and older replicas cannot replace a newer source in the
+// same room or thread scope.
+func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context.Context, input CreateNotificationOccurrenceInput) (bool, error) {
+	if input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
+		return false, nil
+	}
+	message := notificationSignalMessage(input.Signal)
+	if message == nil || input.SourceStreamSequence == 0 {
+		return false, invalidArgument("a Badge delivery requires an exact source sequence and message")
+	}
+	marker := &corev1.NotificationUnreadMarker{
+		SourceEventId:        input.SourceEventID,
+		ActorId:              input.ActorID,
+		Signal:               proto.Clone(input.Signal).(*corev1.NotificationSignal),
+		SourceStreamSequence: input.SourceStreamSequence,
+	}
+	value, err := proto.Marshal(marker)
+	if err != nil {
+		return false, fmt.Errorf("encode notification unread marker: %w", err)
+	}
+	key := notificationUnreadMarkerKey(input.RecipientID, message.GetRoomId(), message.GetThreadRootEventId())
+	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
+		current, err := m.kv.Get(ctx, key)
+		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+			revision, createErr := m.kv.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL))
+			if createErr == nil {
+				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+					return false, err
+				}
+				return true, nil
+			}
+			if !jetstreamutil.IsSequenceConflict(createErr) {
+				return false, fmt.Errorf("create notification unread marker: %w", createErr)
+			}
+			continue
+		}
+		if err != nil {
+			return false, fmt.Errorf("read notification unread marker: %w", err)
+		}
+		var previous corev1.NotificationUnreadMarker
+		if err := proto.Unmarshal(current.Value(), &previous); err != nil {
+			return false, fmt.Errorf("decode notification unread marker: %w", err)
+		}
+		if previous.GetSourceStreamSequence() >= marker.GetSourceStreamSequence() {
+			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, current.Revision()); err != nil {
+				return false, err
+			}
+			return false, nil
+		}
+		revision, updateErr := m.core.updateRuntimeStateTokenTTL(ctx, key, value, current.Revision(), notificationTTL)
+		if updateErr == nil {
+			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
+				return false, err
+			}
+			return true, nil
+		}
+		if !jetstreamutil.IsSequenceConflict(updateErr) {
+			return false, fmt.Errorf("update notification unread marker: %w", updateErr)
+		}
+	}
+	return false, fmt.Errorf("write notification unread marker after %d attempts", maxNotificationStateWriteRetries)
+}
+
+// HasNotificationUnread reports whether a room or exact thread has uncovered
+// Badge attention. An empty thread root includes nested thread markers so the
+// parent room indicator can roll them up.
+func (m *NotificationOccurrenceModel) HasNotificationUnread(ctx context.Context, userID, roomID, threadRootEventID string) (bool, error) {
+	markers, err := m.core.notificationBoundaries.unreadMarkers(ctx, userID, roomID, threadRootEventID)
+	if err != nil {
+		return false, err
+	}
+	for _, marker := range markers {
+		active, err := m.notificationUnreadMarkerActive(ctx, userID, marker)
+		if err != nil {
+			return false, err
+		}
+		if active {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (m *NotificationOccurrenceModel) notificationUnreadMarkerActive(ctx context.Context, userID string, marker *corev1.NotificationUnreadMarker) (bool, error) {
+	if marker == nil || marker.GetSourceStreamSequence() == 0 {
+		return false, nil
+	}
+	message := notificationSignalMessage(marker.GetSignal())
+	if message == nil {
+		return false, nil
+	}
+	afterBoundary, err := m.core.notificationMaterializer.sourceAfterVisibilityBoundary(ctx, userID, message.GetRoomId(), marker.GetSourceStreamSequence())
+	if err != nil || !afterBoundary {
+		return false, err
+	}
+	if boundary, exists, err := m.notificationReadBoundary(ctx, userID, message.GetRoomId(), message.GetThreadRootEventId()); err != nil {
+		return false, err
+	} else if exists && m.notificationSignalCoveredByBoundary(marker.GetSignal(), marker.GetSourceStreamSequence(), boundary) {
+		return false, nil
+	}
+
+	entry, exists := m.core.roomModel.timelineEntry(message.GetEventId())
+	if !exists || entry.Event == nil || roomIDOfEvent(entry.Event) != message.GetRoomId() {
+		return false, nil
+	}
+	if _, retracted, known := m.core.roomModel.latestBody(message.GetEventId()); known && retracted {
+		return false, nil
+	}
+	if reaction := marker.GetSignal().GetReactionReceived(); reaction != nil {
+		current := m.core.roomModel.reactionMutationSnapshot(message.GetRoomId(), message.GetEventId(), reaction.GetEmoji(), marker.GetActorId())
+		return current.Exists && current.SourceEventID == marker.GetSourceEventId(), nil
+	}
+	return marker.GetSourceEventId() == message.GetEventId(), nil
+}
+
+func (m *NotificationOccurrenceModel) notificationSignalCoveredByBoundary(signal *corev1.NotificationSignal, sourceSequence uint64, boundary notificationReadBoundary) bool {
+	if signal == nil || sourceSequence == 0 {
+		return false
+	}
+	message := notificationSignalMessage(signal)
+	if message == nil {
+		return false
+	}
+	if signal.GetReactionReceived() != nil {
+		targetEntry, ok := m.core.roomModel.timelineEntry(message.GetEventId())
+		return ok && targetEntry.StreamSeq <= boundary.targetSequence && sourceSequence <= boundary.observedSequence
+	}
+	return sourceSequence <= boundary.targetSequence
+}
+
+func (m *NotificationOccurrenceModel) purgeNotificationUnreadMarkers(ctx context.Context, userID string) error {
+	lister, err := m.kv.ListKeysFiltered(ctx, notificationUnreadMarkerFilter(userID))
+	if errors.Is(err, jetstream.ErrNoKeysFound) {
+		return nil
+	}
+	if err != nil {
+		return fmt.Errorf("list notification unread markers: %w", err)
+	}
+	for key := range lister.Keys() {
+		if err := m.core.notificationMaterializer.deleteRuntimeStateKey(ctx, key); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// NotifyNotificationUnreadChanged publishes a content-free, user-scoped
+// invalidation after authoritative Badge state changes.
+func (c *ChattoCore) NotifyNotificationUnreadChanged(ctx context.Context, userID, actorID, roomID, threadRootEventID string) {
+	event := newLiveEvent(actorID, &corev1.LiveEvent{
+		Event: &corev1.LiveEvent_NotificationUnreadChanged{
+			NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
+				RoomId: roomID, ThreadRootEventId: threadRootEventID,
+			},
+		},
+	})
+	if err := c.publishLiveEvent(ctx, subjects.LiveSyncUserEvent(userID, "notification_unread"), event); err != nil {
+		c.logger.Warn("Failed to publish notification unread invalidation", "user_id", userID, "room_id", roomID, "error", err)
+	}
+}
+
+func (m *NotificationOccurrenceModel) publishUnreadMarkerTargetInvalidations(ctx context.Context, roomID, eventID, actorID, emoji string) {
+	for _, scope := range m.core.notificationBoundaries.unreadMarkerScopes("", roomID, 0) {
+		marker, _, exists, err := m.core.notificationBoundaries.unreadMarker(ctx, scope)
+		if err != nil || !exists {
+			continue
+		}
+		message := notificationSignalMessage(marker.GetSignal())
+		if message == nil || message.GetEventId() != eventID {
+			continue
+		}
+		if emoji != "" {
+			reaction := marker.GetSignal().GetReactionReceived()
+			if reaction == nil || reaction.GetEmoji() != emoji || marker.GetActorId() != actorID {
+				continue
+			}
+		}
+		m.core.NotifyNotificationUnreadChanged(ctx, scope.userID, actorID, scope.roomID, scope.threadRootEventID)
+	}
+}

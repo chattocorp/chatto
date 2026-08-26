@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
+          "badge": "Atzīme",
+          "badge_hint": "Pievieno tikai neitrālu nelasīta satura punktu. Neizveido paziņojumu, neatskaņo skaņu un nesūta pašpiegādes paziņojumu.",
           "notification": "Paziņojums",
           "push_notification": "Pašpiegādes paziņojums"
         },

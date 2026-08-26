@@ -45,6 +45,7 @@ export type MessagePostedPayload = {
   threadParticipantCount?: number;
   threadParticipants: UserAvatarUserView[];
   viewerIsFollowingThread?: boolean | null;
+  viewerHasUnreadThread?: boolean | null;
 };
 
 export type TimelineEventPayload =

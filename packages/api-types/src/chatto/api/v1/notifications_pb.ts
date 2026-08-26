@@ -23,7 +23,7 @@ export enum NotificationDeliveryMode {
   UNSPECIFIED = 0,
 
   /**
-   * Matching activity does not create a notification occurrence.
+   * Matching activity does not create user attention.
    *
    * @generated from enum value: NOTIFICATION_DELIVERY_MODE_OFF = 1;
    */
@@ -58,6 +58,14 @@ export enum NotificationDeliveryMode {
    * @generated from enum value: NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
    */
   PUSH_NOTIFICATION = 3,
+
+  /**
+   * Matching activity adds a neutral unread indicator without creating a
+   * notification occurrence, playing a sound, or sending push.
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
+   */
+  UNREAD_BADGE = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(NotificationDeliveryMode)
 proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDeliveryMode", [
@@ -67,6 +75,7 @@ proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDel
   { no: 2, name: "NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION" },
   { no: 3, name: "NOTIFICATION_DELIVERY_MODE_ALERT" },
   { no: 3, name: "NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION" },
+  { no: 4, name: "NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE" },
 ]);
 
 /**

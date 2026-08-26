@@ -91,11 +91,14 @@ Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery mode is `Off`, `Notification`, or `Push notification`.
-`Off` creates no signal. Both other modes create the same durable list item and
-can request the configured local sound. Only `Push notification` is eligible
-for push delivery. Visual attention is independent: reactions are currently
-Ambient and other current signals are Important.
+The source-time delivery mode is `Off`, `Badge`, `Notification`, or
+`Push notification`. `Off` creates no output. `Badge` updates one neutral
+unread marker for the applicable room or thread. It does not create a list
+item, request local sound, or permit push delivery. Both notification modes
+create the same durable list item and can request the configured local sound.
+Only `Push notification` is eligible for push delivery. Visual attention is
+independent: reactions are currently Ambient and other current signals are
+Important.
 
 ### Source derivation remains outside EVT
 
@@ -128,15 +131,18 @@ specific to the decision projection: the occurrence projection independently
 snapshots its own `NOTIFICATIONS` position and incarnation.
 
 The shared `chatto-notification-materializer-v1` durable consumer reads only
-existing domain-changing `EVT` facts. It derives deterministic occurrences at
-the delivered sequence, appends `NotificationSignalled` facts to
-`NOTIFICATIONS`, and acknowledges the EVT delivery only after those writes
-succeed. A crash before the confirmed acknowledgement redelivers the source;
-deterministic occurrence IDs make partial or repeated output idempotent.
+existing domain-changing `EVT` facts. It derives deterministic delivery output
+at the delivered sequence. Notification modes append `NotificationSignalled`
+facts to `NOTIFICATIONS`. Badge updates a monotonic latest-value room or thread
+marker in `RUNTIME_STATE`. The consumer acknowledges the EVT delivery only
+after all output writes succeed. A crash before the confirmed acknowledgement
+redelivers the source; deterministic occurrence IDs and source-sequence Badge
+markers make partial or repeated output idempotent.
 Retraction, reaction removal, visibility loss, room deletion, and account
 deletion use their existing EVT facts to append notification dismissals. No
-notification-only event is added to `EVT`, and there is no notification work
-record in `RUNTIME_STATE`.
+notification-only event is added to `EVT`, and there is no prepared
+notification work record in `RUNTIME_STATE`. A Badge marker is final
+user-visible output, not queued work.
 
 The materializer uses `DeliverNew` for the Notifications 2.0 rollout boundary.
 It processes facts committed after its durable consumer was first established;
@@ -167,16 +173,25 @@ acknowledgements are not counted as a second successful deletion. The private
 secure-delete coordinate remains projected through the broker's physical
 cleanup grace even after the tombstone stops affecting application state.
 
-Room/thread read reconciliation and visibility-loss boundaries remain bounded
-latest-value records in `RUNTIME_STATE`. They are cross-stream coordination
-state, not notification history. One process-wide filtered KV watcher indexes
-both boundary families; successful local writes wait for their exact KV
+Room/thread read reconciliation, visibility-loss boundaries, and Badge output
+remain bounded latest-value records in `RUNTIME_STATE`. The boundary records
+are cross-stream coordination state, not notification history. A Badge record
+stores only the latest source needed to compute neutral unread attention. One
+process-wide filtered KV watcher indexes all three families; successful local
+writes wait for their exact KV
 revision to enter that index before dependent work continues. Because the read
 boundary is recorded before matching `NotificationRead` facts, every replica
 performs one startup repair and thereafter reconciles only the room/thread
 scope whose watched boundary changed. Large occurrence fanouts likewise read
 visibility boundaries from the index and publish their coalesced realtime
 invalidations with one flush rather than one broker round trip per recipient.
+
+Badge uses the same room/thread read coordinates and visibility rules as
+occurrences. A thread marker contributes to the parent room. A source sequence
+can only replace an older marker in the same scope, so delayed delivery cannot
+regress attention. The marker expires 90 days after its latest source and
+account deletion removes it. A content-free transient invalidation rebuilds
+the affected room state and followed-thread viewer state.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They can carry one opaque sound-candidate notification ID but never expose
@@ -249,8 +264,9 @@ unknown operation instead of accepting an empty replacement and advancing.
 The public and persisted delivery-mode enums keep wire values 2 and 3. The
 names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for those
 values. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
-The new scoped policy service is additive and leaves the legacy server/room
-methods unchanged.
+Badge adds wire value 4. Older binaries preserve that value and fail closed by
+producing neither a notification occurrence nor push delivery. The new scoped
+policy service is additive and leaves the legacy server/room methods unchanged.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores
@@ -265,8 +281,10 @@ overrides.
 - Notification history and lifecycle are ordered, replayable, bounded, and
   backed up without becoming permanent domain history.
 - Fixed subjects avoid the RAM cost of indexing one subject per notification.
-- The same stream powers projections and durable push delivery; there is no
-  second queue, prepared-work KV, or occurrence KV to reconcile.
+- The same stream powers notification projections and durable push delivery;
+  there is no second queue, prepared-work KV, or occurrence KV to reconcile.
+  Badge uses one bounded latest-value runtime marker per active room or thread
+  scope.
 - Exact per-signal-class identities let clients group presentation without losing
   jump targets, unread counts, or triage semantics.
 - Dismissal physically removes rich content while a minimal retained fact keeps

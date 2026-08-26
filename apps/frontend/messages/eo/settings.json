@@ -291,6 +291,8 @@
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
+          "badge": "Insigno",
+          "badge_hint": "Aldonas nur neŭtralan punkton por nelegita enhavo. Ĝi ne kreas sciigon, ludas sonon aŭ sendas puŝan sciigon.",
           "notification": "Sciigo",
           "push_notification": "Puŝa sciigo"
         },
