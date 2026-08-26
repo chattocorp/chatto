@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-10
 
-**Updated:** 2026-08-20
+**Updated:** 2026-08-26
 
 ## Context
 
@@ -15,7 +15,7 @@ recreate activity the user had already read or dismissed.
 Notifications are event-like but are not durable domain history. A direct
 mention, reply, or reaction is a recipient-specific signal derived from an
 authoritative source fact. It needs ordered lifecycle facts, replayable
-projections, recoverable alert delivery, explicit deletion, and bounded
+projections, recoverable push delivery, explicit deletion, and bounded
 retention. Putting those facts in `EVT` would pollute the permanent domain log;
 putting each notification in KV would require one JetStream subject per item
 and would make lifecycle ordering and worker consumption less idiomatic.
@@ -42,7 +42,7 @@ Recipient and notification coordinates stay in the protobuf payload. This
 avoids per-notification JetStream subject-index overhead.
 
 The stream is included in normal backups. It contains the authoritative
-90-day notification list, user triage, and pending alert work; excluding it
+90-day notification list, user triage, and pending push work; excluding it
 would discard user-visible history and accepted delivery work at an arbitrary
 backup boundary. Backup captures `EVT`, then `RUNTIME_STATE`, then
 `NOTIFICATIONS`, including the durable consumer state owned by each stream.
@@ -55,7 +55,7 @@ consumer position.
 
 The `NotificationEvent` envelope owns notification identity, recipient,
 lifecycle time, and expiry. `NotificationSignalled` contains immutable source
-coordinates, source-time alert and attention decisions, and a rich
+coordinates, source-time delivery and attention decisions, and a rich
 `NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
@@ -69,12 +69,14 @@ references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
 Notification policy uses one explicit field per built-in signal class instead
-of mirroring the signal `oneof` with an enum-keyed table. Missing override
-fields inherit from the broader scope, while effective policy populates every
-supported field. Future notification features, such as room invitations, add
-a rich signal branch and, when independently configurable, an additive policy
-field with defined authorization, lifecycle, rendering, navigation, and
-delivery behavior.
+of mirroring the signal `oneof` with an enum-keyed table. A room inherits from
+its current room group and then from the server. A direct-message room skips
+the room-group level. The product default supplies a concrete server value when
+the user has no server override. Effective policy populates every supported
+field. Future notification features, such as room invitations, add a rich
+signal branch and, when independently configurable, an additive policy field
+with defined authorization, lifecycle, rendering, navigation, and delivery
+behavior.
 
 Policy updates are sparse: a field mask selects the override fields being
 changed, a selected value sets an override, and a selected absent value clears
@@ -89,10 +91,11 @@ Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
 
-The source-time delivery mode is `Off`, `Silent`, or `Alert`. `Off` creates
-no signal. `Silent` and `Alert` create the same durable list item; only `Alert`
-is eligible for interruptive delivery. Visual attention is independent:
-reactions are currently Ambient and other current signals are Important.
+The source-time delivery mode is `Off`, `Notification`, or `Push notification`.
+`Off` creates no signal. Both other modes create the same durable list item and
+can request the configured local sound. Only `Push notification` is eligible
+for push delivery. Visual attention is independent: reactions are currently
+Ambient and other current signals are Important.
 
 ### Source derivation remains outside EVT
 
@@ -139,8 +142,9 @@ The materializer uses `DeliverNew` for the Notifications 2.0 rollout boundary.
 It processes facts committed after its durable consumer was first established;
 legacy notifications and older retained EVT history are not backfilled.
 
-Current list and alert reads still fence the user, room, room-group-layout, and
-RBAC projections before treating a target as visible or absent. Persistent
+Current list and push-delivery reads still fence the user, room,
+room-group-layout, and RBAC projections before treating a target as visible or
+absent. Persistent
 visibility-loss boundaries suppress older source facts after a quick regain.
 
 ### Projected current state
@@ -153,7 +157,8 @@ List, mutation, realtime, and delivery paths wait for the relevant notification
 stream position or current tail before reading it.
 
 Read appends an empty `NotificationRead` fact. It leaves the occurrence in the
-list and suppresses a pending Alert. Dismissal appends `NotificationRemoved`;
+list and suppresses pending push delivery. Dismissal appends
+`NotificationRemoved`;
 after the projection has observed that tombstone, Chatto securely deletes the original
 rich `NotificationSignalled` record by stream sequence. The tombstone prevents
 materializer redelivery from recreating the item and contains no presentation
@@ -174,15 +179,16 @@ visibility boundaries from the index and publish their coalesced realtime
 invalidations with one flush rather than one broker round trip per recipient.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
-They may carry one opaque alert-candidate notification ID but never expose
+They can carry one opaque sound-candidate notification ID but never expose
 JetStream coordinates. The receiving replica fences the notification
 projection, revalidates any candidate, and sends an authoritative finite
-replacement plus a positive `play_notification_sound` instruction. Missing or
-reordered invalidations therefore cannot play a sound across the current
-deadline, policy, DND, visibility, read, or removal boundary. Clients
-deduplicate the one-shot sound by projection-event ID and quietly reconcile the
-authoritative first page once per minute, bounding stale counts when a
-best-effort invalidation is lost.
+replacement plus a positive `play_notification_sound` instruction. The legacy
+alert-candidate field remains for older replicas and is set only for a
+push-eligible occurrence. Missing or reordered invalidations cannot play a
+sound across the current policy, DND, visibility, read, or removal boundary.
+Clients deduplicate the one-shot sound by projection-event ID and quietly
+reconcile the authoritative first page once per minute. This reconciliation
+bounds stale counts when a best-effort invalidation is lost.
 
 ### Retention and automatic expiry
 
@@ -199,7 +205,7 @@ emit a synthetic event: every read prunes expired state, and a projection timer
 accelerates realtime convergence. Dismissal cleanup retries retain their
 content-free signal coordinate through this entire grace period.
 
-### Alert delivery consumes the signal log directly
+### Push delivery consumes the signal log directly
 
 There is no notification work-queue stream. The
 `chatto-notification-alert-delivery-v1` durable pull consumer filters
@@ -209,9 +215,10 @@ sequence, fences the EVT materializer, reloads current occurrence state, and
 revalidates policy, visibility, exact reaction/target existence, DND, and push
 subscription ownership.
 
-Only unread, pending, source-time `Alert` occurrences may contact a provider.
+Only unread, pending occurrences whose source-time mode is `Push notification`
+can contact a provider.
 The immutable delivery deadline is two minutes after source time. When a
-still-pending Alert reaches a delivery or suppression decision, the worker
+still-pending push delivery reaches a delivery or suppression decision, the worker
 appends one `NotificationAlertResolved` fact carrying the terminal outcome
 before acknowledging. A notification already made terminal by read, removal,
 or expiry needs no additional alert-resolution fact; redelivery is an ack-only
@@ -239,12 +246,26 @@ released Notifications 1.0 operation tag is reserved rather than being reused
 with an incompatible nested payload, so mixed-version clients fail closed on an
 unknown operation instead of accepting an empty replacement and advancing.
 
+The public and persisted delivery-mode enums keep wire values 2 and 3. The
+names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for those
+values. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
+The new scoped policy service is additive and leaves the legacy server/room
+methods unchanged.
+
+Room-group policy changes use the separate persisted
+`UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores
+this unknown variant instead of interpreting it as a server policy. The
+room-group maps also select new configuration and notification-decision
+snapshot contract IDs. During rollback, room-group overrides are temporarily
+inactive and cannot replace a newer snapshot with one that omits those
+overrides.
+
 ## Consequences
 
 - Notification history and lifecycle are ordered, replayable, bounded, and
   backed up without becoming permanent domain history.
 - Fixed subjects avoid the RAM cost of indexing one subject per notification.
-- The same stream powers projections and durable Alert delivery; there is no
+- The same stream powers projections and durable push delivery; there is no
   second queue, prepared-work KV, or occurrence KV to reconcile.
 - Exact per-signal-class identities let clients group presentation without losing
   jump targets, unread counts, or triage semantics.
@@ -253,5 +274,5 @@ unknown operation instead of accepting an empty replacement and advancing.
 - Application expiry is deterministic even though JetStream cleanup is
   asynchronous.
 - One additional replicated file-backed stream and two durable consumers—the
-  EVT materializer and the notification Alert worker—add bounded NATS cluster
+  EVT materializer and the notification push worker—add bounded NATS cluster
   overhead.

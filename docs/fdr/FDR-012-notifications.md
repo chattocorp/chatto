@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 

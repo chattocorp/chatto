@@ -1,7 +1,7 @@
 # FDR-005: Reactions
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -16,9 +16,9 @@ Users can react to a message with emoji. Reactions are aggregated into pills sho
   In a channel room, it also requires `message.read`. DM membership authorizes
   the read.
 - Another user's reaction to your message creates one exact Ambient
-  notification occurrence when the reaction preference resolves to Silent or
-  Alert. Your own reactions do not notify you. Removing the reaction removes
-  that exact occurrence.
+  notification occurrence when the reaction preference resolves to
+  Notification or Push notification. Your own reactions do not notify you.
+  Removing the reaction removes that exact occurrence.
 - The notification list may consolidate every actor and emoji for the same
   reacted-to message into one row, while unread badges continue to count the
   exact underlying occurrences.
