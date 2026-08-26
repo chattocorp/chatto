@@ -809,8 +809,8 @@ func (c *ChattoCore) GetGroupRolePermissions(ctx context.Context, groupID, roleN
 
 // GrantGroupPermission writes a group-scope grant for a role on a specific room group.
 func (c *ChattoCore) GrantGroupPermission(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	if err := validatePermissionAtScope(perm, ScopeGroup); err != nil {
+		return err
 	}
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
 		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeGroup, groupID, roleName, perm),
@@ -821,8 +821,8 @@ func (c *ChattoCore) GrantGroupPermission(ctx context.Context, actorID, groupID,
 
 // DenyGroupPermission writes a group-scope deny for a role on a specific room group.
 func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
-	if !PermissionAppliesAtScope(perm, ScopeGroup) && !PermissionAppliesAtScope(perm, ScopeRoom) {
-		return fmt.Errorf("permission %s does not apply at group scope", perm)
+	if err := validatePermissionAtScope(perm, ScopeGroup); err != nil {
+		return err
 	}
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionDenied{
 		RbacPermissionDenied: rbacRolePermissionDeniedEvent(ScopeGroup, groupID, roleName, perm),
@@ -833,6 +833,9 @@ func (c *ChattoCore) DenyGroupPermission(ctx context.Context, actorID, groupID, 
 
 // ClearGroupPermissionState removes both allow and deny for a role on a set.
 func (c *ChattoCore) ClearGroupPermissionState(ctx context.Context, actorID, groupID, roleName string, perm Permission) error {
+	if err := validatePermissionAtScope(perm, ScopeGroup); err != nil {
+		return err
+	}
 	event := newEvent(actorID, &corev1.Event{Event: &corev1.Event_RbacPermissionCleared{
 		RbacPermissionCleared: rbacRolePermissionClearedEvent(ScopeGroup, groupID, roleName, perm),
 	}})

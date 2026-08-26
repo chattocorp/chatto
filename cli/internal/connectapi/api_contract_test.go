@@ -524,14 +524,16 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 		DecidedByRole: core.RoleEveryone,
 		Trace: []core.TraceEntry{
 			{
-				Level:    core.LevelServer,
-				RoleName: "custom",
-				Decision: core.DecisionAllow,
+				Level:      core.LevelServer,
+				RoleName:   "custom",
+				Decision:   core.DecisionAllow,
+				Permission: core.PermAdmin,
 			},
 			{
-				Level:    core.LevelRoom,
-				RoleName: core.RoleEveryone,
-				Decision: core.DecisionDeny,
+				Level:      core.LevelRoom,
+				RoleName:   core.RoleEveryone,
+				Decision:   core.DecisionDeny,
+				Permission: core.PermAdminUsersView,
 			},
 		},
 	})
@@ -548,5 +550,8 @@ func TestAPIPermissionExplanationMarksWinningTraceFirst(t *testing.T) {
 	}
 	if trace[1].GetApplied() {
 		t.Fatalf("second trace entry applied = true, want false")
+	}
+	if trace[1].GetAppliedPermission() != string(core.PermAdmin) {
+		t.Fatalf("second trace applied_permission = %q, want %q", trace[1].GetAppliedPermission(), core.PermAdmin)
 	}
 }

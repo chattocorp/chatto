@@ -1117,6 +1117,14 @@ export class PermissionTraceEntry extends Message<PermissionTraceEntry> {
    */
   applied = false;
 
+  /**
+   * Registered permission path that supplied this decision. This can be an
+   * ancestor of the permission in PermissionExplanation.
+   *
+   * @generated from field: string applied_permission = 5;
+   */
+  appliedPermission = "";
+
   constructor(data?: PartialMessage<PermissionTraceEntry>) {
     super();
     proto3.util.initPartial(data, this);
@@ -1129,6 +1137,7 @@ export class PermissionTraceEntry extends Message<PermissionTraceEntry> {
     { no: 2, name: "role_name", kind: "scalar", T: 9 /* ScalarType.STRING */ },
     { no: 3, name: "decision", kind: "enum", T: proto3.getEnumType(PermissionDecision) },
     { no: 4, name: "applied", kind: "scalar", T: 8 /* ScalarType.BOOL */ },
+    { no: 5, name: "applied_permission", kind: "scalar", T: 9 /* ScalarType.STRING */ },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): PermissionTraceEntry {

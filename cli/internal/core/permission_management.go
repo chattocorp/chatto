@@ -776,23 +776,21 @@ func buildRolePermissionCell(
 		if !PermissionAppliesAtScope(perm, ScopeServer) {
 			return PermissionMatrixCell{}, false
 		}
-		override := matrixDecisionFromLists(perm, serverGrants, serverDenials)
+		override := matrixExactDecisionFromLists(perm, serverGrants, serverDenials)
+		effective := matrixEffectiveDecision(perm, scope, serverGrants, serverDenials, groupGrants, groupDenials, roomGrants, roomDenials, roomToGroup)
 		return PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
 			Override:   override,
-			Effective:  override,
+			Effective:  effective,
 		}, true
 	case MatrixScopeGroup:
 		if !PermissionAppliesAtScope(perm, ScopeGroup) {
 			return PermissionMatrixCell{}, false
 		}
 		groupID := scopeRefID(scope.ID, "group:")
-		override := matrixDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID])
-		effective := override
-		if effective == MatrixDecisionNone && PermissionAppliesAtScope(perm, ScopeServer) {
-			effective = matrixDecisionFromLists(perm, serverGrants, serverDenials)
-		}
+		override := matrixExactDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID])
+		effective := matrixEffectiveDecision(perm, scope, serverGrants, serverDenials, groupGrants, groupDenials, roomGrants, roomDenials, roomToGroup)
 		return PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
@@ -804,16 +802,8 @@ func buildRolePermissionCell(
 			return PermissionMatrixCell{}, false
 		}
 		roomID := scopeRefID(scope.ID, "room:")
-		override := matrixDecisionFromLists(perm, roomGrants[roomID], roomDenials[roomID])
-		effective := override
-		if effective == MatrixDecisionNone {
-			if groupID := roomToGroup[roomID]; groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
-				effective = matrixDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID])
-			}
-			if effective == MatrixDecisionNone && PermissionAppliesAtScope(perm, ScopeServer) {
-				effective = matrixDecisionFromLists(perm, serverGrants, serverDenials)
-			}
-		}
+		override := matrixExactDecisionFromLists(perm, roomGrants[roomID], roomDenials[roomID])
+		effective := matrixEffectiveDecision(perm, scope, serverGrants, serverDenials, groupGrants, groupDenials, roomGrants, roomDenials, roomToGroup)
 		return PermissionMatrixCell{
 			Permission: string(perm),
 			ScopeID:    scope.ID,
@@ -955,16 +945,73 @@ func mergeInheritedPermissionDecisions(overrideAllow, overrideDeny, parentAllow,
 	return allow, deny
 }
 
-func matrixDecisionFromLists(perm Permission, grants, denials []Permission) MatrixDecision {
+func matrixExactDecisionFromLists(perm Permission, grants, denials []Permission) MatrixDecision {
+	for _, denial := range denials {
+		if denial == perm {
+			return MatrixDecisionDeny
+		}
+	}
 	for _, grant := range grants {
 		if grant == perm {
 			return MatrixDecisionAllow
 		}
 	}
-	for _, denial := range denials {
-		if denial == perm {
-			return MatrixDecisionDeny
+	return MatrixDecisionNone
+}
+
+// matrixEffectiveDecision mirrors the registered-path resolver for a single
+// role. It resolves the exact path across scopes before it considers ancestor
+// allows, so a denial remains an exact-path decision.
+func matrixEffectiveDecision(
+	perm Permission,
+	scope PermissionMatrixScope,
+	serverGrants, serverDenials []Permission,
+	groupGrants, groupDenials map[string][]Permission,
+	roomGrants, roomDenials map[string][]Permission,
+	roomToGroup map[string]string,
+) MatrixDecision {
+	if decision := matrixNearestPathDecision(perm, scope, serverGrants, serverDenials, groupGrants, groupDenials, roomGrants, roomDenials, roomToGroup); decision != MatrixDecisionNone {
+		return decision
+	}
+	for _, ancestor := range PermissionAncestors(perm) {
+		if decision := matrixNearestPathDecision(ancestor, scope, serverGrants, serverDenials, groupGrants, groupDenials, roomGrants, roomDenials, roomToGroup); decision == MatrixDecisionAllow {
+			return decision
 		}
+	}
+	return MatrixDecisionNone
+}
+
+func matrixNearestPathDecision(
+	perm Permission,
+	scope PermissionMatrixScope,
+	serverGrants, serverDenials []Permission,
+	groupGrants, groupDenials map[string][]Permission,
+	roomGrants, roomDenials map[string][]Permission,
+	roomToGroup map[string]string,
+) MatrixDecision {
+	switch scope.Kind {
+	case MatrixScopeRoom:
+		roomID := scopeRefID(scope.ID, "room:")
+		if PermissionAppliesAtScope(perm, ScopeRoom) {
+			if decision := matrixExactDecisionFromLists(perm, roomGrants[roomID], roomDenials[roomID]); decision != MatrixDecisionNone {
+				return decision
+			}
+		}
+		if groupID := roomToGroup[roomID]; groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
+			if decision := matrixExactDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID]); decision != MatrixDecisionNone {
+				return decision
+			}
+		}
+	case MatrixScopeGroup:
+		if PermissionAppliesAtScope(perm, ScopeGroup) {
+			groupID := scopeRefID(scope.ID, "group:")
+			if decision := matrixExactDecisionFromLists(perm, groupGrants[groupID], groupDenials[groupID]); decision != MatrixDecisionNone {
+				return decision
+			}
+		}
+	}
+	if PermissionAppliesAtScope(perm, ScopeServer) {
+		return matrixExactDecisionFromLists(perm, serverGrants, serverDenials)
 	}
 	return MatrixDecisionNone
 }

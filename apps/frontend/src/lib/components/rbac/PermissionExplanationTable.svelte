@@ -12,6 +12,7 @@
     roleName: string;
     decision: DecisionKind;
     applied: boolean;
+    appliedPermission?: string;
   };
 
   type Explanation = {
@@ -131,6 +132,9 @@
                   ? m('rbac.permissions.allow')
                   : m('rbac.permissions.deny')}
               </Pill>
+              {#if entry.appliedPermission && entry.appliedPermission !== exp.permission}
+                <span class="text-muted">from <code>{entry.appliedPermission}</code></span>
+              {/if}
               {#if entry.applied}
                 <span class="text-muted italic">{m('rbac.permissions.winning_decision')}</span>
               {/if}

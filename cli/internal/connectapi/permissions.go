@@ -156,10 +156,11 @@ func apiPermissionExplanation(explanation core.PermissionExplanation) *adminv1.P
 	}
 	for i, entry := range winningTraceFirst(explanation) {
 		out.Trace = append(out.Trace, &adminv1.PermissionTraceEntry{
-			Level:    apiPermissionDecisionLevel(entry.Level),
-			RoleName: entry.RoleName,
-			Decision: apiPermissionExplanationDecision(entry.Decision),
-			Applied:  i == 0 && traceEntryWins(explanation, entry),
+			Level:             apiPermissionDecisionLevel(entry.Level),
+			RoleName:          entry.RoleName,
+			Decision:          apiPermissionExplanationDecision(entry.Decision),
+			Applied:           i == 0 && traceEntryWins(explanation, entry),
+			AppliedPermission: string(entry.Permission),
 		})
 	}
 	return out

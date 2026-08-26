@@ -1,7 +1,7 @@
 # FDR-001: Roles & Permissions (RBAC)
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -11,7 +11,7 @@ Chatto controls who can do what through role-based access control. Every authent
 
 - Every authenticated human user belongs to the implicit `everyone` role and may additionally hold one or more named roles. Bots inherit neither `everyone` nor named-role permissions.
 - The system roles are `owner`, `admin`, `moderator`, `everyone`. Role position controls ordering/display and legacy event compatibility; it is not an authorization rank.
-- A role grants or denies named permissions like `message.post`, `room.create`, `admin.view-users`.
+- A role grants or denies registered permission paths like `message.post`, `room.create`, and `admin.view-users`. An allow for `message` also allows its registered descendants. A denial applies only to its exact path.
 - Permission grants/denies can be configured at three scopes: per-server, per room-group, and per room. Each direct user or named role contributes its nearest decision; denies win across those explicit subjects. The implicit `everyone` role supplies the scoped baseline, and an allow overrides its deny only at the same or a nearer scope.
 - Permissions gate capabilities and channel-room message access. Channel-room
   membership is necessary for message reads, and `message.read` supplies the
@@ -91,6 +91,12 @@ User-triggered RBAC events are audit facts as well as state facts, so their even
 **Why:** Absence is a meaningful RBAC state. Reapplying code defaults on every startup makes an operator's explicit clear indistinguishable from incomplete bootstrap state.
 **Tradeoff:** Adding a new code default does not grant it to existing servers or rooms automatically. Older replicas in a rolling deployment still use their historical non-atomic room-creation path until they are replaced.
 
+### 10. Permission paths use parent allows and exact denials
+
+**Decision:** Register permissions as dot-separated paths. Register every ancestor of a descendant. An allow for a path allows that path and its registered descendants. A denial decides only its exact path.
+**Why:** Operators can grant a permission family without a wildcard or a general permission-expression language. Existing scoped resolution stays predictable because it resolves each path separately. See ADR-081.
+**Tradeoff:** The permission catalog includes parent paths, and a new descendant must include its ancestors in the same catalog change.
+
 ## Permissions
 
 The full permission catalog is in `cli/internal/core/permission.go`. Key permissions that gate RBAC management itself:
@@ -116,5 +122,5 @@ The full permission catalog is in `cli/internal/core/permission.go`. Key permiss
 
 ## Related
 
-- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions)
+- **ADRs:** ADR-004 (authorization at API boundary), ADR-027 (instance/space consolidation), ADR-030 (space tier retirement), ADR-031 (room-group-centric ACL), ADR-033 (event-sourced state), ADR-035 (per-aggregate migration), ADR-037 (DM access via membership), ADR-040 (permission-only RBAC with owner override), ADR-052 (subject-specific RBAC with an everyone baseline), ADR-076 (notification occurrences), ADR-077 (persistent notification list), ADR-080 (explicit message-read permissions), ADR-081 (hierarchical permission paths)
 - **FDRs:** Every FDR that mentions a permission depends on this one; see also FDR-012 (Notifications), FDR-038 (Bot Accounts), and FDR-039 (Message Access & Interactions).

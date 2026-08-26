@@ -262,8 +262,11 @@ authorization, live events, backup/restore, and backend tests.
   it has `message.post` or the DM already exists. A human must start the DM.
   After that, the bot can read it through membership and can use its normal
   message permissions inside it.
-- Permission strings use exactly `{object}.{verb}` with hyphenated verbs:
-  `room.ban-member`, `message.post-in-thread`, `admin.view-users`.
+- Permission strings are registered dot-separated paths. Every registered
+  descendant has registered ancestors. An ancestor allow applies to registered
+  descendants; a denial applies only to its exact path. Do not add wildcard
+  permissions or a generic permission-expression language. Existing RBAC events
+  stay replay-compatible; do not migrate, backfill, or reconcile them.
 - Add permissions in Go first, regenerate frontend mirrors, and test scope and
   DM-boundary behavior.
 - Targeted operations are permission-gated, not rank-gated: role assignment uses

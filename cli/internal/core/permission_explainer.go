@@ -65,8 +65,7 @@ func (r *PermissionResolver) ExplainRoomPermission(ctx context.Context, userID s
 // remains visible in the trace and can win when its deny is nearer than every
 // named allow.
 func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string, kind RoomKind, roomID string, perm Permission, exp *PermissionExplanation) error {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, registered := GetPermissionMetadata(perm); !registered {
 		return nil
 	}
 
@@ -80,10 +79,11 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 			exp.DecidedAt = LevelServer
 			exp.DecidedByRole = RoleOwner
 			exp.Trace = []TraceEntry{{
-				Level:    LevelServer,
-				RoleName: RoleOwner,
-				Decision: DecisionAllow,
-				ObjectID: ObjectIdAny,
+				Level:      LevelServer,
+				RoleName:   RoleOwner,
+				Decision:   DecisionAllow,
+				ObjectID:   ObjectIdAny,
+				Permission: perm,
 			}}
 			return nil
 		}
@@ -94,7 +94,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		if roomID != "" {
 			level = LevelRoom
 		}
-		exp.applyDMBoundaryDeny(level)
+		exp.applyDMBoundaryDeny(level, perm)
 		return nil
 	}
 
@@ -105,7 +105,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		}
 	}
 
-	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	state, winner, decisions, err := r.resolveRegisteredPathHierarchy(ctx, userID, kind, roomID, groupID, perm)
 	if err != nil {
 		return err
 	}
@@ -113,8 +113,7 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 	if decisions.everyone != nil {
 		exp.Trace = append(exp.Trace, *decisions.everyone)
 	}
-	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
-	if decided {
+	if state != DecisionNone {
 		exp.State = state
 		exp.DecidedAt = winner.Level
 		exp.DecidedByRole = winner.RoleName
@@ -124,10 +123,11 @@ func (r *PermissionResolver) collectFullTrace(ctx context.Context, userID string
 		exp.DecidedAt = LevelRoom
 		exp.DecidedByRole = "@dm-policy"
 		exp.Trace = []TraceEntry{{
-			Level:    LevelRoom,
-			RoleName: "@dm-policy",
-			Decision: DecisionAllow,
-			ObjectID: roomID,
+			Level:      LevelRoom,
+			RoleName:   "@dm-policy",
+			Decision:   DecisionAllow,
+			ObjectID:   roomID,
+			Permission: perm,
 		}}
 	}
 	return nil
@@ -180,13 +180,14 @@ func (r *PermissionResolver) ExplainAllPermissions(ctx context.Context, userID s
 // clearly indicate that DM rules (not RBAC) decided this. The level passed
 // in matches the caller (LevelRoom from ExplainRoomPermission, LevelServer
 // from ExplainServerKindPermission) so the inspector shows the right scope.
-func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel) {
+func (exp *PermissionExplanation) applyDMBoundaryDeny(level PermissionLevel, perm Permission) {
 	exp.State = DecisionDeny
 	exp.DecidedAt = level
 	exp.DecidedByRole = "@dm-policy"
 	exp.Trace = []TraceEntry{{
-		Level:    level,
-		RoleName: "@dm-policy",
-		Decision: DecisionDeny,
+		Level:      level,
+		RoleName:   "@dm-policy",
+		Decision:   DecisionDeny,
+		Permission: perm,
 	}}
 }

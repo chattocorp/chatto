@@ -218,6 +218,9 @@ message PermissionTraceEntry {
   PermissionDecision decision = 3;
   // Whether this entry is the winning decision.
   bool applied = 4;
+  // Registered permission path that supplied this decision. This can be an
+  // ancestor of the permission in PermissionExplanation.
+  string applied_permission = 5;
 }
 
 // Full decision trace for one permission and target user.

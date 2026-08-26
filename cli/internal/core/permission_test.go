@@ -54,6 +54,7 @@ func TestGetPermissionMetadata(t *testing.T) {
 func TestValidatePermission(t *testing.T) {
 	t.Run("accepts valid permissions", func(t *testing.T) {
 		validPerms := []Permission{
+			PermMessage,
 			PermMessagePost,
 			PermAdminUsersView,
 			PermUserDeleteSelf,
@@ -69,7 +70,6 @@ func TestValidatePermission(t *testing.T) {
 	t.Run("rejects invalid permissions", func(t *testing.T) {
 		invalidPerms := []Permission{
 			"invalid.permission",
-			"server",
 			"",
 			"server.nonexistent",
 		}

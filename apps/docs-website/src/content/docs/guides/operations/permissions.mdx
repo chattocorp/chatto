@@ -47,6 +47,20 @@ Here are three common examples:
 | Room `everyone`: Deny; server `admin`: Allow    | **Denied** because the room setting is more specific. Add a room-level admin allow to make an exception. |
 | Server `admin`: Allow; server `suspended`: Deny | **Denied** because a deny on an assigned role wins.                                                      |
 
+## Permission paths
+
+Permission identifiers are dot-separated paths. For example,
+`message.post` is a descendant of `message`.
+
+- An **Allow** for `message` also allows every registered `message` descendant.
+- A **Deny** for `message` affects only `message`. It does not deny
+  `message.post` or another descendant.
+- A direct setting for a descendant still takes precedence for that descendant.
+
+Chatto registers every parent path. The permissions page can show parent paths
+such as `message` when you need to grant a complete registered permission
+family. Chatto has no wildcard permission syntax.
+
 <Aside type="tip">
   Set ordinary member defaults on `everyone`. Use named roles for reusable
   access, and direct-user settings for one-off exceptions. Put room-specific

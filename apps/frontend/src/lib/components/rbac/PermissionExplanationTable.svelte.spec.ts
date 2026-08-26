@@ -12,7 +12,7 @@ type Explanation = {
   state: DecisionKind;
   decidedAt?: Level | null;
   decidedByRole?: string | null;
-  trace: { level: Level; roleName: string; decision: DecisionKind; applied: boolean }[];
+  trace: { level: Level; roleName: string; decision: DecisionKind; applied: boolean; appliedPermission?: string }[];
 };
 
 function granted(roleName: string, level: Level): Explanation {
@@ -100,5 +100,21 @@ describe('PermissionExplanationTable', () => {
     expect(container.textContent).toContain('Resolution trace');
     expect(container.textContent).toContain('winning decision');
     expect(container.textContent).toContain('everyone');
+  });
+
+  it('shows an ancestor path that supplied a trace decision', () => {
+    const { container } = render(PermissionExplanationTable, {
+      props: {
+        explanations: [{
+          ...granted('admin', 'SERVER'),
+          trace: [{ level: 'SERVER', roleName: 'admin', decision: 'ALLOW', applied: true, appliedPermission: 'message' }]
+        }]
+      }
+    });
+    const toggle = q(container, 'button[aria-expanded="false"]') as HTMLButtonElement;
+    toggle.click();
+    flushSync();
+    expect(container.textContent).toContain('from');
+    expect(container.textContent).toContain('message');
   });
 });

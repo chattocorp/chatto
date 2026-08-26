@@ -1483,6 +1483,7 @@ One explicit decision encountered while explaining a permission.
 | `role_name` | `string` | Role name, user ID, or policy marker that produced the decision. |
 | `decision` | [`PermissionDecision`](#chatto-admin-v1-PermissionDecision) | Decision observed at this trace step. |
 | `applied` | `bool` | Whether this entry is the winning decision. |
+| `applied_permission` | `string` | Registered permission path that supplied this decision. This can be an ancestor of the permission in PermissionExplanation. |
 
 <a id="chatto-admin-v1-RolePermissionMatrix"></a>
 

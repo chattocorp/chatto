@@ -55,10 +55,11 @@ const (
 // Only explicit projection-backed decisions are emitted (allow or deny);
 // roles with no decision at the level being checked are silent.
 type TraceEntry struct {
-	Level    PermissionLevel
-	RoleName string
-	Decision DecisionKind // Allow or Deny only
-	ObjectID string       // "any" for server scope; groupID for group scope; roomID for room overrides
+	Level      PermissionLevel
+	RoleName   string
+	Decision   DecisionKind // Allow or Deny only
+	ObjectID   string       // "any" for server scope; groupID for group scope; roomID for room overrides
+	Permission Permission   // Registered path that supplied this decision.
 }
 
 // Resolve is the single resolver entry point. Returns the effective decision
@@ -114,11 +115,10 @@ func (r *PermissionResolver) resolveWithGroup(ctx context.Context, userID string
 		}
 	}
 
-	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	result, _, _, err := r.resolveRegisteredPathHierarchy(ctx, userID, kind, roomID, groupID, perm)
 	if err != nil {
 		return DecisionNone, err
 	}
-	result, _, _ := resolveApplicablePermissionDecisions(decisions)
 	if err == nil && result == DecisionNone && kind == KindDM && dmDefaultAllows(perm) {
 		result = DecisionAllow
 	}
@@ -160,16 +160,20 @@ func (r *PermissionResolver) resolveBotWithGroup(ctx context.Context, botUserID,
 // botDelegatedDecision resolves only the bot's explicit direct-user decisions.
 // Bots never receive named-role, everyone, owner, or DM-default grants.
 func (r *PermissionResolver) botDelegatedDecision(botUserID string, kind RoomKind, roomID, groupID string, perm Permission) DecisionKind {
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, registered := GetPermissionMetadata(perm); !registered {
 		return DecisionNone
 	}
 	scopes := r.applicableScopeTargets(kind, roomID, groupID, perm)
-	entry, ok := r.nearestDecision(botUserID, parts, scopes)
-	if !ok {
-		return DecisionNone
+	entry, ok := r.nearestDecision(botUserID, perm, scopes)
+	if ok {
+		return entry.Decision
 	}
-	return entry.Decision
+	for _, ancestor := range PermissionAncestors(perm) {
+		if entry, ok := r.nearestDecision(botUserID, ancestor, scopes); ok && entry.Decision == DecisionAllow {
+			return DecisionAllow
+		}
+	}
+	return DecisionNone
 }
 
 // HasServerPermission checks a server-only permission (no room context).
@@ -238,8 +242,7 @@ func (r *PermissionResolver) applicableDecisions(
 	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
 ) (applicablePermissionDecisions, error) {
 	var out applicablePermissionDecisions
-	parts := perm.KeyParts()
-	if parts.Verb == "" || parts.ObjectType == "" {
+	if _, registered := GetPermissionMetadata(perm); !registered {
 		return out, nil
 	}
 
@@ -254,28 +257,62 @@ func (r *PermissionResolver) applicableDecisions(
 	subjects := append([]string{userID}, roles...)
 
 	for _, subject := range subjects {
-		if entry, ok := r.nearestDecision(subject, parts, scopes); ok {
+		if entry, ok := r.nearestDecision(subject, perm, scopes); ok {
 			out.named = append(out.named, entry)
 		}
 	}
 
-	if entry, ok := r.nearestDecision(RoleEveryone, parts, scopes); ok {
+	if entry, ok := r.nearestDecision(RoleEveryone, perm, scopes); ok {
 		out.everyone = &entry
 	}
 	return out, nil
 }
 
-func (r *PermissionResolver) nearestDecision(subject string, parts PermissionKeyParts, scopes []permissionScopeTarget) (TraceEntry, bool) {
+// nearestDecision returns the nearest scope decision for one exact registered
+// path. Hierarchy evaluation happens only after all subjects resolve that path.
+func (r *PermissionResolver) nearestDecision(subject string, perm Permission, scopes []permissionScopeTarget) (TraceEntry, bool) {
+	return r.nearestDecisionForPath(subject, perm, scopes)
+}
+
+// resolveRegisteredPathHierarchy resolves an exact path first. Only an exact
+// absence lets an ancestor allow apply. Therefore an exact child denial wins,
+// while an ancestor denial remains a decision only for that ancestor.
+func (r *PermissionResolver) resolveRegisteredPathHierarchy(
+	ctx context.Context, userID string, kind RoomKind, roomID, groupID string, perm Permission,
+) (DecisionKind, TraceEntry, applicablePermissionDecisions, error) {
+	decisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, perm)
+	if err != nil {
+		return DecisionNone, TraceEntry{}, applicablePermissionDecisions{}, err
+	}
+	state, winner, decided := resolveApplicablePermissionDecisions(decisions)
+	if decided {
+		return state, winner, decisions, nil
+	}
+	for _, ancestor := range PermissionAncestors(perm) {
+		ancestorDecisions, err := r.applicableDecisions(ctx, userID, kind, roomID, groupID, ancestor)
+		if err != nil {
+			return DecisionNone, TraceEntry{}, applicablePermissionDecisions{}, err
+		}
+		state, winner, decided := resolveApplicablePermissionDecisions(ancestorDecisions)
+		if decided && state == DecisionAllow {
+			return state, winner, ancestorDecisions, nil
+		}
+	}
+	return DecisionNone, TraceEntry{}, decisions, nil
+}
+
+func (r *PermissionResolver) nearestDecisionForPath(subject string, perm Permission, scopes []permissionScopeTarget) (TraceEntry, bool) {
 	for _, target := range scopes {
-		decision := r.decisionFor(target.scope, target.id, subject, parts)
+		decision := r.decisionFor(target.scope, target.id, subject, perm)
 		if decision == DecisionNone {
 			continue
 		}
 		return TraceEntry{
-			Level:    target.level,
-			RoleName: subject,
-			Decision: decision,
-			ObjectID: target.objectID(),
+			Level:      target.level,
+			RoleName:   subject,
+			Decision:   decision,
+			ObjectID:   target.objectID(),
+			Permission: perm,
 		}, true
 	}
 	return TraceEntry{}, false
@@ -403,12 +440,8 @@ func dmDefaultAllows(perm Permission) bool {
 
 // decisionFor returns the current projection-backed RBAC decision for a
 // subject at a specific scope.
-func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject string, parts PermissionKeyParts) DecisionKind {
-	if subject == "" || parts.Verb == "" || parts.ObjectType == "" {
-		return DecisionNone
-	}
-	perm := ReconstructPermission(parts.Verb, parts.ObjectType)
-	if perm == "" {
+func (r *PermissionResolver) decisionFor(scope PermissionScope, scopeID, subject string, perm Permission) DecisionKind {
+	if subject == "" || perm == "" {
 		return DecisionNone
 	}
 	return r.core.rbacModel.decision(scope, scopeID, subject, perm)

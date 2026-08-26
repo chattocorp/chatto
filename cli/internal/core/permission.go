@@ -36,6 +36,21 @@ const (
 type Permission string
 
 const (
+	// PermServer is the parent path for server administration permissions.
+	PermServer Permission = "server"
+	// PermRoom is the parent path for room permissions.
+	PermRoom Permission = "room"
+	// PermMessage is the parent path for message permissions.
+	PermMessage Permission = "message"
+	// PermRole is the parent path for role permissions.
+	PermRole Permission = "role"
+	// PermAdmin is the parent path for admin permissions.
+	PermAdmin Permission = "admin"
+	// PermUser is the parent path for user permissions.
+	PermUser Permission = "user"
+	// PermBot is the parent path for bot permissions.
+	PermBot Permission = "bot"
+
 	// ===== Server Permissions =====
 
 	// PermServerManage allows updating server settings (name, description, logo).
@@ -162,9 +177,11 @@ type PermissionMetadata struct {
 // allPermissions holds metadata for all permissions.
 var allPermissions = []PermissionMetadata{
 	// Server
+	{PermServer, "All Server Permissions", "Perform all server administration actions", CategoryServer, []PermissionScope{ScopeServer}},
 	{PermServerManage, "Manage Server", "Update server settings (name, description, logo)", CategoryServer, []PermissionScope{ScopeServer}},
 
 	// Room
+	{PermRoom, "All Room Permissions", "Perform all room actions that apply at this scope", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomCreate, "Create Rooms", "Create new rooms in this group (or anywhere if granted at server scope)", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup}},
 	{PermRoomJoin, "Join Rooms", "Join existing rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermRoomList, "Discover Rooms", "See rooms in the directory and group 'Join all' affordances", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -172,6 +189,7 @@ var allPermissions = []PermissionMetadata{
 	{PermRoomMemberBan, "Ban Room Members", "Ban members from rooms", CategoryRoom, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Message
+	{PermMessage, "All Message Permissions", "Perform all message actions", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessageRead, "Read Messages", "Read message content in channel rooms", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePost, "Post Messages", "Post new messages in rooms and start DMs", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 	{PermMessagePostInThread, "Post in Threads", "Post messages in threads", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
@@ -181,14 +199,17 @@ var allPermissions = []PermissionMetadata{
 	{PermMessageEcho, "Echo to Channel", "Echo thread replies to the main channel for visibility", CategoryMessage, []PermissionScope{ScopeServer, ScopeGroup, ScopeRoom}},
 
 	// Role management
+	{PermRole, "All Role Permissions", "Perform all role actions", CategoryRole, []PermissionScope{ScopeServer}},
 	{PermRoleManage, "Configure Roles", "Create, edit, delete, and reorder roles and their permissions", CategoryRole, []PermissionScope{ScopeServer}},
 	{PermRoleAssign, "Assign Roles", "Assign and revoke roles for users", CategoryRole, []PermissionScope{ScopeServer}},
 
 	// Admin
+	{PermAdmin, "All Admin Permissions", "Perform all admin view actions", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminUsersView, "View Users", "View the users page in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 	{PermAdminAuditView, "View Audit Log", "View the audit log in admin", CategoryAdmin, []PermissionScope{ScopeServer}},
 
 	// User management
+	{PermUser, "All User Permissions", "Perform all user actions", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteAny, "Delete Any User", "Delete any user's account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserDeleteSelf, "Delete Own Account", "Delete your own account", CategoryUser, []PermissionScope{ScopeServer}},
 	{PermUserInvite, "Invite Users", "List, create, copy, and revoke invite links", CategoryUser, []PermissionScope{ScopeServer}},
@@ -196,6 +217,7 @@ var allPermissions = []PermissionMetadata{
 	{PermUserManagePermissions, "Manage User Permissions", "Grant, deny, and clear direct per-user permission overrides", CategoryUser, []PermissionScope{ScopeServer}},
 
 	// Bot accounts
+	{PermBot, "All Bot Permissions", "Perform all bot account actions", CategoryBot, []PermissionScope{ScopeServer}},
 	{PermBotCreate, "Create Bots", "Create bot accounts owned by your account", CategoryBot, []PermissionScope{ScopeServer}},
 	{PermBotManage, "Manage Bots", "View and manage every bot account", CategoryBot, []PermissionScope{ScopeServer}},
 }
@@ -206,8 +228,12 @@ var permissionIndex map[Permission]PermissionMetadata
 func init() {
 	permissionIndex = make(map[Permission]PermissionMetadata, len(allPermissions))
 	for _, p := range allPermissions {
+		if _, exists := permissionIndex[p.Permission]; exists {
+			panic(fmt.Sprintf("duplicate permission %q", p.Permission))
+		}
 		permissionIndex[p.Permission] = p
 	}
+	validatePermissionCatalog()
 }
 
 // AllPermissions returns all defined permissions with their metadata.
@@ -351,58 +377,38 @@ func DefaultAnnouncementsAdminPermissions() []Permission {
 	return []Permission{PermMessagePost}
 }
 
-// ============================================================================
-// Permission Key Parts (for KV key generation)
-// ============================================================================
-
-// PermissionKeyParts holds the verb and objectType components for KV key generation.
-// Permission strings follow the format "{objectType}.{verb}" (e.g., "room.create",
-// "message.post-in-thread", "admin.view-users"), so key parts are derived directly from
-// the permission string — no separate mapping needed.
-type PermissionKeyParts struct {
-	Verb       string // The action: "create", "join", "post-in-thread", "view-users", etc.
-	ObjectType string // The target type: "server", "room", "message", "admin", etc.
-}
-
-// parseKeyParts splits a permission string into its objectType and verb components.
-// All permissions follow the "{objectType}.{verb}" convention.
-func parseKeyParts(perm string) PermissionKeyParts {
-	objectType, verb, ok := strings.Cut(perm, ".")
-	if !ok {
-		return PermissionKeyParts{}
+// PermissionAncestors returns registered ancestor paths from nearest to root.
+// The permission itself is not included.
+func PermissionAncestors(perm Permission) []Permission {
+	parts := strings.Split(string(perm), ".")
+	if len(parts) < 2 {
+		return nil
 	}
-	return PermissionKeyParts{Verb: verb, ObjectType: objectType}
-}
-
-func init() {
-	// Validate that all permission strings follow the "{objectType}.{verb}" format.
-	for _, p := range allPermissions {
-		parts := parseKeyParts(string(p.Permission))
-		if parts.Verb == "" || parts.ObjectType == "" {
-			panic(fmt.Sprintf("permission %q does not follow {objectType}.{verb} format", p.Permission))
-		}
-		if strings.Contains(parts.Verb, ".") {
-			panic(fmt.Sprintf("permission %q has nested dots — verb %q must use dashes instead", p.Permission, parts.Verb))
+	ancestors := make([]Permission, 0, len(parts)-1)
+	for end := len(parts) - 1; end > 0; end-- {
+		ancestor := Permission(strings.Join(parts[:end], "."))
+		if _, registered := permissionIndex[ancestor]; registered {
+			ancestors = append(ancestors, ancestor)
 		}
 	}
+	return ancestors
 }
 
-// GetPermissionKeyParts returns the verb and objectType for a permission.
-func GetPermissionKeyParts(perm Permission) PermissionKeyParts {
-	return parseKeyParts(string(perm))
-}
-
-// KeyParts returns the verb and objectType for this permission.
-func (p Permission) KeyParts() PermissionKeyParts {
-	return parseKeyParts(string(p))
-}
-
-// ReconstructPermission builds a Permission from verb and objectType.
-// Returns empty string if the resulting permission is not registered.
-func ReconstructPermission(verb, objectType string) Permission {
-	perm := Permission(objectType + "." + verb)
-	if _, ok := permissionIndex[perm]; ok {
-		return perm
+// validatePermissionCatalog enforces the registered-path invariant. Each
+// descendant path has each of its ancestor paths in the catalog.
+func validatePermissionCatalog() {
+	for _, meta := range allPermissions {
+		parts := strings.Split(string(meta.Permission), ".")
+		for _, part := range parts {
+			if part == "" {
+				panic(fmt.Sprintf("permission %q has an empty path segment", meta.Permission))
+			}
+		}
+		for end := 1; end < len(parts); end++ {
+			ancestor := Permission(strings.Join(parts[:end], "."))
+			if _, registered := permissionIndex[ancestor]; !registered {
+				panic(fmt.Sprintf("permission %q has unregistered ancestor %q", meta.Permission, ancestor))
+			}
+		}
 	}
-	return ""
 }

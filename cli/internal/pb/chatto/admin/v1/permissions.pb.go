@@ -1270,9 +1270,12 @@ type PermissionTraceEntry struct {
 	// Decision observed at this trace step.
 	Decision PermissionDecision `protobuf:"varint,3,opt,name=decision,proto3,enum=chatto.admin.v1.PermissionDecision" json:"decision,omitempty"`
 	// Whether this entry is the winning decision.
-	Applied       bool `protobuf:"varint,4,opt,name=applied,proto3" json:"applied,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Applied bool `protobuf:"varint,4,opt,name=applied,proto3" json:"applied,omitempty"`
+	// Registered permission path that supplied this decision. This can be an
+	// ancestor of the permission in PermissionExplanation.
+	AppliedPermission string `protobuf:"bytes,5,opt,name=applied_permission,json=appliedPermission,proto3" json:"applied_permission,omitempty"`
+	unknownFields     protoimpl.UnknownFields
+	sizeCache         protoimpl.SizeCache
 }
 
 func (x *PermissionTraceEntry) Reset() {
@@ -1331,6 +1334,13 @@ func (x *PermissionTraceEntry) GetApplied() bool {
 		return x.Applied
 	}
 	return false
+}
+
+func (x *PermissionTraceEntry) GetAppliedPermission() string {
+	if x != nil {
+		return x.AppliedPermission
+	}
+	return ""
 }
 
 // Full decision trace for one permission and target user.
@@ -1919,12 +1929,13 @@ const file_chatto_admin_v1_permissions_proto_rawDesc = "" +
 	"\auser_id\x18\x01 \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x06userId\"\x87\x01\n" +
 	"#ListUserPermissionDecisionsResponse\x12\x17\n" +
 	"\auser_id\x18\x01 \x01(\tR\x06userId\x12G\n" +
-	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\"\xce\x01\n" +
+	"\tdecisions\x18\x02 \x03(\v2).chatto.admin.v1.ScopedPermissionDecisionR\tdecisions\"\xfd\x01\n" +
 	"\x14PermissionTraceEntry\x12>\n" +
 	"\x05level\x18\x01 \x01(\x0e2(.chatto.admin.v1.PermissionDecisionLevelR\x05level\x12\x1b\n" +
 	"\trole_name\x18\x02 \x01(\tR\broleName\x12?\n" +
 	"\bdecision\x18\x03 \x01(\x0e2#.chatto.admin.v1.PermissionDecisionR\bdecision\x12\x18\n" +
-	"\aapplied\x18\x04 \x01(\bR\aapplied\"\xa0\x02\n" +
+	"\aapplied\x18\x04 \x01(\bR\aapplied\x12-\n" +
+	"\x12applied_permission\x18\x05 \x01(\tR\x11appliedPermission\"\xa0\x02\n" +
 	"\x15PermissionExplanation\x12\x1e\n" +
 	"\n" +
 	"permission\x18\x01 \x01(\tR\n" +
