@@ -35,8 +35,13 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 		return false, nil
 	}
 	message := notificationSignalMessage(input.Signal)
-	if message == nil || input.SourceStreamSequence == 0 {
-		return false, invalidArgument("a Badge delivery requires an exact source sequence and message")
+	if message == nil || input.SourceStreamSequence == 0 || input.SourceCreated.IsZero() {
+		return false, invalidArgument("a Badge delivery requires an exact source time, sequence, and message")
+	}
+	expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
+	now := m.now().UTC()
+	if !now.Before(expiresAt) {
+		return false, nil
 	}
 	marker := &corev1.NotificationUnreadMarker{
 		SourceEventId:        input.SourceEventID,
@@ -52,7 +57,7 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
 		current, err := m.kv.Get(ctx, key)
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
-			revision, createErr := m.kv.Create(ctx, key, value, jetstream.KeyTTL(notificationTTL))
+			revision, createErr := m.kv.Create(ctx, key, value, jetstream.KeyTTL(expiresAt.Sub(now)))
 			if createErr == nil {
 				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 					return false, err
@@ -77,7 +82,7 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 			}
 			return false, nil
 		}
-		revision, updateErr := m.core.updateRuntimeStateWithTTL(ctx, key, value, current.Revision(), notificationTTL)
+		revision, updateErr := m.core.updateRuntimeStateUntil(ctx, key, value, current.Revision(), expiresAt, now)
 		if updateErr == nil {
 			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
 				return false, err

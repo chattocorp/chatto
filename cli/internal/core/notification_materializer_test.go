@@ -4,6 +4,7 @@ import (
 	"context"
 	"slices"
 	"testing"
+	"time"
 
 	"google.golang.org/protobuf/types/known/fieldmaskpb"
 
@@ -228,6 +229,7 @@ func TestBadgeMarkerRejectsAnOlderReplicaWrite(t *testing.T) {
 	input := CreateNotificationOccurrenceInput{
 		RecipientID:          recipient.Id,
 		SourceEventID:        posted.Id,
+		SourceCreated:        time.Now(),
 		ActorID:              author.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
 		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
@@ -274,8 +276,9 @@ func TestBadgeMarkerIsRemovedWhenRecipientAccountIsDeleted(t *testing.T) {
 	}
 	if changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
-		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
+		SourceCreated: time.Now(),
+		Signal:        testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:          corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
 	}); err != nil || !changed {
 		t.Fatalf("record Badge marker = (%v, %v), want (true, nil)", changed, err)
 	}
@@ -291,6 +294,49 @@ func TestBadgeMarkerIsRemovedWhenRecipientAccountIsDeleted(t *testing.T) {
 	})
 	if err != nil || exists || marker != nil {
 		t.Fatalf("Badge marker after account deletion = (%+v, %v, %v), want (nil, false, nil)", marker, exists, err)
+	}
+}
+
+func TestExpiredBadgeSourceDoesNotCreateUnreadMarker(t *testing.T) {
+	chattoCore, _ := setupTestCore(t)
+	ctx := testContext(t)
+	recipient, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-expired-recipient", "Badge Expired Recipient", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := chattoCore.CreateUser(ctx, SystemActorID, "badge-expired-author", "Badge Expired Author", "password")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := chattoCore.CreateRoom(ctx, author.Id, KindChannel, "", "badge-expired-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{recipient.Id, author.Id} {
+		if _, err := chattoCore.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "Expired Badge source", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now().UTC()
+	chattoCore.notificationOccurrences.now = func() time.Time { return now }
+	changed, err := chattoCore.notificationOccurrences.recordNotificationUnreadMarker(ctx, CreateNotificationOccurrenceInput{
+		RecipientID: recipient.Id, SourceEventID: posted.Id, ActorID: author.Id,
+		SourceCreated: now.Add(-notificationTTL),
+		Signal:        testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
+		Mode:          corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE, SourceStreamSequence: 100,
+	})
+	if err != nil || changed {
+		t.Fatalf("record expired Badge marker = (%v, %v), want (false, nil)", changed, err)
+	}
+	marker, _, exists, err := chattoCore.notificationBoundaries.unreadMarker(ctx, notificationReadBoundaryScope{
+		userID: recipient.Id, roomID: room.Id,
+	})
+	if err != nil || exists || marker != nil {
+		t.Fatalf("expired Badge marker = (%+v, %v, %v), want (nil, false, nil)", marker, exists, err)
 	}
 }
 
