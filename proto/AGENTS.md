@@ -1,7 +1,7 @@
 # Instructions for Agents Working in `proto/`
 
-Protobuf definitions feed persisted state, generated Go/TypeScript bindings,
-ConnectRPC services, and the public API reference.
+Protobuf definitions provide persisted state, generated Go and TypeScript
+bindings, ConnectRPC services, and the public API reference.
 
 ## Public API Protos
 
@@ -17,24 +17,24 @@ For public API packages:
   unauthenticated discovery/bootstrap ConnectRPC API consistency rules.
 - Follow [chatto/realtime/v1/AGENTS.md](chatto/realtime/v1/AGENTS.md) for the
   realtime WebSocket protobuf protocol.
-- Write comments for API consumers, not Chatto maintainers.
-- Every public service, RPC, message, enum, enum value, and important field
-  should have useful comments.
-- Explain what the call reads or changes, required IDs, pagination/cursor
-  semantics, login availability, and notable response behavior.
-- Keep field comments short enough for generated tables; put longer behavior
-  notes on messages or RPCs.
-- Do not include maintainer workflow text such as "run codegen" in comments that
-  render into public docs.
+- Write comments for API users, not Chatto maintainers.
+- Add useful comments to each public service, RPC, message, enum, enum value,
+  and important field.
+- Explain what a call reads or changes, required IDs, pagination or cursor
+  rules, login availability, and important response behavior.
+- Keep field comments short for generated tables. Put longer behavior notes on
+  messages or RPCs.
+- Do not put maintainer workflow text, such as "run codegen", in comments that
+  appear in public documentation.
 
 ## Compatibility
 
 - The public auth, discovery, integration, admin, and realtime `v1` packages
-  are experimental while Chatto is pre-1.0. Compatibility is preferred, not
-  guaranteed. Breaking changes require explicit user approval, an explicit
-  design benefit, a compatibility plan, generated-client/docs updates,
-  release-note guidance, and the `api-breaking-change` PR label. A release
-  milestone does not waive these requirements.
+  are experimental while Chatto is pre-1.0. Prefer compatibility. A breaking
+  change requires explicit user approval, a design benefit, a compatibility
+  plan, generated-client and documentation updates, release-note guidance, and
+  the `api-breaking-change` PR label. A release milestone does not remove these
+  requirements.
 - Except for projection-owned snapshot payloads described below, do not
   renumber fields that may be persisted or consumed by clients.
 - Except for projection-owned snapshot payloads, do not change a field type at
@@ -141,10 +141,10 @@ For public API packages:
 - Singular `Get*` methods return `NOT_FOUND` when absence is the error result.
   `BatchGet*` and list methods may omit missing or inaccessible resources, but
   document that behavior on the RPC.
-- Generated public docs and TypeScript bindings are part of the API surface.
-  When adding public RPCs, regenerate `@chatto/api-types` and docs in the same
-  change. Do not recreate a handwritten API-client package; bundled frontend
-  adapters belong under `apps/frontend/src/lib/api-client`.
+- Generated public documentation and TypeScript bindings are part of the API.
+  When you add a public RPC, regenerate `@chatto/api-types` and the
+  documentation in the same change. Do not create a handwritten API-client
+  package. Put bundled frontend adapters in `apps/frontend/src/lib/api-client`.
 
 ## Code Generation
 

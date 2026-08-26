@@ -1,8 +1,8 @@
 # Instructions for Agents Working in `proto/chatto/admin/v1/`
 
-This directory defines the public `chatto.admin.v1` ConnectRPC surface for
-administrative operations. These APIs are public and generated for clients, but
-their names and docs should make the administrative scope obvious.
+This directory contains the public `chatto.admin.v1` ConnectRPC API for
+administrative operations. Clients can generate this API. Its names and
+documentation must make the administrative scope clear.
 
 ## API Surface
 
@@ -12,7 +12,7 @@ their names and docs should make the administrative scope obvious.
 - Reuse shared shapes from `chatto.api.v1` when the semantics are the same.
 - Do not reuse response-rich messages as request inputs when some fields are
   ignored. Add a request-only input message instead.
-- Keep authorization expectations explicit in service and RPC comments.
+- State authorization requirements in service and RPC comments.
 - Prefer service names that name the administrative resource directly. Do not
   keep a narrower name when the service owns broader admin behavior; for
   example, admin user/member management should be named around users when it
@@ -21,10 +21,10 @@ their names and docs should make the administrative scope obvious.
   mutations. The public `MyAccountService` owns current-caller self-service;
   admin user management belongs in an explicitly named admin service with
   permission-gated RPC comments.
-- Administrative services should be exhaustive for their resource and scope,
-  not limited to the current admin UI. If a normal admin client would expect
-  list, get, batch get, create, update, or delete behavior for the resource,
-  either provide it or document why that operation is intentionally absent.
+- Make administrative services complete for their resource and scope. Do not
+  limit them to the current admin UI. If an admin client would expect list, get,
+  batch get, create, update, or delete behavior, provide it or document why it
+  is not available.
 - Follow the CRUD-like naming pattern for ordinary admin resource APIs:
   `List<ResourcePlural>`, `Get<Resource>`, `BatchGet<ResourcePlural>`,
   `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>`. Use domain
@@ -58,5 +58,5 @@ their names and docs should make the administrative scope obvious.
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
 - The package split is about API clarity and generated-client scope, not about
   making admin routes private or unstable.
-- Breaking changes still need an explicit compatibility note and generated
-  client/docs updates.
+- A breaking change still needs an explicit compatibility note and updates to
+  generated clients and documentation.

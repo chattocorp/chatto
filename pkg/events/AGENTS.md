@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `pkg/events/`
 
-Read the repository-root [`AGENTS.md`](../../AGENTS.md),
+Read the root [`AGENTS.md`](../../AGENTS.md),
 [`cli/AGENTS.md`](../../cli/AGENTS.md), and
 [`authling/AGENTS.md`](../../authling/AGENTS.md) before changing this shared
 module. Also follow
@@ -12,21 +12,21 @@ durable worker resource ownership.
 
 ## Boundary
 
-- Keep production code envelope-neutral and application-neutral.
+- Keep production code neutral to envelopes and applications.
 - Production imports are limited to the Go standard library and
   `github.com/nats-io/nats.go`.
 - Do not import Chatto or Authling domain packages, protobuf envelopes,
   subjects, resource names, configuration, or lifecycle policy.
 - Tests may additionally use `github.com/nats-io/nats-server/v2`, but must not
   borrow product-specific test helpers.
-- Drive exported API changes from concrete external-package consumers. Do not
-  add generic surface only to shorten one application's wiring.
+- Base exported API changes on actual external-package users. Do not add a
+  general API only to make one application setup shorter.
 - `DurableWorker` executes an already configured consumer; it must not infer
   consumer ownership from process lifecycle or create, delete, retire, or
   garbage-collect application consumers. Persisted names, inactivity policy,
   rollout, and safe retirement remain application responsibilities.
-- The module is independently versioned but pre-1.0 and has no API stability
-  promise yet.
+- This module has an independent pre-1.0 version. It has no API stability
+  promise.
 - The complete module is licensed under Apache-2.0. Keep its source,
   tests, documentation, and standalone license metadata inside that
   permissive boundary.
@@ -34,9 +34,9 @@ durable worker resource ownership.
 ## Compatibility
 
 Framework refactors must preserve application-owned event bytes, subjects,
-headers, OCC guards, replay ordering, stream positions, and snapshot/checkpoint
-semantics unless the consuming applications explicitly coordinate a compatible
-change.
+headers, OCC guards, replay order, stream positions, and snapshot/checkpoint
+semantics. Change them only when all consuming applications coordinate a
+compatible change.
 
 ## Verification
 

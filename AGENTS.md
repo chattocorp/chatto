@@ -1,12 +1,11 @@
 # Instructions for Agents
 
-Read this file first. It contains repo-wide rules that should not be hidden in
-path-specific guidance.
+Read this file first. It contains rules for the complete repository.
 
 ## Product Boundaries And Instruction Routing
 
-This repository contains two independent products plus an incubating shared
-framework boundary:
+This repository has two independent products and an incubating shared-framework
+boundary:
 
 - **Chatto** is the chat server, bundled client, CLI, and existing public
   protocols. Unless a path is explicitly Authling-owned or shared, existing
@@ -19,15 +18,13 @@ framework boundary:
   modules live under `pkg/events/`, `pkg/natsruntime/`, `pkg/datacrypto/`, and
   `pkg/appconfig/`.
 
-Authling's presence in this repository is explicitly temporary. It is being
-incubated here only while Authling provides the concrete second application
-needed to extract and harden the shared framework. Once that boundary is
-stable, Authling is intended to move to its own repository. Do not describe
-this repository as Authling's permanent home, and do not introduce coupling
-that would make the eventual extraction harder.
+Authling is in this repository temporarily. It provides the second application
+needed to extract and validate the shared framework. Move Authling to its own
+repository when the shared boundary is stable. Do not describe this repository
+as its permanent home. Do not add coupling that makes this move more difficult.
 
-Before changing files, classify the task as Chatto, Authling, shared-framework,
-or repository-wide work. Follow these routing rules:
+Before you change a file, classify the task as Chatto, Authling,
+shared-framework, or repository-wide work. Follow these routing rules:
 
 1. Any task that concerns Authling or changes anything under `authling/` must
    read [`authling/AGENTS.md`](authling/AGENTS.md) in full before acting. Do
@@ -71,9 +68,9 @@ or repository-wide work. Follow these routing rules:
    and shared-framework integration points. Optimize those exceptions for
    deletion or relocation when Authling leaves this repository.
 
-If a task crosses these boundaries, keep the product impacts explicit in code,
-tests, documentation, and the final report. Do not use a cross-product task as
-permission to reorganize unrelated product code.
+For a task that crosses these boundaries, state each product impact in code,
+tests, documentation, and the final report. Do not use a cross-product task to
+reorganize unrelated product code.
 
 ## Where Context Lives
 
@@ -113,11 +110,11 @@ permission to reorganize unrelated product code.
 
 ## Instruction Strength
 
-- **Must** and **never** mark requirements, safety boundaries, or invariants.
-- **Prefer** marks the default; depart from it only with a concrete reason.
-- **Consider** marks a review prompt rather than a required action.
-- The nearest applicable `AGENTS.md` owns path-specific guidance. Root rules
-  still apply when nested guidance is more specific.
+- **Must** and **never** mark requirements, safety boundaries, and invariants.
+- **Prefer** marks the default. Use another action only for a specific reason.
+- **Consider** marks a review prompt, not a required action.
+- The nearest applicable `AGENTS.md` controls path-specific guidance. Root
+  rules still apply when nested guidance is more specific.
 
 ## Simplified Technical English
 
@@ -131,14 +128,14 @@ technical terms. For Chatto terms, use the canonical vocabulary in
 [`docs/GLOSSARY.md`](docs/GLOSSARY.md). Do not change code, commands, literal
 names, or quotations.
 
-Treat violations in unchanged text as migration work. Apply the standard to a
-full page when you make a substantial page edit. Claim formal conformance only
-after a full review against the standard and its dictionary.
+Treat a violation in unchanged text as migration work. Apply the standard to a
+complete page when you make a substantial page edit. Claim formal conformance
+only after a complete review against the standard and its dictionary.
 
 ### Approved Exclusions
 
-These pages can use a conversational product voice and vocabulary that
-ASD-STE100 does not approve:
+These pages can use a conversational product voice and vocabulary outside
+ASD-STE100:
 
 - `apps/docs-website/src/content/docs/index.mdx` — product home page.
 - `apps/docs-website/src/content/docs/getting-started/introduction.mdx` —
@@ -150,12 +147,12 @@ full path and reason here.
 
 ## Prime Directives
 
-- Prefer simple, clear changes over clever abstractions.
-- Add concise code documentation for public APIs and for otherwise important
-  fields, functions, types, invariants, and lifecycle behavior that future
-  maintainers should not have to infer from call sites.
+- Prefer simple, clear changes to complex abstractions.
+- Add short code documentation for public APIs and important fields, functions,
+  types, invariants, and lifecycle behavior. Future maintainers must not have
+  to infer this information from call sites.
 - Keep tests and documentation up to date when changing behavior.
-- Run verification that would actually catch regressions in the area touched.
+- Run verification that can find regressions in the changed area.
 - Never claim full verification when only a partial signal was run.
 - Never silence lint, type, vet, or Svelte warnings as a routine fix. Fix the
   cause; discuss rare scoped exceptions before adding them.
@@ -171,10 +168,10 @@ full path and reason here.
   safely reset when validation fails. Explicit owner-only broker diagnostics
   and event-log inspection APIs are the sole exception: their operational
   purpose and fields must clearly identify the NATS/JetStream details exposed.
-- Treat optional operational telemetry as best-effort: its failure must not make
-  broader diagnostics unavailable. Preserve an explicit unavailable state across
-  API and UI boundaries instead of replacing unknown values with healthy-looking
-  zeroes, empty strings, or timestamps.
+- Treat optional operational telemetry as best effort. Its failure must not make
+  other diagnostics unavailable. Preserve an explicit unavailable state across
+  API and UI boundaries. Do not replace an unknown value with a zero, empty
+  string, or timestamp that appears healthy.
 - Chatto is public, self-hosted, pre-1.0 software with real user data and mixed
   versions in use. Follow ADR-045 and `proto/AGENTS.md` for public and persisted
   protocol compatibility. A breaking experimental API change requires explicit
@@ -183,7 +180,7 @@ full path and reason here.
 
 ## Tooling
 
-Tools are managed by `mise`; prefer tasks when available.
+`mise` manages tools. Prefer its tasks when they are available.
 
 Use Chrome DevTools MCP only to inspect and verify Chatto or Authling browser
 behavior. Do not use it for general web research or public documentation
@@ -208,7 +205,7 @@ mise codegen-proto
 Run Authling's unprefixed tasks from `authling/`; its nested `mise.toml` owns
 the Authling toolchain and workflow.
 
-For ad-hoc tool invocations, use `mise x -- ...` rather than assuming `go`,
+For an ad-hoc tool command, use `mise x -- ...`. Do not assume that `go`,
 `pnpm`, `node`, or related binaries are on `PATH`.
 
 When an agent needs the long-running development stack, launch `mise dev`; the

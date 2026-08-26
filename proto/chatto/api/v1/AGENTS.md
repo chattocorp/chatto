@@ -1,8 +1,8 @@
 # Instructions for Agents Working in `proto/chatto/api/v1/`
 
-This directory defines the public `chatto.api.v1` ConnectRPC surface. Treat
-these protos as the integration API first, even when the bundled frontend is the
-first consumer.
+This directory contains the public `chatto.api.v1` ConnectRPC API. Treat these
+protos as an integration API first, even when the bundled frontend is the first
+user.
 
 ## API Surface
 
@@ -16,8 +16,8 @@ first consumer.
   integrations.
 - If app-only API is added later, document why it is app-only and still keep it
   stable enough for mixed bundled client/server versions.
-- Prefer a broad, coherent base API over moving rough edges into a separate
-  namespace.
+- Prefer one broad, coherent base API. Do not move difficult behavior to a
+  separate namespace.
 - Prefer service names that make the resource and scope obvious to generated
   API consumers, even if that creates more services. Do not collapse unrelated
   resources into broad catch-all services just because they share a scope.
@@ -34,10 +34,10 @@ first consumer.
 - Once a service name carries the scope, use concise resource method names such
   as `ListMembers`, `GetMember`, and `BatchGetMembers` rather than repeating
   the scope in every RPC name.
-- Services should be exhaustive for their resource and scope, not limited to
-  the current frontend workflow. If a normal client would expect list, get,
-  batch get, create, update, or delete behavior for the resource, either provide
-  it or document why that operation is intentionally absent.
+- Make services complete for their resource and scope. Do not limit them to the
+  current frontend workflow. If a normal client would expect list, get, batch
+  get, create, update, or delete behavior, provide it or document why it is not
+  available.
 - Follow the CRUD-like naming pattern for ordinary resource APIs:
   `List<ResourcePlural>`, `Get<Resource>`, `BatchGet<ResourcePlural>`,
   `Create<Resource>`, `Update<Resource>`, and `Delete<Resource>`. Use domain
@@ -120,14 +120,14 @@ first consumer.
 ## Comments And Documentation
 
 - Write comments for API consumers, not Chatto maintainers.
-- Every public service, RPC, message, enum, enum value, and important field
-  should have useful comments.
-- Explain what the call reads or changes, required IDs, pagination/cursor
-  semantics, login availability, and notable response behavior.
-- Keep field comments short enough for generated tables; put longer behavior
-  notes on messages or RPCs.
-- Do not include maintainer workflow text such as "run codegen" in comments that
-  render into public docs.
+- Add useful comments to each public service, RPC, message, enum, enum value,
+  and important field.
+- Explain what the call reads or changes, required IDs, pagination or cursor
+  rules, login availability, and important response behavior.
+- Keep field comments short for generated tables. Put longer behavior notes on
+  messages or RPCs.
+- Do not put maintainer workflow text, such as "run codegen", in comments that
+  appear in public documentation.
 
 ## Compatibility
 
@@ -137,8 +137,8 @@ first consumer.
 - Removing a field requires both `reserved <tag>` and `reserved "<name>"`.
 - Renames are wire-safe but code-breaking; update generated consumers in the
   same change.
-- The project is pre-1.0, but public API breakage still needs an explicit plan
-  and PR compatibility note.
+- The project is pre-1.0. A public API break still needs an explicit plan and a
+  PR compatibility note.
 - Follow [ADR-045](../../../../docs/adr/ADR-045-public-api-stability-tiers.md)
   for integration API, bundled app API, and realtime protocol stability tiers.
 
