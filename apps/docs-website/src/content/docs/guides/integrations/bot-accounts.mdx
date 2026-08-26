@@ -56,10 +56,11 @@ before the mention. The bot owner must have the same effective permission at
 that scope. DM membership authorizes the bot to read that DM. Posting remains
 a separate `message.post` or `message.post-in-thread` decision.
 
-The normal realtime connection sends only authorized message-derived updates.
-After a realtime reset, use `ThreadService.ListInteractions` to get the bot's
-current related threads. Use `ThreadService.GetThreadEvents` to get the
-complete context for one related thread.
+The normal realtime connection sends authorized updates for retained room
+timelines. Chatto does not provide an interaction directory or a bot-specific
+mention signal in this release. When the bot knows a thread root ID, use
+`ThreadService.GetThreadEvents` to request the complete context. The server
+returns the thread only when the bot has current access.
 
 ## Direct messages
 

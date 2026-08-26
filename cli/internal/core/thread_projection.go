@@ -611,23 +611,6 @@ func (p *ThreadProjection) Interaction(userID, roomID, threadRootEventID string)
 	return cloneThreadInteraction(interaction), true
 }
 
-// InteractionsForUser returns detached relationships for one account.
-func (p *ThreadProjection) InteractionsForUser(userID string) []*ThreadInteraction {
-	p.RLock()
-	defer p.RUnlock()
-	byThread := p.interactions[userID]
-	if len(byThread) == 0 {
-		return nil
-	}
-	out := make([]*ThreadInteraction, 0, len(byThread))
-	for _, interaction := range byThread {
-		if interaction != nil && len(interaction.causes) > 0 {
-			out = append(out, cloneThreadInteraction(interaction))
-		}
-	}
-	return out
-}
-
 func cloneThreadInteraction(interaction *projectedThreadInteraction) *ThreadInteraction {
 	if interaction == nil {
 		return nil

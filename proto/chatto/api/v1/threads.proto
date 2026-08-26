@@ -8,7 +8,6 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/read_state.proto";
 import "chatto/api/v1/room_timeline.proto";
 import "chatto/api/v1/rooms.proto";
-import "google/protobuf/timestamp.proto";
 
 // Current follow state for one thread and viewer.
 message ThreadFollowState {
@@ -88,76 +87,8 @@ message ListFollowedThreadsResponse {
   PageInfo page = 5;
 }
 
-// Post-time reason that the current account is related to one thread.
-enum ThreadInteractionCauseType {
-  // The cause is absent or unknown.
-  THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED = 0;
-  // The current account authored the thread root.
-  THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED = 1;
-  // Another account directly mentioned the current account.
-  THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION = 2;
-}
-
-// One post-time fact that established a thread interaction relationship.
-message ThreadInteractionCause {
-  // Relationship cause.
-  ThreadInteractionCauseType type = 1;
-  // Message event that established the cause.
-  string source_message_event_id = 2;
-  // Time when the source message was posted.
-  google.protobuf.Timestamp created_at = 3;
-}
-
-// One active interaction relationship for the current account.
-message ThreadInteraction {
-  // Channel room containing the thread.
-  string room_id = 1;
-  // Event ID of the thread root message.
-  string thread_root_event_id = 2;
-  // Post-time facts that established the relationship.
-  repeated ThreadInteractionCause causes = 3;
-  // Latest visible activity in the thread.
-  google.protobuf.Timestamp last_activity_at = 4;
-}
-
-// Request for one interaction relationship of the current account.
-message GetInteractionRequest {
-  // Required. Channel room containing the thread.
-  string room_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Required. Event ID of the thread root message.
-  string thread_root_event_id = 2 [(buf.validate.field).string.min_len = 1];
-}
-
-// Response containing one current interaction relationship.
-message GetInteractionResponse {
-  // Current relationship.
-  ThreadInteraction interaction = 1;
-}
-
-// Request for a page of the current account's interaction relationships.
-message ListInteractionsRequest {
-  // Page request. Defaults to 20 results when absent or limit is zero.
-  PageRequest page = 1;
-}
-
-// Response containing one interaction relationship page.
-message ListInteractionsResponse {
-  // Relationships in newest-activity-first order.
-  repeated ThreadInteraction interactions = 1;
-  // Page metadata.
-  PageInfo page = 2;
-}
-
 // Manages thread follow state for the current user.
 service ThreadService {
-  // Returns one active interaction relationship for the current account.
-  // Room membership and message.read-interactions are required. Returns
-  // NOT_FOUND when no relationship exists.
-  rpc GetInteraction(GetInteractionRequest) returns (GetInteractionResponse);
-  // Lists active interaction relationships for the current account. Rows
-  // without current room membership or message.read-interactions are omitted.
-  // Clients can use this list to recover thread access after a realtime reset.
-  rpc ListInteractions(ListInteractionsRequest) returns (ListInteractionsResponse);
   // Returns followed threads in rooms where the current user is a member.
   // Channel-room threads also require message.read or an active relationship
   // with message.read-interactions. Historical DM threads use DM membership.

@@ -3396,76 +3396,6 @@ Authenticated server runtime configuration response.
 
 Manages thread follow state for the current user.
 
-<a id="chatto-api-v1-ThreadService-GetInteraction"></a>
-
-### GetInteraction
-
-Returns one active interaction relationship for the current account.
-Room membership and message.read-interactions are required. Returns
-NOT_FOUND when no relationship exists.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/GetInteraction
-```
-
-<a id="chatto-api-v1-GetInteractionRequest"></a>
-
-#### Input: GetInteractionRequest
-
-Request for one interaction relationship of the current account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Required. Channel room containing the thread. |
-| `thread_root_event_id` | `string` | Required. Event ID of the thread root message. |
-
-
-<a id="chatto-api-v1-GetInteractionResponse"></a>
-
-#### Result: GetInteractionResponse
-
-Response containing one current interaction relationship.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `interaction` | [`ThreadInteraction`](#chatto-api-v1-ThreadInteraction) | Current relationship. |
-
-
-<a id="chatto-api-v1-ThreadService-ListInteractions"></a>
-
-### ListInteractions
-
-Lists active interaction relationships for the current account. Rows
-without current room membership or message.read-interactions are omitted.
-Clients can use this list to recover thread access after a realtime reset.
-
-```http
-POST /api/connect/chatto.api.v1.ThreadService/ListInteractions
-```
-
-<a id="chatto-api-v1-ListInteractionsRequest"></a>
-
-#### Input: ListInteractionsRequest
-
-Request for a page of the current account's interaction relationships.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `page` | [`PageRequest`](#chatto-api-v1-PageRequest) | Page request. Defaults to 20 results when absent or limit is zero. |
-
-
-<a id="chatto-api-v1-ListInteractionsResponse"></a>
-
-#### Result: ListInteractionsResponse
-
-Response containing one interaction relationship page.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `interactions` | repeated [`ThreadInteraction`](#chatto-api-v1-ThreadInteraction) | Relationships in newest-activity-first order. |
-| `page` | [`PageInfo`](#chatto-api-v1-PageInfo) | Page metadata. |
-
-
 <a id="chatto-api-v1-ThreadService-ListFollowedThreads"></a>
 
 ### ListFollowedThreads
@@ -5216,35 +5146,6 @@ Current follow state for one thread and viewer.
 
 
 
-<a id="chatto-api-v1-ThreadInteraction"></a>
-
-### ThreadInteraction
-
-One active interaction relationship for the current account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Channel room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the thread root message. |
-| `causes` | repeated [`ThreadInteractionCause`](#chatto-api-v1-ThreadInteractionCause) | Post-time facts that established the relationship. |
-| `last_activity_at` | `google.protobuf.Timestamp` | Latest visible activity in the thread. |
-
-
-
-<a id="chatto-api-v1-ThreadInteractionCause"></a>
-
-### ThreadInteractionCause
-
-One post-time fact that established a thread interaction relationship.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `type` | [`ThreadInteractionCauseType`](#chatto-api-v1-ThreadInteractionCauseType) | Relationship cause. |
-| `source_message_event_id` | `string` | Message event that established the cause. |
-| `created_at` | `google.protobuf.Timestamp` | Time when the source message was posted. |
-
-
-
 <a id="chatto-api-v1-ActiveCall"></a>
 
 ### ActiveCall
@@ -5464,19 +5365,6 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
-
-
-<a id="chatto-api-v1-ThreadInteractionCauseType"></a>
-
-### ThreadInteractionCauseType
-
-Post-time reason that the current account is related to one thread.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED` | `0` | The cause is absent or unknown. |
-| `THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED` | `1` | The current account authored the thread root. |
-| `THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION` | `2` | Another account directly mentioned the current account. |
 
 
 <a id="chatto-api-v1-CallMediaPublisherKind"></a>

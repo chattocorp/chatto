@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { FollowThreadRequest, FollowThreadResponse, GetInteractionRequest, GetInteractionResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, ListInteractionsRequest, ListInteractionsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
+import { FollowThreadRequest, FollowThreadResponse, ListFollowedThreadsRequest, ListFollowedThreadsResponse, UnfollowThreadRequest, UnfollowThreadResponse } from "./threads_pb.js";
 import { MethodKind } from "@bufbuild/protobuf";
 import { GetThreadEventsAroundRequest, GetThreadEventsAroundResponse, GetThreadEventsRequest, GetThreadEventsResponse } from "./room_timeline_pb.js";
 import { MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_pb.js";
@@ -16,32 +16,6 @@ import { MarkThreadAsReadRequest, MarkThreadAsReadResponse } from "./read_state_
 export const ThreadService = {
   typeName: "chatto.api.v1.ThreadService",
   methods: {
-    /**
-     * Returns one active interaction relationship for the current account.
-     * Room membership and message.read-interactions are required. Returns
-     * NOT_FOUND when no relationship exists.
-     *
-     * @generated from rpc chatto.api.v1.ThreadService.GetInteraction
-     */
-    getInteraction: {
-      name: "GetInteraction",
-      I: GetInteractionRequest,
-      O: GetInteractionResponse,
-      kind: MethodKind.Unary,
-    },
-    /**
-     * Lists active interaction relationships for the current account. Rows
-     * without current room membership or message.read-interactions are omitted.
-     * Clients can use this list to recover thread access after a realtime reset.
-     *
-     * @generated from rpc chatto.api.v1.ThreadService.ListInteractions
-     */
-    listInteractions: {
-      name: "ListInteractions",
-      I: ListInteractionsRequest,
-      O: ListInteractionsResponse,
-      kind: MethodKind.Unary,
-    },
     /**
      * Returns followed threads in rooms where the current user is a member.
      * Channel-room threads also require message.read or an active relationship

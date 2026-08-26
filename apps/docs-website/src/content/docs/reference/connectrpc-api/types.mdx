@@ -1094,31 +1094,6 @@ Current follow state for one thread and viewer.
 | `thread_root_event_id` | `string` | Event ID of the root message for the thread. |
 | `following` | `bool` | True when the current user follows the thread. |
 
-<a id="chatto-api-v1-ThreadInteraction"></a>
-
-### ThreadInteraction
-
-One active interaction relationship for the current account.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `room_id` | `string` | Channel room containing the thread. |
-| `thread_root_event_id` | `string` | Event ID of the thread root message. |
-| `causes` | repeated [`ThreadInteractionCause`](#chatto-api-v1-ThreadInteractionCause) | Post-time facts that established the relationship. |
-| `last_activity_at` | `google.protobuf.Timestamp` | Latest visible activity in the thread. |
-
-<a id="chatto-api-v1-ThreadInteractionCause"></a>
-
-### ThreadInteractionCause
-
-One post-time fact that established a thread interaction relationship.
-
-| Field | Type | Description |
-| --- | --- | --- |
-| `type` | [`ThreadInteractionCauseType`](#chatto-api-v1-ThreadInteractionCauseType) | Relationship cause. |
-| `source_message_event_id` | `string` | Message event that established the cause. |
-| `created_at` | `google.protobuf.Timestamp` | Time when the source message was posted. |
-
 <a id="chatto-api-v1-ActiveCall"></a>
 
 ### ActiveCall
@@ -1829,18 +1804,6 @@ Policy controlling whether self-service account creation requires an invitation.
 | `ACCOUNT_CREATION_POLICY_UNSPECIFIED` | `0` | Compatibility value used by older servers. Clients treat it as open. |
 | `ACCOUNT_CREATION_POLICY_OPEN` | `1` | Self-service account creation does not require an invitation. |
 | `ACCOUNT_CREATION_POLICY_INVITE_ONLY` | `2` | Every self-service account creation path requires a valid invitation. |
-
-<a id="chatto-api-v1-ThreadInteractionCauseType"></a>
-
-### ThreadInteractionCauseType
-
-Post-time reason that the current account is related to one thread.
-
-| Name | Number | Description |
-| --- | --- | --- |
-| `THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED` | `0` | The cause is absent or unknown. |
-| `THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED` | `1` | The current account authored the thread root. |
-| `THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION` | `2` | Another account directly mentioned the current account. |
 
 <a id="chatto-api-v1-CallMediaPublisherKind"></a>
 

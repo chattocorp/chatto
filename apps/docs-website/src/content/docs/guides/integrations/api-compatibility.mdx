@@ -90,11 +90,10 @@ Chatto 0.5 adds `message.read-interactions` for relationship-scoped channel
 reads. Fresh servers grant it to `everyone`; existing servers do not receive
 an automatic grant. A direct mention or an authored root establishes access to
 the complete thread while room membership and the permission remain active.
-Clients use the additive `ThreadService.GetInteraction` and `ListInteractions`
-operations to recover these relationships after a realtime reset. Older replicas
-do not know the new permission and deny this narrow mode when `message.read`
-is absent. Complete the replica rollout before you depend on narrow-read
-availability.
+Clients supply known thread roots to the existing thread API. Chatto does not
+provide a relationship-list API. Older replicas do not know the new permission
+and deny this narrow mode when `message.read` is absent. Complete the replica
+rollout before you depend on narrow-read availability.
 
 Chatto 0.5 also denies `RoomService.StartDM` to bot callers. This rule applies
 when the requested DM already exists. A human must start the DM, after which

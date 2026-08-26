@@ -55,11 +55,11 @@ can create access. A reaction, pin, or asset lifecycle fact waits for the same
 projection at its source message before authorization. Current RBAC and
 membership checks remain request-time decisions.
 
-Add public ThreadService operations that list the current account's active
-relationships and get one relationship. These operations return opaque event
-IDs and cause metadata. Existing room and thread APIs return the authorized
-message content. No new realtime operation, NATS subject, stream, KV bucket,
-or durable worker is required.
+Do not add public operations that list or inspect relationships. Existing room
+and thread APIs apply the derived relationship when they authorize known
+message and thread IDs. Keep cause metadata inside the projection. A separate
+decision will define interaction-specific bot pings. This slice adds no new
+realtime operation, NATS subject, stream, KV bucket, or durable worker.
 
 Filter each message-derived surface by the canonical thread root. Main-room
 typing has no thread target and therefore requires broad access. Thread typing
@@ -83,8 +83,10 @@ the grant and use the existing exact owner ceiling for explicit bot grants.
   retained state.
 - The authorization boundary is more detailed than one room-level decision.
   List surfaces must filter individual messages or threads.
-- Realtime uses its existing protocol and cursor model. Integrations recover
-  the relationship set through ThreadService after a reset.
+- Clients cannot enumerate the relationship set. They can load a known thread
+  and receive its content only when the current access rules allow it.
+- A separate bot-ping design must define realtime delivery and recovery for
+  direct mentions.
 - Old replicas do not understand the narrow permission. They deny narrow reads
   because broad `message.read` is absent. A mixed rollout can reduce
   availability but does not give broad message access.

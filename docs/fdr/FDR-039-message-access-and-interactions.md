@@ -1,7 +1,7 @@
 # FDR-039: Message Access & Interactions
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -47,12 +47,13 @@ DM membership continues to authorize complete DM reads.
   each complete thread through the thread API.
 - Main-room typing indicators require broad access. A thread typing indicator
   is visible when the account can read that thread.
-- The normal realtime protocol carries authorized updates for human and bot
-  clients. A client retains the room timelines that it monitors and uses the
-  thread API to get complete context.
-- The public thread API lists and inspects the current account's interaction
-  relationships and their post-time causes. A client uses this list to recover
-  after a realtime reset.
+- The normal realtime protocol carries authorized updates for retained room
+  timelines. A client that knows a thread root can use the thread API to get
+  complete context.
+- The public API does not list or inspect interaction relationships. A thread
+  read succeeds or fails after the server applies the current access rules.
+- This slice does not add interaction-specific bot pings. Realtime delivery for
+  bot pings is a separate feature decision.
 - Fresh servers grant both read permissions to `everyone` at server scope when
   they initialize an empty RBAC stream.
 - Existing servers receive no automatic grant. Operators must review and
@@ -133,15 +134,15 @@ existing exact owner-permission ceiling for bot grants.
 **Tradeoff:** Removing a read permission from an owner also removes that read
 mode from the bots that the owner controls.
 
-### 8. Bots use the normal realtime protocol
+### 8. Relationships are not public resources
 
-**Decision:** Deliver authorized bot message updates through the same
-authenticated realtime protocol that human clients use. Keep complete thread
-reads and relationship discovery on the public thread API.
-**Why:** One transport preserves the existing authentication, resume, reset,
-and cursor rules.
-**Tradeoff:** A bot must retain each room timeline that it monitors, and one
-connection can retain only the protocol's bounded room set.
+**Decision:** Do not add public operations that list or inspect interaction
+relationships. A client supplies a known thread root to the normal thread API,
+which applies the current access rules.
+**Why:** A relationship is an authorization input, not a user-managed resource.
+This keeps internal cause metadata out of the public API.
+**Tradeoff:** Clients cannot enumerate related threads. A separate bot-ping
+feature must define how a bot learns about a direct mention.
 
 ## Permissions
 
@@ -171,3 +172,4 @@ DM membership, not a message-read permission, authorizes DM reads.
 
 - Define an explicit end action and the accounts that can use it.
 - Define profile and administration views that show active relationships.
+- Define realtime delivery and recovery for direct-mention bot pings.

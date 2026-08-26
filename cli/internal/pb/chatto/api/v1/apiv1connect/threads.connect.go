@@ -33,12 +33,6 @@ const (
 // reflection-formatted method names, remove the leading slash and convert the remaining slash to a
 // period.
 const (
-	// ThreadServiceGetInteractionProcedure is the fully-qualified name of the ThreadService's
-	// GetInteraction RPC.
-	ThreadServiceGetInteractionProcedure = "/chatto.api.v1.ThreadService/GetInteraction"
-	// ThreadServiceListInteractionsProcedure is the fully-qualified name of the ThreadService's
-	// ListInteractions RPC.
-	ThreadServiceListInteractionsProcedure = "/chatto.api.v1.ThreadService/ListInteractions"
 	// ThreadServiceListFollowedThreadsProcedure is the fully-qualified name of the ThreadService's
 	// ListFollowedThreads RPC.
 	ThreadServiceListFollowedThreadsProcedure = "/chatto.api.v1.ThreadService/ListFollowedThreads"
@@ -61,14 +55,6 @@ const (
 
 // ThreadServiceClient is a client for the chatto.api.v1.ThreadService service.
 type ThreadServiceClient interface {
-	// Returns one active interaction relationship for the current account.
-	// Room membership and message.read-interactions are required. Returns
-	// NOT_FOUND when no relationship exists.
-	GetInteraction(context.Context, *connect.Request[v1.GetInteractionRequest]) (*connect.Response[v1.GetInteractionResponse], error)
-	// Lists active interaction relationships for the current account. Rows
-	// without current room membership or message.read-interactions are omitted.
-	// Clients can use this list to recover thread access after a realtime reset.
-	ListInteractions(context.Context, *connect.Request[v1.ListInteractionsRequest]) (*connect.Response[v1.ListInteractionsResponse], error)
 	// Returns followed threads in rooms where the current user is a member.
 	// Channel-room threads also require message.read or an active relationship
 	// with message.read-interactions. Historical DM threads use DM membership.
@@ -117,18 +103,6 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 	baseURL = strings.TrimRight(baseURL, "/")
 	threadServiceMethods := v1.File_chatto_api_v1_threads_proto.Services().ByName("ThreadService").Methods()
 	return &threadServiceClient{
-		getInteraction: connect.NewClient[v1.GetInteractionRequest, v1.GetInteractionResponse](
-			httpClient,
-			baseURL+ThreadServiceGetInteractionProcedure,
-			connect.WithSchema(threadServiceMethods.ByName("GetInteraction")),
-			connect.WithClientOptions(opts...),
-		),
-		listInteractions: connect.NewClient[v1.ListInteractionsRequest, v1.ListInteractionsResponse](
-			httpClient,
-			baseURL+ThreadServiceListInteractionsProcedure,
-			connect.WithSchema(threadServiceMethods.ByName("ListInteractions")),
-			connect.WithClientOptions(opts...),
-		),
 		listFollowedThreads: connect.NewClient[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse](
 			httpClient,
 			baseURL+ThreadServiceListFollowedThreadsProcedure,
@@ -170,24 +144,12 @@ func NewThreadServiceClient(httpClient connect.HTTPClient, baseURL string, opts 
 
 // threadServiceClient implements ThreadServiceClient.
 type threadServiceClient struct {
-	getInteraction        *connect.Client[v1.GetInteractionRequest, v1.GetInteractionResponse]
-	listInteractions      *connect.Client[v1.ListInteractionsRequest, v1.ListInteractionsResponse]
 	listFollowedThreads   *connect.Client[v1.ListFollowedThreadsRequest, v1.ListFollowedThreadsResponse]
 	followThread          *connect.Client[v1.FollowThreadRequest, v1.FollowThreadResponse]
 	unfollowThread        *connect.Client[v1.UnfollowThreadRequest, v1.UnfollowThreadResponse]
 	getThreadEvents       *connect.Client[v1.GetThreadEventsRequest, v1.GetThreadEventsResponse]
 	getThreadEventsAround *connect.Client[v1.GetThreadEventsAroundRequest, v1.GetThreadEventsAroundResponse]
 	markThreadAsRead      *connect.Client[v1.MarkThreadAsReadRequest, v1.MarkThreadAsReadResponse]
-}
-
-// GetInteraction calls chatto.api.v1.ThreadService.GetInteraction.
-func (c *threadServiceClient) GetInteraction(ctx context.Context, req *connect.Request[v1.GetInteractionRequest]) (*connect.Response[v1.GetInteractionResponse], error) {
-	return c.getInteraction.CallUnary(ctx, req)
-}
-
-// ListInteractions calls chatto.api.v1.ThreadService.ListInteractions.
-func (c *threadServiceClient) ListInteractions(ctx context.Context, req *connect.Request[v1.ListInteractionsRequest]) (*connect.Response[v1.ListInteractionsResponse], error) {
-	return c.listInteractions.CallUnary(ctx, req)
 }
 
 // ListFollowedThreads calls chatto.api.v1.ThreadService.ListFollowedThreads.
@@ -222,14 +184,6 @@ func (c *threadServiceClient) MarkThreadAsRead(ctx context.Context, req *connect
 
 // ThreadServiceHandler is an implementation of the chatto.api.v1.ThreadService service.
 type ThreadServiceHandler interface {
-	// Returns one active interaction relationship for the current account.
-	// Room membership and message.read-interactions are required. Returns
-	// NOT_FOUND when no relationship exists.
-	GetInteraction(context.Context, *connect.Request[v1.GetInteractionRequest]) (*connect.Response[v1.GetInteractionResponse], error)
-	// Lists active interaction relationships for the current account. Rows
-	// without current room membership or message.read-interactions are omitted.
-	// Clients can use this list to recover thread access after a realtime reset.
-	ListInteractions(context.Context, *connect.Request[v1.ListInteractionsRequest]) (*connect.Response[v1.ListInteractionsResponse], error)
 	// Returns followed threads in rooms where the current user is a member.
 	// Channel-room threads also require message.read or an active relationship
 	// with message.read-interactions. Historical DM threads use DM membership.
@@ -274,18 +228,6 @@ type ThreadServiceHandler interface {
 // and JSON codecs. They also support gzip compression.
 func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
 	threadServiceMethods := v1.File_chatto_api_v1_threads_proto.Services().ByName("ThreadService").Methods()
-	threadServiceGetInteractionHandler := connect.NewUnaryHandler(
-		ThreadServiceGetInteractionProcedure,
-		svc.GetInteraction,
-		connect.WithSchema(threadServiceMethods.ByName("GetInteraction")),
-		connect.WithHandlerOptions(opts...),
-	)
-	threadServiceListInteractionsHandler := connect.NewUnaryHandler(
-		ThreadServiceListInteractionsProcedure,
-		svc.ListInteractions,
-		connect.WithSchema(threadServiceMethods.ByName("ListInteractions")),
-		connect.WithHandlerOptions(opts...),
-	)
 	threadServiceListFollowedThreadsHandler := connect.NewUnaryHandler(
 		ThreadServiceListFollowedThreadsProcedure,
 		svc.ListFollowedThreads,
@@ -324,10 +266,6 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 	)
 	return "/chatto.api.v1.ThreadService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		switch r.URL.Path {
-		case ThreadServiceGetInteractionProcedure:
-			threadServiceGetInteractionHandler.ServeHTTP(w, r)
-		case ThreadServiceListInteractionsProcedure:
-			threadServiceListInteractionsHandler.ServeHTTP(w, r)
 		case ThreadServiceListFollowedThreadsProcedure:
 			threadServiceListFollowedThreadsHandler.ServeHTTP(w, r)
 		case ThreadServiceFollowThreadProcedure:
@@ -348,14 +286,6 @@ func NewThreadServiceHandler(svc ThreadServiceHandler, opts ...connect.HandlerOp
 
 // UnimplementedThreadServiceHandler returns CodeUnimplemented from all methods.
 type UnimplementedThreadServiceHandler struct{}
-
-func (UnimplementedThreadServiceHandler) GetInteraction(context.Context, *connect.Request[v1.GetInteractionRequest]) (*connect.Response[v1.GetInteractionResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.GetInteraction is not implemented"))
-}
-
-func (UnimplementedThreadServiceHandler) ListInteractions(context.Context, *connect.Request[v1.ListInteractionsRequest]) (*connect.Response[v1.ListInteractionsResponse], error) {
-	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.ListInteractions is not implemented"))
-}
 
 func (UnimplementedThreadServiceHandler) ListFollowedThreads(context.Context, *connect.Request[v1.ListFollowedThreadsRequest]) (*connect.Response[v1.ListFollowedThreadsResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.ThreadService.ListFollowedThreads is not implemented"))

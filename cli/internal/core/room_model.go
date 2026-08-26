@@ -347,14 +347,6 @@ func (m *RoomModel) hasThreadInteraction(userID, roomID, threadRootEventID strin
 	return m.threads.Projection().HasInteraction(userID, roomID, threadRootEventID)
 }
 
-func (m *RoomModel) threadInteraction(userID, roomID, threadRootEventID string) (*ThreadInteraction, bool) {
-	return m.threads.Projection().Interaction(userID, roomID, threadRootEventID)
-}
-
-func (m *RoomModel) threadInteractionsForUser(userID string) []*ThreadInteraction {
-	return m.threads.Projection().InteractionsForUser(userID)
-}
-
 func (m *RoomModel) reactionsForMessage(messageEventID string) []ReactionSummary {
 	return m.reactions.Projection().Reactions(messageEventID)
 }

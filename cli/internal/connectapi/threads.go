@@ -4,76 +4,13 @@ import (
 	"context"
 
 	"connectrpc.com/connect"
-	"google.golang.org/protobuf/types/known/timestamppb"
-	"hmans.de/chatto/internal/core"
 	apiv1 "hmans.de/chatto/internal/pb/chatto/api/v1"
 )
 
 const (
 	defaultFollowedThreadLimit = 20
 	maxFollowedThreadLimit     = 100
-	defaultInteractionLimit    = 20
-	maxInteractionLimit        = 100
 )
-
-func (s *threadService) GetInteraction(ctx context.Context, req *connect.Request[apiv1.GetInteractionRequest]) (*connect.Response[apiv1.GetInteractionResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	interaction, err := s.api.core.ThreadFollows().GetInteraction(ctx, caller.UserID, req.Msg.GetRoomId(), req.Msg.GetThreadRootEventId())
-	if err != nil {
-		return nil, connectError(err)
-	}
-	return connect.NewResponse(&apiv1.GetInteractionResponse{Interaction: apiThreadInteraction(interaction)}), nil
-}
-
-func (s *threadService) ListInteractions(ctx context.Context, req *connect.Request[apiv1.ListInteractionsRequest]) (*connect.Response[apiv1.ListInteractionsResponse], error) {
-	caller, err := requireCaller(ctx)
-	if err != nil {
-		return nil, err
-	}
-	limit, offset := apiPagination(req.Msg.GetPage(), defaultInteractionLimit, maxInteractionLimit)
-	page, err := s.api.core.ThreadFollows().ListInteractions(ctx, caller.UserID, limit, offset)
-	if err != nil {
-		return nil, connectError(err)
-	}
-	interactions := make([]*apiv1.ThreadInteraction, 0, len(page.Interactions))
-	for _, interaction := range page.Interactions {
-		interactions = append(interactions, apiThreadInteraction(interaction))
-	}
-	return connect.NewResponse(&apiv1.ListInteractionsResponse{
-		Interactions: interactions,
-		Page:         apiPageInfo(page.TotalCount, page.HasMore),
-	}), nil
-}
-
-func apiThreadInteraction(interaction *core.ActiveThreadInteraction) *apiv1.ThreadInteraction {
-	if interaction == nil || interaction.Interaction == nil {
-		return nil
-	}
-	result := &apiv1.ThreadInteraction{
-		RoomId: interaction.Interaction.RoomID, ThreadRootEventId: interaction.Interaction.ThreadRootEventID,
-	}
-	if !interaction.LastActivityAt.IsZero() {
-		result.LastActivityAt = timestamppb.New(interaction.LastActivityAt)
-	}
-	for _, cause := range interaction.Interaction.Causes {
-		causeType := apiv1.ThreadInteractionCauseType_THREAD_INTERACTION_CAUSE_TYPE_UNSPECIFIED
-		switch cause.Kind {
-		case core.ThreadInteractionCauseRootAuthored:
-			causeType = apiv1.ThreadInteractionCauseType_THREAD_INTERACTION_CAUSE_TYPE_ROOT_AUTHORED
-		case core.ThreadInteractionCauseDirectMention:
-			causeType = apiv1.ThreadInteractionCauseType_THREAD_INTERACTION_CAUSE_TYPE_DIRECT_MENTION
-		}
-		apiCause := &apiv1.ThreadInteractionCause{Type: causeType, SourceMessageEventId: cause.SourceEventID}
-		if !cause.CreatedAt.IsZero() {
-			apiCause.CreatedAt = timestamppb.New(cause.CreatedAt)
-		}
-		result.Causes = append(result.Causes, apiCause)
-	}
-	return result
-}
 
 type threadService struct {
 	api *API
