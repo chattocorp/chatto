@@ -1226,6 +1226,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 		if _, err := c.AdvanceLastReadEventID(ctx, kind, user_id, room_id, posterReadEventID); err != nil {
 			c.logger.Warn("Failed to set last read event for poster", "error", err)
 		}
+		if _, err := c.notificationOccurrences.MarkCoveredRead(ctx, user_id, room_id, "", posterReadEventID); err != nil {
+			c.logger.Warn("Failed to cover notifications for poster", "error", err)
+		}
 	}
 
 	// Update thread metadata if this is a thread reply.

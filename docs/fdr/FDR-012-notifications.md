@@ -152,6 +152,10 @@ setting Room messages to Off prevents neutral dots for ordinary root messages
 without disabling last-read tracking. Badge does not update an operating-system
 or application-icon badge.
 
+Posting a room message advances the poster's Message Read Cursor and records
+the same notification read boundary as an explicit room read. Thus, posting
+also clears older Badge attention without coupling the dot to cursor lag.
+
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.
 Direct-message policy applies at server scope and to individual direct-message
@@ -181,7 +185,8 @@ delivery decision per recipient and cause. For example, a root message that
 contains `@all` and a direct mention can produce room-message, `@all`, and
 direct-mention decisions for one recipient. If these decisions use a
 notification mode, they create separate occurrences. Badge decisions coalesce
-into one latest-value marker for the applicable room or thread.
+into one latest-value marker for the applicable room or thread. Channel-room
+recipients must have `message.read` at that same source sequence.
 
 **Why:** Notifications describe what happened under the policy and visibility
 that applied at that moment. Deriving from committed facts makes retries
@@ -310,8 +315,13 @@ Room messages adds policy field 10 and notification-signal branch 10. Older
 clients preserve the policy field when they update other fields. They show an
 unknown Room-message occurrence as a generic dismissible row and do not infer
 navigation. The default Badge mode uses the existing public `has_unread` field.
-An older server does not derive this cause, so Room messages is temporarily
-inactive during rollback instead of becoming Followed rooms.
+An older server does not derive new Room messages decisions. Thus, the default
+Badge output and future occurrences are temporarily inactive during rollback
+instead of becoming Followed rooms. If an upgraded server already persisted a
+Room-message occurrence for Notification or Push notification, the older
+server's notification occurrence RPCs return `Unimplemented` until a supporting
+binary serves the occurrence again. The older server does not reinterpret or
+discard the unsupported signal.
 
 Room-group changes use a new
 `UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID

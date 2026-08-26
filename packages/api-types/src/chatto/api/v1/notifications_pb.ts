@@ -552,8 +552,7 @@ export class FollowedThreadActivity extends Message<FollowedThreadActivity> {
 }
 
 /**
- * Top-level activity in a room followed by the viewer. Servers without
- * room-follow support can emit it for any channel room joined by the viewer.
+ * Top-level activity in a room explicitly followed by the viewer.
  *
  * @generated from message chatto.api.v1.FollowedRoomActivity
  */

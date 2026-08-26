@@ -15,6 +15,12 @@ import (
 
 const notificationUnreadMarkerKeyPrefix = "notification_unread_marker."
 
+type notificationUnreadMarkerWrite struct {
+	changed  bool
+	key      string
+	revision uint64
+}
+
 func notificationUnreadMarkerKey(userID, roomID, threadRootEventID string) string {
 	key := notificationUnreadMarkerKeyPrefix + userID + "." + roomID
 	if threadRootEventID != "" {
@@ -31,17 +37,33 @@ func notificationUnreadMarkerFilter(userID string) string {
 // decision. Redelivery and older replicas cannot replace a newer source in the
 // same room or thread scope.
 func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context.Context, input CreateNotificationOccurrenceInput) (bool, error) {
+	result, err := m.writeNotificationUnreadMarker(ctx, input)
+	if err != nil {
+		return false, err
+	}
+	if result.revision != 0 {
+		if err := m.core.notificationBoundaries.waitForRevision(ctx, result.key, result.revision); err != nil {
+			return false, err
+		}
+	}
+	return result.changed, nil
+}
+
+// writeNotificationUnreadMarker commits one marker without waiting for the
+// local boundary index. The materializer uses this to pipeline distinct marker
+// keys and then waits for one collective applied-revision barrier.
+func (m *NotificationOccurrenceModel) writeNotificationUnreadMarker(ctx context.Context, input CreateNotificationOccurrenceInput) (notificationUnreadMarkerWrite, error) {
 	if input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
-		return false, nil
+		return notificationUnreadMarkerWrite{}, nil
 	}
 	message := notificationSignalMessage(input.Signal)
 	if message == nil || input.SourceStreamSequence == 0 || input.SourceCreated.IsZero() {
-		return false, invalidArgument("a Badge delivery requires an exact source time, sequence, and message")
+		return notificationUnreadMarkerWrite{}, invalidArgument("a Badge delivery requires an exact source time, sequence, and message")
 	}
 	expiresAt := input.SourceCreated.UTC().Add(notificationTTL)
 	now := m.now().UTC()
 	if !now.Before(expiresAt) {
-		return false, nil
+		return notificationUnreadMarkerWrite{}, nil
 	}
 	marker := &corev1.NotificationUnreadMarker{
 		SourceEventId:        input.SourceEventID,
@@ -51,7 +73,7 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 	}
 	value, err := proto.Marshal(marker)
 	if err != nil {
-		return false, fmt.Errorf("encode notification unread marker: %w", err)
+		return notificationUnreadMarkerWrite{}, fmt.Errorf("encode notification unread marker: %w", err)
 	}
 	key := notificationUnreadMarkerKey(input.RecipientID, message.GetRoomId(), message.GetThreadRootEventId())
 	for attempt := 0; attempt < maxNotificationStateWriteRetries; attempt++ {
@@ -59,41 +81,32 @@ func (m *NotificationOccurrenceModel) recordNotificationUnreadMarker(ctx context
 		if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
 			revision, createErr := m.kv.Create(ctx, key, value, jetstream.KeyTTL(expiresAt.Sub(now)))
 			if createErr == nil {
-				if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
-					return false, err
-				}
-				return true, nil
+				return notificationUnreadMarkerWrite{changed: true, key: key, revision: revision}, nil
 			}
 			if !jetstreamutil.IsSequenceConflict(createErr) {
-				return false, fmt.Errorf("create notification unread marker: %w", createErr)
+				return notificationUnreadMarkerWrite{}, fmt.Errorf("create notification unread marker: %w", createErr)
 			}
 			continue
 		}
 		if err != nil {
-			return false, fmt.Errorf("read notification unread marker: %w", err)
+			return notificationUnreadMarkerWrite{}, fmt.Errorf("read notification unread marker: %w", err)
 		}
 		var previous corev1.NotificationUnreadMarker
 		if err := proto.Unmarshal(current.Value(), &previous); err != nil {
-			return false, fmt.Errorf("decode notification unread marker: %w", err)
+			return notificationUnreadMarkerWrite{}, fmt.Errorf("decode notification unread marker: %w", err)
 		}
 		if previous.GetSourceStreamSequence() >= marker.GetSourceStreamSequence() {
-			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, current.Revision()); err != nil {
-				return false, err
-			}
-			return false, nil
+			return notificationUnreadMarkerWrite{key: key, revision: current.Revision()}, nil
 		}
 		revision, updateErr := m.core.updateRuntimeStateUntil(ctx, key, value, current.Revision(), expiresAt, now)
 		if updateErr == nil {
-			if err := m.core.notificationBoundaries.waitForRevision(ctx, key, revision); err != nil {
-				return false, err
-			}
-			return true, nil
+			return notificationUnreadMarkerWrite{changed: true, key: key, revision: revision}, nil
 		}
 		if !jetstreamutil.IsSequenceConflict(updateErr) {
-			return false, fmt.Errorf("update notification unread marker: %w", updateErr)
+			return notificationUnreadMarkerWrite{}, fmt.Errorf("update notification unread marker: %w", updateErr)
 		}
 	}
-	return false, fmt.Errorf("write notification unread marker after %d attempts", maxNotificationStateWriteRetries)
+	return notificationUnreadMarkerWrite{}, fmt.Errorf("write notification unread marker after %d attempts", maxNotificationStateWriteRetries)
 }
 
 // HasNotificationUnread reports whether a room or exact thread has uncovered

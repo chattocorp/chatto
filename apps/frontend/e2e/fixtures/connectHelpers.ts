@@ -105,6 +105,10 @@ interface CreateMessageResponse {
   message?: { id?: string };
 }
 
+interface GetMessageResponse {
+  message?: { id?: string };
+}
+
 interface ViewerResponse {
   viewerState?: { hasUnreadRooms?: boolean };
 }
@@ -319,6 +323,23 @@ export async function postMessageViaConnect(
   body: string
 ): Promise<string> {
   return postMessageWithConnectInput(page, { roomId, body });
+}
+
+/** Wait until one message is observable through the viewer's room timeline projection. */
+export async function waitForMessageViaConnect(
+  page: Page,
+  roomId: string,
+  eventId: string,
+  timeout = DEFAULT_POLL_TIMEOUT
+): Promise<void> {
+  await expect(async () => {
+    const data = await connectPost<GetMessageResponse>(
+      page,
+      'chatto.api.v1.MessageService/GetMessage',
+      { roomId, eventId }
+    );
+    expect(data.message?.id).toBe(eventId);
+  }).toPass({ timeout, intervals: [100, 250, 500, 1000] });
 }
 
 /** Establish the Message Read Cursor through the room's current root event. */

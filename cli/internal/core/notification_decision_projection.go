@@ -189,14 +189,18 @@ func notificationVisibilityBoundaryEvent(event *corev1.Event) bool {
 		*corev1.Event_RbacRoleDeleted:
 		return true
 	case *corev1.Event_RbacPermissionGranted:
-		return payload.RbacPermissionGranted.GetPermission() == string(PermRoomJoin)
+		return notificationVisibilityPermission(payload.RbacPermissionGranted.GetPermission())
 	case *corev1.Event_RbacPermissionDenied:
-		return payload.RbacPermissionDenied.GetPermission() == string(PermRoomJoin)
+		return notificationVisibilityPermission(payload.RbacPermissionDenied.GetPermission())
 	case *corev1.Event_RbacPermissionCleared:
-		return payload.RbacPermissionCleared.GetPermission() == string(PermRoomJoin)
+		return notificationVisibilityPermission(payload.RbacPermissionCleared.GetPermission())
 	default:
 		return false
 	}
+}
+
+func notificationVisibilityPermission(permission string) bool {
+	return permission == string(PermRoomJoin) || permission == string(PermMessageRead)
 }
 
 func (*NotificationDecisionProjection) SnapshotContractID() string {
@@ -700,18 +704,41 @@ func (s *notificationDecisionSnapshot) membershipExists(userID, roomID string) b
 }
 
 func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID string) bool {
+	return s.roomPermissionAllowed(userID, roomID, groupID, PermRoomJoin)
+}
+
+// notificationVisibilityExists is the exact event-time content boundary for
+// notification output. DM membership authorizes DM reads; channel members also
+// need message.read at the same source sequence.
+func (s *notificationDecisionSnapshot) notificationVisibilityExists(userID, roomID string) bool {
+	if !s.membershipExists(userID, roomID) {
+		return false
+	}
+	kind, exists := s.roomKind(roomID)
+	if !exists || kind == KindDM {
+		return exists
+	}
+	return s.roomPermissionAllowed(userID, roomID, s.groups.Groups.GroupForRoom(roomID), PermMessageRead)
+}
+
+func (s *notificationDecisionSnapshot) roomPermissionAllowed(userID, roomID, groupID string, permission Permission) bool {
 	if s.rbac.HasRole(userID, RoleOwner) {
 		return true
 	}
-	scopes := []permissionScopeTarget{{scope: ScopeRoom, level: LevelRoom, id: roomID}}
-	if groupID != "" {
+	scopes := make([]permissionScopeTarget, 0, 3)
+	if PermissionAppliesAtScope(permission, ScopeRoom) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
+	}
+	if groupID != "" && PermissionAppliesAtScope(permission, ScopeGroup) {
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeGroup, level: LevelGroup, id: groupID})
 	}
-	scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	if PermissionAppliesAtScope(permission, ScopeServer) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	}
 
 	nearest := func(subject string) (TraceEntry, bool) {
 		for _, target := range scopes {
-			decision := s.rbac.GetDecision(target.scope, target.id, subject, PermRoomJoin)
+			decision := s.rbac.GetDecision(target.scope, target.id, subject, permission)
 			if decision != DecisionNone {
 				return TraceEntry{Level: target.level, RoleName: subject, Decision: decision, ObjectID: target.objectID()}, true
 			}

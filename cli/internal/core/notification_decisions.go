@@ -102,7 +102,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	add := func(userID string, signal *corev1.NotificationSignal) {
 		_, active := snapshot.activeUsers[userID]
 		identity := notificationSignalIdentity(signal)
-		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.membershipExists(userID, roomID) {
+		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.notificationVisibilityExists(userID, roomID) {
 			return
 		}
 		if signalsByRecipient[userID] == nil {

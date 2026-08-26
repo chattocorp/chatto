@@ -267,6 +267,53 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	}
 }
 
+func TestChattoCore_PostMessageClearsExistingRoomBadge(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, err := core.CreateRoom(ctx, "test-user", KindChannel, "", "Poster clears Badge", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	poster, err := core.CreateUser(ctx, SystemActorID, "poster-clears-badge", "Poster Clears Badge", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	other, err := core.CreateUser(ctx, SystemActorID, "poster-badge-source", "Poster Badge Source", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{poster.Id, other.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if _, err := core.PostMessage(ctx, KindChannel, room.Id, other.Id, "unread source", nil, "", "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || !unread {
+		t.Fatalf("Badge before poster reply = (%v, %v), want (true, nil)", unread, err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "I have caught up", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatal(err)
+	}
+	if unread, err := core.HasUnread(ctx, KindChannel, poster.Id, room.Id); err != nil || unread {
+		t.Fatalf("Badge after poster reply = (%v, %v), want (false, nil)", unread, err)
+	}
+	readID, exists, err := core.PeekLastReadEventID(ctx, poster.Id, room.Id)
+	if err != nil || !exists || readID != posted.Id {
+		t.Fatalf("poster Message Read Cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
+	}
+}
+
 func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)

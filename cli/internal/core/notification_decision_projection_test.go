@@ -154,6 +154,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 	events := []*corev1.Event{
 		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: recipientID}}},
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: recipientID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
 		source,
 	}
@@ -162,7 +163,7 @@ func TestLegacyMessageMentionIDsDoNotGuessRichMentionCause(t *testing.T) {
 			t.Fatalf("Apply sequence %d: %v", i+1, err)
 		}
 	}
-	snapshot, err := p.Boundary(4, source.GetCreatedAt().AsTime())
+	snapshot, err := p.Boundary(5, source.GetCreatedAt().AsTime())
 	if err != nil {
 		t.Fatalf("Boundary: %v", err)
 	}
@@ -194,6 +195,7 @@ func TestRootChannelMessageFansOutToExactSourceTimeMembers(t *testing.T) {
 		sequence++
 	}
 	apply(&corev1.Event{Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}})
+	apply(&corev1.Event{Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}})
 	for index := 0; index <= recipients; index++ {
 		userID := authorID
 		if index > 0 {
@@ -233,6 +235,7 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 	events := []*corev1.Event{
 		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: "recipient"}}},
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: "R1", Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "read", Event: &corev1.Event_RbacPermissionGranted{RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermMessageRead)}},
 		{Id: "join", ActorId: "recipient", Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: "R1"}}},
 	}
 	for index, event := range events {
@@ -241,10 +244,10 @@ func TestThreadMessageDoesNotProduceRoomMessageSignal(t *testing.T) {
 		}
 	}
 	source := &corev1.Event{Id: "reply", ActorId: "author", CreatedAt: timestamppb.Now(), Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: "R1", InThread: "root"}}}
-	if err := p.Apply(source, 4); err != nil {
+	if err := p.Apply(source, 5); err != nil {
 		t.Fatalf("Apply reply: %v", err)
 	}
-	snapshot, err := p.Boundary(4, time.Now())
+	snapshot, err := p.Boundary(5, time.Now())
 	if err != nil {
 		t.Fatalf("Boundary: %v", err)
 	}

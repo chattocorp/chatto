@@ -109,8 +109,7 @@ message FollowedThreadActivity {
   NotificationMessageReference message = 1;
 }
 
-// Top-level activity in a room followed by the viewer. Servers without
-// room-follow support can emit it for any channel room joined by the viewer.
+// Top-level activity in a room explicitly followed by the viewer.
 message FollowedRoomActivity {
   NotificationMessageReference message = 1;
 }

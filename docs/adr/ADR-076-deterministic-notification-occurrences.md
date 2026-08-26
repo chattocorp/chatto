@@ -111,11 +111,11 @@ retry therefore cannot retain stale mention recipients.
 
 The same existing `MessagePostedEvent` is the source for ordinary root-message
 attention. At that exact event sequence, the materializer selects current room
-members and resolves each member's Room messages policy. Thread messages and
-direct messages use their existing separate causes. Joined-room activity does
-not produce followed-room activity; that cause remains inactive until durable
-room-follow state exists. No notification-specific source event or marker is
-added to `EVT`.
+members who have `message.read` and resolves each member's Room messages policy.
+Thread messages and direct messages use their existing separate causes.
+Joined-room activity does not produce followed-room activity; that cause
+remains inactive until durable room-follow state exists. No
+notification-specific source event or marker is added to `EVT`.
 
 For compatibility, `MessagePostedEvent.mentioned_user_ids` remains a flattened
 view of recipients selected by direct, role, `@here`, and `@all` handles. It
@@ -189,12 +189,14 @@ are cross-stream coordination state, not notification history. A Badge record
 stores only the latest source needed to compute neutral unread attention. One
 process-wide filtered KV watcher indexes all three families; successful local
 writes wait for their exact KV
-revision to enter that index before dependent work continues. Because the read
-boundary is recorded before matching `NotificationRead` facts, every replica
-performs one startup repair and thereafter reconciles only the room/thread
-scope whose watched boundary changed. Large occurrence fanouts likewise read
-visibility boundaries from the index and publish their coalesced realtime
-invalidations with one flush rather than one broker round trip per recipient.
+revision to enter that index before dependent work continues. Badge marker
+keys use bounded concurrent OCC writes and one collective applied-revision
+barrier. Because the read boundary is recorded before matching
+`NotificationRead` facts, every replica performs one startup repair and
+thereafter reconciles only the room/thread scope whose watched boundary
+changed. Large occurrence fanouts likewise read visibility boundaries from the
+index and publish their coalesced realtime invalidations with one flush rather
+than one broker round trip per recipient.
 
 Badge uses the same room/thread read coordinates and visibility rules as
 occurrences. A thread marker contributes to the parent room. A source sequence
@@ -205,6 +207,11 @@ messages separator and cannot create a room dot by itself. The marker expires
 90 days after its latest source and account deletion removes it. A content-free
 transient invalidation rebuilds the affected room state and followed-thread
 viewer state.
+
+Posting a room message records a covered-read boundary through the poster's new
+root event, in addition to advancing the Message Read Cursor. This operation
+makes older Badge attention inactive and uses the same repair handshake as an
+explicit room read.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They can carry one opaque sound-candidate notification ID but never expose
@@ -286,8 +293,13 @@ the additive policy field when they update other fields. If they receive a
 Room-message occurrence, they show the existing generic dismissible row and do
 not infer navigation. The default Badge mode uses the existing public
 `has_unread` field, which older clients already understand. An older server
-does not derive this cause, so Room messages is temporarily inactive during a
-rollback instead of being interpreted as Followed rooms.
+does not derive new Room messages decisions. Thus, the default Badge output and
+future occurrences are temporarily inactive during rollback instead of being
+interpreted as Followed rooms. If an upgraded server already persisted a
+Room-message occurrence for Notification or Push notification, the older
+server's notification occurrence RPCs return `Unimplemented` until a supporting
+binary serves the occurrence again. The older server does not reinterpret or
+discard the unsupported signal.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores

@@ -664,8 +664,7 @@ func (x *FollowedThreadActivity) GetMessage() *NotificationMessageReference {
 	return nil
 }
 
-// Top-level activity in a room followed by the viewer. Servers without
-// room-follow support can emit it for any channel room joined by the viewer.
+// Top-level activity in a room explicitly followed by the viewer.
 type FollowedRoomActivity struct {
 	state         protoimpl.MessageState        `protogen:"open.v1"`
 	Message       *NotificationMessageReference `protobuf:"bytes,1,opt,name=message,proto3" json:"message,omitempty"`

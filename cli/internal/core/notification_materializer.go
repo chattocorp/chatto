@@ -12,6 +12,7 @@ import (
 	"google.golang.org/protobuf/proto"
 
 	"hmans.de/chatto/internal/evtstream"
+	"hmans.de/chatto/internal/parallel"
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 	"hmans.de/chatto/pkg/events"
 )
@@ -26,6 +27,9 @@ const (
 	notificationWorkerHeartbeat    = 15 * time.Second
 	notificationWorkerRetryDelay   = 10 * time.Second
 	notificationWorkerAckTimeout   = 5 * time.Second
+	// Badge writes use distinct per-user keys. Bounded pipelining prevents a
+	// large room post from serializing one broker round trip per recipient.
+	notificationUnreadMarkerWriteConcurrency = 32
 	// Notification lifecycle is causal: one shared in-flight delivery keeps a
 	// later leave/retraction/removal behind the source it supersedes, including
 	// when several Chatto replicas share the consumer.
@@ -534,7 +538,7 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 	streamSequence uint64,
 	visibilityAt time.Time,
 ) error {
-	if permission != string(PermRoomJoin) {
+	if permission != string(PermRoomJoin) && permission != string(PermMessageRead) {
 		return nil
 	}
 	var userID, roomID string
@@ -549,11 +553,11 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 
 // reconcileOccurrenceVisibility handles effective membership changes that do
 // not emit an explicit leave event, such as disabling a universal room,
-// moving it across permission scopes, or changing room.join RBAC. These facts
-// are rare administrative operations. The materializer is the sole lifecycle
-// writer. The NOTIFICATIONS projection and the Badge marker index supply the
-// complete candidate set. Selected occurrence removals and visibility
-// boundaries are committed as idempotent lifecycle facts.
+// moving it across permission scopes, or changing room.join or message.read
+// RBAC. These facts are rare administrative operations. The materializer is
+// the sole lifecycle writer. The NOTIFICATIONS projection and the Badge marker
+// index supply the complete candidate set. Selected occurrence removals and
+// visibility boundaries are committed as idempotent lifecycle facts.
 func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Context, userID, roomID string, streamSequence uint64, visibilityAt time.Time) error {
 	entries := m.core.notificationOccurrences.projection.Projection().allOccurrences(m.core.notificationOccurrences.now().UTC())
 	type recipientRoom struct {
@@ -590,7 +594,7 @@ func (m *NotificationMaterializer) reconcileOccurrenceVisibility(ctx context.Con
 
 	toRemove := make([]*corev1.NotificationOccurrence, 0)
 	for pair, pairEntries := range entriesByPair {
-		if snapshot.membershipExists(pair.recipientID, pair.roomID) {
+		if snapshot.notificationVisibilityExists(pair.recipientID, pair.roomID) {
 			continue
 		}
 		if err := m.recordVisibilityBoundary(ctx, pair.recipientID, pair.roomID, streamSequence); err != nil {
@@ -685,7 +689,7 @@ func (m *NotificationMaterializer) materializeReaction(ctx context.Context, even
 	}
 	recipientID := target.GetActorId()
 	_, active := snapshot.activeUsers[recipientID]
-	if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.membershipExists(recipientID, reaction.GetRoomId()) {
+	if recipientID == "" || !active || recipientID == event.GetActorId() || !snapshot.notificationVisibilityExists(recipientID, reaction.GetRoomId()) {
 		return nil
 	}
 	reference := newNotificationMessageReference(reaction.GetRoomId(), reaction.GetMessageEventId())
@@ -731,18 +735,47 @@ func (m *NotificationMaterializer) materializeInputs(ctx context.Context, inputs
 		input.SourceStreamSequence = streamSequence
 		eligible = append(eligible, input)
 	}
+	badgeInputs := make([]CreateNotificationOccurrenceInput, 0, len(eligible))
+	seenMarkerKeys := make(map[string]struct{})
 	for _, input := range eligible {
-		changed, err := m.core.notificationOccurrences.recordNotificationUnreadMarker(ctx, input)
-		if err != nil {
-			return fmt.Errorf("record notification unread marker: %w", err)
-		}
-		if !changed {
+		if input.Mode != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE {
 			continue
 		}
 		message := notificationSignalMessage(input.Signal)
-		m.core.NotifyNotificationUnreadChanged(
-			ctx, input.RecipientID, input.ActorID, message.GetRoomId(), message.GetThreadRootEventId(),
-		)
+		key := notificationUnreadMarkerKey(input.RecipientID, message.GetRoomId(), message.GetThreadRootEventId())
+		if _, exists := seenMarkerKeys[key]; exists {
+			continue
+		}
+		seenMarkerKeys[key] = struct{}{}
+		badgeInputs = append(badgeInputs, input)
+	}
+	writes, err := parallel.Map(ctx, notificationUnreadMarkerWriteConcurrency, badgeInputs,
+		func(ctx context.Context, _ int, input CreateNotificationOccurrenceInput) (notificationUnreadMarkerWrite, error) {
+			return m.core.notificationOccurrences.writeNotificationUnreadMarker(ctx, input)
+		},
+	)
+	if err != nil {
+		return fmt.Errorf("record notification unread markers: %w", err)
+	}
+	var barrier notificationUnreadMarkerWrite
+	for _, write := range writes {
+		if write.revision > barrier.revision {
+			barrier = write
+		}
+	}
+	if barrier.revision != 0 {
+		if err := m.core.notificationBoundaries.waitForRevision(ctx, barrier.key, barrier.revision); err != nil {
+			return fmt.Errorf("wait for notification unread markers: %w", err)
+		}
+	}
+	for index, write := range writes {
+		if write.changed {
+			input := badgeInputs[index]
+			message := notificationSignalMessage(input.Signal)
+			m.core.NotifyNotificationUnreadChanged(
+				ctx, input.RecipientID, input.ActorID, message.GetRoomId(), message.GetThreadRootEventId(),
+			)
+		}
 	}
 	if err := m.core.notificationOccurrences.CreateMany(ctx, eligible); err != nil {
 		return fmt.Errorf("create notification occurrences: %w", err)

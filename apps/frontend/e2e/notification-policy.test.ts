@@ -11,6 +11,7 @@ import {
   markRoomAsReadViaConnect,
   postMessageViaConnect,
   updateScopedNotificationPolicy,
+  waitForMessageViaConnect,
   waitForRoomReadViaConnect,
   waitForRoomUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -138,13 +139,14 @@ test.describe('Notification policy', () => {
     await chatPage.enterRoom('announcements');
 
     const newMessage = `No Badge, cursor retained ${Date.now()}`;
-    await withServerUser(browser!, serverURL, async ({ page: actorPage }) => {
-      await postMessageViaConnect(actorPage, roomId, newMessage);
+    const newMessageEventId = await withServerUser(browser!, serverURL, async ({ page: actorPage }) => {
+      return postMessageViaConnect(actorPage, roomId, newMessage);
     });
 
-    // Absence needs a short stability window because Off intentionally creates
-    // no materialized output to wait for.
-    await page.waitForTimeout(750);
+    // Observe the source through this viewer's room timeline while the room is
+    // still closed. This proves that the following absence checks run after
+    // delivery rather than against the pre-message state.
+    await waitForMessageViaConnect(page, roomId, newMessageEventId, 10_000);
     await waitForRoomUnreadViaConnect(page, roomId, false, 10_000);
     await expect(chatPage.getRoomLink('general').getByTestId('room-unread-dot')).not.toBeVisible();
 
