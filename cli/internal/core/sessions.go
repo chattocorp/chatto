@@ -147,6 +147,94 @@ func (c *ChattoCore) LoadCookieSessionValue(ctx context.Context, sessionID strin
 	return CookieSessionStoreEntry{Value: append([]byte(nil), entry.Value()...), Revision: entry.Revision()}, nil
 }
 
+// MigrateLegacyCookieSession adds the explicit expiry required by 0.5 to the
+// typed cookie-session record written by 0.4. The opaque handle and authority
+// stay unchanged. The expected revision makes concurrent upgrade requests
+// converge on one record, and a completed migration is returned without
+// extending its expiry again.
+//
+// Deprecated: remove this 0.4-to-0.5 compatibility bridge in 0.6.
+func (c *ChattoCore) MigrateLegacyCookieSession(ctx context.Context, sessionID string, now time.Time) (*corev1.CookieSession, error) {
+	if sessionID == "" {
+		return nil, ErrCookieSessionNotFound
+	}
+	ttl := c.cookieSessionTTL()
+	if ttl <= 0 {
+		return nil, fmt.Errorf("cookie session TTL must be positive")
+	}
+
+	key := c.authTokenKey(sessionID)
+	for attempt := 0; attempt < 8; attempt++ {
+		entry, err := c.storage.runtimeStateKV.Get(ctx, key)
+		if err != nil {
+			if errors.Is(err, jetstream.ErrKeyNotFound) || errors.Is(err, jetstream.ErrKeyDeleted) {
+				return nil, ErrCookieSessionNotFound
+			}
+			return nil, fmt.Errorf("failed to get legacy cookie session: %w", err)
+		}
+
+		var tokenData AuthTokenData
+		if err := json.Unmarshal(entry.Value(), &tokenData); err != nil ||
+			tokenData.UserID == "" ||
+			tokenData.kindOrDefault() != AuthTokenKindFirstPartySession ||
+			tokenData.presentationOrDefault() != AuthTokenPresentationCookie ||
+			tokenData.CreatedAt.IsZero() {
+			_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+			return nil, ErrCookieSessionNotFound
+		}
+		if !tokenData.ExpiresAt.IsZero() && !now.Before(tokenData.ExpiresAt) {
+			_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+			return nil, ErrCookieSessionNotFound
+		}
+		if err := c.requireHumanUser(ctx, tokenData.UserID); err != nil {
+			if errors.Is(err, ErrHumanAccountRequired) || errors.Is(err, ErrNotFound) || errors.Is(err, ErrNotAuthenticated) {
+				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+				return nil, ErrCookieSessionNotFound
+			}
+			return nil, err
+		}
+
+		validation, err := c.ValidateRuntimeCredential(ctx, RuntimeCredential{
+			UserID:         tokenData.UserID,
+			CreatedAt:      tokenData.CreatedAt,
+			AuthGeneration: tokenData.AuthGeneration,
+		})
+		if err != nil {
+			if errors.Is(err, ErrAuthenticationRevoked) {
+				_ = c.deleteRuntimeStateKey(ctx, key, jetstream.LastRevision(entry.Revision()))
+				return nil, ErrCookieSessionNotFound
+			}
+			return nil, err
+		}
+
+		changed := false
+		if validation.ShouldPersistAuthGeneration {
+			tokenData.AuthGeneration = validation.AuthGeneration
+			changed = true
+		}
+		if tokenData.ExpiresAt.IsZero() {
+			tokenData.ExpiresAt = now.Add(ttl)
+			changed = true
+		}
+		if !changed {
+			return c.cookieSessionRecordFromAuthTokenData(tokenData), nil
+		}
+
+		value, err := json.Marshal(tokenData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal migrated cookie session: %w", err)
+		}
+		if _, err := c.updateRuntimeStateUntil(ctx, key, value, entry.Revision(), tokenData.ExpiresAt, now); err != nil {
+			if isRuntimeStateRevisionConflict(err) {
+				continue
+			}
+			return nil, fmt.Errorf("failed to migrate legacy cookie session: %w", err)
+		}
+		return c.cookieSessionRecordFromAuthTokenData(tokenData), nil
+	}
+	return nil, fmt.Errorf("migrate legacy cookie session: too much contention")
+}
+
 // CreateCookieSessionValue commits a new opaque cookie session with physical
 // retention bounded by the record's authoritative expiry.
 func (c *ChattoCore) CreateCookieSessionValue(ctx context.Context, sessionID string, value []byte, now time.Time) error {

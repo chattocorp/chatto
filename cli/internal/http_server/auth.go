@@ -272,6 +272,77 @@ func (s *HTTPServer) setupAuthRoutes() {
 	auth.POST("logout", logout(false))
 	auth.POST("browser/logout", s.requireBrowserAuthenticationRequest, logout(true))
 
+	// The 0.5 bundled frontend calls this route only after its first cookie probe
+	// fails. It upgrades the typed session record and signed cookie written by
+	// 0.4 without accepting the legacy cookie on ordinary authenticated routes.
+	// Remove this compatibility bridge in 0.6.
+	auth.POST("browser/session/migrate", s.requireBrowserAuthenticationRequest, func(c *gin.Context) {
+		c.Header("Cache-Control", "no-store")
+		c.Header("Pragma", "no-cache")
+
+		if _, ok, err := s.cookiePresentedCredential(c); err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		} else if ok {
+			if err := removeLegacyCookieAuthentication(sessions.Default(c)); err != nil {
+				writeAuthenticationUnavailable(c)
+				return
+			}
+			if err := s.ensureCSRFToken(c); err != nil {
+				writeAuthenticationUnavailable(c)
+				return
+			}
+			c.Status(http.StatusNoContent)
+			return
+		}
+
+		session := sessions.Default(c)
+		sessionID, ok := legacyCookieSessionID(session)
+		if !ok {
+			c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+			return
+		}
+		record, err := s.core.MigrateLegacyCookieSession(c.Request.Context(), sessionID, time.Now())
+		if err != nil {
+			if errors.Is(err, core.ErrCookieSessionNotFound) {
+				if err := removeLegacyCookieAuthentication(session); err != nil {
+					writeAuthenticationUnavailable(c)
+					return
+				}
+				c.JSON(http.StatusUnauthorized, gin.H{"error": "Authentication required"})
+				return
+			}
+			writeAuthenticationUnavailable(c)
+			return
+		}
+		if record.GetExpiresAt() == nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
+
+		cookieName, err := newBrowserSessionCookieName()
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
+		csrfToken, err := s.generateCSRFToken(csrfBindingForSession(record.GetUserId(), record))
+		if err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
+		if err := removeLegacyCookieAuthentication(session); err != nil {
+			writeAuthenticationUnavailable(c)
+			return
+		}
+
+		markAuthenticationCookieResponsePrivate(c)
+		s.clearBrowserSessionCookie(c)
+		s.setCSRFCookie(c, csrfToken)
+		c.Set(issuedBrowserSessionKey, issuedBrowserSession{name: cookieName, token: sessionID})
+		s.writeBrowserSessionCookie(c, cookieName, sessionID, record.GetExpiresAt().AsTime())
+		c.Status(http.StatusNoContent)
+	})
+
 	// Browser renewal is an explicit, CSRF-protected operation. Ordinary API,
 	// frontend, and WebSocket requests only validate the stable session handle,
 	// so a slow response cannot unexpectedly replace authentication state.

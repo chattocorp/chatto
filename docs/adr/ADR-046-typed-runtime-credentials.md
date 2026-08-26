@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 
-**Updated:** 2026-08-25
+**Updated:** 2026-08-26
 
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
@@ -83,14 +83,15 @@ The migration completed at the 0.5 compatibility boundary:
    `chatto_auth_<slot>` cookies. Retain the signed and optionally encrypted
    `chatto_session` cookie only for short-lived browser-flow state. Retired
    signed-session fields such as `user_id` and `cookie_session_id` are never
-   accepted as authentication inputs.
+   accepted as authentication inputs. During 0.5 only, a dedicated same-origin
+   migration route can read the immediately previous typed
+   `runtime_credential_id` field and move its existing handle to SCS.
 5. Keep cookie renewal, revocation, logout audit, live session termination, and
    auth-context injection on the shared credential path once the presentation
    channel has been checked.
 6. Stop reading, refreshing, revoking, or scanning legacy `cookie_session.*`
    records in 0.5. Any remaining records are inert and disappear through their
-   existing TTL; browsers that still carry the retired signed-session shape
-   must sign in again.
+   existing TTL. The 0.5 bridge does not read this older storage shape.
 
 ## Consequences
 
@@ -109,9 +110,10 @@ story. Creating or resuming a first-party session uses the same typed runtime
 credential model. The origin browser presents a cookie credential, while a
 programmatic client can use the bearer presentation.
 
-The 0.5 cutoff has a deliberate compatibility cost: browsers that still carry
-the retired cookie-session shape are signed out once. In return, every active
-browser session now follows typed validation and explicit revocation rules.
+The 0.5 cutoff keeps active typed browser sessions from 0.4 through a one-time
+automatic migration. Browsers that carry the older `cookie_session.*` shape
+must sign in again. After migration, every active
+browser session follows typed validation and explicit revocation rules.
 Cookie records use explicit expiry plus stable-handle renewal, while bearer
 access records use fixed expiry and a stable `renewable_session.*` authority.
 User-wide cleanup covers both

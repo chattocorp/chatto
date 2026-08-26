@@ -18,7 +18,8 @@ import (
 
 const (
 	// Retired signed-session keys are deleted when new browser authentication is
-	// issued. They are never accepted as authentication inputs.
+	// issued. The 0.5 migration route reads runtime_credential_id once; ordinary
+	// authentication never accepts these values.
 	sessionKeyRuntimeCredentialID = "runtime_credential_id"
 	retiredSessionKeyUserID       = "user_id"
 	retiredSessionKeyCredentialID = "cookie_session_id"
@@ -122,19 +123,31 @@ func markAuthenticationCookieResponsePrivate(c *gin.Context) {
 }
 
 func clearLegacyCookieAuthentication(session sessions.Session) {
+	_ = removeLegacyCookieAuthentication(session)
+}
+
+func removeLegacyCookieAuthentication(session sessions.Session) error {
 	if session == nil {
-		return
+		return nil
 	}
 	hadAuthentication := session.Get(sessionKeyRuntimeCredentialID) != nil ||
 		session.Get(retiredSessionKeyUserID) != nil ||
 		session.Get(retiredSessionKeyCredentialID) != nil
 	if !hadAuthentication {
-		return
+		return nil
 	}
 	session.Delete(sessionKeyRuntimeCredentialID)
 	session.Delete(retiredSessionKeyUserID)
 	session.Delete(retiredSessionKeyCredentialID)
-	_ = session.Save()
+	return session.Save()
+}
+
+func legacyCookieSessionID(session sessions.Session) (string, bool) {
+	if session == nil {
+		return "", false
+	}
+	sessionID, _ := session.Get(sessionKeyRuntimeCredentialID).(string)
+	return sessionID, sessionID != ""
 }
 
 func (s *HTTPServer) clearBrowserSessionCookie(c *gin.Context) {

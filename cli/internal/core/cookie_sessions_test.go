@@ -115,6 +115,133 @@ func TestChattoCore_ValidatingCookieSessionDoesNotRewriteRuntimeState(t *testing
 	}
 }
 
+func TestChattoCore_MigrateLegacyCookieSessionAddsExpiryOnce(t *testing.T) {
+	core, _ := setupTestCore(t)
+	core.config.AuthTokenTTL = 4 * time.Hour
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "legacy-cookie-user", "Legacy Cookie User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.GetId())
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+
+	now := time.Now().UTC().Truncate(time.Millisecond)
+	sessionID := NewAuthToken()
+	legacy := AuthTokenData{
+		UserID:          user.GetId(),
+		Kind:            AuthTokenKindFirstPartySession,
+		Presentation:    AuthTokenPresentationCookie,
+		Source:          "password_login",
+		CreatedAt:       now.Add(-time.Hour),
+		AuthGeneration:  authGeneration,
+		FreshAuthAt:     now.Add(-time.Hour),
+		FreshAuthMethod: "password",
+		FreshAuthSource: "password_login",
+	}
+	value, err := json.Marshal(legacy)
+	if err != nil {
+		t.Fatalf("marshal legacy cookie session: %v", err)
+	}
+	key := core.authTokenKey(sessionID)
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(3*time.Hour)); err != nil {
+		t.Fatalf("store legacy cookie session: %v", err)
+	}
+
+	const callers = 8
+	results := make(chan *corev1.CookieSession, callers)
+	errs := make(chan error, callers)
+	var wait sync.WaitGroup
+	for range callers {
+		wait.Add(1)
+		go func() {
+			defer wait.Done()
+			record, migrateErr := core.MigrateLegacyCookieSession(ctx, sessionID, now)
+			results <- record
+			errs <- migrateErr
+		}()
+	}
+	wait.Wait()
+	close(results)
+	close(errs)
+	for migrateErr := range errs {
+		if migrateErr != nil {
+			t.Fatalf("MigrateLegacyCookieSession: %v", migrateErr)
+		}
+	}
+	wantExpiry := now.Add(4 * time.Hour)
+	for record := range results {
+		if record.GetUserId() != user.GetId() || !record.GetExpiresAt().AsTime().Equal(wantExpiry) {
+			t.Fatalf("migrated cookie session = %#v, want user %q and expiry %v", record, user.GetId(), wantExpiry)
+		}
+	}
+
+	storedEntry, err := core.storage.runtimeStateKV.Get(ctx, key)
+	if err != nil {
+		t.Fatalf("get migrated cookie session: %v", err)
+	}
+	var stored AuthTokenData
+	if err := json.Unmarshal(storedEntry.Value(), &stored); err != nil {
+		t.Fatalf("unmarshal migrated cookie session: %v", err)
+	}
+	if !stored.ExpiresAt.Equal(wantExpiry) || !stored.CreatedAt.Equal(legacy.CreatedAt) || !stored.FreshAuthAt.Equal(legacy.FreshAuthAt) {
+		t.Fatalf("migrated cookie session changed preserved fields: %#v", stored)
+	}
+	assertRuntimeKVHasTTL(t, core, key)
+	if _, err := core.ValidateCookieCredential(ctx, sessionID); err != nil {
+		t.Fatalf("ValidateCookieCredential: %v", err)
+	}
+
+	retried, err := core.MigrateLegacyCookieSession(ctx, sessionID, now.Add(time.Hour))
+	if err != nil {
+		t.Fatalf("MigrateLegacyCookieSession retry: %v", err)
+	}
+	if !retried.GetExpiresAt().AsTime().Equal(wantExpiry) {
+		t.Fatalf("retry extended expiry to %v, want %v", retried.GetExpiresAt(), wantExpiry)
+	}
+}
+
+func TestChattoCore_MigrateLegacyCookieSessionRejectsRevokedAuthority(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+	user, err := core.CreateUser(ctx, SystemActorID, "revoked-legacy-cookie-user", "Revoked Legacy Cookie User", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	authGeneration, err := core.CurrentAuthGeneration(ctx, user.GetId())
+	if err != nil {
+		t.Fatalf("CurrentAuthGeneration: %v", err)
+	}
+	if err := core.SetPasswordHash(ctx, user.GetId(), "newpassword456"); err != nil {
+		t.Fatalf("SetPasswordHash: %v", err)
+	}
+	now := time.Now()
+	sessionID := NewAuthToken()
+	value, err := json.Marshal(AuthTokenData{
+		UserID:         user.GetId(),
+		Kind:           AuthTokenKindFirstPartySession,
+		Presentation:   AuthTokenPresentationCookie,
+		CreatedAt:      now,
+		AuthGeneration: authGeneration,
+	})
+	if err != nil {
+		t.Fatalf("marshal legacy cookie session: %v", err)
+	}
+	key := core.authTokenKey(sessionID)
+	if _, err := core.storage.runtimeStateKV.Create(ctx, key, value, jetstream.KeyTTL(time.Hour)); err != nil {
+		t.Fatalf("store legacy cookie session: %v", err)
+	}
+
+	if _, err := core.MigrateLegacyCookieSession(ctx, sessionID, now); !errors.Is(err, ErrCookieSessionNotFound) {
+		t.Fatalf("MigrateLegacyCookieSession err = %v, want ErrCookieSessionNotFound", err)
+	}
+	if _, err := core.storage.runtimeStateKV.Get(ctx, key); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("revoked legacy cookie session still stored: %v", err)
+	}
+}
+
 func TestChattoCore_ConcurrentCookieRenewalKeepsOneStableHandle(t *testing.T) {
 	core, _ := setupTestCore(t)
 	core.config.AuthTokenTTL = 4 * time.Hour

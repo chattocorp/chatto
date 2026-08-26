@@ -121,9 +121,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
 
 ## Upgrade Notes
 
-- Pre-0.5 browser authentication cookies are not accepted by the SCS-backed
-  `chatto_auth_*` path. Affected users must sign in once after the upgrade. After
-  that sign-in, active browser sessions renew automatically without user action.
+- The bundled frontend automatically moves a valid 0.4 typed browser session to
+  the SCS-backed `chatto_auth_*` path. The migration keeps the existing opaque
+  server-side session and does not ask the user to sign in again. An expired,
+  revoked, or older `cookie_session.*` record cannot migrate. Affected users must
+  sign in once. After migration, active browser sessions renew automatically
+  without user action. Chatto 0.6 removes this temporary migration bridge.
 - Pre-renewal bearer records are not accepted by 0.5 servers. Affected users sign in once to
   receive the new access/refresh pair. Upgrade every serving replica and bundled client
   together: older binaries treat new access records as sliding credentials and are not safe

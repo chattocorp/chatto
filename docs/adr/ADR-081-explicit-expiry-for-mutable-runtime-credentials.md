@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-24
 
-**Updated:** 2026-08-25
+**Updated:** 2026-08-26
 
 **Status:** Accepted
 
@@ -81,7 +81,18 @@ browser authentication state. Every response that
 sets an authentication cookie uses `Cache-Control: private, no-store`.
 Discovery, ordinary API responses, frontend responses, immutable assets, and
 WebSocket upgrades do not set authentication cookies. The separate encrypted
-`chatto_session` cookie stores only short-lived browser-flow state.
+`chatto_session` cookie normally stores only short-lived browser-flow state.
+
+Version 0.5 has one bounded upgrade exception for the typed cookie credential
+written by 0.4. After an ordinary origin-cookie probe fails, the bundled
+frontend calls a same-origin JSON migration route. The route reads only the
+signed `runtime_credential_id` field, validates the existing `session.{hmac}`
+record and user auth generation, and adds `ExpiresAt` plus a matching physical
+TTL to that record. It uses the record revision, so requests from multiple tabs
+or replicas converge. The route then puts the same opaque handle in an SCS
+cookie slot and removes the signed-session field. Ordinary authentication does
+not read the legacy field. The older `user_id` plus `cookie_session_id` shape
+stays unsupported. Remove this exception in 0.6.
 
 In the final quarter of the current window, the explicit browser renewal route
 advances `ExpiresAt` on the same record and publishes the revision with the
@@ -142,6 +153,9 @@ Neither path requires a user to extend a session manually.
   quarter.
 - Public immutable frontend assets remain safe for shared caching because they
   do not carry authentication cookies.
+- Active browser sessions from 0.4 migrate without another sign-in when their
+  typed runtime record is still valid. The migration counts as current activity
+  and starts one complete 0.5 session window.
 - SCS owns standard cookie-session lifecycle behavior. Chatto owns the small
   JetStream adapter, typed authorization record, explicit expiry, and
   cross-replica revision checks.

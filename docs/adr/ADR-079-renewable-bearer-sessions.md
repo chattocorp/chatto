@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22
 
-**Updated:** 2026-08-25
+**Updated:** 2026-08-26
 
 **Status:** Accepted
 
@@ -192,8 +192,10 @@ would treat a new short-lived access record as a sliding bearer record and
 could extend it beyond its intended expiry. Rolling back to a pre-renewal
 binary after issuing new credentials has the same problem; revoke the affected
 bearer sessions or require users to sign in again before such a rollback.
-Pre-0.5 browser authentication cookies are not accepted by the dedicated SCS
-cookie path. Affected browser users also sign in once after the upgrade.
+The 0.5 bundled frontend automatically migrates a valid typed browser cookie
+from 0.4 to the dedicated SCS cookie path. It does not migrate the older
+`cookie_session.*` storage shape. Users with that older shape, an expired
+record, or a revoked record sign in again.
 
 The additive fields on `chatto.auth.v1.CreateExternalIdentityAccountResponse`
 remain wire-compatible, but clients participating in human bearer auth must

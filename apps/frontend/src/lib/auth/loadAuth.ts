@@ -15,6 +15,7 @@ import { isAuthenticationRequiredError } from './errors';
 import { saveReturnUrl } from './returnNavigation';
 import { isExplicitSignOutRedirectInProgress } from './signOut';
 import { revokeLegacyOriginBearerSession } from './originBearerMigration';
+import { migrateLegacyOriginCookieSession } from './legacyCookieMigration';
 
 export type { CurrentUser };
 
@@ -44,8 +45,10 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
   }
 
   const baseUrl = serverConnectionManager.originConnectBaseUrl;
+  let legacyCookieMigrationAttempted = false;
+  let transientRetryUsed = false;
 
-  for (let attempt = 0; attempt < 2; attempt++) {
+  while (true) {
     try {
       cachedUser = await getCurrentUserViaConnect({ baseUrl, bearerToken: null });
       await revokeLegacyOriginBearerSession();
@@ -62,6 +65,24 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
           cachedUser = null;
           serverRegistry.clearOriginAuthentication();
           return null;
+        }
+        if (!legacyCookieMigrationAttempted) {
+          legacyCookieMigrationAttempted = true;
+          try {
+            if (await migrateLegacyOriginCookieSession()) {
+              continue;
+            }
+          } catch {
+            // A temporary migration failure must not erase cached or portable
+            // authority. Retry once, then let a later route load try again.
+            if (!transientRetryUsed) {
+              transientRetryUsed = true;
+              legacyCookieMigrationAttempted = false;
+              await new Promise((resolveRetry) => setTimeout(resolveRetry, 200));
+              continue;
+            }
+            return cachedUser;
+          }
         }
         const cached = cachedUser;
         if (cached) {
@@ -82,15 +103,14 @@ export async function loadCurrentUser(): Promise<CurrentUser | null> {
         serverRegistry.clearOriginAuthentication();
         return null;
       }
-      if (attempt === 0) {
+      if (!transientRetryUsed) {
+        transientRetryUsed = true;
         await new Promise((r) => setTimeout(r, 200));
         continue;
       }
       return cachedUser;
     }
   }
-
-  return cachedUser;
 }
 
 /**

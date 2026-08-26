@@ -8,7 +8,8 @@ const {
   clearAuthenticationRequiredMock,
   authenticateOriginCookieMock,
   maintainBrowserSessionMock,
-  revokeLegacyOriginBearerSessionMock
+  revokeLegacyOriginBearerSessionMock,
+  migrateLegacyOriginCookieSessionMock
 } = vi.hoisted(() => ({
   getCurrentUserViaConnectMock: vi.fn(),
   clearOriginAuthenticationMock: vi.fn(),
@@ -16,7 +17,8 @@ const {
   clearAuthenticationRequiredMock: vi.fn(),
   authenticateOriginCookieMock: vi.fn(),
   maintainBrowserSessionMock: vi.fn(),
-  revokeLegacyOriginBearerSessionMock: vi.fn()
+  revokeLegacyOriginBearerSessionMock: vi.fn(),
+  migrateLegacyOriginCookieSessionMock: vi.fn()
 }));
 
 vi.mock('$app/environment', () => ({
@@ -52,6 +54,10 @@ vi.mock('./originBearerMigration', () => ({
   revokeLegacyOriginBearerSession: revokeLegacyOriginBearerSessionMock
 }));
 
+vi.mock('./legacyCookieMigration', () => ({
+  migrateLegacyOriginCookieSession: migrateLegacyOriginCookieSessionMock
+}));
+
 const user = {
   id: 'U1',
   login: 'alice',
@@ -71,6 +77,7 @@ describe('loadCurrentUser', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     revokeLegacyOriginBearerSessionMock.mockResolvedValue(undefined);
+    migrateLegacyOriginCookieSessionMock.mockResolvedValue(false);
   });
 
   it('refreshes from the server on each call', async () => {
@@ -129,6 +136,45 @@ describe('loadCurrentUser', () => {
     });
     expect(revokeLegacyOriginBearerSessionMock).toHaveBeenCalledOnce();
     expect(clearOriginAuthenticationMock).toHaveBeenCalledOnce();
+  });
+
+  it('migrates the previous browser cookie and retries authentication once', async () => {
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockResolvedValueOnce(user);
+    migrateLegacyOriginCookieSessionMock.mockResolvedValueOnce(true);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledOnce();
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(2);
+    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
+  });
+
+  it('still verifies a migrated cookie after an earlier transient viewer error', async () => {
+    getCurrentUserViaConnectMock
+      .mockRejectedValueOnce(new Error('network'))
+      .mockRejectedValueOnce({ message: 'authentication required' })
+      .mockResolvedValueOnce(user);
+    migrateLegacyOriginCookieSessionMock.mockResolvedValueOnce(true);
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toEqual(user);
+    expect(getCurrentUserViaConnectMock).toHaveBeenCalledTimes(3);
+    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledOnce();
+    expect(authenticateOriginCookieMock).toHaveBeenCalledWith(user);
+  });
+
+  it('retains local authority when legacy cookie migration is temporarily unavailable', async () => {
+    getCurrentUserViaConnectMock.mockRejectedValue({ message: 'authentication required' });
+    migrateLegacyOriginCookieSessionMock.mockRejectedValue(new Error('unavailable'));
+    const { loadCurrentUser } = await loadModule();
+
+    expect(await loadCurrentUser()).toBeNull();
+    expect(migrateLegacyOriginCookieSessionMock).toHaveBeenCalledTimes(2);
+    expect(revokeLegacyOriginBearerSessionMock).not.toHaveBeenCalled();
+    expect(clearOriginAuthenticationMock).not.toHaveBeenCalled();
   });
 
   it('keeps stored bearer authority when revocation after a failed cookie probe is unavailable', async () => {

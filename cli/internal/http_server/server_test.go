@@ -1002,6 +1002,165 @@ func TestAuthRoutes_BrowserSessionRenewalKeepsHandleAndExtendsWindow(t *testing.
 	}
 }
 
+func TestAuthRoutes_MigratesPreviousBrowserCookieOnce(t *testing.T) {
+	var legacySessionID string
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
+		server.router.Use(server.csrfMiddleware())
+		server.router.GET("/test/set-legacy-browser-cookie", func(c *gin.Context) {
+			session := sessions.Default(c)
+			session.Set(sessionKeyRuntimeCredentialID, legacySessionID)
+			if err := session.Save(); err != nil {
+				c.Status(http.StatusInternalServerError)
+				return
+			}
+			c.Status(http.StatusNoContent)
+		})
+		server.router.GET("/test/browser-user", func(c *gin.Context) {
+			credential, ok, err := server.cookiePresentedCredential(c)
+			if err != nil {
+				c.Status(http.StatusServiceUnavailable)
+				return
+			}
+			if !ok {
+				c.Status(http.StatusUnauthorized)
+				return
+			}
+			c.JSON(http.StatusOK, gin.H{"userId": credential.auth.UserID})
+		})
+		server.router.GET("/test/legacy-browser-cookie", func(c *gin.Context) {
+			if _, ok := legacyCookieSessionID(sessions.Default(c)); ok {
+				c.Status(http.StatusOK)
+				return
+			}
+			c.Status(http.StatusNoContent)
+		})
+	})
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "legacy-browser-cookie", "Legacy Browser Cookie", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	legacySessionID, _, err = chattoCore.CreateCookieSession(ctx, user.GetId(), "password_login")
+	if err != nil {
+		t.Fatalf("CreateCookieSession: %v", err)
+	}
+
+	seedResponse, err := client.Get(ts.URL + "/test/set-legacy-browser-cookie")
+	if err != nil {
+		t.Fatalf("set legacy browser cookie: %v", err)
+	}
+	seedResponse.Body.Close()
+	if seedResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("set legacy browser cookie status = %d, want 204", seedResponse.StatusCode)
+	}
+	requestURL, err := url.Parse(ts.URL + "/auth/browser/session/migrate")
+	if err != nil {
+		t.Fatalf("Parse migration URL: %v", err)
+	}
+	staleCookieName, err := newBrowserSessionCookieName()
+	if err != nil {
+		t.Fatalf("newBrowserSessionCookieName: %v", err)
+	}
+	client.Jar.SetCookies(requestURL, []*http.Cookie{{
+		Name:  staleCookieName,
+		Value: "revoked-handle",
+		Path:  "/",
+	}})
+	beforeResponse, err := client.Get(ts.URL + "/test/browser-user")
+	if err != nil {
+		t.Fatalf("check legacy browser cookie: %v", err)
+	}
+	beforeResponse.Body.Close()
+	if beforeResponse.StatusCode != http.StatusUnauthorized {
+		t.Fatalf("ordinary authentication accepted legacy cookie with status %d", beforeResponse.StatusCode)
+	}
+
+	migrateResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/migrate", []byte("{}"))
+	if err != nil {
+		t.Fatalf("migrate legacy browser cookie: %v", err)
+	}
+	migrateResponse.Body.Close()
+	if migrateResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("migrate legacy browser cookie status = %d, want 204", migrateResponse.StatusCode)
+	}
+	if cacheControl := migrateResponse.Header.Get("Cache-Control"); !strings.Contains(cacheControl, "no-store") {
+		t.Fatalf("migration Cache-Control = %q, want no-store", cacheControl)
+	}
+
+	var migratedHandle, csrfToken string
+	authCookieCount := 0
+	for _, cookie := range client.Jar.Cookies(migrateResponse.Request.URL) {
+		switch {
+		case isBrowserSessionCookieName(cookie.Name):
+			authCookieCount++
+			migratedHandle = cookie.Value
+		case cookie.Name == csrfCookieName:
+			csrfToken = cookie.Value
+		}
+	}
+	if authCookieCount != 1 || migratedHandle != legacySessionID || csrfToken == "" {
+		t.Fatalf("migrated browser cookies: count=%d handle=%q csrf=%t", authCookieCount, migratedHandle, csrfToken != "")
+	}
+
+	afterResponse, err := client.Get(ts.URL + "/test/browser-user")
+	if err != nil {
+		t.Fatalf("check migrated browser cookie: %v", err)
+	}
+	defer afterResponse.Body.Close()
+	if afterResponse.StatusCode != http.StatusOK {
+		t.Fatalf("migrated browser authentication status = %d, want 200", afterResponse.StatusCode)
+	}
+	var afterBody struct {
+		UserID string `json:"userId"`
+	}
+	if err := json.NewDecoder(afterResponse.Body).Decode(&afterBody); err != nil {
+		t.Fatalf("decode migrated browser user: %v", err)
+	}
+	if afterBody.UserID != user.GetId() {
+		t.Fatalf("migrated browser user = %q, want %q", afterBody.UserID, user.GetId())
+	}
+
+	legacyResponse, err := client.Get(ts.URL + "/test/legacy-browser-cookie")
+	if err != nil {
+		t.Fatalf("check retired legacy cookie field: %v", err)
+	}
+	legacyResponse.Body.Close()
+	if legacyResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("legacy authentication field remains after migration: status %d", legacyResponse.StatusCode)
+	}
+
+	retryResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/session/migrate", []byte("{}"))
+	if err != nil {
+		t.Fatalf("retry legacy browser migration: %v", err)
+	}
+	retryResponse.Body.Close()
+	if retryResponse.StatusCode != http.StatusNoContent {
+		t.Fatalf("retry legacy browser migration status = %d, want 204", retryResponse.StatusCode)
+	}
+}
+
+func TestAuthRoutes_BrowserSessionMigrationRequiresSameOriginProof(t *testing.T) {
+	ts, client, _ := setupTestHTTPServer(t)
+	req, err := http.NewRequest(http.MethodPost, ts.URL+"/auth/browser/session/migrate", strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	req.Header.Set("Origin", "https://attacker.example")
+	response, err := client.Do(req)
+	if err != nil {
+		t.Fatalf("cross-origin migration: %v", err)
+	}
+	response.Body.Close()
+	if response.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-origin migration status = %d, want 403", response.StatusCode)
+	}
+	if cookies := response.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("cross-origin migration Set-Cookie = %v, want none", cookies)
+	}
+}
+
 func TestAuthRoutes_DelayedRenewalCannotOverwriteNewLogin(t *testing.T) {
 	var server *HTTPServer
 	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(configured *HTTPServer) {
