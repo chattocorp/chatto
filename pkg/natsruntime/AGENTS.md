@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `pkg/natsruntime/`
 
-Read the repository-root [`AGENTS.md`](../../AGENTS.md),
+Read the root [`AGENTS.md`](../../AGENTS.md),
 [`cli/AGENTS.md`](../../cli/AGENTS.md), and
 [`authling/AGENTS.md`](../../authling/AGENTS.md) before changing this shared
 module. Also follow
@@ -8,17 +8,17 @@ module. Also follow
 
 ## Boundary
 
-- Keep production code application-neutral.
+- Keep production code independent of applications.
 - This module owns only embedded NATS process lifecycle mechanics: creation,
   startup readiness, failure cleanup, in-process connection options, and
   shutdown.
 - Applications own their configuration schemas, defaults, listeners,
   authentication, monitoring, logging, storage paths, and deployment policy.
 - Do not import Chatto or Authling packages.
-- Keep the API thin over `nats-server`; do not mirror its complete options
-  surface in a second configuration model.
-- The module is independently versioned but pre-1.0 and has no API stability
-  promise yet.
+- Keep the API small over `nats-server`. Do not copy all its options into a
+  second configuration model.
+- This module has an independent pre-1.0 version. It has no API stability
+  promise.
 - The complete module is licensed under Apache-2.0. Keep its source,
   tests, documentation, and standalone license metadata inside that
   permissive boundary.

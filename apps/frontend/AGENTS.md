@@ -1,20 +1,21 @@
 # Instructions for Agents Working in `apps/frontend/`
 
 Frontend work uses SvelteKit, Svelte 5 runes, Tailwind 4, Lingua JSON i18n,
-generated protobuf clients, Vitest browser tests, Playwright e2e, and Storybook.
+generated protobuf clients, Vitest browser tests, Playwright end-to-end tests,
+and Storybook.
 
 ## Svelte Tooling
 
-- For Svelte questions or edits, use the Svelte docs/MCP workflow available to
-  the agent session.
-- When writing or editing `.svelte`, `.svelte.ts`, or `.svelte.js`, run the
-  Svelte autofixer before handing back code.
+- For Svelte questions or edits, use the available Svelte documentation and MCP
+  workflow.
+- When you write or edit `.svelte`, `.svelte.ts`, or `.svelte.js`, run the
+  Svelte autofixer before you return the code.
 - Do not generate a Svelte playground link for code written into this repo.
 
 ## Architecture
 
-- Prefer store classes and thin components. Data lifecycle belongs in stores;
-  components render state and call named store methods.
+- Prefer store classes and small components. Stores own the data lifecycle.
+  Components render state and call named store methods.
 - Server-scoped state belongs in `ServerStateStore` or related per-server
   stores under `src/lib/state/server/`.
 - Component-local `$state` is fine for UI-only state such as open/closed, hover,

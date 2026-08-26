@@ -1,25 +1,23 @@
 # Instructions for Agents Working in `authling/`
 
-Read the repository-root [`AGENTS.md`](../AGENTS.md) first, then read this file
-in full before any Authling task. The root instructions require this explicit
-read because nested agent instructions and skills may not be discovered
-automatically.
+Read the root [`AGENTS.md`](../AGENTS.md) first. Then read this file completely
+before an Authling task. The root instructions require this step because an
+agent might not find nested instructions and skills automatically.
 
 ## Product Boundary
 
-Authling is an independent, self-hostable identity provider. It lives in the
-Chatto repository temporarily to make shared-framework extraction practical,
-not because it is part of the Chatto product. Once the shared boundary is
-stable enough for normal versioned consumption, Authling is intended to move
-to its own repository.
+Authling is an independent identity provider that users can host themselves.
+It is in the Chatto repository temporarily to make shared-framework extraction
+practical. It is not part of Chatto. Move it to its own repository when the
+shared boundary is stable for normal versioned use.
 
 - Authling has its own Go module, executable, configuration, HTTP surface,
   lifecycle, data model, documentation, version, changelog, and releases.
 - Authling is not a Chatto runtime unit, optional Chatto feature, or special
   kind of Chatto server.
 - The primary deployment model is a standalone Authling process. Keep future
-  process-level embedding possible through dependency-injected composition, but
-  do not build or couple to an embedding mode without a concrete requirement.
+  process-level embedding possible with dependency-injected composition. Do not
+  build or couple to an embedding mode without a specific requirement.
 - Authling always uses credentials for its own NATS account. It must never
   share a Chatto application's NATS account, even if both runtimes eventually
   occupy one operating-system process.
@@ -30,8 +28,8 @@ to its own repository.
 
 ## Current Product Direction
 
-- Start with standards-compliant OpenID Connect. Do not introduce a custom
-  identity protocol while OIDC satisfies the requirement.
+- Start with standards-compliant OpenID Connect. Do not add a custom identity
+  protocol when OIDC meets the requirement.
 - Chatto server operators explicitly choose which OIDC issuers they trust.
   Authling must not imply a global issuer or automatic trust.
 - Authling stores identity-provider state only: accounts, credentials, browser
@@ -120,7 +118,7 @@ repository skills as non-product infrastructure.
 
 - Treat Authling as security-critical infrastructure. Authentication,
   authorization, consent, redirect handling, issuer metadata, signing keys,
-  tokens, recovery, and account linking require explicit threat analysis and
+  tokens, recovery, and account linking need explicit threat analysis and
   adversarial tests.
 - Never log raw email addresses, login identifiers, provider subjects, tokens,
   authorization codes, passwords, recovery material, signing keys, raw IP
@@ -128,7 +126,7 @@ repository skills as non-product infrastructure.
 - Persist durable identity facts as events and short-lived credentials or
   workflow state as runtime state, once those stores exist. Do not infer
   Authling's exact subjects or resources from Chatto.
-- Default to least privilege and fail closed when identity, key, issuer, or
+- Use least privilege by default. Fail closed when identity, key, issuer, or
   authorization state is unavailable.
 
 ## Identity Events And Recovery
@@ -177,8 +175,8 @@ repository skills as non-product infrastructure.
   `version.go`, its changelog is `CHANGELOG.md`, and its tags use
   `authling/v<version>`. The slash follows Go's nested-module tag convention.
 - Authling releases are source-only during the initial scaffold. Add binary or
-  container artifact workflows only when there is an implemented runtime worth
-  distributing.
+  container artifact workflows only when an implemented runtime is ready to
+  distribute.
 - Authling releases are independent from Chatto releases. An Authling-only
   commit must not require a Chatto release.
 - Treat persisted identity data, signing-key references, issuer identifiers,
@@ -217,11 +215,11 @@ undeclared or unreleased cross-module dependencies cannot be hidden by
 `go.work`. Do not add Authling tasks to the repository-root `mise.toml`;
 Authling's task catalog must remain movable with the product.
 
-Run the lowest test layer that can catch the failure, but add integration and
+Run the lowest test layer that can find the failure. Add integration and
 protocol tests when behavior crosses HTTP, OIDC, NATS, JetStream, cryptographic,
 or process-lifecycle boundaries. Browser end-to-end tests use a dedicated
-Authling process, Mailpit process, port range, and temporary data directory per
-test; do not point them at development state or share a process across tests.
+Authling process, Mailpit process, port range, and temporary data directory for
+each test. Do not use development state or share a process between tests.
 Persisted-event and recovery changes require relevant malformed-event,
 historical replay or restart, OCC conflict, enumeration-resistance, and
 PII/recovery-material leakage tests. Regenerate and commit derived protobuf or

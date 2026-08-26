@@ -1,11 +1,11 @@
 # Instructions for Agents Working in `proto/chatto/discovery/v1/`
 
-This directory defines the public unauthenticated `chatto.discovery.v1`
-ConnectRPC surface.
+This directory contains the public unauthenticated `chatto.discovery.v1`
+ConnectRPC API.
 
 ## API Surface
 
-- Keep this package narrow: it is for pre-authentication bootstrap and
+- Keep this package small. Use it for pre-authentication bootstrap and
   discovery metadata.
 - Keep public auth/capability-token flows in `chatto.auth.v1`; do not put them
   here just because they intentionally do not require a normal user session.
@@ -17,11 +17,11 @@ ConnectRPC surface.
 
 ## Comments And Authorization
 
-- Every service and RPC comment must state whether the method is fully public or
-  requires a capability token.
-- Comments should describe caller-visible behavior and notable absence/error
-  semantics.
-- Avoid implementation workflow text in comments that render into public docs.
+- Each service and RPC comment must say if the method is public or needs a
+  capability token.
+- Describe behavior visible to the caller and important absence or error cases.
+- Do not put implementation workflow text in comments that appear in public
+  documentation.
 
 ## Reused Shapes
 
@@ -34,8 +34,8 @@ ConnectRPC surface.
 ## Compatibility
 
 - Follow the public API compatibility rules in `proto/AGENTS.md`.
-- The project is pre-1.0, but package, service, and method path changes still
-  need an explicit plan and PR compatibility note.
+- The project is pre-1.0. Package, service, and method-path changes still need
+  an explicit plan and a PR compatibility note.
 - Do not expose implementation-level feature or method support as public
   discovery capabilities. The bundled client keeps explicit minimum server
   versions for features it gates.

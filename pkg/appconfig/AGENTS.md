@@ -1,6 +1,6 @@
 # Instructions for Agents Working in `pkg/appconfig/`
 
-Read the repository-root [`AGENTS.md`](../../AGENTS.md),
+Read the root [`AGENTS.md`](../../AGENTS.md),
 [`cli/AGENTS.md`](../../cli/AGENTS.md), and
 [`authling/AGENTS.md`](../../authling/AGENTS.md) before changing this shared
 module. Also follow
@@ -8,7 +8,7 @@ module. Also follow
 
 ## Boundary
 
-- Keep production code application-neutral.
+- Keep production code independent of applications.
 - This module owns only TOML file selection and decoding followed by
   struct-tagged environment-variable overrides.
 - Applications own their configuration types, field and environment names,
@@ -19,8 +19,8 @@ module. Also follow
   side effect of framework work.
 - Do not import Chatto or Authling packages or encode either product's paths,
   prefixes, schemas, or policies.
-- The module is independently versioned but pre-1.0 and has no API stability
-  promise yet.
+- This module has an independent pre-1.0 version. It has no API stability
+  promise.
 - The complete module is licensed under Apache-2.0.
 
 ## Verification

@@ -1,16 +1,15 @@
 # Instructions for Agents Working in `apps/docs-website/`
 
-The docs website is Chatto's public documentation site, built with Astro and
+The docs website is the public Chatto documentation site. It uses Astro and
 Starlight.
 
 ## Audience
 
-- Write for community members, server operators, administrators, and API
-  consumers.
-- Do not put maintainer workflow text in visible docs pages. Hidden source
-  comments are fine when useful.
-- The repository, binaries, and Docker images are public. Do not document private
-  repo or registry access steps.
+- Write for community members, server operators, administrators, and API users.
+- Do not put maintainer workflow text in visible pages. You can use hidden
+  source comments when they help.
+- The repository, binaries, and Docker images are public. Do not document
+  private repository or registry access.
 
 ## Keep Docs In Sync
 
@@ -23,19 +22,18 @@ Starlight.
 - New or changed user-facing features: update the relevant guide.
 - Changed config defaults or deployment semantics: update both reference and
   guide pages that mention them.
-- New pages usually need sidebar entries in `astro.config.mjs`.
-- Generated ConnectRPC reference pages must remain useful to API consumers, not
-  protobuf maintainers.
+- Add a sidebar entry in `astro.config.mjs` for a new page when needed.
+- Keep generated ConnectRPC reference pages useful to API users.
 
 ## Style
 
 - Follow the ASD-STE100 rules and the approved exclusion list in the root
   `AGENTS.md`. The root list is the only documentation exclusion list.
-- Be direct, concise, and confident.
-- Use second person, present tense.
-- Lead with the actionable fact, not background.
-- Prefer tables, short lists, and examples over long prose.
-- Show config examples before explaining them.
+- Use direct, short sentences.
+- Use the second person and present tense.
+- Give the action before background information.
+- Prefer tables, short lists, and examples to long text.
+- Show configuration examples before an explanation.
 - Use base readable text size; reserve smaller text for labels, badges, and
   metadata.
 
@@ -52,7 +50,7 @@ Starlight.
 
 ## Starlight
 
-Use built-in Starlight components where they make the page clearer:
+Use built-in Starlight components when they make the page clear:
 
 - `Steps` for setup/tutorial sequences.
 - `Aside` for `tip`, `note`, `caution`, and `danger` callouts.
@@ -60,13 +58,13 @@ Use built-in Starlight components where they make the page clearer:
 - `LinkCard` and `CardGrid` for cross-references.
 - `Tabs` and `TabItem` for alternatives such as TOML vs environment variables.
 
-Prefer linking to dedicated guides over repeating detailed instructions.
+Link to a dedicated guide instead of repeating detailed instructions.
 
 ## Diagrams
 
-- SVG architecture diagrams live in `src/assets/` and are imported raw with
-  `?raw` when animation is needed.
-- Support light/dark mode inside SVG styles.
-- Keep service box colors muted and connection/dot styling consistent with the
+- Put SVG architecture diagrams in `src/assets/`. Import them with `?raw` for
+  animation.
+- Support light and dark mode in SVG styles.
+- Use muted service-box colors. Keep connection and dot styles consistent with
   existing diagrams.
-- Use smooth `animateMotion` easing for moving dots; avoid linear motion.
+- Use smooth `animateMotion` easing for moving dots. Do not use linear motion.

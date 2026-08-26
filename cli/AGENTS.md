@@ -1,25 +1,26 @@
 # Instructions for Agents Working in `cli/`
 
-This file covers backend code: Go services, ConnectRPC, NATS/JetStream,
-authorization, live events, backup/restore, and backend tests.
+This file applies to backend code: Go services, ConnectRPC, NATS/JetStream,
+authorization, live events, backup and restore, and backend tests.
 
 ## Non-Negotiables
 
-- Chatto is multi-replica software. Never rely on process-local serialization
-  for correctness.
+- Chatto can run in more than one replica. Never use process-local
+  serialization for correctness.
 - NATS JetStream/KV is the primary data store. Use JetStream OCC or KV
   `Create`/revision `Update` for uniqueness and cross-replica invariants.
 - Durable domain state belongs in `EVT`; latest-value runtime state belongs in
   `RUNTIME_STATE` only when it is truly runtime/latest-value state.
 - Services own their domain state and projections. Do not bypass service
-  boundaries to poke JetStream, KV, or projections from unrelated code.
+  boundaries to access JetStream, KV, or projections from unrelated code.
 - Call access is generation-bound. Use one call-state snapshot whenever an
   operation combines call identity and participants. For access credentials,
   capture the call ID and E2EE key reference from the same projected session,
   resolve that key reference, then revalidate both values before issuing
   access; fail or retry if the generation changed. Never assemble one response
   or credential from independent call-state reads.
-- Do not log PII. Use opaque IDs, counts, booleans, event names, and safe hashes.
+- Do not log PII. Use opaque IDs, counts, Boolean values, event names, and safe
+  hashes.
 - Projections must not retain decrypted PII when encrypted source fields can be
   retained and hydrated at read boundaries. Keep derived lookup state
   non-plaintext, and never turn KMS or decryption failures into apparent
