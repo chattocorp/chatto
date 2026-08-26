@@ -297,6 +297,7 @@
           "push_notification": "Puŝa sciigo"
         },
         "reason": {
+          "room_message": "Ĉambraj mesaĝoj",
           "direct_message": "Rektaj mesaĝoj",
           "direct_mention": "Rektaj mencioj",
           "reply": "Respondoj al viaj mesaĝoj",
@@ -310,6 +311,7 @@
           "room_invitation": "Invitoj al ĉambroj"
         },
         "reason_hint": {
+          "room_message": "Ĉefnivelaj mesaĝoj, kiujn aliaj membroj afiŝas rekte en kanalĉambroj, ne ene de fadenoj.",
           "direct_message": "Mesaĝoj, kiujn aliaj membroj sendas en rektmesaĝaj konversacioj.",
           "direct_mention": "Mesaĝoj, kiuj rekte mencias vian uzantnomon.",
           "reply": "Mesaĝoj, kiuj respondas al unu el viaj mesaĝoj.",

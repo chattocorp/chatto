@@ -23,6 +23,7 @@ function policy(
 ): ScopedNotificationPolicy {
   const effective = {
     directMessages,
+    roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
     directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
     replies: NotificationDeliveryMode.PUSH_NOTIFICATION,
     roleMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
@@ -36,6 +37,7 @@ function policy(
     scope,
     overrides: {
       directMessages: null,
+      roomMessages: null,
       directMentions: null,
       replies: null,
       roleMentions: null,
@@ -126,11 +128,7 @@ describe('NotificationPolicyMatrixState', () => {
     );
 
     await state.load([server, group, room]);
-    await state.update(
-      server,
-      'directMessages',
-      NotificationDeliveryMode.IN_APP_NOTIFICATION
-    );
+    await state.update(server, 'directMessages', NotificationDeliveryMode.IN_APP_NOTIFICATION);
 
     expect(batch).toHaveBeenCalledTimes(2);
     expect(state.policy(group)?.effective.directMessages).toBe(
@@ -188,7 +186,10 @@ describe('NotificationPolicyMatrixState', () => {
     const server = { kind: 'server' } as const;
     const oldSave = deferred<ScopedNotificationPolicy>();
     const newSave = deferred<ScopedNotificationPolicy>();
-    const update = vi.fn().mockReturnValueOnce(oldSave.promise).mockReturnValueOnce(newSave.promise);
+    const update = vi
+      .fn()
+      .mockReturnValueOnce(oldSave.promise)
+      .mockReturnValueOnce(newSave.promise);
     const state = new NotificationPolicyMatrixState(
       api({
         batchGetNotificationPolicies: vi.fn().mockResolvedValue([policy(server)]),

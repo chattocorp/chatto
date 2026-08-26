@@ -60,8 +60,8 @@ export class MarkRoomAsReadRequest extends Message<MarkRoomAsReadRequest> {
 /**
  * Result of marking a room timeline as read.
  *
- * Clients can use the previous timestamp to decide whether unread badges or
- * local notification state need to be reconciled.
+ * Clients can use the previous timestamp to place a local New messages
+ * separator. Notification policy controls room Badge attention separately.
  *
  * @generated from message chatto.api.v1.MarkRoomAsReadResponse
  */

@@ -297,6 +297,7 @@
           "push_notification": "Pašpiegādes paziņojums"
         },
         "reason": {
+          "room_message": "Telpu ziņojumi",
           "direct_message": "Tiešie ziņojumi",
           "direct_mention": "Tiešie pieminējumi",
           "reply": "Atbildes uz jūsu ziņojumiem",
@@ -310,6 +311,7 @@
           "room_invitation": "Uzaicinājumi uz telpām"
         },
         "reason_hint": {
+          "room_message": "Saknes ziņojumi, ko citi dalībnieki publicē tieši kanālu telpās, nevis pavedienos.",
           "direct_message": "Ziņojumi, ko citi dalībnieki nosūta tiešo ziņojumu sarunās.",
           "direct_mention": "Ziņojumi, kuros tieši pieminēts jūsu lietotājvārds.",
           "reply": "Ziņojumi, kas atbild uz kādu no jūsu ziņojumiem.",

@@ -297,6 +297,7 @@
           "push_notification": "Tõuketeavitus"
         },
         "reason": {
+          "room_message": "Ruumisõnumid",
           "direct_message": "Otsesõnumid",
           "direct_mention": "Otsesed mainimised",
           "reply": "Vastused sinu sõnumitele",
@@ -310,6 +311,7 @@
           "room_invitation": "Ruumide kutsed"
         },
         "reason_hint": {
+          "room_message": "Juursõnumid, mille teised liikmed postitavad otse kanaliruumidesse, mitte lõimedesse.",
           "direct_message": "Teiste liikmete saadetud sõnumid otsesõnumivestlustes.",
           "direct_mention": "Sõnumid, milles mainitakse otseselt sinu kasutajanime.",
           "reply": "Sõnumid, mis vastavad mõnele sinu sõnumile.",

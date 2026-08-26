@@ -22,6 +22,7 @@
 
   const fields: NotificationPolicyField[] = [
     'directMessages',
+    'roomMessages',
     'directMentions',
     'replies',
     'roleMentions',
@@ -33,6 +34,7 @@
   ];
   const productDefaults: NotificationPolicyModes = {
     directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
+    roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
     directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
     replies: NotificationDeliveryMode.IN_APP_NOTIFICATION,
     roleMentions: NotificationDeliveryMode.IN_APP_NOTIFICATION,

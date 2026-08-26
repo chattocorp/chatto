@@ -50,6 +50,7 @@ export type E2ENotificationMode =
 
 type E2ENotificationPolicyShape<Value> = {
   directMessages: Value;
+  roomMessages: Value;
   directMentions: Value;
   replies: Value;
   roleMentions: Value;
@@ -320,6 +321,11 @@ export async function postMessageViaConnect(
   return postMessageWithConnectInput(page, { roomId, body });
 }
 
+/** Establish the Message Read Cursor through the room's current root event. */
+export async function markRoomAsReadViaConnect(page: Page, roomId: string): Promise<void> {
+  await connectPost(page, 'chatto.api.v1.RoomService/MarkRoomAsRead', { roomId });
+}
+
 export async function postMessagesViaConnect(
   page: Page,
   roomId: string,
@@ -461,6 +467,7 @@ function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotif
   return {
     overrides: {
       directMessages: normalizeNotificationOverride(overrides?.directMessages),
+      roomMessages: normalizeNotificationOverride(overrides?.roomMessages),
       directMentions: normalizeNotificationOverride(overrides?.directMentions),
       replies: normalizeNotificationOverride(overrides?.replies),
       roleMentions: normalizeNotificationOverride(overrides?.roleMentions),
@@ -472,6 +479,7 @@ function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotif
     },
     effective: {
       directMessages: normalizeNotificationMode(effective?.directMessages),
+      roomMessages: normalizeNotificationMode(effective?.roomMessages),
       directMentions: normalizeNotificationMode(effective?.directMentions),
       replies: normalizeNotificationMode(effective?.replies),
       roleMentions: normalizeNotificationMode(effective?.roleMentions),

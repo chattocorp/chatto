@@ -317,6 +317,12 @@ func TestExpiredBadgeSourceDoesNotCreateUnreadMarker(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable ordinary room Badge: %v", err)
+	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "Expired Badge source", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
@@ -474,10 +480,14 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
+		t.Fatal(err)
+	}
+	// Followed rooms is intentionally inert until room-follow state exists.
 	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}
-	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@signal-recipient two causes", nil, "", "", nil, false)
+	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@all @signal-recipient three causes", nil, "", "", nil, false)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -485,17 +495,19 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 		t.Fatal(err)
 	}
 	occurrences := testNotificationOccurrences(t, chattoCore, recipient.Id)
-	if len(occurrences) != 2 {
-		t.Fatalf("occurrences = %+v, want two exact signals", occurrences)
+	if len(occurrences) != 3 {
+		t.Fatalf("occurrences = %+v, want three exact signals", occurrences)
 	}
 	kinds := []notificationTestSignalKind{
 		notificationTestSignalKind(notificationSignalIdentity(occurrences[0].GetSignal())),
 		notificationTestSignalKind(notificationSignalIdentity(occurrences[1].GetSignal())),
+		notificationTestSignalKind(notificationSignalIdentity(occurrences[2].GetSignal())),
 	}
 	slices.Sort(kinds)
 	want := []notificationTestSignalKind{
+		notificationTestSignalAll,
 		notificationTestSignalDirectMention,
-		notificationTestSignalFollowedRoom,
+		notificationTestSignalRoomMessage,
 	}
 	if !slices.Equal(kinds, want) || occurrences[0].GetSourceEventId() != posted.GetId() || occurrences[0].GetId() == occurrences[1].GetId() {
 		t.Fatalf("signal kinds/identities = (%v, %+v)", kinds, occurrences)

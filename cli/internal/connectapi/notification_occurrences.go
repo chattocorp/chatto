@@ -408,7 +408,7 @@ func apiNotificationDeliveryModes(modes *corev1.NotificationDeliveryModes) (*api
 	for _, pair := range []struct {
 		source *corev1.NotificationDeliveryMode
 		target **apiv1.NotificationDeliveryMode
-	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}} {
+	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
 		if err := set(pair.source, pair.target); err != nil {
 			return nil, err
 		}
@@ -435,7 +435,7 @@ func coreNotificationDeliveryModes(modes *apiv1.NotificationDeliveryModes) (*cor
 	for _, pair := range []struct {
 		source *apiv1.NotificationDeliveryMode
 		target **corev1.NotificationDeliveryMode
-	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}} {
+	}{{modes.DirectMessages, &result.DirectMessages}, {modes.DirectMentions, &result.DirectMentions}, {modes.Replies, &result.Replies}, {modes.RoleMentions, &result.RoleMentions}, {modes.HereMentions, &result.HereMentions}, {modes.AllMentions, &result.AllMentions}, {modes.FollowedThreads, &result.FollowedThreads}, {modes.FollowedRooms, &result.FollowedRooms}, {modes.Reactions, &result.Reactions}, {modes.RoomMessages, &result.RoomMessages}} {
 		if err := set(pair.source, pair.target); err != nil {
 			return nil, err
 		}

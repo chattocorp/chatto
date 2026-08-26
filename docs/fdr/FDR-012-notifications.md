@@ -8,9 +8,10 @@
 Notifications and Badge indicators are user-scoped ways to show activity that
 deserves attention. Notifications form a persistent list of exact activity.
 Badge indicators add only neutral unread dots. Both forms cover direct
-messages, replies, direct and role mentions, `@here`, `@all`, followed
-conversations, and reactions. They borrow GitHub's durable-history idea but use
-a smaller lifecycle: Unread, Read, or explicitly Deleted.
+messages, root messages in channel rooms, replies, direct and role mentions,
+`@here`, `@all`, followed conversations, and reactions. They borrow GitHub's
+durable-history idea but use a smaller lifecycle: Unread, Read, or explicitly
+Deleted.
 
 The server records occurrences individually. The bundled frontend may
 consolidate them for presentation without changing occurrence identity, jump
@@ -57,9 +58,10 @@ targets, unread counts, read state, or deletion semantics.
 **Decision:** The server exposes one occurrence for each recipient, source
 activity, and notification cause. List and notification totals count exact unread
 occurrences, independently of pagination and presentation grouping. The bundled
-frontend groups DMs by conversation, reactions by reacted-to target, followed
-activity by thread or room, and leaves mentions and replies separate because
-they have distinct jump targets.
+frontend groups DMs by conversation, root room messages by room, reactions by
+reacted-to target, followed activity by thread or room, and leaves mentions and
+replies separate because they have distinct jump targets. Root-room and
+followed-room groups stay separate.
 
 **Why:** Exact server resources preserve identity, triage, navigation, and
 integration semantics. Client-side grouping can evolve without a migration or
@@ -100,9 +102,10 @@ server value.
 - **Push notification** — create the same in-app notification and make it
   eligible for Web Push or native delivery.
 
-| Cause                          | Default |
-| ------------------------------ | ------- |
+| Cause                          | Default           |
+| ------------------------------ | ----------------- |
 | Direct message                 | Push notification |
+| Root message in a channel room | Badge             |
 | Direct username mention        | Push notification |
 | Reply to the user's message    | Push notification |
 | Role mention                   | Push notification |
@@ -126,7 +129,7 @@ modes.
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
 
-The notification settings page shows the nine signal classes as matrix rows.
+The notification settings page shows the ten signal classes as matrix rows.
 It shows the server, visible room groups, current-member channel rooms, and
 current-member direct-message rooms as columns. Each group column is followed
 by its room columns. A server cell always shows a concrete value. When no user
@@ -143,14 +146,18 @@ make the state clear without color alone.
 
 Badge decisions use the existing room and thread read boundaries. A thread
 Badge rolls up to its parent room. Reading the thread clears its contribution
-to both indicators. Badge does not change ordinary message-unread semantics,
-and it does not update an operating-system or application-icon badge.
+to both indicators. The Message Read Cursor remains separate and places the
+New messages separator. Cursor lag alone does not create a room dot. Thus,
+setting Room messages to Off prevents neutral dots for ordinary root messages
+without disabling last-read tracking. Badge does not update an operating-system
+or application-icon badge.
 
 The scope filter always keeps the server column. A room match also keeps its
 parent group. A group match keeps all current-member rooms in that group.
 Direct-message policy applies at server scope and to individual direct-message
 rooms. Its room-group and channel-room cells are not applicable and cannot be
-changed.
+changed. Room-message policy applies at server, room-group, and channel-room
+scope. Its direct-message-room cells are not applicable and cannot be changed.
 
 A room uses the group that contains it at the exact source-event sequence. A
 room move changes future effective policy. It does not change historical
@@ -170,10 +177,11 @@ another user's state or grant access to the deleted scope.
 derived asynchronously from committed domain facts. Later membership,
 preference, or follow changes do not rewrite that historical decision. A user's
 own activity does not notify them. One source activity produces at most one
-delivery decision per recipient and cause; a message that is both a reply and a
-direct mention intentionally produces two decisions. If both decisions use a
-notification mode, they create two occurrences. Badge decisions coalesce into
-one latest-value marker for the applicable room or thread.
+delivery decision per recipient and cause. For example, a root message that
+contains `@all` and a direct mention can produce room-message, `@all`, and
+direct-mention decisions for one recipient. If these decisions use a
+notification mode, they create separate occurrences. Badge decisions coalesce
+into one latest-value marker for the applicable room or thread.
 
 **Why:** Notifications describe what happened under the policy and visibility
 that applied at that moment. Deriving from committed facts makes retries
@@ -246,6 +254,9 @@ unfollow. A delivered direct username mention in a thread attempts to follow it
 unless the recipient previously opted out; role, `@here`, and `@all` mentions do not. Following a thread or room
 creates an activity source whose delivery is still controlled by notification
 policy. Follow controls belong to rooms and threads, not to notification rows.
+The followed-room policy is reserved until room-follow state exists. Joined
+room activity uses the separate Room messages cause and never acts as an
+implicit room follow.
 
 **Why:** A subscription describes future interest in a conversation; a
 notification occurrence describes one past activity. Keeping them separate
@@ -294,6 +305,13 @@ Badge is the additive value 4. An older binary preserves that numeric
 preference but treats it as no notification output. Thus, Badge attention is
 temporarily inactive during rollback instead of becoming a notification or
 push.
+
+Room messages adds policy field 10 and notification-signal branch 10. Older
+clients preserve the policy field when they update other fields. They show an
+unknown Room-message occurrence as a generic dismissible row and do not infer
+navigation. The default Badge mode uses the existing public `has_unread` field.
+An older server does not derive this cause, so Room messages is temporarily
+inactive during rollback instead of becoming Followed rooms.
 
 Room-group changes use a new
 `UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID

@@ -49,6 +49,7 @@ function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy {
     scope,
     overrides: {
       directMessages: null,
+      roomMessages: null,
       directMentions: null,
       replies: null,
       roleMentions: null,
@@ -60,6 +61,7 @@ function policy(scope: NotificationPolicyScope): ScopedNotificationPolicy {
     },
     effective: {
       directMessages: NotificationDeliveryMode.PUSH_NOTIFICATION,
+      roomMessages: NotificationDeliveryMode.UNREAD_BADGE,
       directMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
       replies: NotificationDeliveryMode.PUSH_NOTIFICATION,
       roleMentions: NotificationDeliveryMode.PUSH_NOTIFICATION,
@@ -96,7 +98,7 @@ describe('NotificationPolicySettings', () => {
       )
     ).toEqual(['server', 'roomGroup:group-1', 'room:room-1', 'room:dm-1']);
     expect(container.querySelector('th[data-notification-scope="room:room-2"]')).toBeNull();
-    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
+    expect(container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
     expect(container.textContent).not.toContain('Room invitations');
     expect(container.textContent).not.toContain('Reset to defaults');
   });
@@ -107,7 +109,7 @@ describe('NotificationPolicySettings', () => {
       'tbody th[scope="row"] button[aria-label^="More information: "]'
     );
 
-    expect(helpButtons).toHaveLength(9);
+    expect(helpButtons).toHaveLength(10);
     expect(helpButtons[0]?.getAttribute('aria-label')).toBe('More information: Direct messages');
     (helpButtons[0] as HTMLButtonElement).dispatchEvent(new MouseEvent('mouseenter'));
     flushSync();
@@ -145,6 +147,30 @@ describe('NotificationPolicySettings', () => {
     }
     expect(serverCell.querySelector('button')).not.toBeNull();
     expect(dmCell.querySelector('button')).not.toBeNull();
+  });
+
+  it('marks room messages as not applicable to direct-message rooms', () => {
+    const { container } = render(NotificationPolicySettings);
+    const serverCell = container.querySelector(
+      'td[data-notification-scope="server"][data-notification-field="roomMessages"]'
+    )!;
+    const groupCell = container.querySelector(
+      'td[data-notification-scope="roomGroup:group-1"][data-notification-field="roomMessages"]'
+    )!;
+    const channelCell = container.querySelector(
+      'td[data-notification-scope="room:room-1"][data-notification-field="roomMessages"]'
+    )!;
+    const dmCell = container.querySelector(
+      'td[data-notification-scope="room:dm-1"][data-notification-field="roomMessages"]'
+    )!;
+
+    expect(serverCell.querySelector('button')).not.toBeNull();
+    expect(groupCell.querySelector('button')).not.toBeNull();
+    expect(channelCell.querySelector('button')).not.toBeNull();
+    expect(dmCell.querySelector('button')).toBeNull();
+    expect(dmCell.querySelector('[role="img"]')?.getAttribute('aria-label')).toBe(
+      'Room messages, Taylor. Not applicable.'
+    );
   });
 
   it('highlights the active column heading together with its cells', () => {
@@ -229,12 +255,12 @@ describe('NotificationPolicySettings', () => {
 
     const { container } = render(NotificationPolicySettings);
 
-    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(9 * 4 - 2);
+    expect(container.querySelectorAll('[class~="icon-[uil--spinner]"]')).toHaveLength(10 * 4 - 3);
     expect(container.querySelectorAll('td[data-notification-field] button')).toHaveLength(0);
     const placeholders = container.querySelectorAll(
       'td[data-notification-field] > span[role="status"]'
     );
-    expect(placeholders).toHaveLength(9 * 4 - 2);
+    expect(placeholders).toHaveLength(10 * 4 - 3);
     expect([...placeholders].every((item) => item.textContent?.trim() === 'Loading...')).toBe(true);
   });
 
@@ -275,7 +301,7 @@ describe('NotificationPolicySettings', () => {
     expect(loadFailure.container.textContent).toContain(
       'Failed to load notification policy: Policy service unavailable'
     );
-    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(9 * 4);
+    expect(loadFailure.container.querySelectorAll('[data-matrix-row]')).toHaveLength(10 * 4);
     loadFailure.unmount();
 
     mocks.matrix.error = 'Update was rejected';
@@ -288,6 +314,6 @@ describe('NotificationPolicySettings', () => {
     );
     expect(
       saveFailure.container.querySelectorAll('td[data-notification-field] button')
-    ).toHaveLength(9 * 4 - 2);
+    ).toHaveLength(10 * 4 - 3);
   });
 });

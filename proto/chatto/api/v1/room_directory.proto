@@ -11,7 +11,8 @@ import "google/protobuf/timestamp.proto";
 message RoomViewerState {
   // True when the current user is an effective room member.
   bool is_member = 1;
-  // True when the room has unread root messages for the current user.
+  // True when the room has neutral Badge attention for the current user.
+  // This state is independent of the user's last-read message cursor.
   bool has_unread = 2;
   // Effective room-scoped permission decisions after room state constraints.
   repeated PermissionGrant permissions = 3;

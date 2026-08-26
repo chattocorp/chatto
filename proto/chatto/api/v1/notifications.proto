@@ -43,9 +43,11 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
   // Delivery mode for top-level activity in rooms followed by the viewer.
-  // Servers without room-follow support apply it to all joined channel rooms.
   optional NotificationDeliveryMode followed_rooms = 8;
   optional NotificationDeliveryMode reactions = 9;
+  // Delivery mode for root messages posted directly to joined channel rooms.
+  // Thread messages and direct messages use their own signal classes.
+  optional NotificationDeliveryMode room_messages = 10;
 }
 
 // Visual importance of an unread notification. This is independent from
@@ -113,6 +115,11 @@ message FollowedRoomActivity {
   NotificationMessageReference message = 1;
 }
 
+// A root message posted directly to a channel room that the viewer belongs to.
+message RoomMessageReceived {
+  NotificationMessageReference message = 1;
+}
+
 // A reaction added to one of the viewer's messages.
 message ReactionReceived {
   NotificationMessageReference message = 1;
@@ -134,6 +141,7 @@ message NotificationSignal {
     FollowedThreadActivity followed_thread_activity = 7;
     FollowedRoomActivity followed_room_activity = 8;
     ReactionReceived reaction_received = 9;
+    RoomMessageReceived room_message_received = 10;
   }
 }
 

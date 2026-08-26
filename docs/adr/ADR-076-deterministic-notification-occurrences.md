@@ -59,12 +59,12 @@ coordinates, source-time delivery and attention decisions, and a rich
 `NotificationSignal` oneof. The
 projection constructs `NotificationOccurrence` current-state resources from
 that fact and later lifecycle facts; the event never embeds its projection.
-Current variants are direct message, direct mention, reply, role mention,
-`@here`, `@all`, followed-thread activity, followed-room activity, and reaction
-received. Each variant owns the typed data needed to authorize, render, and
-navigate that signal; reaction signals carry their emoji, and a consolidated
-role-mention signal carries the sorted source-time role handles that selected
-the recipient. The record
+Current variants are direct message, root channel-room message, direct mention,
+reply, role mention, `@here`, `@all`, followed-thread activity, followed-room
+activity, and reaction received. Each variant owns the typed data needed to
+authorize, render, and navigate that signal; reaction signals carry their
+emoji, and a consolidated role-mention signal carries the sorted source-time
+role handles that selected the recipient. The record
 references source resources but does not copy message bodies, room names,
 avatars, or display names.
 
@@ -86,7 +86,8 @@ as one fact. Concurrent updates to different fields therefore compose instead
 of replacing one another, and older clients leave future fields untouched.
 
 One source fact may generate several notification signals for the same user.
-For example, one message may independently be a reply and a direct mention.
+For example, one root room message may independently be room activity, an
+`@all` mention, and a direct mention.
 Each exact occurrence ID is derived from recipient ID, source event ID, and
 signal kind. Retries are idempotent while distinct causes retain independent
 identity and triage.
@@ -108,12 +109,21 @@ This is durable message semantics: it preserves otherwise transient `@here`,
 role, and `@all` expansion without recording a notification plan. A conflicting
 retry therefore cannot retain stale mention recipients.
 
+The same existing `MessagePostedEvent` is the source for ordinary root-message
+attention. At that exact event sequence, the materializer selects current room
+members and resolves each member's Room messages policy. Thread messages and
+direct messages use their existing separate causes. Joined-room activity does
+not produce followed-room activity; that cause remains inactive until durable
+room-follow state exists. No notification-specific source event or marker is
+added to `EVT`.
+
 For compatibility, `MessagePostedEvent.mentioned_user_ids` remains a flattened
 view of recipients selected by direct, role, `@here`, and `@all` handles. It
 cannot recover which cause selected a user. During a mixed-version rollout, a
 source event without rich `mentions` therefore omits only the ambiguous mention
 signal instead of applying the wrong policy or persisting a false cause; DM,
-reply, and follow signal kinds that remain independently knowable are still derived.
+root-room, reply, and follow signal kinds that remain independently knowable
+are still derived.
 Current writers populate `mentions` with every rich cause.
 
 The EVT-backed Notification Decisions projection consumes the compact state
@@ -189,9 +199,12 @@ invalidations with one flush rather than one broker round trip per recipient.
 Badge uses the same room/thread read coordinates and visibility rules as
 occurrences. A thread marker contributes to the parent room. A source sequence
 can only replace an older marker in the same scope, so delayed delivery cannot
-regress attention. The marker expires 90 days after its latest source and
-account deletion removes it. A content-free transient invalidation rebuilds
-the affected room state and followed-thread viewer state.
+regress attention. The public room `has_unread` value reports this Badge
+attention only. The independent Message Read Cursor continues to place the New
+messages separator and cannot create a room dot by itself. The marker expires
+90 days after its latest source and account deletion removes it. A content-free
+transient invalidation rebuilds the affected room state and followed-thread
+viewer state.
 
 Realtime `NotificationOccurrencesInvalidated` messages are transient hints.
 They can carry one opaque sound-candidate notification ID but never expose
@@ -267,6 +280,14 @@ values. The previous `SILENT` and `ALERT` names remain as deprecated aliases.
 Badge adds wire value 4. Older binaries preserve that value and fail closed by
 producing neither a notification occurrence nor push delivery. The new scoped
 policy service is additive and leaves the legacy server/room methods unchanged.
+
+Room messages adds policy field 10 and signal branch 10. Older clients preserve
+the additive policy field when they update other fields. If they receive a
+Room-message occurrence, they show the existing generic dismissible row and do
+not infer navigation. The default Badge mode uses the existing public
+`has_unread` field, which older clients already understand. An older server
+does not derive this cause, so Room messages is temporarily inactive during a
+rollback instead of being interpreted as Followed rooms.
 
 Room-group policy changes use the separate persisted
 `UserRoomGroupNotificationPolicyChangedEvent` variant. An older binary ignores

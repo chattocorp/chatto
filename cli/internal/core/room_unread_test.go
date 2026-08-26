@@ -2,6 +2,8 @@ package core
 
 import (
 	"testing"
+
+	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
 )
 
 func TestChattoCore_GetRoomLastEvent(t *testing.T) {
@@ -265,6 +267,48 @@ func TestChattoCore_HasUnread_NewMessages(t *testing.T) {
 	}
 }
 
+func TestChattoCore_HasUnread_RoomMessageOffKeepsCursorWithoutBadge(t *testing.T) {
+	core, _ := setupTestCore(t)
+	ctx := testContext(t)
+
+	room, _ := core.CreateRoom(ctx, "test-user", KindChannel, "", "Off room", "")
+	author, _ := core.CreateUser(ctx, "system", "off-room-author", "Off Room Author", "password123")
+	recipient, _ := core.CreateUser(ctx, "system", "off-room-recipient", "Off Room Recipient", "password123")
+	for _, userID := range []string{author.Id, recipient.Id} {
+		if _, err := core.JoinRoom(ctx, userID, KindChannel, userID, room.Id); err != nil {
+			t.Fatalf("JoinRoom: %v", err)
+		}
+	}
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
+		ctx, recipient.Id, room.Id, notificationTestSignalRoomMessage,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable room-message attention: %v", err)
+	}
+
+	posted, err := core.PostMessage(ctx, KindChannel, room.Id, author.Id, "No dot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage: %v", err)
+	}
+	if err := core.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		t.Fatalf("wait for notification materializer: %v", err)
+	}
+	if hasUnread, err := core.HasUnread(ctx, KindChannel, recipient.Id, room.Id); err != nil || hasUnread {
+		t.Fatalf("Badge attention with Room messages Off = (%v, %v), want (false, nil)", hasUnread, err)
+	}
+	readID, exists, err := core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	if err != nil || !exists || readID != "" {
+		t.Fatalf("stored read cursor = (%q, %v, %v), want empty join sentinel", readID, exists, err)
+	}
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, recipient.Id, room.Id, posted.Id); err != nil {
+		t.Fatalf("advance independent read cursor: %v", err)
+	}
+	readID, exists, err = core.PeekLastReadEventID(ctx, recipient.Id, room.Id)
+	if err != nil || !exists || readID != posted.Id {
+		t.Fatalf("advanced read cursor = (%q, %v, %v), want %q", readID, exists, err, posted.Id)
+	}
+}
+
 func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -300,8 +344,9 @@ func TestChattoCore_HasUnread_AfterMarkingRead(t *testing.T) {
 		t.Fatal("Expected room to have a last event")
 	}
 
-	// User1 marks as read up to the last event
-	if err := core.SetLastReadEventID(ctx, KindChannel, user1.Id, room.Id, lastID); err != nil {
+	// User1 marks as read up to the last event. This advances the cursor and
+	// clears notification attention through the same user operation.
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user1.Id, room.Id, lastID); err != nil {
 		t.Fatalf("Failed to set last read event id: %v", err)
 	}
 
@@ -398,7 +443,9 @@ func TestChattoCore_HasUnread_MultipleRooms(t *testing.T) {
 
 	// User1 marks room1 as read
 	lastID, _, _, _ := core.GetRoomLastEvent(ctx, KindChannel, room1.Id)
-	core.SetLastReadEventID(ctx, KindChannel, user1.Id, room1.Id, lastID)
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user1.Id, room1.Id, lastID); err != nil {
+		t.Fatalf("Failed to mark room1 read: %v", err)
+	}
 
 	// Room1 should now have no unread for user1
 	hasUnread, err = core.HasUnread(ctx, KindChannel, user1.Id, room1.Id)
@@ -459,9 +506,9 @@ func TestChattoCore_HasUnread_JoiningRoomWithExistingMessages(t *testing.T) {
 	}
 }
 
-// TestChattoCore_HasUnread_StaleMarker verifies that if a user's read marker
-// points to a non-existent (e.g. deleted) event, HasUnread reports the room as
-// unread rather than falling silent — the next mark-read self-corrects.
+// TestChattoCore_HasUnread_StaleMarker verifies that a stale message cursor
+// does not create Badge attention. The cursor remains available to the room
+// timeline and is corrected by the next mark-read operation.
 func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	core, _ := setupTestCore(t)
 	ctx := testContext(t)
@@ -484,8 +531,8 @@ func TestChattoCore_HasUnread_StaleMarker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("HasUnread error: %v", err)
 	}
-	if !hasUnread {
-		t.Error("Expected stale read marker to surface as unread")
+	if hasUnread {
+		t.Error("Expected stale read marker not to create Badge attention")
 	}
 }
 
@@ -553,7 +600,7 @@ func TestChattoCore_HasUnread_ThreadReplyDoesNotCauseUnread(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to get last event: %v", err)
 	}
-	if err := core.SetLastReadEventID(ctx, KindChannel, user2.Id, room.Id, lastID); err != nil {
+	if _, err := core.ReadState().MarkRoomAsRead(ctx, user2.Id, room.Id, lastID); err != nil {
 		t.Fatalf("Failed to set last read: %v", err)
 	}
 

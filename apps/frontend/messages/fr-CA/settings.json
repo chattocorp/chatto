@@ -297,6 +297,7 @@
           "push_notification": "Notification poussée"
         },
         "reason": {
+          "room_message": "Messages des salons",
           "direct_message": "Messages directs",
           "direct_mention": "Mentions directes",
           "reply": "Réponses à vos messages",
@@ -310,6 +311,7 @@
           "room_invitation": "Invitations à des salons"
         },
         "reason_hint": {
+          "room_message": "Messages racines que d’autres membres publient directement dans des salons, et non dans des fils.",
           "direct_message": "Messages envoyés par d’autres membres dans des conversations privées.",
           "direct_mention": "Messages qui mentionnent directement votre nom d’utilisateur.",
           "reply": "Messages qui répondent à l’un de vos messages.",

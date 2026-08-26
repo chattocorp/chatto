@@ -278,7 +278,7 @@ export class ServerViewerPermissions extends Message<ServerViewerPermissions> {
  */
 export class ServerViewerState extends Message<ServerViewerState> {
   /**
-   * Whether any joined channel room has unread messages.
+   * Whether any joined channel room has neutral Badge attention.
    *
    * @generated from field: bool has_unread_rooms = 1;
    */

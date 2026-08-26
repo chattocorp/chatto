@@ -182,7 +182,7 @@ Non-permission server state for the authenticated user.
 
 | Field | Type | Description |
 | --- | --- | --- |
-| `has_unread_rooms` | `bool` | Whether any joined channel room has unread messages. |
+| `has_unread_rooms` | `bool` | Whether any joined channel room has neutral Badge attention. |
 
 <a id="chatto-api-v1-UserSettings"></a>
 
@@ -807,8 +807,9 @@ Presence is significant: absent fields inherit in a stored policy.
 | `here_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `all_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `followed_threads` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
-| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for top-level activity in rooms followed by the viewer. Servers without room-follow support apply it to all joined channel rooms. |
+| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for top-level activity in rooms followed by the viewer. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `room_messages` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for root messages posted directly to joined channel rooms. Thread messages and direct messages use their own signal classes. |
 
 <a id="chatto-api-v1-NotificationMessageReference"></a>
 
@@ -894,6 +895,7 @@ navigation semantics for them.
 | `kind.followed_thread_activity` | [`FollowedThreadActivity`](#chatto-api-v1-FollowedThreadActivity) | No field description provided. |
 | `kind.followed_room_activity` | [`FollowedRoomActivity`](#chatto-api-v1-FollowedRoomActivity) | No field description provided. |
 | `kind.reaction_received` | [`ReactionReceived`](#chatto-api-v1-ReactionReceived) | No field description provided. |
+| `kind.room_message_received` | [`RoomMessageReceived`](#chatto-api-v1-RoomMessageReceived) | No field description provided. |
 
 <a id="chatto-api-v1-ReactionReceived"></a>
 
@@ -926,6 +928,16 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+<a id="chatto-api-v1-RoomMessageReceived"></a>
+
+### RoomMessageReceived
+
+A root message posted directly to a channel room that the viewer belongs to.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 
 <a id="chatto-api-v1-ScopedNotificationPolicy"></a>
 
@@ -997,7 +1009,7 @@ Viewer-specific state and permission decisions for one room.
 | Field | Type | Description |
 | --- | --- | --- |
 | `is_member` | `bool` | True when the current user is an effective room member. |
-| `has_unread` | `bool` | True when the room has unread root messages for the current user. |
+| `has_unread` | `bool` | True when the room has neutral Badge attention for the current user. This state is independent of the user's last-read message cursor. |
 | `permissions` | repeated [`PermissionGrant`](#chatto-api-v1-PermissionGrant) | Effective room-scoped permission decisions after room state constraints. |
 | `slow_mode_next_post_at` | `google.protobuf.Timestamp` | Earliest time the current user may create another message. Absent when slow mode is disabled, expired, or bypassed by moderation permissions. |
 

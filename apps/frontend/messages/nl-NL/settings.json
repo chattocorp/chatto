@@ -297,6 +297,7 @@
           "push_notification": "Pushmelding"
         },
         "reason": {
+          "room_message": "Berichten in ruimtes",
           "direct_message": "Directe berichten",
           "direct_mention": "Directe vermeldingen",
           "reply": "Antwoorden op je berichten",
@@ -310,6 +311,7 @@
           "room_invitation": "Uitnodigingen voor ruimtes"
         },
         "reason_hint": {
+          "room_message": "Hoofdberichten die andere leden rechtstreeks in kanaalruimtes plaatsen, niet in threads.",
           "direct_message": "Berichten die andere leden in privégesprekken sturen.",
           "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
           "reply": "Berichten die op een van je berichten antwoorden.",

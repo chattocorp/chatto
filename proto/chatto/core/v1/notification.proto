@@ -132,6 +132,9 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode followed_threads = 7;
   optional NotificationDeliveryMode followed_rooms = 8;
   optional NotificationDeliveryMode reactions = 9;
+  // Root messages posted directly to joined channel rooms. Thread messages
+  // and direct messages use their own signal classes.
+  optional NotificationDeliveryMode room_messages = 10;
 }
 
 // NotificationAttentionLevel records how strongly an unread occurrence should
@@ -184,6 +187,10 @@ message FollowedRoomActivity {
   NotificationMessageReference message = 1;
 }
 
+message RoomMessageReceived {
+  NotificationMessageReference message = 1;
+}
+
 message ReactionReceived {
   NotificationMessageReference message = 1;
   string emoji = 2;
@@ -203,6 +210,7 @@ message NotificationSignal {
     FollowedThreadActivity followed_thread_activity = 7;
     FollowedRoomActivity followed_room_activity = 8;
     ReactionReceived reaction_received = 9;
+    RoomMessageReceived room_message_received = 10;
   }
 }
 

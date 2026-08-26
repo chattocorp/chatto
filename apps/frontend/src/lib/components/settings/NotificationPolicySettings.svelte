@@ -44,6 +44,11 @@ Rows are notification causes. Columns follow the current navigation layout.
       hint: m('settings.notifications.policy.reason_hint.direct_message')
     },
     {
+      field: 'roomMessages',
+      label: m('settings.notifications.policy.reason.room_message'),
+      hint: m('settings.notifications.policy.reason_hint.room_message')
+    },
+    {
       field: 'directMentions',
       label: m('settings.notifications.policy.reason.direct_mention'),
       hint: m('settings.notifications.policy.reason_hint.direct_mention')

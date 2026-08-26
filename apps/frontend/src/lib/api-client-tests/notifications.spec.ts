@@ -86,6 +86,24 @@ describe('notification occurrence presentation mapping', () => {
     });
   });
 
+  it('maps root room messages as their own signal', () => {
+    const occurrence = requireNotificationOccurrence(
+      new NotificationOccurrence({
+        id: 'room-message-notification',
+        actor: { id: 'u1', displayName: 'Alice' },
+        signal: notificationSignal('roomMessageReceived', 'message-2'),
+        attentionLevel: NotificationAttentionLevel.IMPORTANT,
+        unread: true
+      })
+    );
+
+    expect(occurrence).toMatchObject({
+      signalKind: NotificationSignalKind.ROOM_MESSAGE,
+      eventId: 'message-2',
+      threadRootId: null
+    });
+  });
+
   it('preserves a threaded reaction target', () => {
     const occurrence = requireNotificationOccurrence(
       new NotificationOccurrence({
@@ -153,6 +171,7 @@ function notificationSignal(
     | 'directMentionReceived'
     | 'followedThreadActivity'
     | 'followedRoomActivity'
+    | 'roomMessageReceived'
     | 'reactionReceived',
   eventId: string,
   threadRootEventId?: string,

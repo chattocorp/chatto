@@ -21,6 +21,7 @@ const (
 	notificationTestSignalFollowedThread notificationTestSignalKind = "followed_thread"
 	notificationTestSignalFollowedRoom   notificationTestSignalKind = "followed_room"
 	notificationTestSignalReaction       notificationTestSignalKind = "reaction"
+	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message"
 )
 
 func TestNotificationAssemblerIgnoresUnsupportedSignal(t *testing.T) {
@@ -138,6 +139,8 @@ func testNotificationSignalWithMessage(kind notificationTestSignalKind, message 
 		signal.Kind = &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: message}}
 	case notificationTestSignalFollowedRoom:
 		signal.Kind = &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}
+	case notificationTestSignalRoomMessage:
+		signal.Kind = &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: message}}
 	default:
 		signal.Kind = &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: message}}
 	}

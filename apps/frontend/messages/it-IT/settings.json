@@ -297,6 +297,7 @@
           "push_notification": "Notifica push"
         },
         "reason": {
+          "room_message": "Messaggi nelle stanze",
           "direct_message": "Messaggi diretti",
           "direct_mention": "Menzioni dirette",
           "reply": "Risposte ai tuoi messaggi",
@@ -310,6 +311,7 @@
           "room_invitation": "Inviti alle stanze"
         },
         "reason_hint": {
+          "room_message": "Messaggi principali pubblicati da altri membri direttamente nelle stanze dei canali, non nelle discussioni.",
           "direct_message": "Messaggi inviati da altri membri nelle conversazioni dirette.",
           "direct_mention": "Messaggi che menzionano direttamente il tuo nome utente.",
           "reply": "Messaggi in risposta a uno dei tuoi messaggi.",

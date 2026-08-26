@@ -331,9 +331,9 @@ func (c *ChattoCore) GetEventTimestamp(ctx context.Context, kind RoomKind, roomI
 	return time.Time{}, nil
 }
 
-// HasUnread reports whether a room has unread messages or active Badge
-// attention for a user. Thread Badge markers roll up into the parent room.
-// The result is false when the user cannot currently see the room.
+// HasUnread reports whether a room has active Badge attention for a user.
+// Thread Badge markers roll up into the parent room. The result is independent
+// of the user's last-read cursor and false when the user cannot see the room.
 func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomID string) (bool, error) {
 	isMember, err := c.RoomMembershipExists(ctx, kind, userID, roomID)
 	if err != nil {
@@ -346,37 +346,5 @@ func (c *ChattoCore) HasUnread(ctx context.Context, kind RoomKind, userID, roomI
 	if err != nil {
 		return false, fmt.Errorf("read notification Badge state: %w", err)
 	}
-
-	lastID, lastTime, exists, err := c.GetRoomLastEvent(ctx, kind, roomID)
-	if err != nil {
-		return false, err
-	}
-	if !exists {
-		return badgeUnread, nil
-	}
-
-	readID, err := c.GetLastReadEventID(ctx, kind, userID, roomID)
-	if err != nil {
-		return false, err
-	}
-	if readID == "" {
-		// Member has a marker but no specific event read yet (joined an
-		// empty room, then messages arrived). Anything counts as unread.
-		return true, nil
-	}
-	if readID == lastID {
-		return badgeUnread, nil // Caught up with ordinary room messages.
-	}
-
-	// Read marker points to an older (or deleted) message. Resolve its
-	// timestamp and compare. A missing message means the marker is stale —
-	// treat as unread; the user re-marks and state self-corrects.
-	readTime, err := c.GetEventTimestamp(ctx, kind, roomID, readID)
-	if err != nil {
-		return false, err
-	}
-	if readTime.IsZero() {
-		return true, nil
-	}
-	return badgeUnread || lastTime.After(readTime), nil
+	return badgeUnread, nil
 }

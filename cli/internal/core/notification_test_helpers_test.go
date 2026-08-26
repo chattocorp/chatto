@@ -21,6 +21,7 @@ const (
 	notificationTestSignalFollowedThread notificationTestSignalKind = "followed_thread_activity"
 	notificationTestSignalFollowedRoom   notificationTestSignalKind = "followed_room_activity"
 	notificationTestSignalReaction       notificationTestSignalKind = "reaction_received"
+	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message_received"
 )
 
 func testNotificationOccurrences(t *testing.T, chattoCore *ChattoCore, userID string) []*corev1.NotificationOccurrence {
@@ -75,6 +76,8 @@ func testNotificationSignal(kind notificationTestSignalKind, roomID, eventID str
 		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}}
 	case notificationTestSignalReaction:
 		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_ReactionReceived{ReactionReceived: &corev1.ReactionReceived{Message: message}}}
+	case notificationTestSignalRoomMessage:
+		return &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: message}}}
 	default:
 		return nil
 	}
@@ -103,6 +106,8 @@ func testNotificationPolicyPatch(kind notificationTestSignalKind, mode corev1.No
 		path, target = "followed_rooms", &modes.FollowedRooms
 	case notificationTestSignalReaction:
 		path, target = "reactions", &modes.Reactions
+	case notificationTestSignalRoomMessage:
+		path, target = "room_messages", &modes.RoomMessages
 	default:
 		return modes, &fieldmaskpb.FieldMask{Paths: []string{string(kind)}}
 	}

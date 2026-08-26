@@ -297,6 +297,7 @@
           "push_notification": "Push oznámení"
         },
         "reason": {
+          "room_message": "Zprávy v místnostech",
           "direct_message": "Přímé zprávy",
           "direct_mention": "Přímé zmínky",
           "reply": "Odpovědi na vaše zprávy",
@@ -310,6 +311,7 @@
           "room_invitation": "Pozvánky do místností"
         },
         "reason_hint": {
+          "room_message": "Hlavní zprávy, které ostatní členové posílají přímo do místností kanálů, nikoli do vláken.",
           "direct_message": "Zprávy, které ostatní členové posílají v konverzacích s přímými zprávami.",
           "direct_mention": "Zprávy, které přímo zmiňují vaše uživatelské jméno.",
           "reply": "Zprávy, které odpovídají na některou z vašich zpráv.",

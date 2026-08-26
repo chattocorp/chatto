@@ -94,6 +94,8 @@ func (a *notificationAssembler) signal(ctx context.Context, signal *corev1.Notif
 		message = payload.FollowedRoomActivity.GetMessage()
 	case *corev1.NotificationSignal_ReactionReceived:
 		message = payload.ReactionReceived.GetMessage()
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		message = payload.RoomMessageReceived.GetMessage()
 	default:
 		return nil, nil
 	}
@@ -123,6 +125,8 @@ func (a *notificationAssembler) signal(ctx context.Context, signal *corev1.Notif
 		result.Kind = &apiv1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &apiv1.FollowedRoomActivity{Message: apiMessage}}
 	case *corev1.NotificationSignal_ReactionReceived:
 		result.Kind = &apiv1.NotificationSignal_ReactionReceived{ReactionReceived: &apiv1.ReactionReceived{Message: apiMessage, Emoji: payload.ReactionReceived.GetEmoji()}}
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		result.Kind = &apiv1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &apiv1.RoomMessageReceived{Message: apiMessage}}
 	}
 	return result, nil
 }

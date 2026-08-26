@@ -297,6 +297,7 @@
           "push_notification": "Push notification"
         },
         "reason": {
+          "room_message": "Room messages",
           "direct_message": "Direct messages",
           "direct_mention": "Direct mentions",
           "reply": "Replies to your messages",
@@ -310,6 +311,7 @@
           "room_invitation": "Room invitations"
         },
         "reason_hint": {
+          "room_message": "Root messages that other members post directly to channel rooms, not inside threads.",
           "direct_message": "Messages that other members send in direct-message conversations.",
           "direct_mention": "Messages that mention your username directly.",
           "reply": "Messages that reply to one of your messages.",

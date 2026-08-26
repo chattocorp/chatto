@@ -297,6 +297,7 @@
           "push_notification": "プッシュ通知"
         },
         "reason": {
+          "room_message": "ルームのメッセージ",
           "direct_message": "ダイレクトメッセージ",
           "direct_mention": "直接メンション",
           "reply": "自分のメッセージへの返信",
@@ -310,6 +311,7 @@
           "room_invitation": "ルームへの招待"
         },
         "reason_hint": {
+          "room_message": "他のメンバーがチャンネルルームに直接投稿するルートメッセージです。スレッド内のメッセージは含みません。",
           "direct_message": "他のメンバーがダイレクトメッセージの会話で送信したメッセージです。",
           "direct_mention": "あなたのユーザー名を直接メンションしたメッセージです。",
           "reply": "あなたのメッセージに対する返信です。",

@@ -8,6 +8,7 @@ import {
   getRoomIdByNameViaConnect,
   getScopedNotificationPolicy,
   joinRoomViaConnect,
+  markRoomAsReadViaConnect,
   postMessageViaConnect,
   updateScopedNotificationPolicy,
   waitForRoomReadViaConnect,
@@ -36,7 +37,7 @@ test.describe('Notification policy', () => {
     await expect(page.locator('[data-notification-field="roomInvitations"]')).toHaveCount(0);
     await expect(
       page.locator('td[data-notification-scope="server"] [data-notification-field]')
-    ).toHaveCount(9);
+    ).toHaveCount(10);
     await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
     await expect(
       page.locator(
@@ -51,6 +52,11 @@ test.describe('Notification policy', () => {
       'aria-label',
       /Not applicable/
     );
+    await expect(
+      page.locator(
+        'td[data-notification-scope^="roomGroup:"][data-notification-field="roomMessages"] button'
+      )
+    ).toBeVisible();
 
     await directMessages.click();
     await expect(directMessages).toHaveAttribute('aria-label', /Override: Off/);
@@ -113,6 +119,40 @@ test.describe('Notification policy', () => {
     await expect(chatPage.getRoomLink('general').getByTestId('room-unread-dot')).not.toBeVisible();
   });
 
+  test('Room messages Off removes the room dot but keeps the New messages separator', async ({
+    page,
+    chatPage,
+    roomPage,
+    browser,
+    serverURL
+  }) => {
+    test.setTimeout(60_000);
+
+    await createAndLoginTestUser(page);
+    await chatPage.goto();
+    await chatPage.enterRoom('general');
+    const roomId = await getRoomIdByNameViaConnect(page, 'general');
+    await postMessageViaConnect(page, roomId, `Read cursor baseline ${Date.now()}`);
+    await markRoomAsReadViaConnect(page, roomId);
+    await updateScopedNotificationPolicy(page, { roomId }, { roomMessages: 'OFF' });
+    await chatPage.enterRoom('announcements');
+
+    const newMessage = `No Badge, cursor retained ${Date.now()}`;
+    await withServerUser(browser!, serverURL, async ({ page: actorPage }) => {
+      await postMessageViaConnect(actorPage, roomId, newMessage);
+    });
+
+    // Absence needs a short stability window because Off intentionally creates
+    // no materialized output to wait for.
+    await page.waitForTimeout(750);
+    await waitForRoomUnreadViaConnect(page, roomId, false, 10_000);
+    await expect(chatPage.getRoomLink('general').getByTestId('room-unread-dot')).not.toBeVisible();
+
+    await chatPage.enterRoom('general');
+    await roomPage.expectMessageVisible(newMessage);
+    await roomPage.expectUnreadSeparator();
+  });
+
   test('resolves server, group, and room overrides and shows member rooms only', async ({
     page,
     chatPage,
@@ -130,24 +170,24 @@ test.describe('Notification policy', () => {
     await updateScopedNotificationPolicy(
       page,
       { server: {} },
-      { followedRooms: 'IN_APP_NOTIFICATION' }
+      { roomMessages: 'IN_APP_NOTIFICATION' }
     );
     await updateScopedNotificationPolicy(
       page,
       { roomGroupId: groupId },
-      { followedRooms: 'PUSH_NOTIFICATION' }
+      { roomMessages: 'PUSH_NOTIFICATION' }
     );
     let roomPolicy = await getScopedNotificationPolicy(page, { roomId });
-    expect(roomPolicy.overrides.followedRooms).toBeNull();
-    expect(roomPolicy.effective.followedRooms).toBe('PUSH_NOTIFICATION');
+    expect(roomPolicy.overrides.roomMessages).toBeNull();
+    expect(roomPolicy.effective.roomMessages).toBe('PUSH_NOTIFICATION');
 
-    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { followedRooms: 'OFF' });
-    expect(roomPolicy.overrides.followedRooms).toBe('OFF');
-    expect(roomPolicy.effective.followedRooms).toBe('OFF');
+    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { roomMessages: 'OFF' });
+    expect(roomPolicy.overrides.roomMessages).toBe('OFF');
+    expect(roomPolicy.effective.roomMessages).toBe('OFF');
 
-    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { followedRooms: null });
-    expect(roomPolicy.overrides.followedRooms).toBeNull();
-    expect(roomPolicy.effective.followedRooms).toBe('PUSH_NOTIFICATION');
+    roomPolicy = await updateScopedNotificationPolicy(page, { roomId }, { roomMessages: null });
+    expect(roomPolicy.overrides.roomMessages).toBeNull();
+    expect(roomPolicy.effective.roomMessages).toBe('PUSH_NOTIFICATION');
 
     await page.goto(routes.settingsNotifications);
     await expect(page.locator(`th[data-notification-scope="roomGroup:${groupId}"]`)).toBeVisible();

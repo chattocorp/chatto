@@ -297,6 +297,7 @@
           "push_notification": "Powiadomienie push"
         },
         "reason": {
+          "room_message": "Wiadomości w pokojach",
           "direct_message": "Wiadomości bezpośrednie",
           "direct_mention": "Bezpośrednie wzmianki",
           "reply": "Odpowiedzi na Twoje wiadomości",
@@ -310,6 +311,7 @@
           "room_invitation": "Zaproszenia do pokoi"
         },
         "reason_hint": {
+          "room_message": "Wiadomości główne publikowane przez innych członków bezpośrednio w pokojach kanałów, a nie w wątkach.",
           "direct_message": "Wiadomości wysyłane przez innych członków w rozmowach bezpośrednich.",
           "direct_mention": "Wiadomości, które bezpośrednio wymieniają Twoją nazwę użytkownika.",
           "reply": "Wiadomości będące odpowiedzią na jedną z Twoich wiadomości.",

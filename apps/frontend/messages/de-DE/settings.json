@@ -297,6 +297,7 @@
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
+          "room_message": "Raumnachrichten",
           "direct_message": "Direktnachrichten",
           "direct_mention": "Direkte Erwähnungen",
           "reply": "Antworten auf deine Nachrichten",
@@ -310,6 +311,7 @@
           "room_invitation": "Raumeinladungen"
         },
         "reason_hint": {
+          "room_message": "Nachrichten, die andere Mitglieder direkt in Kanalräume und nicht in Threads schreiben.",
           "direct_message": "Direktnachrichten, die dir andere Mitglieder senden.",
           "direct_mention": "Nachrichten, in denen dein Benutzername direkt erwähnt wird.",
           "reply": "Nachrichten, die auf eine deiner Nachrichten antworten.",

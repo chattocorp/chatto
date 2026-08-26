@@ -297,6 +297,7 @@
           "push_notification": "Push-varsel"
         },
         "reason": {
+          "room_message": "Rommeldinger",
           "direct_message": "Direktemeldinger",
           "direct_mention": "Direkte omtaler",
           "reply": "Svar på meldingene dine",
@@ -310,6 +311,7 @@
           "room_invitation": "Invitasjoner til rom"
         },
         "reason_hint": {
+          "room_message": "Rotmeldinger som andre medlemmer legger ut direkte i kanalrom, ikke i tråder.",
           "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
           "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
           "reply": "Meldinger som svarer på en av meldingene dine.",

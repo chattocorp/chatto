@@ -157,7 +157,6 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
 
   /**
    * Delivery mode for top-level activity in rooms followed by the viewer.
-   * Servers without room-follow support apply it to all joined channel rooms.
    *
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8;
    */
@@ -167,6 +166,14 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode reactions = 9;
    */
   reactions?: NotificationDeliveryMode;
+
+  /**
+   * Delivery mode for root messages posted directly to joined channel rooms.
+   * Thread messages and direct messages use their own signal classes.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode room_messages = 10;
+   */
+  roomMessages?: NotificationDeliveryMode;
 
   constructor(data?: PartialMessage<NotificationDeliveryModes>) {
     super();
@@ -185,6 +192,7 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
     { no: 7, name: "followed_threads", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 8, name: "followed_rooms", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 9, name: "reactions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 10, name: "room_messages", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationDeliveryModes {
@@ -584,6 +592,45 @@ export class FollowedRoomActivity extends Message<FollowedRoomActivity> {
 }
 
 /**
+ * A root message posted directly to a channel room that the viewer belongs to.
+ *
+ * @generated from message chatto.api.v1.RoomMessageReceived
+ */
+export class RoomMessageReceived extends Message<RoomMessageReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<RoomMessageReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomMessageReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomMessageReceived | PlainMessage<RoomMessageReceived> | undefined, b: RoomMessageReceived | PlainMessage<RoomMessageReceived> | undefined): boolean {
+    return proto3.util.equals(RoomMessageReceived, a, b);
+  }
+}
+
+/**
  * A reaction added to one of the viewer's messages.
  *
  * @generated from message chatto.api.v1.ReactionReceived
@@ -695,6 +742,12 @@ export class NotificationSignal extends Message<NotificationSignal> {
      */
     value: ReactionReceived;
     case: "reactionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.RoomMessageReceived room_message_received = 10;
+     */
+    value: RoomMessageReceived;
+    case: "roomMessageReceived";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<NotificationSignal>) {
@@ -714,6 +767,7 @@ export class NotificationSignal extends Message<NotificationSignal> {
     { no: 7, name: "followed_thread_activity", kind: "message", T: FollowedThreadActivity, oneof: "kind" },
     { no: 8, name: "followed_room_activity", kind: "message", T: FollowedRoomActivity, oneof: "kind" },
     { no: 9, name: "reaction_received", kind: "message", T: ReactionReceived, oneof: "kind" },
+    { no: 10, name: "room_message_received", kind: "message", T: RoomMessageReceived, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationSignal {

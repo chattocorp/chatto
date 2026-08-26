@@ -261,6 +261,7 @@ const (
 	notificationTestSignalFollowedThread notificationTestSignalKind = "followed_thread"
 	notificationTestSignalFollowedRoom   notificationTestSignalKind = "followed_room"
 	notificationTestSignalReaction       notificationTestSignalKind = "reaction"
+	notificationTestSignalRoomMessage    notificationTestSignalKind = "room_message"
 )
 
 func notificationOccurrenceForTest(id, recipientID, actorID, roomID, eventID, threadRootID string, reasons ...notificationTestSignalKind) *corev1.NotificationOccurrence {
@@ -289,6 +290,8 @@ func notificationSignalForTest(kind notificationTestSignalKind, message *corev1.
 		signal.Kind = &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{Message: message}}
 	case notificationTestSignalFollowedThread:
 		signal.Kind = &corev1.NotificationSignal_FollowedThreadActivity{FollowedThreadActivity: &corev1.FollowedThreadActivity{Message: message}}
+	case notificationTestSignalRoomMessage:
+		signal.Kind = &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: message}}
 	default:
 		signal.Kind = &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: message}}
 	}
@@ -477,7 +480,7 @@ func TestBuildPayloadFromOccurrence(t *testing.T) {
 	})
 
 	t.Run("builds room message payload with room name and preview", func(t *testing.T) {
-		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", notificationTestSignalFollowedRoom)
+		notif := notificationOccurrenceForTest("notif-room-message", "", "", "room-news", "room-event", "", notificationTestSignalRoomMessage)
 		ctx := &PayloadContext{MessagePreview: "A watched room has a new message", RoomName: "news"}
 
 		payload := BuildPayloadFromOccurrence(notif, "Eve", baseURL, ctx)

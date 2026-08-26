@@ -224,6 +224,7 @@ func effectiveNotificationDeliveryModesAtScope(server, group, room *corev1.Notif
 		FollowedThreads: resolvedNotificationMode(room.FollowedThreads, group.FollowedThreads, server.FollowedThreads, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
 		FollowedRooms:   resolvedNotificationMode(room.FollowedRooms, group.FollowedRooms, server.FollowedRooms, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF).Enum(),
 		Reactions:       resolvedNotificationMode(room.Reactions, group.Reactions, server.Reactions, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION).Enum(),
+		RoomMessages:    resolvedNotificationMode(room.RoomMessages, group.RoomMessages, server.RoomMessages, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE).Enum(),
 	}
 }
 
@@ -254,6 +255,8 @@ func notificationModeForSignal(modes *corev1.NotificationDeliveryModes, signal *
 		return modes.GetFollowedRooms()
 	case *corev1.NotificationSignal_ReactionReceived:
 		return modes.GetReactions()
+	case *corev1.NotificationSignal_RoomMessageReceived:
+		return modes.GetRoomMessages()
 	default:
 		return corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED
 	}

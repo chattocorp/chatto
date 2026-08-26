@@ -85,7 +85,8 @@ type RoomViewerState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// True when the current user is an effective room member.
 	IsMember bool `protobuf:"varint,1,opt,name=is_member,json=isMember,proto3" json:"is_member,omitempty"`
-	// True when the room has unread root messages for the current user.
+	// True when the room has neutral Badge attention for the current user.
+	// This state is independent of the user's last-read message cursor.
 	HasUnread bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3" json:"has_unread,omitempty"`
 	// Effective room-scoped permission decisions after room state constraints.
 	Permissions []*PermissionGrant `protobuf:"bytes,3,rep,name=permissions,proto3" json:"permissions,omitempty"`

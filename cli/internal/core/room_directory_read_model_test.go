@@ -215,6 +215,12 @@ func TestRoomDirectoryReadModelKeepsActiveDMsWhenMessageReadIsDenied(t *testing.
 			t.Fatalf("DenyUserRoomPermission %s: %v", roomID, err)
 		}
 	}
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(
+		ctx, actor.Id, dmA.Id, notificationTestSignalDirectMessage,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("SetRoomNotificationMode: %v", err)
+	}
 
 	list := func(wantIDs ...string) {
 		t.Helper()

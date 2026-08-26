@@ -297,6 +297,7 @@
           "push_notification": "推播通知"
         },
         "reason": {
+          "room_message": "房間訊息",
           "direct_message": "私訊",
           "direct_mention": "直接提及",
           "reply": "對你訊息的回覆",
@@ -310,6 +311,7 @@
           "room_invitation": "房間邀請"
         },
         "reason_hint": {
+          "room_message": "其他成員直接發佈在頻道房間中的根訊息，不包括討論串中的訊息。",
           "direct_message": "其他成員在私訊對話中傳送的訊息。",
           "direct_mention": "直接提及你的使用者名稱的訊息。",
           "reply": "回覆你某則訊息的訊息。",
