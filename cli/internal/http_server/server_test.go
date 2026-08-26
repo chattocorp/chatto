@@ -1776,6 +1776,120 @@ func TestAuthRoutes_CrossSiteLogoutCannotClearBrowserAuthentication(t *testing.T
 	}
 }
 
+func TestAuthRoutes_StaleBrowserSessionCanLogoutOnlyFromSameOrigin(t *testing.T) {
+	ts, client, chattoCore := setupTestHTTPServerWithHook(t, func(server *HTTPServer) {
+		server.router.Use(server.csrfMiddleware())
+	})
+	ctx := testContext(t)
+	user, err := chattoCore.CreateUser(ctx, core.SystemActorID, "stale-logout", "Stale Logout", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser: %v", err)
+	}
+	body, _ := json.Marshal(map[string]string{"login": user.GetLogin(), "password": "password123"})
+	loginResponse, err := postBrowserAuthentication(client, ts.URL+"/auth/browser/login", body)
+	if err != nil {
+		t.Fatalf("browser login: %v", err)
+	}
+	loginResponse.Body.Close()
+	if loginResponse.StatusCode != http.StatusOK {
+		t.Fatalf("browser login status = %d, want 200", loginResponse.StatusCode)
+	}
+
+	requestURL, err := url.Parse(ts.URL + "/auth/browser/logout")
+	if err != nil {
+		t.Fatalf("Parse logout URL: %v", err)
+	}
+	presentedCookies := client.Jar.Cookies(requestURL)
+	var sessionID, csrfToken string
+	for _, cookie := range presentedCookies {
+		switch cookie.Name {
+		case csrfCookieName:
+			csrfToken = cookie.Value
+		default:
+			if isBrowserSessionCookieName(cookie.Name) {
+				sessionID = cookie.Value
+			}
+		}
+	}
+	if sessionID == "" || csrfToken == "" {
+		t.Fatal("browser login did not establish session and CSRF cookies")
+	}
+
+	// The browser-route proof does not replace the signed CSRF proof while the
+	// cookie still carries valid ambient authority.
+	liveRequest, err := http.NewRequest(http.MethodPost, requestURL.String(), strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest live logout: %v", err)
+	}
+	liveRequest.Header.Set("Content-Type", "application/json")
+	liveRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	liveRequest.Header.Set("Origin", requestURL.Scheme+"://"+requestURL.Host)
+	liveResponse, err := client.Do(liveRequest)
+	if err != nil {
+		t.Fatalf("live logout without CSRF proof: %v", err)
+	}
+	liveResponse.Body.Close()
+	if liveResponse.StatusCode != http.StatusForbidden {
+		t.Fatalf("live logout without CSRF proof status = %d, want 403", liveResponse.StatusCode)
+	}
+	if cookies := liveResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("rejected live logout Set-Cookie = %v, want none", cookies)
+	}
+	if _, err := chattoCore.ValidateCookieCredential(ctx, sessionID); err != nil {
+		t.Fatalf("rejected live logout changed session authority: %v", err)
+	}
+	if err := chattoCore.RevokeCookieSession(ctx, sessionID); err != nil {
+		t.Fatalf("RevokeCookieSession: %v", err)
+	}
+
+	// An invalid session has no remaining authority, but its cookies must not
+	// make the browser logout route vulnerable to cross-site cookie clearing.
+	crossSiteRequest, err := http.NewRequest(http.MethodPost, requestURL.String(), strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest cross-site logout: %v", err)
+	}
+	crossSiteRequest.Header.Set("Content-Type", "application/json")
+	crossSiteRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	crossSiteRequest.Header.Set(csrfHeaderName, csrfToken)
+	crossSiteRequest.Header.Set("Origin", "https://attacker.example")
+	for _, cookie := range presentedCookies {
+		crossSiteRequest.AddCookie(cookie)
+	}
+	crossSiteResponse, err := ts.Client().Do(crossSiteRequest)
+	if err != nil {
+		t.Fatalf("cross-site stale logout: %v", err)
+	}
+	crossSiteResponse.Body.Close()
+	if crossSiteResponse.StatusCode != http.StatusForbidden {
+		t.Fatalf("cross-site stale logout status = %d, want 403", crossSiteResponse.StatusCode)
+	}
+	if cookies := crossSiteResponse.Header.Values("Set-Cookie"); len(cookies) != 0 {
+		t.Fatalf("cross-site stale logout Set-Cookie = %v, want none", cookies)
+	}
+
+	logoutRequest, err := http.NewRequest(http.MethodPost, requestURL.String(), strings.NewReader("{}"))
+	if err != nil {
+		t.Fatalf("NewRequest same-origin stale logout: %v", err)
+	}
+	logoutRequest.Header.Set("Content-Type", "application/json")
+	logoutRequest.Header.Set(connectapi.BrowserAuthenticationModeHeader, connectapi.BrowserAuthenticationModeCookie)
+	logoutRequest.Header.Set("Origin", requestURL.Scheme+"://"+requestURL.Host)
+	logoutResponse, err := client.Do(logoutRequest)
+	if err != nil {
+		t.Fatalf("same-origin stale logout: %v", err)
+	}
+	defer logoutResponse.Body.Close()
+	if logoutResponse.StatusCode != http.StatusOK {
+		responseBody, _ := io.ReadAll(logoutResponse.Body)
+		t.Fatalf("same-origin stale logout status = %d, want 200: %s", logoutResponse.StatusCode, responseBody)
+	}
+	for _, cookie := range client.Jar.Cookies(requestURL) {
+		if isBrowserSessionCookieName(cookie.Name) || cookie.Name == csrfCookieName {
+			t.Fatalf("same-origin stale logout retained cookie %q", cookie.Name)
+		}
+	}
+}
+
 func TestAuthRoutes_LogoutWithBearerTokenRevokesAndAudits(t *testing.T) {
 	ts, client, chattoCore := setupTestHTTPServer(t)
 	ctx := testContext(t)
