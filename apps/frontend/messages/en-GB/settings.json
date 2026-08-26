@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Notification policy",
-        "description": "Choose how strongly each kind of activity should get your attention. Inherit uses the server default.",
+        "description": "Choose how each kind of activity gets your attention at server, room-group, and room scope. Rooms inherit from their group, then the server.",
         "load_failed": "Failed to load notification policy",
         "save_failed": "Failed to save notification policy",
         "effective": "Effective: {mode}",
+        "filter_label": "Filter notification scopes",
+        "filter_placeholder": "Filter groups and rooms…",
+        "no_filter_matches": "No notification scopes match this filter.",
+        "legend": "Notification delivery modes",
+        "cell_aria": "{cause}, {scope}. Override: {override}. Effective: {effective}. Activate to set {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Default: {current}. Activate to set {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Not applicable.",
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
-          "silent": "Silent",
-          "alert": "Alert"
+          "notification": "Notification",
+          "push_notification": "Push notification"
         },
         "reason": {
           "direct_message": "Direct messages",
@@ -299,6 +306,17 @@
           "reaction": "Reactions to your messages",
           "activity": "Activity",
           "room_invitation": "Room invitations"
+        },
+        "reason_hint": {
+          "direct_message": "Messages that other members send in direct-message conversations.",
+          "direct_mention": "Messages that mention your username directly.",
+          "reply": "Messages that reply to one of your messages.",
+          "role_mention": "Messages that mention a role assigned to you.",
+          "here": "Messages that use @here while your presence is not offline.",
+          "all": "Messages that use @all in a room you belong to.",
+          "followed_thread": "New replies in threads that you follow.",
+          "followed_room": "Top-level messages in rooms that you follow.",
+          "reaction": "Reactions that other members add to your messages."
         }
       }
     },

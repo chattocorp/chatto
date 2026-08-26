@@ -1,7 +1,7 @@
 # FDR-006: @Mentions
 
 **Status:** Active
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -66,7 +66,8 @@ the message body.
 ### 6. Direct-mention policy controls delivery
 
 **Decision:** A rendered mention produces an occurrence only when its specific
-mention cause resolves to Silent or Alert for the recipient; Off suppresses it.
+mention cause resolves to Notification or Push notification for the recipient;
+Off suppresses it.
 **Why:** Direct, role, `@here`, and `@all` mentions need independent attention
 policy instead of one coarse room mute. See FDR-012.
 **Tradeoff:** Users can deliberately suppress directed mentions in a room and

@@ -171,6 +171,43 @@ func (d *notificationAlertDelivery) reconcileExpired(ctx context.Context) error 
 	}
 }
 
+// NotificationSoundEligible fences notification materialization and policy,
+// then checks the exact unread occurrence and current target visibility. Local
+// sound remains a best-effort live effect and is not durable delivery work.
+func (c *ChattoCore) NotificationSoundEligible(ctx context.Context, occurrence *corev1.NotificationOccurrence) (bool, error) {
+	if occurrence == nil {
+		return false, nil
+	}
+	if NotificationOccurrenceHasUnsupportedSignal(occurrence) {
+		return false, ErrUnsupportedNotificationSignal
+	}
+	if err := c.notificationMaterializer.WaitCurrent(ctx); err != nil {
+		return false, fmt.Errorf("fence notification materializer before sound: %w", err)
+	}
+	if err := c.waitForCurrentNotificationPolicy(ctx); err != nil {
+		return false, err
+	}
+	current, err := c.notificationOccurrences.deliveryCurrent(ctx, occurrence)
+	if err != nil || current == nil || current.GetRead() {
+		return false, err
+	}
+	if !c.notificationAlertDelivery.currentPolicyAllowsSound(current) {
+		return false, nil
+	}
+	presence, err := c.GetUserPresence(ctx, current.GetRecipientId())
+	if err != nil {
+		return false, fmt.Errorf("read notification recipient presence: %w", err)
+	}
+	if presence == PresenceStatusDoNotDisturb {
+		return false, nil
+	}
+	visible, err := c.notificationOccurrences.VisibleOccurrences(ctx, current.GetRecipientId(), []*corev1.NotificationOccurrence{current})
+	if err != nil {
+		return false, fmt.Errorf("revalidate notification visibility: %w", err)
+	}
+	return len(visible) == 1, nil
+}
+
 // NotificationAlertEligible fences notification materialization and policy,
 // then checks the exact unread occurrence and current target visibility. Push
 // transports call it again immediately before contacting their provider.
@@ -217,5 +254,14 @@ func (d *notificationAlertDelivery) currentPolicyAllowsAlert(occurrence *corev1.
 	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
 		return false
 	}
-	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT
+	return d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal()) == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION
+}
+
+func (d *notificationAlertDelivery) currentPolicyAllowsSound(occurrence *corev1.NotificationOccurrence) bool {
+	message := notificationSignalMessage(occurrence.GetSignal())
+	if message == nil || notificationSignalIdentity(occurrence.GetSignal()) == "" {
+		return false
+	}
+	mode := d.core.GetEffectiveNotificationModeForSignal(occurrence.GetRecipientId(), message.GetRoomId(), occurrence.GetSignal())
+	return notificationModeProducesOccurrence(mode)
 }

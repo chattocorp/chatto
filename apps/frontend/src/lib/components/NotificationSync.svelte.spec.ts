@@ -155,7 +155,7 @@ describe('NotificationSync', () => {
     }
   });
 
-  it('plays a sound for a live non-silent notification creation', async () => {
+  it('plays a sound for an eligible live in-app notification creation', async () => {
     await renderAndWaitForSubscription();
 
     dispatch(true);

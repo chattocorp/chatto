@@ -582,6 +582,9 @@ func TestChattoCore_MentionCreatesNotificationWithoutMentionStatus(t *testing.T)
 	if event.GetAlertCandidateNotificationId() != "" {
 		t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
 	}
+	if event.GetSoundCandidateNotificationId() != "" {
+		t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+	}
 	notifications = testNotificationOccurrences(t, core, mentioned.Id)
 	if len(notifications) != 2 {
 		t.Fatalf("notifications after DND mention = %d, want 2", len(notifications))

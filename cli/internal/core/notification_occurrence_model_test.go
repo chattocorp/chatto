@@ -32,7 +32,7 @@ func TestNotificationOccurrenceLifecycleUsesStreamFacts(t *testing.T) {
 			"R-notification-room",
 			"E-notification-source",
 		),
-		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT,
+		Mode:           corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION,
 		AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	}
@@ -109,7 +109,7 @@ func TestNotificationCreateManyCommitsFanoutAsOneBatch(t *testing.T) {
 		inputs[i] = CreateNotificationOccurrenceInput{
 			RecipientID: recipientID, SourceEventID: "E-batch-source", SourceCreated: now, ActorID: "U-actor",
 			Signal: testNotificationSignal(notificationTestSignalAll, "R-batch", "E-batch-source"),
-			Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+			Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup: true,
 		}
 	}
@@ -163,7 +163,7 @@ func TestNotificationCreateRetryReconcilesExistingOccurrenceWithReadBoundary(t *
 	input := CreateNotificationOccurrenceInput{
 		RecipientID: reader.Id, SourceEventID: posted.GetId(), SourceCreated: posted.GetCreatedAt().AsTime(), ActorID: poster.Id,
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.GetId()),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SourceStreamSequence: entry.StreamSeq, SkipReadLookup: true,
 	}
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, input)
@@ -215,7 +215,7 @@ func TestConcurrentNotificationRemovalCountsOneCommit(t *testing.T) {
 	occurrence, created, err := chattoCore.NotificationOccurrences().Create(ctx, CreateNotificationOccurrenceInput{
 		RecipientID: "U-delete-race", SourceEventID: "E-delete-race", SourceCreated: now, ActorID: "U-actor",
 		Signal: testNotificationSignal(notificationTestSignalDirectMention, "R-delete-race", "E-delete-race"),
-		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
+		Mode:   corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION, AttentionLevel: corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup: true,
 	})
 	if err != nil || !created {

@@ -1,11 +1,14 @@
 # FDR-013: Web Push Notifications
 
 **Status:** Active
-**Last reviewed:** 2026-08-20
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
-Users can opt in to receive notifications through the browser's W3C Web Push system, so Alert-eligible notification activity can reach them even when the Chatto tab is not open. Push is opt-in per device, requires operator configuration (VAPID keys), and piggybacks on the persistent notification system (see FDR-012).
+Users can opt in to receive notifications through the browser's W3C Web Push
+system. Activity with the Push notification mode can reach them when the Chatto
+tab is not open. Push is opt-in for each device, requires operator configuration
+(VAPID keys), and uses the persistent notification system (see FDR-012).
 
 ## Behavior
 
@@ -18,13 +21,13 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 - On iOS/iPadOS, Web Push is available only for Home Screen web apps on supported versions. Chatto treats Web Push as a notification trigger rather than authoritative app state.
 - Stored subscription fields are bounded: endpoint 4,096 bytes, public key 256 bytes, auth secret 128 bytes, user agent 512 bytes, and client host 255 bytes.
 - Push endpoints must be absolute HTTPS URLs without user information or fragments. Delivery bypasses environment proxies, rejects redirects, and blocks private and other special-use network addresses after resolving the hostname immediately before connecting.
-- An account can have up to 16 active subscriptions on each server. Every current subscription is attempted for pushes originating from that server. Once any endpoint accepts an occurrence, Chatto does not retry the whole device set merely because another endpoint failed, avoiding duplicate alerts on healthy devices.
+- An account can have up to 16 active subscriptions on each server. Every current subscription is attempted for pushes originating from that server. Once any endpoint accepts an occurrence, Chatto does not retry the complete device set only because another endpoint failed. This behavior prevents duplicate pushes on healthy devices.
 - Test notifications are limited to one attempt per account every 10 seconds across server replicas. Delivery failures expose neither provider response bodies nor low-level network errors through the public API.
 - Push payloads include a mutable declarative-compatible notification envelope with a title, a message preview truncated to at most 100 Unicode characters including its ellipsis and preferring a nearby word boundary, a navigation URL, and the pending app badge count when available. The legacy root fields remain present so older Chatto service workers can display the same notification during upgrades.
 - User-visible notification pushes request high-urgency delivery so mobile push services can wake sleeping devices promptly.
-- Notification-alert pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
+- Notification pushes set the Web Push provider TTL to the remaining portion of the occurrence's immutable two-minute, source-time delivery window. The remaining TTL is calculated only after a bounded provider-request slot is acquired. Durable-consumer retry, backup restore, or local request contention cannot extend how long private content remains eligible at the provider.
 - Clicking a push notification navigates to the relevant room, thread, or DM.
-- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries, then confirms that the occurrence is still unread and Alert-eligible, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
+- Immediately before a regular push is sent, Chatto waits the sending replica's user and room projections through freshly captured recipient and server-wide room-event boundaries. It then confirms that the occurrence is still unread and has the Push notification mode, its account and membership remain active, its target message and exact reaction still exist, every prepared subscription is still owned by the recipient, and Do Not Disturb is still off. Transient projection or subscription reads fail the attempt for retry instead of being treated as absence or an empty device set. This prevents replica lag or slower asynchronous delivery from overtaking notification mutations, target removal, visibility loss, subscription rotation, or a newly enabled DND state.
 - While Chatto is visible, its notification stores are authoritative for the aggregate app-icon badge. Declarative Web Push supplies the sending server's exact unread-occurrence count while the app is closed or suspended.
 - Clicking or manually dismissing a native notification does not change the occurrence inside Chatto. Attention state changes only through Chatto's read and delete actions or through covered room/thread read state.
 - Expired or invalid subscriptions (browsers report 404/410 on push delivery) are cleaned up automatically.
@@ -42,7 +45,9 @@ Users can opt in to receive notifications through the browser's W3C Web Push sys
 
 ### 1. Piggyback on persistent notifications
 
-**Decision:** A committed notification signal is eligible to produce a push only when its source-time delivery mode is Alert. Delivery-time validation may still suppress it.
+**Decision:** A committed notification signal is eligible to produce a push
+only when its source-time delivery mode is Push notification. Delivery-time
+validation can still suppress it.
 **Why:** Two parallel decision trees would inevitably diverge. One persisted policy decision and occurrence eliminate that bug class. See FDR-012.
 **Tradeoff:** No way to push without also creating an in-app notification. Considered a feature, not a limitation: a push you can't find later in the app would be confusing.
 
@@ -100,7 +105,12 @@ device after the occurrence is triaged until the person dismisses it there.
 
 ### 10. Late delivery and badge ownership
 
-**Decision:** Regular push delivery revalidates the exact unread Alert occurrence, target visibility, and active subscription immediately before sending. The visible app owns its aggregate multi-server badge; Declarative Web Push carries the sending server's exact unread-occurrence count while the app is closed.
+**Decision:** Regular push delivery revalidates the exact unread occurrence
+whose delivery mode is Push notification. It also revalidates target visibility
+and the active subscription immediately before sending. The visible app owns
+its aggregate multi-server badge;
+Declarative Web Push carries the sending server's exact unread-occurrence count
+while the app is closed.
 **Why:** Occurrence materialization and push delivery are asynchronous, so a slower delivery can otherwise overtake read/delete state, target removal, or subscription rotation. Revalidation keeps the push tied to current authoritative state without persisting a separate badge record.
 **Tradeoff:** The server cannot revoke a request after final validation and provider acceptance. Concurrent badge-bearing pushes remain last-delivery-wins until another push or the visible app refreshes the aggregate, and a closed-app count reflects only the server whose push arrived last.
 
@@ -108,11 +118,15 @@ device after the occurrence is triaged until the person dismisses it there.
 
 **Decision:** Notification pushes request high-urgency delivery.
 **Why:** Mobile operating systems may defer normal-urgency Web Push while a
-device is sleeping. Alert activity is user-visible and time-sensitive, so it
+device is sleeping. Push notification activity is user-visible and
+time-sensitive, so it
 should wake the device promptly. Chatto does not send separate dismissal
 pushes; read and delete actions synchronize through normal app state when the client is
 connected or next opens.
-**Tradeoff:** Prompt delivery uses more battery than batched delivery. Restricting push to Alert occurrences keeps that cost aligned with explicit user attention policy, while an already displayed OS notification may remain until the user dismisses it.
+**Tradeoff:** Prompt delivery uses more battery than batched delivery.
+Restricting push to occurrences with the Push notification mode keeps that cost
+aligned with explicit user attention policy. An OS notification that is already
+visible can remain until the user dismisses it.
 
 ### 12. Restricted outbound push delivery
 
@@ -128,9 +142,10 @@ Existing stored endpoints receive the same checks when used. Accounts can keep a
 
 There is no dedicated RBAC permission for Web Push. The OS/browser permission
 and device subscription are the user-facing opt-in gates. Regular delivery also
-requires a currently visible, unread, pending Alert occurrence within its
-deadline, current notification policy and DND eligibility, an existing target,
-and a subscription still owned by the recipient.
+requires a currently visible, unread, pending occurrence whose delivery mode is
+Push notification. The occurrence must be within its deadline and have an
+existing target. Current notification policy and DND state must permit delivery,
+and the recipient must still own the subscription.
 
 ## Related
 

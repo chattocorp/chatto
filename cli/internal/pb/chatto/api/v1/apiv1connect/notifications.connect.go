@@ -23,6 +23,9 @@ const _ = connect.IsAtLeastVersion1_13_0
 const (
 	// NotificationServiceName is the fully-qualified name of the NotificationService service.
 	NotificationServiceName = "chatto.api.v1.NotificationService"
+	// NotificationPolicyServiceName is the fully-qualified name of the NotificationPolicyService
+	// service.
+	NotificationPolicyServiceName = "chatto.api.v1.NotificationPolicyService"
 )
 
 // These constants are the fully-qualified names of the RPCs defined in this package. They're
@@ -60,6 +63,15 @@ const (
 	// NotificationServiceUpdateNotificationPolicyProcedure is the fully-qualified name of the
 	// NotificationService's UpdateNotificationPolicy RPC.
 	NotificationServiceUpdateNotificationPolicyProcedure = "/chatto.api.v1.NotificationService/UpdateNotificationPolicy"
+	// NotificationPolicyServiceGetNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationPolicyService's GetNotificationPolicy RPC.
+	NotificationPolicyServiceGetNotificationPolicyProcedure = "/chatto.api.v1.NotificationPolicyService/GetNotificationPolicy"
+	// NotificationPolicyServiceBatchGetNotificationPoliciesProcedure is the fully-qualified name of the
+	// NotificationPolicyService's BatchGetNotificationPolicies RPC.
+	NotificationPolicyServiceBatchGetNotificationPoliciesProcedure = "/chatto.api.v1.NotificationPolicyService/BatchGetNotificationPolicies"
+	// NotificationPolicyServiceUpdateNotificationPolicyProcedure is the fully-qualified name of the
+	// NotificationPolicyService's UpdateNotificationPolicy RPC.
+	NotificationPolicyServiceUpdateNotificationPolicyProcedure = "/chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy"
 )
 
 // NotificationServiceClient is a client for the chatto.api.v1.NotificationService service.
@@ -416,4 +428,143 @@ func (UnimplementedNotificationServiceHandler) GetNotificationPolicy(context.Con
 
 func (UnimplementedNotificationServiceHandler) UpdateNotificationPolicy(context.Context, *connect.Request[v1.UpdateNotificationPolicyRequest]) (*connect.Response[v1.UpdateNotificationPolicyResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationService.UpdateNotificationPolicy is not implemented"))
+}
+
+// NotificationPolicyServiceClient is a client for the chatto.api.v1.NotificationPolicyService
+// service.
+type NotificationPolicyServiceClient interface {
+	// Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+	// for a missing room group or room, and PERMISSION_DENIED when the viewer is
+	// not a current member of a requested room.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error)
+	// Gets an explicit bounded set of policies. Missing and inaccessible scopes
+	// are omitted, and duplicate scopes are de-duplicated in first-seen order.
+	BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error)
+	// Atomically sets or clears selected overrides at one explicit scope.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error)
+}
+
+// NewNotificationPolicyServiceClient constructs a client for the
+// chatto.api.v1.NotificationPolicyService service. By default, it uses the Connect protocol with
+// the binary Protobuf Codec, asks for gzipped responses, and sends uncompressed requests. To use
+// the gRPC or gRPC-Web protocols, supply the connect.WithGRPC() or connect.WithGRPCWeb() options.
+//
+// The URL supplied here should be the base URL for the Connect or gRPC server (for example,
+// http://api.acme.com or https://acme.com/grpc).
+func NewNotificationPolicyServiceClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) NotificationPolicyServiceClient {
+	baseURL = strings.TrimRight(baseURL, "/")
+	notificationPolicyServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationPolicyService").Methods()
+	return &notificationPolicyServiceClient{
+		getNotificationPolicy: connect.NewClient[v1.NotificationPolicyServiceGetNotificationPolicyRequest, v1.NotificationPolicyServiceGetNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceGetNotificationPolicyProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("GetNotificationPolicy")),
+			connect.WithClientOptions(opts...),
+		),
+		batchGetNotificationPolicies: connect.NewClient[v1.BatchGetNotificationPoliciesRequest, v1.BatchGetNotificationPoliciesResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceBatchGetNotificationPoliciesProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("BatchGetNotificationPolicies")),
+			connect.WithClientOptions(opts...),
+		),
+		updateNotificationPolicy: connect.NewClient[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest, v1.NotificationPolicyServiceUpdateNotificationPolicyResponse](
+			httpClient,
+			baseURL+NotificationPolicyServiceUpdateNotificationPolicyProcedure,
+			connect.WithSchema(notificationPolicyServiceMethods.ByName("UpdateNotificationPolicy")),
+			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithClientOptions(opts...),
+		),
+	}
+}
+
+// notificationPolicyServiceClient implements NotificationPolicyServiceClient.
+type notificationPolicyServiceClient struct {
+	getNotificationPolicy        *connect.Client[v1.NotificationPolicyServiceGetNotificationPolicyRequest, v1.NotificationPolicyServiceGetNotificationPolicyResponse]
+	batchGetNotificationPolicies *connect.Client[v1.BatchGetNotificationPoliciesRequest, v1.BatchGetNotificationPoliciesResponse]
+	updateNotificationPolicy     *connect.Client[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest, v1.NotificationPolicyServiceUpdateNotificationPolicyResponse]
+}
+
+// GetNotificationPolicy calls chatto.api.v1.NotificationPolicyService.GetNotificationPolicy.
+func (c *notificationPolicyServiceClient) GetNotificationPolicy(ctx context.Context, req *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error) {
+	return c.getNotificationPolicy.CallUnary(ctx, req)
+}
+
+// BatchGetNotificationPolicies calls
+// chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies.
+func (c *notificationPolicyServiceClient) BatchGetNotificationPolicies(ctx context.Context, req *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error) {
+	return c.batchGetNotificationPolicies.CallUnary(ctx, req)
+}
+
+// UpdateNotificationPolicy calls chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy.
+func (c *notificationPolicyServiceClient) UpdateNotificationPolicy(ctx context.Context, req *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error) {
+	return c.updateNotificationPolicy.CallUnary(ctx, req)
+}
+
+// NotificationPolicyServiceHandler is an implementation of the
+// chatto.api.v1.NotificationPolicyService service.
+type NotificationPolicyServiceHandler interface {
+	// Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+	// for a missing room group or room, and PERMISSION_DENIED when the viewer is
+	// not a current member of a requested room.
+	GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error)
+	// Gets an explicit bounded set of policies. Missing and inaccessible scopes
+	// are omitted, and duplicate scopes are de-duplicated in first-seen order.
+	BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error)
+	// Atomically sets or clears selected overrides at one explicit scope.
+	UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error)
+}
+
+// NewNotificationPolicyServiceHandler builds an HTTP handler from the service implementation. It
+// returns the path on which to mount the handler and the handler itself.
+//
+// By default, handlers support the Connect, gRPC, and gRPC-Web protocols with the binary Protobuf
+// and JSON codecs. They also support gzip compression.
+func NewNotificationPolicyServiceHandler(svc NotificationPolicyServiceHandler, opts ...connect.HandlerOption) (string, http.Handler) {
+	notificationPolicyServiceMethods := v1.File_chatto_api_v1_notifications_proto.Services().ByName("NotificationPolicyService").Methods()
+	notificationPolicyServiceGetNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceGetNotificationPolicyProcedure,
+		svc.GetNotificationPolicy,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("GetNotificationPolicy")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationPolicyServiceBatchGetNotificationPoliciesHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceBatchGetNotificationPoliciesProcedure,
+		svc.BatchGetNotificationPolicies,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("BatchGetNotificationPolicies")),
+		connect.WithHandlerOptions(opts...),
+	)
+	notificationPolicyServiceUpdateNotificationPolicyHandler := connect.NewUnaryHandler(
+		NotificationPolicyServiceUpdateNotificationPolicyProcedure,
+		svc.UpdateNotificationPolicy,
+		connect.WithSchema(notificationPolicyServiceMethods.ByName("UpdateNotificationPolicy")),
+		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithHandlerOptions(opts...),
+	)
+	return "/chatto.api.v1.NotificationPolicyService/", http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case NotificationPolicyServiceGetNotificationPolicyProcedure:
+			notificationPolicyServiceGetNotificationPolicyHandler.ServeHTTP(w, r)
+		case NotificationPolicyServiceBatchGetNotificationPoliciesProcedure:
+			notificationPolicyServiceBatchGetNotificationPoliciesHandler.ServeHTTP(w, r)
+		case NotificationPolicyServiceUpdateNotificationPolicyProcedure:
+			notificationPolicyServiceUpdateNotificationPolicyHandler.ServeHTTP(w, r)
+		default:
+			http.NotFound(w, r)
+		}
+	})
+}
+
+// UnimplementedNotificationPolicyServiceHandler returns CodeUnimplemented from all methods.
+type UnimplementedNotificationPolicyServiceHandler struct{}
+
+func (UnimplementedNotificationPolicyServiceHandler) GetNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceGetNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceGetNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.GetNotificationPolicy is not implemented"))
+}
+
+func (UnimplementedNotificationPolicyServiceHandler) BatchGetNotificationPolicies(context.Context, *connect.Request[v1.BatchGetNotificationPoliciesRequest]) (*connect.Response[v1.BatchGetNotificationPoliciesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies is not implemented"))
+}
+
+func (UnimplementedNotificationPolicyServiceHandler) UpdateNotificationPolicy(context.Context, *connect.Request[v1.NotificationPolicyServiceUpdateNotificationPolicyRequest]) (*connect.Response[v1.NotificationPolicyServiceUpdateNotificationPolicyResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy is not implemented"))
 }

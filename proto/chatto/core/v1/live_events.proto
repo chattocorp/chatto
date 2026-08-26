@@ -144,9 +144,13 @@ message PresenceChangedEvent {
 
 // User-scoped invalidation for Notifications 2.0 authoritative replacement.
 message NotificationOccurrencesInvalidatedEvent {
-  // Candidate occurrence for a one-shot local alert. Absence means the
-  // invalidation only refreshes authoritative notification state.
+  // Legacy candidate for a one-shot local sound on a push-eligible
+  // occurrence. Consumers must still validate the candidate against the
+  // current occurrence and policy. Retained for rolling compatibility.
   optional string alert_candidate_notification_id = 1;
+  // Candidate occurrence for one-shot in-app sound. New publishers set this
+  // for both in-app and push-notification modes. Older consumers ignore it.
+  optional string sound_candidate_notification_id = 2;
 }
 
 // ============================================================================

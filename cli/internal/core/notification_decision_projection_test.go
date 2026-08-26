@@ -59,7 +59,7 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
 		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
 		{Id: "silent", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
-			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+			UserId: userID, RoomId: &roomScope, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 		}}},
 		{Id: "source", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
 		{Id: "off", Event: &corev1.Event_UserNotificationPolicyChanged{UserNotificationPolicyChanged: &corev1.UserNotificationPolicyChangedEvent{
@@ -78,8 +78,8 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 		t.Fatalf("Boundary source: %v", err)
 	}
 	directMentionSignal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
-	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
-		t.Fatalf("source policy = %v, want SILENT", got)
+	if got := atSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+		t.Fatalf("source policy = %v, want IN_APP_NOTIFICATION", got)
 	}
 	atLaterSource, err := p.Boundary(7, time.Now())
 	if err != nil {
@@ -87,6 +87,57 @@ func TestNotificationDecisionBoundaryRetainsEventTimePolicy(t *testing.T) {
 	}
 	if got := atLaterSource.effectiveNotificationMode(userID, roomID, directMentionSignal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
 		t.Fatalf("later source policy = %v, want OFF", got)
+	}
+}
+
+func TestNotificationDecisionBoundaryUsesRoomGroupAtSourceSequence(t *testing.T) {
+	p := NewNotificationDecisionProjection()
+	const (
+		roomID = "R1"
+		userID = "U1"
+		groupA = "G1"
+		groupB = "G2"
+	)
+	events := []*corev1.Event{
+		{Id: "user", Event: &corev1.Event_UserAccountCreated{UserAccountCreated: &corev1.UserAccountCreatedEvent{UserId: userID}}},
+		{Id: "room", Event: &corev1.Event_RoomCreated{RoomCreated: &corev1.RoomCreatedEvent{RoomId: roomID, Kind: corev1.RoomKind_ROOM_KIND_CHANNEL}}},
+		{Id: "join", ActorId: userID, Event: &corev1.Event_UserJoinedRoom{UserJoinedRoom: &corev1.UserJoinedRoomEvent{RoomId: roomID}}},
+		{Id: "group-a", Event: &corev1.Event_RoomGroupCreated{RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: groupA, Name: "A"}}},
+		{Id: "group-b", Event: &corev1.Event_RoomGroupCreated{RoomGroupCreated: &corev1.RoomGroupCreatedEvent{GroupId: groupB, Name: "B"}}},
+		roomAddedToGroupEvent(groupA, roomID),
+		{Id: "group-a-off", Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
+			UserId: userID, RoomGroupId: groupA, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
+		}}},
+		{Id: "group-b-alert", Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
+			UserId: userID, RoomGroupId: groupB, Overrides: &corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
+		}}},
+		{Id: "source-a", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+		roomRemovedFromGroupEvent(groupA, roomID),
+		roomAddedToGroupEvent(groupB, roomID),
+		{Id: "source-b", ActorId: "U2", Event: &corev1.Event_MessagePosted{MessagePosted: &corev1.MessagePostedEvent{RoomId: roomID}}},
+	}
+	for index, event := range events {
+		if event.Id == "" {
+			event.Id = fmt.Sprintf("layout-%d", index)
+		}
+		if err := p.Apply(event, uint64(index+1)); err != nil {
+			t.Fatalf("Apply sequence %d: %v", index+1, err)
+		}
+	}
+	signal := testNotificationSignal(notificationTestSignalDirectMention, roomID, "source")
+	atA, err := p.Boundary(9, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary group A source: %v", err)
+	}
+	if got := atA.effectiveNotificationMode(userID, roomID, signal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF {
+		t.Fatalf("group A source mode = %v, want OFF", got)
+	}
+	atB, err := p.Boundary(12, time.Now())
+	if err != nil {
+		t.Fatalf("Boundary group B source: %v", err)
+	}
+	if got := atB.effectiveNotificationMode(userID, roomID, signal); got != corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
+		t.Fatalf("group B source mode = %v, want PUSH_NOTIFICATION", got)
 	}
 }
 
@@ -132,7 +183,7 @@ func TestNotificationOccurrenceInputRetainsRoleMentionNames(t *testing.T) {
 		signal: &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoleMentionReceived{RoleMentionReceived: &corev1.RoleMentionReceived{
 			Message: message, RoleNames: []string{"moderator", "staff"},
 		}}},
-		mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+		mode: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 	}})
 	if len(inputs) != 1 {
 		t.Fatalf("inputs = %d, want 1", len(inputs))

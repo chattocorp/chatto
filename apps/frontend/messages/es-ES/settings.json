@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Política de notificaciones",
-        "description": "Elige cuánta atención debe recibir cada tipo de actividad. Heredar usa el valor predeterminado del servidor.",
+        "description": "Elige cómo te avisa cada actividad en el servidor, grupo de salas y sala. Las salas heredan de su grupo y después del servidor.",
         "load_failed": "No se pudo cargar la política de notificaciones",
         "save_failed": "No se pudo guardar la política de notificaciones",
         "effective": "Efectivo: {mode}",
+        "filter_label": "Filtrar ámbitos de notificación",
+        "filter_placeholder": "Filtrar grupos y salas…",
+        "no_filter_matches": "Ningún ámbito de notificación coincide con este filtro.",
+        "legend": "Modos de entrega de notificaciones",
+        "cell_aria": "{cause}, {scope}. Anulación: {override}. Efectivo: {effective}. Activa para establecer {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Predeterminado: {current}. Activa para establecer {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. No se aplica.",
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",
-          "silent": "Silencioso",
-          "alert": "Alerta"
+          "notification": "Notificación",
+          "push_notification": "Notificación push"
         },
         "reason": {
           "direct_message": "Mensajes directos",
@@ -299,6 +306,17 @@
           "reaction": "Reacciones a tus mensajes",
           "activity": "Actividad",
           "room_invitation": "Invitaciones a salas"
+        },
+        "reason_hint": {
+          "direct_message": "Mensajes que otros miembros envían en conversaciones de mensajes directos.",
+          "direct_mention": "Mensajes que mencionan directamente tu nombre de usuario.",
+          "reply": "Mensajes que responden a uno de tus mensajes.",
+          "role_mention": "Mensajes que mencionan un rol que tienes asignado.",
+          "here": "Mensajes que usan @here cuando tu presencia no figura como desconectada.",
+          "all": "Mensajes que usan @all en una sala a la que perteneces.",
+          "followed_thread": "Nuevas respuestas en hilos que sigues.",
+          "followed_room": "Mensajes principales en salas que sigues.",
+          "reaction": "Reacciones que otros miembros añaden a tus mensajes."
         }
       }
     },

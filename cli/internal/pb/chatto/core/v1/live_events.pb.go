@@ -605,9 +605,13 @@ func (x *PresenceChangedEvent) GetStatus() string {
 // User-scoped invalidation for Notifications 2.0 authoritative replacement.
 type NotificationOccurrencesInvalidatedEvent struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Candidate occurrence for a one-shot local alert. Absence means the
-	// invalidation only refreshes authoritative notification state.
+	// Legacy candidate for a one-shot local sound on a push-eligible
+	// occurrence. Consumers must still validate the candidate against the
+	// current occurrence and policy. Retained for rolling compatibility.
 	AlertCandidateNotificationId *string `protobuf:"bytes,1,opt,name=alert_candidate_notification_id,json=alertCandidateNotificationId,proto3,oneof" json:"alert_candidate_notification_id,omitempty"`
+	// Candidate occurrence for one-shot in-app sound. New publishers set this
+	// for both in-app and push-notification modes. Older consumers ignore it.
+	SoundCandidateNotificationId *string `protobuf:"bytes,2,opt,name=sound_candidate_notification_id,json=soundCandidateNotificationId,proto3,oneof" json:"sound_candidate_notification_id,omitempty"`
 	unknownFields                protoimpl.UnknownFields
 	sizeCache                    protoimpl.SizeCache
 }
@@ -645,6 +649,13 @@ func (*NotificationOccurrencesInvalidatedEvent) Descriptor() ([]byte, []int) {
 func (x *NotificationOccurrencesInvalidatedEvent) GetAlertCandidateNotificationId() string {
 	if x != nil && x.AlertCandidateNotificationId != nil {
 		return *x.AlertCandidateNotificationId
+	}
+	return ""
+}
+
+func (x *NotificationOccurrencesInvalidatedEvent) GetSoundCandidateNotificationId() string {
+	if x != nil && x.SoundCandidateNotificationId != nil {
+		return *x.SoundCandidateNotificationId
 	}
 	return ""
 }
@@ -942,10 +953,12 @@ const file_chatto_core_v1_live_events_proto_rawDesc = "" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tH\x00R\x11threadRootEventId\x88\x01\x01B\x17\n" +
 	"\x15_thread_root_event_idJ\x04\b\x01\x10\x02R\bspace_id\".\n" +
 	"\x14PresenceChangedEvent\x12\x16\n" +
-	"\x06status\x18\x01 \x01(\tR\x06status\"\x99\x01\n" +
+	"\x06status\x18\x01 \x01(\tR\x06status\"\x89\x02\n" +
 	"'NotificationOccurrencesInvalidatedEvent\x12J\n" +
-	"\x1falert_candidate_notification_id\x18\x01 \x01(\tH\x00R\x1calertCandidateNotificationId\x88\x01\x01B\"\n" +
-	" _alert_candidate_notification_id\"\x97\x01\n" +
+	"\x1falert_candidate_notification_id\x18\x01 \x01(\tH\x00R\x1calertCandidateNotificationId\x88\x01\x01\x12J\n" +
+	"\x1fsound_candidate_notification_id\x18\x02 \x01(\tH\x01R\x1csoundCandidateNotificationId\x88\x01\x01B\"\n" +
+	" _alert_candidate_notification_idB\"\n" +
+	" _sound_candidate_notification_id\"\x97\x01\n" +
 	"\x18ThreadFollowChangedEvent\x12\x17\n" +
 	"\aroom_id\x18\x02 \x01(\tR\x06roomId\x12/\n" +
 	"\x14thread_root_event_id\x18\x03 \x01(\tR\x11threadRootEventId\x12!\n" +

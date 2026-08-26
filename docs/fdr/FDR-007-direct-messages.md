@@ -1,7 +1,7 @@
 # FDR-007: Direct Messages
 
 **Status:** Active
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -83,7 +83,8 @@ conversation. The notification page may combine exact DM occurrences from all
 authenticated servers, but it is an attention list rather than a cross-server
 conversation browser. Each incoming DM is one exact occurrence; the client may
 group a conversation into one row while its badge still counts every unread
-message. Self-DMs do not notify their author, and ordinary DMs default to Alert.
+message. Self-DMs do not notify their author, and ordinary DMs default to Push
+notification.
 
 ### 6. Moderation deny-list inside DMs
 

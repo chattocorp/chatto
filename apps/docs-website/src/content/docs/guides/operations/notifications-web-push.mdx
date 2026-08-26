@@ -36,16 +36,24 @@ Related activity is grouped by DM, room, thread, or reacted-to message. Opening 
 
 ## Notification Policy
 
-Members control each notification cause independently at server level and, where useful, per room:
+Members use a matrix to control each notification cause at server, room-group, and room scope. The rows contain the nine notification causes. The columns contain the server, visible room groups and their current-member channel rooms, and current-member direct-message rooms.
 
-| Intensity | Effect |
-| --------- | ------ |
-| Inherit | Use the next broader server or product default. |
+| Mode | Effect |
+| ---- | ------ |
+| Inherit | Use the next broader room-group or server setting. |
 | Off | Do not create a notification for this cause. |
-| Silent | Add it to the notification list and unread counts without sound or Web Push. |
-| Alert | Add it to the notification list and allow sound and Web Push. |
+| Notification | Add an in-app notification. The configured in-app sound can play, but Chatto does not send push. |
+| Push notification | Add the same in-app notification and make it eligible for Web Push or native delivery. |
 
-Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` alert by default. Followed threads and reactions are Silent by default; followed rooms are Off until enabled. A message that matches several causes creates one exact notification per cause, so each keeps its own policy and triage identity; the client may still consolidate related activity for display. Notification policy affects future activity and does not hide ordinary unread room state.
+Direct messages, direct mentions, replies, role mentions, `@here`, and `@all` use Push notification by default. Followed threads and reactions use Notification by default; followed rooms are Off until enabled. A message that matches several causes creates one exact notification per cause, so each keeps its own policy and triage identity; the client may still consolidate related activity for display. Notification policy affects future activity and does not hide ordinary unread room state.
+
+The server column always shows a concrete setting. If you have not configured a server preference, the matrix shows the product default at full intensity. Select a server cell to cycle through Off, Notification, and Push notification.
+
+Room-group and room cells cycle through Inherit, Off, Notification, Push notification, and back to Inherit. A grey crossed bell means Off. An orange bell means Notification. An orange phone means Push notification. An inherited value uses the same icon at reduced intensity.
+
+Channel rooms inherit from their current room group, then from the server. Direct-message rooms inherit directly from the server. A room move changes the policy for future activity only. It does not change earlier notification decisions.
+
+Use the matrix filter to find a group or room. A room match keeps its parent group visible. A group match keeps all of its current-member room columns visible. The server column always remains in the matrix.
 
 ## Do Not Disturb
 
@@ -126,6 +134,7 @@ On iOS and iPadOS, Web Push works only for supported Home Screen web apps. Safar
   <LinkCard title="Environment Variables" href="/reference/environment-variables/#push-notifications" description="Full Web Push configuration reference." />
   <LinkCard title="Security & Privacy" href="/guides/operations/security/" description="Session, CORS, WebSocket, and runtime-state security details." />
   <LinkCard title="Notification APIs" href="/reference/connectrpc-api/notifications/" description="Public ConnectRPC notification service reference." />
+  <LinkCard title="Notification Policy APIs" href="/reference/connectrpc-api/notification-policies/" description="Scoped server, room-group, and room policy service reference." />
   <LinkCard title="Push Notification APIs" href="/reference/connectrpc-api/push-notifications/" description="Authenticated Web Push subscription service reference." />
   <LinkCard title="Push Subscription Cleanup API" href="/reference/connectrpc-api/push-subscription-cleanup/" description="Capability-authenticated cleanup service reference." />
 </CardGrid>

@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Política de notificações",
-        "description": "Escolha quanta atenção cada tipo de atividade deve receber. Herdar usa o padrão do servidor.",
+        "description": "Escolha como cada atividade avisa você no servidor, grupo de salas e sala. As salas herdam do grupo e depois do servidor.",
         "load_failed": "Não foi possível carregar a política de notificações",
         "save_failed": "Não foi possível salvar a política de notificações",
         "effective": "Efetivo: {mode}",
+        "filter_label": "Filtrar escopos de notificação",
+        "filter_placeholder": "Filtrar grupos e salas…",
+        "no_filter_matches": "Nenhum escopo de notificação corresponde a este filtro.",
+        "legend": "Modos de entrega de notificações",
+        "cell_aria": "{cause}, {scope}. Substituição: {override}. Efetivo: {effective}. Ative para definir {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Padrão: {current}. Ative para definir {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Não se aplica.",
         "delivery_mode": {
           "inherit": "Herdar",
           "off": "Desativado",
-          "silent": "Silencioso",
-          "alert": "Alerta"
+          "notification": "Notificação",
+          "push_notification": "Notificação push"
         },
         "reason": {
           "direct_message": "Mensagens diretas",
@@ -299,6 +306,17 @@
           "reaction": "Reações às suas mensagens",
           "activity": "Atividade",
           "room_invitation": "Convites para salas"
+        },
+        "reason_hint": {
+          "direct_message": "Mensagens que outros membros enviam em conversas de mensagens diretas.",
+          "direct_mention": "Mensagens que mencionam diretamente seu nome de usuário.",
+          "reply": "Mensagens que respondem a uma das suas mensagens.",
+          "role_mention": "Mensagens que mencionam um cargo atribuído a você.",
+          "here": "Mensagens que usam @here quando sua presença não está offline.",
+          "all": "Mensagens que usam @all em uma sala da qual você participa.",
+          "followed_thread": "Novas respostas nos tópicos que você segue.",
+          "followed_room": "Mensagens fora de tópicos nas salas que você segue.",
+          "reaction": "Reações que outros membros adicionam às suas mensagens."
         }
       }
     },

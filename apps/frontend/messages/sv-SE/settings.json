@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Aviseringspolicy",
-        "description": "Välj hur mycket uppmärksamhet varje typ av aktivitet ska få. Ärv använder serverns standard.",
+        "description": "Välj hur varje aktivitet meddelar dig på server-, rumsgrupps- och rumsnivå. Rum ärver från sin grupp och därefter från servern.",
         "load_failed": "Det gick inte att läsa in aviseringspolicyn",
         "save_failed": "Det gick inte att spara aviseringspolicyn",
         "effective": "Gäller: {mode}",
+        "filter_label": "Filtrera aviseringsomfattningar",
+        "filter_placeholder": "Filtrera grupper och rum…",
+        "no_filter_matches": "Inga aviseringsomfattningar matchar filtret.",
+        "legend": "Leveranslägen för aviseringar",
+        "cell_aria": "{cause}, {scope}. Åsidosättning: {override}. Gäller: {effective}. Aktivera för att ange {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktivera för att ange {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Inte tillämpligt.",
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
-          "silent": "Tyst",
-          "alert": "Avisering"
+          "notification": "Avisering",
+          "push_notification": "Pushavisering"
         },
         "reason": {
           "direct_message": "Direktmeddelanden",
@@ -299,6 +306,17 @@
           "reaction": "Reaktioner på dina meddelanden",
           "activity": "Aktivitet",
           "room_invitation": "Inbjudningar till rum"
+        },
+        "reason_hint": {
+          "direct_message": "Meddelanden som andra medlemmar skickar i direktmeddelandekonversationer.",
+          "direct_mention": "Meddelanden som nämner ditt användarnamn direkt.",
+          "reply": "Meddelanden som svarar på ett av dina meddelanden.",
+          "role_mention": "Meddelanden som nämner en roll som du har tilldelats.",
+          "here": "Meddelanden som använder @here när din närvaro inte är offline.",
+          "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
+          "followed_thread": "Nya svar i trådar som du följer.",
+          "followed_room": "Meddelanden utanför trådar i rum som du följer.",
+          "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden."
         }
       }
     },

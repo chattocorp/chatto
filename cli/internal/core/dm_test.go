@@ -952,6 +952,9 @@ func TestDMNotifications(t *testing.T) {
 		if event.GetAlertCandidateNotificationId() != "" {
 			t.Fatal("NotificationOccurrencesInvalidatedEvent has an alert candidate during DND")
 		}
+		if event.GetSoundCandidateNotificationId() != "" {
+			t.Fatal("NotificationOccurrencesInvalidatedEvent has a sound candidate during DND")
+		}
 		after := testNotificationOccurrences(t, core, user2.Id)
 		if len(after) != len(before)+1 {
 			t.Fatalf("notifications after DND DM = %d, want %d", len(after), len(before)+1)

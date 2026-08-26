@@ -441,7 +441,7 @@ func (m *NotificationOccurrenceModel) createMany(ctx context.Context, inputs []C
 		}
 
 		var alertExpiresAt *timestamppb.Timestamp
-		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT {
+		if input.Mode == corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION {
 			alertExpiresAt = timestamppb.New(input.SourceCreated.UTC().Add(notificationAlertDeliveryTTL))
 		}
 		occurrence := &corev1.NotificationOccurrence{
@@ -1027,21 +1027,30 @@ func (m *NotificationOccurrenceModel) removeMatching(ctx context.Context, match 
 	return m.deleteOccurrences(ctx, matches)
 }
 
-func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
+func (m *NotificationOccurrenceModel) deliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (*corev1.NotificationOccurrence, error) {
 	if expected == nil {
-		return false, nil
+		return nil, nil
 	}
 	if err := m.projection.Projector().WaitForCurrent(ctx); err != nil {
-		return false, err
+		return nil, err
 	}
 	current, err := m.Get(ctx, expected.GetRecipientId(), expected.GetId())
 	if errors.Is(err, ErrNotFound) {
-		return false, nil
+		return nil, nil
 	}
 	if err != nil {
-		return false, err
+		return nil, err
 	}
-	return current.GetSourceEventId() == expected.GetSourceEventId() && NotificationAlertPending(current), nil
+	if current.GetSourceEventId() != expected.GetSourceEventId() {
+		return nil, nil
+	}
+	return current, nil
+
+}
+
+func (m *NotificationOccurrenceModel) alertDeliveryCurrent(ctx context.Context, expected *corev1.NotificationOccurrence) (bool, error) {
+	current, err := m.deliveryCurrent(ctx, expected)
+	return NotificationAlertPending(current), err
 }
 
 // NotificationAlertPending reports whether an occurrence still has unresolved

@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "通知政策",
-        "description": "選擇各類動態提醒你的程度。繼承將使用伺服器預設值。",
+        "description": "選擇每類動態在伺服器、房間群組和房間範圍內的提醒方式。房間會先繼承其群組設定，再繼承伺服器設定。",
         "load_failed": "無法載入通知政策",
         "save_failed": "無法儲存通知政策",
         "effective": "目前生效：{mode}",
+        "filter_label": "篩選通知範圍",
+        "filter_placeholder": "篩選房間群組和房間…",
+        "no_filter_matches": "沒有通知範圍符合此篩選條件。",
+        "legend": "通知傳送模式",
+        "cell_aria": "{cause}，{scope}。覆寫：{override}。目前生效：{effective}。啟用以設定為{next}。",
+        "server_default_cell_aria": "{cause}，{scope}。預設：{current}。啟用以設定為{next}。",
+        "not_applicable_cell_aria": "{cause}，{scope}。不適用。",
         "delivery_mode": {
           "inherit": "繼承",
           "off": "關閉",
-          "silent": "靜默",
-          "alert": "提醒"
+          "notification": "通知",
+          "push_notification": "推播通知"
         },
         "reason": {
           "direct_message": "私訊",
@@ -299,6 +306,17 @@
           "reaction": "對你訊息的回應",
           "activity": "動態",
           "room_invitation": "房間邀請"
+        },
+        "reason_hint": {
+          "direct_message": "其他成員在私訊對話中傳送的訊息。",
+          "direct_mention": "直接提及你的使用者名稱的訊息。",
+          "reply": "回覆你某則訊息的訊息。",
+          "role_mention": "提及已指派給你的身分組的訊息。",
+          "here": "當你的上線狀態不是離線時使用 @here 的訊息。",
+          "all": "在你已加入的房間中使用 @all 的訊息。",
+          "followed_thread": "你所關注討論串中的新回覆。",
+          "followed_room": "你所關注房間中不屬於討論串的訊息。",
+          "reaction": "其他成員新增到你訊息上的回應。"
         }
       }
     },

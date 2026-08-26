@@ -63,7 +63,7 @@ func TestUnknownPersistedDeliveryModeFailsClosedWithoutStallingMaterializer(t *t
 	}
 
 	if _, err := chattoCore.NotificationPolicy().UpdateNotificationPolicy(ctx, recipient.Id, "",
-		&corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+		&corev1.NotificationDeliveryModes{DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 		&fieldmaskpb.FieldMask{Paths: []string{"direct_mentions"}},
 	); err != nil {
 		t.Fatalf("replace future policy mode: %v", err)
@@ -99,7 +99,7 @@ func TestMessageMentionFactsRecomputeAfterOCCConflict(t *testing.T) {
 	if _, err := chattoCore.JoinRoom(ctx, author.Id, KindChannel, author.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom author: %v", err)
 	}
-	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, notificationTestSignalAll, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetServerNotificationMode(ctx, lateMember.Id, notificationTestSignalAll, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatalf("SetServerNotificationMode: %v", err)
 	}
 
@@ -158,7 +158,7 @@ func TestOneSourceFactProducesIndependentSignalsPerCause(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT); err != nil {
+	if _, err := chattoCore.NotificationPolicy().SetRoomNotificationMode(ctx, recipient.Id, room.Id, notificationTestSignalFollowedRoom, corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION); err != nil {
 		t.Fatal(err)
 	}
 	posted, err := chattoCore.PostMessage(ctx, KindChannel, room.Id, author.Id, "@signal-recipient two causes", nil, "", "", nil, false)

@@ -1623,16 +1623,16 @@ func TestNotificationServiceOccurrenceLifecycle(t *testing.T) {
 
 	policy, err := env.notifications.UpdateNotificationPolicy(ctx, connect.NewRequest(&apiv1.UpdateNotificationPolicyRequest{
 		Overrides: &apiv1.NotificationDeliveryModes{
-			DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum(),
+			DirectMentions: apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum(),
 		},
 		UpdateMask: &fieldmaskpb.FieldMask{Paths: []string{"direct_mentions"}},
 	}))
 	if err != nil {
 		t.Fatalf("UpdateNotificationPolicy: %v", err)
 	}
-	if policy.Msg.GetPolicy().GetOverrides().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT ||
-		policy.Msg.GetPolicy().GetEffective().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT {
-		t.Fatalf("notification policy = %+v, want direct mention Silent", policy.Msg.GetPolicy())
+	if policy.Msg.GetPolicy().GetOverrides().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION ||
+		policy.Msg.GetPolicy().GetEffective().GetDirectMentions() != apiv1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION {
+		t.Fatalf("notification policy = %+v, want direct mention IN_APP_NOTIFICATION", policy.Msg.GetPolicy())
 	}
 }
 
@@ -1704,7 +1704,7 @@ func TestNotificationServiceRejectsRetractedTargetsBeforeCleanup(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, dm.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
@@ -1838,7 +1838,7 @@ func TestNotificationServiceDeleteRejectsOccurrenceAfterAccessLoss(t *testing.T)
 		SourceStreamSequence: sequence,
 		ActorID:              actor.Id,
 		Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+		Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 		AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 		SkipReadLookup:       true,
 	}
@@ -1897,7 +1897,7 @@ func TestNotificationServiceVisibilityFilteringFillsOffsetPages(t *testing.T) {
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})
@@ -1952,7 +1952,7 @@ func TestNotificationServiceSummaryExcludesImplicitMembershipLossOutsidePage(t *
 			SourceStreamSequence: sequence,
 			ActorID:              actor.Id,
 			Signal:               testNotificationSignal(notificationTestSignalDirectMention, room.Id, posted.Id),
-			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT,
+			Mode:                 corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION,
 			AttentionLevel:       corev1.NotificationAttentionLevel_NOTIFICATION_ATTENTION_LEVEL_IMPORTANT,
 			SkipReadLookup:       true,
 		})

@@ -2460,6 +2460,114 @@ Result of removing a room ban.
 | `unbanned` | `bool` | True when the unban operation completed. |
 
 
+<a id="chatto-api-v1-NotificationPolicyService"></a>
+
+## NotificationPolicyService
+
+Reads and updates the authenticated viewer's server, room-group, and room
+notification delivery policies.
+
+<a id="chatto-api-v1-NotificationPolicyService-GetNotificationPolicy"></a>
+
+### GetNotificationPolicy
+
+Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+for a missing room group or room, and PERMISSION_DENIED when the viewer is
+not a current member of a requested room.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/GetNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceGetNotificationPolicyRequest
+
+Request one notification policy for the authenticated viewer.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceGetNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceGetNotificationPolicyResponse
+
+One resolved notification policy.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Requested policy and its explicit scope. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-BatchGetNotificationPolicies"></a>
+
+### BatchGetNotificationPolicies
+
+Gets an explicit bounded set of policies. Missing and inaccessible scopes
+are omitted, and duplicate scopes are de-duplicated in first-seen order.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/BatchGetNotificationPolicies
+```
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesRequest"></a>
+
+#### Input: BatchGetNotificationPoliciesRequest
+
+Request an explicit bounded set of notification policies.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scopes` | repeated [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required scopes. Missing or inaccessible scopes are omitted. Repeated scopes are de-duplicated in first-seen request order. |
+
+
+<a id="chatto-api-v1-BatchGetNotificationPoliciesResponse"></a>
+
+#### Result: BatchGetNotificationPoliciesResponse
+
+Resolved notification policies requested by scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policies` | repeated [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Found policies in first-seen request order. |
+
+
+<a id="chatto-api-v1-NotificationPolicyService-UpdateNotificationPolicy"></a>
+
+### UpdateNotificationPolicy
+
+Atomically sets or clears selected overrides at one explicit scope.
+
+```http
+POST /api/connect/chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy
+```
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyRequest"></a>
+
+#### Input: NotificationPolicyServiceUpdateNotificationPolicyRequest
+
+Sparsely update notification policy overrides at one explicit scope.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Required policy scope. |
+| `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Sparse override values. Fields selected by update_mask but absent here are cleared to Inherit. |
+| `update_mask` | `google.protobuf.FieldMask` | Fields to set or clear, relative to overrides. The mask must contain at least one supported delivery-mode field. |
+
+
+<a id="chatto-api-v1-NotificationPolicyServiceUpdateNotificationPolicyResponse"></a>
+
+#### Result: NotificationPolicyServiceUpdateNotificationPolicyResponse
+
+Complete supported notification policy after a scoped sparse update.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `policy` | [`ScopedNotificationPolicy`](#chatto-api-v1-ScopedNotificationPolicy) | Updated policy and its explicit scope. |
+
+
 <a id="chatto-api-v1-NotificationService"></a>
 
 ## NotificationService
@@ -4635,7 +4743,8 @@ A direct message sent to the viewer.
 
 ### FollowedRoomActivity
 
-Activity in a room followed by the viewer.
+Top-level activity in a room followed by the viewer. Servers without
+room-follow support can emit it for any channel room joined by the viewer.
 
 | Field | Type | Description |
 | --- | --- | --- |
@@ -4683,7 +4792,7 @@ Presence is significant: absent fields inherit in a stored policy.
 | `here_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `all_mentions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 | `followed_threads` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
-| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
+| `followed_rooms` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | Delivery mode for top-level activity in rooms followed by the viewer. Servers without room-follow support apply it to all joined channel rooms. |
 | `reactions` | optional [`NotificationDeliveryMode`](#chatto-api-v1-NotificationDeliveryMode) | No field description provided. |
 
 
@@ -4730,6 +4839,22 @@ Explicit and effective delivery modes for one notification policy scope.
 | --- | --- | --- |
 | `overrides` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Explicit modes at the requested scope. Missing fields mean Inherit. |
 | `effective` | [`NotificationDeliveryModes`](#chatto-api-v1-NotificationDeliveryModes) | Complete modes after applying product, server, and room inheritance. |
+
+
+
+<a id="chatto-api-v1-NotificationPolicyScope"></a>
+
+### NotificationPolicyScope
+
+Explicit target for one notification policy. Clients must select exactly
+one scope. Direct-message rooms use room scope and never inherit from a room
+group.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope.server` | `google.protobuf.Empty` | Selects the authenticated viewer's server-wide policy. |
+| `scope.room_group_id` | `string` | Selects one existing room group's policy. |
+| `scope.room_id` | `string` | Selects one room's policy and requires current room membership. |
 
 
 
@@ -4804,6 +4929,19 @@ A message mentioning a role held by the viewer.
 | --- | --- | --- |
 | `message` | [`NotificationMessageReference`](#chatto-api-v1-NotificationMessageReference) | No field description provided. |
 | `role_names` | `repeated string` | Source-time role handles that selected the viewer. Multiple matching role mentions are consolidated into one occurrence for the source message. |
+
+
+
+<a id="chatto-api-v1-ScopedNotificationPolicy"></a>
+
+### ScopedNotificationPolicy
+
+One policy together with the explicit scope that produced it.
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `scope` | [`NotificationPolicyScope`](#chatto-api-v1-NotificationPolicyScope) | Exact policy scope. |
+| `policy` | [`NotificationPolicy`](#chatto-api-v1-NotificationPolicy) | Explicit and effective modes for the scope. |
 
 
 
@@ -5175,8 +5313,10 @@ Delivery behavior for one notification signal class.
 | --- | --- | --- |
 | `NOTIFICATION_DELIVERY_MODE_UNSPECIFIED` | `0` | No delivery mode was specified. This value is not a valid override. |
 | `NOTIFICATION_DELIVERY_MODE_OFF` | `1` | Matching activity does not create a notification occurrence. |
-| `NOTIFICATION_DELIVERY_MODE_SILENT` | `2` | Matching activity appears in the notification list without interruptive delivery. |
-| `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Matching activity appears in the notification list and may trigger sound or push. |
+| `NOTIFICATION_DELIVERY_MODE_SILENT` | `2` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION. |
+| `NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION` | `2` | Matching activity creates an in-app notification but does not send push. |
+| `NOTIFICATION_DELIVERY_MODE_ALERT` | `3` | Deprecated alias for NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION. |
+| `NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION` | `3` | Matching activity creates an in-app notification and may send push. |
 
 
 <a id="chatto-api-v1-RoomDirectoryScope"></a>

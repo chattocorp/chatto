@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Meldingsbeleid",
-        "description": "Kies hoeveel aandacht elk type activiteit krijgt. Overnemen gebruikt de serverstandaard.",
+        "description": "Kies hoe elke activiteit je waarschuwt op server-, kamergroep- en kamerniveau. Kamers nemen de instelling over van hun groep en daarna van de server.",
         "load_failed": "Meldingsbeleid kon niet worden geladen",
         "save_failed": "Meldingsbeleid kon niet worden opgeslagen",
         "effective": "Effectief: {mode}",
+        "filter_label": "Meldingsbereiken filteren",
+        "filter_placeholder": "Groepen en kamers filteren…",
+        "no_filter_matches": "Geen meldingsbereiken komen overeen met dit filter.",
+        "legend": "Bezorgmodi voor meldingen",
+        "cell_aria": "{cause}, {scope}. Overschrijving: {override}. Effectief: {effective}. Activeer om {next} in te stellen.",
+        "server_default_cell_aria": "{cause}, {scope}. Standaard: {current}. Activeer om {next} in te stellen.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Niet van toepassing.",
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
-          "silent": "Stil",
-          "alert": "Melding"
+          "notification": "Melding",
+          "push_notification": "Pushmelding"
         },
         "reason": {
           "direct_message": "Directe berichten",
@@ -299,6 +306,17 @@
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
           "room_invitation": "Uitnodigingen voor ruimtes"
+        },
+        "reason_hint": {
+          "direct_message": "Berichten die andere leden in privégesprekken sturen.",
+          "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
+          "reply": "Berichten die op een van je berichten antwoorden.",
+          "role_mention": "Berichten waarin een aan jou toegewezen rol wordt vermeld.",
+          "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
+          "all": "Berichten met @all in een ruimte waarvan je lid bent.",
+          "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
+          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
+          "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }
     },

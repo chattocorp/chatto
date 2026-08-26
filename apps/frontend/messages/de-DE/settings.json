@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Benachrichtigungsrichtlinie",
-        "description": "Lege fest, wie stark jede Art von Aktivität deine Aufmerksamkeit erhalten soll. Vererben verwendet die Servervorgabe.",
+        "description": "Lege für Server, Raumgruppen und Räume fest, wie dich jede Aktivität benachrichtigt. Räume erben zuerst von ihrer Gruppe und dann vom Server.",
         "load_failed": "Benachrichtigungsrichtlinie konnte nicht geladen werden",
         "save_failed": "Benachrichtigungsrichtlinie konnte nicht gespeichert werden",
         "effective": "Wirksam: {mode}",
+        "filter_label": "Benachrichtigungsbereiche filtern",
+        "filter_placeholder": "Gruppen und Räume filtern…",
+        "no_filter_matches": "Keine Benachrichtigungsbereiche entsprechen diesem Filter.",
+        "legend": "Benachrichtigungsmodi",
+        "cell_aria": "{cause}, {scope}. Überschreibung: {override}. Wirksam: {effective}. Aktivieren, um {next} festzulegen.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktivieren, um {next} festzulegen.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Nicht anwendbar.",
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
-          "silent": "Lautlos",
-          "alert": "Hinweis"
+          "notification": "Benachrichtigung",
+          "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
           "direct_message": "Direktnachrichten",
@@ -299,6 +306,17 @@
           "reaction": "Reaktionen auf deine Nachrichten",
           "activity": "Aktivität",
           "room_invitation": "Raumeinladungen"
+        },
+        "reason_hint": {
+          "direct_message": "Direktnachrichten, die dir andere Mitglieder senden.",
+          "direct_mention": "Nachrichten, in denen dein Benutzername direkt erwähnt wird.",
+          "reply": "Nachrichten, die auf eine deiner Nachrichten antworten.",
+          "role_mention": "Nachrichten, die eine dir zugewiesene Rolle erwähnen.",
+          "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
+          "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
+          "followed_thread": "Neue Antworten in Threads, denen du folgst.",
+          "followed_room": "Nachrichten auf oberster Ebene in Räumen, denen du folgst.",
+          "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
         }
       }
     },

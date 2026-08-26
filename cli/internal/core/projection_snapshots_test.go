@@ -233,9 +233,12 @@ func TestProjectionSnapshotsRoundTripTransactionally(t *testing.T) {
 			p.server.blockedUsernames = &blocked
 			p.users["U1"] = &userConfigState{
 				timezone: &timezone, timeFormat: &format,
-				serverModes: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT.Enum()},
+				serverModes: &corev1.NotificationDeliveryModes{Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum()},
 				roomModesByRoom: map[string]*corev1.NotificationDeliveryModes{
-					"R1": {DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+					"R1": {DirectMentions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
+				},
+				roomGroupModesByGroup: map[string]*corev1.NotificationDeliveryModes{
+					"G1": {Reactions: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF.Enum()},
 				},
 			}
 		}},

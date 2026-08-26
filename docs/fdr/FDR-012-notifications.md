@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-25
+**Last reviewed:** 2026-08-26
 
 ## Overview
 
@@ -82,26 +82,29 @@ replay cannot recreate a deleted item.
 
 ### 3. Delivery policy is separate from attention level
 
-**Decision:** Each configurable notification signal class resolves independently
-through a product default, a user/server override, and an optional room
-override:
+**Decision:** Each configurable notification signal class resolves independently.
+A room uses its override, its current room-group override, and the user's server
+preference in that order. A direct-message room skips the room-group level. If
+the user has no server preference, the concrete product default supplies the
+server value.
 
 - **Off** — create no occurrence for this cause.
-- **Silent** — create an occurrence without interruptive delivery.
-- **Alert** — create the same occurrence and make it eligible for sound, Web
-  Push, or native delivery.
+- **Notification** — create an in-app notification without push delivery. The
+  client can play the configured notification sound.
+- **Push notification** — create the same in-app notification and make it
+  eligible for Web Push or native delivery.
 
 | Cause                          | Default |
 | ------------------------------ | ------- |
-| Direct message                 | Alert   |
-| Direct username mention        | Alert   |
-| Reply to the user's message    | Alert   |
-| Role mention                   | Alert   |
-| `@here`                        | Alert   |
-| `@all`                         | Alert   |
-| Followed thread activity       | Silent  |
-| Followed room activity         | Off     |
-| Reaction to the user's message | Silent  |
+| Direct message                 | Push notification |
+| Direct username mention        | Push notification |
+| Reply to the user's message    | Push notification |
+| Role mention                   | Push notification |
+| `@here`                        | Push notification |
+| `@all`                         | Push notification |
+| Followed thread activity       | Notification      |
+| Followed room activity         | Off               |
+| Reaction to the user's message | Notification      |
 
 Attention level controls presentation separately: reactions are Ambient and all
 other current causes are Important. Bell, server, room, and app indicators use
@@ -109,12 +112,46 @@ notification orange when at least one contributing unread occurrence is
 Important and a neutral treatment when every contributing occurrence is
 Ambient. Attention levels are not user-configurable in this iteration.
 
-**Why:** Whether activity is stored, whether it may interrupt, and how strongly
-it is presented are different choices. Keeping them separate leaves room for
-future per-cause configuration without changing occurrence identity.
+**Why:** Whether activity is stored, whether it leaves the app, and how
+strongly it is presented are different choices. The delivery names state where
+the notification goes. Sound remains a client preference for both notification
+modes.
 
 **Tradeoff:** More than one policy dimension exists conceptually, although the
 current product exposes only delivery-mode preferences.
+
+The notification settings page shows the nine signal classes as matrix rows.
+It shows the server, visible room groups, current-member channel rooms, and
+current-member direct-message rooms as columns. Each group column is followed
+by its room columns. A server cell always shows a concrete value. When no user
+preference exists, it shows the product default at full intensity without an
+inheritance marker. Server cells cycle through Off, Notification, and Push
+notification.
+
+Room-group and room cells cycle through Inherit, Off, Notification, Push
+notification, and back to Inherit. Off uses a grey crossed bell. Both
+notification modes use notification orange, with a bell for Notification and a
+phone for Push notification. An inherited cell shows the effective mode at
+reduced intensity. The legend and distinct icons make the state clear without
+color alone.
+
+The scope filter always keeps the server column. A room match also keeps its
+parent group. A group match keeps all current-member rooms in that group.
+Direct-message policy applies at server scope and to individual direct-message
+rooms. Its room-group and channel-room cells are not applicable and cannot be
+changed.
+
+A room uses the group that contains it at the exact source-event sequence. A
+room move changes future effective policy. It does not change historical
+notification decisions. Deleting a group leaves its saved user preferences
+inert. Group IDs are not reused, and deletion does not fan out cleanup writes
+to user configuration aggregates.
+
+Room-group and room policy writes validate scope access at request time and use
+OCC on the user's configuration aggregate. They do not advance the
+authorization fence. A concurrent membership loss, room deletion, or group
+deletion can leave a newly committed preference inert, but it cannot change
+another user's state or grant access to the deleted scope.
 
 ### 4. Source-time decisions are durable and replayable
 
@@ -215,8 +252,9 @@ record a client audio filter as server state. The migration keeps the user's
 existing sound choice.
 
 **Tradeoff:** Sound choices do not sync to another browser or device. The
-client keeps a small local-storage entry for each server. The server-synced
-delivery rules continue to control whether an Alert can request sound.
+client keeps a small local-storage entry for each server. Both Notification and
+Push notification can request the configured local sound. Do Not Disturb and
+current notification policy can suppress that request.
 
 ## Compatibility
 
@@ -226,6 +264,26 @@ or interpreted. Historical persisted event variants remain replay-decodable,
 but current code adds no notification facts to `EVT`. Older clients cannot use
 the replacement notification API on an upgraded server. After the 0.5.0
 contract ships, new signal variants are additive.
+
+The legacy `NotificationService` server and room policy RPCs keep their current
+request and response behavior. `NotificationPolicyService` adds explicit
+server, room-group, and room scopes. An older server returns `Unimplemented`
+for this new service and cannot treat a room-group update as a server update.
+
+The public and persisted delivery-mode enums keep their numeric values. The
+new names `IN_APP_NOTIFICATION` and `PUSH_NOTIFICATION` are aliases for values
+2 and 3. The old `SILENT` and `ALERT` names remain as deprecated aliases so old
+generated clients and stored protobuf values continue to work.
+
+Room-group changes use a new
+`UserRoomGroupNotificationPolicyChangedEvent`. They do not add a room-group ID
+to `UserNotificationPolicyChangedEvent`. Thus, an older binary safely ignores
+the new event variant. During rollback, room-group overrides are temporarily
+inactive instead of becoming server overrides. The added group map also changes
+the configuration and notification-decision snapshot contract IDs. Thus, an
+older binary cannot replace a newer snapshot with a snapshot that omits group
+overrides. This behavior is part of the coordinated 0.5 server replacement
+boundary.
 
 ## Permissions
 

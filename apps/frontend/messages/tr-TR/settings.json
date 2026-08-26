@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Bildirim politikası",
-        "description": "Her etkinlik türünün dikkatinizi ne ölçüde çekmesi gerektiğini seçin. Devral, sunucu varsayılanını kullanır.",
+        "description": "Her etkinliğin sunucu, oda grubu ve oda kapsamında sizi nasıl uyaracağını seçin. Odalar önce gruplarından, sonra sunucudan devralır.",
         "load_failed": "Bildirim politikası yüklenemedi",
         "save_failed": "Bildirim politikası kaydedilemedi",
         "effective": "Geçerli: {mode}",
+        "filter_label": "Bildirim kapsamlarını filtrele",
+        "filter_placeholder": "Grupları ve odaları filtrele…",
+        "no_filter_matches": "Bu filtreyle eşleşen bildirim kapsamı yok.",
+        "legend": "Bildirim teslim modları",
+        "cell_aria": "{cause}, {scope}. Geçersiz kılma: {override}. Geçerli: {effective}. {next} olarak ayarlamak için etkinleştirin.",
+        "server_default_cell_aria": "{cause}, {scope}. Varsayılan: {current}. {next} olarak ayarlamak için etkinleştirin.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Geçerli değil.",
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
-          "silent": "Sessiz",
-          "alert": "Uyarı"
+          "notification": "Bildirim",
+          "push_notification": "Anlık bildirim"
         },
         "reason": {
           "direct_message": "Doğrudan mesajlar",
@@ -299,6 +306,17 @@
           "reaction": "Mesajlarınıza verilen tepkiler",
           "activity": "Etkinlik",
           "room_invitation": "Oda davetleri"
+        },
+        "reason_hint": {
+          "direct_message": "Diğer üyelerin doğrudan mesaj konuşmalarında gönderdiği mesajlar.",
+          "direct_mention": "Kullanıcı adınızdan doğrudan bahseden mesajlar.",
+          "reply": "Mesajlarınızdan birine verilen yanıtlar.",
+          "role_mention": "Size atanmış bir rolden bahseden mesajlar.",
+          "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
+          "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
+          "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
+          "followed_room": "Takip ettiğiniz odalarda ileti dizisi dışında gönderilen mesajlar.",
+          "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
         }
       }
     },

@@ -303,12 +303,16 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 			if err := s.core.NotificationOccurrences().Resync(ctx); err != nil {
 				return nil, false, err
 			}
-			candidateID := invalidation.GetAlertCandidateNotificationId()
-			alertEligible := false
+			candidateID := invalidation.GetSoundCandidateNotificationId()
+			if candidateID == "" {
+				// Accept legacy publishers during a rolling replacement.
+				candidateID = invalidation.GetAlertCandidateNotificationId()
+			}
+			soundEligible := false
 			if candidateID != "" {
 				current, err := s.core.NotificationOccurrences().Get(ctx, viewerID, candidateID)
-				if err == nil && core.NotificationAlertPending(current) {
-					alertEligible, err = s.core.NotificationAlertEligible(ctx, current)
+				if err == nil && !current.GetRead() {
+					soundEligible, err = s.core.NotificationSoundEligible(ctx, current)
 					if err != nil {
 						return nil, false, err
 					}
@@ -321,7 +325,7 @@ func (s *HTTPServer) realtimeProjectionFrameForEventWithRooms(ctx context.Contex
 				return nil, false, err
 			}
 			replacement := realtimeProjectionNotificationOccurrences(notifications)
-			if alertEligible && notificationReplacementContains(replacement, candidateID) {
+			if soundEligible && notificationReplacementContains(replacement, candidateID) {
 				replacement.PlayNotificationSound = true
 			}
 			appendOperation(&realtimev1.RealtimeProjectionOperation{Operation: &realtimev1.RealtimeProjectionOperation_NotificationOccurrencesReplace{

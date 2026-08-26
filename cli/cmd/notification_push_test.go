@@ -232,7 +232,7 @@ func TestNotificationAlertHandlerRevalidatesDNDAndReadState(t *testing.T) {
 			ctx,
 			alice.Id,
 			"",
-			&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT.Enum()},
+			&corev1.NotificationDeliveryModes{DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.Enum()},
 			&fieldmaskpb.FieldMask{Paths: []string{"direct_messages"}},
 		); err != nil {
 			t.Fatalf("UpdateNotificationPolicy: %v", err)

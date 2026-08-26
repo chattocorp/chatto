@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "通知ポリシー",
-        "description": "アクティビティの種類ごとに通知の強さを選択します。「継承」はサーバーの既定値を使用します。",
+        "description": "サーバー、ルームグループ、ルームの各範囲で、アクティビティごとの通知方法を選択します。ルームはグループ、サーバーの順に設定を継承します。",
         "load_failed": "通知ポリシーを読み込めませんでした",
         "save_failed": "通知ポリシーを保存できませんでした",
         "effective": "適用値：{mode}",
+        "filter_label": "通知範囲を絞り込む",
+        "filter_placeholder": "グループとルームを絞り込む…",
+        "no_filter_matches": "この条件に一致する通知範囲はありません。",
+        "legend": "通知の配信モード",
+        "cell_aria": "{cause}、{scope}。上書き：{override}。適用値：{effective}。{next}に設定するには有効にします。",
+        "server_default_cell_aria": "{cause}、{scope}。デフォルト：{current}。{next}に設定するには有効にします。",
+        "not_applicable_cell_aria": "{cause}、{scope}。適用されません。",
         "delivery_mode": {
           "inherit": "継承",
           "off": "オフ",
-          "silent": "サイレント",
-          "alert": "アラート"
+          "notification": "通知",
+          "push_notification": "プッシュ通知"
         },
         "reason": {
           "direct_message": "ダイレクトメッセージ",
@@ -299,6 +306,17 @@
           "reaction": "自分のメッセージへのリアクション",
           "activity": "アクティビティ",
           "room_invitation": "ルームへの招待"
+        },
+        "reason_hint": {
+          "direct_message": "他のメンバーがダイレクトメッセージの会話で送信したメッセージです。",
+          "direct_mention": "あなたのユーザー名を直接メンションしたメッセージです。",
+          "reply": "あなたのメッセージに対する返信です。",
+          "role_mention": "あなたに割り当てられたロールをメンションしたメッセージです。",
+          "here": "あなたのプレゼンスがオフラインでないときに @here を使ったメッセージです。",
+          "all": "あなたが参加しているルームで @all を使ったメッセージです。",
+          "followed_thread": "フォロー中のスレッドへの新しい返信です。",
+          "followed_room": "フォロー中のルームに投稿されたスレッド外のメッセージです。",
+          "reaction": "他のメンバーがあなたのメッセージに追加したリアクションです。"
         }
       }
     },

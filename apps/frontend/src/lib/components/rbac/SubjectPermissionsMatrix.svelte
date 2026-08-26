@@ -17,7 +17,8 @@ its permission row and scope column. The surrounding pane owns vertical
 scrolling; the table only scrolls horizontally when its columns overflow.
 -->
 <script lang="ts">
-  import { Panel, DataTable } from '$lib/components/admin';
+  import { Panel } from '$lib/components/admin';
+  import { MatrixTable } from '$lib/components/matrix';
   import { Hint, HelpTooltip } from '$lib/ui';
   import { ShortcutTextInput } from '$lib/ui/form';
   import { getPermissionDescription } from '$lib/permissions';
@@ -48,7 +49,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   };
   export type CellState = 'allow' | 'deny' | 'neutral';
   export type DecisionMode = 'tri-state' | 'binary';
-  type MatrixCoordinate = { category: string; column: string; permission: string };
 
   let {
     data,
@@ -72,10 +72,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     /** Use a grant-or-absent allowlist UI; inherited grants are read-only. */
     decisionMode?: DecisionMode;
   } = $props();
-
-  let hoveredCell = $state<MatrixCoordinate | null>(null);
-  let focusedCell = $state<MatrixCoordinate | null>(null);
-  const highlightedCell = $derived(hoveredCell ?? focusedCell);
 
   // ----- Column layout ----------------------------------------------------
 
@@ -102,11 +98,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
   });
 
   // ----- Row layout -------------------------------------------------------
-
-  function categoryOf(permission: string): string {
-    const dot = permission.indexOf('.');
-    return dot > 0 ? permission.slice(0, dot) : permission;
-  }
 
   const permissions = $derived([...data.applicablePermissions].sort((a, b) => a.localeCompare(b)));
   let permissionFilter = $state('');
@@ -179,26 +170,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     if (kind === 'GROUP') return 'bg-surface-emphasized/20';
     return '';
   }
-
-  function coordinate(category: string, column: string, permission: string): MatrixCoordinate {
-    return { category, column, permission };
-  }
-
-  function columnIsHighlighted(column: string): boolean {
-    return highlightedCell?.column === column;
-  }
-
-  function rowIsHighlighted(category: string, permission: string): boolean {
-    return highlightedCell?.category === category && highlightedCell.permission === permission;
-  }
-
-  function cellBackgroundClass(category: string, scope: MatrixScope, permission: string): string {
-    const row = rowIsHighlighted(category, permission);
-    const columnHighlighted = columnIsHighlighted(scope.id);
-    if (row && columnHighlighted) return 'bg-action/15';
-    if (row || columnHighlighted) return 'bg-action/8';
-    return scopeColumnClass(scope.kind);
-  }
 </script>
 
 {#if orderedScopes.length === 0}
@@ -220,179 +191,139 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         />
       </div>
     {/snippet}
-    <DataTable
-      items={filteredPermissions}
-      columns={matrixScopes.length + 2}
-      getKey={(permission) => permission}
+    <MatrixTable
+      rows={filteredPermissions}
+      columns={matrixScopes}
+      getRowKey={(permission) => permission}
+      getColumnKey={(scope) => scope.id}
       emptyMessage={m('rbac.permissions.no_filter_matches')}
-      hoverable={false}
+      columnClass={(scope) => scopeColumnClass(scope.kind)}
+      columnAttributes={(scope) => ({ 'data-scope': scope.id })}
+      cellAttributes={(permission, scope) => ({
+        'data-scope': scope.id,
+        'data-permission': permission
+      })}
+      isCellInteractive={(permission, scope) => Boolean(cellFor(scope.id, permission))}
+      spacerTestId="permission-matrix-spacer"
     >
-      {#snippet header()}
-        <th
-          class="sticky left-0 z-10 bg-background px-4 py-3 text-left align-bottom font-medium"
-          style="width: 14rem"
-        >
-          Permission
-        </th>
-        {#each matrixScopes as scope (scope.id)}
-          <th
-            class={[
-              'px-0 py-3 text-center align-bottom font-medium',
-              columnIsHighlighted(scope.id)
-                ? 'bg-action/10 text-action'
-                : scopeColumnClass(scope.kind)
-            ]}
-            style="width: 2rem; min-width: 2rem; height: 12rem"
-            title={`${scope.label} (${scope.kind.toLowerCase()})`}
-            data-scope={scope.id}
-          >
-            <span
-              class={[
-                'text-sm',
-                scope.kind === 'SERVER' ? 'font-semibold' : '',
-                scope.kind === 'GROUP' ? 'text-neutral-action' : '',
-                scope.kind === 'ROOM' ? 'text-muted' : ''
-              ]}
-              style="writing-mode: vertical-rl; transform: rotate(180deg); white-space: nowrap"
-            >
-              {#if scope.kind === 'ROOM'}#{/if}{scope.label}
-            </span>
-          </th>
-        {/each}
-        <th class="w-full bg-background p-0" aria-hidden="true"></th>
+      {#snippet leadingHeader()}
+        Permission
       {/snippet}
-      {#snippet row(permission)}
-        {@const category = categoryOf(permission)}
-        <td
+      {#snippet columnHeader(scope, highlighted)}
+        <span
           class={[
-            'sticky left-0 z-10 px-4 py-2 whitespace-nowrap',
-            rowIsHighlighted(category, permission) ? 'bg-action/8' : 'bg-background'
+            scope.kind === 'SERVER' ? 'font-semibold' : '',
+            highlighted ? 'text-action' : '',
+            !highlighted && scope.kind === 'GROUP' ? 'text-neutral-action' : '',
+            !highlighted && scope.kind === 'ROOM' ? 'text-muted' : ''
           ]}
+          title={`${scope.label} (${scope.kind.toLowerCase()})`}
         >
-          <code
-            data-testid="permission-name"
-            class={['text-sm', rowIsHighlighted(category, permission) ? 'text-action' : '']}
-            >{permission}</code
-          >
-          <HelpTooltip label={`About ${permission}`}>
-            {getPermissionDescription(permission)}
-          </HelpTooltip>
-        </td>
-        {#each matrixScopes as scope (scope.id)}
-          {@const cell = cellFor(scope.id, permission)}
-          {@const cellKey = `${scope.id}::${permission}`}
-          {@const isUpdating = updatingKey === cellKey}
-          <td
-            class={['px-0 py-2 text-center', cellBackgroundClass(category, scope, permission)]}
-            style="width: 2.5rem; min-width: 2.5rem"
-            data-scope={scope.id}
-            data-permission={permission}
-            onmouseenter={cell
-              ? () => (hoveredCell = coordinate(category, scope.id, permission))
-              : undefined}
-            onmouseleave={cell ? () => (hoveredCell = null) : undefined}
-            onfocusin={cell
-              ? () => (focusedCell = coordinate(category, scope.id, permission))
-              : undefined}
-            onfocusout={cell ? () => (focusedCell = null) : undefined}
-          >
-            {#if cell}
-              {@const ov = decisionToState(cell.override)}
-              {@const eff = decisionToState(cell.effective)}
-              {@const parent = parentDecision(scope, permission)}
-              {@const configured = cell.override !== 'NONE' ? cell.override : parent}
-              {@const binaryEnabled = configured === 'ALLOW'}
-              {@const inheritedBinaryGrant =
-                decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
-              {@const displayOverride = forceAllow
-                ? 'allow'
-                : decisionMode === 'binary'
-                  ? cell.override === 'ALLOW'
-                    ? 'allow'
-                    : 'neutral'
-                  : ov}
-              {@const displayEffective = forceAllow
-                ? 'neutral'
-                : decisionMode === 'binary'
-                  ? cell.override === 'NONE' && binaryEnabled
-                    ? 'allow'
-                    : 'neutral'
-                  : eff}
-              {@const ariaLabel = forceAllow
-                ? `${subjectKind} is always granted ${permission} at ${scope.label}`
-                : decisionMode === 'binary'
-                  ? m('rbac.permissions.binary.aria', {
-                      permission,
-                      state: binaryEnabled
-                        ? m('rbac.permissions.binary.enabled')
-                        : m('rbac.permissions.binary.disabled'),
-                      subject: subjectKind,
-                      scope: scope.label
-                    })
-                  : ov !== 'neutral'
-                    ? `Override ${ov} for ${permission} at ${scope.label}`
-                    : `No override for ${permission} at ${scope.label}, effective ${eff}`}
-              {@const allowConstraint =
-                cell.allowPermitted === false
-                  ? m('rbac.permissions.binary.owner_ceiling', {
-                      permission,
-                      scope: scope.label
-                    })
-                  : null}
-              {@const titleParts = forceAllow
-                ? [
-                    'Allow (owners are always granted all permissions)',
-                    'Owner permissions are not editable'
-                  ]
-                : decisionMode === 'binary'
-                  ? [
-                      binaryEnabled
-                        ? [
-                            m('rbac.permissions.binary.enabled'),
-                            cell.override === 'NONE'
-                              ? m('rbac.permissions.binary.inherited')
-                              : null,
-                            cell.allowPermitted === false
-                              ? m('rbac.permissions.binary.unavailable')
-                              : null
-                          ]
-                            .filter(Boolean)
-                            .join(' · ')
-                        : m('rbac.permissions.binary.disabled'),
-                      allowConstraint
-                    ].filter(Boolean)
-                  : [
-                      ov !== 'neutral'
-                        ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
-                        : null,
-                      ov === 'neutral' && eff !== 'neutral'
-                        ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
-                        : null,
-                      ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
-                      allowConstraint
-                    ].filter(Boolean)}
-              <MatrixCell
-                override={displayOverride}
-                inherited={displayEffective}
-                updating={isUpdating}
-                disabled={readOnly}
-                locked={inheritedBinaryGrant}
-                allowBlocked={cell.allowPermitted === false &&
-                  (decisionMode !== 'binary' || parent !== 'ALLOW')}
-                ceilingBlocked={cell.allowPermitted === false &&
-                  (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
-                {decisionMode}
-                {ariaLabel}
-                title={titleParts.join(' · ')}
-                onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
-              />
-            {:else}
-              <span class="inline-block h-10 w-10" aria-hidden="true"></span>
-            {/if}
-          </td>
-        {/each}
-        <td class="w-full p-0" aria-hidden="true" data-testid="permission-matrix-spacer"></td>
+          {#if scope.kind === 'ROOM'}#{/if}{scope.label}
+        </span>
       {/snippet}
-    </DataTable>
+      {#snippet rowHeader(permission, highlighted)}
+        <code data-testid="permission-name" class={['text-sm', highlighted ? 'text-action' : '']}
+          >{permission}</code
+        >
+        <HelpTooltip label={`About ${permission}`}>
+          {getPermissionDescription(permission)}
+        </HelpTooltip>
+      {/snippet}
+      {#snippet cell(permission, scope)}
+        {@const cell = cellFor(scope.id, permission)}
+        {#if cell}
+          {@const ov = decisionToState(cell.override)}
+          {@const eff = decisionToState(cell.effective)}
+          {@const parent = parentDecision(scope, permission)}
+          {@const configured = cell.override !== 'NONE' ? cell.override : parent}
+          {@const binaryEnabled = configured === 'ALLOW'}
+          {@const inheritedBinaryGrant =
+            decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
+          {@const displayOverride = forceAllow
+            ? 'allow'
+            : decisionMode === 'binary'
+              ? cell.override === 'ALLOW'
+                ? 'allow'
+                : 'neutral'
+              : ov}
+          {@const displayEffective = forceAllow
+            ? 'neutral'
+            : decisionMode === 'binary'
+              ? cell.override === 'NONE' && binaryEnabled
+                ? 'allow'
+                : 'neutral'
+              : eff}
+          {@const ariaLabel = forceAllow
+            ? `${subjectKind} is always granted ${permission} at ${scope.label}`
+            : decisionMode === 'binary'
+              ? m('rbac.permissions.binary.aria', {
+                  permission,
+                  state: binaryEnabled
+                    ? m('rbac.permissions.binary.enabled')
+                    : m('rbac.permissions.binary.disabled'),
+                  subject: subjectKind,
+                  scope: scope.label
+                })
+              : ov !== 'neutral'
+                ? `Override ${ov} for ${permission} at ${scope.label}`
+                : `No override for ${permission} at ${scope.label}, effective ${eff}`}
+          {@const allowConstraint =
+            cell.allowPermitted === false
+              ? m('rbac.permissions.binary.owner_ceiling', {
+                  permission,
+                  scope: scope.label
+                })
+              : null}
+          {@const titleParts = forceAllow
+            ? [
+                'Allow (owners are always granted all permissions)',
+                'Owner permissions are not editable'
+              ]
+            : decisionMode === 'binary'
+              ? [
+                  binaryEnabled
+                    ? [
+                        m('rbac.permissions.binary.enabled'),
+                        cell.override === 'NONE' ? m('rbac.permissions.binary.inherited') : null,
+                        cell.allowPermitted === false
+                          ? m('rbac.permissions.binary.unavailable')
+                          : null
+                      ]
+                        .filter(Boolean)
+                        .join(' · ')
+                    : m('rbac.permissions.binary.disabled'),
+                  allowConstraint
+                ].filter(Boolean)
+              : [
+                  ov !== 'neutral'
+                    ? `${ov === 'allow' ? 'Allow' : 'Deny'} (${subjectKind} override at ${scope.label})`
+                    : null,
+                  ov === 'neutral' && eff !== 'neutral'
+                    ? `Effective ${eff === 'allow' ? 'Allow' : 'Deny'} (inherited)`
+                    : null,
+                  ov === 'neutral' && eff === 'neutral' ? 'No decision' : null,
+                  allowConstraint
+                ].filter(Boolean)}
+          <MatrixCell
+            override={displayOverride}
+            inherited={displayEffective}
+            updating={updatingKey === `${scope.id}::${permission}`}
+            disabled={readOnly}
+            locked={inheritedBinaryGrant}
+            allowBlocked={cell.allowPermitted === false &&
+              (decisionMode !== 'binary' || parent !== 'ALLOW')}
+            ceilingBlocked={cell.allowPermitted === false &&
+              (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
+            {decisionMode}
+            {ariaLabel}
+            title={titleParts.join(' · ')}
+            onCycle={(next) => cycleCell(scope, permission, cell.override, next)}
+          />
+        {:else}
+          <span class="inline-block h-10 w-10" aria-hidden="true"></span>
+        {/if}
+      {/snippet}
+    </MatrixTable>
   </Panel>
 {/if}

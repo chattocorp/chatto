@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Politique de notifications",
-        "description": "Choisissez le niveau d'attention accordé à chaque type d'activité. Hériter utilise la valeur par défaut du serveur.",
+        "description": "Choisissez comment chaque activité vous avertit au niveau du serveur, du groupe de salles et de la salle. Les salles héritent de leur groupe, puis du serveur.",
         "load_failed": "Impossible de charger la politique de notifications",
         "save_failed": "Impossible d'enregistrer la politique de notifications",
         "effective": "Effectif : {mode}",
+        "filter_label": "Filtrer les portées de notification",
+        "filter_placeholder": "Filtrer les groupes et les salles…",
+        "no_filter_matches": "Aucune portée de notification ne correspond à ce filtre.",
+        "legend": "Modes de distribution des notifications",
+        "cell_aria": "{cause}, {scope}. Remplacement : {override}. Effectif : {effective}. Activez pour définir {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Valeur par défaut : {current}. Activez pour définir {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Non applicable.",
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
-          "silent": "Silencieux",
-          "alert": "Alerte"
+          "notification": "Notification",
+          "push_notification": "Notification push"
         },
         "reason": {
           "direct_message": "Messages directs",
@@ -299,6 +306,17 @@
           "reaction": "Réactions à vos messages",
           "activity": "Activité",
           "room_invitation": "Invitations à des salons"
+        },
+        "reason_hint": {
+          "direct_message": "Messages envoyés par d’autres membres dans des conversations privées.",
+          "direct_mention": "Messages qui mentionnent directement votre nom d’utilisateur.",
+          "reply": "Messages qui répondent à l’un de vos messages.",
+          "role_mention": "Messages qui mentionnent un rôle qui vous est attribué.",
+          "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
+          "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
+          "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
+          "followed_room": "Messages de premier niveau dans les salons que vous suivez.",
+          "reaction": "Réactions ajoutées à vos messages par d’autres membres."
         }
       }
     },

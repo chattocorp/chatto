@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Pravidla oznámení",
-        "description": "Zvolte, jak silně má každý druh aktivity upoutat vaši pozornost. Zdědit použije výchozí nastavení serveru.",
+        "description": "Zvolte způsob upozornění pro každou aktivitu na úrovni serveru, skupiny místností a místnosti. Místnosti dědí ze své skupiny a potom ze serveru.",
         "load_failed": "Pravidla oznámení se nepodařilo načíst",
         "save_failed": "Pravidla oznámení se nepodařilo uložit",
         "effective": "Výsledné: {mode}",
+        "filter_label": "Filtrovat rozsahy oznámení",
+        "filter_placeholder": "Filtrovat skupiny a místnosti…",
+        "no_filter_matches": "Tomuto filtru neodpovídají žádné rozsahy oznámení.",
+        "legend": "Režimy doručení oznámení",
+        "cell_aria": "{cause}, {scope}. Přepsání: {override}. Výsledné: {effective}. Aktivací nastavíte {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Výchozí: {current}. Aktivací nastavíte {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Nelze použít.",
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
-          "silent": "Tiché",
-          "alert": "Upozornění"
+          "notification": "Oznámení",
+          "push_notification": "Push oznámení"
         },
         "reason": {
           "direct_message": "Přímé zprávy",
@@ -299,6 +306,17 @@
           "reaction": "Reakce na vaše zprávy",
           "activity": "Aktivita",
           "room_invitation": "Pozvánky do místností"
+        },
+        "reason_hint": {
+          "direct_message": "Zprávy, které ostatní členové posílají v konverzacích s přímými zprávami.",
+          "direct_mention": "Zprávy, které přímo zmiňují vaše uživatelské jméno.",
+          "reply": "Zprávy, které odpovídají na některou z vašich zpráv.",
+          "role_mention": "Zprávy, které zmiňují roli, jež vám byla přiřazena.",
+          "here": "Zprávy, které používají @here, když váš stav není offline.",
+          "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
+          "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
+          "followed_room": "Zprávy nejvyšší úrovně v místnostech, které sledujete.",
+          "reaction": "Reakce, které ostatní členové přidají k vašim zprávám."
         }
       }
     },

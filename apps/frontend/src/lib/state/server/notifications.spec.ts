@@ -83,7 +83,10 @@ function makeAPI(
     batchDeleteNotificationOccurrences: vi.fn().mockResolvedValue(0),
     deleteAllNotificationOccurrences: vi.fn().mockResolvedValue(0),
     getNotificationPolicy: vi.fn().mockResolvedValue([]),
-    updateNotificationPolicy: vi.fn().mockResolvedValue([])
+    updateNotificationPolicy: vi.fn().mockResolvedValue([]),
+    getScopedNotificationPolicy: vi.fn().mockResolvedValue(undefined),
+    batchGetNotificationPolicies: vi.fn().mockResolvedValue([]),
+    updateScopedNotificationPolicy: vi.fn().mockResolvedValue(undefined)
   };
 }
 

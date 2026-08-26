@@ -418,9 +418,9 @@ func (c *ChattoCore) appendRoomLeaveBatch(ctx context.Context, kind RoomKind, ro
 	}
 
 	// Leaving, removal, and ban are authorization-changing domain facts. Advance
-	// the existing generic fence in the same batch so an independently scoped
-	// mutation (for example a room notification preference) cannot commit from
-	// a membership decision that this leave has already invalidated.
+	// the existing generic fence in the same batch so a mutation with strict
+	// commit-time authorization (for example an authorized message edit) cannot
+	// commit from a membership decision that this leave has already invalidated.
 	seqs, err := c.appendAuthorizationFencedBatch(ctx, userID, entries, authorizationSeq)
 	if err != nil {
 		return fmt.Errorf("publish room leave batch: %w", err)

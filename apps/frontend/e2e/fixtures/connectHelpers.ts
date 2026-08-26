@@ -45,7 +45,11 @@ export interface E2EServerRole {
   permissionDenials: string[];
 }
 
-export type E2ENotificationMode = 'UNSPECIFIED' | 'OFF' | 'SILENT' | 'ALERT';
+export type E2ENotificationMode =
+  | 'UNSPECIFIED'
+  | 'OFF'
+  | 'IN_APP_NOTIFICATION'
+  | 'PUSH_NOTIFICATION';
 
 type E2ENotificationPolicyShape<Value> = {
   directMessages: Value;
@@ -64,10 +68,21 @@ export interface E2ENotificationPolicy {
   effective: E2ENotificationPolicyShape<E2ENotificationMode>;
 }
 
+export type E2ENotificationPolicyScope =
+  | { server: Record<string, never> }
+  | { roomGroupId: string }
+  | { roomId: string };
+
 interface NotificationPolicyResponse {
   policy?: {
     overrides?: Partial<E2ENotificationPolicyShape<unknown>>;
     effective?: Partial<E2ENotificationPolicyShape<unknown>>;
+  };
+}
+
+interface ScopedNotificationPolicyResponse {
+  policy?: {
+    policy?: NotificationPolicyResponse['policy'];
   };
 }
 
@@ -105,8 +120,8 @@ interface GetUserResponse {
 const notificationModeByNumber: Record<number, E2ENotificationMode> = {
   0: 'UNSPECIFIED',
   1: 'OFF',
-  2: 'SILENT',
-  3: 'ALERT'
+  2: 'IN_APP_NOTIFICATION',
+  3: 'PUSH_NOTIFICATION'
 };
 
 export async function connectPost<T>(
@@ -410,6 +425,40 @@ export async function updateNotificationPolicy(
   return normalizeNotificationPolicy(data);
 }
 
+export async function getScopedNotificationPolicy(
+  page: Page,
+  scope: E2ENotificationPolicyScope
+): Promise<E2ENotificationPolicy> {
+  const data = await connectPost<ScopedNotificationPolicyResponse>(
+    page,
+    'chatto.api.v1.NotificationPolicyService/GetNotificationPolicy',
+    { scope }
+  );
+  return normalizeNotificationPolicy({ policy: data.policy?.policy });
+}
+
+export async function updateScopedNotificationPolicy(
+  page: Page,
+  scope: E2ENotificationPolicyScope,
+  patch: Partial<E2ENotificationPolicyShape<E2ENotificationMode | null>>
+): Promise<E2ENotificationPolicy> {
+  const fields = Object.keys(patch) as Array<keyof typeof patch>;
+  const overrides = Object.fromEntries(
+    fields.flatMap((field) => {
+      const mode = patch[field];
+      return mode === null || mode === undefined
+        ? []
+        : [[field, `NOTIFICATION_DELIVERY_MODE_${mode}`]];
+    })
+  );
+  const data = await connectPost<ScopedNotificationPolicyResponse>(
+    page,
+    'chatto.api.v1.NotificationPolicyService/UpdateNotificationPolicy',
+    { scope, overrides, updateMask: fields.join(',') }
+  );
+  return normalizeNotificationPolicy({ policy: data.policy?.policy });
+}
+
 function normalizeNotificationPolicy(data: NotificationPolicyResponse): E2ENotificationPolicy {
   const overrides = data.policy?.overrides;
   const effective = data.policy?.effective;
@@ -451,7 +500,10 @@ function normalizeNotificationMode(value: unknown): E2ENotificationMode {
   }
 
   if (typeof value === 'string') {
-    const compact = value.replace(/^NOTIFICATION_DELIVERY_MODE_/, '') as E2ENotificationMode;
+    const raw = value.replace(/^NOTIFICATION_DELIVERY_MODE_/, '');
+    const compact = (
+      raw === 'SILENT' ? 'IN_APP_NOTIFICATION' : raw === 'ALERT' ? 'PUSH_NOTIFICATION' : raw
+    ) as E2ENotificationMode;
     if (Object.values(notificationModeByNumber).includes(compact)) return compact;
   }
 

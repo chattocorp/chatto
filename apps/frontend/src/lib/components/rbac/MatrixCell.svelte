@@ -25,6 +25,8 @@ room-only permission queried at instance scope), pass `applicable={false}`
 to render an inert "—" cell with an explanation tooltip.
 -->
 <script lang="ts">
+  import { MatrixCellButton, type MatrixCellTone } from '$lib/components/matrix';
+
   type State = 'allow' | 'deny' | 'neutral';
 
   let {
@@ -85,102 +87,31 @@ to render an inert "—" cell with an explanation tooltip.
   const interactionDisabled = $derived(
     disabled || locked || (decisionMode === 'binary' && allowBlocked && visual !== 'allow')
   );
-  const interactive = $derived(!interactionDisabled && !updating);
-
-  // Overrides use a solid semantic fill and its contrast-safe foreground.
-  // Inherited states use a quiet tint; neutral uses the surface ladder.
-  const overrideClasses: Record<State, string> = {
-    allow: 'bg-success text-on-success',
-    deny: 'bg-danger text-on-danger',
-    // Unreachable — neutral isn't an override state, but keep a value for type safety.
-    neutral: ''
-  };
-  const inheritedClasses: Record<State, string> = {
-    allow: 'bg-success/15 text-success/85',
-    deny: 'bg-danger/15 text-danger/85',
-    neutral: 'bg-surface-emphasized/60 text-muted/60'
-  };
-
-  const surfaceClasses = $derived.by(() => {
-    const base = ceilingBlocked
-      ? isOverride
-        ? 'bg-warning text-on-warning'
-        : 'bg-warning/20 text-warning'
-      : isOverride
-        ? overrideClasses[visual]
-        : inheritedClasses[visual];
-
-    if (!interactive) return base;
-    const hover = ceilingBlocked
-      ? isOverride
-        ? 'hover:bg-warning/90'
-        : 'hover:bg-warning/30'
-      : visual === 'allow'
-        ? isOverride
-          ? 'hover:bg-success/90'
-          : 'hover:bg-success/25'
-        : visual === 'deny'
-          ? isOverride
-            ? 'hover:bg-danger/90'
-            : 'hover:bg-danger/25'
-          : 'hover:bg-surface-strong/80';
-    return `${base} ${hover}`;
-  });
-
+  const displayLocked = $derived(locked || (allowBlocked && interactionDisabled));
   const icon = $derived.by(() => {
     if (visual === 'allow') return 'icon-[uil--check]';
     if (visual === 'deny' && decisionMode === 'tri-state') return 'icon-[uil--times]';
     return 'icon-[uil--minus]';
   });
-
+  const tone = $derived.by<MatrixCellTone>(() => {
+    if (ceilingBlocked) return 'warning';
+    if (visual === 'allow') return 'success';
+    if (visual === 'deny') return 'danger';
+    return 'neutral';
+  });
 </script>
 
-{#if !applicable}
-  <span
-    class="inline-flex h-10 w-10 items-center justify-center text-xs text-muted/30"
-    {title}
-    aria-label={ariaLabel}
-  >
-    —
-  </span>
-{:else}
-  <button
-    type="button"
-    class={[
-      'relative inline-flex h-10 w-10 items-center justify-center rounded-md transition-[scale]',
-      interactive ? 'cursor-pointer active:scale-[0.96]' : 'cursor-not-allowed',
-      updating ? 'bg-action/15 ring-2 ring-action/40 ring-inset' : '',
-      disabled && !locked && !allowBlocked ? 'opacity-60' : ''
-    ]}
-    disabled={interactionDisabled || updating}
-    {title}
-    aria-label={ariaLabel}
-    aria-busy={updating || undefined}
-    aria-pressed={decisionMode === 'binary' ? visual === 'allow' : isOverride}
-    onclick={handleClick}
-  >
-    <span
-      class={[
-        'inline-flex h-5 w-5 items-center justify-center rounded-md transition-[background-color,color]',
-        surfaceClasses
-      ]}
-    >
-      {#if updating}
-        <span class="iconify icon-[uil--spinner] h-4 w-4 animate-spin" aria-hidden="true"></span>
-      {:else}
-        <span class={['iconify h-3 w-3', icon]}></span>
-      {/if}
-    </span>
-    {#if (locked || (allowBlocked && interactionDisabled)) && !updating}
-      <span
-        class="iconify absolute top-0.5 right-0.5 icon-[uil--lock] h-3 w-3 text-warning"
-        aria-hidden="true"
-      ></span>
-    {:else if (allowBlocked || ceilingBlocked) && !updating}
-      <span
-        class="iconify absolute top-0.5 right-0.5 icon-[uil--exclamation-triangle] h-3 w-3 text-warning"
-        aria-hidden="true"
-      ></span>
-    {/if}
-  </button>
-{/if}
+<MatrixCellButton
+  {tone}
+  explicit={isOverride}
+  {icon}
+  loading={updating}
+  disabled={interactionDisabled}
+  locked={displayLocked}
+  warning={!displayLocked && (allowBlocked || ceilingBlocked)}
+  {applicable}
+  pressed={decisionMode === 'binary' ? visual === 'allow' : isOverride}
+  {ariaLabel}
+  {title}
+  onActivate={handleClick}
+/>

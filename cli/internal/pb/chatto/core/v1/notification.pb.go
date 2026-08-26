@@ -22,15 +22,19 @@ const (
 	_ = protoimpl.EnforceVersion(protoimpl.MaxVersion - 20)
 )
 
-// NotificationDeliveryMode controls whether qualifying activity is
-// omitted, recorded silently, or eligible for an interruptive alert.
+// NotificationDeliveryMode controls whether qualifying activity is omitted,
+// recorded as an in-app notification, or also eligible for push delivery.
 type NotificationDeliveryMode int32
 
 const (
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNSPECIFIED NotificationDeliveryMode = 0
 	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF         NotificationDeliveryMode = 1
-	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT      NotificationDeliveryMode = 2
-	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT       NotificationDeliveryMode = 3
+	// Deprecated: Marked as deprecated in chatto/core/v1/notification.proto.
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_SILENT              NotificationDeliveryMode = 2
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION NotificationDeliveryMode = 2
+	// Deprecated: Marked as deprecated in chatto/core/v1/notification.proto.
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_ALERT             NotificationDeliveryMode = 3
+	NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION NotificationDeliveryMode = 3
 )
 
 // Enum value maps for NotificationDeliveryMode.
@@ -39,13 +43,17 @@ var (
 		0: "NOTIFICATION_DELIVERY_MODE_UNSPECIFIED",
 		1: "NOTIFICATION_DELIVERY_MODE_OFF",
 		2: "NOTIFICATION_DELIVERY_MODE_SILENT",
+		// Duplicate value: 2: "NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION",
 		3: "NOTIFICATION_DELIVERY_MODE_ALERT",
+		// Duplicate value: 3: "NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION",
 	}
 	NotificationDeliveryMode_value = map[string]int32{
-		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED": 0,
-		"NOTIFICATION_DELIVERY_MODE_OFF":         1,
-		"NOTIFICATION_DELIVERY_MODE_SILENT":      2,
-		"NOTIFICATION_DELIVERY_MODE_ALERT":       3,
+		"NOTIFICATION_DELIVERY_MODE_UNSPECIFIED":         0,
+		"NOTIFICATION_DELIVERY_MODE_OFF":                 1,
+		"NOTIFICATION_DELIVERY_MODE_SILENT":              2,
+		"NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION": 2,
+		"NOTIFICATION_DELIVERY_MODE_ALERT":               3,
+		"NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION":   3,
 	}
 )
 
@@ -2003,12 +2011,14 @@ const file_chatto_core_v1_notification_proto_rawDesc = "" +
 	"\x04read\x18e \x01(\v2 .chatto.core.v1.NotificationReadH\x00R\x04read\x12?\n" +
 	"\aremoved\x18f \x01(\v2#.chatto.core.v1.NotificationRemovedH\x00R\aremoved\x12R\n" +
 	"\x0ealert_resolved\x18g \x01(\v2).chatto.core.v1.NotificationAlertResolvedH\x00R\ralertResolvedB\a\n" +
-	"\x05event*\xb7\x01\n" +
+	"\x05event*\xa9\x02\n" +
 	"\x18NotificationDeliveryMode\x12*\n" +
 	"&NOTIFICATION_DELIVERY_MODE_UNSPECIFIED\x10\x00\x12\"\n" +
-	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12%\n" +
-	"!NOTIFICATION_DELIVERY_MODE_SILENT\x10\x02\x12$\n" +
-	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03*\xa0\x01\n" +
+	"\x1eNOTIFICATION_DELIVERY_MODE_OFF\x10\x01\x12)\n" +
+	"!NOTIFICATION_DELIVERY_MODE_SILENT\x10\x02\x1a\x02\b\x01\x122\n" +
+	".NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION\x10\x02\x12(\n" +
+	" NOTIFICATION_DELIVERY_MODE_ALERT\x10\x03\x1a\x02\b\x01\x120\n" +
+	",NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION\x10\x03\x1a\x02\x10\x01*\xa0\x01\n" +
 	"\x1aNotificationAttentionLevel\x12,\n" +
 	"(NOTIFICATION_ATTENTION_LEVEL_UNSPECIFIED\x10\x00\x12(\n" +
 	"$NOTIFICATION_ATTENTION_LEVEL_AMBIENT\x10\x01\x12*\n" +

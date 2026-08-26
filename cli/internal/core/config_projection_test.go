@@ -117,6 +117,40 @@ func TestConfigProjection_UnknownEventTypesIgnored(t *testing.T) {
 	require.Nil(t, model.GetServerConfig())
 }
 
+func TestConfigProjection_GroupNotificationPolicyAccountCleanupAndEstimate(t *testing.T) {
+	p := NewConfigProjection()
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserRoomGroupNotificationPolicyChanged{
+		UserRoomGroupNotificationPolicyChanged: &corev1.UserRoomGroupNotificationPolicyChangedEvent{
+			UserId:      "user-1",
+			RoomGroupId: "group-1",
+			Overrides: &corev1.NotificationDeliveryModes{
+				DirectMessages: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.Enum(),
+			},
+		},
+	}}, 1))
+
+	values, bytes, metrics := p.adminProjectionEstimate()
+	require.Positive(t, values)
+	require.Positive(t, bytes)
+	policyMetric := projectionMetricByName(metrics, "notification_policy_values")
+	require.NotNil(t, policyMetric)
+	require.EqualValues(t, 1, policyMetric.Value)
+	require.Positive(t, policyMetric.Bytes)
+	require.Contains(t, p.users["user-1"].roomGroupModesByGroup, "group-1")
+
+	require.NoError(t, p.Apply(&corev1.Event{Event: &corev1.Event_UserAccountDeleted{
+		UserAccountDeleted: &corev1.UserAccountDeletedEvent{UserId: "user-1"},
+	}}, 2))
+
+	require.NotContains(t, p.users, "user-1")
+	values, _, metrics = p.adminProjectionEstimate()
+	require.Zero(t, values)
+	policyMetric = projectionMetricByName(metrics, "notification_policy_values")
+	require.NotNil(t, policyMetric)
+	require.Zero(t, policyMetric.Value)
+	require.Zero(t, policyMetric.Bytes)
+}
+
 func TestConfigProjection_BrandingDoesNotCreateServerConfig(t *testing.T) {
 	p, model := newConfigProjectionUnderModel()
 

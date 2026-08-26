@@ -3,7 +3,7 @@
 /* eslint-disable */
 // @ts-nocheck
 
-import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, UpdateNotificationPolicyRequest, UpdateNotificationPolicyResponse } from "./notifications_pb.js";
+import { BatchDeleteNotificationOccurrencesRequest, BatchDeleteNotificationOccurrencesResponse, BatchGetNotificationOccurrencesRequest, BatchGetNotificationOccurrencesResponse, BatchGetNotificationPoliciesRequest, BatchGetNotificationPoliciesResponse, DeleteAllNotificationOccurrencesRequest, DeleteAllNotificationOccurrencesResponse, DeleteNotificationOccurrenceRequest, DeleteNotificationOccurrenceResponse, GetNotificationOccurrenceRequest, GetNotificationOccurrenceResponse, GetNotificationPolicyRequest, GetNotificationPolicyResponse, ListNotificationOccurrencesRequest, ListNotificationOccurrencesResponse, MarkNotificationReadRequest, MarkNotificationReadResponse, NotificationPolicyServiceGetNotificationPolicyRequest, NotificationPolicyServiceGetNotificationPolicyResponse, NotificationPolicyServiceUpdateNotificationPolicyRequest, NotificationPolicyServiceUpdateNotificationPolicyResponse, UpdateNotificationPolicyRequest, UpdateNotificationPolicyResponse } from "./notifications_pb.js";
 import { MethodIdempotency, MethodKind } from "@bufbuild/protobuf";
 
 /**
@@ -138,6 +138,55 @@ export const NotificationService = {
       name: "UpdateNotificationPolicy",
       I: UpdateNotificationPolicyRequest,
       O: UpdateNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+      idempotency: MethodIdempotency.Idempotent,
+    },
+  }
+} as const;
+
+/**
+ * Reads and updates the authenticated viewer's server, room-group, and room
+ * notification delivery policies.
+ *
+ * @generated from service chatto.api.v1.NotificationPolicyService
+ */
+export const NotificationPolicyService = {
+  typeName: "chatto.api.v1.NotificationPolicyService",
+  methods: {
+    /**
+     * Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+     * for a missing room group or room, and PERMISSION_DENIED when the viewer is
+     * not a current member of a requested room.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.GetNotificationPolicy
+     */
+    getNotificationPolicy: {
+      name: "GetNotificationPolicy",
+      I: NotificationPolicyServiceGetNotificationPolicyRequest,
+      O: NotificationPolicyServiceGetNotificationPolicyResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Gets an explicit bounded set of policies. Missing and inaccessible scopes
+     * are omitted, and duplicate scopes are de-duplicated in first-seen order.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.BatchGetNotificationPolicies
+     */
+    batchGetNotificationPolicies: {
+      name: "BatchGetNotificationPolicies",
+      I: BatchGetNotificationPoliciesRequest,
+      O: BatchGetNotificationPoliciesResponse,
+      kind: MethodKind.Unary,
+    },
+    /**
+     * Atomically sets or clears selected overrides at one explicit scope.
+     *
+     * @generated from rpc chatto.api.v1.NotificationPolicyService.UpdateNotificationPolicy
+     */
+    updateNotificationPolicy: {
+      name: "UpdateNotificationPolicy",
+      I: NotificationPolicyServiceUpdateNotificationPolicyRequest,
+      O: NotificationPolicyServiceUpdateNotificationPolicyResponse,
       kind: MethodKind.Unary,
       idempotency: MethodIdempotency.Idempotent,
     },

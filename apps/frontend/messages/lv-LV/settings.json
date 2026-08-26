@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Paziņojumu noteikumi",
-        "description": "Izvēlieties, cik izteikti katram aktivitātes veidam jāpiesaista jūsu uzmanība. Mantošana izmanto servera noklusējumu.",
+        "description": "Izvēlieties katras aktivitātes paziņošanas veidu servera, telpu grupas un telpas līmenī. Telpas manto iestatījumu no savas grupas un pēc tam no servera.",
         "load_failed": "Neizdevās ielādēt paziņojumu noteikumus",
         "save_failed": "Neizdevās saglabāt paziņojumu noteikumus",
         "effective": "Spēkā: {mode}",
+        "filter_label": "Filtrēt paziņojumu tvērumus",
+        "filter_placeholder": "Filtrēt grupas un telpas…",
+        "no_filter_matches": "Šim filtram neatbilst neviens paziņojumu tvērums.",
+        "legend": "Paziņojumu piegādes režīmi",
+        "cell_aria": "{cause}, {scope}. Pārrakstīšana: {override}. Spēkā: {effective}. Aktivizējiet, lai iestatītu {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Noklusējums: {current}. Aktivizējiet, lai iestatītu {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Nav piemērojams.",
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
-          "silent": "Kluss",
-          "alert": "Brīdinājums"
+          "notification": "Paziņojums",
+          "push_notification": "Pašpiegādes paziņojums"
         },
         "reason": {
           "direct_message": "Tiešie ziņojumi",
@@ -299,6 +306,17 @@
           "reaction": "Reakcijas uz jūsu ziņojumiem",
           "activity": "Aktivitāte",
           "room_invitation": "Uzaicinājumi uz telpām"
+        },
+        "reason_hint": {
+          "direct_message": "Ziņojumi, ko citi dalībnieki nosūta tiešo ziņojumu sarunās.",
+          "direct_mention": "Ziņojumi, kuros tieši pieminēts jūsu lietotājvārds.",
+          "reply": "Ziņojumi, kas atbild uz kādu no jūsu ziņojumiem.",
+          "role_mention": "Ziņojumi, kuros pieminēta jums piešķirta loma.",
+          "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
+          "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
+          "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
+          "followed_room": "Augstākā līmeņa ziņojumi telpās, kurām sekojat.",
+          "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
         }
       }
     },

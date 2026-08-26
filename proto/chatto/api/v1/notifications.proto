@@ -7,19 +7,26 @@ import "chatto/api/v1/pagination.proto";
 import "chatto/api/v1/rooms.proto";
 import "chatto/api/v1/users.proto";
 import "google/protobuf/descriptor.proto";
+import "google/protobuf/empty.proto";
 import "google/protobuf/field_mask.proto";
 import "google/protobuf/timestamp.proto";
 
 // Delivery behavior for one notification signal class.
 enum NotificationDeliveryMode {
+  option allow_alias = true;
+
   // No delivery mode was specified. This value is not a valid override.
   NOTIFICATION_DELIVERY_MODE_UNSPECIFIED = 0;
   // Matching activity does not create a notification occurrence.
   NOTIFICATION_DELIVERY_MODE_OFF = 1;
-  // Matching activity appears in the notification list without interruptive delivery.
-  NOTIFICATION_DELIVERY_MODE_SILENT = 2;
-  // Matching activity appears in the notification list and may trigger sound or push.
-  NOTIFICATION_DELIVERY_MODE_ALERT = 3;
+  // Deprecated alias for NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION.
+  NOTIFICATION_DELIVERY_MODE_SILENT = 2 [deprecated = true];
+  // Matching activity creates an in-app notification but does not send push.
+  NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION = 2;
+  // Deprecated alias for NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION.
+  NOTIFICATION_DELIVERY_MODE_ALERT = 3 [deprecated = true];
+  // Matching activity creates an in-app notification and may send push.
+  NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
 }
 
 // Delivery modes for Chatto's finite built-in notification signal classes.
@@ -32,6 +39,8 @@ message NotificationDeliveryModes {
   optional NotificationDeliveryMode here_mentions = 5;
   optional NotificationDeliveryMode all_mentions = 6;
   optional NotificationDeliveryMode followed_threads = 7;
+  // Delivery mode for top-level activity in rooms followed by the viewer.
+  // Servers without room-follow support apply it to all joined channel rooms.
   optional NotificationDeliveryMode followed_rooms = 8;
   optional NotificationDeliveryMode reactions = 9;
 }
@@ -95,7 +104,8 @@ message FollowedThreadActivity {
   NotificationMessageReference message = 1;
 }
 
-// Activity in a room followed by the viewer.
+// Top-level activity in a room followed by the viewer. Servers without
+// room-follow support can emit it for any channel room joined by the viewer.
 message FollowedRoomActivity {
   NotificationMessageReference message = 1;
 }
@@ -303,6 +313,76 @@ message UpdateNotificationPolicyResponse {
   NotificationPolicy policy = 2;
 }
 
+// Explicit target for one notification policy. Clients must select exactly
+// one scope. Direct-message rooms use room scope and never inherit from a room
+// group.
+message NotificationPolicyScope {
+  oneof scope {
+    option (buf.validate.oneof).required = true;
+
+    // Selects the authenticated viewer's server-wide policy.
+    google.protobuf.Empty server = 1;
+    // Selects one existing room group's policy.
+    string room_group_id = 2 [(buf.validate.field).string.min_len = 1];
+    // Selects one room's policy and requires current room membership.
+    string room_id = 3 [(buf.validate.field).string.min_len = 1];
+  }
+}
+
+// One policy together with the explicit scope that produced it.
+message ScopedNotificationPolicy {
+  // Exact policy scope.
+  NotificationPolicyScope scope = 1;
+  // Explicit and effective modes for the scope.
+  NotificationPolicy policy = 2;
+}
+
+// Request one notification policy for the authenticated viewer.
+message NotificationPolicyServiceGetNotificationPolicyRequest {
+  // Required policy scope.
+  NotificationPolicyScope scope = 1 [(buf.validate.field).required = true];
+}
+
+// One resolved notification policy.
+message NotificationPolicyServiceGetNotificationPolicyResponse {
+  // Requested policy and its explicit scope.
+  ScopedNotificationPolicy policy = 1;
+}
+
+// Request an explicit bounded set of notification policies.
+message BatchGetNotificationPoliciesRequest {
+  // Required scopes. Missing or inaccessible scopes are omitted. Repeated
+  // scopes are de-duplicated in first-seen request order.
+  repeated NotificationPolicyScope scopes = 1 [(buf.validate.field).repeated = {
+    min_items: 1
+    max_items: 100
+  }];
+}
+
+// Resolved notification policies requested by scope.
+message BatchGetNotificationPoliciesResponse {
+  // Found policies in first-seen request order.
+  repeated ScopedNotificationPolicy policies = 1;
+}
+
+// Sparsely update notification policy overrides at one explicit scope.
+message NotificationPolicyServiceUpdateNotificationPolicyRequest {
+  // Required policy scope.
+  NotificationPolicyScope scope = 1 [(buf.validate.field).required = true];
+  // Sparse override values. Fields selected by update_mask but absent here are
+  // cleared to Inherit.
+  NotificationDeliveryModes overrides = 2;
+  // Fields to set or clear, relative to overrides. The mask must contain at
+  // least one supported delivery-mode field.
+  google.protobuf.FieldMask update_mask = 3;
+}
+
+// Complete supported notification policy after a scoped sparse update.
+message NotificationPolicyServiceUpdateNotificationPolicyResponse {
+  // Updated policy and its explicit scope.
+  ScopedNotificationPolicy policy = 1;
+}
+
 // Reads, marks read, and deletes notifications for the authenticated viewer.
 service NotificationService {
   // Gets one exact visible occurrence. Message-derived occurrences require
@@ -356,4 +436,20 @@ service NotificationService {
     option idempotency_level = IDEMPOTENT;
   }
 
+}
+
+// Reads and updates the authenticated viewer's server, room-group, and room
+// notification delivery policies.
+service NotificationPolicyService {
+  // Gets explicit and effective modes for one policy scope. Returns NOT_FOUND
+  // for a missing room group or room, and PERMISSION_DENIED when the viewer is
+  // not a current member of a requested room.
+  rpc GetNotificationPolicy(NotificationPolicyServiceGetNotificationPolicyRequest) returns (NotificationPolicyServiceGetNotificationPolicyResponse);
+  // Gets an explicit bounded set of policies. Missing and inaccessible scopes
+  // are omitted, and duplicate scopes are de-duplicated in first-seen order.
+  rpc BatchGetNotificationPolicies(BatchGetNotificationPoliciesRequest) returns (BatchGetNotificationPoliciesResponse);
+  // Atomically sets or clears selected overrides at one explicit scope.
+  rpc UpdateNotificationPolicy(NotificationPolicyServiceUpdateNotificationPolicyRequest) returns (NotificationPolicyServiceUpdateNotificationPolicyResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
 }

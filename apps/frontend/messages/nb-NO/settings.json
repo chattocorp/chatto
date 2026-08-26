@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Varslingsregler",
-        "description": "Velg hvor mye oppmerksomhet hver aktivitetstype skal få. Arv bruker serverens standard.",
+        "description": "Velg hvordan hver aktivitet varsler deg på server-, romgruppe- og romnivå. Rom arver fra gruppen sin og deretter fra serveren.",
         "load_failed": "Kunne ikke laste varslingsreglene",
         "save_failed": "Kunne ikke lagre varslingsreglene",
         "effective": "Gjeldende: {mode}",
+        "filter_label": "Filtrer varslingsområder",
+        "filter_placeholder": "Filtrer grupper og rom…",
+        "no_filter_matches": "Ingen varslingsområder samsvarer med dette filteret.",
+        "legend": "Leveringsmåter for varsler",
+        "cell_aria": "{cause}, {scope}. Overstyring: {override}. Gjeldende: {effective}. Aktiver for å angi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Standard: {current}. Aktiver for å angi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ikke relevant.",
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
-          "silent": "Stille",
-          "alert": "Varsel"
+          "notification": "Varsel",
+          "push_notification": "Push-varsel"
         },
         "reason": {
           "direct_message": "Direktemeldinger",
@@ -299,6 +306,17 @@
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
           "room_invitation": "Invitasjoner til rom"
+        },
+        "reason_hint": {
+          "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
+          "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
+          "reply": "Meldinger som svarer på en av meldingene dine.",
+          "role_mention": "Meldinger som omtaler en rolle du er tildelt.",
+          "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
+          "all": "Meldinger som bruker @all i et rom du er medlem av.",
+          "followed_thread": "Nye svar i tråder du følger.",
+          "followed_room": "Meldinger på toppnivå i rom du følger.",
+          "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }
     },

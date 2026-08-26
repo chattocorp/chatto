@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Teavituste reeglid",
-        "description": "Vali, kui tugevalt iga tegevuse liik sinu tähelepanu köidab. Pärimine kasutab serveri vaikeväärtust.",
+        "description": "Vali iga tegevuse teavitusviis serveri, ruumirühma ja ruumi tasemel. Ruumid pärivad seadistuse oma rühmalt ja seejärel serverilt.",
         "load_failed": "Teavituste reeglite laadimine ebaõnnestus",
         "save_failed": "Teavituste reeglite salvestamine ebaõnnestus",
         "effective": "Kehtiv: {mode}",
+        "filter_label": "Filtreeri teavitusalasid",
+        "filter_placeholder": "Filtreeri rühmi ja ruume…",
+        "no_filter_matches": "Sellele filtrile ei vasta ükski teavitusala.",
+        "legend": "Teavituste edastusviisid",
+        "cell_aria": "{cause}, {scope}. Erand: {override}. Kehtiv: {effective}. Aktiveeri, et määrata {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Vaikeseade: {current}. Aktiveeri, et määrata {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ei kohaldu.",
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
-          "silent": "Vaikne",
-          "alert": "Teavitus"
+          "notification": "Teavitus",
+          "push_notification": "Tõuketeavitus"
         },
         "reason": {
           "direct_message": "Otsesõnumid",
@@ -299,6 +306,17 @@
           "reaction": "Reaktsioonid sinu sõnumitele",
           "activity": "Tegevus",
           "room_invitation": "Ruumide kutsed"
+        },
+        "reason_hint": {
+          "direct_message": "Teiste liikmete saadetud sõnumid otsesõnumivestlustes.",
+          "direct_mention": "Sõnumid, milles mainitakse otseselt sinu kasutajanime.",
+          "reply": "Sõnumid, mis vastavad mõnele sinu sõnumile.",
+          "role_mention": "Sõnumid, milles mainitakse sulle määratud rolli.",
+          "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
+          "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
+          "followed_thread": "Uued vastused lõimedes, mida jälgid.",
+          "followed_room": "Lõimedesse mittekuuluvad sõnumid ruumides, mida jälgid.",
+          "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
         }
       }
     },

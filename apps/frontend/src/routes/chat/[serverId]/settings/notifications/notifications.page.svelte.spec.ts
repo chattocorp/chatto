@@ -16,9 +16,19 @@ const mocks = vi.hoisted(() => ({
   activeServerId: 'origin',
   notifications: {
     getPolicy: vi.fn().mockResolvedValue(null),
-    updatePolicy: vi.fn().mockResolvedValue(null)
+    updatePolicy: vi.fn().mockResolvedValue(null),
+    notificationPolicies: {
+      loading: false,
+      error: null as string | null,
+      errorKind: null as 'load' | 'save' | null,
+      load: vi.fn().mockResolvedValue(undefined),
+      update: vi.fn().mockResolvedValue(undefined),
+      policy: vi.fn(() => undefined),
+      isPending: vi.fn(() => false)
+    }
   },
   serverInfo: {
+    name: 'Test Server',
     pushNotificationsEnabled: false,
     vapidPublicKey: null as string | null,
     supportsFeature: vi.fn(() => true)
@@ -71,7 +81,11 @@ vi.mock('$lib/state/server/scope.svelte', async () => {
       },
       store: {
         serverInfo: mocks.serverInfo,
-        notifications: mocks.notifications
+        notifications: mocks.notifications,
+        navigation: {
+          roomGroups: [],
+          rooms: []
+        }
       },
       connection: {
         queryScope: 'origin-session',
@@ -119,8 +133,8 @@ function commitRangeValue(input: HTMLInputElement, value: string) {
 }
 
 function buttonWithText(container: Element, text: string): HTMLButtonElement {
-  const button = Array.from(container.querySelectorAll('button')).find((candidate) =>
-    candidate.textContent?.includes(text)
+  const button = Array.from(container.querySelectorAll('button')).find(
+    (candidate) => candidate.textContent?.trim() === text
   );
   if (!button) {
     throw new Error(`Button with text "${text}" not found`);
@@ -154,6 +168,11 @@ describe('Notification settings page', () => {
     mocks.notifications.getPolicy.mockResolvedValue(null);
     mocks.notifications.updatePolicy.mockClear();
     mocks.notifications.updatePolicy.mockResolvedValue(null);
+    mocks.notifications.notificationPolicies.load.mockClear();
+    mocks.notifications.notificationPolicies.load.mockResolvedValue(undefined);
+    mocks.notifications.notificationPolicies.update.mockClear();
+    mocks.notifications.notificationPolicies.policy.mockReturnValue(undefined);
+    mocks.notifications.notificationPolicies.isPending.mockReturnValue(false);
     mocks.serverInfo.pushNotificationsEnabled = false;
     mocks.serverInfo.vapidPublicKey = null;
     mocks.serverInfo.supportsFeature.mockReturnValue(true);

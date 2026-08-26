@@ -277,15 +277,22 @@
       },
       "policy": {
         "title": "Sciiga politiko",
-        "description": "Elektu kiom forte ĉiu speco de aktiveco atentigu vin. Heredi uzas la servilan aprioron.",
+        "description": "Elektu kiel ĉiu aktiveco atentigu vin je servila, ĉambrogrupa kaj ĉambra nivelo. Ĉambroj heredas de sia grupo kaj poste de la servilo.",
         "load_failed": "Ne eblis ŝargi la sciigan politikon",
         "save_failed": "Ne eblis konservi la sciigan politikon",
         "effective": "Efektiva: {mode}",
+        "filter_label": "Filtri sciigajn ampleksojn",
+        "filter_placeholder": "Filtri grupojn kaj ĉambrojn…",
+        "no_filter_matches": "Neniu sciiga amplekso kongruas kun ĉi tiu filtrilo.",
+        "legend": "Reĝimoj de livero de sciigoj",
+        "cell_aria": "{cause}, {scope}. Superrego: {override}. Efektiva: {effective}. Aktivigu por agordi {next}.",
+        "server_default_cell_aria": "{cause}, {scope}. Defaŭlto: {current}. Aktivigu por agordi {next}.",
+        "not_applicable_cell_aria": "{cause}, {scope}. Ne aplikebla.",
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
-          "silent": "Silenta",
-          "alert": "Alarmo"
+          "notification": "Sciigo",
+          "push_notification": "Puŝa sciigo"
         },
         "reason": {
           "direct_message": "Rektaj mesaĝoj",
@@ -299,6 +306,17 @@
           "reaction": "Reagoj al viaj mesaĝoj",
           "activity": "Aktiveco",
           "room_invitation": "Invitoj al ĉambroj"
+        },
+        "reason_hint": {
+          "direct_message": "Mesaĝoj, kiujn aliaj membroj sendas en rektmesaĝaj konversacioj.",
+          "direct_mention": "Mesaĝoj, kiuj rekte mencias vian uzantnomon.",
+          "reply": "Mesaĝoj, kiuj respondas al unu el viaj mesaĝoj.",
+          "role_mention": "Mesaĝoj, kiuj mencias rolon atribuitan al vi.",
+          "here": "Mesaĝoj, kiuj uzas @here kiam via ĉeesto ne estas eksterreta.",
+          "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
+          "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
+          "followed_room": "Ĉefnivelaj mesaĝoj en ĉambroj, kiujn vi sekvas.",
+          "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj."
         }
       }
     },
