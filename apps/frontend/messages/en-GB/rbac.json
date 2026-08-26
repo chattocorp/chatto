@@ -44,6 +44,7 @@
       "allow": "allow",
       "deny": "deny",
       "winning_decision": "(winning decision)",
+      "applied_from": "from {permission}",
       "level_server": "Server",
       "level_group": "Group",
       "level_room": "Room",
@@ -95,6 +96,7 @@
       }
     },
     "permission_descriptions": {
+      "all_registered_descendants": "Allow {permission} and every registered descendant permission.",
       "server_manage": "Update server settings (name, description, logo)",
       "room_create": "Create new rooms",
       "room_join": "Join existing rooms",

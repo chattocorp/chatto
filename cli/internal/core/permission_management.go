@@ -493,14 +493,18 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 			return nil, fmt.Errorf("load group overrides: %w", err)
 		}
 		out.Override = newCoreTierPermissions(grants, denials)
-		out.InheritedAllows = filterCorePermsByScope(serverGrants, ScopeGroup)
-		out.InheritedDenials = filterCorePermsByScope(serverDenials, ScopeGroup)
+		out.InheritedAllows, out.InheritedDenials = tierInheritedPermissionDecisions(
+			ScopeGroup, groupID, "", grants, denials, serverGrants, serverDenials, nil, nil,
+		)
 		return out, nil
 	}
 
 	switch scope {
 	case ScopeServer:
 		out.Override = newCoreTierPermissions(serverGrants, serverDenials)
+		out.InheritedAllows, out.InheritedDenials = tierInheritedPermissionDecisions(
+			ScopeServer, "", "", serverGrants, serverDenials, serverGrants, serverDenials, nil, nil,
+		)
 	case ScopeRoom:
 		grants, denials, err := c.GetRoomRolePermissions(ctx, roomID, role.Name)
 		if err != nil {
@@ -519,13 +523,69 @@ func (c *ChattoCore) buildTierRole(ctx context.Context, role RoleWithPermissions
 				return nil, fmt.Errorf("load group inheritance: %w", err)
 			}
 		}
-		out.InheritedAllows, out.InheritedDenials = mergeInheritedPermissionDecisions(
-			groupGrants, groupDenials,
-			scopedCorePerms(serverGrants, ScopeRoom),
-			scopedCorePerms(serverDenials, ScopeRoom),
+		out.InheritedAllows, out.InheritedDenials = tierInheritedPermissionDecisions(
+			ScopeRoom, roomID, groupID, grants, denials, serverGrants, serverDenials, groupGrants, groupDenials,
 		)
 	}
 	return out, nil
+}
+
+// tierInheritedPermissionDecisions supplies the effective state when the role
+// has no exact override at the displayed scope. It includes broader scopes and
+// parent-path allows at the displayed scope.
+func tierInheritedPermissionDecisions(
+	scope PermissionScope,
+	scopeID, groupID string,
+	overrideGrants, overrideDenials, serverGrants, serverDenials, groupGrants, groupDenials []Permission,
+) ([]string, []string) {
+	groupGrantMap := map[string][]Permission{}
+	groupDenialMap := map[string][]Permission{}
+	roomGrantMap := map[string][]Permission{}
+	roomDenialMap := map[string][]Permission{}
+	roomToGroup := map[string]string{}
+	matrixScope := PermissionMatrixScope{Kind: matrixScopeKindForPermissionScope(scope)}
+	switch scope {
+	case ScopeGroup:
+		matrixScope.ID = "group:" + scopeID
+		groupGrantMap[scopeID] = overrideGrants
+		groupDenialMap[scopeID] = overrideDenials
+	case ScopeRoom:
+		matrixScope.ID = "room:" + scopeID
+		roomGrantMap[scopeID] = overrideGrants
+		roomDenialMap[scopeID] = overrideDenials
+		roomToGroup[scopeID] = groupID
+		if groupID != "" {
+			groupGrantMap[groupID] = groupGrants
+			groupDenialMap[groupID] = groupDenials
+		}
+	default:
+		matrixScope.ID = "server"
+	}
+
+	var allows, denials []string
+	for _, meta := range PermissionsForScope(scope) {
+		if matrixExactDecisionFromLists(meta.Permission, overrideGrants, overrideDenials) != MatrixDecisionNone {
+			continue
+		}
+		switch matrixEffectiveDecision(meta.Permission, matrixScope, serverGrants, serverDenials, groupGrantMap, groupDenialMap, roomGrantMap, roomDenialMap, roomToGroup) {
+		case MatrixDecisionAllow:
+			allows = append(allows, string(meta.Permission))
+		case MatrixDecisionDeny:
+			denials = append(denials, string(meta.Permission))
+		}
+	}
+	return allows, denials
+}
+
+func matrixScopeKindForPermissionScope(scope PermissionScope) MatrixScopeKind {
+	switch scope {
+	case ScopeGroup:
+		return MatrixScopeGroup
+	case ScopeRoom:
+		return MatrixScopeRoom
+	default:
+		return MatrixScopeServer
+	}
 }
 
 func (c *ChattoCore) buildRolePermissionMatrix(ctx context.Context, roleName string) (*RolePermissionMatrix, error) {

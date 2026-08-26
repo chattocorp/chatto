@@ -13,6 +13,12 @@ func TestPermissionCatalogRegistersAncestors(t *testing.T) {
 	if err := ValidatePermission(PermMessage); err != nil {
 		t.Fatalf("ValidatePermission(message): %v", err)
 	}
+	if !PermissionCanAffect(PermRoom, PermRoomJoin) {
+		t.Fatal("room must affect registered room.join")
+	}
+	if PermissionCanAffect(PermRoom, Permission("room.unregistered")) {
+		t.Fatal("room must not affect an unregistered descendant")
+	}
 }
 
 func TestPermissionHierarchy_AncestorGrantAndExactDeny(t *testing.T) {

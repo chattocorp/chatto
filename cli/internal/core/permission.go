@@ -394,6 +394,19 @@ func PermissionAncestors(perm Permission) []Permission {
 	return ancestors
 }
 
+// PermissionCanAffect returns true when a decision at perm can affect target.
+// A permission can affect itself or a registered descendant. It cannot affect
+// an unregistered target path.
+func PermissionCanAffect(perm, target Permission) bool {
+	if _, registered := GetPermissionMetadata(target); !registered {
+		return false
+	}
+	if perm == target {
+		return true
+	}
+	return slices.Contains(PermissionAncestors(target), perm)
+}
+
 // validatePermissionCatalog enforces the registered-path invariant. Each
 // descendant path has each of its ancestor paths in the catalog.
 func validatePermissionCatalog() {

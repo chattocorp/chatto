@@ -132,23 +132,6 @@ scrolling; the table only scrolls horizontally when its columns overflow.
     return 'neutral';
   }
 
-  function parentDecision(scope: MatrixScope, permission: string): MatrixDecision {
-    const serverScope = data.scopes.find((candidate) => candidate.kind === 'SERVER');
-    const serverDecision = serverScope
-      ? (cellFor(serverScope.id, permission)?.override ?? 'NONE')
-      : 'NONE';
-    if (scope.kind === 'SERVER') return 'NONE';
-    if (scope.kind === 'GROUP') return serverDecision;
-
-    const groupScope = data.scopes.find(
-      (candidate) => candidate.kind === 'GROUP' && candidate.id === `group:${scope.parentGroupId}`
-    );
-    const groupDecision = groupScope
-      ? (cellFor(groupScope.id, permission)?.override ?? 'NONE')
-      : 'NONE';
-    return groupDecision !== 'NONE' ? groupDecision : serverDecision;
-  }
-
   function cycleCell(
     scope: MatrixScope,
     permission: string,
@@ -231,13 +214,11 @@ scrolling; the table only scrolls horizontally when its columns overflow.
         </HelpTooltip>
       {/snippet}
       {#snippet cell(permission, scope)}
-        {@const cell = cellFor(scope.id, permission)}
+          {@const cell = cellFor(scope.id, permission)}
         {#if cell}
           {@const ov = decisionToState(cell.override)}
           {@const eff = decisionToState(cell.effective)}
-          {@const parent = parentDecision(scope, permission)}
-          {@const configured = cell.override !== 'NONE' ? cell.override : parent}
-          {@const binaryEnabled = configured === 'ALLOW'}
+          {@const binaryEnabled = cell.effective === 'ALLOW'}
           {@const inheritedBinaryGrant =
             decisionMode === 'binary' && cell.override === 'NONE' && binaryEnabled}
           {@const displayOverride = forceAllow
@@ -312,7 +293,7 @@ scrolling; the table only scrolls horizontally when its columns overflow.
             disabled={readOnly}
             locked={inheritedBinaryGrant}
             allowBlocked={cell.allowPermitted === false &&
-              (decisionMode !== 'binary' || parent !== 'ALLOW')}
+              (decisionMode !== 'binary' || !binaryEnabled)}
             ceilingBlocked={cell.allowPermitted === false &&
               (decisionMode === 'binary' ? binaryEnabled : ov === 'allow')}
             {decisionMode}

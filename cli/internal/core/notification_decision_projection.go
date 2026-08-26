@@ -189,11 +189,11 @@ func notificationVisibilityBoundaryEvent(event *corev1.Event) bool {
 		*corev1.Event_RbacRoleDeleted:
 		return true
 	case *corev1.Event_RbacPermissionGranted:
-		return payload.RbacPermissionGranted.GetPermission() == string(PermRoomJoin)
+		return PermissionCanAffect(Permission(payload.RbacPermissionGranted.GetPermission()), PermRoomJoin)
 	case *corev1.Event_RbacPermissionDenied:
-		return payload.RbacPermissionDenied.GetPermission() == string(PermRoomJoin)
+		return PermissionCanAffect(Permission(payload.RbacPermissionDenied.GetPermission()), PermRoomJoin)
 	case *corev1.Event_RbacPermissionCleared:
-		return payload.RbacPermissionCleared.GetPermission() == string(PermRoomJoin)
+		return PermissionCanAffect(Permission(payload.RbacPermissionCleared.GetPermission()), PermRoomJoin)
 	default:
 		return false
 	}
@@ -703,15 +703,35 @@ func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID s
 	if s.rbac.HasRole(userID, RoleOwner) {
 		return true
 	}
-	scopes := []permissionScopeTarget{{scope: ScopeRoom, level: LevelRoom, id: roomID}}
-	if groupID != "" {
+	if decision := s.roomPermissionDecision(userID, roomID, groupID, PermRoomJoin); decision != DecisionNone {
+		return decision == DecisionAllow
+	}
+	for _, ancestor := range PermissionAncestors(PermRoomJoin) {
+		if s.roomPermissionDecision(userID, roomID, groupID, ancestor) == DecisionAllow {
+			return true
+		}
+	}
+	return false
+}
+
+// roomPermissionDecision applies the regular subject and scope rules for one
+// exact registered path. roomJoinAllowed resolves each path before it checks
+// an ancestor allow, just like PermissionResolver.
+func (s *notificationDecisionSnapshot) roomPermissionDecision(userID, roomID, groupID string, perm Permission) DecisionKind {
+	var scopes []permissionScopeTarget
+	if PermissionAppliesAtScope(perm, ScopeRoom) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeRoom, level: LevelRoom, id: roomID})
+	}
+	if groupID != "" && PermissionAppliesAtScope(perm, ScopeGroup) {
 		scopes = append(scopes, permissionScopeTarget{scope: ScopeGroup, level: LevelGroup, id: groupID})
 	}
-	scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	if PermissionAppliesAtScope(perm, ScopeServer) {
+		scopes = append(scopes, permissionScopeTarget{scope: ScopeServer, level: LevelServer})
+	}
 
 	nearest := func(subject string) (TraceEntry, bool) {
 		for _, target := range scopes {
-			decision := s.rbac.GetDecision(target.scope, target.id, subject, PermRoomJoin)
+			decision := s.rbac.GetDecision(target.scope, target.id, subject, perm)
 			if decision != DecisionNone {
 				return TraceEntry{Level: target.level, RoleName: subject, Decision: decision, ObjectID: target.objectID()}, true
 			}
@@ -729,5 +749,5 @@ func (s *notificationDecisionSnapshot) roomJoinAllowed(userID, roomID, groupID s
 		decisions.everyone = &entry
 	}
 	decision, _, _ := resolveApplicablePermissionDecisions(decisions)
-	return decision == DecisionAllow
+	return decision
 }

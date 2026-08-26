@@ -526,7 +526,7 @@ func (m *NotificationMaterializer) reconcilePermissionVisibility(
 	streamSequence uint64,
 	visibilityAt time.Time,
 ) error {
-	if permission != string(PermRoomJoin) {
+	if !PermissionCanAffect(Permission(permission), PermRoomJoin) {
 		return nil
 	}
 	var userID, roomID string

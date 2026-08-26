@@ -133,7 +133,7 @@
                   : m('rbac.permissions.deny')}
               </Pill>
               {#if entry.appliedPermission && entry.appliedPermission !== exp.permission}
-                <span class="text-muted">from <code>{entry.appliedPermission}</code></span>
+                <span class="text-muted">{m('rbac.permissions.applied_from', { permission: entry.appliedPermission })}</span>
               {/if}
               {#if entry.applied}
                 <span class="text-muted italic">{m('rbac.permissions.winning_decision')}</span>

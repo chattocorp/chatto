@@ -14,15 +14,21 @@ export type PermissionMetadata = {
  * Map of permission IDs to their metadata.
  * Keep in sync with cli/internal/core/permission.go
  *
- * Permission IDs follow the "{objectType}.{verb}" convention, matching the KV key format.
+ * Permission IDs are registered dot-separated paths.
  */
 export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   // Server permissions
+  server: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'server' })
+  },
   'server.manage': {
     description: () => m('rbac.permission_descriptions.server_manage')
   },
 
   // Room permissions
+  room: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'room' })
+  },
   'room.create': {
     description: () => m('rbac.permission_descriptions.room_create')
   },
@@ -40,6 +46,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Message permissions
+  message: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'message' })
+  },
   'message.read': {
     description: () => m('rbac.permission_descriptions.message_read')
   },
@@ -63,6 +72,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Role management
+  role: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'role' })
+  },
   'role.manage': {
     description: () => m('rbac.permission_descriptions.role_manage')
   },
@@ -71,6 +83,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // Admin panel
+  admin: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'admin' })
+  },
   'admin.view-users': {
     description: () => m('rbac.permission_descriptions.admin_view_users')
   },
@@ -79,6 +94,9 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
 
   // User management
+  user: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'user' })
+  },
   'user.delete-any': {
     description: () => m('rbac.permission_descriptions.user_delete_any')
   },
@@ -93,6 +111,11 @@ export const PERMISSION_METADATA: Record<string, PermissionMetadata> = {
   },
   'user.manage-permissions': {
     description: () => m('rbac.permission_descriptions.user_manage_permissions')
+  },
+
+  // Bot accounts
+  bot: {
+    description: () => m('rbac.permission_descriptions.all_registered_descendants', { permission: 'bot' })
   }
 };
 

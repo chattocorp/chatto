@@ -469,6 +469,15 @@ func TestNotificationDecisionEvaluatorAdvancesAndReleasesStateOnlyDeltas(t *test
 	}
 }
 
+func TestNotificationVisibilityBoundaryRecognizesRoomAncestorPermission(t *testing.T) {
+	event := &corev1.Event{Event: &corev1.Event_RbacPermissionGranted{
+		RbacPermissionGranted: rbacRolePermissionGrantedEvent(ScopeServer, "", RoleEveryone, PermRoom),
+	}}
+	if !notificationVisibilityBoundaryEvent(event) {
+		t.Fatal("room ancestor grant must be a notification visibility boundary")
+	}
+}
+
 func TestNotificationDecisionEvaluatorPreservesOrderWhenIdleFloorAdvancesAheadOfProjector(t *testing.T) {
 	p := NewNotificationDecisionProjection()
 	p.SetAcknowledgedThrough(1)
