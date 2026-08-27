@@ -1096,12 +1096,13 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			event.GetMessagePosted().Mentions = nil
 		}
 		directMentionFollowers = nil
-		if inThread != "" {
+		directMentionUserIDs := directMentionRecipients(event.GetMessagePosted().GetMentions())
+		if kind == KindChannel && len(directMentionUserIDs) > 0 {
 			if err := c.waitForCurrentNotificationPolicy(attemptCtx); err != nil {
 				return err
 			}
 			directMentionSignal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{}}}
-			for _, userID := range directMentionRecipients(event.GetMessagePosted().GetMentions()) {
+			for _, userID := range directMentionUserIDs {
 				if notificationModeProducesOccurrence(c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal)) {
 					directMentionFollowers = append(directMentionFollowers, userID)
 				}
@@ -1274,15 +1275,20 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	}
 
 	// A delivered direct mention follows its thread unless the recipient has
-	// explicitly opted out. This subscription side effect remains best-effort
-	// and is distinct from occurrence materialization.
-	if inThread != "" {
+	// explicitly opted out. A root message is also the stable thread root for
+	// future replies. This subscription side effect remains best-effort and is
+	// distinct from occurrence materialization.
+	directMentionThreadRootID := inThread
+	if directMentionThreadRootID == "" && kind == KindChannel {
+		directMentionThreadRootID = event.Id
+	}
+	if directMentionThreadRootID != "" {
 		for _, mentionedUserID := range directMentionFollowers {
-			if _, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, room_id, inThread, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION); err != nil {
+			if _, err := c.FollowThreadIfNeverSet(ctx, kind, mentionedUserID, room_id, directMentionThreadRootID, corev1.ThreadFollowSource_THREAD_FOLLOW_SOURCE_DIRECT_MENTION); err != nil {
 				c.logger.Warn("Failed to auto-follow thread for directly mentioned user",
 					"mentioned_user_id", mentionedUserID,
 					"room_id", room_id,
-					"thread_root_event_id", inThread,
+					"thread_root_event_id", directMentionThreadRootID,
 					"error", err)
 			}
 		}

@@ -726,6 +726,68 @@ func TestRealtimeWebSocketClosesWhenBotAPIKeyRotates(t *testing.T) {
 	subscribeRealtime(t, freshConn, rotated.APIKey)
 }
 
+func TestRealtimeBotReceivesNotificationActivations(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-activation-owner", "RT Activation Owner", "password123")
+	if err != nil {
+		t.Fatalf("CreateUser owner: %v", err)
+	}
+	bot, err := env.core.CreateBot(env.ctx, owner.GetId(), "rt_activation_bot", "RT Activation Bot")
+	if err != nil {
+		t.Fatalf("CreateBot: %v", err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, owner.GetId(), core.KindChannel, "", "rt-activation-room", "")
+	if err != nil {
+		t.Fatalf("CreateRoom: %v", err)
+	}
+	if _, err := env.core.AddMember(env.ctx, owner.GetId(), core.KindChannel, room.GetId(), bot.User.GetId()); err != nil {
+		t.Fatalf("AddMember bot: %v", err)
+	}
+	if err := env.core.SetUserPermissionState(env.ctx, owner.GetId(), bot.User.GetId(), core.PermissionTargetScope{Kind: core.MatrixScopeRoom, ID: room.GetId()}, core.PermMessageReadInteractions, core.PermissionStateAllow); err != nil {
+		t.Fatalf("grant bot message.read.interactions: %v", err)
+	}
+
+	conn := env.connectRealtime(t)
+	defer conn.Close()
+	subscribeRealtime(t, conn, bot.APIKey)
+
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), owner.GetId(), "Realtime ping @rt_activation_bot", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage root mention: %v", err)
+	}
+	mentionProjection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		for _, operation := range projection.GetOperations() {
+			for _, occurrence := range operation.GetNotificationOccurrencesReplace().GetOccurrences().GetOccurrences() {
+				if occurrence.GetSignal().GetDirectMentionReceived().GetMessage().GetEventId() == root.GetId() {
+					return true
+				}
+			}
+		}
+		return false
+	})
+	if mentionProjection == nil {
+		t.Fatal("bot realtime stream did not receive the direct-mention activation")
+	}
+
+	reply, err := env.core.PostMessage(env.ctx, core.KindChannel, room.GetId(), owner.GetId(), "Realtime follow-up", nil, root.GetId(), "", nil, false)
+	if err != nil {
+		t.Fatalf("PostMessage followed reply: %v", err)
+	}
+	followProjection := waitRealtimeProjectionEvent(t, conn, 5*time.Second, func(projection *realtimev1.RealtimeProjectionEvent) bool {
+		for _, operation := range projection.GetOperations() {
+			for _, occurrence := range operation.GetNotificationOccurrencesReplace().GetOccurrences().GetOccurrences() {
+				if occurrence.GetSignal().GetFollowedThreadActivity().GetMessage().GetEventId() == reply.GetId() {
+					return true
+				}
+			}
+		}
+		return false
+	})
+	if followProjection == nil {
+		t.Fatal("bot realtime stream did not receive the followed-thread activation")
+	}
+}
+
 func TestRealtimeSelfAuthoredBotPermissionAdvancesWithoutProjectionReset(t *testing.T) {
 	env := setupWebSocketTestServer(t)
 	owner, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-permission-owner", "RT Permission Owner", "password123")

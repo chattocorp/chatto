@@ -7,6 +7,7 @@ Key files:
 - [`cli/internal/http_server/realtime_projection.go`](../../cli/internal/http_server/realtime_projection.go)
 - [`cli/internal/connectapi/realtime_projection.go`](../../cli/internal/connectapi/realtime_projection.go)
 - [`cli/internal/core/my_events_model.go`](../../cli/internal/core/my_events_model.go)
+- [`cli/internal/core/notification_materializer.go`](../../cli/internal/core/notification_materializer.go)
 - [`cli/internal/core/realtime_replay.go`](../../cli/internal/core/realtime_replay.go)
 - [`apps/frontend/src/lib/state/server/projection.svelte.ts`](../../apps/frontend/src/lib/state/server/projection.svelte.ts)
 - [`apps/frontend/src/lib/state/server/eventBus.svelte.ts`](../../apps/frontend/src/lib/state/server/eventBus.svelte.ts)
@@ -439,20 +440,21 @@ Administrative membership facts replace the complete current member-reference
 list for existing viewers.
 
 Message and asset facts are delivered only when the viewer is a member. A
-channel-room viewer also needs current `message.read` authority. DM membership
-authorizes DM delivery. The hub and public projection mapper both check this
-boundary. Authorized facts carry lightweight replacements of the
-affected room summary and viewer state alongside timeline mutations. Root
+channel-room viewer also needs broad `message.read`, or
+`message.read.interactions` with a relationship to the canonical thread root.
+DM membership authorizes DM delivery. The hub and public projection mapper
+both check this boundary. Authorized facts carry lightweight replacements of
+the affected room summary and viewer state alongside timeline mutations. Root
 messages also carry a content-free `room_activity` operation. Notification
 counts converge through notification signals and the finite resume
 replacement. Message delivery does not reassemble or retransmit complete
-channel membership. Echo
-tombstone upserts explicitly distinguish
-canonical-reply deletion from direct echo removal.
+channel membership. Echo tombstone upserts distinguish canonical-reply
+deletion from direct echo removal.
 
 Typing is transient rather than durable, but it follows the same read boundary.
 The hub and public projection mapper suppress typing events unless the viewer
-is a member. A channel-room viewer also needs current `message.read` authority.
+is a member. Main-room typing needs broad `message.read`. Thread typing also
+permits `message.read.interactions` with a relationship to that thread.
 
 Room-read signals emit a `RoomViewerStateReplace` for the affected room and a
 finite `NotificationsReplace`. This keeps the retained canonical room row,
@@ -483,12 +485,15 @@ are reference-counted by mounted thread panes and disposed after their final
 consumer unmounts, so inactive threads receive no later fanout and are not
 reloaded during reset.
 
-Typing, presence transitions, mention/new-DM attention hints, and session
-termination continue as `RealtimeEventEnvelope` frames on the same WebSocket.
-Notification occurrence create/update/delete signals instead assemble an
-authoritative `notification_occurrences_replace` containing occurrences plus exact total
-and Important counts. A live replacement may carry transition metadata for
-one-shot presentation effects, while replay and finite reconciliation omit it.
+Typing, presence transitions, and session termination continue as
+`RealtimeEventEnvelope` frames on the same WebSocket. Mention and new-DM
+attention do not use separate transient hint frames. Notification occurrence
+create, update, and delete signals assemble an authoritative
+`notification_occurrences_replace` that contains occurrences plus exact total
+and Important counts. Human connections and bot API-key connections receive
+this same viewer-scoped replacement. A live replacement can carry transition
+metadata for one-shot presentation effects, while replay and finite
+reconciliation omit it.
 The internal signal carries no stream coordinate. Before emitting the
 replacement at that live cursor, the serving replica waits until the
 notification projection is current, preventing a cross-replica invalidation

@@ -1,7 +1,7 @@
 # FDR-012: Notifications
 
 **Status:** Experimental
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## Overview
 
@@ -227,10 +227,12 @@ validate rather than guessing.
 ### 8. Conversation subscriptions are distinct from notification rows
 
 **Decision:** Posting in a thread attempts to follow it, even after an earlier
-unfollow. A delivered direct username mention in a thread attempts to follow it
-unless the recipient previously opted out; role, `@here`, and `@all` mentions do not. Following a thread or room
-creates an activity source whose delivery is still controlled by notification
-policy. Follow controls belong to rooms and threads, not to notification rows.
+unfollow. A delivered direct username mention in a channel-room root or reply
+attempts to follow that thread unless the recipient previously opted out. The
+root message ID identifies the thread for a root mention. Role, `@here`, and
+`@all` mentions do not follow threads. Following a thread or room creates an
+activity source whose delivery is still controlled by notification policy.
+Follow controls belong to rooms and threads, not to notification rows.
 
 **Why:** A subscription describes future interest in a conversation; a
 notification occurrence describes one past activity. Keeping them separate
@@ -256,6 +258,25 @@ existing sound choice.
 client keeps a small local-storage entry for each server. Both Notification and
 Push notification can request the configured local sound. Do Not Disturb and
 current notification policy can suppress that request.
+
+### 10. Notification occurrences activate bot integrations
+
+**Decision:** A bot uses the same notification occurrences and realtime
+notification replacement as a human account. Direct messages, direct mentions,
+replies, and followed-thread activity are the supported activation causes for
+bot integrations. Chatto does not create a separate bot-interaction event or
+realtime subscription.
+
+**Why:** The occurrence already contains the source-time cause, stable identity,
+exact message target, current visibility checks, and bounded durable history.
+One semantic source can support realtime now and a durable webhook delivery
+adapter later.
+
+**Tradeoff:** Realtime sends a finite latest-value replacement instead of an
+append-only activation feed. Integrations must checkpoint stable occurrence
+IDs. One message can create more than one cause, so an integration that wants
+one action per message must also deduplicate by the referenced message event
+ID.
 
 ## Compatibility
 
@@ -299,4 +320,4 @@ separate permission to manage another user's notification list.
 - **ADRs:** ADR-012, ADR-028, ADR-036, ADR-038, ADR-051, ADR-069, ADR-076,
   ADR-077, ADR-080, ADR-082
 - **FDRs:** FDR-001, FDR-002, FDR-004, FDR-005, FDR-006, FDR-007, FDR-011,
-  FDR-013, FDR-018, FDR-019, FDR-027, FDR-039
+  FDR-013, FDR-018, FDR-019, FDR-027, FDR-038, FDR-039

@@ -105,6 +105,13 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
     interaction permission.
   </ReleaseFeatureCard>
 
+  <ReleaseFeatureCard title="Bots activate through normal notifications" size="large">
+    Bot integrations can use the same ConnectRPC API and realtime subscription as human
+    clients. Direct messages, direct mentions, replies, and followed-thread activity arrive
+    as exact notification occurrences. A direct mention in a root or reply follows that
+    thread for later activity when notification policy permits it.
+  </ReleaseFeatureCard>
+
   <ReleaseFeatureCard title="Visible cleanup health" size="small">
     Owner diagnostics show whether physical asset cleanup is healthy, catching up, or
     accumulating retries without exposing asset details.
@@ -150,6 +157,12 @@ import ReleaseHero from "../../../components/release-notes/ReleaseHero.astro";
   start the DM before the bot can read or post in it. Upgrade every replica
   before you depend on this boundary because an older replica can still accept
   the call.
+- Bot integrations can use `notification_occurrences_replace` on the normal
+  realtime subscription as their activation source. Save stable occurrence
+  IDs and deduplicate by the referenced message event ID when one message must
+  cause only one action. During a mixed-replica rollout, an older replica can
+  omit the follow created by a direct root mention. Complete the rollout before
+  you depend on later followed-thread activations.
 - Remove `webserver.allowed_origins` and `webserver.oauth_redirect_origins` (or their
   environment-variable equivalents) from server configuration; those settings no longer
   exist. The 0.5 OAuth flow requires a CIMD or built-in `client_id`, so upgrade clients and
