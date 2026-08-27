@@ -114,6 +114,44 @@ func TestBrowserCookieAuthenticationAcceptsDirectOriginAlias(t *testing.T) {
 	}
 }
 
+func TestBrowserCookieAuthenticationAcceptsConfiguredOriginAliasButNotWildcard(t *testing.T) {
+	server := setupOAuthServer(t)
+	server.config.Webserver.URL = "https://primary.example"
+	server.config.Webserver.AllowedOrigins = []string{"https://custom.example", "*"}
+	cookies, user := loginOAuthTestUser(t, server, "configured-origin-alias")
+	server.router.GET("/test/configured-origin-alias", func(c *gin.Context) {
+		request := server.injectUserIntoContext(c)
+		if authenticated := authctx.ForContext(request.Context()); authenticated != nil {
+			c.String(http.StatusOK, authenticated.Id)
+			return
+		}
+		c.Status(http.StatusUnauthorized)
+	})
+
+	for _, test := range []struct {
+		name   string
+		origin string
+		want   int
+	}{
+		{name: "configured alias", origin: "https://custom.example", want: http.StatusOK},
+		{name: "wildcard is not an authentication alias", origin: "https://attacker.example", want: http.StatusUnauthorized},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			request := httptest.NewRequest(http.MethodGet, "http://upstream.example/test/configured-origin-alias", nil)
+			request.Header.Set("Origin", test.origin)
+			addCookies(request, cookies)
+			response := httptest.NewRecorder()
+			server.router.ServeHTTP(response, request)
+			if response.Code != test.want {
+				t.Fatalf("status = %d, want %d", response.Code, test.want)
+			}
+			if test.want == http.StatusOK && response.Body.String() != user.Id {
+				t.Fatalf("body = %q, want %q", response.Body.String(), user.Id)
+			}
+		})
+	}
+}
+
 func TestParseBrowserOrigin(t *testing.T) {
 	tests := []struct {
 		origin string

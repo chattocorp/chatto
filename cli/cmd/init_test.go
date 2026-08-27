@@ -97,8 +97,8 @@ func TestInitGeneratesCoreSecret(t *testing.T) {
 			t.Fatalf("generated [asset_processing] config should include %q", setting)
 		}
 	}
-	if strings.Contains(rawText, "allowed_origins") || strings.Contains(rawText, "oauth_redirect_origins") {
-		t.Fatal("generated config should not include retired origin allow-list settings")
+	if strings.Contains(rawText, "oauth_redirect_origins") {
+		t.Fatal("generated config should not include the retired OAuth redirect-origin setting")
 	}
 	if strings.Contains(rawText, "\nproviders = []") {
 		t.Fatal("generated config should not include an active empty auth.providers array")
