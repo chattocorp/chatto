@@ -5,7 +5,6 @@ package http_server
 import (
 	"net/http"
 	"net/url"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-gonic/gin"
@@ -422,7 +421,7 @@ func registerTestEndpoints(auth *gin.RouterGroup, s *HTTPServer) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to read auth generation: " + err.Error()})
 			return
 		}
-		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration, time.Time{})
+		code, err := s.core.CreateAuthCodeForClientGeneration(ctx, req.UserID, req.ClientID, req.RedirectURI, req.CodeChallenge, req.CodeChallengeMethod, authGeneration)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "failed to create auth code: " + err.Error()})
 			return

@@ -206,9 +206,8 @@ message ClearUsernameCooldownResponse {
 message DeleteUserRequest {
   // Target user ID.
   string user_id = 1 [(buf.validate.field).string.min_len = 1];
-  // Current password proof for accounts with a password when the active
-  // runtime credential is no longer fresh.
-  string current_password = 2;
+  // Ignored. DeleteUser does not use password step-up.
+  string current_password = 2 [deprecated = true];
 }
 
 // Result of deleting a user account.
@@ -244,7 +243,6 @@ service AdminUserService {
   // user.manage-accounts.
   rpc ClearUsernameCooldown(ClearUsernameCooldownRequest) returns (ClearUsernameCooldownResponse);
   // Deletes a user account as an admin action. Requires user.delete-any for
-  // other users, user.delete-self for the caller, and a fresh credential for
-  // the caller.
+  // other users or user.delete-self for the caller.
   rpc DeleteUser(DeleteUserRequest) returns (DeleteUserResponse);
 }

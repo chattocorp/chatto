@@ -100,22 +100,11 @@ member, including codes that were already created.
 An administrator with `admin.view-users` and `user.delete-any` deletes another
 member from the member detail page in Server Administration. That page shows
 what deletion does, and the administrator must type the member's login name.
+Chatto does not request the administrator's password or require recent
+authentication for this action.
 The page does not offer this action for the administrator's own account. The
 administrator uses Account Settings for that action. Bots do not use either
-flow. See FDR-038 in the server documentation set.
-
-Remote-server connections sign in through OAuth authorization. A delegated
-session retains the original authentication time of a fresh authorizing
-session. An administrator can manage members over the remote connection while
-that time remains in the fresh-authentication window. After the window expires,
-the administrator must complete a new remote authorization. The member-deletion
-page does not ask for a remote-server password.
-
-The page does not ask for a password while a same-origin browser session is
-fresh. If the session is not fresh and the administrator has a password, the
-server rejects the first request. The page then asks for the current password,
-and the server validates it on the retry. An administrator with a passwordless
-account must sign in again.
+flow. See [Bot Accounts](/guides/integrations/bot-accounts/) for bot deletion.
 
 The account-deletion path attempts to:
 

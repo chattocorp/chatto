@@ -118,8 +118,6 @@
       "consequence_profile": "Son profil, son avatar et son nom d'utilisateur sont supprimés. Le nom d'utilisateur redevient disponible ensuite.",
       "consequence_sessions": "La personne est déconnectée partout.",
       "confirm_label": "Tapez {login} pour confirmer",
-      "password_label": "Votre mot de passe actuel",
-      "password_hint": "Nécessaire uniquement si votre session doit être confirmée à nouveau.",
       "submit": "Supprimer définitivement le compte",
       "deleting": "Suppression...",
       "failed": "Échec de la suppression du compte.",

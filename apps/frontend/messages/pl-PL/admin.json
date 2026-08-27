@@ -118,8 +118,6 @@
       "consequence_profile": "Profil, awatar i nazwa użytkownika zostaną usunięte. Nazwa użytkownika stanie się ponownie dostępna.",
       "consequence_sessions": "Osoba zostanie wylogowana wszędzie.",
       "confirm_label": "Wpisz {login}, aby potwierdzić",
-      "password_label": "Twoje aktualne hasło",
-      "password_hint": "Potrzebne tylko wtedy, gdy sesję trzeba potwierdzić ponownie.",
       "submit": "Trwale usuń konto",
       "deleting": "Usuwanie...",
       "failed": "Nie udało się usunąć konta.",

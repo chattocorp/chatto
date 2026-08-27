@@ -118,8 +118,6 @@
       "consequence_profile": "Their profile, avatar and username are deleted. The username becomes available again.",
       "consequence_sessions": "They are signed out everywhere.",
       "confirm_label": "Type {login} to confirm",
-      "password_label": "Your current password",
-      "password_hint": "Only needed when your session must be reconfirmed.",
       "submit": "Permanently Delete Account",
       "deleting": "Deleting...",
       "failed": "Failed to delete the account.",

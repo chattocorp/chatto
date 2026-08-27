@@ -118,8 +118,6 @@
       "consequence_profile": "Profils, avatārs un lietotājvārds tiks dzēsts. Lietotājvārds vēlāk atkal kļūs pieejams.",
       "consequence_sessions": "Persona tiks izrakstīta visur.",
       "confirm_label": "Ierakstiet {login}, lai apstiprinātu",
-      "password_label": "Jūsu pašreizējā parole",
-      "password_hint": "Nepieciešama tikai tad, ja sesija jāapstiprina atkārtoti.",
       "submit": "Pastāvīgi dzēst kontu",
       "deleting": "Notiek dzēšana...",
       "failed": "Kontu neizdevās izdzēst.",

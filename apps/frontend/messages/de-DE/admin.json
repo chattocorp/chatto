@@ -118,8 +118,6 @@
       "consequence_profile": "Profil, Avatar und Benutzername werden gelöscht. Der Benutzername wird danach wieder freigegeben.",
       "consequence_sessions": "Die Person wird überall abgemeldet.",
       "confirm_label": "Tippe {login} zur Bestätigung",
-      "password_label": "Dein aktuelles Passwort",
-      "password_hint": "Nur nötig, wenn deine Sitzung erneut bestätigt werden muss.",
       "submit": "Konto endgültig löschen",
       "deleting": "Wird gelöscht...",
       "failed": "Das Konto konnte nicht gelöscht werden.",

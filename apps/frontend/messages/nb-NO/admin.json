@@ -118,8 +118,6 @@
       "consequence_profile": "Profilen, avataren og brukernavnet slettes. Brukernavnet blir tilgjengelig igjen etterpå.",
       "consequence_sessions": "Personen logges ut overalt.",
       "confirm_label": "Skriv {login} for å bekrefte",
-      "password_label": "Ditt nåværende passord",
-      "password_hint": "Bare nødvendig når økten din må bekreftes på nytt.",
       "submit": "Slett kontoen permanent",
       "deleting": "Sletter...",
       "failed": "Kunne ikke slette kontoen.",

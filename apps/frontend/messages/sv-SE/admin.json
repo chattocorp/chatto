@@ -118,8 +118,6 @@
       "consequence_profile": "Profil, avatar och användarnamn tas bort. Användarnamnet blir tillgängligt igen.",
       "consequence_sessions": "Personen loggas ut överallt.",
       "confirm_label": "Skriv {login} för att bekräfta",
-      "password_label": "Ditt nuvarande lösenord",
-      "password_hint": "Behövs bara när din session måste bekräftas igen.",
       "submit": "Ta bort kontot permanent",
       "deleting": "Tar bort...",
       "failed": "Kontot kunde inte tas bort.",

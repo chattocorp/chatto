@@ -118,8 +118,6 @@
       "consequence_profile": "Profiel, avatar en gebruikersnaam worden verwijderd. De gebruikersnaam komt daarna weer beschikbaar.",
       "consequence_sessions": "De persoon wordt overal afgemeld.",
       "confirm_label": "Typ {login} om te bevestigen",
-      "password_label": "Je huidige wachtwoord",
-      "password_hint": "Alleen nodig wanneer je sessie opnieuw bevestigd moet worden.",
       "submit": "Account definitief verwijderen",
       "deleting": "Wordt verwijderd...",
       "failed": "Het account kon niet worden verwijderd.",

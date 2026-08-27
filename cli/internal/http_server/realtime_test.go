@@ -870,11 +870,11 @@ func TestRealtimeWebSocketClosesOnlyBlockedOAuthClientConnections(t *testing.T) 
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	oauthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, clientID, authGeneration, time.Time{})
+	oauthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, clientID, authGeneration)
 	if err != nil {
 		t.Fatalf("CreateOAuthAccessTokenForClient: %v", err)
 	}
-	otherOAuthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, otherClientID, authGeneration, time.Time{})
+	otherOAuthToken, err := env.core.CreateOAuthAccessTokenForClient(env.ctx, user.Id, otherClientID, authGeneration)
 	if err != nil {
 		t.Fatalf("CreateOAuthAccessTokenForClient(other): %v", err)
 	}

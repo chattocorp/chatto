@@ -118,8 +118,6 @@
       "consequence_profile": "个人资料、头像和用户名将被删除。用户名之后会重新开放使用。",
       "consequence_sessions": "对方将在所有位置退出登录。",
       "confirm_label": "输入 {login} 以确认",
-      "password_label": "你当前的密码",
-      "password_hint": "仅在需要重新验证你的会话时才需要。",
       "submit": "永久删除账号",
       "deleting": "正在删除...",
       "failed": "无法删除该账号。",

@@ -118,8 +118,6 @@
       "consequence_profile": "Profil, avatar a uživatelské jméno budou odstraněny. Uživatelské jméno se poté opět uvolní.",
       "consequence_sessions": "Osoba bude všude odhlášena.",
       "confirm_label": "Potvrďte zadáním {login}",
-      "password_label": "Vaše aktuální heslo",
-      "password_hint": "Nutné jen tehdy, když je třeba relaci znovu potvrdit.",
       "submit": "Trvale odstranit účet",
       "deleting": "Odstraňuje se...",
       "failed": "Účet se nepodařilo odstranit.",

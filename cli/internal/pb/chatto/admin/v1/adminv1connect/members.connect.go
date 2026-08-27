@@ -89,8 +89,7 @@ type AdminUserServiceClient interface {
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users, user.delete-self for the caller, and a fresh credential for
-	// the caller.
+	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 
@@ -247,8 +246,7 @@ type AdminUserServiceHandler interface {
 	// user.manage-accounts.
 	ClearUsernameCooldown(context.Context, *connect.Request[v1.ClearUsernameCooldownRequest]) (*connect.Response[v1.ClearUsernameCooldownResponse], error)
 	// Deletes a user account as an admin action. Requires user.delete-any for
-	// other users, user.delete-self for the caller, and a fresh credential for
-	// the caller.
+	// other users or user.delete-self for the caller.
 	DeleteUser(context.Context, *connect.Request[v1.DeleteUserRequest]) (*connect.Response[v1.DeleteUserResponse], error)
 }
 

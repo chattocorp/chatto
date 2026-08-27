@@ -118,8 +118,6 @@
       "consequence_profile": "プロフィール、アバター、ユーザー名が削除されます。ユーザー名はその後再度利用できるようになります。",
       "consequence_sessions": "すべてのデバイスからサインアウトされます。",
       "confirm_label": "確認するには {login} と入力してください",
-      "password_label": "現在のパスワード",
-      "password_hint": "セッションの再確認が必要な場合にのみ必要です。",
       "submit": "アカウントを完全に削除",
       "deleting": "削除中...",
       "failed": "アカウントを削除できませんでした。",

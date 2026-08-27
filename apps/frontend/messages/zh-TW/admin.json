@@ -118,8 +118,6 @@
       "consequence_profile": "個人檔案、頭像和使用者名稱將被刪除。使用者名稱之後會再次開放使用。",
       "consequence_sessions": "對方將在所有地方登出。",
       "confirm_label": "輸入 {login} 以確認",
-      "password_label": "你目前的密碼",
-      "password_hint": "僅在需要重新驗證你的工作階段時才需要。",
       "submit": "永久刪除帳號",
       "deleting": "正在刪除...",
       "failed": "無法刪除帳號。",

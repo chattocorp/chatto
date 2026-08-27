@@ -118,8 +118,6 @@
       "consequence_profile": "Profilo, avatar e nome utente vengono eliminati. Il nome utente torna disponibile in seguito.",
       "consequence_sessions": "L'accesso viene terminato ovunque.",
       "confirm_label": "Digita {login} per confermare",
-      "password_label": "La tua password attuale",
-      "password_hint": "Necessaria solo quando la sessione deve essere confermata di nuovo.",
       "submit": "Elimina definitivamente l'account",
       "deleting": "Eliminazione...",
       "failed": "Impossibile eliminare l'account.",

@@ -339,19 +339,17 @@ describe('createAdminUserManagementAPI', () => {
     );
   });
 
-  it('deletes a user with auth headers and fresh credential', async () => {
+  it('deletes a user with auth headers', async () => {
     mocks.deleteUser.mockResolvedValue({ deleted: true });
     const api = createAdminUserManagementAPI({
       baseUrl: '/api/connect',
       bearerToken: 'token'
     });
 
-    await expect(
-      api.deleteUser({ userId: 'user-1', currentPassword: 'current-password' })
-    ).resolves.toBe(true);
+    await expect(api.deleteUser({ userId: 'user-1' })).resolves.toBe(true);
 
     expect(mocks.deleteUser).toHaveBeenCalledWith(
-      { userId: 'user-1', currentPassword: 'current-password' },
+      { userId: 'user-1' },
       { headers: { Authorization: 'Bearer token' } }
     );
   });

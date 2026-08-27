@@ -118,8 +118,6 @@
       "consequence_profile": "Profil, avatar ve kullanıcı adı silinir. Kullanıcı adı daha sonra yeniden kullanılabilir olur.",
       "consequence_sessions": "Kişi her yerden çıkış yapar.",
       "confirm_label": "Onaylamak için {login} yazın",
-      "password_label": "Mevcut şifreniz",
-      "password_hint": "Yalnızca oturumunuzun yeniden doğrulanması gerektiğinde gerekir.",
       "submit": "Hesabı kalıcı olarak sil",
       "deleting": "Siliniyor...",
       "failed": "Hesap silinemedi.",

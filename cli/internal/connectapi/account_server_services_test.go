@@ -1,7 +1,6 @@
 package connectapi
 
 import (
-	"context"
 	"errors"
 	"slices"
 	"strings"
@@ -158,37 +157,6 @@ func TestMyAccountServiceUpdatesSelfProfileAndSettings(t *testing.T) {
 	}
 }
 
-// mintBornFreshOAuthCredential simulates a remote-server connection: a full
-// interactive authorization-code exchange whose authorizing session was fresh,
-// yielding an OAuth-kind bearer credential inside the fresh-auth window.
-func mintBornFreshOAuthCredential(t *testing.T, env *connectAPITestEnv, userID string) context.Context {
-	t.Helper()
-	const clientID = "https://client.example/oauth/metadata.json"
-	const redirectURI = "https://client.example/callback"
-	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-
-	generation, err := env.core.CurrentAuthGeneration(env.ctx, userID)
-	if err != nil {
-		t.Fatalf("CurrentAuthGeneration: %v", err)
-	}
-	code, err := env.core.CreateAuthCodeForClientGeneration(env.ctx, userID, clientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, time.Now())
-	if err != nil {
-		t.Fatalf("CreateAuthCodeForClientGeneration: %v", err)
-	}
-	token, _, err := env.core.ExchangeAuthCodeForClient(env.ctx, code, verifier, redirectURI, clientID)
-	if err != nil {
-		t.Fatalf("ExchangeAuthCodeForClient: %v", err)
-	}
-	user, err := env.core.GetUser(env.ctx, userID)
-	if err != nil {
-		t.Fatalf("GetUser: %v", err)
-	}
-	if err := env.core.RequireFreshAuthForBearerToken(env.ctx, token); err != nil {
-		t.Fatalf("minted OAuth credential is not fresh: %v", err)
-	}
-	return withBearerCredential(env.ctx, user, token)
-}
-
 func TestMyAccountServiceSetsPassword(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	passwordless, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-passwordless", "Connect Passwordless", "")
@@ -201,7 +169,11 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 		t.Fatalf("CreateAuthTokenWithSource: %v", err)
 	}
 	freshCtx := withBearerCredential(env.ctx, passwordless, freshToken)
-	oauthCtx := mintBornFreshOAuthCredential(t, env, passwordless.Id)
+	oauthToken, err := env.core.CreateAuthTokenWithSource(env.ctx, passwordless.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource oauth: %v", err)
+	}
+	oauthCtx := withBearerCredential(env.ctx, passwordless, oauthToken)
 
 	if _, err := env.account.UpdatePassword(env.ctx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
@@ -222,19 +194,13 @@ func TestMyAccountServiceSetsPassword(t *testing.T) {
 	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
 		t.Fatalf("UpdatePassword without fresh credential code = %v, want failed_precondition", connect.CodeOf(err))
 	}
-	// The OAuth authorization-code exchange is an interactive authentication,
-	// so its session is born fresh and may set the initial password directly.
 	if _, err := env.account.UpdatePassword(oauthCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
 		Password: "newpassword456",
-	})); err != nil {
-		t.Fatalf("UpdatePassword over born-fresh OAuth session: %v", err)
-	}
-	if _, err := env.core.VerifyPassword(env.ctx, passwordless.Login, "newpassword456"); err != nil {
-		t.Fatalf("VerifyPassword after OAuth UpdatePassword: %v", err)
+	})); connect.CodeOf(err) != connect.CodeFailedPrecondition {
+		t.Fatalf("UpdatePassword with OAuth token code = %v, want failed_precondition", connect.CodeOf(err))
 	}
 	if _, err := env.account.UpdatePassword(freshCtx, connect.NewRequest(&apiv1.UpdatePasswordRequest{
-		Password:        "newpassword456",
-		CurrentPassword: "newpassword456",
+		Password: "newpassword456",
 	})); err != nil {
 		t.Fatalf("UpdatePassword: %v", err)
 	}
@@ -586,39 +552,7 @@ func TestAdminUserServiceUpdatesUsersAndClearsCooldown(t *testing.T) {
 	}
 }
 
-func TestAdminUserServiceDeleteUserWorksWithOAuthExchangeSession(t *testing.T) {
-	env := newConnectAPITestEnv(t)
-
-	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "remote-delete-target", "Remote Delete Target", "password")
-	if err != nil {
-		t.Fatalf("CreateUser target: %v", err)
-	}
-	admin, err := env.core.CreateUser(env.ctx, core.SystemActorID, "remote-delete-admin", "Remote Delete Admin", "password")
-	if err != nil {
-		t.Fatalf("CreateUser admin: %v", err)
-	}
-	if err := env.core.AssignAdminRole(env.ctx, admin.Id); err != nil {
-		t.Fatalf("AssignAdminRole: %v", err)
-	}
-	// Simulates a remote-server connection: a full interactive authorization
-	// exchange whose authorizing session was fresh.
-	oauthCtx := mintBornFreshOAuthCredential(t, env, admin.Id)
-
-	deleteResp, err := env.adminUsers.DeleteUser(oauthCtx, connect.NewRequest(&adminv1.DeleteUserRequest{
-		UserId: target.Id,
-	}))
-	if err != nil {
-		t.Fatalf("DeleteUser over oauth exchange credential: %v", err)
-	}
-	if !deleteResp.Msg.GetDeleted() {
-		t.Fatal("Deleted = false, want true")
-	}
-	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
-		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
-	}
-}
-
-func TestAdminUserServiceDeleteUserRejectsWrongPasswordWhenStepUpRequired(t *testing.T) {
+func TestAdminUserServiceDeleteUserIgnoresDeprecatedPasswordAndFreshness(t *testing.T) {
 	env := newConnectAPITestEnv(t)
 	target, err := env.core.CreateUser(env.ctx, core.SystemActorID, "stale-delete-target", "Stale Delete Target", "password")
 	if err != nil {
@@ -632,30 +566,29 @@ func TestAdminUserServiceDeleteUserRejectsWrongPasswordWhenStepUpRequired(t *tes
 		t.Fatalf("CreateAuthTokenWithSource: %v", err)
 	}
 
-	_, err = env.adminUsers.DeleteUser(
+	deleteResp, err := env.adminUsers.DeleteUser(
 		withBearerCredential(env.ctx, env.viewer, staleToken),
 		connect.NewRequest(&adminv1.DeleteUserRequest{
 			UserId:          target.Id,
-			CurrentPassword: "anything",
+			CurrentPassword: "deliberately-ignored-compatibility-value",
 		}),
 	)
-	if connect.CodeOf(err) != connect.CodeInvalidArgument {
-		t.Fatalf("DeleteUser code = %v, want invalid_argument", connect.CodeOf(err))
+	if err != nil {
+		t.Fatalf("DeleteUser with stale credential: %v", err)
 	}
-	if _, err := env.core.GetUser(env.ctx, target.Id); err != nil {
-		t.Fatalf("target was deleted after wrong password: %v", err)
+	if !deleteResp.Msg.GetDeleted() {
+		t.Fatal("Deleted = false, want true")
+	}
+	if _, err := env.core.GetUser(env.ctx, target.Id); !errors.Is(err, core.ErrNotFound) {
+		t.Fatalf("GetUser after DeleteUser err = %v, want not found", err)
 	}
 }
 
 func TestAdminUserServiceDeleteUserPreservesSelfTargetContract(t *testing.T) {
 	env := newConnectAPITestEnv(t)
-	token, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "password_login")
-	if err != nil {
-		t.Fatalf("CreateAuthTokenWithSource: %v", err)
-	}
 
 	deleteResp, err := env.adminUsers.DeleteUser(
-		withBearerCredential(env.ctx, env.viewer, token),
+		withCaller(env.ctx, env.viewer),
 		connect.NewRequest(&adminv1.DeleteUserRequest{UserId: env.viewer.Id}),
 	)
 	if err != nil {

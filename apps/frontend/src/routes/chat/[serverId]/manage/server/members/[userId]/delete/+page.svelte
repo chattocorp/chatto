@@ -108,7 +108,7 @@
     );
   }
 
-  async function handleDelete(currentPassword?: string): Promise<void> {
+  async function handleDelete(): Promise<void> {
     // Bind the request and all completion effects to the route target. SvelteKit
     // can reuse this component when the user or server parameter changes.
     const target: DeletionTarget = {
@@ -118,10 +118,9 @@
       privacyGeneration
     };
 
-    await target.connection.getAPI(createAdminUserManagementAPI).deleteUser({
-      userId: target.userId,
-      ...(currentPassword ? { currentPassword } : {})
-    });
+    await target.connection
+      .getAPI(createAdminUserManagementAPI)
+      .deleteUser({ userId: target.userId });
     if (!isCurrentTarget(target)) return;
 
     toast.success(m('admin.member_delete.success'));
@@ -167,13 +166,7 @@
         <Hint tone="danger">{m('admin.member_delete.not_allowed')}</Hint>
       {:else}
         {#key memberTargetKey}
-          <MemberDeleteForm
-            {member}
-            cancelHref={backHref}
-            canPasswordStepUp={serverScope.connection.bearerToken === null &&
-              currentUser.user?.hasPassword === true}
-            deleteMember={handleDelete}
-          />
+          <MemberDeleteForm {member} cancelHref={backHref} deleteMember={handleDelete} />
         {/key}
       {/if}
     </div>

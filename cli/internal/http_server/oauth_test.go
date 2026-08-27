@@ -515,7 +515,7 @@ func TestOAuthToken_RejectsClientBlockedAfterCodeIssuance(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation, time.Time{})
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, admin.Id, testOAuthClientID, redirectURI, core.GenerateCodeChallenge(verifier), "S256", generation)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -922,85 +922,6 @@ func TestOAuthAuthorizeExternalIdentityCreateEstablishesCookieSession(t *testing
 	}
 	if callbackURL.Query().Get("code") == "" {
 		t.Fatalf("resume Location %q did not include code", resumeLocation)
-	}
-}
-
-// TestOAuthAuthorizeTransfersFreshnessToIssuedCode proves, end-to-end over
-// the authorize and consent endpoints, that a code minted for a remembered
-// client while the authorizing cookie session sits inside the fresh-auth
-// window yields a delegated token that can perform step-up operations.
-// The corresponding stale-authorizer behavior (an expired FreshAuthAt must
-// stay step-up-incapable) is pinned at the core exchange layer, because cookie
-// sessions have no non-granting interactive creation path to fixture here:
-// freshness lapses only through window expiry, which requires a clock seam
-// the production code deliberately lacks.
-func TestOAuthAuthorizeTransfersFreshnessToIssuedCode(t *testing.T) {
-	const verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-	const redirectURI = "https://client.example/servers/callback"
-	s := setupOAuthServer(t)
-	cookies, user := loginOAuthTestUser(t, s, "fresh-transfer")
-
-	challenge := core.GenerateCodeChallenge(verifier)
-	params := url.Values{
-		"response_type":         {"code"},
-		"client_id":             {testOAuthClientID},
-		"redirect_uri":          {redirectURI},
-		"code_challenge":        {challenge},
-		"code_challenge_method": {"S256"},
-		"state":                 {"state123"},
-	}
-
-	firstReq := httptest.NewRequest("GET", "/oauth/authorize?"+params.Encode(), nil)
-	addCookies(firstReq, cookies)
-	firstW := httptest.NewRecorder()
-	s.router.ServeHTTP(firstW, firstReq)
-	if firstW.Code != http.StatusTemporaryRedirect || firstW.Header().Get("Location") != "/oauth/consent" {
-		t.Fatalf("first authorize status/location = %d/%q", firstW.Code, firstW.Header().Get("Location"))
-	}
-	cookies = mergeCookies(cookies, firstW.Result().Cookies())
-
-	approveReq := httptest.NewRequest("POST", "/oauth/consent/approve", nil)
-	addCookies(approveReq, cookies)
-	approveW := httptest.NewRecorder()
-	s.router.ServeHTTP(approveW, approveReq)
-	if approveW.Code != http.StatusOK {
-		t.Fatalf("approve status = %d: %s", approveW.Code, approveW.Body.String())
-	}
-	var approveResp map[string]string
-	if err := json.Unmarshal(approveW.Body.Bytes(), &approveResp); err != nil {
-		t.Fatalf("decode approve response: %v", err)
-	}
-	if !strings.HasPrefix(approveResp["redirectUrl"], redirectURI+"?") || !strings.Contains(approveResp["redirectUrl"], "code=") {
-		t.Fatalf("unexpected approve redirectUrl %q", approveResp["redirectUrl"])
-	}
-	cookies = mergeCookies(cookies, approveW.Result().Cookies())
-
-	secondReq := httptest.NewRequest("GET", "/oauth/authorize?"+params.Encode(), nil)
-	addCookies(secondReq, cookies)
-	secondW := httptest.NewRecorder()
-	s.router.ServeHTTP(secondW, secondReq)
-	if secondW.Code != http.StatusTemporaryRedirect {
-		t.Fatalf("second authorize status = %d: %s", secondW.Code, secondW.Body.String())
-	}
-	location := secondW.Header().Get("Location")
-	u, err := url.Parse(location)
-	if err != nil {
-		t.Fatalf("parse redirect %q: %v", location, err)
-	}
-	code := u.Query().Get("code")
-	if code == "" {
-		t.Fatalf("silent re-consent redirect %q carried no code", location)
-	}
-
-	credentials, gotUserID, err := s.core.ExchangeAuthCodeForClientSession(context.Background(), code, verifier, redirectURI, testOAuthClientID)
-	if err != nil {
-		t.Fatalf("ExchangeAuthCodeForClientSession: %v", err)
-	}
-	if gotUserID != user.Id {
-		t.Fatalf("exchange userID = %q, want %q", gotUserID, user.Id)
-	}
-	if err := s.core.RequireFreshAuthForBearerToken(context.Background(), credentials.AccessToken); err != nil {
-		t.Fatalf("token minted over fresh authorizing session should be born fresh: %v", err)
 	}
 }
 
@@ -1432,7 +1353,7 @@ func TestOAuthAuthorizeDoesNotMintCodeForStaleGeneration(t *testing.T) {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 			return
 		}
-		s.completeOAuthAuthorize(c, user.Id, authGeneration, time.Time{})
+		s.completeOAuthAuthorize(c, user.Id, authGeneration)
 	})
 
 	req := httptest.NewRequest("GET", "/test/complete-stale-oauth", nil)
@@ -1466,7 +1387,7 @@ func TestOAuthToken_FullExchange(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CurrentAuthGeneration: %v", err)
 	}
-	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration, time.Time{})
+	code, err := s.core.CreateAuthCodeForClientGeneration(ctx, user.Id, testOAuthClientID, redirectURI, challenge, "S256", authGeneration)
 	if err != nil {
 		t.Fatalf("Failed to create auth code: %v", err)
 	}

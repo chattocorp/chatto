@@ -277,13 +277,6 @@ authorization, live events, backup and restore, and backend tests.
   by the target role's explicit scoped permission decisions; assigning requires
   every allow, revoking requires every allow and deny, and the `owner` role is
   owner-only.
-- Fresh-authentication (step-up) semantics are a typed-credential concern, not
-  a source-string concern. Operations that require fresh auth must work for
-  delegated OAuth sessions whose authorizing session was inside the fresh-auth
-  window (remote-server support; see ADR-046). Transfer the original
-  authentication time; do not restart the window at code exchange. Never let
-  delegated sessions re-acquire freshness. Add coverage for first-party and
-  delegated credentials.
 - Authorization-sensitive event writes must evaluate authorization inside the
   target aggregate's OCC retry. Request-time authorization is the default: a
   conflict-free command may finish after a concurrent cross-aggregate

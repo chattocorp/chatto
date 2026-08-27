@@ -12,7 +12,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -759,7 +758,6 @@ func displayNameHintFromParts(parts ...string) string {
 func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Session, userID string, authGeneration uint64, providerConfig config.AuthProviderConfig) error {
 	ctx := c.Request.Context()
 	source := providerConfig.Type + "_login"
-	freshAuthAt := time.Now()
 	if err := s.createCookieSessionForGeneration(c, userID, source, authGeneration); err != nil {
 		return fmt.Errorf("save cookie session: %w", err)
 	}
@@ -787,10 +785,7 @@ func (s *HTTPServer) completeProviderLogin(c *gin.Context, session sessions.Sess
 		// in the browser session.
 		session.Delete("oauth_redirect")
 		_ = session.Save()
-		// The provider callback just completed an interactive external login,
-		// whose first-party session is born fresh; the authorization code may
-		// carry that freshness to the delegated client.
-		s.continueOAuthAuthorize(c, userID, authGeneration, freshAuthAt)
+		s.continueOAuthAuthorize(c, userID, authGeneration)
 		return nil
 	}
 

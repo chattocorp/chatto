@@ -938,10 +938,10 @@ export class DeleteUserRequest extends Message<DeleteUserRequest> {
   userId = "";
 
   /**
-   * Current password proof for accounts with a password when the active
-   * runtime credential is no longer fresh.
+   * Ignored. DeleteUser does not use password step-up.
    *
-   * @generated from field: string current_password = 2;
+   * @generated from field: string current_password = 2 [deprecated = true];
+   * @deprecated
    */
   currentPassword = "";
 

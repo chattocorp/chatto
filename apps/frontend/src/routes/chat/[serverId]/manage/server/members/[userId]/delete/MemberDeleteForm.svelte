@@ -1,5 +1,4 @@
 <script lang="ts">
-  import { Code, ConnectError } from '@connectrpc/connect';
   import type { AdminMember } from '$lib/api-client/adminUsers';
   import { m } from '$lib/i18n/messages';
   import { Panel } from '$lib/components/admin';
@@ -9,13 +8,11 @@
   let {
     member,
     cancelHref,
-    canPasswordStepUp,
     deleteMember
   }: {
     member: AdminMember;
     cancelHref: string;
-    canPasswordStepUp: boolean;
-    deleteMember: (currentPassword?: string) => Promise<void>;
+    deleteMember: () => Promise<void>;
   } = $props();
 
   /** Wraps an interpolated user value in Unicode isolates so names and logins
@@ -26,17 +23,10 @@
   }
 
   let confirmText = $state('');
-  let password = $state('');
   let error = $state('');
   let deleting = $state(false);
-  let passwordRequired = $state(false);
 
-  const canConfirm = $derived(
-    !deleting &&
-      confirmText.length > 0 &&
-      confirmText === member.login &&
-      (!passwordRequired || password.length > 0)
-  );
+  const canConfirm = $derived(!deleting && confirmText.length > 0 && confirmText === member.login);
 
   async function handleSubmit(event: SubmitEvent): Promise<void> {
     event.preventDefault();
@@ -45,24 +35,11 @@
     error = '';
 
     try {
-      await deleteMember(passwordRequired ? password : undefined);
+      await deleteMember();
       // On success the parent navigates away; keep the busy state while it does.
     } catch (err) {
-      if (
-        !passwordRequired &&
-        canPasswordStepUp &&
-        err instanceof ConnectError &&
-        err.code === Code.FailedPrecondition
-      ) {
-        // A current password is a fallback proof, not part of the ordinary
-        // confirmation. Ask for it only after the server reports stale auth so
-        // an ignored value can never appear to have been accepted.
-        passwordRequired = true;
-      } else {
-        error = err instanceof Error ? err.message : m('admin.member_delete.failed');
-      }
-      // Keep the typed confirmation and any password so a retry needs no
-      // retyping.
+      error = err instanceof Error ? err.message : m('admin.member_delete.failed');
+      // Keep the typed confirmation so a retry needs no retyping.
       deleting = false;
     }
   }
@@ -91,20 +68,6 @@
       disabled={deleting}
       autocomplete="off"
     />
-
-    {#if passwordRequired}
-      <TextInput
-        id="member-delete-password"
-        label={m('admin.member_delete.password_label')}
-        description={m('admin.member_delete.password_hint')}
-        type="password"
-        bind:value={password}
-        disabled={deleting}
-        autocomplete="current-password"
-        required
-        autofocus
-      />
-    {/if}
 
     {#if error}
       <FormError {error} />

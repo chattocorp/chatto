@@ -118,8 +118,6 @@
       "consequence_profile": "La profilo, avataro kaj uzantnomo estos forigitaj. La uzantnomo denove disponeblos poste.",
       "consequence_sessions": "La persono elsalutos ĉie.",
       "confirm_label": "Skribu {login} por konfirmi",
-      "password_label": "Via nuna pasvorto",
-      "password_hint": "Nur bezonata kiam via seanco devas esti rekonfirmita.",
       "submit": "Por ĉiam forigi la konton",
       "deleting": "Forigado...",
       "failed": "Malsukcesis forigi la konton.",

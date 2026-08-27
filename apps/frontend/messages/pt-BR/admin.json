@@ -118,8 +118,6 @@
       "consequence_profile": "O perfil, o avatar e o nome de usuário são excluídos. O nome de usuário volta a ficar disponível depois.",
       "consequence_sessions": "A pessoa é desconectada em todos os lugares.",
       "confirm_label": "Digite {login} para confirmar",
-      "password_label": "Sua senha atual",
-      "password_hint": "Necessária apenas quando sua sessão precisar ser confirmada novamente.",
       "submit": "Excluir a conta permanentemente",
       "deleting": "Excluindo...",
       "failed": "Falha ao excluir a conta.",

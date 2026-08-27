@@ -2,7 +2,7 @@
 
 **Date:** 2026-06-30
 
-**Updated:** 2026-08-27
+**Updated:** 2026-08-26
 
 **Partially superseded by:** [ADR-079](ADR-079-renewable-bearer-sessions.md)
 for bearer renewal and
@@ -50,11 +50,9 @@ The credential types are:
   may be presented either as an opaque bearer token or through a same-origin
   HTTP-only cookie carrying an opaque credential handle.
 - `oauth_access_token`: a delegated access token issued by Chatto's OAuth
-  authorization-code exchange for a trusted client origin. These credentials
-  may authenticate normal API and realtime requests. They retain the original
-  fresh-authentication time when the authorizing session is fresh. They cannot
-  re-acquire freshness through a current-password check. After the original
-  window expires, a new authorization is required.
+  authorization-code exchange for a trusted client origin. These credentials may
+  authenticate normal API and realtime requests, but they are not first-party
+  sessions and cannot satisfy or acquire fresh-auth status.
 
 Fresh-auth metadata, auth generation, source, request metadata, explicit
 expiry, validation, and revocation eligibility belong to the typed runtime
@@ -64,11 +62,10 @@ normalize to the same validated runtime-credential result before user context,
 logout, audit, realtime subscription, CSRF binding, or session-termination
 behavior is applied. Request context carries the presentation kind plus the
 single opaque handle; it does not duplicate bearer-token and cookie-session
-fields. Fresh credential checks reason from the typed credential and its
-fresh-auth metadata. First-party credentials may re-acquire freshness through a
-current-password proof. OAuth access tokens keep the authentication time of the
-authorizing session but cannot re-acquire freshness. Thus, expired remote
-sessions run a new authorization for account-security operations.
+fields. Fresh credential checks must explicitly require a first-party runtime
+credential. OAuth access tokens remain useful for multi-server clients, but they
+must not authorize account-security operations such as adding a password or
+linking/disconnecting sign-in methods.
 
 The multi-server frontend keeps bearer credentials for remote servers. Each
 remote server has its own opaque credential, scoped by the client to that
@@ -98,27 +95,10 @@ The migration completed at the 0.5 compatibility boundary:
 
 ## Consequences
 
-Fresh-auth and account-security code gets one security invariant with two
-parts. Freshness starts only through interactive authentication on the server.
-First-party credentials keep that authentication time and can re-acquire
-freshness through an explicit current-password proof. OAuth credentials retain
-the authorizing session's exact authentication time and cannot re-acquire
-freshness. Code exchange does not restart or extend the window. Delegated
-tokens do not become equivalent to the user's own browser session: they get no
-persistence beyond their grant window and no rights that the user did not
-prove to the issuing server.
-
-This closes the remote-server step-up gap. Without transferred freshness,
-no account-security operation (account deletion, password or sign-in method
-changes) was ever possible over a multi-server connection, because re-login
-produced another non-fresh credential. The transferred state reflects the
-authorizing session exactly: silent re-consent with a remembered approval over
-a stale ambient cookie mints a token without any user interaction, and that
-token is therefore not fresh. Only a code created while the server-side session
-is in its fresh-authentication window transfers the original authentication
-time. The added exposure is bounded: a stolen OAuth access token can present
-fresh status only during that same window. Access tokens stay short-lived, and
-password changes still revoke every session of the account.
+Fresh-auth and account-security code gets a single security invariant:
+freshness is a property of first-party runtime credentials only. Delegated OAuth
+access tokens can authenticate ordinary API calls without becoming equivalent to
+the user's own browser session.
 
 Runtime credential revocation becomes easier to reason about because password
 changes, password resets, external-identity disconnects, and account deletion can

@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/log"
 	"github.com/gin-contrib/sessions"
@@ -56,7 +55,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			}
 			if ok {
 				if hasPendingOAuthAuthorize(session) {
-					s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration(), oauthFreshAuthAt(credential))
+					s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 					return
 				}
 			}
@@ -166,7 +165,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 		if ok {
-			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration(), oauthFreshAuthAt(credential))
+			s.continueOAuthAuthorize(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration())
 			return
 		}
 
@@ -333,7 +332,7 @@ func (s *HTTPServer) setupOAuthRoutes() {
 			return
 		}
 
-		redirectURL, ok := s.completeOAuthAuthorizeParamsURL(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration(), oauthFreshAuthAt(credential), params)
+		redirectURL, ok := s.completeOAuthAuthorizeParamsURL(c, credential.auth.UserID, credential.cookieRecord.GetAuthGeneration(), params)
 		if !ok {
 			return
 		}
@@ -514,18 +513,7 @@ func (s *HTTPServer) consumePendingOAuthAuthorize(ctx context.Context, session s
 	return pending, nil
 }
 
-// oauthFreshAuthAt returns the presented cookie session's authentication time.
-// Core stores and validates this exact time so authorization and code exchange
-// cannot restart or extend the fresh-authentication window.
-func oauthFreshAuthAt(credential presentedRuntimeCredential) time.Time {
-	record := credential.cookieRecord
-	if record == nil || record.GetFreshAuthAt() == nil {
-		return time.Time{}
-	}
-	return record.GetFreshAuthAt().AsTime()
-}
-
-func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64, freshAuthAt time.Time) {
+func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64) {
 	params, err := s.readPendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 	if err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{
@@ -555,21 +543,21 @@ func (s *HTTPServer) continueOAuthAuthorize(c *gin.Context, userID string, authG
 		c.Redirect(http.StatusTemporaryRedirect, "/oauth/consent")
 		return
 	}
-	s.completeOAuthAuthorize(c, userID, authGeneration, freshAuthAt)
+	s.completeOAuthAuthorize(c, userID, authGeneration)
 }
 
 // completeOAuthAuthorize generates an authorization code and redirects to the
 // client's redirect_uri. Called after the user has authenticated, either
 // directly (already had a session) or after login/OAuth callback.
-func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64, freshAuthAt time.Time) {
-	redirectURL, ok := s.completeOAuthAuthorizeURL(c, userID, authGeneration, freshAuthAt)
+func (s *HTTPServer) completeOAuthAuthorize(c *gin.Context, userID string, authGeneration uint64) {
+	redirectURL, ok := s.completeOAuthAuthorizeURL(c, userID, authGeneration)
 	if !ok {
 		return
 	}
 	c.Redirect(http.StatusTemporaryRedirect, redirectURL)
 }
 
-func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, authGeneration uint64, freshAuthAt time.Time) (string, bool) {
+func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, authGeneration uint64) (string, bool) {
 	params, err := s.consumePendingOAuthAuthorize(c.Request.Context(), sessions.Default(c))
 	if err != nil {
 		if errors.Is(err, errNoPendingOAuthAuthorize) {
@@ -586,10 +574,10 @@ func (s *HTTPServer) completeOAuthAuthorizeURL(c *gin.Context, userID string, au
 		}
 		return "", false
 	}
-	return s.completeOAuthAuthorizeParamsURL(c, userID, authGeneration, freshAuthAt, params)
+	return s.completeOAuthAuthorizeParamsURL(c, userID, authGeneration, params)
 }
 
-func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID string, authGeneration uint64, freshAuthAt time.Time, params pendingOAuthAuthorize) (string, bool) {
+func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID string, authGeneration uint64, params pendingOAuthAuthorize) (string, bool) {
 	ctx := c.Request.Context()
 	if err := s.core.RequireOAuthClientAllowed(ctx, params.ClientID); err != nil {
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
@@ -637,7 +625,7 @@ func (s *HTTPServer) completeOAuthAuthorizeParamsURL(c *gin.Context, userID stri
 		ClientOrigin:   params.ClientURI,
 		RedirectOrigin: redirectOrigin,
 		Source:         source,
-	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration, freshAuthAt)
+	}, params.RedirectURI, params.CodeChallenge, params.CodeChallengeMethod, authGeneration)
 	if err != nil {
 		if errors.Is(err, core.ErrOAuthClientBlocked) {
 			c.JSON(http.StatusBadRequest, gin.H{

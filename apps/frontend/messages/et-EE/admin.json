@@ -118,8 +118,6 @@
       "consequence_profile": "Profiil, avatar ja kasutajanimi kustutatakse. Kasutajanimi muutub hiljem taas vabaks.",
       "consequence_sessions": "Isik logitakse kõikjal välja.",
       "confirm_label": "Kinnitamiseks kirjuta {login}",
-      "password_label": "Sinu praegune parool",
-      "password_hint": "Vajalik ainult siis, kui seanssi tuleb uuesti kinnitada.",
       "submit": "Kustuta konto jäädavalt",
       "deleting": "Kustutamine...",
       "failed": "Konto kustutamine ebaõnnestus.",

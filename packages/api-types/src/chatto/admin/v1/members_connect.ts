@@ -112,8 +112,7 @@ export const AdminUserService = {
     },
     /**
      * Deletes a user account as an admin action. Requires user.delete-any for
-     * other users, user.delete-self for the caller, and a fresh credential for
-     * the caller.
+     * other users or user.delete-self for the caller.
      *
      * @generated from rpc chatto.admin.v1.AdminUserService.DeleteUser
      */

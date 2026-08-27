@@ -126,11 +126,6 @@ and Storybook.
   authorization rules in UI code.
 - Public ConnectRPC/protobuf clients live in the workspace package
   `@chatto/api-types`; keep generated files in sync with `mise codegen-proto`.
-- Treat conditional `current_password` fields as step-up proof. Send the first
-  request without the field. Show and require it only after the server returns
-  `FAILED_PRECONDITION` for a stale credential, and only when the session is
-  first-party and the account has a password. Never show a password field whose
-  value the server can ignore.
 
 ## UI And Styling
 
@@ -245,6 +240,9 @@ and Storybook.
   replace the user's draft. Keep the form state and show a localized,
   actionable conflict message explaining that the resource changed and must be
   reloaded before saving again.
+- Destructive admin confirmations must confirm the target or effect. Do not use
+  a password prompt as reauthentication unless the server provides an explicit,
+  independently tested reauthentication contract.
 - Checkboxes and similar binary controls in Server Admin should save immediately
   and confirm through toast.
 - Use Save buttons only for multi-field forms that submit together; disable until

@@ -347,8 +347,17 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	if linked.Msg.LinkedIdentity.GetProviderId() != "discord-main" || linked.Msg.LinkedIdentity.GetSubjectHash() == "" {
 		t.Fatalf("linked identity = %+v", linked.Msg.LinkedIdentity)
 	}
-	// A stale-source credential cannot disconnect without a current-password
-	// proof; supplying it re-acquires freshness on a first-party session.
+	oauthViewerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "oauth_code_exchange")
+	if err != nil {
+		t.Fatalf("CreateAuthTokenWithSource oauth viewer: %v", err)
+	}
+	oauthCredentialCtx := withBearerCredential(env.ctx, env.viewer, oauthViewerToken)
+	_, err = env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
+		SubjectHash:     linked.Msg.LinkedIdentity.GetSubjectHash(),
+		CurrentPassword: "password",
+	}))
+	requireConnectCode(t, err, connect.CodeFailedPrecondition)
+
 	staleViewerToken, err := env.core.CreateAuthTokenWithSource(env.ctx, env.viewer.Id, "unknown")
 	if err != nil {
 		t.Fatalf("CreateAuthTokenWithSource stale viewer: %v", err)
@@ -367,34 +376,6 @@ func TestExternalIdentityFlowsAndAccountManagement(t *testing.T) {
 	}
 	if !disconnected.Msg.GetDisconnected() {
 		t.Fatalf("DisconnectExternalIdentity disconnected = false")
-	}
-
-	// Link the same provider identity again to exercise the OAuth-kind path:
-	// the authorization-code exchange is an interactive authentication, so the
-	// OAuth-kind session is born fresh and may disconnect without a password.
-	relinkToken, err := env.core.CreatePendingExternalIdentityLinkFlow(env.ctx, core.PendingExternalIdentityFlow{
-		ProviderID:   "discord-main",
-		ProviderType: config.AuthProviderTypeDiscord,
-		Issuer:       "discord-main",
-		Subject:      "abc123",
-	}, env.viewer.Id)
-	if err != nil {
-		t.Fatalf("CreatePendingExternalIdentityLinkFlow relink: %v", err)
-	}
-	if _, err := env.externalAuth.ConfirmExternalIdentityLink(env.ctx, connect.NewRequest(&authv1.ConfirmExternalIdentityLinkRequest{
-		Token: relinkToken,
-	})); err != nil {
-		t.Fatalf("ConfirmExternalIdentityLink relink: %v", err)
-	}
-	oauthCredentialCtx := mintBornFreshOAuthCredential(t, env, env.viewer.Id)
-	disconnectedViaOauth, err := env.account.DisconnectExternalIdentity(oauthCredentialCtx, connect.NewRequest(&apiv1.DisconnectExternalIdentityRequest{
-		SubjectHash: linked.Msg.LinkedIdentity.GetSubjectHash(),
-	}))
-	if err != nil {
-		t.Fatalf("oauth DisconnectExternalIdentity: %v", err)
-	}
-	if !disconnectedViaOauth.Msg.GetDisconnected() {
-		t.Fatalf("oauth DisconnectExternalIdentity disconnected = false")
 	}
 	found, err := env.core.GetUserByExternalIdentity(env.ctx, "discord-main", "abc123")
 	if err != nil {
