@@ -582,7 +582,8 @@ type ThreadViewerState struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Whether the current user follows this message's thread, when known.
 	IsFollowing *bool `protobuf:"varint,1,opt,name=is_following,json=isFollowing,proto3,oneof" json:"is_following,omitempty"`
-	// True when the thread has unread replies for the current user, when known.
+	// True when the thread has unread replies or neutral Badge attention for the
+	// current user, when known.
 	HasUnread     *bool `protobuf:"varint,2,opt,name=has_unread,json=hasUnread,proto3,oneof" json:"has_unread,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

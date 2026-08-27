@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Päri",
           "off": "Väljas",
+          "badge": "Märgis",
+          "badge_hint": "Lisab ainult neutraalse lugemata sisu täpi. See ei loo teavitust, ei esita heli ega saada tõuketeavitust.",
           "notification": "Teavitus",
           "push_notification": "Tõuketeavitus"
         },
         "reason": {
+          "room_message": "Ruumisõnumid",
           "direct_message": "Otsesõnumid",
           "direct_mention": "Otsesed mainimised",
           "reply": "Vastused sinu sõnumitele",
@@ -304,12 +307,12 @@
           "here": "@here mainimised",
           "all": "@all mainimised",
           "followed_thread": "Jälgitavad lõimed",
-          "followed_room": "Jälgitavad ruumid",
           "reaction": "Reaktsioonid sinu sõnumitele",
           "activity": "Tegevus",
           "room_invitation": "Ruumide kutsed"
         },
         "reason_hint": {
+          "room_message": "Juursõnumid, mille teised liikmed postitavad otse kanaliruumidesse, mitte lõimedesse.",
           "direct_message": "Teiste liikmete saadetud sõnumid otsesõnumivestlustes.",
           "direct_mention": "Sõnumid, milles mainitakse otseselt sinu kasutajanime.",
           "reply": "Sõnumid, mis vastavad mõnele sinu sõnumile.",
@@ -317,7 +320,6 @@
           "here": "Sõnumid, mis kasutavad @here, kui sinu olek ei ole võrguühenduseta.",
           "all": "Sõnumid, mis kasutavad @all ruumis, mille liige sa oled.",
           "followed_thread": "Uued vastused lõimedes, mida jälgid.",
-          "followed_room": "Lõimedesse mittekuuluvad sõnumid ruumides, mida jälgid.",
           "reaction": "Teiste liikmete lisatud reaktsioonid sinu sõnumitele."
         }
       }

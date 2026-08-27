@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Hériter",
           "off": "Désactivé",
+          "badge": "Pastille",
+          "badge_hint": "Ajoute seulement un point neutre pour le contenu non lu. Ne crée aucune notification, ne joue aucun son et n’envoie aucune notification poussée.",
           "notification": "Notification",
           "push_notification": "Notification poussée"
         },
         "reason": {
+          "room_message": "Messages des salons",
           "direct_message": "Messages directs",
           "direct_mention": "Mentions directes",
           "reply": "Réponses à vos messages",
@@ -304,12 +307,12 @@
           "here": "Mentions @here",
           "all": "Mentions @all",
           "followed_thread": "Fils suivis",
-          "followed_room": "Salons suivis",
           "reaction": "Réactions à vos messages",
           "activity": "Activité",
           "room_invitation": "Invitations à des salons"
         },
         "reason_hint": {
+          "room_message": "Messages racines que d’autres membres publient directement dans des salons, et non dans des fils.",
           "direct_message": "Messages envoyés par d’autres membres dans des conversations privées.",
           "direct_mention": "Messages qui mentionnent directement votre nom d’utilisateur.",
           "reply": "Messages qui répondent à l’un de vos messages.",
@@ -317,7 +320,6 @@
           "here": "Messages qui utilisent @here lorsque votre présence n’est pas hors ligne.",
           "all": "Messages qui utilisent @all dans un salon dont vous êtes membre.",
           "followed_thread": "Nouvelles réponses dans les fils que vous suivez.",
-          "followed_room": "Messages de premier niveau dans les salons que vous suivez.",
           "reaction": "Réactions ajoutées à vos messages par d’autres membres."
         }
       }

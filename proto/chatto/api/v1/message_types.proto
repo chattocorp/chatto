@@ -118,7 +118,8 @@ message MessageReaction {
 message ThreadViewerState {
   // Whether the current user follows this message's thread, when known.
   optional bool is_following = 1;
-  // True when the thread has unread replies for the current user, when known.
+  // True when the thread has unread replies or neutral Badge attention for the
+  // current user, when known.
   optional bool has_unread = 2;
 }
 

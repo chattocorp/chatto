@@ -799,16 +799,27 @@ func (c *ChattoCore) listFollowedThreadViewerStates(ctx context.Context, userID 
 			return nil, fmt.Errorf("read followed thread marker %s: %w", ref.threadRootEventID, err)
 		}
 		hasUnread := metadata.LastReplyAt != nil && (lastOpened.IsZero() || metadata.LastReplyAt.After(lastOpened))
+		badgeUnread, err := c.notificationOccurrences.HasNotificationUnread(ctx, userID, ref.roomID, ref.threadRootEventID)
+		if err != nil {
+			return nil, fmt.Errorf("read followed thread Badge state %s: %w", ref.threadRootEventID, err)
+		}
 		result = append(result, &FollowedThread{
 			SpaceID: LegacySpaceIDForRoomKind(kind), RoomID: ref.roomID,
-			ThreadRootEventID: ref.threadRootEventID, Exists: metadata.Exists, HasUnread: hasUnread,
+			ThreadRootEventID: ref.threadRootEventID, Exists: metadata.Exists, HasUnread: hasUnread || badgeUnread,
 		})
 	}
 	return result, nil
 }
 
 func (c *ChattoCore) followedThreadHasUnread(ctx context.Context, userID string, thread *FollowedThread) bool {
-	if thread == nil || thread.LastReplyAt == nil {
+	if thread == nil {
+		return false
+	}
+	badgeUnread, err := c.notificationOccurrences.HasNotificationUnread(ctx, userID, thread.RoomID, thread.ThreadRootEventID)
+	if err != nil || badgeUnread {
+		return true
+	}
+	if thread.LastReplyAt == nil {
 		return false
 	}
 	kind := RoomKindFromLegacySpaceID(thread.SpaceID)

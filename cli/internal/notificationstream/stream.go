@@ -4,17 +4,15 @@ package notificationstream
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
 	"google.golang.org/protobuf/proto"
 
 	corev1 "hmans.de/chatto/internal/pb/chatto/core/v1"
+	"hmans.de/chatto/internal/streamidentity"
 	"hmans.de/chatto/pkg/events"
 )
 
@@ -26,8 +24,16 @@ const (
 	AlertResolvedSubject = "notifications.alert_resolved"
 
 	IdentityMetadataKey = "chatto.notifications.incarnation"
-	identityPrefix      = "notifications-incarnation-v1:"
 )
+
+// identityScheme owns the NOTIFICATIONS stream's incarnation format: metadata
+// key, versioned prefix, digest domain, and error labels.
+var identityScheme = streamidentity.Identity{
+	MetadataKey: IdentityMetadataKey,
+	Prefix:      "notifications-incarnation-v1:",
+	Domain:      "chatto/notifications-incarnation/v1",
+	Label:       "NOTIFICATIONS stream",
+}
 
 // Subjects returns the complete, fixed subject set owned by NOTIFICATIONS.
 // Returning a fresh slice keeps callers from mutating the stream contract.
@@ -223,29 +229,21 @@ func decodeEvent(data []byte) (events.DecodedEvent[*corev1.NotificationEvent], e
 	return events.DecodedEvent[*corev1.NotificationEvent]{Event: &event, ID: event.GetId()}, nil
 }
 
+// NewIdentity deterministically derives Chatto's identity for one NOTIFICATIONS
+// stream incarnation. created is used only when initializing missing metadata.
 func NewIdentity(created time.Time) (string, error) {
-	if created.IsZero() {
-		return "", fmt.Errorf("NOTIFICATIONS stream creation time is required")
-	}
-	sum := sha256.Sum256([]byte("chatto/notifications-incarnation/v1\x00" + created.UTC().Format(time.RFC3339Nano)))
-	return identityPrefix + hex.EncodeToString(sum[:16]), nil
+	return identityScheme.New(created)
 }
 
+// ValidIdentity reports whether identity has Chatto's versioned NOTIFICATIONS
+// stream-incarnation format.
 func ValidIdentity(identity string) bool {
-	if len(identity) != len(identityPrefix)+32 || !strings.HasPrefix(identity, identityPrefix) {
-		return false
-	}
-	_, err := hex.DecodeString(identity[len(identityPrefix):])
-	return err == nil
+	return identityScheme.Valid(identity)
 }
 
+// IdentityFromInfo resolves and validates Chatto's NOTIFICATIONS incarnation
+// from one StreamInfo snapshot so callers can bind it to the same sequence
+// bounds.
 func IdentityFromInfo(info *jetstream.StreamInfo) (string, error) {
-	if info == nil {
-		return "", fmt.Errorf("NOTIFICATIONS stream info is unavailable")
-	}
-	identity := info.Config.Metadata[IdentityMetadataKey]
-	if !ValidIdentity(identity) {
-		return "", fmt.Errorf("NOTIFICATIONS stream identity is missing or invalid")
-	}
-	return identity, nil
+	return identityScheme.FromInfo(info)
 }

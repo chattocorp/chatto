@@ -145,8 +145,8 @@ test.describe('Mention Notifications', () => {
   });
 });
 
-test.describe('Followed room notifications', () => {
-  test('plain room messages show room and server notification badges for followed-room subscribers', async ({
+test.describe('Room message notifications', () => {
+  test('plain room messages show room and server notification badges when configured', async ({
     page,
     chatPage,
     notificationsPage,
@@ -160,7 +160,7 @@ test.describe('Followed room notifications', () => {
     await expect(page.getByRole('heading', { name: 'Notifications' })).toBeVisible();
 
     const generalRoomId = await getRoomIdByNameViaConnect(page, 'general');
-    await updateNotificationPolicy(page, { followedRooms: 'ALERT' }, generalRoomId);
+    await updateNotificationPolicy(page, { roomMessages: 'IN_APP_NOTIFICATION' }, generalRoomId);
 
     await chatPage.goto();
     await chatPage.enterRoom('announcements');
@@ -171,7 +171,7 @@ test.describe('Followed room notifications', () => {
 
     await withServerUser(browser!, serverURL, async ({ chatPage, roomPage }) => {
       await chatPage.enterRoom('general');
-      await roomPage.sendMessage(`plain followed-room notification ${Date.now()}`);
+      await roomPage.sendMessage(`plain room-message notification ${Date.now()}`);
     });
 
     await expect(roomNotificationBadge).toBeVisible({ timeout: TIMEOUTS.REALTIME_EVENT });

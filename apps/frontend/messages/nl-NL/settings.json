@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Overnemen",
           "off": "Uit",
+          "badge": "Markering",
+          "badge_hint": "Voegt alleen een neutraal bolletje voor ongelezen inhoud toe. Maakt geen melding, speelt geen geluid af en verstuurt geen pushmelding.",
           "notification": "Melding",
           "push_notification": "Pushmelding"
         },
         "reason": {
+          "room_message": "Berichten in ruimtes",
           "direct_message": "Directe berichten",
           "direct_mention": "Directe vermeldingen",
           "reply": "Antwoorden op je berichten",
@@ -304,12 +307,12 @@
           "here": "@here-vermeldingen",
           "all": "@all-vermeldingen",
           "followed_thread": "Gevolgde threads",
-          "followed_room": "Gevolgde ruimtes",
           "reaction": "Reacties op je berichten",
           "activity": "Activiteit",
           "room_invitation": "Uitnodigingen voor ruimtes"
         },
         "reason_hint": {
+          "room_message": "Hoofdberichten die andere leden rechtstreeks in kanaalruimtes plaatsen, niet in threads.",
           "direct_message": "Berichten die andere leden in privégesprekken sturen.",
           "direct_mention": "Berichten waarin je gebruikersnaam rechtstreeks wordt vermeld.",
           "reply": "Berichten die op een van je berichten antwoorden.",
@@ -317,7 +320,6 @@
           "here": "Berichten met @here wanneer je aanwezigheidsstatus niet offline is.",
           "all": "Berichten met @all in een ruimte waarvan je lid bent.",
           "followed_thread": "Nieuwe antwoorden in threads die je volgt.",
-          "followed_room": "Berichten buiten threads in ruimtes die je volgt.",
           "reaction": "Reacties die andere leden aan je berichten toevoegen."
         }
       }

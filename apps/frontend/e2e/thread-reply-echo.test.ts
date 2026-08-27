@@ -12,6 +12,7 @@ import {
   postMessageViaConnect,
   postThreadReplyViaConnect,
   postThreadReplyWithEchoViaConnect,
+  updateScopedNotificationPolicy,
   waitForRoomReadViaConnect,
   waitForServerUnreadViaConnect
 } from './fixtures/connectHelpers';
@@ -1079,7 +1080,7 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     );
   });
 
-  test('echo triggers unread indicator for other users', async ({
+  test('echoed followed-thread reply triggers Badge attention for followers', async ({
     page,
     chatPage,
     roomPage,
@@ -1093,48 +1094,73 @@ test.describe('Thread Reply Echo ("Also send to channel")', () => {
     });
 
     const rootMessage = `Root for unread test ${Date.now()}`;
+    const firstReply = `First reply for unread test ${Date.now()}`;
     const replyMessage = `Echo for unread test ${Date.now()}`;
 
     const rootMessageComponent = await roomPage.sendMessage(rootMessage);
 
-    await withServerUser(browser!, serverURL, async ({ page: page2, chatPage: chatPage2 }) => {
-      await test.step('User B opens the server and marks room as read', async () => {
-        await chatPage2.enterRoom('general');
-        await waitForRoomReady(page2, 'general');
-
-        // Wait for markRoomAsRead to complete on server before navigating away.
-        const roomId = await getRoomIdByNameViaConnect(page2, 'general');
-        await waitForRoomReadViaConnect(page2, roomId);
-
-        // Navigate to announcements so general is no longer active.
-        // Note: navigating to /chat/-/${spaceId} doesn't work because the route
-        // auto-redirects to the last visited room (general), which re-mounts the
-        // room component and auto-marks it as read — preventing unread detection.
-        await chatPage2.enterRoom('announcements');
-        await waitForRoomReady(page2, 'announcements');
-      });
-
-      await test.step('User A posts reply with echo', async () => {
-        await rootMessageComponent.openThread();
-        await roomPage.expectThreadPaneVisible();
-        await roomPage.postThreadReplyWithEcho(replyMessage);
-      });
-
-      await test.step('User B sees unread indicator from echo', async () => {
-        // Wait for server to register unread state
-        await waitForServerUnreadViaConnect(page2, true);
-
-        // Verify UI shows the unread dot
-        await expect(async () => {
-          const generalLink = page2.locator('nav').locator('a', { hasText: '# general' });
-          const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
-          await expect(unreadDot).toBeVisible();
-        }).toPass({
-          timeout: TIMEOUTS.REALTIME_EVENT,
-          intervals: [100, 250, 500, 1000]
-        });
-      });
+    await test.step('User A creates the thread', async () => {
+      await rootMessageComponent.openThread();
+      await roomPage.expectThreadPaneVisible();
+      await roomPage.postThreadReply(firstReply);
+      await roomPage.closeThread();
     });
+
+    await withServerUser(
+      browser!,
+      serverURL,
+      async ({ page: page2, chatPage: chatPage2, roomPage: roomPage2 }) => {
+        await test.step('User B follows the thread with Badge delivery and marks the room as read', async () => {
+          await updateScopedNotificationPolicy(
+            page2,
+            { server: {} },
+            { followedThreads: 'UNREAD_BADGE' }
+          );
+          await chatPage2.enterRoom('general');
+          await waitForRoomReady(page2, 'general');
+
+          const rootMessageForUserB = roomPage2.getMessage(rootMessage);
+          await rootMessageForUserB.openThread();
+          await roomPage2.expectThreadPaneVisible();
+          await roomPage2.expectThreadPaneNotFollowing();
+          await roomPage2.toggleThreadFollow();
+          await roomPage2.expectThreadPaneFollowing();
+
+          // Wait for markRoomAsRead to complete on server before navigating away.
+          const roomId = await getRoomIdByNameViaConnect(page2, 'general');
+          await waitForRoomReadViaConnect(page2, roomId);
+
+          // Navigate to announcements so general is no longer active.
+          // Note: navigating to /chat/-/${spaceId} doesn't work because the route
+          // auto-redirects to the last visited room (general), which re-mounts the
+          // room component and auto-marks it as read — preventing unread detection.
+          await chatPage2.enterRoom('announcements');
+          await waitForRoomReady(page2, 'announcements');
+        });
+
+        await test.step('User A posts reply with echo', async () => {
+          await rootMessageComponent.openThread();
+          await roomPage.expectThreadPaneVisible();
+          await roomPage.postThreadReplyWithEcho(replyMessage);
+        });
+
+        await test.step('User B sees Badge attention from followed-thread activity', async () => {
+          // The echo remains a thread reply for notification purposes. It must
+          // use Followed threads, never the Root messages in rooms policy.
+          await waitForServerUnreadViaConnect(page2, true);
+
+          // Verify UI shows the unread dot.
+          await expect(async () => {
+            const generalLink = page2.locator('nav').locator('a', { hasText: '# general' });
+            const unreadDot = generalLink.locator('[data-testid="room-unread-dot"]');
+            await expect(unreadDot).toBeVisible();
+          }).toPass({
+            timeout: TIMEOUTS.REALTIME_EVENT,
+            intervals: [100, 250, 500, 1000]
+          });
+        });
+      }
+    );
   });
 
   test('echo reply attribution highlight works for non-root target after thread was already opened', async ({

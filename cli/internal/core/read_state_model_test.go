@@ -72,6 +72,12 @@ func TestReadStateModel_MarkRoomAsReadSkipsLiveEventWhenCursorUnchanged(t *testi
 	if _, err := core.JoinRoom(ctx, reader.Id, KindChannel, reader.Id, room.Id); err != nil {
 		t.Fatalf("JoinRoom reader: %v", err)
 	}
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
+		ctx, reader.Id, room.Id, notificationTestSignalRoomMessage,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_OFF,
+	); err != nil {
+		t.Fatalf("disable room-message Badge: %v", err)
+	}
 
 	posted, err := core.PostMessage(ctx, KindChannel, room.Id, poster.Id, "already read", nil, "", "", nil, false)
 	if err != nil {

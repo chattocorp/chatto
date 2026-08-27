@@ -1103,7 +1103,7 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 			directMentionSignal := &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMentionReceived{DirectMentionReceived: &corev1.DirectMentionReceived{}}}
 			for _, userID := range directMentionUserIDs {
-				if notificationModeProducesOccurrence(c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal)) {
+				if notificationModeProducesAttention(c.GetEffectiveNotificationModeForSignal(userID, room_id, directMentionSignal)) {
 					directMentionFollowers = append(directMentionFollowers, userID)
 				}
 			}
@@ -1215,8 +1215,8 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 
 	// Mark the room as read for the poster. For root posts, the just-
 	// published event is the new last root. For thread replies, we look up
-	// the room's current last root so the read marker tracks a real root
-	// event ID (HasUnread expects root events).
+	// the room's current last root so the Message Read Cursor tracks a real
+	// root event ID for the New messages separator.
 	var posterReadEventID string
 	if inThread == "" {
 		posterReadEventID = event.Id
@@ -1226,6 +1226,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 	if posterReadEventID != "" {
 		if _, err := c.AdvanceLastReadEventID(ctx, kind, user_id, room_id, posterReadEventID); err != nil {
 			c.logger.Warn("Failed to set last read event for poster", "error", err)
+		}
+		if _, err := c.notificationOccurrences.MarkCoveredRead(ctx, user_id, room_id, "", posterReadEventID); err != nil {
+			c.logger.Warn("Failed to cover notifications for poster", "error", err)
 		}
 	}
 
@@ -1293,10 +1296,9 @@ func (c *ChattoCore) PostMessage(ctx context.Context, kind RoomKind, room_id, us
 			}
 		}
 	}
-	if err := c.notificationMaterializer.WaitThrough(ctx, sequenceID); err != nil {
-		c.logger.Warn("Notification materialization did not reach the committed message before the request completed",
-			"room_id", room_id, "event_id", event.Id, "error", err)
-	}
+	// Recipient attention is an asynchronous durable effect of the committed
+	// source message. The materializer owns completion and retry; posting must
+	// not make message delivery latency grow with the room's member count.
 
 	// Publish echo event to the message subject if "also send to channel" was requested.
 	// The echo references the original event_id, so resolvers can fold

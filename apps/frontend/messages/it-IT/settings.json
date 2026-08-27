@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Eredita",
           "off": "Disattivato",
+          "badge": "Indicatore",
+          "badge_hint": "Aggiunge solo un punto neutro per i contenuti non letti. Non crea una notifica, non riproduce un suono e non invia una notifica push.",
           "notification": "Notifica",
           "push_notification": "Notifica push"
         },
         "reason": {
+          "room_message": "Messaggi nelle stanze",
           "direct_message": "Messaggi diretti",
           "direct_mention": "Menzioni dirette",
           "reply": "Risposte ai tuoi messaggi",
@@ -304,12 +307,12 @@
           "here": "Menzioni @here",
           "all": "Menzioni @all",
           "followed_thread": "Discussioni seguite",
-          "followed_room": "Stanze seguite",
           "reaction": "Reazioni ai tuoi messaggi",
           "activity": "Attività",
           "room_invitation": "Inviti alle stanze"
         },
         "reason_hint": {
+          "room_message": "Messaggi principali pubblicati da altri membri direttamente nelle stanze dei canali, non nelle discussioni.",
           "direct_message": "Messaggi inviati da altri membri nelle conversazioni dirette.",
           "direct_mention": "Messaggi che menzionano direttamente il tuo nome utente.",
           "reply": "Messaggi in risposta a uno dei tuoi messaggi.",
@@ -317,7 +320,6 @@
           "here": "Messaggi che usano @here quando la tua presenza non è offline.",
           "all": "Messaggi che usano @all in una stanza di cui fai parte.",
           "followed_thread": "Nuove risposte nelle discussioni che segui.",
-          "followed_room": "Messaggi principali nelle stanze che segui.",
           "reaction": "Reazioni aggiunte ai tuoi messaggi da altri membri."
         }
       }

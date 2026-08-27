@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Arv",
           "off": "Av",
+          "badge": "Merke",
+          "badge_hint": "Legger bare til en nøytral prikk for ulest innhold. Det opprettes ikke et varsel, spilles ikke av lyd og sendes ikke et push-varsel.",
           "notification": "Varsel",
           "push_notification": "Push-varsel"
         },
         "reason": {
+          "room_message": "Rommeldinger",
           "direct_message": "Direktemeldinger",
           "direct_mention": "Direkte omtaler",
           "reply": "Svar på meldingene dine",
@@ -304,12 +307,12 @@
           "here": "@here-omtaler",
           "all": "@all-omtaler",
           "followed_thread": "Fulgte tråder",
-          "followed_room": "Fulgte rom",
           "reaction": "Reaksjoner på meldingene dine",
           "activity": "Aktivitet",
           "room_invitation": "Invitasjoner til rom"
         },
         "reason_hint": {
+          "room_message": "Rotmeldinger som andre medlemmer legger ut direkte i kanalrom, ikke i tråder.",
           "direct_message": "Meldinger som andre medlemmer sender i direktemeldingssamtaler.",
           "direct_mention": "Meldinger som omtaler brukernavnet ditt direkte.",
           "reply": "Meldinger som svarer på en av meldingene dine.",
@@ -317,7 +320,6 @@
           "here": "Meldinger som bruker @here når tilstedeværelsen din ikke er frakoblet.",
           "all": "Meldinger som bruker @all i et rom du er medlem av.",
           "followed_thread": "Nye svar i tråder du følger.",
-          "followed_room": "Meldinger på toppnivå i rom du følger.",
           "reaction": "Reaksjoner som andre medlemmer legger til på meldingene dine."
         }
       }

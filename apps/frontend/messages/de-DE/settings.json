@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Vererben",
           "off": "Aus",
+          "badge": "Markierung",
+          "badge_hint": "Fügt nur einen neutralen Punkt für ungelesene Inhalte hinzu. Erstellt keine Benachrichtigung, spielt keinen Ton ab und sendet keine Push-Benachrichtigung.",
           "notification": "Benachrichtigung",
           "push_notification": "Push-Benachrichtigung"
         },
         "reason": {
+          "room_message": "Raumnachrichten",
           "direct_message": "Direktnachrichten",
           "direct_mention": "Direkte Erwähnungen",
           "reply": "Antworten auf deine Nachrichten",
@@ -304,12 +307,12 @@
           "here": "@here-Erwähnungen",
           "all": "@all-Erwähnungen",
           "followed_thread": "Verfolgte Threads",
-          "followed_room": "Verfolgte Räume",
           "reaction": "Reaktionen auf deine Nachrichten",
           "activity": "Aktivität",
           "room_invitation": "Raumeinladungen"
         },
         "reason_hint": {
+          "room_message": "Nachrichten, die andere Mitglieder direkt in Kanalräume und nicht in Threads schreiben.",
           "direct_message": "Direktnachrichten, die dir andere Mitglieder senden.",
           "direct_mention": "Nachrichten, in denen dein Benutzername direkt erwähnt wird.",
           "reply": "Nachrichten, die auf eine deiner Nachrichten antworten.",
@@ -317,7 +320,6 @@
           "here": "Nachrichten mit @here, wenn dein Anwesenheitsstatus nicht offline ist.",
           "all": "Nachrichten mit @all in einem Raum, dem du angehörst.",
           "followed_thread": "Neue Antworten in Threads, denen du folgst.",
-          "followed_room": "Nachrichten auf oberster Ebene in Räumen, denen du folgst.",
           "reaction": "Reaktionen, die andere Mitglieder zu deinen Nachrichten hinzufügen."
         }
       }

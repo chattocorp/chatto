@@ -508,7 +508,8 @@ export class ThreadViewerState extends Message$1<ThreadViewerState> {
   isFollowing?: boolean;
 
   /**
-   * True when the thread has unread replies for the current user, when known.
+   * True when the thread has unread replies or neutral Badge attention for the
+   * current user, when known.
    *
    * @generated from field: optional bool has_unread = 2;
    */

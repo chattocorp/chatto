@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Heredar",
           "off": "Desactivado",
+          "badge": "Indicador",
+          "badge_hint": "Solo añade un punto neutro de contenido no leído. No crea una notificación, reproduce un sonido ni envía una notificación push.",
           "notification": "Notificación",
           "push_notification": "Notificación push"
         },
         "reason": {
+          "room_message": "Mensajes de salas",
           "direct_message": "Mensajes directos",
           "direct_mention": "Menciones directas",
           "reply": "Respuestas a tus mensajes",
@@ -304,12 +307,12 @@
           "here": "Menciones @here",
           "all": "Menciones @all",
           "followed_thread": "Hilos seguidos",
-          "followed_room": "Salas seguidas",
           "reaction": "Reacciones a tus mensajes",
           "activity": "Actividad",
           "room_invitation": "Invitaciones a salas"
         },
         "reason_hint": {
+          "room_message": "Mensajes raíz que otros miembros publican directamente en salas de canales, no dentro de hilos.",
           "direct_message": "Mensajes que otros miembros envían en conversaciones de mensajes directos.",
           "direct_mention": "Mensajes que mencionan directamente tu nombre de usuario.",
           "reply": "Mensajes que responden a uno de tus mensajes.",
@@ -317,7 +320,6 @@
           "here": "Mensajes que usan @here cuando tu presencia no figura como desconectada.",
           "all": "Mensajes que usan @all en una sala a la que perteneces.",
           "followed_thread": "Nuevas respuestas en hilos que sigues.",
-          "followed_room": "Mensajes principales en salas que sigues.",
           "reaction": "Reacciones que otros miembros añaden a tus mensajes."
         }
       }

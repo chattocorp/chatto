@@ -62,7 +62,7 @@ message ServerViewerPermissions {
 
 // Non-permission server state for the authenticated user.
 message ServerViewerState {
-  // Whether any joined channel room has unread messages.
+  // Whether any joined channel room has neutral Badge attention.
   bool has_unread_rooms = 1;
 }
 

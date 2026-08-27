@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Dziedzicz",
           "off": "Wyłączone",
+          "badge": "Znacznik",
+          "badge_hint": "Dodaje tylko neutralną kropkę nieprzeczytanej treści. Nie tworzy powiadomienia, nie odtwarza dźwięku ani nie wysyła powiadomienia push.",
           "notification": "Powiadomienie",
           "push_notification": "Powiadomienie push"
         },
         "reason": {
+          "room_message": "Wiadomości w pokojach",
           "direct_message": "Wiadomości bezpośrednie",
           "direct_mention": "Bezpośrednie wzmianki",
           "reply": "Odpowiedzi na Twoje wiadomości",
@@ -304,12 +307,12 @@
           "here": "Wzmianki @here",
           "all": "Wzmianki @all",
           "followed_thread": "Obserwowane wątki",
-          "followed_room": "Obserwowane pokoje",
           "reaction": "Reakcje na Twoje wiadomości",
           "activity": "Aktywność",
           "room_invitation": "Zaproszenia do pokoi"
         },
         "reason_hint": {
+          "room_message": "Wiadomości główne publikowane przez innych członków bezpośrednio w pokojach kanałów, a nie w wątkach.",
           "direct_message": "Wiadomości wysyłane przez innych członków w rozmowach bezpośrednich.",
           "direct_mention": "Wiadomości, które bezpośrednio wymieniają Twoją nazwę użytkownika.",
           "reply": "Wiadomości będące odpowiedzią na jedną z Twoich wiadomości.",
@@ -317,7 +320,6 @@
           "here": "Wiadomości z @here, gdy Twój status obecności nie jest ustawiony na offline.",
           "all": "Wiadomości z @all w pokoju, do którego należysz.",
           "followed_thread": "Nowe odpowiedzi w obserwowanych przez Ciebie wątkach.",
-          "followed_room": "Wiadomości poza wątkami w obserwowanych przez Ciebie pokojach.",
           "reaction": "Reakcje dodane do Twoich wiadomości przez innych członków."
         }
       }

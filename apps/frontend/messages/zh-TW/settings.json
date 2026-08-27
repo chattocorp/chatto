@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "繼承",
           "off": "關閉",
+          "badge": "徽章",
+          "badge_hint": "只會新增表示未讀的灰色圓點。不會建立通知、播放音效或傳送推播通知。",
           "notification": "通知",
           "push_notification": "推播通知"
         },
         "reason": {
+          "room_message": "房間訊息",
           "direct_message": "私訊",
           "direct_mention": "直接提及",
           "reply": "對你訊息的回覆",
@@ -304,12 +307,12 @@
           "here": "@here 提及",
           "all": "@all 提及",
           "followed_thread": "已關注的討論串",
-          "followed_room": "已關注的房間",
           "reaction": "對你訊息的回應",
           "activity": "動態",
           "room_invitation": "房間邀請"
         },
         "reason_hint": {
+          "room_message": "其他成員直接發佈在頻道房間中的根訊息，不包括討論串中的訊息。",
           "direct_message": "其他成員在私訊對話中傳送的訊息。",
           "direct_mention": "直接提及你的使用者名稱的訊息。",
           "reply": "回覆你某則訊息的訊息。",
@@ -317,7 +320,6 @@
           "here": "當你的上線狀態不是離線時使用 @here 的訊息。",
           "all": "在你已加入的房間中使用 @all 的訊息。",
           "followed_thread": "你所關注討論串中的新回覆。",
-          "followed_room": "你所關注房間中不屬於討論串的訊息。",
           "reaction": "其他成員新增到你訊息上的回應。"
         }
       }

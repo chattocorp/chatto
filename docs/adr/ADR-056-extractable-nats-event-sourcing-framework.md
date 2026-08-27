@@ -2,7 +2,7 @@
 
 **Date:** 2026-07-30
 
-**Updated:** 2026-08-19
+**Updated:** 2026-08-27
 
 ## Context
 
@@ -78,6 +78,15 @@ application-owned stream enables per-message TTL, but semantic expiry remains
 application policy enforced by projections and APIs. Atomic batches report a
 typed duplicate-ID failure so an application can fall back to idempotent
 single-record appends without losing a committed prefix.
+
+`TypedEventLog[E]` is the shared mechanical adapter over that boundary,
+extracted once Chatto and Authling had duplicated the same encode, batch,
+mutation, and paged-read plumbing in their per-application publishers. It maps
+one application event type through application-supplied encoder and decoder
+functions; applications keep their envelope codecs, subjects, semantic
+validation, aggregate command methods, and composition. This extraction
+follows the two-consumer rule above rather than a desire to shorten one
+application's wiring.
 
 The framework is configured with a concrete JetStream stream; it does not
 assume that an application has only one event log or that the log is named

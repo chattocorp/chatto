@@ -394,6 +394,9 @@
   const hasThreadNotification = $derived(
     hasReplies && event && notificationStore.hasThreadNotification(event.id)
   );
+  const hasThreadUnread = $derived(
+    hasReplies && event && messageEvent?.viewerHasUnreadThread === true
+  );
   const hasMessageFooter = $derived(
     (isEcho && !!onOpenThread) ||
       (hasThread && !!onOpenThread) ||
@@ -689,6 +692,7 @@
           threadExists={messageEvent?.threadExists}
           threadParticipants={messageEvent?.threadParticipants}
           {hasThreadNotification}
+          {hasThreadUnread}
           isFollowingThread={threadFollow.following}
           isThreadFollowPending={threadFollow.pending}
           onToggleThreadFollow={hasThread ? toggleThreadFollow : undefined}

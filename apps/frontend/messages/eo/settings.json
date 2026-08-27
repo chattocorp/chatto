@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Heredi",
           "off": "Malŝaltita",
+          "badge": "Insigno",
+          "badge_hint": "Aldonas nur neŭtralan punkton por nelegita enhavo. Ĝi ne kreas sciigon, ludas sonon aŭ sendas puŝan sciigon.",
           "notification": "Sciigo",
           "push_notification": "Puŝa sciigo"
         },
         "reason": {
+          "room_message": "Ĉambraj mesaĝoj",
           "direct_message": "Rektaj mesaĝoj",
           "direct_mention": "Rektaj mencioj",
           "reply": "Respondoj al viaj mesaĝoj",
@@ -304,12 +307,12 @@
           "here": "@here-mencioj",
           "all": "@all-mencioj",
           "followed_thread": "Sekvataj fadenoj",
-          "followed_room": "Sekvataj ĉambroj",
           "reaction": "Reagoj al viaj mesaĝoj",
           "activity": "Aktiveco",
           "room_invitation": "Invitoj al ĉambroj"
         },
         "reason_hint": {
+          "room_message": "Ĉefnivelaj mesaĝoj, kiujn aliaj membroj afiŝas rekte en kanalĉambroj, ne ene de fadenoj.",
           "direct_message": "Mesaĝoj, kiujn aliaj membroj sendas en rektmesaĝaj konversacioj.",
           "direct_mention": "Mesaĝoj, kiuj rekte mencias vian uzantnomon.",
           "reply": "Mesaĝoj, kiuj respondas al unu el viaj mesaĝoj.",
@@ -317,7 +320,6 @@
           "here": "Mesaĝoj, kiuj uzas @here kiam via ĉeesto ne estas eksterreta.",
           "all": "Mesaĝoj, kiuj uzas @all en ĉambro, al kiu vi apartenas.",
           "followed_thread": "Novaj respondoj en fadenoj, kiujn vi sekvas.",
-          "followed_room": "Ĉefnivelaj mesaĝoj en ĉambroj, kiujn vi sekvas.",
           "reaction": "Reagoj, kiujn aliaj membroj aldonas al viaj mesaĝoj."
         }
       }

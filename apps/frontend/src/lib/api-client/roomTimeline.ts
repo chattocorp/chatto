@@ -386,6 +386,8 @@ export function messagePostedPayload(
       .filter((user): user is NonNullable<ReturnType<typeof userView>> => user !== null),
     viewerIsFollowingThread:
       thread?.viewerState?.isFollowing !== undefined ? thread.viewerState.isFollowing : null,
+    viewerHasUnreadThread:
+      thread?.viewerState?.hasUnread !== undefined ? thread.viewerState.hasUnread : null,
     reactions: message.reactions.map((reaction) => ({
       emoji: reaction.emoji,
       count: reaction.count,

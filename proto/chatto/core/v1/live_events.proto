@@ -69,6 +69,7 @@ message LiveEvent {
 
     // ----- Notification sync -----
     NotificationOccurrencesInvalidatedEvent notification_occurrences_invalidated = 72;
+    NotificationUnreadChangedEvent notification_unread_changed = 73;
 
     // ----- Unread indicators -----
     RoomMarkedAsReadEvent room_marked_as_read = 80;
@@ -183,6 +184,16 @@ message RoomMarkedAsReadEvent {
 
   // Room ID that was marked as read
   string room_id = 2;
+}
+
+// Invalidates neutral unread attention after a Badge delivery decision or a
+// read/visibility change. The signal is user-scoped and carries no message
+// content. Projection transports hydrate authoritative room and thread state.
+message NotificationUnreadChangedEvent {
+  // Room whose unread state changed.
+  string room_id = 1;
+  // Thread root whose unread state changed. Empty means room-level activity.
+  string thread_root_event_id = 2;
 }
 
 // Published to the user whose mention indicator for a room was cleared.

@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Mantot",
           "off": "Izslēgts",
+          "badge": "Atzīme",
+          "badge_hint": "Pievieno tikai neitrālu nelasīta satura punktu. Neizveido paziņojumu, neatskaņo skaņu un nesūta pašpiegādes paziņojumu.",
           "notification": "Paziņojums",
           "push_notification": "Pašpiegādes paziņojums"
         },
         "reason": {
+          "room_message": "Telpu ziņojumi",
           "direct_message": "Tiešie ziņojumi",
           "direct_mention": "Tiešie pieminējumi",
           "reply": "Atbildes uz jūsu ziņojumiem",
@@ -304,12 +307,12 @@
           "here": "@here pieminējumi",
           "all": "@all pieminējumi",
           "followed_thread": "Sekotie pavedieni",
-          "followed_room": "Sekotās telpas",
           "reaction": "Reakcijas uz jūsu ziņojumiem",
           "activity": "Aktivitāte",
           "room_invitation": "Uzaicinājumi uz telpām"
         },
         "reason_hint": {
+          "room_message": "Saknes ziņojumi, ko citi dalībnieki publicē tieši kanālu telpās, nevis pavedienos.",
           "direct_message": "Ziņojumi, ko citi dalībnieki nosūta tiešo ziņojumu sarunās.",
           "direct_mention": "Ziņojumi, kuros tieši pieminēts jūsu lietotājvārds.",
           "reply": "Ziņojumi, kas atbild uz kādu no jūsu ziņojumiem.",
@@ -317,7 +320,6 @@
           "here": "Ziņojumi, kuros izmantots @here, kad jūsu klātbūtnes statuss nav bezsaistē.",
           "all": "Ziņojumi ar @all telpā, kuras dalībnieks esat.",
           "followed_thread": "Jaunas atbildes pavedienos, kuriem sekojat.",
-          "followed_room": "Augstākā līmeņa ziņojumi telpās, kurām sekojat.",
           "reaction": "Reakcijas, ko citi dalībnieki pievieno jūsu ziņojumiem."
         }
       }

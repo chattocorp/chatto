@@ -503,6 +503,15 @@ at that boundary and use the separately paginated ConnectRPC read for older
 occurrences. They also quietly reconcile the first page once per minute, which
 bounds count staleness if a best-effort Core NATS invalidation is lost while a
 tab remains connected.
+Badge marker changes use a separate content-free user invalidation. The server
+maps it to an authoritative `room_viewer_state_replace` and, for thread Badge
+attention, a complete `thread_viewer_states_replace`. The public projection
+continues to use the existing `has_unread` fields. These fields report only
+Badge attention. The independent Message Read Cursor still places the New
+messages separator and does not set `has_unread`. Thus, clients do not receive
+the internal marker or a new public storage coordinate. Thread Badge state
+rolls up into the parent room, and notification orange takes visual priority
+over the neutral unread dot.
 Viewer preferences, thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the

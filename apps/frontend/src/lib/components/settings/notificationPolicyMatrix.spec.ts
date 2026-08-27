@@ -35,7 +35,10 @@ describe('notificationPolicyColumns', () => {
   it('limits direct-message controls to the server and DM conversations', () => {
     const columns = notificationPolicyColumns('Server', groups, rooms, '');
     const applicability = Object.fromEntries(
-      columns.map((column) => [column.key, notificationPolicyCellApplicable('directMessages', column)])
+      columns.map((column) => [
+        column.key,
+        notificationPolicyCellApplicable('directMessages', column)
+      ])
     );
 
     expect(applicability).toEqual({
@@ -46,8 +49,27 @@ describe('notificationPolicyColumns', () => {
       'room:r2': false,
       'room:d1': true
     });
-    expect(columns.every((column) => notificationPolicyCellApplicable('directMentions', column))).toBe(
-      true
+    expect(
+      columns.every((column) => notificationPolicyCellApplicable('directMentions', column))
+    ).toBe(true);
+  });
+
+  it('limits room-message controls to the server, groups, and channel rooms', () => {
+    const columns = notificationPolicyColumns('Server', groups, rooms, '');
+    const applicability = Object.fromEntries(
+      columns.map((column) => [
+        column.key,
+        notificationPolicyCellApplicable('roomMessages', column)
+      ])
     );
+
+    expect(applicability).toEqual({
+      server: true,
+      'roomGroup:g1': true,
+      'room:r1': true,
+      'roomGroup:g2': true,
+      'room:r2': true,
+      'room:d1': false
+    });
   });
 });

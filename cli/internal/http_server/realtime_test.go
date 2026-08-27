@@ -637,6 +637,7 @@ func TestRealtimeTransientMapperRejectsProjectionOwnedLiveEvents(t *testing.T) {
 		event *corev1.LiveEvent
 	}{
 		{"notification occurrences invalidated", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationOccurrencesInvalidated{NotificationOccurrencesInvalidated: &corev1.NotificationOccurrencesInvalidatedEvent{}}}},
+		{"notification unread changed", &corev1.LiveEvent{Event: &corev1.LiveEvent_NotificationUnreadChanged{NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{RoomId: "R1"}}}},
 		{"thread follow", &corev1.LiveEvent{Event: &corev1.LiveEvent_ThreadFollowChanged{ThreadFollowChanged: &corev1.ThreadFollowChangedEvent{RoomId: "R1", ThreadRootEventId: "M1"}}}},
 		{"room read", &corev1.LiveEvent{Event: &corev1.LiveEvent_RoomMarkedAsRead{RoomMarkedAsRead: &corev1.RoomMarkedAsReadEvent{RoomId: "R1"}}}},
 		{"server updated", &corev1.LiveEvent{Event: &corev1.LiveEvent_ServerUpdated{ServerUpdated: &corev1.ServerUpdatedEvent{}}}},
@@ -2242,6 +2243,93 @@ func TestRealtimeProjectionThreadFollowReplacesStateForUnretainedRoom(t *testing
 	states := operations[0].GetThreadViewerStatesReplace().GetStates()
 	if len(states) != 1 || states[0].GetRoomId() != room.Id || states[0].GetThreadRootEventId() != root.Id || !states[0].GetViewerState().GetIsFollowing() {
 		t.Fatalf("thread viewer states = %+v", states)
+	}
+}
+
+func TestRealtimeProjectionBadgeReplacesRoomThreadAndRetainedRoot(t *testing.T) {
+	env := setupWebSocketTestServer(t)
+	viewer, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-badge-viewer", "RT Badge Viewer", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	author, err := env.core.CreateUser(env.ctx, core.SystemActorID, "rt-badge-author", "RT Badge Author", "password123")
+	if err != nil {
+		t.Fatal(err)
+	}
+	room, err := env.core.CreateRoom(env.ctx, viewer.Id, core.KindChannel, "", "rt-badge-room", "")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, userID := range []string{viewer.Id, author.Id} {
+		if _, err := env.core.JoinRoom(env.ctx, userID, core.KindChannel, userID, room.Id); err != nil {
+			t.Fatal(err)
+		}
+	}
+	root, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, viewer.Id, "thread root", nil, "", "", nil, false)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.ReadState().MarkRoomAsRead(env.ctx, viewer.Id, room.Id, root.Id); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.NotificationPolicy().UpdateNotificationPolicy(
+		env.ctx,
+		viewer.Id,
+		room.Id,
+		&corev1.NotificationDeliveryModes{FollowedThreads: corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE.Enum()},
+		&fieldmaskpb.FieldMask{Paths: []string{"followed_threads"}},
+	); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := env.core.PostMessage(env.ctx, core.KindChannel, room.Id, author.Id, "Badge reply", nil, root.Id, "", nil, false); err != nil {
+		t.Fatal(err)
+	}
+	deadline := time.Now().Add(5 * time.Second)
+	for {
+		unread, err := env.core.HasUnread(env.ctx, core.KindChannel, viewer.Id, room.Id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if unread {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("Badge marker did not become visible")
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	if occurrences, err := env.core.NotificationOccurrences().List(env.ctx, viewer.Id); err != nil || len(occurrences) != 0 {
+		t.Fatalf("Badge occurrences = (%+v, %v), want none", occurrences, err)
+	}
+
+	frame, handled, err := env.httpServer.realtimeProjectionFrameForEventWithRooms(env.ctx, viewer.Id, core.NewLiveEventEnvelope(&corev1.LiveEvent{
+		Id: "badge-unread-1", ActorId: author.Id,
+		Event: &corev1.LiveEvent_NotificationUnreadChanged{NotificationUnreadChanged: &corev1.NotificationUnreadChangedEvent{
+			RoomId: room.Id, ThreadRootEventId: root.Id,
+		}},
+	}), map[string]struct{}{room.Id: {}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !handled {
+		t.Fatal("Badge unread invalidation was not handled")
+	}
+	var roomUnread, threadUnread, rootUnread bool
+	for _, operation := range frame.GetProjectionEvent().GetOperations() {
+		if replacement := operation.GetRoomViewerStateReplace(); replacement != nil {
+			roomUnread = replacement.GetViewerState().GetHasUnread()
+		}
+		if replacement := operation.GetThreadViewerStatesReplace(); replacement != nil {
+			for _, state := range replacement.GetStates() {
+				threadUnread = threadUnread || state.GetThreadRootEventId() == root.Id && state.GetViewerState().GetHasUnread()
+			}
+		}
+		if upsert := operation.GetRoomTimelineEventUpsert(); upsert != nil && upsert.GetEvent().GetId() == root.Id {
+			rootUnread = upsert.GetEvent().GetMessagePosted().GetMessage().GetThread().GetViewerState().GetHasUnread()
+		}
+	}
+	if !roomUnread || !threadUnread || !rootUnread {
+		t.Fatalf("Badge projection room/thread/root unread = %v/%v/%v; frame=%+v", roomUnread, threadUnread, rootUnread, frame)
 	}
 }
 

@@ -50,9 +50,7 @@ export function notificationPolicyColumns(
 
     columns.push(column({ kind: 'roomGroup', id: group.id }, group.name, group.name));
     for (const room of groupMatches ? children : matchedChildren) {
-      columns.push(
-        column({ kind: 'room', id: room.id }, room.name, `#${room.name}`, room.type)
-      );
+      columns.push(column({ kind: 'room', id: room.id }, room.name, `#${room.name}`, room.type));
     }
   }
 
@@ -89,13 +87,23 @@ function column(
 }
 
 /**
- * Direct-message activity has a server default and per-conversation overrides.
- * Channel rooms and their groups can never produce a direct-message signal.
+ * Direct-message activity has server and per-conversation controls. Root room
+ * messages have server, group, and channel-room controls. Inapplicable cells
+ * cannot produce the corresponding signal.
  */
 export function notificationPolicyCellApplicable(
   field: NotificationPolicyField,
   column: NotificationPolicyColumn
 ): boolean {
-  if (field !== 'directMessages') return true;
-  return column.kind === 'server' || column.roomKind === RoomKind.DM;
+  if (field === 'directMessages') {
+    return column.kind === 'server' || column.roomKind === RoomKind.DM;
+  }
+  if (field === 'roomMessages') {
+    return (
+      column.kind === 'server' ||
+      column.kind === 'roomGroup' ||
+      column.roomKind === RoomKind.CHANNEL
+    );
+  }
+  return true;
 }

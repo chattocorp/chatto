@@ -23,7 +23,7 @@ export enum NotificationDeliveryMode {
   UNSPECIFIED = 0,
 
   /**
-   * Matching activity does not create a notification occurrence.
+   * Matching activity does not create user attention.
    *
    * @generated from enum value: NOTIFICATION_DELIVERY_MODE_OFF = 1;
    */
@@ -58,6 +58,14 @@ export enum NotificationDeliveryMode {
    * @generated from enum value: NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION = 3;
    */
   PUSH_NOTIFICATION = 3,
+
+  /**
+   * Matching activity adds a neutral unread indicator without creating a
+   * notification occurrence, playing a sound, or sending push.
+   *
+   * @generated from enum value: NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE = 4;
+   */
+  UNREAD_BADGE = 4,
 }
 // Retrieve enum metadata with: proto3.getEnumType(NotificationDeliveryMode)
 proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDeliveryMode", [
@@ -67,6 +75,7 @@ proto3.util.setEnumType(NotificationDeliveryMode, "chatto.api.v1.NotificationDel
   { no: 2, name: "NOTIFICATION_DELIVERY_MODE_IN_APP_NOTIFICATION" },
   { no: 3, name: "NOTIFICATION_DELIVERY_MODE_ALERT" },
   { no: 3, name: "NOTIFICATION_DELIVERY_MODE_PUSH_NOTIFICATION" },
+  { no: 4, name: "NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE" },
 ]);
 
 /**
@@ -147,10 +156,10 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
   followedThreads?: NotificationDeliveryMode;
 
   /**
-   * Delivery mode for top-level activity in rooms followed by the viewer.
-   * Servers without room-follow support apply it to all joined channel rooms.
+   * Deprecated compatibility slot. Use room_messages at room scope.
    *
-   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8;
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode followed_rooms = 8 [deprecated = true];
+   * @deprecated
    */
   followedRooms?: NotificationDeliveryMode;
 
@@ -158,6 +167,14 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
    * @generated from field: optional chatto.api.v1.NotificationDeliveryMode reactions = 9;
    */
   reactions?: NotificationDeliveryMode;
+
+  /**
+   * Delivery mode for root messages posted directly to joined channel rooms.
+   * Thread messages and direct messages use their own signal classes.
+   *
+   * @generated from field: optional chatto.api.v1.NotificationDeliveryMode room_messages = 10;
+   */
+  roomMessages?: NotificationDeliveryMode;
 
   constructor(data?: PartialMessage<NotificationDeliveryModes>) {
     super();
@@ -176,6 +193,7 @@ export class NotificationDeliveryModes extends Message<NotificationDeliveryModes
     { no: 7, name: "followed_threads", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 8, name: "followed_rooms", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
     { no: 9, name: "reactions", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
+    { no: 10, name: "room_messages", kind: "enum", T: proto3.getEnumType(NotificationDeliveryMode), opt: true },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationDeliveryModes {
@@ -535,10 +553,10 @@ export class FollowedThreadActivity extends Message<FollowedThreadActivity> {
 }
 
 /**
- * Top-level activity in a room followed by the viewer. Servers without
- * room-follow support can emit it for any channel room joined by the viewer.
+ * Deprecated compatibility payload. Chatto does not derive this signal.
  *
  * @generated from message chatto.api.v1.FollowedRoomActivity
+ * @deprecated
  */
 export class FollowedRoomActivity extends Message<FollowedRoomActivity> {
   /**
@@ -571,6 +589,45 @@ export class FollowedRoomActivity extends Message<FollowedRoomActivity> {
 
   static equals(a: FollowedRoomActivity | PlainMessage<FollowedRoomActivity> | undefined, b: FollowedRoomActivity | PlainMessage<FollowedRoomActivity> | undefined): boolean {
     return proto3.util.equals(FollowedRoomActivity, a, b);
+  }
+}
+
+/**
+ * A root message posted directly to a channel room that the viewer belongs to.
+ *
+ * @generated from message chatto.api.v1.RoomMessageReceived
+ */
+export class RoomMessageReceived extends Message<RoomMessageReceived> {
+  /**
+   * @generated from field: chatto.api.v1.NotificationMessageReference message = 1;
+   */
+  message?: NotificationMessageReference;
+
+  constructor(data?: PartialMessage<RoomMessageReceived>) {
+    super();
+    proto3.util.initPartial(data, this);
+  }
+
+  static readonly runtime: typeof proto3 = proto3;
+  static readonly typeName = "chatto.api.v1.RoomMessageReceived";
+  static readonly fields: FieldList = proto3.util.newFieldList(() => [
+    { no: 1, name: "message", kind: "message", T: NotificationMessageReference },
+  ]);
+
+  static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromBinary(bytes, options);
+  }
+
+  static fromJson(jsonValue: JsonValue, options?: Partial<JsonReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromJson(jsonValue, options);
+  }
+
+  static fromJsonString(jsonString: string, options?: Partial<JsonReadOptions>): RoomMessageReceived {
+    return new RoomMessageReceived().fromJsonString(jsonString, options);
+  }
+
+  static equals(a: RoomMessageReceived | PlainMessage<RoomMessageReceived> | undefined, b: RoomMessageReceived | PlainMessage<RoomMessageReceived> | undefined): boolean {
+    return proto3.util.equals(RoomMessageReceived, a, b);
   }
 }
 
@@ -676,7 +733,8 @@ export class NotificationSignal extends Message<NotificationSignal> {
     case: "followedThreadActivity";
   } | {
     /**
-     * @generated from field: chatto.api.v1.FollowedRoomActivity followed_room_activity = 8;
+     * @generated from field: chatto.api.v1.FollowedRoomActivity followed_room_activity = 8 [deprecated = true];
+     * @deprecated
      */
     value: FollowedRoomActivity;
     case: "followedRoomActivity";
@@ -686,6 +744,12 @@ export class NotificationSignal extends Message<NotificationSignal> {
      */
     value: ReactionReceived;
     case: "reactionReceived";
+  } | {
+    /**
+     * @generated from field: chatto.api.v1.RoomMessageReceived room_message_received = 10;
+     */
+    value: RoomMessageReceived;
+    case: "roomMessageReceived";
   } | { case: undefined; value?: undefined } = { case: undefined };
 
   constructor(data?: PartialMessage<NotificationSignal>) {
@@ -705,6 +769,7 @@ export class NotificationSignal extends Message<NotificationSignal> {
     { no: 7, name: "followed_thread_activity", kind: "message", T: FollowedThreadActivity, oneof: "kind" },
     { no: 8, name: "followed_room_activity", kind: "message", T: FollowedRoomActivity, oneof: "kind" },
     { no: 9, name: "reaction_received", kind: "message", T: ReactionReceived, oneof: "kind" },
+    { no: 10, name: "room_message_received", kind: "message", T: RoomMessageReceived, oneof: "kind" },
   ]);
 
   static fromBinary(bytes: Uint8Array, options?: Partial<BinaryReadOptions>): NotificationSignal {

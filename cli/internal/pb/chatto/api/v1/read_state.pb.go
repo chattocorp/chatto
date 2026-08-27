@@ -82,8 +82,8 @@ func (x *MarkRoomAsReadRequest) GetUpToEventId() string {
 
 // Result of marking a room timeline as read.
 //
-// Clients can use the previous timestamp to decide whether unread badges or
-// local notification state need to be reconciled.
+// Clients can use the previous timestamp to place a local New messages
+// separator. Notification policy controls room Badge attention separately.
 type MarkRoomAsReadResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// New room read timestamp stored for the current user.

@@ -102,7 +102,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 	add := func(userID string, signal *corev1.NotificationSignal) {
 		_, active := snapshot.activeUsers[userID]
 		identity := notificationSignalIdentity(signal)
-		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.membershipExists(userID, roomID) {
+		if userID == "" || !active || userID == source.GetActorId() || identity == "" || !snapshot.notificationVisibilityExistsForSignal(userID, roomID, signal) {
 			return
 		}
 		if signalsByRecipient[userID] == nil {
@@ -134,13 +134,11 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_DirectMessageReceived{DirectMessageReceived: &corev1.DirectMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
 	} else if message.GetInThread() == "" {
-		// TODO(#2112): The snapshot does not have room-follow state yet. Until
-		// followed rooms are implemented, enabling this policy applies to all
-		// top-level messages in channel rooms that the recipient has joined.
-		// Replace this membership fanout with source-time room followers.
 		for _, userID := range snapshot.roomMemberIDs(roomID) {
-			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_FollowedRoomActivity{FollowedRoomActivity: &corev1.FollowedRoomActivity{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
+			add(userID, &corev1.NotificationSignal{Kind: &corev1.NotificationSignal_RoomMessageReceived{RoomMessageReceived: &corev1.RoomMessageReceived{Message: proto.Clone(reference).(*corev1.NotificationMessageReference)}}})
 		}
+		// FollowedRoomActivity is a deprecated compatibility branch. Root room
+		// activity uses RoomMessageReceived and its per-room delivery policy.
 	}
 
 	if parentEventID := message.GetInReplyTo(); parentEventID != "" {
@@ -179,7 +177,7 @@ func (c *ChattoCore) buildMessageNotificationDecisionsAt(
 		for _, identity := range identities {
 			signal := signalsByRecipient[userID][identity]
 			mode := snapshot.effectiveNotificationMode(userID, roomID, signal)
-			if notificationModeProducesOccurrence(mode) {
+			if notificationModeProducesAttention(mode) {
 				decisions = append(decisions, notificationRecipientDecision{recipientID: userID, signal: signal, mode: mode})
 			}
 		}

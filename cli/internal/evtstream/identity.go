@@ -1,39 +1,38 @@
 package evtstream
 
 import (
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
-	"strings"
 	"time"
 
 	"github.com/nats-io/nats.go/jetstream"
+
+	"hmans.de/chatto/internal/streamidentity"
 )
 
 const (
 	// IdentityMetadataKey stores Chatto's durable EVT stream incarnation.
 	IdentityMetadataKey = "chatto.evt.incarnation"
-	identityPrefix      = "evt-incarnation-v1:"
 )
+
+// identityScheme owns the EVT stream's incarnation format: metadata key,
+// versioned prefix, digest domain, and error labels.
+var identityScheme = streamidentity.Identity{
+	MetadataKey: IdentityMetadataKey,
+	Prefix:      "evt-incarnation-v1:",
+	Domain:      "chatto/evt-incarnation/v1",
+	Label:       "EVT stream",
+}
 
 // NewIdentity deterministically derives Chatto's identity for one EVT stream
 // incarnation. created is used only when initializing missing metadata.
 func NewIdentity(created time.Time) (string, error) {
-	if created.IsZero() {
-		return "", fmt.Errorf("EVT stream creation time is required")
-	}
-	sum := sha256.Sum256([]byte("chatto/evt-incarnation/v1\x00" + created.UTC().Format(time.RFC3339Nano)))
-	return identityPrefix + hex.EncodeToString(sum[:16]), nil
+	return identityScheme.New(created)
 }
 
 // ValidIdentity reports whether identity has Chatto's versioned EVT
 // stream-incarnation format.
 func ValidIdentity(identity string) bool {
-	if len(identity) != len(identityPrefix)+32 || !strings.HasPrefix(identity, identityPrefix) {
-		return false
-	}
-	_, err := hex.DecodeString(identity[len(identityPrefix):])
-	return err == nil
+	return identityScheme.Valid(identity)
 }
 
 // Identity reads the durable Chatto EVT incarnation cached when the stream was
@@ -48,12 +47,5 @@ func Identity(stream jetstream.Stream) (string, error) {
 // IdentityFromInfo resolves and validates Chatto's EVT incarnation from one
 // StreamInfo snapshot so callers can bind it to the same sequence bounds.
 func IdentityFromInfo(info *jetstream.StreamInfo) (string, error) {
-	if info == nil {
-		return "", fmt.Errorf("EVT stream info is unavailable")
-	}
-	identity := info.Config.Metadata[IdentityMetadataKey]
-	if !ValidIdentity(identity) {
-		return "", fmt.Errorf("EVT stream identity is missing or invalid")
-	}
-	return identity, nil
+	return identityScheme.FromInfo(info)
 }

@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Devral",
           "off": "Kapalı",
+          "badge": "Rozet",
+          "badge_hint": "Yalnızca okunmamış içerik için nötr bir nokta ekler. Bildirim oluşturmaz, ses çalmaz veya anlık bildirim göndermez.",
           "notification": "Bildirim",
           "push_notification": "Anlık bildirim"
         },
         "reason": {
+          "room_message": "Oda mesajları",
           "direct_message": "Doğrudan mesajlar",
           "direct_mention": "Doğrudan bahsetmeler",
           "reply": "Mesajlarınıza verilen yanıtlar",
@@ -304,12 +307,12 @@
           "here": "@here bahsetmeleri",
           "all": "@all bahsetmeleri",
           "followed_thread": "Takip edilen ileti dizileri",
-          "followed_room": "Takip edilen odalar",
           "reaction": "Mesajlarınıza verilen tepkiler",
           "activity": "Etkinlik",
           "room_invitation": "Oda davetleri"
         },
         "reason_hint": {
+          "room_message": "Diğer üyelerin ileti dizilerinin içine değil, doğrudan kanal odalarına gönderdiği kök mesajlar.",
           "direct_message": "Diğer üyelerin doğrudan mesaj konuşmalarında gönderdiği mesajlar.",
           "direct_mention": "Kullanıcı adınızdan doğrudan bahseden mesajlar.",
           "reply": "Mesajlarınızdan birine verilen yanıtlar.",
@@ -317,7 +320,6 @@
           "here": "Durumunuz çevrimdışı değilken @here kullanan mesajlar.",
           "all": "Üyesi olduğunuz bir odada @all kullanan mesajlar.",
           "followed_thread": "Takip ettiğiniz ileti dizilerindeki yeni yanıtlar.",
-          "followed_room": "Takip ettiğiniz odalarda ileti dizisi dışında gönderilen mesajlar.",
           "reaction": "Diğer üyelerin mesajlarınıza eklediği tepkiler."
         }
       }

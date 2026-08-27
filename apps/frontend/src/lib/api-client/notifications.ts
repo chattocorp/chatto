@@ -85,6 +85,7 @@ export { NotificationAttentionLevel, NotificationDeliveryMode };
 
 export const NotificationSignalKind = {
   DIRECT_MESSAGE: 'directMessageReceived',
+  ROOM_MESSAGE: 'roomMessageReceived',
   DIRECT_MENTION: 'directMentionReceived',
   REPLY: 'replyReceived',
   ROLE_MENTION: 'roleMentionReceived',
@@ -101,6 +102,7 @@ export type NotificationSignalKind =
 
 type NotificationPolicyShape<Value> = {
   directMessages: Value;
+  roomMessages: Value;
   directMentions: Value;
   replies: Value;
   roleMentions: Value;
@@ -245,6 +247,7 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
   return {
     overrides: {
       directMessages: policy?.overrides?.directMessages ?? null,
+      roomMessages: policy?.overrides?.roomMessages ?? null,
       directMentions: policy?.overrides?.directMentions ?? null,
       replies: policy?.overrides?.replies ?? null,
       roleMentions: policy?.overrides?.roleMentions ?? null,
@@ -258,6 +261,10 @@ function notificationPolicy(policy: APINotificationPolicy | undefined): Notifica
       directMessages: requiredNotificationDeliveryMode(
         policy?.effective?.directMessages,
         'direct_messages'
+      ),
+      roomMessages: requiredNotificationDeliveryMode(
+        policy?.effective?.roomMessages,
+        'room_messages'
       ),
       directMentions: requiredNotificationDeliveryMode(
         policy?.effective?.directMentions,
@@ -323,6 +330,7 @@ function requiredNotificationDeliveryMode(
 ): NotificationDeliveryMode {
   if (
     mode !== NotificationDeliveryMode.OFF &&
+    mode !== NotificationDeliveryMode.UNREAD_BADGE &&
     mode !== NotificationDeliveryMode.IN_APP_NOTIFICATION &&
     mode !== NotificationDeliveryMode.PUSH_NOTIFICATION
   ) {
@@ -339,6 +347,7 @@ function notificationPolicyUpdate(patch: NotificationPolicyPatch): {
   const paths: string[] = [];
 
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMessages', 'direct_messages');
+  addNotificationPolicyUpdate(patch, overrides, paths, 'roomMessages', 'room_messages');
   addNotificationPolicyUpdate(patch, overrides, paths, 'directMentions', 'direct_mentions');
   addNotificationPolicyUpdate(patch, overrides, paths, 'replies', 'replies');
   addNotificationPolicyUpdate(patch, overrides, paths, 'roleMentions', 'role_mentions');
@@ -426,6 +435,13 @@ function notificationSignal(item: APINotificationOccurrence): {
       return {
         supported: true,
         kind: NotificationSignalKind.DIRECT_MESSAGE,
+        message: kind.value.message ?? null,
+        reactionEmoji: null
+      };
+    case 'roomMessageReceived':
+      return {
+        supported: true,
+        kind: NotificationSignalKind.ROOM_MESSAGE,
         message: kind.value.message ?? null,
         reactionEmoji: null
       };
@@ -555,7 +571,10 @@ function notificationPresentationGroupKey(occurrence: NotificationOccurrenceItem
     return `thread:${roomId}:${occurrence.threadRootId ?? occurrence.eventId}`;
   }
   if (occurrence.signalKind === NotificationSignalKind.FOLLOWED_ROOM) {
-    return `room:${roomId}`;
+    return `followed-room:${roomId}`;
+  }
+  if (occurrence.signalKind === NotificationSignalKind.ROOM_MESSAGE) {
+    return `room-message:${roomId}`;
   }
   // Unknown future causes stay exact until the client deliberately chooses a
   // safe presentation boundary for them.

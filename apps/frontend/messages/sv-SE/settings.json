@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Ärv",
           "off": "Av",
+          "badge": "Markering",
+          "badge_hint": "Lägger bara till en neutral prick för oläst innehåll. Skapar ingen avisering, spelar inget ljud och skickar ingen pushavisering.",
           "notification": "Avisering",
           "push_notification": "Pushavisering"
         },
         "reason": {
+          "room_message": "Rumsmeddelanden",
           "direct_message": "Direktmeddelanden",
           "direct_mention": "Direkta omnämnanden",
           "reply": "Svar på dina meddelanden",
@@ -304,12 +307,12 @@
           "here": "@here-omnämnanden",
           "all": "@all-omnämnanden",
           "followed_thread": "Följda trådar",
-          "followed_room": "Följda rum",
           "reaction": "Reaktioner på dina meddelanden",
           "activity": "Aktivitet",
           "room_invitation": "Inbjudningar till rum"
         },
         "reason_hint": {
+          "room_message": "Rotmeddelanden som andra medlemmar skickar direkt i kanalrum, inte i trådar.",
           "direct_message": "Meddelanden som andra medlemmar skickar i direktmeddelandekonversationer.",
           "direct_mention": "Meddelanden som nämner ditt användarnamn direkt.",
           "reply": "Meddelanden som svarar på ett av dina meddelanden.",
@@ -317,7 +320,6 @@
           "here": "Meddelanden som använder @here när din närvaro inte är offline.",
           "all": "Meddelanden som använder @all i ett rum som du är medlem i.",
           "followed_thread": "Nya svar i trådar som du följer.",
-          "followed_room": "Meddelanden utanför trådar i rum som du följer.",
           "reaction": "Reaktioner som andra medlemmar lägger till i dina meddelanden."
         }
       }

@@ -295,7 +295,7 @@ describe('roomTimelinePageToEventConnectionPage', () => {
                   replyCount: 1,
                   participantPreviewUserIds: ['u2'],
                   participantCount: 1,
-                  viewerState: { isFollowing: true }
+                  viewerState: { isFollowing: true, hasUnread: true }
                 },
                 reactions: [
                   {
@@ -387,7 +387,8 @@ describe('roomTimelinePageToEventConnectionPage', () => {
           }
         ],
         threadParticipants: [{ id: 'u2', displayName: 'Bob' }],
-        viewerIsFollowingThread: true
+        viewerIsFollowingThread: true,
+        viewerHasUnreadThread: true
       }
     });
     expect(mapped.events[1]).toMatchObject({

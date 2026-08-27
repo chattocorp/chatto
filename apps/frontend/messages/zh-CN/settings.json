@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "继承",
           "off": "关闭",
+          "badge": "徽标",
+          "badge_hint": "仅添加一个表示未读的灰色圆点。不会创建通知、播放声音或发送推送通知。",
           "notification": "通知",
           "push_notification": "推送通知"
         },
         "reason": {
+          "room_message": "房间消息",
           "direct_message": "私信",
           "direct_mention": "直接提及",
           "reply": "对你消息的回复",
@@ -304,12 +307,12 @@
           "here": "@here 提及",
           "all": "@all 提及",
           "followed_thread": "已关注的讨论串",
-          "followed_room": "已关注的房间",
           "reaction": "对你消息的回应",
           "activity": "动态",
           "room_invitation": "房间邀请"
         },
         "reason_hint": {
+          "room_message": "其他成员直接发布在频道房间中的根消息，不包括讨论串中的消息。",
           "direct_message": "其他成员在私信对话中发送的消息。",
           "direct_mention": "直接提及你的用户名的消息。",
           "reply": "回复你某条消息的消息。",
@@ -317,7 +320,6 @@
           "here": "当你的在线状态不是离线时使用 @here 的消息。",
           "all": "在你已加入的房间中使用 @all 的消息。",
           "followed_thread": "你所关注讨论串中的新回复。",
-          "followed_room": "你所关注房间中不属于讨论串的消息。",
           "reaction": "其他成员添加到你消息上的回应。"
         }
       }

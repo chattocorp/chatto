@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Inherit",
           "off": "Off",
+          "badge": "Badge",
+          "badge_hint": "Adds only a neutral unread dot. It does not create a notification, play a sound, or send a push notification.",
           "notification": "Notification",
           "push_notification": "Push notification"
         },
         "reason": {
+          "room_message": "Room messages",
           "direct_message": "Direct messages",
           "direct_mention": "Direct mentions",
           "reply": "Replies to your messages",
@@ -304,12 +307,12 @@
           "here": "@here mentions",
           "all": "@all mentions",
           "followed_thread": "Followed threads",
-          "followed_room": "Followed rooms",
           "reaction": "Reactions to your messages",
           "activity": "Activity",
           "room_invitation": "Room invitations"
         },
         "reason_hint": {
+          "room_message": "Root messages that other members post directly to channel rooms, not inside threads.",
           "direct_message": "Messages that other members send in direct-message conversations.",
           "direct_mention": "Messages that mention your username directly.",
           "reply": "Messages that reply to one of your messages.",
@@ -317,7 +320,6 @@
           "here": "Messages that use @here while your presence is not offline.",
           "all": "Messages that use @all in a room you belong to.",
           "followed_thread": "New replies in threads that you follow.",
-          "followed_room": "Top-level messages in rooms that you follow.",
           "reaction": "Reactions that other members add to your messages."
         }
       }

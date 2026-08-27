@@ -699,6 +699,12 @@ func TestDMUnreadStatus(t *testing.T) {
 	if err := core.DenyUserRoomPermission(ctx, SystemActorID, room.Id, user2.Id, PermMessageRead); err != nil {
 		t.Fatalf("DenyUserRoomPermission: %v", err)
 	}
+	if _, err := core.NotificationPolicy().SetRoomNotificationMode(
+		ctx, user2.Id, room.Id, notificationTestSignalDirectMessage,
+		corev1.NotificationDeliveryMode_NOTIFICATION_DELIVERY_MODE_UNREAD_BADGE,
+	); err != nil {
+		t.Fatalf("SetRoomNotificationMode: %v", err)
+	}
 
 	t.Run("no unread when no messages", func(t *testing.T) {
 		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)
@@ -716,6 +722,7 @@ func TestDMUnreadStatus(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to post message: %v", err)
 		}
+		waitForNotificationMaterializer(t, core)
 
 		// user2 should have unread
 		hasUnread, err := core.HasUnread(ctx, KindDM, user2.Id, room.Id)

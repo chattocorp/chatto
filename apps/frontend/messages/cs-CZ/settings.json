@@ -293,10 +293,13 @@
         "delivery_mode": {
           "inherit": "Zdědit",
           "off": "Vypnuto",
+          "badge": "Odznak",
+          "badge_hint": "Přidá pouze neutrální tečku nepřečteného obsahu. Nevytvoří oznámení, nepřehraje zvuk ani neodešle push oznámení.",
           "notification": "Oznámení",
           "push_notification": "Push oznámení"
         },
         "reason": {
+          "room_message": "Zprávy v místnostech",
           "direct_message": "Přímé zprávy",
           "direct_mention": "Přímé zmínky",
           "reply": "Odpovědi na vaše zprávy",
@@ -304,12 +307,12 @@
           "here": "Zmínky @here",
           "all": "Zmínky @all",
           "followed_thread": "Sledovaná vlákna",
-          "followed_room": "Sledované místnosti",
           "reaction": "Reakce na vaše zprávy",
           "activity": "Aktivita",
           "room_invitation": "Pozvánky do místností"
         },
         "reason_hint": {
+          "room_message": "Hlavní zprávy, které ostatní členové posílají přímo do místností kanálů, nikoli do vláken.",
           "direct_message": "Zprávy, které ostatní členové posílají v konverzacích s přímými zprávami.",
           "direct_mention": "Zprávy, které přímo zmiňují vaše uživatelské jméno.",
           "reply": "Zprávy, které odpovídají na některou z vašich zpráv.",
@@ -317,7 +320,6 @@
           "here": "Zprávy, které používají @here, když váš stav není offline.",
           "all": "Zprávy, které používají @all v místnosti, jejímž jste členem.",
           "followed_thread": "Nové odpovědi ve vláknech, která sledujete.",
-          "followed_room": "Zprávy nejvyšší úrovně v místnostech, které sledujete.",
           "reaction": "Reakce, které ostatní členové přidají k vašim zprávám."
         }
       }
