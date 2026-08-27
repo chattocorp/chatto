@@ -38,4 +38,16 @@ describe('App Preferences time & region page', () => {
       clockFormat: '24h'
     });
   });
+
+  it('accepts an exact timezone name regardless of casing', async () => {
+    const { getByRole, getByTestId } = render(TimeRegionPage);
+    await settle();
+
+    const input = getByTestId('timezone-input');
+    await input.fill('europe/berlin');
+    await settle();
+
+    expect(userPreferences.timeZone).toBe('Europe/Berlin');
+    expect(getByRole('radio', { name: /^12-hour/ })).toBeDefined();
+  });
 });

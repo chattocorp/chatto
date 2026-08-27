@@ -171,7 +171,7 @@ boundary.
 
 On `reset`, the frontend immediately clears the canonical projection and all
 projection-derived mirrors, including cached profiles, notifications, calls,
-preferences, permissions, and authenticated runtime settings. Later snapshot
+permissions, and authenticated runtime settings. Later snapshot
 operations repopulate those stores through the normal reducer.
 
 Changing the route selects retained state immediately after a room's first
@@ -355,8 +355,8 @@ deduplicates this one-shot effect by the stable enclosing projection-event ID.
 This operation set closes the parts of client state that an EVT gap alone
 cannot reconstruct, without a ConnectRPC side read or a second bootstrap
 mechanism. Presence and later room/thread read transitions use buffered live
-signals on this same stream; durable config changes that affect viewer permissions or
-preferences select a compacted reset through their EVT subjects.
+signals on this same stream; durable config changes that affect viewer
+permissions select a compacted reset through their EVT subjects.
 
 Replay scans at most 10,000 EVT sequences and emits at most 2,000 durable
 facts. Missing, malformed, expired, foreign-incarnation, oversized, or
@@ -512,7 +512,7 @@ messages separator and does not set `has_unread`. Thus, clients do not receive
 the internal marker or a new public storage coordinate. Thread Badge state
 rolls up into the parent room, and notification orange takes visual priority
 over the neutral unread dot.
-Viewer preferences, thread follow/read state, profile changes, server layout,
+Thread follow/read state, profile changes, server layout,
 and member removal likewise mutate the client only through projection
 operations. Active calls converge through `active_calls_replace` in the
 compacted prefix, after every durable call transition, and when room access

@@ -181,7 +181,7 @@ The republished `live.evt.{aggregateType}.{aggregateId}.{eventType}` subject is 
 | `evt.asset.>`                                    | All asset aggregate facts                                                       |
 | `evt.asset.{assetId}.{eventType}`                | One asset aggregate fact                                                        |
 | `evt.asset.*.{eventType}`                        | One asset event type across all assets                                          |
-| `evt.config.>`                                   | Dynamic server/user configuration and preferences                               |
+| `evt.config.>`                                   | Server configuration facts and per-user runtime choices, such as notification policy |
 | `evt.config.{subject}.{eventType}`               | Config fact for `server`, a user ID, or another configurable subject            |
 | `notifications.signalled`                       | Rich immutable per-recipient notification signal and initial delivery state     |
 | `notifications.read`                            | Idempotent transition of one occurrence to Read                                 |
@@ -302,7 +302,7 @@ cursors are trusted integration coordinates and are not public API cursors.
 | `evt.user.{userId}.oidc_subject_linked`                     | `UserOIDCSubjectLinkedEvent` (legacy replay)        |
 | `evt.user.{userId}.external_identity_linked`                | `UserExternalIdentityLinkedEvent`                   |
 | `evt.user.{userId}.external_identity_unlinked`              | `UserExternalIdentityUnlinkedEvent`                 |
-| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent`                 |
+| `evt.user.{userId}.server_preferences_changed`              | `UserServerPreferencesChangedEvent` (historical decode only; ignored by current projections) |
 | `evt.user.{userId}.login_cooldown_started`                  | `UserLoginCooldownStartedEvent`                     |
 | `evt.user.{userId}.login_cooldown_cleared`                  | `UserLoginCooldownClearedEvent`                     |
 | `evt.user.{userId}.account_deleted`                         | `UserAccountDeletedEvent`                           |

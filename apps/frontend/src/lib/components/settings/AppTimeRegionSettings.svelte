@@ -12,16 +12,8 @@
   // All available IANA timezone names
   const allTimezones = Intl.supportedValuesOf('timeZone');
 
-  let timezoneSearch = $state('');
-  let selectedTimezone = $state('');
-  let initialized = $state(false);
-
-  $effect(() => {
-    if (initialized) return;
-    timezoneSearch = userPreferences.timeZone;
-    selectedTimezone = userPreferences.timeZone;
-    initialized = true;
-  });
+  let timezoneSearch = $state(userPreferences.timeZone);
+  let selectedTimezone = $state(userPreferences.timeZone);
 
   // Filter timezone list based on search input
   let filteredTimezones = $derived(
@@ -33,9 +25,13 @@
   // Cap displayed results to avoid rendering 400+ items
   let displayedTimezones = $derived(filteredTimezones.slice(0, 50));
 
+  function findTimezone(value: string): string | undefined {
+    return allTimezones.find((tz) => tz.toLowerCase() === value.toLowerCase());
+  }
+
   const timezoneError = $derived.by(() => {
     if (!timezoneSearch) return undefined;
-    if (allTimezones.includes(timezoneSearch)) return undefined;
+    if (findTimezone(timezoneSearch)) return undefined;
     return m('settings.preferences.timezone.invalid');
   });
 
@@ -45,9 +41,13 @@
   }
 
   function handleTimezoneTextChange(text: string) {
-    if (!text || allTimezones.includes(text)) {
-      userPreferences.timeZone = text;
+    if (!text) {
+      selectTimeZone('');
+      return;
     }
+    // Typing an exact name applies it without requiring an explicit selection.
+    const match = findTimezone(text);
+    if (match) selectTimeZone(match);
   }
 
   const clockFormatOptions = $derived([
