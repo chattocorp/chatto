@@ -121,7 +121,7 @@
       "password_label": "Dein aktuelles Passwort",
       "password_hint": "Nur nötig, wenn deine Sitzung erneut bestätigt werden muss.",
       "submit": "Konto endgültig löschen",
-      "deleting": "Wird gelöscht ...",
+      "deleting": "Wird gelöscht...",
       "failed": "Das Konto konnte nicht gelöscht werden.",
       "success": "Das Konto wurde gelöscht.",
       "not_allowed": "Du kannst dieses Konto nicht löschen."

@@ -9,7 +9,10 @@ import type {
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { adminQueryKeys } from '$lib/query/admin';
-import { removeRegisteredAdminUserQueries } from '$lib/query/cacheRegistry';
+import {
+  removeRegisteredAdminQueries,
+  removeRegisteredAdminUserQueries
+} from '$lib/query/cacheRegistry';
 import { queryClient } from '$lib/query/client';
 import {
   memberDetailPageTestState,
@@ -94,6 +97,16 @@ function details(value: AdminMember): AdminMemberDetails {
   };
 }
 
+function deferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (error: Error) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
 async function settle(): Promise<void> {
   await vi.waitFor(() => expect(queryClient.isFetching()).toBe(0));
   flushSync();
@@ -104,7 +117,9 @@ describe('server member delete page', () => {
     queryClient.clear();
     vi.clearAllMocks();
     memberDetailPageTestState.reset();
-    mocks.getMember.mockImplementation((userId: string) => Promise.resolve(details(member(userId))));
+    mocks.getMember.mockImplementation((userId: string) =>
+      Promise.resolve(details(member(userId)))
+    );
     mocks.deleteUser.mockResolvedValue(true);
     await loadLocaleMessages('en-GB');
     setReactiveLocale('en-GB');
@@ -126,6 +141,33 @@ describe('server member delete page', () => {
     expect(rendered.container.textContent).toContain('Member not found');
     expect(rendered.container.textContent).not.toContain('Danger Zone');
     expect(mocks.deleteUser).not.toHaveBeenCalled();
+  });
+
+  it('discards a delete result when a session cache purge arrives mid-flight', async () => {
+    const deletion = deferred<void>();
+    mocks.deleteUser.mockReturnValueOnce(deletion.promise);
+    const rendered = renderPage();
+    await settle();
+
+    const input = rendered.container.querySelector('#member-delete-confirm') as HTMLInputElement;
+    input.value = 'alice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    flushSync();
+
+    const submit = [...rendered.container.querySelectorAll('button')].find(
+      (candidate) => candidate.getAttribute('type') === 'submit'
+    ) as HTMLButtonElement;
+    submit.click();
+    await vi.waitFor(() => expect(mocks.deleteUser).toHaveBeenCalledOnce());
+
+    // Simulates an authentication/visibility purge between request and response.
+    removeRegisteredAdminQueries('server-1');
+    flushSync();
+    deletion.resolve();
+    await settle();
+
+    expect(mocks.toastSuccess).not.toHaveBeenCalled();
+    expect(mocks.goto).not.toHaveBeenCalled();
   });
 
   it('blocks deleting the viewer account through this page', async () => {
@@ -233,9 +275,9 @@ describe('server member delete page', () => {
       (candidate) => candidate.getAttribute('type') === 'submit'
     ) as HTMLButtonElement;
     submit.click();
-    await settle();
-
-    expect(rendered.container.textContent).toContain('permission denied');
+    await vi.waitFor(() => expect(rendered.container.textContent).toContain('permission denied'));
+    // The form stays for retry; no navigation happened.
+    expect(rendered.container.textContent).toContain('Danger Zone');
     expect(mocks.goto).not.toHaveBeenCalled();
   });
 });

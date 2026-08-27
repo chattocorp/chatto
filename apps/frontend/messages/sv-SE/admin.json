@@ -121,7 +121,7 @@
       "password_label": "Ditt nuvarande lösenord",
       "password_hint": "Behövs bara när din session måste bekräftas igen.",
       "submit": "Ta bort kontot permanent",
-      "deleting": "Tar bort ...",
+      "deleting": "Tar bort...",
       "failed": "Kontot kunde inte tas bort.",
       "success": "Kontot har tagits bort.",
       "not_allowed": "Du kan inte ta bort det här kontot."

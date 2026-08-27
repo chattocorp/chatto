@@ -121,7 +121,7 @@
       "password_label": "Je huidige wachtwoord",
       "password_hint": "Alleen nodig wanneer je sessie opnieuw bevestigd moet worden.",
       "submit": "Account definitief verwijderen",
-      "deleting": "Wordt verwijderd ...",
+      "deleting": "Wordt verwijderd...",
       "failed": "Het account kon niet worden verwijderd.",
       "success": "Het account is verwijderd.",
       "not_allowed": "Je kunt dit account niet verwijderen."
