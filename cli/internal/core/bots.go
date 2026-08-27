@@ -45,12 +45,23 @@ type Bot struct {
 
 // BotIncomingWebhook is safe management metadata for one active credential.
 type BotIncomingWebhook struct {
-	ID                string
-	Name              string
-	CreatedAt         time.Time
-	LastUsedAt        time.Time
-	LastUsedAvailable bool
+	ID            string
+	Name          string
+	CreatedAt     time.Time
+	LastUsedAt    time.Time
+	LastUsedState BotCredentialLastUsedState
 }
+
+// BotCredentialLastUsedState identifies whether optional credential-use
+// telemetry was loaded and whether it has a value.
+type BotCredentialLastUsedState uint8
+
+const (
+	BotCredentialLastUsedUnspecified BotCredentialLastUsedState = iota
+	BotCredentialLastUsedNoUseRecorded
+	BotCredentialLastUsedRecorded
+	BotCredentialLastUsedUnavailable
+)
 
 // BotIncomingWebhookIssue contains the show-once secret returned by a create
 // command. Credential must never be logged or persisted.
@@ -152,7 +163,8 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 		return nil, err
 	}
 	credential, ok := c.userModel.botIncomingWebhookCredential(botID, webhookID)
-	if !ok || subtle.ConstantTimeCompare(c.botIncomingWebhookVerifier(token), credential.Verifier) != 1 {
+	presentedVerifier := c.botIncomingWebhookVerifier(token)
+	if !ok || subtle.ConstantTimeCompare(presentedVerifier, credential.Verifier) != 1 {
 		return nil, ErrAuthTokenNotFound
 	}
 	bot, err := c.GetUser(ctx, botID)
@@ -163,7 +175,10 @@ func (c *ChattoCore) ValidateBotIncomingWebhookCredential(ctx context.Context, t
 	if err != nil || owner.GetIsBot() {
 		return nil, ErrAuthTokenNotFound
 	}
-	c.credentialUsage.Record(botID, incomingWebhookUsageKey(webhookID), time.Now())
+	c.credentialUsage.recordIfActive(botID, incomingWebhookUsageKey(webhookID), time.Now(), func() bool {
+		current, exists := c.userModel.botIncomingWebhookCredential(botID, webhookID)
+		return exists && subtle.ConstantTimeCompare(presentedVerifier, current.Verifier) == 1
+	})
 	return bot, nil
 }
 
@@ -295,7 +310,14 @@ func (c *ChattoCore) HydrateBotCredentialUsage(ctx context.Context, bot *Bot) {
 	for i := range bot.IncomingWebhooks {
 		webhook := &bot.IncomingWebhooks[i]
 		webhook.LastUsedAt = lastUsed[incomingWebhookUsageKey(webhook.ID)]
-		webhook.LastUsedAvailable = available
+		switch {
+		case !available:
+			webhook.LastUsedState = BotCredentialLastUsedUnavailable
+		case webhook.LastUsedAt.IsZero():
+			webhook.LastUsedState = BotCredentialLastUsedNoUseRecorded
+		default:
+			webhook.LastUsedState = BotCredentialLastUsedRecorded
+		}
 	}
 }
 
@@ -572,7 +594,7 @@ func (c *ChattoCore) mutateBotIncomingWebhook(ctx context.Context, actorID, botI
 				// The credential cannot authenticate before its show-once secret
 				// leaves this command, so no recorded use is known without a
 				// telemetry read.
-				bot.IncomingWebhooks[i].LastUsedAvailable = true
+				bot.IncomingWebhooks[i].LastUsedState = BotCredentialLastUsedNoUseRecorded
 				break
 			}
 		}

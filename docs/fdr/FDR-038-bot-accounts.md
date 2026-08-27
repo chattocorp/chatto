@@ -37,6 +37,9 @@ exercise more authority than its human owner currently possesses.
   visual indicator.
 - A bot has one active API key. The key is returned only when the bot is
   created or the key is rotated; it cannot be retrieved later.
+- The bundled frontend blocks navigation while it requests a show-once bot
+  credential and while it shows that credential. Navigation becomes available
+  after the manager acknowledges the credential.
 - A bot can have at most 20 active, named incoming webhooks. Creating one
   webhook shows its complete URL once. A manager can create a replacement
   before the manager revokes an old webhook.
@@ -286,7 +289,8 @@ credential can select a room through the request URL or JSON payload. Chatto
 shows each raw URL only when it creates the selected credential. A manager
 creates a replacement before the manager moves a caller and revokes the old
 credential. The bot detail page shows creation metadata and an approximate
-last-use time for each credential.
+last-use time for each credential. The bundled frontend blocks navigation
+until it shows the raw credential and the manager acknowledges it.
 
 **Why:** An external system can post a message without receiving the bot's
 complete API authority. Dynamic room selection keeps one automation usable

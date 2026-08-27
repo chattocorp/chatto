@@ -54,8 +54,21 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	if wantPrefix := "https://configured.example/webhooks/incoming/cht_IW_"; len(webhook.Msg.GetWebhookUrl()) < len(wantPrefix) || webhook.Msg.GetWebhookUrl()[:len(wantPrefix)] != wantPrefix {
 		t.Fatalf("webhook URL = %q, want prefix %q", webhook.Msg.GetWebhookUrl(), wantPrefix)
 	}
+	secondWebhook, err := service.CreateBotIncomingWebhook(webhookCtx, connect.NewRequest(&apiv1.CreateBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), Name: "Deployments"}))
+	if err != nil || len(secondWebhook.Msg.GetBot().GetIncomingWebhooks()) != 2 {
+		t.Fatalf("second CreateBotIncomingWebhook = %+v, %v", secondWebhook, err)
+	}
+	for _, item := range secondWebhook.Msg.GetBot().GetIncomingWebhooks() {
+		want := apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED
+		if item.GetName() == "Deployments" {
+			want = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED
+		}
+		if item.GetLastUsedState() != want {
+			t.Fatalf("second creation webhook %q state = %v, want %v", item.GetId(), item.GetLastUsedState(), want)
+		}
+	}
 	revokedWebhook, err := service.RevokeBotIncomingWebhook(ctx, connect.NewRequest(&apiv1.RevokeBotIncomingWebhookRequest{BotUserId: bot.GetUser().GetId(), WebhookId: webhookID}))
-	if err != nil || len(revokedWebhook.Msg.GetBot().GetIncomingWebhooks()) != 0 {
+	if err != nil || len(revokedWebhook.Msg.GetBot().GetIncomingWebhooks()) != 1 {
 		t.Fatalf("RevokeBotIncomingWebhook = %+v, %v", revokedWebhook, err)
 	}
 	recipient, err := env.core.CreateUser(env.ctx, core.SystemActorID, "connect-recipient", "Connect Recipient", "password123")
@@ -123,6 +136,9 @@ func TestBotServiceLifecycleAndCanonicalPermissionMatrix(t *testing.T) {
 	rotated, err := service.RotateBotApiKey(ctx, connect.NewRequest(&apiv1.RotateBotApiKeyRequest{BotUserId: bot.GetUser().GetId()}))
 	if err != nil || rotated.Msg.GetApiKey() == "" || rotated.Msg.GetApiKey() == created.Msg.GetApiKey() {
 		t.Fatalf("RotateBotApiKey = %+v, %v", rotated, err)
+	}
+	if state := rotated.Msg.GetBot().GetIncomingWebhooks()[0].GetLastUsedState(); state != apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNSPECIFIED {
+		t.Fatalf("rotated bot unhydrated webhook state = %v, want unspecified", state)
 	}
 
 	if _, err := service.ListBots(withCaller(env.ctx, botCore), connect.NewRequest(&apiv1.ListBotsRequest{})); connect.CodeOf(err) != connect.CodeFailedPrecondition {

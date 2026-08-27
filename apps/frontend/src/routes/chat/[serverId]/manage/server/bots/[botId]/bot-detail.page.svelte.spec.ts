@@ -6,6 +6,7 @@ import { TimeFormat } from '@chatto/api-types/api/v1/viewer_pb';
 import { loadLocaleMessages } from '$lib/i18n/messages';
 import { setReactiveLocale } from '$lib/i18n/state.svelte';
 import { queryClient } from '$lib/query/client';
+import { settingsQueryKeys } from '$lib/query/settings';
 import { formatDateTime, timeFormatSettingsFor } from '$lib/utils/formatTime';
 
 const mocks = vi.hoisted(() => ({
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
   batchGetUsers: vi.fn(),
   listUsers: vi.fn(),
   updateBot: vi.fn(),
+  rotateBotAPIKey: vi.fn(),
   reassignBotOwner: vi.fn(),
   createBotIncomingWebhook: vi.fn(),
   revokeBotIncomingWebhook: vi.fn(),
@@ -57,6 +59,7 @@ vi.mock('$lib/state/server/scope.svelte', () => ({
         batchGetUsers: mocks.batchGetUsers,
         listUsers: mocks.listUsers,
         updateBot: mocks.updateBot,
+        rotateBotAPIKey: mocks.rotateBotAPIKey,
         reassignBotOwner: mocks.reassignBotOwner,
         createBotIncomingWebhook: mocks.createBotIncomingWebhook,
         revokeBotIncomingWebhook: mocks.revokeBotIncomingWebhook
@@ -114,6 +117,7 @@ describe('Bot detail page', () => {
     mocks.reassignBotOwner.mockImplementation((botId: string, ownerUserId: string) =>
       Promise.resolve({ ...mocks.bot, id: botId, ownerUserId })
     );
+    mocks.rotateBotAPIKey.mockResolvedValue({ bot: mocks.bot, apiKey: 'rotated-secret' });
     mocks.createBotIncomingWebhook.mockResolvedValue({
       bot: {
         ...mocks.bot,
@@ -152,6 +156,59 @@ describe('Bot detail page', () => {
 
     expect(container.textContent).toContain('https://chat.example/webhooks/incoming/secret');
     expect(container.textContent).toContain('This URL is shown only once');
+  });
+
+  it('keeps hydrated webhook telemetry while it refetches after credential issuance', async () => {
+    const recordedAt = new Date('2026-08-27T12:30:00Z');
+    const hydrated = {
+      ...mocks.bot,
+      incomingWebhooks: [
+        {
+          id: 'existing-webhook',
+          name: 'Monitoring',
+          createdAt: new Date('2026-08-27T11:00:00Z'),
+          lastUsedState: 'recorded' as const,
+          lastUsedAt: recordedAt
+        }
+      ]
+    };
+    mocks.getBot.mockResolvedValueOnce(hydrated).mockImplementation(() => new Promise(() => {}));
+    mocks.createBotIncomingWebhook.mockResolvedValue({
+      bot: {
+        ...hydrated,
+        incomingWebhooks: [
+          { ...hydrated.incomingWebhooks[0], lastUsedState: 'unavailable', lastUsedAt: null },
+          {
+            id: 'new-webhook',
+            name: 'Production',
+            createdAt: new Date(),
+            lastUsedState: 'no_use_recorded',
+            lastUsedAt: null
+          }
+        ]
+      },
+      webhookUrl: 'https://chat.example/webhooks/incoming/secret'
+    });
+    const { container } = render(BotDetailPage);
+    await settle();
+
+    buttonByText(container, 'Create Webhook').click();
+    flushSync();
+    setInput(container.querySelector('#create-bot-webhook-name') as HTMLInputElement, 'Production');
+    const createButtons = [...container.querySelectorAll('button')].filter(
+      (button) => button.textContent?.trim() === 'Create Webhook'
+    );
+    createButtons.at(-1)?.click();
+    await vi.waitFor(() => expect(mocks.getBot).toHaveBeenCalledTimes(2));
+
+    const cached = queryClient.getQueryData<typeof hydrated>(
+      settingsQueryKeys.bot('server-1', { queryScope: 'session-1' }, 'bot-user-id')
+    );
+    expect(cached?.incomingWebhooks[0]).toMatchObject({
+      id: 'existing-webhook',
+      lastUsedState: 'recorded',
+      lastUsedAt: recordedAt
+    });
   });
 
   it('shows independent webhook lifecycle and last-use states', async () => {

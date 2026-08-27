@@ -151,6 +151,12 @@
     });
   }
 
+  function refreshBot() {
+    void queryClient.invalidateQueries({
+      queryKey: settingsQueryKeys.botsRoot(serverScope.serverId, serverScope.connection)
+    });
+  }
+
   function openEdit() {
     if (!bot) return;
     editLogin = bot.login;
@@ -203,10 +209,10 @@
     try {
       const rotated = await botAPI().rotateBotAPIKey(bot.id);
       if (!isCurrentTarget(mutationTarget)) return;
-      cacheBot(rotated.bot);
       rotateVisible = false;
       apiKey = rotated.apiKey;
       apiKeyVisible = true;
+      refreshBot();
       toast.success(m('settings.bots.key_rotated'));
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
@@ -229,10 +235,10 @@
     try {
       const created = await botAPI().createBotIncomingWebhook(bot.id, normalizedWebhookName);
       if (!isCurrentTarget(mutationTarget)) return;
-      cacheBot(created.bot);
       createWebhookVisible = false;
       webhookURL = created.webhookUrl;
       webhookURLVisible = true;
+      refreshBot();
       toast.success(m('settings.bots.webhook_created'));
     } catch (error) {
       if (isCurrentTarget(mutationTarget)) {
@@ -560,6 +566,7 @@
 <ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
   bind:value={apiKey}
+  pending={rotateLoading}
   title={m('settings.bots.api_key_title')}
   warning={m('settings.bots.api_key_warning')}
   copiedMessage={m('settings.bots.key_copied')}
@@ -568,6 +575,7 @@
 <ShowOnceCredentialDialog
   bind:visible={webhookURLVisible}
   bind:value={webhookURL}
+  pending={createWebhookLoading}
   title={m('settings.bots.webhook_url_title')}
   warning={m('settings.bots.webhook_url_warning')}
   copiedMessage={m('settings.bots.webhook_url_copied')}

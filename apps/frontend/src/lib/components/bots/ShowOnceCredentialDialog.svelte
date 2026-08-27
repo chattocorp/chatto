@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { beforeNavigate } from '$app/navigation';
   import { m } from '$lib/i18n/messages';
   import { Button } from '$lib/ui/form';
   import { Dialog, Hint } from '$lib/ui';
@@ -10,6 +11,7 @@
     title,
     warning,
     copiedMessage,
+    pending = false,
     onclose
   }: {
     visible?: boolean;
@@ -17,8 +19,13 @@
     title: string;
     warning: string;
     copiedMessage: string;
+    pending?: boolean;
     onclose?: () => void;
   } = $props();
+
+  beforeNavigate(({ cancel }) => {
+    if (pending || (visible && !!value)) cancel();
+  });
 
   async function copyCredential() {
     await navigator.clipboard.writeText(value);
@@ -32,7 +39,7 @@
   }
 </script>
 
-<!-- @component Shows one newly issued credential and clears it when the dialog closes. -->
+<!-- @component Shows one newly issued credential, protects it from navigation, and clears it when the dialog closes. -->
 <Dialog bind:visible {title} size="lg" onclose={close}>
   <div class="flex flex-col gap-4">
     <Hint tone="warning">{warning}</Hint>

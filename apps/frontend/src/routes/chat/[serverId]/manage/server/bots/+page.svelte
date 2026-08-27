@@ -99,9 +99,7 @@
     },
     () => queryClient
   );
-  const ownersById = $derived(
-    new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner]))
-  );
+  const ownersById = $derived(new Map((ownersQuery.data ?? []).map((owner) => [owner.id, owner])));
 
   let createVisible = $state(false);
   let createLogin = $state('');
@@ -282,9 +280,7 @@
               {#if owner}
                 <UserIdentity user={{ ...owner, presenceStatus: PresenceStatus.OFFLINE }} />
               {:else if ownersQuery.isPending}
-                <span
-                  class="skeleton block h-8 w-32 rounded-md"
-                  aria-label={m('common.loading')}
+                <span class="skeleton block h-8 w-32 rounded-md" aria-label={m('common.loading')}
                 ></span>
               {:else}
                 <span class="text-muted">{m('common.unknown')}</span>
@@ -330,6 +326,7 @@
 <ShowOnceCredentialDialog
   bind:visible={apiKeyVisible}
   bind:value={apiKey}
+  pending={createLoading}
   title={m('settings.bots.api_key_title')}
   warning={m('settings.bots.api_key_warning')}
   copiedMessage={m('settings.bots.key_copied')}

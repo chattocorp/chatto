@@ -79,6 +79,61 @@ func TestCredentialUsageRecorderCoalescesWritesButKeepsLocalObservation(t *testi
 	if entry.Revision() <= firstRevision {
 		t.Fatalf("flushed revision = %d, want greater than %d", entry.Revision(), firstRevision)
 	}
+
+	recorder.Forget(ctx, botID, credentialKey)
+	recorder.mu.RLock()
+	defer recorder.mu.RUnlock()
+	if len(recorder.pending) != 0 || len(recorder.observed) != 0 || len(recorder.lastFlush) != 0 {
+		t.Fatalf("local state after Forget = pending %v, observed %v, lastFlush %v", recorder.pending, recorder.observed, recorder.lastFlush)
+	}
+}
+
+func TestCredentialUsageRecorderRemovesWriteThatFinishesAfterForget(t *testing.T) {
+	c, _ := setupTestCore(t)
+	ctx := testContext(t)
+	kv := &blockingCreateCredentialUsageKV{
+		KeyValue: c.storage.runtimeStateKV,
+		started:  make(chan struct{}),
+		release:  make(chan struct{}),
+	}
+	recorder := newCredentialUsageRecorder(kv, nil)
+	botID := NewUserID()
+	credentialKey := incomingWebhookUsageKey(NewBotIncomingWebhookID())
+	usedAt := time.Date(2026, 8, 27, 12, 0, 0, 0, time.UTC)
+	recorder.Record(botID, credentialKey, usedAt)
+
+	flushed := make(chan struct{})
+	go func() {
+		defer close(flushed)
+		recorder.flushDue(ctx, usedAt)
+	}()
+	<-kv.started
+	recorder.Forget(ctx, botID, credentialKey)
+	close(kv.release)
+	<-flushed
+
+	if _, err := c.storage.runtimeStateKV.Get(ctx, credentialUsageRuntimeStateKey(botID)); !isRuntimeStateKeyAbsent(err) {
+		t.Fatalf("persisted state after late flush = %v, want absent", err)
+	}
+	recorder.mu.RLock()
+	defer recorder.mu.RUnlock()
+	if len(recorder.pending) != 0 || len(recorder.observed) != 0 || len(recorder.lastFlush) != 0 {
+		t.Fatalf("local state after Forget = pending %v, observed %v, lastFlush %v", recorder.pending, recorder.observed, recorder.lastFlush)
+	}
+}
+
+func TestCredentialUsageRecorderRejectsInactiveObservation(t *testing.T) {
+	c, _ := setupTestCore(t)
+	recorder := newCredentialUsageRecorder(c.storage.runtimeStateKV, nil)
+	recorder.recordIfActive(NewUserID(), incomingWebhookUsageKey(NewBotIncomingWebhookID()), time.Now(), func() bool {
+		return false
+	})
+
+	recorder.mu.RLock()
+	defer recorder.mu.RUnlock()
+	if len(recorder.pending) != 0 || len(recorder.observed) != 0 {
+		t.Fatalf("inactive observation was retained: pending %v, observed %v", recorder.pending, recorder.observed)
+	}
 }
 
 func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.T) {
@@ -98,11 +153,11 @@ func TestBotCredentialUsageHydrationReportsUnavailableWithoutFailing(t *testing.
 	if err != nil {
 		t.Fatalf("CreateBotIncomingWebhook: %v", err)
 	}
-	if len(issued.Bot.IncomingWebhooks) != 1 || !issued.Bot.IncomingWebhooks[0].LastUsedAvailable {
+	if len(issued.Bot.IncomingWebhooks) != 1 || issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedNoUseRecorded {
 		t.Fatalf("new incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
 	}
 	c.HydrateBotCredentialUsage(ctx, issued.Bot)
-	if issued.Bot.IncomingWebhooks[0].LastUsedAvailable {
+	if issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedUnavailable {
 		t.Fatalf("incoming webhook usage = %+v", issued.Bot.IncomingWebhooks)
 	}
 	if authenticated, err := c.ValidateBotIncomingWebhookCredential(ctx, issued.Credential); err != nil || authenticated.GetId() != bot.User.GetId() {
@@ -128,11 +183,15 @@ func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.
 	if err != nil {
 		t.Fatalf("CreateBotIncomingWebhook: %v", err)
 	}
-	if !issued.Bot.IncomingWebhooks[0].LastUsedAvailable || !issued.Bot.IncomingWebhooks[0].LastUsedAt.IsZero() {
-		t.Fatalf("new webhook usage = %+v, want available with no recorded use", issued.Bot.IncomingWebhooks[0])
+	if issued.Bot.IncomingWebhooks[0].LastUsedState != BotCredentialLastUsedNoUseRecorded || !issued.Bot.IncomingWebhooks[0].LastUsedAt.IsZero() {
+		t.Fatalf("new webhook usage = %+v, want no recorded use", issued.Bot.IncomingWebhooks[0])
 	}
-	if _, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId()); err != nil {
+	rotated, err := c.RotateBotAPIKey(ctx, owner.GetId(), bot.User.GetId())
+	if err != nil {
 		t.Fatalf("RotateBotAPIKey: %v", err)
+	}
+	if got := rotated.IncomingWebhooks[0].LastUsedState; got != BotCredentialLastUsedUnspecified {
+		t.Fatalf("unhydrated rotated webhook state = %v, want unspecified", got)
 	}
 	if _, err := c.GetBot(ctx, owner.GetId(), bot.User.GetId()); err != nil {
 		t.Fatalf("GetBot: %v", err)
@@ -149,14 +208,29 @@ func TestBotConstructionAndCredentialIssuanceSkipUsageTelemetryReads(t *testing.
 	if got := usageKV.GetCount(); got != 1 {
 		t.Fatalf("usage KV reads after one hydration = %d, want 1", got)
 	}
-	if got := bots[0].IncomingWebhooks[0]; !got.LastUsedAvailable || !got.LastUsedAt.IsZero() {
-		t.Fatalf("missing usage record = %+v, want available with no recorded use", got)
+	if got := bots[0].IncomingWebhooks[0]; got.LastUsedState != BotCredentialLastUsedNoUseRecorded || !got.LastUsedAt.IsZero() {
+		t.Fatalf("missing usage record = %+v, want no recorded use", got)
 	}
 }
 
 type failingCredentialUsageKV struct {
 	jetstream.KeyValue
 	err error
+}
+
+type blockingCreateCredentialUsageKV struct {
+	jetstream.KeyValue
+	started chan struct{}
+	release chan struct{}
+	once    sync.Once
+}
+
+func (kv *blockingCreateCredentialUsageKV) Create(ctx context.Context, key string, value []byte, opts ...jetstream.KVCreateOpt) (uint64, error) {
+	kv.once.Do(func() {
+		close(kv.started)
+		<-kv.release
+	})
+	return kv.KeyValue.Create(ctx, key, value, opts...)
 }
 
 type countingCredentialUsageKV struct {

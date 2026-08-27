@@ -31,6 +31,11 @@ a new named credential before the manager moves a caller and revokes the old
 credential. Revocation invalidates only the selected credential. Bot deletion
 and owner deletion invalidate all credentials for the bot.
 
+The bundled frontend blocks navigation while it requests a show-once
+credential and while it shows the returned value. The manager must acknowledge
+the credential before navigation can continue. This rule also applies to bot
+API-key creation and rotation.
+
 The request uses a Slack-compatible plain-text JSON subset. `text` and `channel`
 are the Slack field names. `body` and `room_id` are Chatto aliases. The optional
 `room_id` query parameter allows a caller to put the destination in the URL. All
@@ -65,10 +70,19 @@ recorded use. This state does not prove that the credential was not used. The
 management API reports telemetry as unavailable if it cannot read or decode
 the record.
 
+Credential revocation and process-local recording use one ordering lock. The
+recorder checks the current projected credential before it accepts a new
+observation. Revocation removes all local state for the credential. If a
+storage write completes after revocation, the writer attempts a second delete.
+The recorder does not retain a revocation tombstone.
+
 Bot construction does not read this optional state. Management responses read
 it only for resources selected after filtering and pagination. These reads use
 bounded concurrency. A response that returns a show-once credential does not
-read last-use telemetry after the credential lifecycle fact commits.
+read last-use telemetry after the credential lifecycle fact commits. In that
+response, telemetry for other credentials stays unspecified. It is not
+reported as unavailable. The bundled frontend keeps its hydrated bot value and
+refetches the bot instead of replacing that value with the partial response.
 
 The lifecycle event field numbers and the EVT subject tokens from the first
 unreleased implementation remain stable. A credential from that implementation
@@ -88,8 +102,13 @@ a binary that understands the new lifecycle fields after these writes occur.
 - Separate credentials let managers replace or revoke one integration without
   an outage for other integrations.
 - Credential lifecycle facts remain durable without persisting the raw secret.
+- A route change cannot silently discard a newly issued credential in the
+  bundled frontend.
 - Last-use telemetry can be temporarily unavailable, delayed, or missing after
   a process or storage failure. Its failure cannot stop webhook requests.
+- Revoked credentials do not create permanent process-local tombstones. A
+  cleanup failure can leave stale optional telemetry in storage, but it cannot
+  restore the revoked credential.
 - The internal credential-usage recorder can also support multiple bot API
   keys later. This decision does not change bot API keys.
 - URL credentials can appear in reverse-proxy logs. Operators must redact the

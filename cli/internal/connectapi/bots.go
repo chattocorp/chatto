@@ -212,13 +212,14 @@ func apiBot(ctx context.Context, api *API, bot *core.Bot) (*apiv1.Bot, error) {
 		mapped := &apiv1.BotIncomingWebhook{
 			Id: webhook.ID, Name: webhook.Name, CreatedAt: timestamppb.New(webhook.CreatedAt),
 		}
-		if !webhook.LastUsedAvailable {
-			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE
-		} else if webhook.LastUsedAt.IsZero() {
+		switch webhook.LastUsedState {
+		case core.BotCredentialLastUsedNoUseRecorded:
 			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_NO_USE_RECORDED
-		} else {
+		case core.BotCredentialLastUsedRecorded:
 			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_RECORDED
 			mapped.LastUsedAt = timestamppb.New(webhook.LastUsedAt)
+		case core.BotCredentialLastUsedUnavailable:
+			mapped.LastUsedState = apiv1.CredentialLastUsedState_CREDENTIAL_LAST_USED_STATE_UNAVAILABLE
 		}
 		out.IncomingWebhooks = append(out.IncomingWebhooks, mapped)
 	}

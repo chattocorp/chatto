@@ -36,7 +36,6 @@ type credentialUsageRecorder struct {
 	pending   map[string]map[string]time.Time
 	observed  map[string]map[string]time.Time
 	lastFlush map[string]map[string]time.Time
-	retired   map[string]map[string]struct{}
 }
 
 func newCredentialUsageRecorder(kv jetstream.KeyValue, logger *log.Logger) *credentialUsageRecorder {
@@ -49,7 +48,6 @@ func newCredentialUsageRecorder(kv jetstream.KeyValue, logger *log.Logger) *cred
 		pending:       make(map[string]map[string]time.Time),
 		observed:      make(map[string]map[string]time.Time),
 		lastFlush:     make(map[string]map[string]time.Time),
-		retired:       make(map[string]map[string]struct{}),
 	}
 }
 
@@ -64,12 +62,19 @@ func incomingWebhookUsageKey(webhookID string) string {
 // Record retains the newest process-local observation and wakes the
 // best-effort writer. It never waits for NATS and never returns an error.
 func (r *credentialUsageRecorder) Record(botID, credentialKey string, usedAt time.Time) {
+	r.recordIfActive(botID, credentialKey, usedAt, nil)
+}
+
+// recordIfActive records an observation only while the credential is still
+// active. The active check and Forget use the same lock, so revocation cannot
+// leave a late process-local observation behind.
+func (r *credentialUsageRecorder) recordIfActive(botID, credentialKey string, usedAt time.Time, isActive func() bool) {
 	if r == nil || botID == "" || credentialKey == "" || usedAt.IsZero() {
 		return
 	}
 	usedAt = usedAt.UTC().Truncate(time.Millisecond)
 	r.mu.Lock()
-	if _, retired := r.retired[botID][credentialKey]; retired {
+	if isActive != nil && !isActive() {
 		r.mu.Unlock()
 		return
 	}
@@ -92,13 +97,10 @@ func (r *credentialUsageRecorder) Forget(ctx context.Context, botID, credentialK
 	r.mu.Lock()
 	deleteCredentialUsage(r.pending, botID, credentialKey)
 	deleteCredentialUsage(r.observed, botID, credentialKey)
-	if r.retired[botID] == nil {
-		r.retired[botID] = make(map[string]struct{})
-	}
-	r.retired[botID][credentialKey] = struct{}{}
+	deleteCredentialUsage(r.lastFlush, botID, credentialKey)
 	r.mu.Unlock()
 	if err := r.deletePersisted(ctx, botID, credentialKey); err != nil && r.logger != nil {
-		r.logger.Warn("Failed to remove retired credential usage telemetry", "error", err)
+		r.logger.Warn("Failed to remove revoked credential usage telemetry", "error", err)
 	}
 }
 
@@ -112,7 +114,6 @@ func (r *credentialUsageRecorder) ForgetAll(ctx context.Context, botID string) {
 	delete(r.pending, botID)
 	delete(r.observed, botID)
 	delete(r.lastFlush, botID)
-	delete(r.retired, botID)
 	r.mu.Unlock()
 	if err := r.kv.Delete(ctx, credentialUsageRuntimeStateKey(botID)); err != nil && !isRuntimeStateKeyAbsent(err) && r.logger != nil {
 		r.logger.Warn("Failed to remove deleted bot credential usage telemetry", "error", err)
@@ -194,18 +195,27 @@ func (r *credentialUsageRecorder) flushDue(ctx context.Context, now time.Time) {
 	}
 	r.mu.RUnlock()
 	for _, item := range due {
-		if err := r.writeMax(ctx, item.botID, item.credentialKey, item.usedAt); err != nil {
-			if ctx.Err() == nil && r.logger != nil {
-				r.logger.Warn("Failed to record credential usage telemetry", "error", err)
+		err := r.writeMax(ctx, item.botID, item.credentialKey, item.usedAt)
+		r.mu.Lock()
+		_, active := r.observed[item.botID][item.credentialKey]
+		if err == nil && active {
+			setNewestUsage(r.lastFlush, item.botID, item.credentialKey, now)
+			if pendingAt := r.pending[item.botID][item.credentialKey]; !pendingAt.After(item.usedAt) {
+				deleteCredentialUsage(r.pending, item.botID, item.credentialKey)
+			}
+		}
+		r.mu.Unlock()
+		if !active {
+			// Forget can run while writeMax is in flight. Remove a late or
+			// ambiguously committed write after the local observation is gone.
+			if cleanupErr := r.deletePersisted(ctx, item.botID, item.credentialKey); cleanupErr != nil && ctx.Err() == nil && r.logger != nil {
+				r.logger.Warn("Failed to remove revoked credential usage telemetry", "error", cleanupErr)
 			}
 			continue
 		}
-		r.mu.Lock()
-		setNewestUsage(r.lastFlush, item.botID, item.credentialKey, now)
-		if pendingAt := r.pending[item.botID][item.credentialKey]; !pendingAt.After(item.usedAt) {
-			deleteCredentialUsage(r.pending, item.botID, item.credentialKey)
+		if err != nil && ctx.Err() == nil && r.logger != nil {
+			r.logger.Warn("Failed to record credential usage telemetry", "error", err)
 		}
-		r.mu.Unlock()
 	}
 }
 
