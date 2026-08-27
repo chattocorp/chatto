@@ -18,9 +18,11 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 - Only the message body text can be edited. Attachments aren't editable as text but can be removed individually.
 - Edited message bodies are capped at the same 10,000-byte limit as newly posted message bodies.
 - Edited messages show a pen icon after their text. The icon is not a control.
-- Deletions remove the message body and all attachments and initially replace the rendered message with a "[Message deleted]" placeholder.
+- Deletions remove the message body and all attachments. The client removes the
+  row immediately when no visible context remains.
 - Attachment bytes are deleted only when the durable asset owner is the exact message being changed; a duplicate reference left by an older vulnerable server is removed without damaging the owning message.
-- A deleted-message placeholder disappears after one hour when the message has no current attachments or link preview, reactions, or replies in its thread.
+- A deleted-message placeholder remains visible only while the message has a
+  current attachment or link preview, a reaction, or a reply in its thread.
 - Being a reply, a message inside a thread, or a channel echo does not by itself keep a deleted-message placeholder visible.
 - Deleting an already-deleted message is a no-op.
 - Editing a message does not re-resolve mentions. Mentions and mention notifications remain tied to the original posted message.
@@ -74,11 +76,18 @@ Authors can edit and delete their own messages; users with `message.manage` can 
 **Why:** GDPR. Soft-delete leaves user-generated content in the database, which is the wrong default for an open-source chat app where users expect "delete" to mean delete. Separating public message facts from body payloads preserves the conversation audit trail while allowing body material to be removed. See ADR-007.
 **Tradeoff:** No undo. Moderators can't restore a deleted message. Older embedded-body EVT histories remain readable for compatibility but cannot be physically shredded at body granularity.
 
-### 7. Context-free tombstones expire after one hour
+### 7. Context-free tombstones disappear immediately
 
-**Decision:** Deleted-message placeholders remain visible for one hour. After that, the client removes placeholders that no longer carry visible attachments, previews, reactions, or thread replies. The same rule applies to deleted replies, thread messages, and channel echoes.
-**Why:** A recent tombstone explains an abrupt gap to nearby readers, while a permanent placeholder adds noise when no surviving conversation depends on it.
-**Tradeoff:** Timeline clients need deletion timestamps, and older clients can display more tombstones than newer clients during mixed-version rollouts. Replies that merely point at a deleted message do not retain its placeholder unless they are represented by the message's existing thread summary.
+**Decision:** The client immediately removes deleted-message placeholders that
+have no visible attachments, previews, reactions, or thread replies. The same
+rule applies to deleted replies, thread messages, channel echoes, and
+attachment-only messages after removal of their final attachment.
+**Why:** A placeholder has value only when visible conversation state still
+refers to the deleted message. An empty placeholder adds noise and does not help
+the reader.
+**Tradeoff:** A deletion can create an immediate gap in a timeline. Replies that
+merely point at a deleted message do not retain its placeholder unless the
+message's thread summary contains a reply.
 
 ## Permissions
 
