@@ -36,9 +36,10 @@ test.describe('Notification policy', () => {
     );
     await expect(directMessages).toBeVisible();
     await expect(page.locator('[data-notification-field="roomInvitations"]')).toHaveCount(0);
+    await expect(page.locator('[data-notification-field="followedRooms"]')).toHaveCount(0);
     await expect(
       page.locator('td[data-notification-scope="server"] [data-notification-field]')
-    ).toHaveCount(10);
+    ).toHaveCount(9);
     await expect(directMessages).toHaveAttribute('aria-label', /Default: Push notification/);
     await expect(
       page.locator(
