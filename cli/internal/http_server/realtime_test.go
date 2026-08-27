@@ -28,6 +28,10 @@ import (
 	"hmans.de/chatto/internal/publiccursor"
 )
 
+// Keep catch-up reads open long enough to observe either the server response or
+// its configured timeout response under a loaded test runner.
+const realtimeTestCatchUpReadTimeout = realtimeCatchUpDefaultTimeout + 5*time.Second
+
 func TestRealtimeAuthenticatedUserPreservesAuthenticationValidationError(t *testing.T) {
 	s := &HTTPServer{}
 	want := errors.New("storage unavailable")
@@ -241,7 +245,7 @@ func subscribeRealtime(t testing.TB, conn *websocket.Conn, token string, retaine
 		t.Fatalf("second realtime frame = %T (%+v), want subscribed", subscribed.GetFrame(), subscribed)
 	}
 	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, conn, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
@@ -350,7 +354,7 @@ func waitRealtimeRoomUpsert(t testing.TB, conn *websocket.Conn, timeout time.Dur
 func readRealtimeCaughtUp(t testing.TB, conn *websocket.Conn) *realtimev1.RealtimeCaughtUp {
 	t.Helper()
 	for {
-		frame, ok := readRealtimeServerFrame(t, conn, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, conn, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for realtime caught_up")
 		}
@@ -1106,7 +1110,7 @@ func TestRealtimeWebSocketRateLimitsStaleCursorReuse(t *testing.T) {
 		SubscribeEvents: &realtimev1.RealtimeSubscribeEvents{ResumeCursor: &staleCursor},
 	}})
 	for {
-		frame, ok := readRealtimeServerFrame(t, replay, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, replay, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for stale-cursor replay caught_up")
 		}
@@ -1171,7 +1175,7 @@ func TestRealtimeWebSocketAllowsCurrentBoundaryReconnectAfterRateLimitBurst(t *t
 		t.Fatalf("current-boundary reconnect response = %+v, want subscribed", frame)
 	}
 	for {
-		frame, ok := readRealtimeServerFrame(t, reconnected, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, reconnected, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for current-boundary reconnect caught_up")
 		}
@@ -3422,7 +3426,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 	if subscribed.GetSubscribed().GetStartCursor() == expiredCursor {
 		t.Fatal("expired resume retained the unusable cursor")
 	}
-	firstProjection, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+	firstProjection, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 	if !ok || firstProjection.GetProjectionEvent() == nil {
 		t.Fatalf("expired resume first projection frame = %+v", firstProjection)
 	}
@@ -3436,7 +3440,7 @@ func TestRealtimeWebSocketExpiredCursorFallsBackToCompactedReset(t *testing.T) {
 
 	var foundRoom, foundTimeline, foundThreadStates, foundNotifications, foundViewer, foundPresence bool
 	for {
-		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for expired-resume caught_up")
 		}
@@ -3585,7 +3589,7 @@ func TestRealtimeWebSocketResumesAssetAndHiddenEchoGapThenContinuesLive(t *testi
 	threadViewerReconciliations := 0
 	var caughtUpCursor string
 	for caughtUpCursor == "" {
-		frame, ok := readRealtimeServerFrame(t, resumed, 5*time.Second)
+		frame, ok := readRealtimeServerFrame(t, resumed, realtimeTestCatchUpReadTimeout)
 		if !ok {
 			t.Fatal("timed out waiting for resumed caught_up")
 		}
