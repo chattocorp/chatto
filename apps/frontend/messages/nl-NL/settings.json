@@ -9,6 +9,8 @@
       "account": "Account",
       "bots": "Bots",
       "user_preferences": "Gebruikersvoorkeuren",
+      "app_preferences": "Appvoorkeuren",
+      "your_account": "Jouw account",
       "server_configuration": "Serverconfiguratie"
     },
     "app_preferences": {

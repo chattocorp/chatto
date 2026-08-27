@@ -9,6 +9,8 @@
       "account": "帳號",
       "bots": "機器人",
       "user_preferences": "使用者偏好設定",
+      "app_preferences": "應用程式偏好設定",
+      "your_account": "你的帳號",
       "server_configuration": "伺服器設定"
     },
     "app_preferences": {
